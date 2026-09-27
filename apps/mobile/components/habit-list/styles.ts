@@ -91,10 +91,6 @@ export function createStyles(tokens: AppTokens) {
     listContentWithBulkBar: {
       paddingBottom: 96 + 96 + 24,
     },
-    groupedList: {
-      paddingBottom: 96,
-      paddingHorizontal: 16,
-    },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -9,14 +9,6 @@ interface HabitScheduleMatchSource {
   instances?: Array<{ date: string }> | null
 }
 
-type HabitEmptyStateView = 'today' | 'all' | 'general'
-
-export function getHabitEmptyStateKey(view: HabitEmptyStateView): string {
-  if (view === 'general') return 'habits.emptyGeneral'
-  if (view === 'today') return 'habits.noDueToday'
-  return 'habits.noHabitsYet'
-}
-
 export function determineHabitDayStatus(
   date: Date,
   wasLogged: boolean,

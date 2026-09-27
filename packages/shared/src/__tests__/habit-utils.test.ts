@@ -4,24 +4,9 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
-  getHabitEmptyStateKey,
   hasAncestorInSet,
 } from '../utils/habits'
 import type { CalendarMonthResponse } from '../types/habit'
-
-describe('getHabitEmptyStateKey', () => {
-  it('returns the general key for general view', () => {
-    expect(getHabitEmptyStateKey('general')).toBe('habits.emptyGeneral')
-  })
-
-  it('returns the today key for today view', () => {
-    expect(getHabitEmptyStateKey('today')).toBe('habits.noDueToday')
-  })
-
-  it('returns the all key for all view', () => {
-    expect(getHabitEmptyStateKey('all')).toBe('habits.noHabitsYet')
-  })
-})
 
 describe('determineHabitDayStatus', () => {
   it('returns completed when the habit was logged', () => {

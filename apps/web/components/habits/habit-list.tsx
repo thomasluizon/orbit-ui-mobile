@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
-  buildHabitDateBuckets,
   canLogHabitOnDate,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
@@ -17,11 +16,9 @@ import {
   computeParentPromptProgress,
   formatAPIDate,
   formatAPIDateInTimeZone,
-  getHabitEmptyStateKey,
   getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
-  isHabitVisibleInAllView,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -30,12 +27,6 @@ import {
   HabitListEmptyState,
   HabitListSkeleton,
 } from './habit-list/empty-state'
-import { getEmptyHabitsMessage } from './habit-list/empty-state-message'
-import {
-  HabitListDateGroupSection,
-  type HabitListDateGroup,
-} from './habit-list/date-group-section'
-import { formatDateGroupLabel } from './habit-list/date-group-label'
 import { HabitDrill } from './habit-list/habit-drill'
 import type { MoveParentOption } from './habit-list/move-parent-overlay'
 import {
@@ -132,7 +123,7 @@ function DeferredMoveParentOverlay(
 
 interface HabitListProps {
   ref?: Ref<HabitListHandle>
-  view?: 'today' | 'all' | 'general'
+  view?: 'today'
   selectedDate?: Date
   showCompleted?: boolean
   onShowCompleted?: () => void
@@ -164,7 +155,6 @@ export interface HabitListHandle {
 
 interface ParentSettlementData {
   getChildren: (id: string) => NormalizedHabit[]
-  isListView: boolean
   visibility: ReturnType<typeof useHabitVisibility>
   habitsById: Map<string, NormalizedHabit>
   selectedDateStr: string
@@ -235,7 +225,6 @@ function getParentPromptProgress(
     getChildren: settlementData.getChildren,
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
-    isListView: settlementData.isListView,
     skippedIds: confirmedResolutions.skippedIds,
     resolvedModes: confirmedResolutions.modes,
   })
@@ -477,36 +466,23 @@ export function HabitList({
   }, [setCollapsedIds])
 
   const habits = useMemo(() => {
-    if (view === 'all') {
-      return topLevelHabits.filter((h) => isHabitVisibleInAllView(h, showCompleted))
-    }
-
-    if (view === 'general') {
-      return showCompleted
-        ? topLevelHabits
-        : topLevelHabits.filter(
-            (h) => !h.isCompleted || recentlyCompletedIds.has(h.id),
-          )
-    }
     return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is destructured from the query data every render and already listed; the memo keys off the resolved array, not data.topLevelHabits https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
+  }, [topLevelHabits, visibility])
 
   const allLoadedIds = useMemo(() => {
     return collectVisibleHabitTreeIds(habits, getVisibleChildren)
   }, [getVisibleChildren, habits])
 
-  const isListView = view === 'all' || view === 'general'
   useEffect(() => {
     promptDataRef.current = {
       getChildren,
-      isListView,
       visibility,
       habitsById,
       selectedDateStr,
     }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren and habitsById are aliased from the query result every render and already listed; the effect only mirrors the current render values into a ref, so no staleness is possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [promptDataRef, getChildren, isListView, visibility, habitsById, selectedDateStr])
+  }, [promptDataRef, getChildren, visibility, habitsById, selectedDateStr])
 
   const childrenProgressMap = useMemo(() => {
     const map = new Map<string, { done: number; total: number }>()
@@ -518,7 +494,7 @@ export function HabitList({
       let done = 0
       let total = 0
 
-      if (isListView || child.isGeneral) {
+      if (child.isGeneral) {
         total++
         if (child.isCompleted) done++
       } else if (!visibility.isRelevantToday(child) && !child.isOverdue && !child.isLoggedInRange) {
@@ -567,7 +543,7 @@ export function HabitList({
 
     return map
     // react-doctor-disable-next-line exhaustive-deps -- getChildren is aliased from habitsQuery.getChildren every render and already listed; the memo keys off the resolved function, not habitsQuery.getChildren https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [habitsById, getChildren, isListView, visibility])
+  }, [habitsById, getChildren, visibility])
 
   const getChildrenProgress = useCallback(
     (habitId: string) => {
@@ -599,20 +575,7 @@ export function HabitList({
     promptedParentIdsRef,
   ])
 
-  const dateGroups = useMemo<HabitListDateGroup[]>(() => {
-    if (view !== 'all') return []
-
-    return buildHabitDateBuckets(habits, todayStr).map((bucket) => ({
-      ...bucket,
-      label:
-        bucket.key === '__overdue__'
-          ? t('habits.overdue')
-          : formatDateGroupLabel(bucket.key, locale, t),
-    }))
-  }, [view, habits, t, locale, todayStr])
-
   const dragItems = useMemo<DragItem[]>(() => {
-    if (view === 'all') return []
     return buildDragItemsFlat(habits, collapsedIds, visibility.getVisibleChildren, view)
   }, [habits, collapsedIds, visibility, view])
 
@@ -643,7 +606,7 @@ export function HabitList({
   })
   const sensors = useSensors(pointerSensor, touchSensor, keyboardSensor)
 
-  const isDndEnabled = view !== 'all' && !isSelectMode
+  const isDndEnabled = !isSelectMode
 
   function handleDragStart(event: DragStartEvent) {
     setIsDragging(true)
@@ -709,7 +672,7 @@ export function HabitList({
     }
   }
 
-  const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
+  const cardSelectedDate = selectedDate ?? new Date()
 
   const [showEditModal, setShowEditModal] = useAccountScopedState(false)
   const [habitToEdit, setHabitToEdit] = useAccountScopedState<NormalizedHabit | null>(null)
@@ -1216,7 +1179,7 @@ export function HabitList({
     if (habit.isBadHabit) return 'bad'
     const completed = recentlyCompleted || habit.isCompleted || habit.isLoggedInRange
     if (completed) return 'done'
-    const status = computeHabitCardStatus(habit, view === 'today' ? cardSelectedDate : undefined)
+    const status = computeHabitCardStatus(habit, cardSelectedDate)
     if (status === 'overdue') return 'overdue'
     return 'empty'
   }
@@ -1331,24 +1294,6 @@ export function HabitList({
     )
   }
 
-  function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
-    if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
-    const children = getVisibleChildren(parentId)
-    if (children.length === 0) return null
-
-    return children.map((child) => (
-      <div key={child.id}>
-        {renderHabitCard(
-          child,
-          depth,
-          getVisibleChildren(child.id).length > 0,
-          habitsById.get(child.id)?.hasSubHabits ?? false,
-        )}
-        {renderAllViewChildren(child.id, depth + 1)}
-      </div>
-    ))
-  }
-
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
@@ -1363,7 +1308,7 @@ export function HabitList({
       )
     }
 
-    if (habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0) {
+    if (habits.length === 0 && (data?.totalCount ?? 0) > 0) {
       return (
         <HabitListEmptyState
           title={t('habits.allDoneToday')}
@@ -1378,37 +1323,13 @@ export function HabitList({
     if (habits.length === 0) {
       return (
         <HabitListEmptyState
-          title={view === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(view))}
-          description={view === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(view, t)}
+          title={t('habits.emptyState')}
+          description={t('habits.noHabitsBody')}
           askAstraLabel={t('habits.askAstra')}
           onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
           onAction={onCreate}
         />
-      )
-    }
-
-    if (view === 'all') {
-      return (
-        <>
-          {dateGroups.map((group) => (
-            <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
-              <div className="flex flex-col" style={{ gap: 12 }}>
-                {group.habits.map((habit) => (
-                  <div key={habit.id} className={HABIT_PANEL_CLASS_NAME}>
-                    {renderHabitCard(
-                      habit,
-                      0,
-                      getChildren(habit.id).length > 0,
-                      habit.hasSubHabits,
-                    )}
-                    {renderAllViewChildren(habit.id, 1)}
-                  </div>
-                ))}
-              </div>
-            </HabitListDateGroupSection>
-          ))}
-        </>
       )
     }
 

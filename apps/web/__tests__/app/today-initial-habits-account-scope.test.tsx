@@ -42,7 +42,6 @@ function scheduleItem(id: string, title: string): HabitScheduleItem {
 /** The same producers `today-initial-data.ts` runs on the server, so the key matches the client's. */
 function initialHabitsFor(item: HabitScheduleItem) {
   const filters = buildTodayFilters({
-    view: 'today',
     dateStr: DATE,
     isTodayDate: true,
     searchQuery: '',

@@ -14,7 +14,6 @@ import {
   View,
   FlatList,
   RefreshControl,
-  type ListRenderItem,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
@@ -26,7 +25,6 @@ import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
-  buildHabitDateBuckets,
   canLogHabitOnDate,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
@@ -35,11 +33,9 @@ import {
   collectVisibleHabitTreeIds,
   formatAPIDate,
   formatAPIDateInTimeZone,
-  getHabitEmptyStateKey,
   getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
-  isHabitVisibleInAllView,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -71,15 +67,7 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import {
-  getEmptyHabitsMessage,
-  HabitListEmptyState,
-} from './habit-list/empty-state'
-import {
-  formatDateGroupLabel,
-  HabitListDateGroupSection,
-  type HabitListDateGroup,
-} from './habit-list/date-group-section'
+import { HabitListEmptyState } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
@@ -94,7 +82,7 @@ import {
 import { createStyles } from './habit-list/styles'
 
 interface HabitListProps {
-  view?: 'today' | 'all' | 'general'
+  view?: 'today'
   filters: HabitsFilter
   selectedDate?: Date
   showCompleted: boolean
@@ -257,7 +245,6 @@ function shiftParentPrompt(queue: ParentPromptQueue, date: string): ParentPrompt
 
 interface ParentSettlementData {
   getChildren: (id: string) => NormalizedHabit[]
-  isListView: boolean
   visibility: ReturnType<typeof useHabitVisibility>
   habitsById: Map<string, NormalizedHabit>
   selectedDateStr: string
@@ -289,7 +276,6 @@ function getParentPromptProgress(
     getChildren: settlementData.getChildren,
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
-    isListView: settlementData.isListView,
     skippedIds: confirmedResolutions.skippedIds,
     resolvedModes: confirmedResolutions.modes,
   })
@@ -378,7 +364,7 @@ function resolveParentSettlement(
   return mode ? { parentId: prompt.habit.id, mode, date: prompt.date } : null
 }
 
-// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
     {
@@ -403,8 +389,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     },
     ref,
   ) {
-    const { t, i18n } = useTranslation()
-    const deviceLocale = i18n.language
+    const { t } = useTranslation()
     const router = useRouter()
     const pathname = usePathname()
     const { profile } = useProfile()
@@ -421,7 +406,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const bulkBarStyle = isSelectMode ? styles.listContentWithBulkBar : null
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
-    const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -595,38 +579,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const visibleHabits = useMemo(() => {
-      if (view === 'today') {
-        return topLevelHabits.filter((habit) =>
-          visibility.hasVisibleContent(habit),
-        )
-      }
-
-      if (view === 'all') {
-        return topLevelHabits.filter((habit) =>
-          isHabitVisibleInAllView(habit, showCompleted),
-        )
-      }
-
-      return showCompleted
-        ? topLevelHabits
-        : topLevelHabits.filter(
-            (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
-          )
+      return topLevelHabits.filter((habit) =>
+        visibility.hasVisibleContent(habit),
+      )
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
-
-    const dateGroups = useMemo<HabitListDateGroup[]>(() => {
-      if (view !== 'all') return []
-
-      return buildHabitDateBuckets(visibleHabits, todayStr).map((bucket) => ({
-        ...bucket,
-        label:
-          bucket.key === '__overdue__'
-            ? t('habits.overdue')
-            : formatDateGroupLabel(bucket.key, deviceLocale, t),
-      }))
-    // react-doctor-disable-next-line exhaustive-deps -- deviceLocale is the extracted i18n.language and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [deviceLocale, t, todayStr, view, visibleHabits])
+    }, [topLevelHabits, visibility])
 
     const allLoadedIds = useMemo(() => {
       return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
@@ -732,20 +689,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       activeDragItemsRef.current = activeDragItems
     // react-doctor-disable-next-line exhaustive-deps -- activeDragItems already combines dragOverrideItems and flatItems (both the analyzer flags); listing the combined value is sufficient, no staleness https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [activeDragItems])
-    const isDndEnabled = view !== 'all' && !isSelectMode
-
-    const isListView = view === 'all' || view === 'general'
+    const isDndEnabled = !isSelectMode
 
     useEffect(() => {
       promptDataRef.current = {
         getChildren,
-        isListView,
         visibility,
         habitsById,
         selectedDateStr,
       }
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, isListView, visibility, habitsById, selectedDateStr])
+    }, [getChildren, visibility, habitsById, selectedDateStr])
 
     const childrenProgressMap = useMemo(() => {
       const map = new Map<string, { done: number; total: number }>()
@@ -757,7 +711,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         let done = 0
         let total = 0
 
-        if (isListView || child.isGeneral) {
+        if (child.isGeneral) {
           total += 1
           if (child.isCompleted) {
             done += 1
@@ -821,7 +775,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       return map
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [getChildren, habitsById, isListView, visibility])
+    }, [getChildren, habitsById, visibility])
 
     const getChildrenProgress = useCallback(
       (habitId: string) => {
@@ -1444,7 +1398,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             | { scrollToOffset?: (params: { offset: number; animated?: boolean }) => void }
             | null =
             scrollContainerRef.current ??
-            allViewListRef.current ??
             drillListRef.current
           try {
             target?.scrollToOffset?.({
@@ -1592,10 +1545,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderEmptyState = useCallback(
-      (currentView: 'today' | 'all' | 'general') => (
+      () => (
         <HabitListEmptyState
-                  title={currentView === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(currentView))}
-                  description={currentView === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(currentView, t)}
+          title={t('habits.emptyState')}
+          description={t('habits.noHabitsBody')}
           askAstraLabel={t('habits.askAstra')}
           onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
@@ -1626,44 +1579,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ),
       // react-doctor-disable-next-line exhaustive-deps -- isFetching/isLoading/refetch are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [tokens.primary, insets.top, isFetching, isLoading, refetch],
-    )
-
-    const renderGroupSection = useCallback<ListRenderItem<HabitListDateGroup>>(
-      ({ item: group }) => (
-        <HabitListDateGroupSection
-          group={group}
-          overdueLabel={t('habits.overdue')}
-          renderHabit={(habit) => {
-            const panelItems = buildFlatHabitItems(
-              [habit],
-              collapsedIds,
-              getVisibleChildren,
-            )
-            return (
-              <View>
-                {panelItems.map((item, index) =>
-                  renderHabitCard(
-                    item.habit,
-                    item.depth,
-                    item.hasChildren,
-                    item.hasSubHabits,
-                    {
-                      panelStart: index === 0,
-                      panelEnd: index === panelItems.length - 1,
-                    },
-                  ),
-                )}
-              </View>
-            )
-          }}
-        />
-      ),
-      [
-        collapsedIds,
-        getVisibleChildren,
-        renderHabitCard,
-        t,
-      ],
     )
 
     const commonOverlays = (
@@ -1802,8 +1717,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (
       flatItems.length === 0 &&
       totalCount > 0 &&
-      !showCompleted &&
-      view === 'today'
+      !showCompleted
     ) {
       return (
         <>
@@ -1837,36 +1751,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    if (view === 'all') {
-      return (
-        <>
-          <FlatList
-            ref={allViewListRef}
-            data={dateGroups}
-            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-            keyExtractor={(item) => item.key}
-            renderItem={renderGroupSection}
-            ListHeaderComponent={listHeaderComponent}
-            ListEmptyComponent={renderEmptyState('all')}
-            contentContainerStyle={[
-              styles.groupedList,
-              bulkBarStyle,
-            ]}
-            refreshControl={refreshControl}
-            onScroll={handleListScroll}
-            scrollEventThrottle={16}
-            onScrollBeginDrag={onScrollBeginDrag}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={10}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={false}
-          />
-          {commonOverlays}
-        </>
-      )
-    }
-
     return (
       <>
         <DraggableFlatList
@@ -1884,7 +1768,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={listHeaderComponent}
-          ListEmptyComponent={renderEmptyState(view)}
+          ListEmptyComponent={renderEmptyState()}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}
