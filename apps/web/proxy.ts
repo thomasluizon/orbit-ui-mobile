@@ -68,10 +68,6 @@ async function applyRefreshedSession(
 }
 
 function createContentSecurityPolicy(nonce: string): string {
-  const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
-
-  const websocketUrl = new URL(supabaseUrl.origin)
-  websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
   const developmentScriptSource =
     process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
@@ -80,9 +76,9 @@ function createContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
     "frame-src https://challenges.cloudflare.com",
-    `img-src 'self' blob: data: ${supabaseUrl.origin}`,
+    "img-src 'self' blob: data:",
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${new URL(accountEventApiBase()).origin}`,
+    `connect-src 'self' ${new URL(accountEventApiBase()).origin}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

@@ -3,7 +3,6 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { getQueryClient } from '@/lib/query-client'
-import { clearSupabaseSession } from '@/lib/supabase'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
@@ -101,7 +100,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
-    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
@@ -149,7 +147,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -161,7 +158,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
-      clearSupabaseSession()
       sessionRecoveryUser ??= get().user
       set({
         isAuthenticated: false,
@@ -201,7 +197,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -244,7 +239,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -287,7 +281,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
-    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1

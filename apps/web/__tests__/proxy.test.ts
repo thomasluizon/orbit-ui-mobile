@@ -55,7 +55,6 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 
 describe('proxy', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.mocked(NextResponse.next).mockClear()
@@ -139,8 +138,7 @@ describe('proxy', () => {
     expect(await ticketResponse.json()).toMatchObject({ apiBase: 'https://api.useorbit.org' })
   })
 
-  it('allows local Supabase connections and development scripts in development', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321')
+  it('allows development scripts without an external auth origin', async () => {
     vi.stubEnv('NODE_ENV', 'development')
 
     const response = await proxy(createRequest('/api/profile'))
@@ -149,7 +147,7 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).toContain("script-src 'self'")
     expect(contentSecurityPolicy).toContain("'unsafe-eval'")
     expect(contentSecurityPolicy).toContain(
-      "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://api.useorbit.org",
+      "connect-src 'self' https://api.useorbit.org",
     )
   })
 

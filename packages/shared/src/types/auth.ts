@@ -58,3 +58,13 @@ export const googleAuthRequestSchema = z.object({
 })
 
 export type GoogleAuthRequest = z.infer<typeof googleAuthRequestSchema>
+
+export const googleCodeAuthRequestSchema = z.object({
+  code: z.string(),
+  codeVerifier: z.string(),
+  redirectUri: z.string(),
+  language: z.string().optional(),
+  referralCode: z.string().nullable().optional(),
+})
+
+export type GoogleCodeAuthRequest = z.infer<typeof googleCodeAuthRequestSchema>

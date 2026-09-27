@@ -1,8 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as SecureStore from 'expo-secure-store'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { getPendingGoogleAuthVerifier, markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { i18n } from '@/lib/i18n'
@@ -30,7 +29,6 @@ import { getAccountId, setAccountId } from '@/lib/account-scope'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const TestRenderer = require('react-test-renderer')
-const clearSupabaseSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -47,7 +45,6 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
-vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: clearSupabaseSessionMock }))
 
 const {
   replaceMock,
@@ -294,25 +291,21 @@ describe('mobile auth store security paths', () => {
     },
   )
   it('deletes a pending OAuth attempt when another account signs in', async () => {
-    await markPendingGoogleAuthSession(10)
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+    markPendingGoogleAuthSession(10, 'verifier', 'state')
 
     await useAuthStore.getState().login('replacement-token', null, {
       userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
     })
+    expect(getPendingGoogleAuthVerifier('state')).toBeNull()
 
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-    expect(clearSupabaseSessionMock).toHaveBeenCalled()
   })
 
   it('deletes a pending OAuth attempt on logout', async () => {
-    await markPendingGoogleAuthSession(10)
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+    markPendingGoogleAuthSession(10, 'verifier', 'state')
 
     await useAuthStore.getState().logout()
+    expect(getPendingGoogleAuthVerifier('state')).toBeNull()
 
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-    expect(clearSupabaseSessionMock).toHaveBeenCalled()
   })
 
   beforeEach(() => {

@@ -13,8 +13,7 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `RENDER_WEB_STAGING_SERVICE_ID` | Render service ID for `orbit-web-staging` |
 | `RENDER_WEB_SERVICE_ID` | Render service ID for `orbit-web` |
 | `PRODUCTION_WEB_HOST` | Production hostname, without `https://` or a path |
-| `STAGING_NEXT_PUBLIC_SUPABASE_URL`, `PRODUCTION_NEXT_PUBLIC_SUPABASE_URL` | Public Supabase project URL |
-| `STAGING_NEXT_PUBLIC_SUPABASE_ANON_KEY`, `PRODUCTION_NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public Supabase publishable key |
+| `STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Public Google OAuth web client ID |
 | `STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public push key |
 | `STAGING_NEXT_PUBLIC_EVENT_API_BASE`, `PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE` | Browser reachable API origin for event streaming |
 | `STAGING_NEXT_PUBLIC_SITE_URL`, `PRODUCTION_NEXT_PUBLIC_SITE_URL` | Web origin for metadata |

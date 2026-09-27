@@ -248,15 +248,17 @@ export default function CalendarSyncScreen() {
           : '/calendar-sync',
         forceConsent: true,
       })
-      if (result.type !== 'success') return
+      if (result.type !== 'success') {
+        router.replace('/login?googleError=1')
+        return
+      }
       router.replace('/auth-callback')
     } catch {
-      setErrorMessage(t('auth.googleError'))
-      setWizardStage('error')
+      router.replace('/login?googleError=1')
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router, t])
+  }, [isConnecting, isOnline, isReviewMode, router])
 
   const handleToggleAutoSync = useCallback(
     (enabled: boolean) => {

@@ -65,6 +65,7 @@ export function useLoginFlow() {
     email?: string
     code?: string
     from?: string
+    googleError?: string
   }>()
   const router = useRouter()
   const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
@@ -84,6 +85,9 @@ export function useLoginFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  useEffect(() => {
+    if (params.googleError === '1') void Promise.resolve().then(() => setErrorMessage(t('auth.googleError')))
+  }, [params.googleError, t])
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -375,7 +379,10 @@ export function useLoginFlow() {
         returnUrl: pendingReturnUrl,
       })
 
-      if (result.type !== 'success') return
+      if (result.type !== 'success') {
+        reportError(t('auth.googleError'))
+        return
+      }
 
       router.replace('/auth-callback')
     } catch (err: unknown) {
