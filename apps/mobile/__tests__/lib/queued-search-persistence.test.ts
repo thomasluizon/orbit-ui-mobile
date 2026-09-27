@@ -13,8 +13,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }))
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: (mutation: QueuedMutation) => mutation.id,
+  enqueueWithCompaction: (mutation: QueuedMutation) => ({ id: mutation.id, compactedCreate: null }),
   getAll: () => [],
   findUnfinalizedFirstWrite: () => null,
+  subscribeQueueClear: () => () => {},
 }))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: () => Promise.resolve(false) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))

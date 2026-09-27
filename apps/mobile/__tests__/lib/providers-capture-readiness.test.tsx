@@ -73,6 +73,7 @@ vi.mock('@/lib/query-client', async () => {
 })
 
 vi.mock('@/lib/orbit-widget', () => ({ syncWidgetData: vi.fn(() => Promise.resolve()) }))
+vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/lib/session-resume', () => ({ reconcileSessionOnForeground: vi.fn(() => Promise.resolve()) }))
 vi.mock('@/lib/capture-animation-pin', () => ({ pinCaptureAnimationDurations: vi.fn() }))
 
