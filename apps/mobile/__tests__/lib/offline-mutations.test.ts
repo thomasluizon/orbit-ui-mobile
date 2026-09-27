@@ -184,6 +184,9 @@ vi.mock('@/lib/offline-queue', () => ({
   ACCOUNT_TIMEZONE_DEPENDENCY: 'offline-account-timezone',
   accountTimezoneDependency: (timezoneMutationId: string) => `offline-account-timezone:${timezoneMutationId}`,
   enqueue: mocks.enqueue,
+  enqueueWithCompaction: (mutation: Parameters<typeof mocks.enqueue>[0]) => ({
+    id: mocks.enqueue(mutation), compactedCreate: null,
+  }),
   getAll: mocks.getAll,
   getById: mocks.getById,
   findUnfinalizedFirstWrite: mocks.findUnfinalizedFirstWrite,
@@ -191,6 +194,7 @@ vi.mock('@/lib/offline-queue', () => ({
   remove: mocks.remove,
   update: mocks.update,
   replaceEntityReferences: mocks.replaceEntityReferences,
+  subscribeQueueClear: () => () => {},
 }))
 
 vi.mock('@/lib/offline-state', () => ({

@@ -720,7 +720,7 @@ export function useDeleteHabit() {
           return
         }
         restoreHabit.mutate(habitId)
-      })
+      }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
     onSettled: (data, error, habitId) => {

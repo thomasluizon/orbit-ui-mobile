@@ -7,6 +7,7 @@ export type StoredToast = Parameters<typeof Toast>[0]
 interface AppToastItem {
   id: number
   toast: StoredToast
+  onDismiss?: () => void
 }
 
 interface AppToastStore {
@@ -16,7 +17,7 @@ interface AppToastStore {
   showError: (message: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
-  showQueued: (message: string, actionLabel?: string, onAction?: () => void) => void
+  showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => void
   triggerAction: () => void
   dismissToast: () => void
 }
@@ -27,9 +28,9 @@ type SetAppToastState = (
 
 let toastCounter = 0
 
-function createToast(toast: StoredToast): AppToastItem {
+function createToast(toast: StoredToast, onDismiss?: () => void): AppToastItem {
   toastCounter += 1
-  return { id: toastCounter, toast }
+  return { id: toastCounter, toast, onDismiss }
 }
 
 function hasRemovalPath(toast: StoredToast): boolean {
@@ -41,11 +42,12 @@ function hasRemovalPath(toast: StoredToast): boolean {
 function enqueueToast(
   set: SetAppToastState,
   toast: StoredToast,
+  onDismiss?: () => void,
 ) {
   const trimmedMessage = toast.message.trim()
   if (!trimmedMessage) return
 
-  const nextToast = createToast({ ...toast, message: trimmedMessage })
+  const nextToast = createToast({ ...toast, message: trimmedMessage }, onDismiss)
   set((state) => {
     if (!toast.onAction && [state.currentToast, state.queue.at(-1)].some((item) =>
       !item?.toast.onAction && item?.toast.message === trimmedMessage && item.toast.kind === toast.kind,
@@ -86,13 +88,14 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
     })
   },
   showInfo: (message) => enqueueToast(set, { kind: 'neutral', message }),
-  showQueued: (message, actionLabel, onAction) => {
+  showQueued: (message, actionLabel, onAction, onDismiss) => {
     void triggerHaptic('selection')
     enqueueToast(
       set,
       actionLabel && onAction
         ? { kind: 'neutral', message, actionLabel, onAction }
         : { kind: 'neutral', message },
+      onDismiss,
     )
   },
   triggerAction: () => {
@@ -101,11 +104,13 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
     useAppToastStore.getState().dismissToast()
   },
   dismissToast: () => {
+    const dismissed = useAppToastStore.getState().currentToast
     set((state) => {
       if (state.queue.length === 0) return { currentToast: null }
 
       const [currentToast, ...queue] = state.queue
       return { currentToast, queue }
     })
+    dismissed?.onDismiss?.()
   },
 }))

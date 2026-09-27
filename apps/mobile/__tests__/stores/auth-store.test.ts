@@ -86,6 +86,7 @@ const {
   fetchMock,
   setQueryCacheScopeMock,
   cancelScheduledFlushMock,
+  clearCompactedCreatesForUndoMock,
   resumeOfflineReplayMock,
   cancelPersistentReminderMock,
   cancelQueriesMock,
@@ -118,6 +119,7 @@ const {
   fetchMock: vi.fn(),
   setQueryCacheScopeMock: vi.fn(),
   cancelScheduledFlushMock: vi.fn(),
+  clearCompactedCreatesForUndoMock: vi.fn(),
   resumeOfflineReplayMock: vi.fn(),
   cancelPersistentReminderMock: vi.fn(),
   cancelQueriesMock: vi.fn(async () => {}),
@@ -189,6 +191,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   isQueuedResult: vi.fn(() => false),
   queueOrExecute: vi.fn(({ execute }) => execute()),
   cancelScheduledFlush: cancelScheduledFlushMock,
+  clearCompactedCreatesForUndo: clearCompactedCreatesForUndoMock,
   resumeOfflineReplay: resumeOfflineReplayMock,
 }))
 

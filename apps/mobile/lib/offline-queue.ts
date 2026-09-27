@@ -38,6 +38,12 @@ interface QueueRow {
 type QueueListener = (count: number) => void
 
 const queueListeners = new Set<QueueListener>()
+const queueClearListeners = new Set<() => void>()
+
+export function subscribeQueueClear(listener: () => void): () => void {
+  queueClearListeners.add(listener)
+  return () => { queueClearListeners.delete(listener) }
+}
 
 function getDb(): SQLite.SQLiteDatabase {
   if (!db) {
@@ -265,8 +271,8 @@ function mergePayload(existing: unknown, incoming: unknown): unknown {
 
 function compactQueuedMutations(
   existing: PersistedQueuedMutation[],
-  incoming: QueuedMutation,
-): PersistedQueuedMutation[] {
+  incoming: PersistedQueuedMutation,
+): { mutations: PersistedQueuedMutation[]; compactedCreate: PersistedQueuedMutation | null } {
   let next = [...existing]
 
   if (incoming.dedupeKey && LAST_WRITE_WINS_TYPES.has(incoming.type)) {
@@ -287,17 +293,22 @@ function compactQueuedMutations(
         ...createMutation,
         payload: mergePayload(createMutation.payload, incoming.payload),
       }
-      return next
+      return { mutations: next, compactedCreate: null }
     }
 
-    if (createMutation && DROP_CREATE_TYPES.has(incoming.type)) {
+    if (
+      createMutation &&
+      createMutation.status === 'pending' &&
+      createMutation.retries === 0 &&
+      DROP_CREATE_TYPES.has(incoming.type)
+    ) {
       next.splice(createIndex, 1)
-      return next
+      return { mutations: next, compactedCreate: createMutation }
     }
   }
 
   next.push(incoming)
-  return next
+  return { mutations: next, compactedCreate: null }
 }
 
 function replaceValue(value: unknown, oldId: string, newId: string): unknown {
@@ -329,6 +340,15 @@ export function enqueue(
     maxRetries?: number
   },
 ): string {
+  return enqueueWithCompaction(mutation).id
+}
+
+export function enqueueWithCompaction(
+  mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'> & {
+    retries?: number
+    maxRetries?: number
+  },
+): { id: string; compactedCreate: PersistedQueuedMutation | null } {
   const normalized: QueuedMutation = {
     ...mutation,
     retries: mutation.retries ?? 0,
@@ -340,7 +360,7 @@ export function enqueue(
   const existing = getForAccount(currentAccountId())
   const existingMutation = findFirstWrite(existing, normalized)
 
-  if (existingMutation) return existingMutation.id
+  if (existingMutation) return { id: existingMutation.id, compactedCreate: null }
 
   if (normalized.type === 'setTimeZone' && normalized.dedupeKey === 'profile-timezone-auto') {
     const pendingTimezone = existing.find((queued) =>
@@ -358,14 +378,14 @@ export function enqueue(
             dependsOn: queued.dependsOn?.map((dependency) => dependency === droppedDependency ? retainedDependency : dependency),
           })))
         }
-        return pendingTimezone.id
+        return { id: pendingTimezone.id, compactedCreate: null }
       }
     }
   }
 
   const compacted = compactQueuedMutations(existing, normalized)
-  replaceAll(compacted)
-  return normalized.id
+  replaceAll(compacted.mutations)
+  return { id: normalized.id, compactedCreate: compacted.compactedCreate }
 }
 
 export function dequeue(): PersistedQueuedMutation | null {
@@ -433,6 +453,7 @@ export function incrementRetries(id: string): void {
 export function clear(): void {
   const database = getDb()
   database.runSync('DELETE FROM mutation_queue')
+  for (const listener of queueClearListeners) listener()
   emitQueueCount()
 }
 

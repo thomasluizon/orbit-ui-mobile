@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { discardCompactedCreateForUndo } from '@/lib/offline-mutations'
 
 /**
  * Shows an "Undo" snackbar for a just-completed destructive action. `message` is
@@ -12,8 +13,13 @@ export function useUndoToast() {
   const { showQueued } = useAppToast()
 
   return useCallback(
-    (message: string, performRestore: () => void) => {
-      showQueued(message, t('undo.action'), performRestore)
+    (message: string, performRestore: () => void, queuedMutationId?: string) => {
+      showQueued(
+        message,
+        t('undo.action'),
+        performRestore,
+        queuedMutationId ? () => discardCompactedCreateForUndo(queuedMutationId) : undefined,
+      )
     },
     [t, showQueued],
   )

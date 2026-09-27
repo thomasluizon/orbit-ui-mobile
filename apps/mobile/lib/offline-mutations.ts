@@ -30,11 +30,13 @@ import {
   ACCOUNT_TIMEZONE_DEPENDENCY,
   count,
   enqueue,
+  enqueueWithCompaction,
   findUnfinalizedFirstWrite,
   getAll,
   getById,
   remove,
   replaceEntityReferences,
+  subscribeQueueClear,
   update,
 } from './offline-queue'
 import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveOfflineEntity, setOfflineEntityStatus, upsertOfflineEntity } from './offline-state'
@@ -149,6 +151,20 @@ export interface QueuedMutationBuildOptions {
 }
 
 let queuedMutationSequence = 0
+const compactedCreatesByDeleteId = new Map<string, {
+  mutation: PersistedQueuedMutation
+  accountId: string | null
+}>()
+
+export function discardCompactedCreateForUndo(mutationId: string): void {
+  compactedCreatesByDeleteId.delete(mutationId)
+}
+
+export function clearCompactedCreatesForUndo(): void {
+  compactedCreatesByDeleteId.clear()
+}
+
+subscribeQueueClear(clearCompactedCreatesForUndo)
 
 export function isQueuedResult(value: unknown): value is QueuedMarker {
   return (
@@ -173,7 +189,22 @@ export function cancelQueuedDeleteForUndo(
   mutationId: string,
 ): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
   const mutation = getById(mutationId)
-  if (!mutation) return Promise.resolve('replayed')
+  if (!mutation) {
+    const retained = compactedCreatesByDeleteId.get(mutationId)
+    if (!retained) return Promise.resolve('replayed')
+    compactedCreatesByDeleteId.delete(mutationId)
+    if (retained.accountId !== getAccountId()) return Promise.resolve('replayed')
+    const compactedCreate = retained.mutation
+    enqueue({ ...compactedCreate, type: mutationTypeSchema.parse(compactedCreate.type) })
+    if (compactedCreate.entityType && compactedCreate.clientEntityId) {
+      return markOfflineTombstone(
+        compactedCreate.entityType,
+        compactedCreate.clientEntityId,
+        false,
+      ).then(() => 'cancelled')
+    }
+    return Promise.resolve('cancelled')
+  }
   if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
 
   return new Promise((resolve) => {
@@ -582,7 +613,13 @@ export function getMutationScope(type: string): MutationScope | undefined {
 }
 
 async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
-  const queuedMutationId = enqueue(mutation)
+  const { id: queuedMutationId, compactedCreate } = enqueueWithCompaction(mutation)
+  if (compactedCreate && (mutation.type === 'deleteHabit' || mutation.type === 'deleteGoal')) {
+    compactedCreatesByDeleteId.set(mutation.id, {
+      mutation: compactedCreate,
+      accountId: getAccountId(),
+    })
+  }
 
   if (mutation.entityType && mutation.clientEntityId) {
     await upsertOfflineEntity({
