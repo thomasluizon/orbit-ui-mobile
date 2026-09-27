@@ -90,7 +90,7 @@ export function bindAccountServerAction<Arguments extends unknown[], T>(
   ))
 }
 
-function accountIntentWithOrigin(accountId: string | null): string | null {
+export function accountIntentWithOrigin(accountId: string | null): string | null {
   const eventOrigin = getAccountEventOrigin()
   return eventOrigin ? JSON.stringify({ accountId, eventOrigin }) : accountId
 }

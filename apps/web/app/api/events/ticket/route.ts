@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { API } from '@orbit/shared/api'
 import { accountEventTicketSchema } from '@orbit/shared/types/account-event'
 import { serverAuthMutate } from '@/lib/server-fetch'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
 
 export async function POST(): Promise<NextResponse> {
   const ticket = await serverAuthMutate(
@@ -12,8 +13,6 @@ export async function POST(): Promise<NextResponse> {
   )
   return NextResponse.json({
     ticket: ticket.ticket,
-    apiBase: process.env.NODE_ENV === 'production'
-      ? 'https://api.useorbit.org'
-      : process.env.API_BASE ?? 'http://localhost:5000',
+    apiBase: accountEventApiBase(),
   }, { headers: { 'Cache-Control': 'private, no-store' } })
 }

@@ -64,3 +64,45 @@ it('opens a visible direct stream, skips its own change, and invalidates another
   view.unmount()
   expect(getAccountEventOrigin()).toBeNull()
 })
+
+it('replays changes missed while the page was hidden', async () => {
+  let visibility: DocumentVisibilityState = 'visible'
+  vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ticket: 'first', apiBase: 'https://api.example.test' })))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('id: epoch.5\nevent: changes\ndata: {"v":1,"changes":[]}\n\n')) },
+    })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ticket: 'second', apiBase: 'https://api.example.test' })))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  visibility = 'hidden'
+  document.dispatchEvent(new Event('visibilitychange'))
+  visibility = 'visible'
+  document.dispatchEvent(new Event('visibilitychange'))
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+  expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.5' } })
+  view.unmount()
+})
+
+it('refreshes Today when returning without a replay cursor', async () => {
+  let visibility: DocumentVisibilityState = 'visible'
+  vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ticket: 'first', apiBase: 'https://api.example.test' })))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ticket: 'second', apiBase: 'https://api.example.test' })))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  visibility = 'hidden'
+  document.dispatchEvent(new Event('visibilitychange'))
+  visibility = 'visible'
+  document.dispatchEvent(new Event('visibilitychange'))
+  await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits'] }))
+  expect(fetchMock).toHaveBeenCalledTimes(4)
+  view.unmount()
+})

@@ -57,6 +57,7 @@ interface StreamResponse {
 
 interface AccountEventStreamOptions {
   open: (signal: AbortSignal, lastEventId: string | null) => Promise<StreamResponse>
+  lastEventId?: string | null
   onEvent: (event: ParsedAccountEvent) => void
   onReconnect: (lastEventId: string | null) => void
   signal: AbortSignal
@@ -80,7 +81,7 @@ function streamIsActive(signal: AbortSignal): boolean {
 }
 
 export async function consumeAccountEventStream(options: AccountEventStreamOptions): Promise<void> {
-  let lastEventId: string | null = null
+  let lastEventId: string | null = options.lastEventId ?? null
   let retry = 0
   for (;;) {
     if (options.signal.aborted) return

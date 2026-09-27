@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
-import { AccountEventConnection } from '@/lib/account-event-connection'
 import { WebNav } from '@/components/navigation/web-nav'
 import { AppShell } from '@/components/shell/app-shell'
 import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
@@ -70,9 +69,19 @@ export default function AppLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const [EventConnection, setEventConnection] = useState<(() => null) | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    void import('@/lib/account-event-connection').then(({ AccountEventConnection }) => {
+      if (mounted) setEventConnection(() => AccountEventConnection)
+    })
+    return () => { mounted = false }
+  }, [])
+
   return (
     <Providers>
-      <AccountEventConnection />
+      {EventConnection && <EventConnection />}
       <TodayProvider>
         <Suspense fallback={null}>
           <AppLayoutContent>{children}</AppLayoutContent>

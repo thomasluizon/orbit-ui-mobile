@@ -68,3 +68,28 @@ it('uses the bearer stream while active and closes it in background', async () =
   })
   expect(getAccountEventOrigin()).toBeNull()
 })
+
+it('replays changes missed while the app was backgrounded', async () => {
+  mocks.expoFetch.mockImplementation((_url: string, _init: RequestInit) => Promise.resolve({
+    ok: true, status: 200,
+    body: new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('id: epoch.5\nevent: changes\ndata: {"v":1,"changes":[]}\n\n')) },
+    }),
+  }))
+  await act(async () => { TestRenderer.create(React.createElement(AccountEventConnection)); await Promise.resolve() })
+  await act(async () => { mocks.onAppState?.('background'); await Promise.resolve() })
+  await act(async () => { mocks.onAppState?.('active'); await Promise.resolve() })
+  expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+  expect(mocks.expoFetch.mock.calls[1]?.[1]).toMatchObject({ headers: expect.objectContaining({ 'Last-Event-ID': 'epoch.5' }) })
+})
+
+it('refreshes Today when returning without a replay cursor', async () => {
+  mocks.expoFetch.mockImplementation(() => Promise.resolve({
+    ok: true, status: 200,
+    body: new ReadableStream<Uint8Array>({ start() {} }),
+  }))
+  await act(async () => { TestRenderer.create(React.createElement(AccountEventConnection)); await Promise.resolve() })
+  await act(async () => { mocks.onAppState?.('background'); await Promise.resolve() })
+  await act(async () => { mocks.onAppState?.('active'); await Promise.resolve() })
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits'] })
+})

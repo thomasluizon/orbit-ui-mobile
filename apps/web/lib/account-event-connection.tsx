@@ -13,6 +13,8 @@ export function AccountEventConnection(): null {
 
   useEffect(() => {
     let controller: AbortController | null = null
+    let lastEventId: string | null = null
+    let hasOpened = false
     function close() {
       controller?.abort()
       controller = null
@@ -21,9 +23,14 @@ export function AccountEventConnection(): null {
     function syncVisibility() {
       close()
       if (document.visibilityState !== 'visible') return
+      if (hasOpened && !lastEventId) {
+        invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
+      }
+      hasOpened = true
       controller = new AbortController()
       void consumeAccountEventStream({
         signal: controller.signal,
+        lastEventId,
         open: async (signal, lastEventId) => {
           const ticketResponse = await fetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
           if (!ticketResponse.ok) throw new Error('Event ticket unavailable')
@@ -43,6 +50,7 @@ export function AccountEventConnection(): null {
           }
         },
         onEvent: (event) => {
+          if (event.id) lastEventId = event.id
           if (event.type === 'ready') setAccountEventOrigin(event.connectionId)
           else invalidateAccountEvent(queryClient, event, getAccountEventOrigin())
         },
