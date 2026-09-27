@@ -86,6 +86,10 @@ export const cases = async () => {
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
   const shipped = readOrchestratorConfig()
+  T(`${NAME}: shipped standing ticket numbers are read`, JSON.stringify(shipped.tickets.standing) === JSON.stringify([556, 746]))
+  const repeatedStanding = structuredClone(real)
+  repeatedStanding.tickets.standing = [556, 556]
+  T(`${NAME}: duplicate standing ticket numbers are refused`, /tickets\.standing must be an array of unique positive ticket numbers/.test(thrown(() => readOrchestratorConfig(configUrl("repeated-standing", JSON.stringify(repeatedStanding)))) ?? ""))
   const commonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../.."), encoding: "utf8" }).stdout.trim()
   T(
     `${NAME}: relative sibling paths resolve from the primary checkout in a linked worktree`,

@@ -16,7 +16,8 @@ const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <
 
 All four checks must pass before anything is removed: the tree is clean, the pull request is merged
 with its merge commit present in the target branch, the local branch adds no content beyond the
-pull request head and base, and the linked ticket is closed with board status Done.
+pull request head and base, and the linked ticket is closed with board status Done or listed as a
+standing ticket.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
             3 an orca, git, or gh command could not be read`
@@ -158,12 +159,13 @@ const unsafeLocalCommit = () => {
   return null
 }
 const unsafeCommit = unsafeLocalCommit()
+const mergeCommitInTarget = contains(pullRequest.mergeCommit.oid, baseRef)
 
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: `uncommitted paths: ${dirty.join(", ")}` },
-  { name: "merge-commit-in-target", ok: contains(pullRequest.mergeCommit.oid, baseRef), detail: `pull request #${pullRequest.number} merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}` },
+  { name: "merge-commit-in-target", ok: mergeCommitInTarget, detail: `pull request #${pullRequest.number} merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}` },
   { name: "local-tip-in-pull-request-head", ok: unsafeCommit === null, detail: `local tip ${localTip} is not contained in pull request #${pullRequest.number} head ${pullRequest.headRefOid}; local commits would be lost (unsafe commit ${unsafeCommit})` },
-  { name: "ticket-done", ok: ticket.state === "CLOSED" && ticket.status === config.tickets.states.done, detail: `ticket is ${ticket.state} with board status ${ticket.status ?? "unknown"}, expected CLOSED and Done` },
+  { name: "ticket-done", ok: (ticket.state === "CLOSED" && ticket.status === config.tickets.states.done) || (config.tickets.standing.includes(ticket.number) && mergeCommitInTarget), detail: `ticket is ${ticket.state} with board status ${ticket.status ?? "unknown"}, expected CLOSED and Done` },
 ]
 const unmet = checks.filter((check) => !check.ok)
 if (unmet.length > 0) {
