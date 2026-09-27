@@ -2181,7 +2181,7 @@ describe('mobile auth store security paths', () => {
     expect(setQueryDataMock).toHaveBeenCalledTimes(1)
     expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
     expect(i18n.language).toBe('en')
-    expect(getRuntimeTheme()).toMatchObject({ scheme: 'blue', themeMode: 'dark' })
+    expect(getRuntimeTheme()).toMatchObject({ scheme: 'orange', themeMode: 'dark' })
     expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
   })
 

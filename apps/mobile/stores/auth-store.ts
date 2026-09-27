@@ -3,6 +3,7 @@ import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
+import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 import { clearStoredAuthReturnUrl, getAuthReturnUrlAttempt } from '@/lib/auth-flow'
 import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { clearSupabaseSession } from '@/lib/supabase'
@@ -417,7 +418,7 @@ function applyProfilePresentation(profile: Profile): void {
   }
 
   setRuntimeTheme({
-    scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+    scheme: resolveAccessibleColorScheme(profile.colorScheme, profile.hasProAccess),
     themeMode:
       profile.themePreference === 'light' || profile.themePreference === 'dark'
         ? profile.themePreference
@@ -512,7 +513,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         setRuntimeTheme({
-          scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+          scheme: resolveAccessibleColorScheme(profile.colorScheme, profile.hasProAccess),
           themeMode:
             profile.themePreference === 'light' || profile.themePreference === 'dark'
               ? profile.themePreference
