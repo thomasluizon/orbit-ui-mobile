@@ -44,6 +44,9 @@ export interface PendingOperationCardLabels {
   pending: string
   pendingTitle: string
   proposed: string
+  notSet: string
+  diff: (field: string, oldValue: string, newValue: string) => string
+  more: (count: number) => string
   risk: string
   stepUpAction: string
   stepUpMessage: string
@@ -51,7 +54,7 @@ export interface PendingOperationCardLabels {
 
 export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
-  translate: (key: string) => string,
+  translate: (key: string, values?: Record<string, string | number>) => string,
 ): PendingOperationCardLabels {
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
   return {
@@ -76,7 +79,7 @@ export function buildPendingOperationCardLabels(
       'interval_weeks', 'days', 'due_date', 'end_date', 'due_time',
       'is_bad_habit', 'is_general', 'is_flexible', 'checklist_items',
       'sub_habits', 'date', 'enabled', 'is_completed', 'reminder_enabled',
-      'reminder_times', 'scheduled_reminders',
+      'reminder_times', 'scheduled_reminders', 'delete', 'dismiss_import', 'run_sync',
     ].map((field) => [field, translate(`chat.operation.field.${field}`)])),
     dayLabels: Object.fromEntries(PENDING_OPERATION_WEEKDAYS.map((day) => [day, translate(`dates.daysLong.${day.toLowerCase()}`)])),
     yes: translate('common.yes'),
@@ -98,6 +101,9 @@ export function buildPendingOperationCardLabels(
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
+    notSet: translate('chat.preview.notSet'),
+    diff: (field, oldValue, newValue) => translate('chat.preview.diff', { field, old: oldValue, new: newValue }),
+    more: (count) => translate('chat.preview.more', { count }),
     risk: translate(`chat.operation.risk.${pendingOperation.riskClass.toLowerCase()}`),
     stepUpAction: translate('chat.operation.stepUpAction'),
     stepUpMessage: translate('chat.operation.stepUpMessage'),

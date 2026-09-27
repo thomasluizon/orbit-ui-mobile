@@ -63,6 +63,7 @@ interface AttemptedSend {
   restoreDraftOnFailure: boolean
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
+  messageOrigin?: 'followUp'
 }
 
 interface StreamSendFailure {
@@ -149,6 +150,8 @@ export function useChatComposer() {
   const pendingVoiceCommit = useRef(false)
 
   const [sendError, setSendError] = useState<string | null>(null)
+  const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
+  const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
@@ -185,6 +188,8 @@ export function useChatComposer() {
    * itself.
    */
   useResetOnAccountChange(() => {
+    activeStepsRef.current = []
+    setActiveSteps([])
     setLastFailedSend(null)
     setSendError(null)
     useUIStore.getState().setAstraConversationOpen(false)
@@ -268,6 +273,8 @@ export function useChatComposer() {
     attempted: AttemptedSend,
     draftMessageId: string | null,
   ) => {
+    activeStepsRef.current = []
+    setActiveSteps([])
     setIsTyping(false)
     let failedAttempt = attempted
     if (attempted.restoreDraftOnFailure) {
@@ -330,8 +337,10 @@ export function useChatComposer() {
     scrollToBottom()
   }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
     setIsTyping(false)
+    activeStepsRef.current = []
+    setActiveSteps([])
 
     const finalFields = {
       content: response.aiMessage || '',
@@ -350,6 +359,8 @@ export function useChatComposer() {
       calendarCard: response.calendarCard,
       recordList: response.recordList,
       accountRows: response.accountRows,
+      followUps: response.followUps,
+      toolSteps,
     }
     if (draftMessageId) {
       updateMessage(draftMessageId, finalFields)
@@ -446,6 +457,10 @@ export function useChatComposer() {
       supportsCalendarCard: true,
       supportsRecordListCard: true,
       supportsAccountRowsCard: true,
+      supportsPendingOperationChanges: true,
+      supportsToolSteps: true,
+      supportsFollowUps: true,
+      ...(attempted.messageOrigin ? { messageOrigin: attempted.messageOrigin } : {}),
       ...(entryPointIntent ? { entryPointIntent } : {}),
     } satisfies ChatClientContext
     formData.append('clientContext', JSON.stringify(clientContext))
@@ -513,13 +528,18 @@ export function useChatComposer() {
             if (draftMessageId) updateMessage(draftMessageId, { content: '' })
             setIsTyping(true)
           },
+          onStep: (step) => {
+            if (!ownsAccount()) return
+            activeStepsRef.current = [...activeStepsRef.current, step]
+            setActiveSteps(activeStepsRef.current)
+          },
         },
       )
 
       if (!ownsAccount()) return false
 
       if (outcome.kind === 'final') {
-        await applyFinalResponse(outcome.response, draftMessageId)
+        await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current)
         return true
       }
       if (outcome.kind === 'error') {
@@ -569,6 +589,8 @@ export function useChatComposer() {
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
+      activeStepsRef.current = []
+      setActiveSteps([])
       setSendError(null)
       setLastFailedSend(null)
 
@@ -592,9 +614,9 @@ export function useChatComposer() {
   )
 
   const sendMessage = useCallback(
-    async (content?: string) => {
+    async (content?: string, messageOrigin?: 'followUp') => {
       const typedContent = content?.trim() ?? input.trim()
-      const messageContent = selectedTextFile
+      const messageContent = selectedTextFile && messageOrigin !== 'followUp'
         ? buildChatMessageWithFileContent({
             message: typedContent,
             fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
@@ -627,16 +649,19 @@ export function useChatComposer() {
         intendedAccountId: getHeldAccountId(),
         content: messageContent,
         draftContent: typedContent,
-        image: selectedImage,
-        preview: imagePreview,
+        image: messageOrigin === 'followUp' ? null : selectedImage,
+        preview: messageOrigin === 'followUp' ? null : imagePreview,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
+        messageOrigin,
       }
 
-      setInput('')
-      clearImage()
-      removeTextFile()
+      if (messageOrigin !== 'followUp') {
+        setInput('')
+        clearImage()
+        removeTextFile()
+      }
 
       await performSend(attempted, false)
     },
@@ -791,6 +816,8 @@ export function useChatComposer() {
   }
 
   return {
+    activeSteps,
+    canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
     chatContainerRef,
     fileInputRef,
     textFileInputRef,

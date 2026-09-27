@@ -235,6 +235,7 @@ function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   }
 }
 
+
 const frame = (json: string) => `data: ${json}\n\n`
 
 function finalFrame(response: ChatResponse): string {
@@ -300,6 +301,35 @@ function documentPickerAsset(
 }
 
 describe('mobile useChatComposer', () => {
+  it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(
+      frame('{"type":"step","domain":"habits","access":"read"}'),
+      frame('{"type":"step","domain":"goals","access":"write"}'),
+      finalFrame(makeChatResponse({ followUps: ['Check goals', 'Review habits'] })),
+    ))
+    const composer = await renderComposer()
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset()] })
+    mocks.readFileText.mockResolvedValue('Keep this file')
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+    TestRenderer.act(() => composer.current.setInput('Keep this draft'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Check goals', 'followUp') })
+    const answer = useChatStore.getState().messages.at(-1)
+    expect(answer?.toolSteps).toEqual([
+      { domain: 'habits', access: 'read' }, { domain: 'goals', access: 'write' },
+    ])
+    expect(answer?.followUps).toEqual(['Check goals', 'Review habits'])
+    const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(formData.get('message')).toBe('Check goals')
+    expect(formData.get('image')).toBeNull()
+    expect(composer.current.input).toBe('Keep this draft')
+    expect(composer.current.selectedTextFile?.name).toBe('notes.txt')
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
+  })
+
   beforeEach(() => {
     mocks.state.profile = undefined
     mocks.state.speechError = null
@@ -651,6 +681,7 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream
       .mockResolvedValueOnce(sseStreamResponse(
         frame('{"type":"started"}'),
+        frame('{"type":"step","domain":"habits","access":"read"}'),
         frame('{"type":"error","status":500,"error":"boom"}'),
       ))
       .mockResolvedValueOnce(sseStreamResponse(
@@ -663,6 +694,8 @@ describe('mobile useChatComposer', () => {
       await composer.current.sendMessage('log water')
     })
     expect(composer.current.canRetryLastSend).toBe(true)
+    expect(composer.current.activeSteps).toEqual([])
+    expect(useChatStore.getState().messages.every((message) => !message.toolSteps?.length)).toBe(true)
 
     await TestRenderer.act(async () => {
       await composer.current.retryLastSend()
@@ -1459,6 +1492,8 @@ describe('mobile useChatComposer', () => {
     let send!: Promise<void>
     TestRenderer.act(() => { send = composer.current.sendMessage('Account A prompt') })
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}')))
+    await vi.waitFor(() => expect(composer.current.activeSteps).toHaveLength(1))
 
     await TestRenderer.act(async () => {
       await useChatStore.getState().resetAccountScopedChat()
@@ -1479,6 +1514,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.sendError).toBeNull()
+    expect(composer.current.activeSteps).toEqual([])
   })
 
   it('finishes a live stream when only the session epoch changes', async () => {

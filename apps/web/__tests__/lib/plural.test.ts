@@ -5,6 +5,21 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@/lib/plural'
 
 describe('plural', () => {
+  it.each([
+    { locale: 'en', messages: en, one: '1 step', other: '2 steps', diff: 'Date: from Not set to Monday', more: 'and 30 more' },
+    { locale: 'pt-BR', messages: ptBR, one: '1 etapa', other: '2 etapas', diff: 'Data: de Não definido para segunda-feira', more: 'e mais 30' },
+  ] as const)('renders preview and trace copy in $locale', ({ locale, messages, one, other, diff, more }) => {
+    const t = createTranslator({ locale, messages })
+    expect(t('chat.trace.steps', { count: 1 })).toBe(one)
+    expect(t('chat.trace.steps', { count: 2 })).toBe(other)
+    expect(t('chat.preview.diff', {
+      field: locale === 'en' ? 'Date' : 'Data',
+      old: locale === 'en' ? 'Not set' : 'Não definido',
+      new: locale === 'en' ? 'Monday' : 'segunda-feira',
+    })).toBe(diff)
+    expect(t('chat.preview.more', { count: 30 })).toBe(more)
+  })
+
   describe('two-form strings (singular | plural)', () => {
     it('returns singular when count is 1', () => {
       expect(plural('day | days', 1)).toBe('day')

@@ -14,7 +14,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { X } from '@/components/ui/icons'
+import { ArrowRight, X } from '@/components/ui/icons'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -173,6 +173,12 @@ const pendingOperationRenderers = {
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
   actionRow: (...children) => <div className="flex flex-wrap items-center gap-2">{children}</div>,
+  diffLabel: (field, oldValue, newValue, accessible) => <span className="flex flex-wrap items-center gap-2 text-sm">
+    <span className="sr-only">{accessible}</span>
+    <span aria-hidden="true">{field}:</span><span aria-hidden="true" className="text-[var(--fg-3)]">{oldValue}</span>
+    <ArrowRight aria-hidden="true" size={16} strokeWidth={1.5} className="rtl:rotate-180" />
+    <span aria-hidden="true" className="font-medium text-[var(--fg-1)]">{newValue}</span>
+  </span>,
 } satisfies PendingOperationCardRenderers
 
 export function PendingOperationCard({

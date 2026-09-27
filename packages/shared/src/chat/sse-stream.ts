@@ -37,6 +37,7 @@ interface ChatStreamCallbacks {
   onDelta: (text: string) => void
   onReset: () => void
   onRound?: (iteration: number) => void
+  onStep?: (step: { domain: string; access: string }) => void
 }
 
 type ChatStreamOutcome =
@@ -67,6 +68,9 @@ export async function consumeChatSseStream(
           break
         case 'round':
           callbacks.onRound?.(event.iteration)
+          break
+        case 'step':
+          callbacks.onStep?.({ domain: event.domain, access: event.access })
           break
         case 'final':
           return { kind: 'final', response: event.response }

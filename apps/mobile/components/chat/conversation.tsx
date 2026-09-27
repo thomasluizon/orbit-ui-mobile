@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
@@ -15,13 +15,15 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
+import { chatTraceLabelKey } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
+import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
-import { RefreshCw } from "@/components/ui/icons";
+import { ChevronDown, RefreshCw } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -29,6 +31,39 @@ import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
 
 type ChatController = ReturnType<typeof useChatComposer>;
+
+function ThinkingTrace({ steps, running }: Readonly<{
+  steps: readonly { domain: string; access: string }[];
+  running: boolean;
+}>) {
+  const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = createTokensV2(currentScheme, currentTheme);
+  const [expanded, setExpanded] = useState(false);
+  const announced = useRef(false);
+  const panelId = useId();
+  useEffect(() => {
+    if (running && steps.length > 0 && !announced.current) {
+      announced.current = true;
+      AccessibilityInfo.announceForAccessibility(t('chat.trace.working'));
+    }
+  }, [running, steps.length, t]);
+  if (steps.length === 0) return null;
+  const lines = steps.map((step, index) => <View key={`${step.domain}-${step.access}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <Text style={{ color: tokens.fg3, fontSize: 14, flexShrink: 1 }}>{t(chatTraceLabelKey(step.domain, step.access))}</Text>
+    {running && index === steps.length - 1 ? <View accessible={false} style={{ flexDirection: 'row', gap: 4 }}>
+      {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
+    </View> : null}
+  </View>);
+  if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingHorizontal: 16, paddingVertical: 8 }}>{lines}</View>;
+  return <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+    <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
+      <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
+    </Pressable>
+    <View nativeID={panelId} accessibilityLiveRegion="none" style={{ display: expanded ? 'flex' : 'none', gap: 4 }}>{lines}</View>
+  </View>;
+}
 
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
@@ -63,6 +98,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     composerProps,
     showSuggestions,
     sendMessage,
+    activeSteps,
+    canShowFollowUps,
     scrollToBottom,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
@@ -108,6 +145,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item }) => (
+      <View>
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
@@ -120,12 +158,18 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
       />
+      {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
+      {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+      </View>
     ),
     [
       confirmAndExecutePendingOperation,
       handleActionChipClick,
       handleBreakdownConfirmed,
       initialMessageIds,
+      messages,
+      canShowFollowUps,
+      sendMessage,
       revisePendingOperationForBubble,
       refreshPendingOperationForBubble,
       prepareStepUpForBubble,
@@ -166,9 +210,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onContentSizeChange={scrollToBottom}
               onScroll={keyboardScroll.onScroll}
               onLayout={keyboardScroll.onLayout}
+              ListFooterComponent={activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
-              accessibilityLiveRegion="polite"
-              accessibilityState={{ busy: isTyping }}
+              accessibilityLiveRegion={activeSteps.length > 0 ? "none" : "polite"}
+              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 }}
             />
           </View>
         )}

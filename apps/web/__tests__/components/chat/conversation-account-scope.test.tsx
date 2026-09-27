@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { count?: number }) =>
+    key === 'chat.trace.steps' ? `${values?.count} steps` : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -51,6 +52,8 @@ function buildChat(): ChatController {
   return {
     chatContainerRef: createRef<HTMLDivElement>(),
     messages: [{ id: 'message-1', role: 'assistant', content: 'hello' }],
+    activeSteps: [],
+    canShowFollowUps: false,
     isTyping: false,
     streamingMessageId: null,
     showSuggestions: false,
@@ -66,6 +69,33 @@ function buildChat(): ChatController {
     composerProps: {},
   } as unknown as ChatController
 }
+
+it('collapses two tool steps on the finished message', () => {
+  const chat = buildChat()
+  chat.messages = [{ id: 'message-1', role: 'ai', content: 'Done', toolSteps: [
+    { domain: 'habits', access: 'read' }, { domain: 'other', access: 'read' },
+  ], timestamp: new Date() }]
+  render(<AstraConversation chat={chat} />)
+  const disclosure = screen.getByRole('button', { name: '2 steps' })
+  expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  expect(disclosure).toHaveAttribute('aria-controls')
+  fireEvent.click(disclosure)
+  expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByText('chat.trace.unknown')).toBeVisible()
+})
+
+it('shows follow-ups only under the latest AI message and sends their origin', () => {
+  const chat = buildChat()
+  chat.messages = [
+    { id: 'old', role: 'ai', content: 'Old', followUps: ['Old one', 'Old two'], timestamp: new Date() },
+    { id: 'new', role: 'ai', content: 'New', followUps: ['Check goals', 'Review habits'], timestamp: new Date() },
+  ]
+  chat.canShowFollowUps = true
+  render(<AstraConversation chat={chat} />)
+  expect(screen.queryByText('Old one')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Check goals' }))
+  expect(chat.sendMessage).toHaveBeenCalledWith('Check goals', 'followUp')
+})
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())

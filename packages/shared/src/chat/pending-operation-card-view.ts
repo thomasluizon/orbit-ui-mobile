@@ -1,4 +1,4 @@
-import type { PendingAgentOperation, PendingOperationItem } from '../types/ai'
+import type { PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -60,13 +60,14 @@ interface PendingOperationFrameBase<Node> {
   count?: number
   items: readonly {
     id: string
-    label: string
+    label: string | Node
     meta: string
     status: PendingOperationCardStatus
     irreversible: boolean
     proposed?: boolean
     wrapLabel?: boolean
     wrapMeta?: boolean
+    editable?: boolean
     control?: Node
   }[]
   proposedLabel?: string
@@ -93,6 +94,7 @@ export interface PendingOperationCardRenderers<Node> {
   notice: (message: string) => Node
   actionRow: (...children: Node[]) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
+  diffLabel: (field: string, oldValue: string, newValue: string, accessible: string) => Node
 }
 
 export interface PendingOperationCardActions {
@@ -135,9 +137,24 @@ type CardRevision = NonNullable<PendingOperationCardActions['revision']>
 
 function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
   const value = field.newValue ?? ''
-  if (field.valueType === 'boolean') return value === 'true' ? labels.yes : labels.no
+  if (field.valueType === 'boolean') return localizedBoolean(value, labels)
   if (field.field === 'days') return value.split(',').map((day) => labels.dayLabels[day.trim()] ?? day.trim()).join(', ')
   return value
+}
+
+function localizedBoolean(value: string, labels: PendingOperationCardLabels): string {
+  if (value.toLowerCase() === 'true') return labels.yes
+  if (value.toLowerCase() === 'false') return labels.no
+  return value
+}
+
+function changeValue(value: string | null, valueType: string, labels: PendingOperationCardLabels): string {
+  if (value == null) return labels.notSet
+  return valueType === 'boolean' ? localizedBoolean(value, labels) : value
+}
+
+function actionLabel(field: string, labels: PendingOperationCardLabels): string {
+  return labels.fieldLabels[field] ?? labels.name
 }
 
 function pendingActions<Node>(
@@ -213,6 +230,79 @@ function previewRows<Node>(
   })
 }
 
+function unshownItemRows<Node>(
+  shownEntities: Set<string>,
+  revision: CardRevision | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+  destructive: boolean,
+): PendingOperationFrame<Node>['items'] {
+  if (!revision?.canRevise) return []
+  const rows: Array<PendingOperationFrame<Node>['items'][number]> = []
+  for (const item of revision.items) {
+    if (item.entityId != null && shownEntities.has(item.entityId)) continue
+    const action = item.fields.find((field) => field.valueType === 'action')
+    rows.push({
+      id: item.itemId,
+      label: action ? actionLabel(action.field, labels) : item.entityName,
+      meta: action ? item.entityName : labels.pending,
+      status: card.status,
+      irreversible: destructive && card.status == null,
+      wrapLabel: true,
+      editable: false,
+      control: card.status == null && !revision.stale
+        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
+        : undefined,
+    })
+    if (item.entityId != null) shownEntities.add(item.entityId)
+  }
+  return rows
+}
+
+function changeRows<Node>(
+  changes: readonly PendingOperationChange[],
+  count: number | null | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+  destructive: boolean,
+  revision: CardRevision | undefined,
+): PendingOperationFrame<Node>['items'] {
+  const shownEntities = new Set<string>()
+  const rows: Array<PendingOperationFrame<Node>['items'][number]> = changes.map((change, index) => {
+    const field = change.valueType === 'action'
+      ? actionLabel(change.field, labels)
+      : labels.fieldLabels[change.field] ?? change.field
+    const oldValue = changeValue(change.oldValue, change.valueType, labels)
+    const newValue = changeValue(change.newValue, change.valueType, labels)
+    const item = revision?.items.find((entry) => entry.entityId === change.entityId)
+    const firstField = !shownEntities.has(change.entityId)
+    shownEntities.add(change.entityId)
+    return {
+      id: `${change.entityId}-${change.field}-${index}`,
+      label: change.valueType === 'action'
+        ? field
+        : render.diffLabel(field, oldValue, newValue, labels.diff(field, oldValue, newValue)),
+      meta: change.entityName,
+      status: card.status,
+      irreversible: destructive && card.status == null,
+      wrapLabel: true,
+      editable: false,
+      control: firstField && item && revision && card.status == null && !revision.stale
+        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
+        : undefined,
+    }
+  })
+  rows.push(...unshownItemRows(shownEntities, revision, card, labels, render, destructive))
+  const remaining = count == null ? 0 : Math.max(0, count - shownEntities.size)
+  if (remaining > 0) rows.push({
+    id: 'remaining', label: labels.more(remaining), meta: '', status: card.status,
+    irreversible: false, wrapLabel: true, editable: false, control: undefined,
+  })
+  return rows
+}
+
 function previewFrame<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -222,7 +312,9 @@ function previewFrame<Node>(
 ): Node {
   const revision = card.revision
   const actions = pendingActions(presentation.action, presentation.destructive, card, revision, labels, render)
-  const previewItems = previewRows(revision, card, labels, presentation.destructive, render)
+  const previewItems = pendingOperation.changes?.length
+    ? changeRows(pendingOperation.changes, pendingOperation.changeTargetCount, card, labels, render, presentation.destructive, revision)
+    : previewRows(revision, card, labels, presentation.destructive, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
     count: pendingOperation.changeTargetCount ?? undefined,

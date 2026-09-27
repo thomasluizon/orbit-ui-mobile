@@ -218,6 +218,30 @@ function textFile(name: string, content: string, size = content.length) {
 }
 
 describe('web useChatComposer streaming send', () => {
+  it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(
+      frame('{"type":"step","domain":"habits","access":"read"}'),
+      frame('{"type":"step","domain":"goals","access":"write"}'),
+      finalFrame(makeChatResponse({ followUps: ['Check goals', 'Review habits'] })),
+    ))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Keep this file'))) })
+    act(() => result.current.setInput('Keep this draft'))
+    await act(async () => { await result.current.sendMessage('Check goals', 'followUp') })
+    const answer = useChatStore.getState().messages.at(-1)
+    expect(answer?.toolSteps).toEqual([
+      { domain: 'habits', access: 'read' }, { domain: 'goals', access: 'write' },
+    ])
+    expect(answer?.followUps).toEqual(['Check goals', 'Review habits'])
+    const formData = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    expect(formData.get('message')).toBe('Check goals')
+    expect(formData.get('image')).toBeNull()
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
+  })
+
   beforeEach(() => {
     useThrottleStore.getState().clear()
     mocks.state.profile = undefined
@@ -586,6 +610,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"started"}'),
+        frame('{"type":"step","domain":"habits","access":"read"}'),
         frame('{"type":"error","status":500,"error":"boom"}'),
       ))
       .mockResolvedValueOnce(sseResponse(
@@ -598,6 +623,8 @@ describe('web useChatComposer streaming send', () => {
       await result.current.sendMessage('log water')
     })
     expect(result.current.canRetryLastSend).toBe(true)
+    expect(result.current.activeSteps).toEqual([])
+    expect(useChatStore.getState().messages.every((message) => !message.toolSteps?.length)).toBe(true)
 
     await act(async () => {
       await result.current.retryLastSend()
@@ -1202,6 +1229,8 @@ describe('web useChatComposer streaming send', () => {
     let send!: Promise<void>
     act(() => { send = result.current.sendMessage('Account A prompt') })
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    act(() => stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}')))
+    await waitFor(() => expect(result.current.activeSteps).toHaveLength(1))
 
     await act(async () => {
       answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
@@ -1223,6 +1252,7 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
     expect(result.current.canRetryLastSend).toBe(false)
     expect(result.current.sendError).toBeNull()
+    expect(result.current.activeSteps).toEqual([])
   })
 
   it('drops the previous account text file when another account replaces it', async () => {

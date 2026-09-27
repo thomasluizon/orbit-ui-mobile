@@ -3,6 +3,21 @@ import { i18n } from '@/lib/i18n'
 import { plural } from '@/lib/plural'
 
 describe('mobile i18n interpolation', () => {
+  it.each([
+    { locale: 'en', one: '1 step', other: '2 steps', diff: 'Date: from Not set to Monday', more: 'and 30 more' },
+    { locale: 'pt-BR', one: '1 etapa', other: '2 etapas', diff: 'Data: de Não definido para segunda-feira', more: 'e mais 30' },
+  ])('renders preview and trace copy in $locale', async ({ locale, one, other, diff, more }) => {
+    await i18n.changeLanguage(locale)
+    expect(i18n.t('chat.trace.steps', { count: 1 })).toBe(one)
+    expect(i18n.t('chat.trace.steps', { count: 2 })).toBe(other)
+    expect(i18n.t('chat.preview.diff', {
+      field: locale === 'en' ? 'Date' : 'Data',
+      old: locale === 'en' ? 'Not set' : 'Não definido',
+      new: locale === 'en' ? 'Monday' : 'segunda-feira',
+    })).toBe(diff)
+    expect(i18n.t('chat.preview.more', { count: 30 })).toBe(more)
+  })
+
   afterEach(async () => {
     await i18n.changeLanguage('en')
   })

@@ -7,7 +7,11 @@ import { sheetTestControls } from '../../support/sheet-double'
 const capturedSheet = vi.hoisted(() => ({ onConfirm: undefined as (() => void) | undefined }))
 const capturedVerification = vi.hoisted(() => ({ onVerify: undefined as ((id: string, challengeId: string, code: string, token: string) => Promise<unknown>) | undefined }))
 const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean) | undefined }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+  if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
+  if (key === 'chat.preview.more') return `and ${values?.count} more`
+  return key
+} }))
 vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/hooks/use-pending-operation-card-state')>()
   return {
@@ -51,6 +55,19 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it('renders field diffs with accessible old and new values', () => {
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({
+      riskClass: 'Low', confirmationRequirement: 'None',
+      changes: [
+        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
+        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
+      ], changeTargetCount: 2,
+    })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText(/from .* to Monday/)).toHaveClass('sr-only')
+    expect(screen.getByText(/from 2 to 3/)).toHaveClass('sr-only')
+    expect(screen.queryByText('and 1 more')).not.toBeInTheDocument()
+  })
+
   afterEach(() => sheetTestControls.defer(false))
   beforeEach(() => {
     capturedSheet.onConfirm = undefined

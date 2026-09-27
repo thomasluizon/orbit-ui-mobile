@@ -41,7 +41,7 @@ function useToastLife(
   }, [kind, onDone, paused])
 }
 
-function WorkingMark() {
+export function WorkingMark() {
   return (
     <span className="flex items-center gap-1 text-[var(--fg-2)]" data-working-mark aria-hidden="true">
       <span className="size-1 rounded-full bg-current" />

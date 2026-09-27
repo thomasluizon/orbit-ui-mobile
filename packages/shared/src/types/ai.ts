@@ -74,6 +74,7 @@ export const pendingOperationChangeSchema = z.object({
   proposedValue: z.unknown().nullable().optional(),
   isEditable: z.boolean().optional(),
 })
+export type PendingOperationChange = z.infer<typeof pendingOperationChangeSchema>
 
 export const pendingOperationItemSchema = z.object({
   itemId: z.string(),

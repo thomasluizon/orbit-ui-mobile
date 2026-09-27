@@ -20,6 +20,8 @@ const labels: PendingOperationCardLabels = {
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', risk: 'Destructive',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
+  notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
+  more: (count) => `and ${count} more`,
 }
 
 it('labels the pending operation from its capability and risk', () => {
@@ -29,6 +31,11 @@ it('labels the pending operation from its capability and risk', () => {
   )
   expect(translated.risk).toBe('chat.operation.risk.destructive')
   expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
+  expect(translated.fieldLabels).toMatchObject({
+    delete: 'chat.operation.field.delete',
+    dismiss_import: 'chat.operation.field.dismiss_import',
+    run_sync: 'chat.operation.field.run_sync',
+  })
 })
 
 function createCard(): PendingOperationCardActions {
@@ -60,11 +67,133 @@ function createRenderers() {
     notice: (message) => message,
     actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
+    diffLabel: (_field, _oldValue, _newValue, accessible) => accessible,
   }
   return { record, render }
 }
 
 describe('pending operation card view', () => {
+  it('shows an action target without inventing a value transition', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels: { ...labels, fieldLabels: {
+        delete: 'Delete', dismiss_import: 'Dismiss import', run_sync: 'Sync now',
+      } }, render,
+      onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        changes: [
+          { entityId: 'habit-1', entityName: 'Run', field: 'delete', oldValue: null, newValue: null, valueType: 'action' },
+          { entityId: 'calendar-1', entityName: 'Calendar sync', field: 'dismiss_import', oldValue: 'True', newValue: null, valueType: 'action' },
+          { entityId: 'calendar-2', entityName: 'Calendar sync', field: 'run_sync', oldValue: '2026-09-26T10:00:00Z', newValue: null, valueType: 'action' },
+        ],
+        changeTargetCount: 3,
+      }),
+    })
+    expect(record.frame?.items.map(({ label, meta }) => ({ label, meta }))).toEqual([
+      { label: 'Delete', meta: 'Run' },
+      { label: 'Dismiss import', meta: 'Calendar sync' },
+      { label: 'Sync now', meta: 'Calendar sync' },
+    ])
+  })
+
+  it('localizes boolean values from both bulk and calendar previews', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        riskClass: 'Low', confirmationRequirement: 'None',
+        changes: [
+          { entityId: 'habit-1', entityName: 'Run', field: 'reminder_enabled', oldValue: 'false', newValue: 'true', valueType: 'boolean' },
+          { entityId: 'calendar', entityName: 'Calendar sync', field: 'enabled', oldValue: 'True', newValue: 'False', valueType: 'boolean' },
+        ],
+        changeTargetCount: 2,
+      }),
+    })
+    expect(record.frame?.items.map((item) => item.label)).toEqual([
+      'reminder_enabled: from No to Yes',
+      'enabled: from Yes to No',
+    ])
+  })
+
+  it('uses Portuguese yes and no labels for boolean changes', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels: { ...labels, yes: 'Sim', no: 'Não', diff: (field, oldValue, newValue) => `${field}: de ${oldValue} para ${newValue}` },
+      render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        changes: [{ entityId: 'calendar', entityName: 'Calendar sync', field: 'enabled', oldValue: 'False', newValue: 'True', valueType: 'boolean' }],
+        changeTargetCount: 1,
+      }),
+    })
+    expect(record.frame?.items[0]?.label).toBe('enabled: de Não para Sim')
+  })
+
+  it('keeps the eleventh target removable when only ten changes are displayed', () => {
+    const card = createCard()
+    const { record, render } = createRenderers()
+    const items = Array.from({ length: 11 }, (_, index) => {
+      const entityId = `habit-${index + 1}`
+      const entityName = `Habit ${index + 1}`
+      const field = { entityId, entityName, field: 'delete', oldValue: null, newValue: null, valueType: 'action' }
+      return { itemId: entityId, entityId, entityName, fields: [field], stateFingerprint: `state-${index + 1}` }
+    })
+    const operation = makePendingAgentOperation({
+      previewFingerprint: 'preview-1', items,
+      changes: items.slice(0, 10).flatMap((item) => item.fields),
+      changeTargetCount: 11,
+    })
+    card.revision = {
+      operation, canRevise: true, items, editingItem: undefined,
+      draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: true, refresh: vi.fn(), rejected: false, error: undefined,
+      setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+      saveEdit: vi.fn().mockResolvedValue(undefined),
+      rejectItem: vi.fn().mockResolvedValue(undefined),
+      rejectAll: vi.fn().mockResolvedValue(undefined),
+    }
+    renderPendingOperationCard({ card, labels: { ...labels, fieldLabels: { delete: 'Delete' } }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
+    expect(record.frame?.items).toHaveLength(11)
+    expect(record.frame?.items.at(-1)).toMatchObject({ label: 'Delete', meta: 'Habit 11', control: 'Remove Habit 11' })
+    record.buttons.find(({ label }) => label === 'Remove Habit 11')?.onClick()
+    expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-11')
+  })
+
+  it('shows each changed field and the count of unseen targets', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        riskClass: 'Low', confirmationRequirement: 'None',
+        changes: [
+          { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
+          { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
+        ],
+        changeTargetCount: 40,
+      }),
+    })
+    expect(record.frame?.items.map((item) => item.label)).toEqual([
+      'date: from Not set to Monday',
+      'count: from 2 to 3',
+      'and 38 more',
+    ])
+    expect(record.frame?.items.every((item) => item.proposed !== true)).toBe(true)
+  })
+
+  it('counts truncated entities rather than changed fields', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        riskClass: 'Low', confirmationRequirement: 'None', changeTargetCount: 40,
+        changes: Array.from({ length: 10 }, (_, index) => ({
+          entityId: `habit-${index}`, entityName: `Habit ${index}`,
+          field: 'count', oldValue: '1', newValue: '2', valueType: 'number',
+        })),
+      }),
+    })
+    expect(record.frame?.items).toHaveLength(11)
+    expect(record.frame?.items.at(-1)?.label).toBe('and 30 more')
+  })
+
   it('offers item editing and rejection before approving a preview', () => {
     const card = createCard()
     const { record, render } = createRenderers()
