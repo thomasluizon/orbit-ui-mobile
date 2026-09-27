@@ -10,7 +10,7 @@ let stagedToolPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, retainBranch = false } = {}) => {
+const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, followUpBeforeMerge = false, localMerge = null, laterCleanMerge = false, retainBranch = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const child = join(root, "teardown", label, "child")
   const remote = join(root, "teardown", label, "remote.git")
@@ -34,10 +34,37 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     if ((squashMerged || fastForwardMerged) && git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
   }
   const headCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
-  if (localFollowUp) {
+  let followUpCommit
+  const addFollowUp = () => {
     writeFileSync(join(child, "follow-up.txt"), "must not be removed\n")
-    if (git(child, ["add", "follow-up.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "local follow-up"]).status !== 0) return null
+    if (git(child, ["add", "follow-up.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "local follow-up"]).status !== 0) return false
+    followUpCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
+    return true
   }
+  if (localFollowUp && followUpBeforeMerge && !addFollowUp()) return null
+  let resolvedMergeCommit
+  if (localMerge) {
+    const baseFile = localMerge === "resolved" ? "captured.txt" : "base-only.txt"
+    writeFileSync(join(primary, baseFile), "base update\n")
+    if (git(primary, ["add", baseFile]).status !== 0 || git(primary, ["commit", "-q", "-m", "base update"]).status !== 0) return null
+    if (git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
+    if (git(child, ["fetch", "-q", "origin", "main"]).status !== 0) return null
+    const merge = git(child, ["merge", "--no-edit", "origin/main"])
+    if (localMerge === "clean" && merge.status !== 0) return null
+    if (localMerge === "resolved") {
+      if (merge.status === 0) return null
+      writeFileSync(join(child, "captured.txt"), "hand-resolved content\n")
+      if (git(child, ["add", "captured.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "resolve base merge"]).status !== 0) return null
+      resolvedMergeCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
+    }
+  }
+  if (laterCleanMerge) {
+    writeFileSync(join(primary, "later-base.txt"), "later base update\n")
+    if (git(primary, ["add", "later-base.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "later base update"]).status !== 0) return null
+    if (git(primary, ["push", "-q", "origin", "main"]).status !== 0 || git(child, ["fetch", "-q", "origin", "main"]).status !== 0) return null
+    if (git(child, ["merge", "--no-edit", "origin/main"]).status !== 0) return null
+  }
+  if (localFollowUp && !followUpBeforeMerge && !addFollowUp()) return null
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
   if (retainBranch) {
     /** Recreates the branch the moment git deletes it, which is the only way to drive the
@@ -47,7 +74,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     writeFileSync(hook, `#!/bin/sh\nmarker="$GIT_DIR/teardown-branch-recreated"\nif [ "$1" = "committed" ] && [ ! -f "$marker" ]; then\n  while read old new ref; do\n    if [ "$ref" = "refs/heads/${BRANCH}" ] && [ "$new" = "0000000000000000000000000000000000000000" ]; then\n      touch "$marker"\n      git update-ref "refs/heads/${BRANCH}" "${head}"\n    fi\n  done\nfi\n`)
     chmodSync(hook, 0o755)
   }
-  return { primary, child, headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
+  return { primary, child, headCommit, followUpCommit, resolvedMergeCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
 const ORCA_TICKET_LINK_FIELD = ["linked", "Lin", "earIssue"].join("")
@@ -149,8 +176,22 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "a merge commit absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET merge-commit-in-target: pull request #124 merge commit .* is not an ancestor of origin\/main/ }, { env: orcaEnv(teardownPlan(missingTarget, { pullRequests: [{ ...mergedPullRequest(missingTarget), mergeCommit: { oid: missingTarget.headCommit } }], removePath: missingTarget.child })) })
   T(`${TOOL}: the merge-commit refusal leaves the tree in place`, existsSync(missingTarget.child), "the unmerged fixture was removed")
 
-  const followUp = stageTeardownWorktree("local-follow-up", { changed: true, fastForwardMerged: true, localFollowUp: true })
-  check(TOOL, "a local commit absent from the pull request head is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-tip-in-pull-request-head: local tip .* is not contained in pull request #124 head .*; local commits would be lost/ }, { env: orcaEnv(teardownPlan(followUp, { removePath: followUp.child })) })
+  const followUp = stageTeardownWorktree("local-follow-up", { changed: true, squashMerged: true, localFollowUp: true, followUpBeforeMerge: true, localMerge: "clean" })
+  check(TOOL, "a local commit absent from the pull request head is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: new RegExp(`UNMET local-tip-in-pull-request-head: .*unsafe commit ${followUp.followUpCommit}`) }, { env: orcaEnv(teardownPlan(followUp, { removePath: followUp.child })) })
+  T(`${TOOL}: unpushed commit leaves the tree in place`, existsSync(followUp.child))
+
+  const cleanMerge = stageTeardownWorktree("clean-local-merge", { changed: true, squashMerged: true, localMerge: "clean" })
+  const cleanMergeCommit = spawnSync("git", ["-C", cleanMerge.child, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+  const cleanDiff = spawnSync("git", ["-C", cleanMerge.child, "show", "--remerge-diff", "--format=", cleanMergeCommit], { encoding: "utf8" })
+  T(`${TOOL}: clean merge fixture has an empty remerge diff`, cleanDiff.status === 0 && cleanDiff.stdout === "", cleanDiff.stderr || cleanDiff.stdout)
+  const cleanRemoved = check(TOOL, "a clean local merge of base is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*REMOVED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(cleanMerge, { removePath: cleanMerge.child })) })
+  T(`${TOOL}: clean merge removal deleted the fixture`, !existsSync(cleanMerge.child), cleanRemoved.stderr)
+
+  const resolvedMerge = stageTeardownWorktree("resolved-local-merge", { changed: true, squashMerged: true, localMerge: "resolved", laterCleanMerge: true })
+  const resolvedDiff = spawnSync("git", ["-C", resolvedMerge.child, "show", "--remerge-diff", "--format=", resolvedMerge.resolvedMergeCommit], { encoding: "utf8" })
+  T(`${TOOL}: resolved merge fixture has a nonempty remerge diff`, resolvedDiff.status === 0 && resolvedDiff.stdout !== "", resolvedDiff.stderr)
+  check(TOOL, "a merge with conflict resolution content is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: new RegExp(`UNMET local-tip-in-pull-request-head: .*unsafe commit ${resolvedMerge.resolvedMergeCommit}`) }, { env: orcaEnv(teardownPlan(resolvedMerge, { removePath: resolvedMerge.child })) })
+  T(`${TOOL}: resolved merge leaves the tree in place`, existsSync(resolvedMerge.child))
 
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "every independent refusal is reported in one pass", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET ticket-done: ticket is OPEN with board status In Review, expected CLOSED and Done/ }, { env: { ...orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })), ORBIT_TICKET_STATUS: "In Review", ORBIT_TICKET_STATE: "OPEN" } })
