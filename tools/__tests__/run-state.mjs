@@ -71,6 +71,17 @@ export const cases = () => {
     readRunState(closed)?.readinessLedger?.[0]?.closed === false && readRunState(closed)?.readinessLedger?.[0]?.blocker === "review pending",
     JSON.stringify(readRunState(closed)?.readinessLedger),
   )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [closedIdentity] }, closed)
+  writeRunState({
+    sessionId: "s1", sleep: true, remaining: [],
+    pullRequests: [closedIdentity],
+    readinessLedger: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", closed: false }],
+  }, closed)
+  T(
+    `${TOOL}: a reopening in the ledger wins over a stale closed pull request entry in the same write`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === false && readRunState(closed)?.readinessLedger?.[0]?.blocker === null,
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
   writeRunState({ sessionId: "s2", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
   T(`${TOOL}: a closure from another session is not inherited`, readRunState(closed)?.readinessLedger?.[0]?.closed === false)
 

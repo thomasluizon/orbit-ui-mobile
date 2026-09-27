@@ -57,11 +57,12 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
+  // Ledger entries come after pull request entries, so the ledger copy wins as it does in the Stop hook.
   const identities = [
-    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
-    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
+    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
+    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
   ]
   const rows = new Map()
   for (const entry of identities) {
