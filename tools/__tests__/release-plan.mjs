@@ -1,18 +1,23 @@
 import { readFileSync } from "node:fs"
 import { T, toolPath } from "./_harness.mjs"
-import { planRelease } from "../release-plan.mjs"
+import { planRelease, stagingServiceIds } from "../release-plan.mjs"
 
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
+const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release-fixture.json"), "utf8"))
 const FIRST = "a".repeat(40)
 const SECOND = "b".repeat(40)
+const IDS = { api: "srv-aaaaaaaaaaaaaaaaaaaa", web: "srv-bbbbbbbbbbbbbbbbbbbb" }
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], noDeployment = [], failedNewest = [] } = {}) {
+function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi = false } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
     const repository = path.match(/^repos\/[^/]+\/([^/]+)\//)?.[1]
     const service = repository === "orbit-api" ? "api" : repository === "orbit-landing-page" ? "landing" : "web"
+    if (path.includes("/actions/variables?")) {
+      return { total_count: 1, variables: [clone(renderFixture.variable)] }
+    }
     if (path.includes("/commits/")) {
       const commit = clone(fixture.commit)
       commit.sha = ahead.includes(service) || repository === "orbit-ui-mobile" && ahead.includes("android") ? SECOND : FIRST
@@ -51,7 +56,22 @@ function clientFor({ ahead = [], noDeployment = [], failedNewest = [] } = {}) {
     }
     throw new Error(`unexpected client read: ${path}`)
   }
-  return { read, calls }
+  const readRender = (path) => {
+    calls.push(path)
+    if (path.includes("/deploys?")) {
+      if (noLiveApi) return []
+      const records = clone(renderFixture.deploys)
+      records[0].deploy.commit.id = FIRST
+      return records
+    }
+    if (path === `services/${IDS.web}`) return clone(renderFixture.service)
+    throw new Error(`unexpected Render read: ${path}`)
+  }
+  const readHealth = (url) => {
+    calls.push(url)
+    return clone(renderFixture.health)
+  }
+  return { read, readRender, readHealth, calls }
 }
 
 export async function cases() {
@@ -75,8 +95,19 @@ export async function cases() {
   T("failed latest deployment does not replace last success", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
   T("failed latest deployment status was checked", failed.calls.some((path) => path.includes("/deployments/2/statuses")))
 
-  let stagingError = ""
-  try { await planRelease(clientFor({ noDeployment: ["api", "web"] }), "staging") }
-  catch (error) { stagingError = error.message }
-  T("staging without deployment records is reported as unknown", stagingError.includes("no verified deployment baseline"))
+  const staging = clientFor({ ahead: ["api", "web", "android"] })
+  const stagingPlan = await planRelease(staging, "staging", IDS)
+  T("staging compares live Render API and web baselines", stagingPlan.services.every((service) => service.needsRelease))
+  T("staging reads the Render service URL and web health", staging.calls.includes(`https://example.invalid/api/health`))
+  T("staging never reads GitHub deployments for API or web", !staging.calls.some((path) => path.includes("/deployments?")))
+
+  const noApi = await planRelease(clientFor({ noLiveApi: true }), "staging", IDS)
+  T("staging without a live API deploy reports first deploy", noApi.services[0].noBaseline && noApi.services[0].deployedSha === null)
+  const noWeb = clientFor()
+  const noWebPlan = await planRelease(noWeb, "staging", { api: IDS.api, web: null })
+  T("staging without a web service reports first deploy", noWebPlan.services[1].noBaseline &&
+    !noWeb.calls.includes(`services/${IDS.web}`))
+
+  const ids = stagingServiceIds(clientFor())
+  T("staging service IDs use config and the documented GitHub variable", ids.api === "srv-dasotg8473hc739a5gjg" && ids.web === IDS.web)
 }

@@ -62,5 +62,8 @@
     "ui": ".",
     "api": "../orbit-api",
     "landing": "../orbit-landing-page"
+  },
+  "release": {
+    "stagingApiServiceId": "srv-dasotg8473hc739a5gjg"
   }
 }

@@ -1,0 +1,91 @@
+{
+  "provenance": {
+    "deploys": "GET https://api.render.com/v1/services/{staging-api-service-id}/deploys?status=live&limit=1",
+    "service": "GET https://api.render.com/v1/services/{staging-api-service-id}",
+    "health": "apps/web/app/api/health/route.ts",
+    "variable": "gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID"
+  },
+  "variable": {
+    "created_at": "<ISO-8601 timestamp>",
+    "name": "RENDER_WEB_STAGING_SERVICE_ID",
+    "updated_at": "<ISO-8601 timestamp>",
+    "value": "srv-bbbbbbbbbbbbbbbbbbbb"
+  },
+  "deploys": [
+    {
+      "deploy": {
+        "id": "<value>",
+        "commit": {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message": "<value>",
+          "createdAt": "<ISO-8601 timestamp>"
+        },
+        "status": "live",
+        "trigger": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "updatedAt": "<ISO-8601 timestamp>",
+        "startedAt": "<ISO-8601 timestamp>",
+        "finishedAt": "<ISO-8601 timestamp>"
+      },
+      "cursor": "<value>"
+    }
+  ],
+  "service": {
+    "autoDeploy": "<value>",
+    "autoDeployTrigger": "<value>",
+    "branch": "<value>",
+    "createdAt": "<ISO-8601 timestamp>",
+    "dashboardUrl": "<value>",
+    "environmentId": "<value>",
+    "id": "srv-aaaaaaaaaaaaaaaaaaaa",
+    "name": "<value>",
+    "notifyOnFail": "<value>",
+    "ownerId": "<value>",
+    "repo": "<value>",
+    "rootDir": "<value>",
+    "serviceDetails": {
+      "buildPlan": "<value>",
+      "cache": {
+        "profile": "<value>"
+      },
+      "env": "<value>",
+      "envSpecificDetails": {
+        "dockerCommand": "<value>",
+        "dockerContext": "<value>",
+        "dockerfilePath": "<value>"
+      },
+      "healthCheckPath": "<value>",
+      "ipAllowList": [
+        {
+          "cidrBlock": "<value>",
+          "description": "<value>"
+        }
+      ],
+      "maintenanceMode": {
+        "enabled": false,
+        "uri": "<value>"
+      },
+      "numInstances": 1,
+      "openPorts": [],
+      "plan": "<value>",
+      "previews": {
+        "generation": "<value>"
+      },
+      "pullRequestPreviewsEnabled": "<value>",
+      "region": "<value>",
+      "renderSubdomainPolicy": "<value>",
+      "runtime": "<value>",
+      "sshAddress": "<value>",
+      "url": "https://example.invalid"
+    },
+    "slug": "<value>",
+    "suspended": "<value>",
+    "suspenders": [],
+    "type": "<value>",
+    "updatedAt": "<ISO-8601 timestamp>"
+  },
+  "health": {
+    "status": "ok",
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}
