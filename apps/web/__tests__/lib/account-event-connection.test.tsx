@@ -1,19 +1,50 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
 
 const invalidateQueries = vi.fn()
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({
-  invalidateQueries,
-  getQueryCache: () => ({ findAll: () => [] }),
-}) }))
+const queryClientState = vi.hoisted(() => ({ current: null as QueryClient | null }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () =>
+  queryClientState.current ?? {
+    invalidateQueries,
+    getQueryCache: () => ({ findAll: () => [] }),
+  },
+}))
 
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   setAccountEventOrigin(null)
   invalidateQueries.mockClear()
+  queryClientState.current?.clear()
+  queryClientState.current = null
+})
+
+it('refreshes a query fetched while the first ticket request failed', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  queryClientState.current = client
+  const fetchMock = vi.fn()
+    .mockRejectedValueOnce(new Error('ticket unavailable'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ticket: 'ticket', apiBase: 'https://api.example.test' })))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start() {} })))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+  const queryKey = ['habits', 'list', { date: 'today' }]
+  client.setQueryData(queryKey, 'while disconnected', { updatedAt: Date.now() - 1 })
+  const fetchHabits = vi.fn(async () => 'after connection')
+  const observer = new QueryObserver(client, { queryKey, queryFn: fetchHabits, staleTime: Infinity })
+  const unsubscribe = observer.subscribe(() => {})
+  expect(fetchHabits).not.toHaveBeenCalled()
+  await waitFor(() => expect(fetchHabits).toHaveBeenCalledTimes(1), { timeout: 4000 })
+  expect(observer.getCurrentResult().data).toBe('after connection')
+  expect((fetchMock.mock.calls[2]?.[0] as URL).origin).toBe('https://api.example.test')
+  expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ headers: undefined })
+  unsubscribe()
+  view.unmount()
 })
 
 it('requests replay after a closed stream and handles a server resync', async () => {
@@ -64,6 +95,7 @@ it('opens a visible direct stream, skips its own change, and invalidates another
     expect.objectContaining({ href: expect.stringContaining('/api/events?ticket=ticket') }),
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
   )
+  expect((fetchMock.mock.calls[1]?.[0] as URL).origin).toBe('https://api.example.test')
   view.unmount()
   expect(getAccountEventOrigin()).toBeNull()
 })
