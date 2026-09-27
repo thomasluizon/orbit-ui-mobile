@@ -1338,7 +1338,7 @@
       "steps": "{count, plural, one {# etapa} other {# etapas}}",
       "steps_one": "{count} etapa",
       "steps_other": "{count} etapas",
-      "unknown": "Cuidando do seu pedido",
+      "unknown": "Trabalhando no que você pediu",
       "account": {
         "read": "Consultando dados da conta",
         "write": "Atualizando dados da conta"
@@ -1360,8 +1360,8 @@
         "write": "Atualizando conversa"
       },
       "checklists": {
-        "read": "Consultando listas de tarefas",
-        "write": "Atualizando listas de tarefas"
+        "read": "Consultando checklists",
+        "write": "Atualizando checklists"
       },
       "config": {
         "read": "Consultando configurações",
@@ -1420,8 +1420,8 @@
         "write": "Atualizando estado da sincronização"
       },
       "tags": {
-        "read": "Consultando etiquetas",
-        "write": "Atualizando etiquetas"
+        "read": "Consultando tags",
+        "write": "Atualizando tags"
       }
     },
     "followUps": {"label": "Próximas perguntas"},
