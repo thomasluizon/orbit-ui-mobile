@@ -106,8 +106,8 @@ describe('OnboardingCreateHabit data', () => {
       await TestRenderer.act(() => {
         tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
       })
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pelo Astra')).toHaveLength(0)
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir agenda. Emoji proposto pelo Astra')).toHaveLength(1)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pela Astra')).toHaveLength(0)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir agenda. Emoji proposto pela Astra')).toHaveLength(1)
     } finally {
       await i18n.changeLanguage('en')
     }
