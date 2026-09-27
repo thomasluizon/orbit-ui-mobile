@@ -750,6 +750,7 @@ describe('auth schemas', () => {
       }
       expect(googleCodeAuthResponseSchema.safeParse(response).success).toBe(true)
       expect(googleCodeAuthResponseSchema.safeParse({ ...response, token: undefined }).success).toBe(false)
+      expect(googleCodeAuthResponseSchema.safeParse({ ...response, wasReactivated: undefined }).success).toBe(false)
     })
   })
 })

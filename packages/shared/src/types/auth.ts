@@ -69,5 +69,7 @@ export const googleCodeAuthRequestSchema = z.object({
 
 export type GoogleCodeAuthRequest = z.infer<typeof googleCodeAuthRequestSchema>
 
-export const googleCodeAuthResponseSchema = backendLoginResponseSchema
+export const googleCodeAuthResponseSchema = backendLoginResponseSchema.extend({
+  wasReactivated: z.boolean(),
+})
 export type GoogleCodeAuthResponse = z.infer<typeof googleCodeAuthResponseSchema>

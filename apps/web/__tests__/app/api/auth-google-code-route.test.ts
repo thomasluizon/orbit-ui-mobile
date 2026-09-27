@@ -12,7 +12,7 @@ import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 const origin = 'https://staging.useorbit.org'
 const loginResponse = {
   token: 'orbit-token', refreshToken: 'refresh-token',
-  userId: 'user-1', name: 'Alex', email: 'alex@example.com',
+  userId: 'user-1', name: 'Alex', email: 'alex@example.com', wasReactivated: false,
 }
 
 function requestWithCookie(cookie: string, body: unknown) {
@@ -73,7 +73,7 @@ describe('Google OAuth BFF', () => {
         redirectUri: `${origin}/auth-callback`, language: 'pt-BR', referralCode: 'REF123' }),
     }))
     expect(setSessionCookies).toHaveBeenCalledWith('orbit-token', 'refresh-token')
-    expect(await response.json()).toEqual({ userId: 'user-1', name: 'Alex', email: 'alex@example.com' })
+    expect(await response.json()).toEqual({ userId: 'user-1', name: 'Alex', email: 'alex@example.com', wasReactivated: false })
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)?.value).toBe('')
   })
 
