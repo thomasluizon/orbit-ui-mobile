@@ -22,6 +22,13 @@ runs only after the user confirms the exact inputs.
 | `validate_expo_dependencies` | no | boolean, default `false` |
 | `message` | no | free text recorded in the run log and summary |
 
+The workflow builds `internal` and `closed` against `https://api-staging.useorbit.org` and
+records them in the `staging` GitHub environment. It builds `open` and `production` against
+`https://api.useorbit.org` in the `production` environment, which requires the owner's approval.
+Each successful Play upload records an Android GitHub Deployment with the commit, version and
+versionCode. Play's versionCode sequence is shared across all tracks. A binary is never promoted
+between tracks because its API base is fixed when it is built.
+
 ## Step 1 - Read the last run to derive the defaults
 
 The workflow sets `run-name` to
