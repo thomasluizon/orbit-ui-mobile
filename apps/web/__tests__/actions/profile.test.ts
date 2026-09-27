@@ -33,7 +33,6 @@ const {
   updateMarketingConsent,
   updateWeekStartDay,
   updateThemePreference,
-  updateColorScheme,
   completeOnboarding,
   resetAccount,
 } = await import('@/lib/actions/profile')
@@ -196,28 +195,6 @@ describe('profile server actions', () => {
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ themePreference: 'light' })
-    })
-  })
-
-
-  describe('updateColorScheme', () => {
-    it('sends PUT to /api/profile/color-scheme', async () => {
-      mock204()
-
-      await updateColorScheme({ colorScheme: 'ocean' }, 'account-a')
-
-      const [url, init] = mockFetch.mock.calls[0]!
-      expect(url).toContain('/api/profile/color-scheme')
-      expect(init.method).toBe('PUT')
-      expect(JSON.parse(init.body)).toEqual({ colorScheme: 'ocean' })
-    })
-
-    it('throws on server error', async () => {
-      mockApiResponse({ error: 'Invalid color scheme' }, 400)
-
-      await expect(
-        updateColorScheme({ colorScheme: 'invalid' as never }, 'account-a'),
-      ).rejects.toThrow('Invalid color scheme')
     })
   })
 

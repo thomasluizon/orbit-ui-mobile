@@ -33,18 +33,16 @@ interface ScheduledReminderSectionProps {
   onToggleReminder: () => void
   onSetScheduledReminders: (reminders: Array<{ when: ScheduledReminderWhen; time: string }>) => void
   onValidationError: (message: string) => void
-  /**
-   * When rendered as the secondary surface beside the offset-reminder card (a due-timed habit that
-   * also holds scheduled reminders, #447 Bug 3), the master on/off is already owned by that card, so
-   * this one drops its own switch to avoid a duplicate toggle.
-   */
+  /** The timed reminder card owns the switch when this editor is nested inside it. */
   nested?: boolean
+  offsetReminderCount?: number
   t: ReturnType<typeof useTranslations>
 }
 
 export function ScheduledReminderSection({
   reminderEnabled, scheduledReminders,
-  onToggleReminder, onSetScheduledReminders, onValidationError, nested = false, t,
+  onToggleReminder, onSetScheduledReminders, onValidationError, nested = false,
+  offsetReminderCount = 0, t,
 }: Readonly<ScheduledReminderSectionProps>) {
   const locale = useLocale()
   const [showForm, setShowForm] = useState(false)
@@ -52,9 +50,15 @@ export function ScheduledReminderSection({
   const [time, setTime] = useState<Time24 | ''>('')
   const permission = useReminderPermission(reminderEnabled, onToggleReminder)
 
-  const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
+  const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
+  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15
+  const atLimit = atScheduledLimit || atRelativeLimit
 
   function addScheduledReminder() {
+    if (atRelativeLimit) {
+      onValidationError(t('habits.form.relativeReminderMax'))
+      return
+    }
     if (!time) {
       onValidationError(t('habits.form.invalidScheduledReminderTime'))
       return
@@ -85,8 +89,9 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <div className="flex items-center justify-between gap-3">
+    <div className={nested ? 'flex flex-col gap-2' : 'flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]'}>
+      {nested ? <p className="m-0 text-xs text-[var(--fg-3)]">{t('habits.form.scheduledReminderFixedTimes')}</p> : null}
+      {!nested && <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
           <span
@@ -96,14 +101,12 @@ export function ScheduledReminderSection({
             {t('habits.form.scheduledReminder')}
           </span>
         </div>
-        {!nested && (
-          <Switch
-            checked={reminderEnabled}
-            onChange={permission.toggleReminder}
-            label={t('habits.form.scheduledReminder')}
-          />
-        )}
-      </div>
+        <Switch
+          checked={reminderEnabled}
+          onChange={permission.toggleReminder}
+          label={t('habits.form.scheduledReminder')}
+        />
+      </div>}
       {!nested && <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
         {permission.showNotice ? <>
           {t('habits.form.reminderPermissionNeeded')}{' '}
@@ -139,12 +142,12 @@ export function ScheduledReminderSection({
                 onClick={() => setShowForm(true)}
               >
                 <Plus size={16} strokeWidth={2} aria-hidden="true" />
-                {t('habits.form.scheduledReminderAdd')}
+                {t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')}
               </button>
             )}
 
             {atLimit && (
-              <p className="text-[13px] text-[var(--fg-3)]">{t('habits.form.scheduledReminderMax')}</p>
+              <p className="text-[13px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')}</p>
             )}
 
             {showForm && (

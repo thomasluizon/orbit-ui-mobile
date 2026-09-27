@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
@@ -9,7 +10,6 @@ import {
   canPromptReferral,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -17,6 +17,9 @@ import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-sess
 import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
+const ReferralDrawer = dynamic(() =>
+  import('@/components/referral/referral-drawer').then((module) => module.ReferralDrawer),
+)
 
 /** One-shot milestone nudge that hands off to the referral drawer. */
 export function ReferralPrompt() {
@@ -127,7 +130,7 @@ export function ReferralPrompt() {
           </div>
         </Sheet>
       ) : null}
-      <ReferralDrawer open={showDrawer} onOpenChange={setShowDrawer} />
+      {showDrawer ? <ReferralDrawer open onOpenChange={setShowDrawer} /> : null}
     </>
   )
 }

@@ -417,7 +417,7 @@ function applyProfilePresentation(profile: Profile): void {
   }
 
   setRuntimeTheme({
-    scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+    scheme: 'orange',
     themeMode:
       profile.themePreference === 'light' || profile.themePreference === 'dark'
         ? profile.themePreference
@@ -512,7 +512,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         setRuntimeTheme({
-          scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
+          scheme: 'orange',
           themeMode:
             profile.themePreference === 'light' || profile.themePreference === 'dark'
               ? profile.themePreference

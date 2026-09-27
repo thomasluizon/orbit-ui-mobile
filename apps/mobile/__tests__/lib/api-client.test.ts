@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { apiClient, apiClientWithAuthorizingToken } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
 import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
+import { setAccountEventOrigin } from '@/lib/account-event-origin'
 
 function headersWithRequestId(requestId: string) {
   return {
@@ -74,6 +75,7 @@ describe('mobile apiClient', () => {
   })
 
   beforeEach(() => {
+    setAccountEventOrigin(null)
     getTokenMock.mockReset()
     clearAllTokensMock.mockReset()
     fetchMock.mockReset()
@@ -132,6 +134,18 @@ describe('mobile apiClient', () => {
     finishToken('next-account-token')
     await expect(pending).rejects.toThrow('Account changed')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sends the live connection id with mutations', async () => {
+    setAccountEventOrigin('mobile-connection')
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({ ok: true, status: 204 })
+
+    await apiClient('/api/habits/h-1', { method: 'DELETE' })
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Orbit-Event-Origin': 'mobile-connection' }),
+    }))
   })
 
   it('flags upgrade required and throws on a 426 without retrying', async () => {

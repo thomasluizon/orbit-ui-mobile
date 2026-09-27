@@ -70,7 +70,7 @@ export interface AppSurfaces {
 }
 
 let runtimeTheme: ThemeRuntime = {
-  scheme: 'purple',
+  scheme: 'orange',
   themeMode: 'dark',
 }
 
@@ -78,6 +78,7 @@ export function setRuntimeTheme(next: Partial<ThemeRuntime>) {
   runtimeTheme = {
     ...runtimeTheme,
     ...next,
+    scheme: 'orange',
   }
 }
 
@@ -184,11 +185,11 @@ function blendWhiteOverHex(baseHex: string, alpha: number): string {
 }
 
 export function createTokensV2(
-  colorScheme: ColorScheme = runtimeTheme.scheme,
+  _colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppTokensV2 {
-  const accent = schemes[colorScheme].accent[themeMode]
-  const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
+  const accent = schemes.orange.accent[themeMode]
+  const fgOnPrimary = schemes.orange.fgOnPrimary[themeMode]
   const neutral = neutralColors[themeMode]
   const status = statusConstants[themeMode]
   return {

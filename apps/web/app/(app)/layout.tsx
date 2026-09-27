@@ -61,6 +61,7 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { AccountEventConnection } from '@/lib/account-event-connection'
 
 const CreateHabitModal = dynamic(() =>
   import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal),
@@ -81,10 +82,9 @@ export default function AppLayout({
   if (pathname === '/about' && !isAuthenticated) return <>{children}</>
   return (
     <Providers>
+      <AccountEventConnection />
       <TodayProvider>
-        <Suspense fallback={null}>
-          <AppLayoutContent>{children}</AppLayoutContent>
-        </Suspense>
+        <AppLayoutContent>{children}</AppLayoutContent>
       </TodayProvider>
     </Providers>
   )
@@ -95,10 +95,44 @@ function getSelectedDateFromParam(dateParam: string | null): string {
   return formatAPIDate(new Date())
 }
 
+function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
+  pathname: string
+  onOpen: (open: boolean) => void
+}>) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (searchParams.get('astra') !== 'open') return
+    onOpen(true)
+    router.replace(pathname)
+  }, [onOpen, pathname, router, searchParams])
+
+  return null
+}
+
+function CreateHabitModalFromQuery({ pathname, activeView, onOpenChange }: Readonly<{
+  pathname: string
+  activeView: string
+  onOpenChange: (open: boolean) => void
+}>) {
+  const searchParams = useSearchParams()
+  return (
+    <CreateHabitModal
+      open
+      onOpenChange={onOpenChange}
+      initialDate={
+        activeView === 'today' && pathname === '/'
+          ? getSelectedDateFromParam(searchParams.get('date'))
+          : null
+      }
+    />
+  )
+}
+
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
@@ -133,12 +167,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     handleTextFileSelect,
     ...chat
   } = useChatComposer()
-
-  useEffect(() => {
-    if (searchParams.get('astra') !== 'open') return
-    setAstraConversationOpen(true)
-    router.replace(pathname)
-  }, [pathname, router, searchParams, setAstraConversationOpen])
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useAccountScopedState(false)
 
@@ -236,6 +264,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   return (
     <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
+      <Suspense fallback={null}>
+        <OpenAstraFromQuery pathname={pathname} onOpen={setAstraConversationOpen} />
+      </Suspense>
       <DestinationShell
         onCreate={handleCreate}
         composer={
@@ -309,15 +340,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       />
 
       {showCreateModal && (
-        <CreateHabitModal
-          open={showCreateModal}
-          onOpenChange={setShowCreateModal}
-          initialDate={
-            activeView === 'today' && pathname === '/'
-              ? getSelectedDateFromParam(searchParams.get('date'))
-              : null
-          }
-        />
+        <Suspense fallback={null}>
+          <CreateHabitModalFromQuery
+            pathname={pathname}
+            activeView={activeView}
+            onOpenChange={setShowCreateModal}
+          />
+        </Suspense>
       )}
       <ApiFetchI18nProvider />
     </CommandPaletteBackground>

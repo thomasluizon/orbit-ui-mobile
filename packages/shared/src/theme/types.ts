@@ -1,4 +1,4 @@
-export type ColorScheme = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'cyan'
+export type { ColorScheme } from '../types/profile'
 
 export type SchemeMode = 'dark' | 'light'
 

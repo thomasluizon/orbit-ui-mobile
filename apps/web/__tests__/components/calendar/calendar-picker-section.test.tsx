@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
+import { toast } from 'sonner'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -76,6 +78,20 @@ describe('CalendarPickerSection', () => {
 
     fireEvent.click(screen.getByRole('switch'))
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'cal-1', isSynced: false })
+  })
+
+  it('shows textless recovery when saving a calendar is blocked', async () => {
+    useCalendarsMock.mockReturnValue({
+      data: [buildCalendar()],
+      isLoading: false,
+      isError: false,
+    })
+    mutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'))
+    render(<CalendarPickerSection enabled />)
+
+    fireEvent.click(screen.getByRole('switch'))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('shows the loading state', () => {

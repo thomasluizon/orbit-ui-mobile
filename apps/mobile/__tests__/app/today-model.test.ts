@@ -6,7 +6,6 @@ import {
 
 function inputOf(overrides: Partial<TodayFiltersInput> = {}): TodayFiltersInput {
   return {
-    view: "today",
     dateStr: "2026-07-08",
     isTodayDate: true,
     searchQuery: "",
@@ -18,28 +17,9 @@ function inputOf(overrides: Partial<TodayFiltersInput> = {}): TodayFiltersInput 
 }
 
 describe("buildTodayFilters", () => {
-  it("builds a general-view filter with only isGeneral by default", () => {
-    expect(buildTodayFilters(inputOf({ view: "general" }))).toEqual({
-      isGeneral: true,
-    });
-  });
-
-  it("adds trimmed search and tags to a general-view filter, ignoring frequency", () => {
-    expect(
-      buildTodayFilters(
-        inputOf({
-          view: "general",
-          searchQuery: "  run  ",
-          selectedFrequency: "Day",
-          selectedTagIds: ["t1", "t2"],
-        }),
-      ),
-    ).toEqual({ isGeneral: true, search: "run", tagIds: ["t1", "t2"] });
-  });
-
   it("builds a today-view filter with the date window and overdue flag", () => {
     expect(
-      buildTodayFilters(inputOf({ view: "today", isTodayDate: true })),
+      buildTodayFilters(inputOf({ isTodayDate: true })),
     ).toEqual({
       dateFrom: "2026-07-08",
       dateTo: "2026-07-08",
@@ -50,18 +30,18 @@ describe("buildTodayFilters", () => {
 
   it("sets includeGeneral only when showGeneralOnToday is true", () => {
     expect(
-      buildTodayFilters(inputOf({ view: "today", showGeneralOnToday: true }))
+      buildTodayFilters(inputOf({ showGeneralOnToday: true }))
         .includeGeneral,
     ).toBe(true);
     expect(
-      buildTodayFilters(inputOf({ view: "today", showGeneralOnToday: false }))
+      buildTodayFilters(inputOf({ showGeneralOnToday: false }))
         .includeGeneral,
     ).toBeUndefined();
   });
 
   it("excludes overdue for a non-today date", () => {
     expect(
-      buildTodayFilters(inputOf({ view: "today", isTodayDate: false }))
+      buildTodayFilters(inputOf({ isTodayDate: false }))
         .includeOverdue,
     ).toBe(false);
   });
@@ -70,7 +50,6 @@ describe("buildTodayFilters", () => {
     expect(
       buildTodayFilters(
         inputOf({
-          view: "today",
           searchQuery: "walk",
           selectedFrequency: "Week",
           selectedTagIds: ["a"],
@@ -87,23 +66,9 @@ describe("buildTodayFilters", () => {
     });
   });
 
-  it("builds an empty filter for other views and applies optional selections", () => {
-    expect(buildTodayFilters(inputOf({ view: "all" }))).toEqual({});
-    expect(
-      buildTodayFilters(
-        inputOf({
-          view: "all",
-          searchQuery: "x",
-          selectedFrequency: "Month",
-          selectedTagIds: ["z"],
-        }),
-      ),
-    ).toEqual({ search: "x", frequencyUnit: "Month", tagIds: ["z"] });
-  });
-
   it("drops whitespace-only search", () => {
     expect(
-      buildTodayFilters(inputOf({ view: "all", searchQuery: "   " })).search,
+      buildTodayFilters(inputOf({ searchQuery: "   " })).search,
     ).toBeUndefined();
   });
 });

@@ -1,4 +1,8 @@
 export const API = {
+  events: {
+    stream: '/api/events',
+    ticket: '/api/events/ticket',
+  },
   auth: {
     sendCode: '/api/auth/send-code',
     verifyCode: '/api/auth/verify-code',

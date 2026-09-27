@@ -11,7 +11,6 @@ vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => heldAccount.id }
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
 vi.mock('@/lib/actions/profile', () => ({
-  updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -81,9 +80,16 @@ describe('useColorScheme', () => {
     mockClassList.remove.mockClear()
   })
 
-  it('defaults to purple scheme', () => {
+  it('uses the granted scheme', () => {
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
+    expect(result.current.currentScheme).toBe('orange')
+  })
+
+  it('replaces a stored scheme cookie with the granted scheme', () => {
+    mockCookies['orbit_color_scheme'] = 'rose'
+    const { result } = renderHook(() => useColorScheme())
+    expect(result.current.currentScheme).toBe('orange')
+    expect(mockCookies['orbit_color_scheme']).toBe('orange')
   })
 
   it('defaults to dark theme', () => {
@@ -91,42 +97,10 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('dark')
   })
 
-  it('reads scheme from cookie', () => {
-    mockCookies['orbit_color_scheme'] = 'blue'
-    const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('blue')
-  })
-
   it('reads theme from cookie', () => {
     mockCookies['orbit_theme_mode'] = 'light'
     const { result } = renderHook(() => useColorScheme())
     expect(result.current.currentTheme).toBe('light')
-  })
-
-  it('ignores invalid scheme from cookie', () => {
-    mockCookies['orbit_color_scheme'] = 'invalid'
-    const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('applyScheme updates current scheme', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.applyScheme('green')
-    })
-
-    expect(result.current.currentScheme).toBe('green')
-  })
-
-  it('applyScheme sets cookie', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.applyScheme('rose')
-    })
-
-    expect(mockCookies['orbit_color_scheme']).toBe('rose')
   })
 
   it('applyTheme updates current theme', () => {
@@ -189,47 +163,6 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('dark')
-  })
-
-  it('syncSchemeFromProfile updates scheme when DB differs', () => {
-    const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple')
-
-    act(() => {
-      result.current.syncSchemeFromProfile('cyan')
-    })
-
-    expect(result.current.currentScheme).toBe('cyan')
-  })
-
-  it('syncSchemeFromProfile ignores null', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile(null)
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('syncSchemeFromProfile ignores invalid scheme', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile('nonexistent')
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
-  })
-
-  it('syncSchemeFromProfile does nothing when schemes match', () => {
-    const { result } = renderHook(() => useColorScheme())
-
-    act(() => {
-      result.current.syncSchemeFromProfile('purple')
-    })
-
-    expect(result.current.currentScheme).toBe('purple')
   })
 
   it('syncThemeFromProfile updates theme when DB differs', () => {

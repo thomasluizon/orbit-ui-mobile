@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { Tag } from '@orbit/shared/types/tag'
 import {
   appendTag,
   mapHabitTagReferences,
@@ -20,11 +21,7 @@ import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 
-export interface Tag {
-  id: string
-  name: string
-  color: string
-}
+export type { Tag } from '@orbit/shared/types/tag'
 
 type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
@@ -145,7 +142,7 @@ export function useTags() {
   })
 
   return {
-    tags: (query.data ?? []) as Tag[],
+    tags: query.data ?? [],
     isLoading: query.isLoading,
     isFetching: query.isFetching,
   }

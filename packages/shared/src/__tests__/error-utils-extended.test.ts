@@ -16,6 +16,8 @@ import {
   validateApiRequest,
 } from '../utils/error-utils'
 import { createHabitRequestSchema, updateHabitRequestSchema } from '../types/habit'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 
 describe('ApiClientError', () => {
@@ -244,6 +246,20 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(new ApiClientError(403, 'Title is required'), 'errors.createHabit', 'habit'))
       .toBe('errors.api.edgeBlocked')
   })
+  it('gives textless requests a separate recovery message for a code-free 403', () => {
+    const error = new ApiClientError(403, 'Forbidden')
+    expect(getFriendlyErrorKey(error, 'calendar.calendars.saveFailed', 'textless'))
+      .toBe('errors.api.edgeBlockedRetry')
+    expect(getFriendlyErrorKey(error, 'errors.createHabit', 'habit'))
+      .toBe('errors.api.edgeBlocked')
+  })
+  it('keeps actionable blocked-request copy for both request kinds and locales', () => {
+    for (const locale of [en, ptBR]) {
+      expect(locale.errors.api.edgeBlockedRetry).toMatch(/Try again|Tente de novo/)
+      expect(locale.errors.api.edgeBlockedRetry).not.toMatch(/text|texto/i)
+      expect(locale.errors.api.edgeBlocked).toMatch(/text|texto/i)
+    }
+  })
   it.each([
     [403, undefined, 'errors.api.edgeBlocked'],
     [400, 'VALIDATION_ERROR', 'toast.errors.validation'],
@@ -400,6 +416,13 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe(
       'habits.form.subHabitTitleTooLong',
     )
+  })
+
+  it.each(['habit', 'subHabit'] as const)('maps raw sub-habit title errors in %s context', (context) => {
+    const required = createApiClientError(400, { error: 'Sub-habit title must not be empty' }, 'fallback')
+    const tooLong = createApiClientError(400, { error: 'Sub-habit title must not exceed 200 characters' }, 'fallback')
+    expect(getFriendlyErrorKey(required, 'errors.generic', context)).toBe('habits.form.subHabitTitleRequired')
+    expect(getFriendlyErrorKey(tooLong, 'errors.generic', context)).toBe('habits.form.subHabitTitleTooLong')
   })
 
   it('maps linked goals limit for habit', () => {

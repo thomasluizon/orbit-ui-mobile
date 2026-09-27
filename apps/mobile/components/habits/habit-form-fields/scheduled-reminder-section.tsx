@@ -54,12 +54,9 @@ interface ScheduledReminderSectionProps {
     reminders: { when: ScheduledReminderWhen; time: string }[],
   ) => void;
   onValidationError: (message: string) => void;
-  /**
-   * When rendered as the secondary surface beside the offset-reminder card (a due-timed habit that
-   * also holds scheduled reminders, #447 Bug 3), the master on/off is already owned by that card, so
-   * this one drops its own switch to avoid a duplicate toggle.
-   */
+  /** The timed reminder card owns the switch when this editor is nested inside it. */
   nested?: boolean;
+  offsetReminderCount?: number;
 }
 
 export function ScheduledReminderSection({
@@ -70,6 +67,7 @@ export function ScheduledReminderSection({
   onSetScheduledReminders,
   onValidationError,
   nested = false,
+  offsetReminderCount = 0,
 }: Readonly<ScheduledReminderSectionProps>) {
   const { t, i18n } = useTranslation();
   const deviceLocale = i18n.language;
@@ -79,9 +77,15 @@ export function ScheduledReminderSection({
   const [time, setTime] = useState<Time24 | "">("");
   const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
-  const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
+  const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
+  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15;
+  const atLimit = atScheduledLimit || atRelativeLimit;
 
   function addScheduledReminder() {
+    if (atRelativeLimit) {
+      onValidationError(t("habits.form.relativeReminderMax"));
+      return;
+    }
     if (!time) {
       onValidationError(t("habits.form.invalidScheduledReminderTime"));
       return;
@@ -119,22 +123,21 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <View style={sectionStyles.container}>
-      <View style={sectionStyles.headerRow}>
+    <View style={nested ? sectionStyles.body : sectionStyles.container}>
+      {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
+      {!nested && <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
           <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
           <Text style={sectionStyles.headerLabel}>
             {t("habits.form.scheduledReminder")}
           </Text>
         </View>
-        {!nested && (
-          <Switch
-            checked={reminderEnabled}
-            onChange={permission.toggleReminder}
-            label={t("habits.form.scheduledReminder")}
-          />
-        )}
-      </View>
+        <Switch
+          checked={reminderEnabled}
+          onChange={permission.toggleReminder}
+          label={t("habits.form.scheduledReminder")}
+        />
+      </View>}
       {!nested && <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>
           <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
             {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
@@ -182,14 +185,14 @@ export function ScheduledReminderSection({
             >
               <Plus size={16} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
-                {t("habits.form.scheduledReminderAdd")}
+                {t(nested ? "habits.form.reminderAddTime" : "habits.form.scheduledReminderAdd")}
               </Text>
             </Pressable>
           )}
 
           {atLimit && (
             <Text style={sectionStyles.limitText}>
-              {t("habits.form.scheduledReminderMax")}
+              {t(atRelativeLimit ? "habits.form.relativeReminderMax" : "habits.form.scheduledReminderMax")}
             </Text>
           )}
 

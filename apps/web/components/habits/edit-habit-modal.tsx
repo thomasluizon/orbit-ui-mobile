@@ -301,7 +301,6 @@ export function EditHabitModal({
         originalEndDate,
         reminderTimes,
         selectedGoalIds,
-        habit.scheduledReminders.length > 0,
       )
       const goalIdsChanged = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right))) !== initialGoalIds
       const tagIdsChanged = JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds

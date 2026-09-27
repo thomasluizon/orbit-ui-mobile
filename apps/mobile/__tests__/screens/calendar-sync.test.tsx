@@ -1,6 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
+import { ApiClientError } from "@orbit/shared";
 import type { CalendarSyncEvent } from "@orbit/shared/utils";
 import { advanceAccountGeneration } from '@/lib/session-epoch';
 import { CalendarAutoSyncSection } from '@/components/calendar-sync/calendar-sync-auto-section';
@@ -207,7 +208,8 @@ vi.mock("@/components/ui/settings-row", () => ({
 }));
 
 vi.mock("@/components/ui/switch", () => ({
-  Switch: () => null,
+  Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
+    React.createElement("Switch", { onPress: onToggle, accessibilityLabel }),
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
@@ -403,6 +405,152 @@ describe("CalendarSyncScreen", () => {
     expect(metaNodes.length).toBeGreaterThan(0);
   });
 
+  it("shows text-bearing recovery when importing an event is blocked", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(1) };
+    mocks.bulkMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const importPill = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onClick === "function" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+
+    await TestRenderer.act(async () => {
+      (importPill.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0].title).toBe("Event 0");
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlocked",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when loading calendars is blocked", async () => {
+    mocks.eventsQuery.isError = true;
+    mocks.eventsQuery.error = new ApiClientError(403, "Forbidden");
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlockedRetry",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when a textless sync request is blocked", async () => {
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const syncNow = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.syncNow" &&
+        typeof node.props.onPress === "function",
+    );
+    TestRenderer.act(() => {
+      (syncNow.props.onPress as () => void)();
+      const options = mocks.runSyncNowMutate.mock.calls[0]?.[1] as {
+        onError: (error: unknown) => void;
+      };
+      options.onError(new ApiClientError(403, "Forbidden"));
+    });
+
+    expect(mocks.runSyncNowMutate.mock.calls[0]?.[0]).toBeUndefined();
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+  });
+
+  it("shows retry recovery when changing auto-sync is blocked", async () => {
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const section = tree.root.findByType(CalendarAutoSyncSection);
+    TestRenderer.act(() => {
+      section.props.onToggleAutoSync(true);
+      const options = mocks.setAutoSyncMutate.mock.calls[0]?.[1] as {
+        onError: (error: unknown) => void;
+      };
+      options.onError(new ApiClientError(403, "Forbidden"));
+    });
+
+    expect(mocks.setAutoSyncMutate.mock.calls[0]?.[0]).toEqual({ enabled: true });
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+  });
+
+  it("shows text-bearing recovery when importing a review suggestion is blocked", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
+    mocks.bulkMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const importPill = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onClick === "function" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+    await TestRenderer.act(async () => {
+      (importPill.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0].title).toBe("Event 0");
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlocked",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when dismissing a suggestion is blocked", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
+    mocks.dismissMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const dismiss = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.dismissSuggestion" &&
+        typeof node.props.onPress === "function",
+    );
+    await TestRenderer.act(async () => {
+      (dismiss.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "suggestion-1" });
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+  });
+
   it("shows the offline state without a retry chip when disconnected", async () => {
     mocks.isOnline = false;
 
@@ -507,7 +655,7 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.showError).not.toHaveBeenCalled();
   });
 
-  it("explains and disables a weekday interval suggestion before import", async () => {
+  it("enables and imports an alternating weekday suggestion", async () => {
     const event = {
       ...buildEvents(1)[0]!,
       title: "Alternate week training",
@@ -524,32 +672,61 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
 
-    expect(
-      tree.root.findAll(
-        (node: TestNode) =>
-          node.props.children === "calendar.importIssue.weekdayInterval",
-      ).length,
-    ).toBeGreaterThan(0);
     const eventRow = tree.root.find(
       (node: TestNode) =>
-        node.props.accessibilityRole === "checkbox" &&
-        node.props.accessibilityHint === "calendar.importIssue.weekdayInterval",
+        node.props.accessibilityRole === "checkbox",
     );
-    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.disabled).toBe(false);
     expect(eventRow.props.accessibilityState).toEqual({
-      checked: false,
-      disabled: true,
+      checked: true,
+      disabled: false,
     });
-    expect(eventRow.props.style({ pressed: false })).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: "#111111" }),
-      ]),
-    );
     const importPill = tree.root.find(
       (node: TestNode & { type?: unknown }) =>
-        node.type === "PillButton" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
         node.props.children.includes("calendar.importButton"),
+    );
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => {
+      (importPill.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({
+        days: ["Monday", "Wednesday"],
+        frequencyUnit: "Day",
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      })],
+    }));
+  });
+
+  it.each([
+    ["a monthly weekday interval", "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO", "2026-09-21", 1],
+    ["a weekday interval above the API bound", "RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO", "2026-09-21", 1],
+    ["a different active-week partition", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO", "2026-09-27", 0],
+  ])("disables %s in review", async (_name, recurrenceRule, startDate, weekStartDay) => {
+    mocks.profile = createMockProfile({ hasProAccess: true, weekStartDay: weekStartDay as 0 | 1 });
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-unsupported", event: {
+      ...buildEvents(1)[0]!, title: "Unsupported training", startDate,
+      isRecurring: true, recurrenceRule,
+    } }];
+
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+
+    const eventRow = tree.root.find((node: TestNode) => node.props.accessibilityRole === "checkbox");
+    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.accessibilityHint).toBe("calendar.importIssue.unsupportedWeekdayRecurrence");
+    const importPill = tree.root.find((node: TestNode) =>
+      typeof node.props.onClick === "function" &&
+      typeof node.props.children === "string" &&
+      node.props.children.includes("calendar.importButton"),
     );
     expect(importPill.props.disabled).toBe(true);
   });

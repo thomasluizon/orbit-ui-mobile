@@ -3,6 +3,7 @@ import { setEngagementPromptAccountScope } from '@/stores/referral-prompt-store'
 import { setUIAccountScope } from '@/stores/ui-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getAccountId, setAccountId } from './account-scope'
+import { clearCompactedCreatesForUndo } from './offline-mutations'
 
 let scopeTransition = 0
 
@@ -11,6 +12,7 @@ export async function startAccountScopedSession(
   preserveAnonymousDraft = false,
 ): Promise<void> {
   const transition = ++scopeTransition
+  clearCompactedCreatesForUndo()
   setAccountId(accountId)
   const isCurrent = () => transition === scopeTransition && getAccountId() === accountId
   await setEngagementPromptAccountScope(accountId)

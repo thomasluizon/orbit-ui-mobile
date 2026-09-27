@@ -13,7 +13,7 @@ import {
 
 type Rgb = readonly [number, number, number]
 
-const SCHEMES = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const
+const SCHEMES = ['orange'] as const
 const MODES = ['dark', 'light'] as const
 
 function tokenBlock(heading: string): string {
@@ -102,7 +102,7 @@ describe('mobile theme runtime', () => {
   })
 
   afterEach(() => {
-    setRuntimeTheme({ scheme: 'purple', themeMode: 'dark' })
+    setRuntimeTheme({ scheme: 'orange', themeMode: 'dark' })
   })
 
   for (const scheme of SCHEMES) {
@@ -118,7 +118,7 @@ describe('mobile theme runtime', () => {
   }
 
   it('dark resolves the granted accent byte-exact', () => {
-    const dark = createTokensV2('purple', 'dark')
+    const dark = createTokensV2('orange', 'dark')
 
     expect(dark.bg).toBe('#09090B')
     expect(dark.bgCard).toBe('rgba(250,250,250,0.04)')
@@ -156,7 +156,7 @@ describe('mobile theme runtime', () => {
     expect(dark.selectionBg).toBe('rgba(196,83,15,0.32)')
   })
 
-  it('resolves every served scheme to the granted accent', () => {
+  it('renders every historical stored scheme with the granted accent', () => {
     for (const scheme of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const) {
       expect(createTokensV2(scheme, 'dark').primary).toBe('#C4530F')
       expect(createTokensV2(scheme, 'light').primary).toBe('#C4530F')
@@ -165,9 +165,26 @@ describe('mobile theme runtime', () => {
     }
   })
 
+  it('normalizes a stored runtime scheme to orange', () => {
+    setRuntimeTheme({ scheme: 'blue', themeMode: 'dark' })
+    expect(getRuntimeTheme().scheme).toBe('orange')
+    expect(tokens.primary).toBe('#C4530F')
+  })
+
+  for (const mode of MODES) {
+    it(`${mode} keeps every accent contrast floor and completed status separate`, () => {
+      const resolved = createTokensV2('orange', mode)
+      const canvas = parseColor(resolved.bg).channels
+      expect(contrast(resolved.fgOnPrimary, parseColor(resolved.primary).channels)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(resolved.primary, canvas)).toBeGreaterThanOrEqual(3)
+      expect(contrast(resolved.primarySoft, canvas)).toBeGreaterThanOrEqual(4.5)
+      expect(resolved.statusDone).not.toBe(resolved.primary)
+    })
+  }
+
   it('exposes AA status text variants alongside the base status colors', () => {
-    const dark = createTokensV2('purple', 'dark')
-    const light = createTokensV2('purple', 'light')
+    const dark = createTokensV2('orange', 'dark')
+    const light = createTokensV2('orange', 'light')
 
     expect(dark.statusOverdueText).toBe(dark.statusOverdue)
     expect(dark.statusBadText).toBe('#FF7970')
@@ -181,7 +198,7 @@ describe('mobile theme runtime', () => {
   })
 
   it('light uses the pale canvas and its granted accent variants', () => {
-    const light = createTokensV2('purple', 'light')
+    const light = createTokensV2('orange', 'light')
 
     expect(light.bg).toBe('#FAFAFA')
     expect(light.bgCard).toBe('#FFFFFF')
@@ -217,13 +234,13 @@ describe('mobile theme runtime', () => {
     expect(light.fgOnBad).toBe('#FFFFFF')
     expect(light.fgOnOverdue).toBe('#FFFFFF')
     expect(light.selectionBg).toBe('rgba(196,83,15,0.18)')
-    expect(light.bg).not.toBe(createTokensV2('purple', 'dark').bg)
+    expect(light.bg).not.toBe(createTokensV2('orange', 'dark').bg)
   })
 
   it('updates the exported tokens proxy when runtime theme changes', () => {
     setRuntimeTheme({ scheme: 'blue', themeMode: 'light' })
 
-    expect(getRuntimeTheme()).toEqual({ scheme: 'blue', themeMode: 'light' })
+    expect(getRuntimeTheme()).toEqual({ scheme: 'orange', themeMode: 'light' })
     expect(tokens.bg).toBe(createTokensV2('blue', 'light').bg)
     expect(tokens.primary).toBe(createTokensV2('blue', 'light').primary)
   })
@@ -235,22 +252,22 @@ describe('mobile theme runtime', () => {
   })
 
   it('uses the opaque overlay role for dark sheets', () => {
-    const dark = createTokensV2('purple', 'dark')
-    const darkSurfaces = createSurfaces('purple', 'dark')
+    const dark = createTokensV2('orange', 'dark')
+    const darkSurfaces = createSurfaces('orange', 'dark')
 
     expect(darkSurfaces.sheet.backgroundColor).toBe(dark.bgElev)
     expect(darkSurfaces.elevated.backgroundColor).toBe(dark.bgElev)
   })
 
   it('uses opaque white sheet and card surfaces on light', () => {
-    const lightSurfaces = createSurfaces('purple', 'light')
+    const lightSurfaces = createSurfaces('orange', 'light')
 
     expect(lightSurfaces.sheet.backgroundColor).toBe('#FFFFFF')
     expect(lightSurfaces.elevated.backgroundColor).toBe('#FFFFFF')
   })
 
   it('keeps neutral text AA on every raised and tinted component surface', () => {
-    for (const scheme of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const) {
+    for (const scheme of SCHEMES) {
       for (const mode of ['dark', 'light'] as const) {
         const resolved = createTokensV2(scheme, mode)
         const canvas = parseColor(resolved.bg).channels

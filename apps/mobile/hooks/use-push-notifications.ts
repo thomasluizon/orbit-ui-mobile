@@ -216,7 +216,7 @@ async function ensureAndroidChannel(): Promise<void> {
     name: i18n.t('notifications.channel.default'),
     importance: notificationsModule.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: schemes.purple.accent.dark.primary,
+    lightColor: schemes.orange.accent.dark.primary,
   })
 }
 

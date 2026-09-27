@@ -73,7 +73,7 @@ describe('upgrade utils', () => {
       perDay: 'messages a day',
     })
     expect(ptBR.upgrade.convert).toMatchObject({
-      promise: 'O plano muda o Astra, nunca os seus hábitos e registros.',
+      promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
       freeHeading: 'Dez vezes mais Astra.',
       trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.',
       freeAllowance: '5',
@@ -103,11 +103,11 @@ describe('upgrade utils', () => {
       },
       retrospective: {
         title: 'A retrospectiva do período',
-        body: 'O Astra fecha a semana e o mês com o que aconteceu e o que mudar.',
+        body: 'A Astra fecha a semana e o mês com o que aconteceu e o que mudar.',
       },
       noticing: {
-        title: 'O Astra percebe sem você pedir',
-        body: 'Ele avisa quando algo escapa em vez de esperar você abrir o app.',
+        title: 'A Astra percebe sem você pedir',
+        body: 'Ela avisa quando algo escapa em vez de esperar você abrir o app.',
       },
     })
   })
@@ -200,9 +200,10 @@ describe('upgrade utils', () => {
   })
 
   it('falls back to the default free color scheme', () => {
-    expect(resolveAccessibleColorScheme('blue', false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
-    expect(resolveAccessibleColorScheme('purple', false)).toBe('purple')
-    expect(resolveAccessibleColorScheme('blue', true)).toBe('blue')
+    for (const stored of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null]) {
+      expect(resolveAccessibleColorScheme(stored, true)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+      expect(resolveAccessibleColorScheme(stored, false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+    }
   })
 
   it('parses premium denials into upgrade actions', () => {

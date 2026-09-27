@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { calendarSyncSuggestionSchema } from '../types/calendar'
+import { bulkCreateRequestSchema } from '../types/habit'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -23,8 +26,18 @@ describe('calendar-sync utils', () => {
   it('parses RRULE recurrence data', () => {
     expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE')).toEqual({
       frequencyUnit: 'Week',
-      frequencyQuantity: 2,
+      frequencyQuantity: 1,
       days: ['Monday', 'Wednesday'],
+      intervalWeeks: 2,
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=DAILY;INTERVAL=2')).toEqual({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
     })
   })
 
@@ -145,7 +158,7 @@ describe('calendar-sync utils', () => {
     })
   })
 
-  it('refuses weekday intervals instead of dropping their days', () => {
+  it('imports weekday intervals with both days and the interval', () => {
     const event = {
       id: 'event-alternate-weeks',
       title: 'Alternate week training',
@@ -158,10 +171,86 @@ describe('calendar-sync utils', () => {
       reminders: [],
     }
 
-    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('weekday-interval')
-    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
-      'Unsupported calendar recurrence: weekday-interval',
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]).toMatchObject({
+      days: ['Monday', 'Wednesday'],
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      intervalWeeks: 2,
+    })
+    expect(buildCalendarAutoSyncImportRequest([{
+      id: 'suggestion-interval',
+      googleEventId: event.id,
+      discoveredAtUtc: '2026-09-21T10:00:00Z',
+      event,
+    }]).habits[0]).toMatchObject({ intervalWeeks: 2 })
+    expect(bulkCreateRequestSchema.parse(buildCalendarSyncImportRequest([event])).habits[0])
+      .toMatchObject({ intervalWeeks: 2 })
+  })
+
+  it.each([
+    'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO',
+    'RRULE:FREQ=DAILY;INTERVAL=2;BYDAY=MO',
+    'RRULE:FREQ=YEARLY;INTERVAL=2;BYDAY=MO',
+    'RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO',
+  ])('refuses a weekday interval Orbit cannot represent: %s', (recurrenceRule) => {
+    const event = {
+      id: 'unsupported-interval', title: 'Training', description: null,
+      startDate: '2026-09-21', startTime: null, endTime: null,
+      isRecurring: true, recurrenceRule, reminders: [],
+    }
+    expect(getCalendarSyncImportIssue(recurrenceRule, event.startDate, null, null, null, 1))
+      .toBe('unsupported-weekday-recurrence')
+    expect(isCalendarSyncEventImportable(event, 1)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event], 1)).toThrow(
+      'Unsupported calendar recurrence: unsupported-weekday-recurrence',
     )
+  })
+
+  it('refuses an alternating week when the account partitions its selected days differently', () => {
+    const event = {
+      id: 'different-week-start', title: 'Training', description: null,
+      startDate: '2026-09-27', startTime: null, endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO',
+      reminders: [],
+    }
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 0))
+      .toBe('unsupported-weekday-recurrence')
+    expect(isCalendarSyncEventImportable(event, 0)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event], 0)).toThrow(
+      'Unsupported calendar recurrence: unsupported-weekday-recurrence',
+    )
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 1)).toBeNull()
+    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU', event.startDate, null, null, null, 0)).toBeNull()
+    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE', '2026-09-28', null, null, null, 0)).toBeNull()
+  })
+
+  it('accepts only valid interval week values in bulk create requests', () => {
+    const habit = { title: 'Monday training', intervalWeeks: 2 }
+    expect(bulkCreateRequestSchema.parse({ habits: [habit] }).habits[0]).toEqual(habit)
+    expect(bulkCreateRequestSchema.parse({ habits: [{ title: habit.title }] }).habits[0])
+      .not.toHaveProperty('intervalWeeks')
+    expect(bulkCreateRequestSchema.safeParse({ habits: [{ ...habit, intervalWeeks: 53 }] }).success)
+      .toBe(false)
+  })
+
+  it('ends a counted weekday interval on its final active week', () => {
+    const event = {
+      id: 'event-counted-alternate-weeks',
+      title: 'Alternate week training',
+      description: null,
+      startDate: '2026-09-21',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=4',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate)).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-10-07')
   })
 
   it('refuses ordinal weekdays instead of importing a different monthly schedule', () => {
@@ -231,7 +320,10 @@ describe('calendar-sync utils', () => {
 
   it('names a message key per import issue', () => {
     expect(getCalendarSyncImportIssueMessageKey('ordinal-weekday')).toBe('calendar.importIssue.ordinalWeekday')
-    expect(getCalendarSyncImportIssueMessageKey('weekday-interval')).toBe('calendar.importIssue.weekdayInterval')
+    expect(getCalendarSyncImportIssueMessageKey('unsupported-weekday-recurrence'))
+      .toBe('calendar.importIssue.unsupportedWeekdayRecurrence')
+    expect(en.calendar.importIssue.unsupportedWeekdayRecurrence).toBeTruthy()
+    expect(ptBR.calendar.importIssue.unsupportedWeekdayRecurrence).toBeTruthy()
     expect(getCalendarSyncImportIssueMessageKey('finite-date-clamp')).toBe('calendar.importIssue.finiteDateClamp')
     expect(getCalendarSyncImportIssueMessageKey('finite-date-range')).toBe('calendar.importIssue.finiteDateRange')
     expect(getCalendarSyncImportIssueMessageKey('utc-until-offset-shift')).toBe('calendar.importIssue.utcUntilOffsetShift')
@@ -644,6 +736,7 @@ describe('calendar-sync utils', () => {
         startDate: '2026-09-14',
         startTime: '08:00',
         startUtc: '2026-09-13T23:00:00Z',
+        recurrenceTimeZone: 'Asia/Tokyo',
         endTime: null,
         isRecurring: true,
         recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
@@ -652,6 +745,7 @@ describe('calendar-sync utils', () => {
     })
 
     expect(suggestion.event.startUtc).toBe('2026-09-13T23:00:00Z')
+    expect(suggestion.event.recurrenceTimeZone).toBe('Asia/Tokyo')
   })
 
   it('converts a UTC UNTIL bound to the same local calendar date', () => {
@@ -729,6 +823,68 @@ describe('calendar-sync utils', () => {
     expect(() => buildCalendarSyncImportRequest([event])).toThrow(
       'Unsupported calendar recurrence: utc-until-offset-shift',
     )
+  })
+
+  it.each([
+    {
+      direction: 'winter to summer',
+      startDate: '2026-01-01',
+      startUtc: '2026-01-01T05:30:00Z',
+      until: '20260701T043000Z',
+      expectedEndDate: '2026-07-01',
+    },
+    {
+      direction: 'summer to winter',
+      startDate: '2026-07-01',
+      startUtc: '2026-07-01T04:30:00Z',
+      until: '20270101T043000Z',
+      expectedEndDate: '2026-12-31',
+    },
+  ])('imports a zoned UTC UNTIL bound across the $direction shift', ({
+    startDate, startUtc, until, expectedEndDate,
+  }) => {
+    const event = {
+      id: 'event-zoned-transition',
+      title: 'Midnight routine',
+      description: null,
+      startDate,
+      startTime: '00:30',
+      startUtc,
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: `RRULE:FREQ=DAILY;UNTIL=${until}`,
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+      event.recurrenceTimeZone,
+    )).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe(expectedEndDate)
+  })
+
+  it('uses the projected start clock when the recurrence zone differs from the account zone', () => {
+    const event = {
+      id: 'event-projected-zone',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:00',
+      startUtc: '2026-01-01T06:00:00Z',
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
   })
 
   it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {

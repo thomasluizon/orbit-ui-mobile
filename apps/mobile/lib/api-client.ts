@@ -4,6 +4,7 @@ import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse }
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
 import { consumePendingIdempotencyKey } from './idempotency-key'
+import { getAccountEventOrigin } from './account-event-origin'
 import type { ZodType } from 'zod'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
@@ -85,6 +86,12 @@ function buildRequestHeaders(
     ...buildClientTimeZoneHeaders(),
     ...buildAppVersionHeaders(),
     ...options.headers,
+  }
+
+  const method = options.method?.toUpperCase() ?? 'GET'
+  const eventOrigin = getAccountEventOrigin()
+  if (eventOrigin && method !== 'GET' && method !== 'HEAD') {
+    headers['X-Orbit-Event-Origin'] = eventOrigin
   }
 
   if (token) {

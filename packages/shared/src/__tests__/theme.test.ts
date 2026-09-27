@@ -11,9 +11,6 @@ import {
   statusConstants,
 } from '../theme/neutral-ramp'
 import { resolveResponsiveTypeRole, responsiveTypeRoles, typeRoles } from '../theme/type-roles'
-import type { ColorScheme } from '../theme/types'
-
-const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 const REPOSITORY_ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 
 const BAD_TEXT_SOURCE_SITES = [
@@ -503,17 +500,21 @@ const BAD_TEXT_SURFACES = {
 } as const
 
 describe('color schemes', () => {
-  it('keeps all 6 contract values during the API overlap', () => {
-    expect(Object.keys(schemes)).toHaveLength(6)
-    for (const name of ALL_SCHEMES) expect(schemes[name]).toBeDefined()
+  it('defines only the granted accent in light and dark', () => {
+    expect(Object.keys(schemes)).toEqual(['orange'])
+    expect(schemes.orange.accent).toEqual(GRANTED_ACCENTS)
+    expect(schemes.orange.fgOnPrimary).toEqual({ dark: '#FFFFFF', light: '#FFFFFF' })
   })
 
-  for (const name of ALL_SCHEMES) {
-    it(`${name}: resolves the granted accent in both modes`, () => {
-      expect(schemes[name].accent).toEqual(GRANTED_ACCENTS)
-      expect(schemes[name].fgOnPrimary).toEqual({ dark: '#FFFFFF', light: '#FFFFFF' })
+  for (const mode of ['dark', 'light'] as const) {
+    it(`${mode} meets every accent floor and keeps done neutral`, () => {
+      const accent = schemes.orange.accent[mode]
+      const canvas = neutralColors[mode].bg
+      expect(contrastOnSurface('#FFFFFF', [accent.primary])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(accent.primary, [canvas])).toBeGreaterThanOrEqual(3)
+      expect(contrastOnSurface(accent.primarySoft, [canvas])).toBeGreaterThanOrEqual(4.5)
+      expect(neutralColors[mode].fg1).not.toBe(accent.primary)
     })
-
   }
 })
 

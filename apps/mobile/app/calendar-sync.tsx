@@ -101,6 +101,7 @@ export default function CalendarSyncScreen() {
   const { showError } = useAppToast()
 
   const hasProAccess = profile?.hasProAccess ?? false
+  const weekStartDay = profile?.weekStartDay ?? 1
   const showProSection = hasProAccess && !isProfileLoading
 
   const autoSyncStateQuery = useCalendarAutoSyncState({
@@ -139,7 +140,7 @@ export default function CalendarSyncScreen() {
     return []
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${incomingEvents
+  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${weekStartDay}:${incomingEvents
     .map((event) => event.id)
     .join('|')}`
   if (eventsKey !== previousEventsKey) {
@@ -149,7 +150,7 @@ export default function CalendarSyncScreen() {
     setSelectedIds(
       resolveSyncedSelection(
         selectedIds,
-        incomingEvents.filter(isCalendarSyncEventImportable),
+        incomingEvents.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
         isReviewMode,
         previousEventsKey,
       ),
@@ -157,8 +158,8 @@ export default function CalendarSyncScreen() {
   }
 
   const importableEvents = useMemo(
-    () => events.filter(isCalendarSyncEventImportable),
-    [events],
+    () => events.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
+    [events, weekStartDay],
   )
   const allSelected =
     importableEvents.length > 0 && selectedIds.size === importableEvents.length
@@ -278,7 +279,7 @@ export default function CalendarSyncScreen() {
         {
           onError: (err: unknown) => {
             if (getAccountGeneration() !== requestAccount) return
-            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
           },
         },
       )
@@ -295,7 +296,7 @@ export default function CalendarSyncScreen() {
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
         if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       },
     })
   }, [isOnline, runSyncNowMutation, showError, t])
@@ -315,8 +316,9 @@ export default function CalendarSyncScreen() {
             suggestions.filter((suggestion) =>
               selectedIds.has(suggestion.event.id),
             ),
+            weekStartDay,
           )
-        : buildCalendarSyncImportRequest(selectedEvents)
+        : buildCalendarSyncImportRequest(selectedEvents, weekStartDay)
       const result = await bulkCreateHabits.mutateAsync(request)
 
       const successCount = result.results.filter(
@@ -376,6 +378,7 @@ export default function CalendarSyncScreen() {
     showError,
     suggestions,
     t,
+    weekStartDay,
   ])
 
   const handleRetry = useCallback(() => {
@@ -400,7 +403,7 @@ export default function CalendarSyncScreen() {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
         if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       }
     },
     [dismissSuggestion, showError, t],
@@ -563,6 +566,7 @@ export default function CalendarSyncScreen() {
                   <CalendarSyncEventRow
                     key={event.id}
                     event={event}
+                    weekStartDay={weekStartDay}
                     index={index}
                     selected={selectedIds.has(event.id)}
                     isReviewMode={isReviewMode}

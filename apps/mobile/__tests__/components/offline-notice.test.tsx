@@ -38,7 +38,9 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
+  enqueueWithCompaction: (mutation: PersistedQueuedMutation) => ({ id: mutation.id, compactedCreate: null }),
   getAll: () => mocks.queued,
+  subscribeQueueClear: () => () => {},
   accountTimezoneDependency: (timezoneMutationId: string) => `offline-account-timezone:${timezoneMutationId}`,
 }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))

@@ -11,11 +11,12 @@ import {
 import {
   applyThemeTokensToDOM,
   canvasColor,
+  normalizeColorScheme,
   resolveWebThemeVariables,
 } from '@/lib/theme-dom'
 import { RESPONSIVE_TYPE_BREAKPOINT, responsiveTypeRoles } from '@orbit/shared/theme'
 
-const SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+const SCHEMES: ColorScheme[] = ['orange']
 const MODES: ThemeMode[] = ['dark', 'light']
 
 function tokenBlock(heading: string): string {
@@ -79,7 +80,7 @@ describe('web theme variables', () => {
       it(`${scheme} ${mode} matches the shared bytes`, () => {
         const variables = resolveWebThemeVariables(scheme, mode)
         const neutral = neutralColors[mode]
-        const accent = schemes[scheme].accent[mode]
+        const accent = schemes.orange.accent[mode]
         const status = statusConstants[mode]
 
         expect(variables).toMatchObject({
@@ -118,6 +119,7 @@ describe('web theme variables', () => {
           '--fg-on-overdue': status.fgOnOverdue,
           '--scrim': neutral.scrim,
         })
+        expect(variables['--status-done']).not.toBe(variables['--primary'])
       })
     }
   }
@@ -130,7 +132,7 @@ describe('web theme variables', () => {
     applyThemeTokensToDOM('rose', 'light')
 
     const root = document.documentElement
-    expect(root.classList.contains('scheme-rose')).toBe(true)
+    expect(root.classList.contains('scheme-orange')).toBe(true)
     expect(root.classList.contains('light')).toBe(true)
     expect(root.style.getPropertyValue('--bg')).toBe('#FAFAFA')
     expect(root.style.getPropertyValue('--bg-hover')).toBe('rgba(9,9,11,0.06)')
@@ -141,6 +143,15 @@ describe('web theme variables', () => {
     )
     expect(document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'))
       .toHaveAttribute('content', 'default')
+  })
+
+  it('renders every historical stored scheme with the granted accent', () => {
+    for (const stored of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null]) {
+      const scheme = normalizeColorScheme(stored)
+      expect(scheme).toBe('orange')
+      expect(resolveWebThemeVariables(scheme, 'dark')['--primary']).toBe('#C4530F')
+      expect(resolveWebThemeVariables(scheme, 'light')['--primary']).toBe('#C4530F')
+    }
   })
 
   it('publishes the Hoje hover roles and durations to stylesheet consumers', () => {

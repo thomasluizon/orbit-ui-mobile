@@ -150,7 +150,6 @@ describe('habit normalization utils', () => {
           .filter((habit) => habit !== undefined),
       isRelevantToday: () => true,
       isDueOnSelectedDate: () => true,
-      isListView: false,
       skippedIds: new Set(),
     })
 

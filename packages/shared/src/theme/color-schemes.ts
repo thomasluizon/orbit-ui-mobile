@@ -25,29 +25,9 @@ const grantedFgOnPrimary: Record<SchemeMode, string> = {
   light: '#FFFFFF',
 }
 
-export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
-  purple: {
-    accent: grantedAccent,
-    fgOnPrimary: grantedFgOnPrimary,
-  },
-  blue: {
-    accent: grantedAccent,
-    fgOnPrimary: grantedFgOnPrimary,
-  },
-  green: {
-    accent: grantedAccent,
-    fgOnPrimary: grantedFgOnPrimary,
-  },
-  rose: {
-    accent: grantedAccent,
-    fgOnPrimary: grantedFgOnPrimary,
-  },
+export const schemes = {
   orange: {
     accent: grantedAccent,
     fgOnPrimary: grantedFgOnPrimary,
   },
-  cyan: {
-    accent: grantedAccent,
-    fgOnPrimary: grantedFgOnPrimary,
-  },
-}
+} satisfies Partial<Record<ColorScheme, ColorSchemeDefinition>>

@@ -289,12 +289,12 @@
     "loadFailed": "Erro ao carregar o progresso"
   },
   "astraRail": {
-    "open": "Abrir o Astra",
-    "close": "Recolher o Astra",
+    "open": "Abrir a Astra",
+    "close": "Recolher a Astra",
     "maximize": "Maximizar",
     "minimize": "Minimizar",
-    "title": "Copiloto Astra",
-    "subtitle": "Seu copiloto de hábitos"
+    "title": "Copilota Astra",
+    "subtitle": "Sua copilota de hábitos"
   },
   "reviewMoment": {
     "eyebrow": "Um recado da Astra",
@@ -454,12 +454,9 @@
     "collapseAll": "Recolher todos",
     "expandAll": "Expandir todos",
     "refresh": "Atualizar",
-    "noDueToday": "Nenhum hábito para hoje",
-    "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro",
     "noHabitsBody": "Comece com um hábito pequeno ou peça uma rotina à Astra.",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
-    "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Por hoje é isso",
     "allDoneHint": "Tudo que vencia hoje está feito.",
     "seeUpcoming": "Ver hábitos de amanhã",
@@ -657,6 +654,18 @@
       "dueEndTime": "Horário Final",
       "reminder": "Me lembrar",
       "reminderAtTime": "Na hora",
+      "reminder5minAfter": "5 min depois",
+      "reminder15minAfter": "15 min depois",
+      "reminder30minAfter": "30 min depois",
+      "reminder1hourAfter": "1 hora depois",
+      "reminderAfter": "depois",
+      "reminderBefore": "antes",
+      "reminderDirection": "Antes ou depois",
+      "reminderMinutesAfter": "min depois",
+      "reminderHourAfter": "hora depois",
+      "reminderHoursAfter": "horas depois",
+      "relativeReminderMax": "No máximo 15 lembretes",
+      "invalidRelativeReminder": "Escolha até 7 dias antes ou menos de 24 horas depois",
       "reminderMinutes": "min antes",
       "reminder5min": "5 min antes",
       "reminder10min": "10 min antes",
@@ -672,12 +681,14 @@
       "reminderDay": "dia antes",
       "reminderDays": "dias antes",
       "reminderAdd": "Adicionar lembrete",
+      "reminderAddTime": "Adicionar horário",
       "reminderCustom": "Personalizado...",
       "reminderCustomPlaceholder": "Valor",
       "reminderUnitMin": "minutos",
       "reminderUnitHours": "horas",
       "reminderUnitDays": "dias",
       "scheduledReminder": "Me lembrar",
+      "scheduledReminderFixedTimes": "Em horários fixos",
       "scheduledReminderDayBefore": "Dia anterior",
       "scheduledReminderSameDay": "Mesmo dia",
       "scheduledReminderDayBeforeAt": "Dia anterior às {time}",
@@ -987,8 +998,8 @@
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
     "importIssue": {
-      "weekdayInterval": "O Orbit não consegue preservar este intervalo entre dias da semana. Altere o evento para repetir toda semana e importe novamente.",
       "ordinalWeekday": "O Orbit não consegue importar agendas como a segunda segunda-feira de cada mês. Altere para repetição semanal e importe novamente.",
+      "unsupportedWeekdayRecurrence": "O Orbit não consegue manter esta agenda de dias da semana nas mesmas datas. Altere o evento para repetir toda semana e importe novamente.",
       "finiteDateClamp": "Alguns meses ou anos não incluem esta data inicial. Altere para o dia 28 ou anterior e importe novamente.",
       "finiteDateRange": "O Orbit não consegue importar uma agenda que continua após o ano 9999. Encurte a agenda e importe novamente.",
       "utcUntilOffsetShift": "O Orbit não consegue definir a última ocorrência após uma mudança de horário. Remova a data final do evento e importe novamente."
@@ -1426,7 +1437,7 @@
     },
     "followUps": {"label": "Próximas perguntas"},
     "preview": {
-      "proposed": "Proposto pelo Astra",
+      "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
       "diff": "{field}: de {old} para {new}",
       "more": "e mais {count}",
@@ -1450,7 +1461,7 @@
       "retry": "Tentar os {count} que faltaram"
     },
     "operation": {
-      "unknown": "Operação do Astra",
+      "unknown": "Operação da Astra",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
       "irreversible": "Definitivo",
@@ -1606,7 +1617,6 @@
       "advanced": "Avançado",
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
-      "preferencesHint": "Idioma, cores, notificações",
       "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
@@ -1924,7 +1934,7 @@
       "title": "Dados que guardamos",
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
-      "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
+      "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
       "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
     },
@@ -2065,8 +2075,8 @@
       "when": {
         "astraRead": "Entendi assim. Toque para corrigir.",
         "direct": "Escolha os dias e a hora.",
-        "proposedBy": "Proposto pelo Astra",
-        "emojiLabel": "Emoji proposto pelo Astra",
+        "proposedBy": "Proposto pela Astra",
+        "emojiLabel": "Emoji proposto pela Astra",
         "correctSchedule": "Corrigir agenda",
         "scheduleDetails": "{title}. {cadence}. Hora: {time}",
         "anyTime": "Qualquer hora",
@@ -2356,7 +2366,7 @@
       }
     },
     "convert": {
-      "promise": "O plano muda o Astra, nunca os seus hábitos e registros.",
+      "promise": "O plano muda a Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
@@ -2369,7 +2379,7 @@
       "cancelAnytime": "Cancele quando quiser.",
       "handOff": "O pagamento acontece com nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
       "stayFree": "Continuar no plano grátis",
-      "allowanceLabel": "Cota diária do Astra",
+      "allowanceLabel": "Cota diária da Astra",
       "freeAllowance": "5",
       "proAllowance": "50",
       "perDay": "mensagens por dia",
@@ -2383,11 +2393,11 @@
       },
       "retrospective": {
         "title": "A retrospectiva do período",
-        "body": "O Astra fecha a semana e o mês com o que aconteceu e o que mudar."
+        "body": "A Astra fecha a semana e o mês com o que aconteceu e o que mudar."
       },
       "noticing": {
-        "title": "O Astra percebe sem você pedir",
-        "body": "Ele avisa quando algo escapa em vez de esperar você abrir o app."
+        "title": "A Astra percebe sem você pedir",
+        "body": "Ela avisa quando algo escapa em vez de esperar você abrir o app."
       }
     },
     "plans": {
@@ -2403,7 +2413,7 @@
       "yearly": {
         "name": "Anual",
         "period": " por ano",
-        "heroLine": "O jeito mais barato de ter o Astra o ano inteiro.",
+        "heroLine": "O jeito mais barato de ter a Astra o ano inteiro.",
         "equivalent": "Sai a {price} por mês, {percent}% menos que o mensal."
       },
       "recommended": "Recomendado",
@@ -2434,7 +2444,7 @@
         "trialHint": "Seu teste termina em {date}",
         "monthlyPrice": "Preço mensal do plano: {price}",
         "yearlyPrice": "Preço anual do plano: {price}",
-        "proBody": "As {limit} mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Astra.",
+        "proBody": "As {limit} mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos da Astra.",
         "canceledBody": "A assinatura foi cancelada e não renova. Tudo do Pro continua ligado até o fim do período.",
         "pastDueBody": "A última cobrança não passou. Tudo do Pro continua ligado enquanto o provedor tenta de novo; atualizar o cartão no portal resolve.",
         "lifetimeBadge": "Vitalício"
@@ -2483,7 +2493,7 @@
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
-        "lostMessages": "As mensagens do Astra voltaram para {limit} por dia.",
+        "lostMessages": "As mensagens da Astra voltaram para {limit} por dia.",
         "lostCalendar": "A agenda do Google não sincroniza mais.",
         "lostRetrospective": "A retrospectiva do período parou.",
         "paymentFix": "Atualize a forma de pagamento no provedor.",
@@ -2521,6 +2531,7 @@
     "api": {
       "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
+      "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Exclua um hábito para adicionar outro.",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
       "astraLimit": "Você atingiu o limite de mensagens da Astra hoje. Você pode enviar mais mensagens amanhã.",
@@ -3159,7 +3170,7 @@
     },
     "ai": {
       "title": "Recursos de IA",
-      "body": "O Orbit inclui um assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
+      "body": "O Orbit inclui uma assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
     },
     "noMedicalAdvice": {
       "title": "Não é aconselhamento médico ou profissional",

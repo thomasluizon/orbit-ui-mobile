@@ -257,8 +257,9 @@ export function useLogHabit() {
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
       }
-
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      if (variables.intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      }
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -294,6 +295,7 @@ export function useSkipHabit() {
         queryKey: habitKeys.lists(),
       })
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)

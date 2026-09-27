@@ -28,7 +28,7 @@ export interface UpgradeDenialInput {
   reason?: string | null
 }
 
-export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'purple'
+export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'orange'
 
 export function getUpgradeTierReservation(
   interval: 'monthly' | 'yearly',
@@ -95,15 +95,10 @@ export function canAccessEntitlement(
 }
 
 export function resolveAccessibleColorScheme(
-  colorScheme: string | null | undefined,
-  hasProAccess: boolean,
+  _colorScheme: string | null | undefined,
+  _hasProAccess: boolean,
 ): ColorScheme {
-  const normalized = colorScheme as ColorScheme | null | undefined
-  if (!normalized) return DEFAULT_FREE_COLOR_SCHEME
-  if (!hasProAccess && normalized !== DEFAULT_FREE_COLOR_SCHEME) {
-    return DEFAULT_FREE_COLOR_SCHEME
-  }
-  return normalized
+  return DEFAULT_FREE_COLOR_SCHEME
 }
 
 function inferRequirementFromReason(reason: string | null | undefined): UpgradeEntitlementRequirement | null {

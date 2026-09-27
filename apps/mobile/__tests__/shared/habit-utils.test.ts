@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCalendarDayMap, getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 
 const calendarMonth = {
@@ -50,12 +50,6 @@ const calendarMonth = {
 } satisfies CalendarMonthResponse
 
 describe('habit utils', () => {
-  it('returns the same empty-state keys used by web', () => {
-    expect(getHabitEmptyStateKey('today')).toBe('habits.noDueToday')
-    expect(getHabitEmptyStateKey('all')).toBe('habits.noHabitsYet')
-    expect(getHabitEmptyStateKey('general')).toBe('habits.emptyGeneral')
-  })
-
   it('builds calendar day entries from scheduled dates when instances are empty', () => {
     const map = buildCalendarDayMap(calendarMonth, new Date('2026-04-02T12:00:00Z'))
 

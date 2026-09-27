@@ -180,7 +180,7 @@ async function postReminder(
   if (generation !== presentationGeneration) return
 
   await nativeModule.postPersistentReminder(
-    generation, title, body, schemes.purple.accent.dark.primary,
+    generation, title, body, schemes.orange.accent.dark.primary,
   )
 }
 

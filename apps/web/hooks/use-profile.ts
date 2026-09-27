@@ -22,19 +22,18 @@ function writeLocaleCookie(value: string) {
   }
 }
 
-export function useProfile(options?: { enabled?: boolean }) {
+export function useProfile(options?: { enabled?: boolean; initialData?: Profile }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
   const {
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   } = useColorScheme()
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: () => fetchJson<Profile>(API.profile.get),
+    initialData: options?.initialData,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -46,16 +45,12 @@ export function useProfile(options?: { enabled?: boolean }) {
 
   useEffect(() => {
     if (!profile) return
-    syncSchemeFromProfile(profile.colorScheme, profile.hasProAccess)
     syncThemeFromProfile(profile.themePreference)
-    detectAndSaveSchemeIfNeeded(profile.colorScheme)
     detectAndSaveThemeIfNeeded(profile.themePreference)
     // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
     profile,
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   ])
 

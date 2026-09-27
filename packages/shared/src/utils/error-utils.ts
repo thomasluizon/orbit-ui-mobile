@@ -31,6 +31,7 @@ type FriendlyErrorContext =
   | 'subHabit'
   | 'tag'
   | 'generic'
+  | 'textless'
 
 export class ApiClientError extends Error {
   status: number
@@ -304,6 +305,9 @@ function getContextualMessageKey(
     if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
   }
 
+  if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
+    return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
+  }
   if (
     normalizedMessage.includes('title') &&
     normalizedMessage.includes(String(MAX_HABIT_TITLE_LENGTH))
@@ -407,9 +411,9 @@ function getPayGateErrorKey(normalizedMessage: string): string {
   return 'errors.api.payGate'
 }
 
-function getForbiddenErrorKey(status: number | undefined, code: string | undefined, fallbackKey: string): string | null {
+function getForbiddenErrorKey(status: number | undefined, code: string | undefined, fallbackKey: string, context: FriendlyErrorContext): string | null {
   if (status !== 403) return null
-  if (!code) return 'errors.api.edgeBlocked'
+  if (!code) return context === 'textless' ? 'errors.api.edgeBlockedRetry' : 'errors.api.edgeBlocked'
   return ERROR_CODE_TO_KEY[code] ? null : fallbackKey
 }
 
@@ -440,7 +444,7 @@ export function getFriendlyErrorKey(
 
   const specialKey = getSpecialErrorKey(code, normalizedMessage)
   if (specialKey) return specialKey
-  const forbiddenKey = getForbiddenErrorKey(status, code, fallbackKey)
+  const forbiddenKey = getForbiddenErrorKey(status, code, fallbackKey, context)
   if (forbiddenKey) return forbiddenKey
   if (isRateLimit(status, normalizedMessage)) {
     return 'toast.errors.tooManyRequests'

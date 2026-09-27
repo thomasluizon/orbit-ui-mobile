@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
 vi.mock('@/components/ui/app-select', () => ({
   AppSelect: ({
@@ -45,6 +46,16 @@ function renderSection(overrides?: Partial<Props>) {
 }
 
 describe('ReminderSection', () => {
+  it('adds an after-due choice to the relative request', () => {
+    const props = renderSection({ reminderTimes: [15] })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminder15minAfter'))
+    expect(props.onReminderTimesChange).toHaveBeenCalledWith([15, -15])
+    const form = { ...buildEmptyHabitFormValues('2025-03-10'), dueTime: '09:00', reminderEnabled: true }
+    const request = buildCreateHabitRequest(form, [15, -15], [], [], [])
+    expect(request.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: -15 }])
+  })
+
   it('collapses the body when reminders are disabled', () => {
     renderSection({ reminderEnabled: false })
     expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
@@ -141,6 +152,57 @@ describe('ReminderSection', () => {
       target: { value: 'hours' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('saves a custom after-due reminder as a signed offset', () => {
+    const props = renderSection({ reminderTimes: [15] })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
+      target: { value: 'after' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onReminderTimesChange).toHaveBeenCalledWith([15, -30])
+  })
+
+  it('rejects an after-due offset beyond the allowed range', () => {
+    const props = renderSection({ reminderTimes: [15], onValidationError: vi.fn() })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
+      target: { value: 'after' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '1440' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('shows the shared limit instead of offering a preset when full', () => {
+    const props = renderSection({
+      reminderTimes: Array.from({ length: 14 }, (_, index) => index + 1),
+      scheduledReminderCount: 1,
+      onValidationError: vi.fn(),
+    })
+    expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('shows the shared limit instead of offering a custom offset when full', () => {
+    const props = renderSection({
+      reminderTimes: [15],
+      scheduledReminderCount: 14,
+      onValidationError: vi.fn(),
+    })
+    expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 })

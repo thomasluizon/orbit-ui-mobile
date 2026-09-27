@@ -24,7 +24,7 @@ export function TurnstileBridge({ siteKey, theme = 'dark', language }: Readonly<
     window.ReactNativeWebView?.postMessage(JSON.stringify({ token }))
   }, [])
 
-  return <div style={{ ...resolveWebThemeVariables('purple', theme), minHeight: '100vh',
+  return <div style={{ ...resolveWebThemeVariables('orange', theme), minHeight: '100vh',
     backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
     <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} onToken={postToken} onStateChange={postState} />
   </div>
