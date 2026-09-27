@@ -111,6 +111,15 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('uses feminine agreement for Astra throughout the Portuguese catalog', () => {
+    for (const [key, value] of ptFlat) {
+      if (!value.includes('Astra')) continue
+      expect(value, key).not.toMatch(/\b(?:o|ao|do|no|pelo) Astra\b/i)
+    }
+    expect(ptBR.astraRail.title).toBe('Copilota Astra')
+    expect(ptBR.upgrade.outcomes.noticing.body).toMatch(/^Ela avisa\b/)
+  })
+
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
     expect(en.auth.sessionExpired).toBe('Your session timed out.')
     expect(ptBR.auth.sessionExpired).toBe('Sua sessão expirou.')
