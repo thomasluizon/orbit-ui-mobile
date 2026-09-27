@@ -20,10 +20,21 @@ export interface PendingOperationCardLabels {
   search: string
   invalid: string
   stale: string
+  refresh: string
+  refreshFailed: string
+  staleUnavailable: string
   fieldLabels: Readonly<Record<string, string>>
   dayLabels: Readonly<Record<string, string>>
   yes: string
   no: string
+  addListRow: string
+  checklistLimit: string
+  scheduledLimit: string
+  checked: string
+  reminderWhen: string
+  reminderSameDay: string
+  reminderDayBefore: string
+  reminderTime: string
   confirm: string
   confirmBody: string
   confirmNote: string
@@ -57,6 +68,9 @@ export function buildPendingOperationCardLabels(
     search: translate('common.search'),
     invalid: translate('chat.operation.invalid'),
     stale: translate('chat.operation.stale'),
+    refresh: translate('chat.operation.refresh'),
+    refreshFailed: translate('chat.operation.refreshFailed'),
+    staleUnavailable: translate('chat.operation.staleUnavailable'),
     fieldLabels: Object.fromEntries([
       'title', 'description', 'emoji', 'frequency_unit', 'frequency_quantity',
       'interval_weeks', 'days', 'due_date', 'end_date', 'due_time',
@@ -67,6 +81,14 @@ export function buildPendingOperationCardLabels(
     dayLabels: Object.fromEntries(PENDING_OPERATION_WEEKDAYS.map((day) => [day, translate(`dates.daysLong.${day.toLowerCase()}`)])),
     yes: translate('common.yes'),
     no: translate('common.no'),
+    addListRow: translate('chat.operation.list.add'),
+    checklistLimit: translate('chat.operation.list.checklistLimit'),
+    scheduledLimit: translate('chat.operation.list.scheduledLimit'),
+    checked: translate('chat.operation.list.checked'),
+    reminderWhen: translate('chat.operation.list.when'),
+    reminderSameDay: translate('chat.operation.list.sameDay'),
+    reminderDayBefore: translate('chat.operation.list.dayBefore'),
+    reminderTime: translate('chat.operation.list.time'),
     confirm: translate('chat.operation.confirm'),
     confirmBody: translate('chat.operation.confirmBody'),
     confirmNote: translate('chat.operation.confirmNote'),

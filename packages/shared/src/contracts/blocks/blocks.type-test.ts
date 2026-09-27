@@ -49,12 +49,14 @@ type ExpectedCommon = {
 type ExpectedStale = {
   readonly state: 'stale'
   readonly staleMessage: string
-  readonly onRefresh: () => void
+  readonly onRefresh?: () => void
+  readonly refreshLabel?: string
 }
 type ExpectedSettled = {
   readonly state: 'loading' | 'resting' | 'acting' | 'partiallyFailed'
   readonly staleMessage?: never
   readonly onRefresh?: never
+  readonly refreshLabel?: never
 }
 type ExpectedEdited = {
   readonly onEditItem: (itemId: string) => void

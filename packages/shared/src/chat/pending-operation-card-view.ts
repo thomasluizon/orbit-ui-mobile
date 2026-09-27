@@ -55,9 +55,9 @@ export interface PendingOperationEditSheetProps {
   onSave: () => Promise<boolean>
 }
 
-export interface PendingOperationFrame<Node> {
-  state: 'acting' | 'partiallyFailed' | 'resting'
+interface PendingOperationFrameBase<Node> {
   title: string
+  count?: number
   items: readonly {
     id: string
     label: string
@@ -75,6 +75,11 @@ export interface PendingOperationFrame<Node> {
   confirmNote: string
   actions: Node | undefined
 }
+
+export type PendingOperationFrame<Node> = PendingOperationFrameBase<Node> & (
+  | { state: 'stale'; staleMessage: string; onRefresh?: () => void; refreshLabel?: string }
+  | { state: 'acting' | 'partiallyFailed' | 'resting' | 'loading'; staleMessage?: never; onRefresh?: never }
+)
 
 export interface PendingOperationCardRenderers<Node> {
   blockFrame: (props: PendingOperationFrame<Node>) => Node
@@ -113,6 +118,8 @@ export interface PendingOperationCardActions {
     editedItemIds: readonly string[]
     busy: boolean
     stale: boolean
+    canRefresh: boolean
+    refresh: () => Promise<void>
     rejected: boolean
     error: string | undefined
     setDraftField: (field: string, value: string) => void
@@ -160,16 +167,14 @@ function pendingActions<Node>(
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
   if (!revision?.canRevise) return render.fragment(reject, approve)
+  const firstEditableItem = revision.items.find((item) => item.fields.some(isPendingOperationEditableField))
+  if (!firstEditableItem) return render.actionRow(approve, reject)
   return render.actionRow(
     approve,
     render.button({
       label: labels.edit,
       variant: 'ghost',
-      disabled: revision.items.every((item) => item.fields.every((field) => !isPendingOperationEditableField(field))),
-      onClick: () => {
-        const item = revision.items.find((entry) => entry.fields.some(isPendingOperationEditableField))
-        if (item) revision.startEdit(item.itemId)
-      },
+      onClick: () => revision.startEdit(firstEditableItem.itemId),
     }),
     reject,
   )
@@ -208,6 +213,38 @@ function previewRows<Node>(
   })
 }
 
+function previewFrame<Node>(
+  pendingOperation: PendingAgentOperation,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+  presentation: ReturnType<typeof getPendingOperationCardPresentation>,
+): Node {
+  const revision = card.revision
+  const actions = pendingActions(presentation.action, presentation.destructive, card, revision, labels, render)
+  const previewItems = previewRows(revision, card, labels, presentation.destructive, render)
+  const frameBase: PendingOperationFrameBase<Node> = {
+    title: previewItems ? labels.name : labels.pendingTitle,
+    count: pendingOperation.changeTargetCount ?? undefined,
+    items: previewItems ?? [{
+      id: pendingOperation.id, label: labels.name, meta: labels.pending,
+      status: card.status, irreversible: presentation.destructive && card.status == null,
+    }],
+    proposedLabel: labels.proposed,
+    risk: render.risk(labels.risk),
+    irreversibleLabel: labels.irreversible,
+    confirmNote: labels.confirmNote,
+    actions: revision?.stale ? undefined : actions,
+  }
+  if (revision?.stale && !revision.busy) return render.blockFrame({
+    ...frameBase, state: 'stale',
+    staleMessage: `${revision.canRefresh ? labels.stale : labels.staleUnavailable}${revision.error ? ` ${labels.refreshFailed}` : ''}`,
+    refreshLabel: labels.refresh,
+    onRefresh: revision.canRefresh ? () => void revision.refresh() : undefined,
+  })
+  return render.blockFrame({ ...frameBase, state: revision?.stale ? 'loading' : presentation.frameState })
+}
+
 export function renderPendingOperationCard<Node>({
   card,
   labels,
@@ -224,30 +261,12 @@ export function renderPendingOperationCard<Node>({
   if (card.dismissed) return null
   const revision = card.revision
   if (revision?.rejected) return render.notice(`${labels.rejected} ${labels.name}`)
-  if (revision?.stale && !revision.editingItem) return render.notice(labels.stale)
 
-  const { destructive, action, frameState } = getPendingOperationCardPresentation(
+  const presentation = getPendingOperationCardPresentation(
     pendingOperation.riskClass, pendingOperation.confirmationRequirement,
     card.busy || revision?.busy === true, card.status,
   )
-  const actions = pendingActions(action, destructive, card, revision, labels, render)
-  const previewItems = previewRows(revision, card, labels, destructive, render)
-  const blockFrame = render.blockFrame({
-    state: frameState,
-    title: previewItems ? labels.name : labels.pendingTitle,
-    items: previewItems ?? [{
-      id: pendingOperation.id,
-      label: labels.name,
-      meta: labels.pending,
-      status: card.status,
-      irreversible: destructive && card.status == null,
-    }],
-    proposedLabel: labels.proposed,
-    risk: render.risk(labels.risk),
-    irreversibleLabel: labels.irreversible,
-    confirmNote: labels.confirmNote,
-    actions: revision?.stale ? undefined : actions,
-  })
+  const blockFrame = previewFrame(pendingOperation, card, labels, render, presentation)
   const confirmSheet = render.confirmSheet({
     open: card.confirmOpen,
     title: labels.confirmTitle,

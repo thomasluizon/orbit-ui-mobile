@@ -22,13 +22,15 @@ export type BlockFrameItem = {
 type BlockFrameStaleArm = {
   readonly state: 'stale'
   readonly staleMessage: string
-  readonly onRefresh: () => void
+  readonly onRefresh?: () => void
+  readonly refreshLabel?: string
 }
 
 type BlockFrameSettledArm = {
   readonly state: Exclude<BlockFrameState, 'stale'>
   readonly staleMessage?: never
   readonly onRefresh?: never
+  readonly refreshLabel?: never
 }
 
 type BlockFrameItemEditArm =

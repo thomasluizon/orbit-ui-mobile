@@ -13,7 +13,7 @@ import { apiClient } from "@/lib/api-client";
 
 export type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
-  | { ok: false; error: string };
+  | { ok: false; error: string; stale?: boolean };
 
 export type PreparedStepUpExecution =
   | {
@@ -21,7 +21,7 @@ export type PreparedStepUpExecution =
       challenge: AgentStepUpChallenge;
       confirmationToken: string;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; stale?: boolean };
 
 interface UsePendingOperationExecutionOptions {
   appendExecutionMessage: (
@@ -44,6 +44,21 @@ export function usePendingOperationExecution({
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
         body: JSON.stringify(request),
+      });
+      return { ok: true as const, result };
+    } catch (error: unknown) {
+      return {
+        ok: false as const,
+        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
+        stale: error instanceof ApiClientError && error.status === 409,
+      };
+    }
+  }, [t]);
+
+  const refreshPendingOperationForBubble = useCallback(async (id: string) => {
+    try {
+      const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRefresh(id), {
+        method: 'POST',
       });
       return { ok: true as const, result };
     } catch (error: unknown) {
@@ -78,7 +93,7 @@ export function usePendingOperationExecution({
         await appendExecutionMessage(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
       }
     },
     [appendExecutionMessage, t],
@@ -108,7 +123,7 @@ export function usePendingOperationExecution({
           confirmationToken: confirmation.confirmationToken,
         };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
       }
     },
     [i18n.language, t],
@@ -141,7 +156,7 @@ export function usePendingOperationExecution({
         await appendExecutionMessage(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
       }
     },
     [appendExecutionMessage, t],
@@ -151,7 +166,7 @@ export function usePendingOperationExecution({
     async (pendingOperationId: string) => {
       const result = await preparePendingOperationStepUp(pendingOperationId);
       if (!result.ok) {
-        return { ok: false as const, error: result.error };
+        return { ok: false as const, error: result.error, stale: result.stale };
       }
       return {
         ok: true as const,
@@ -177,13 +192,14 @@ export function usePendingOperationExecution({
       );
       return result.ok
         ? { ok: true as const, response: result.response }
-        : { ok: false as const, error: result.error };
+        : { ok: false as const, error: result.error, stale: result.stale };
     },
     [verifyAndExecutePendingOperationStepUp],
   );
 
   return {
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

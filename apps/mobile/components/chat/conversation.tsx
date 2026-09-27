@@ -65,6 +65,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     scrollToBottom,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -112,6 +113,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
         onPendingOperationRevise={revisePendingOperationForBubble}
+        onPendingOperationRefresh={refreshPendingOperationForBubble}
         onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
@@ -123,6 +125,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       handleBreakdownConfirmed,
       initialMessageIds,
       revisePendingOperationForBubble,
+      refreshPendingOperationForBubble,
       prepareStepUpForBubble,
       streamingMessageId,
       verifyStepUpForBubble,

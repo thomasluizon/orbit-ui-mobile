@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyPendingOperationRevisionPreview, changePendingOperationRevisionDraft,
+  changePendingOperationListRow, addPendingOperationListRow, removePendingOperationListRow,
   createPendingOperationRevisionState, isPendingOperationEditableField,
   pendingOperationDraft, pendingOperationEdits, reconcilePendingOperationRevisionState,
   selectPendingOperationRevisionItem,
@@ -28,6 +29,58 @@ describe('pending operation edits', () => {
 
   it('keeps summary-only list fields out of the editor', () => {
     expect(isPendingOperationEditableField(item.fields[2]!)).toBe(false)
+  })
+
+  it('round trips the full typed checklist rather than its display summary', () => {
+    const typedItem: PendingOperationItem = { ...item, fields: [{
+      ...item.fields[2]!, newValue: 'one item and more',
+      proposedValue: [{ text: 'one item', is_checked: false }, { text: 'more', is_checked: true }],
+      isEditable: true,
+    }] }
+    const draft = pendingOperationDraft(typedItem)
+    expect(JSON.parse(draft.checklist_items!)).toEqual([
+      { text: 'one item', is_checked: false }, { text: 'more', is_checked: true },
+    ])
+    expect(pendingOperationEdits(typedItem, {
+      ...draft, checklist_items: JSON.stringify([{ text: 'changed', is_checked: false }, { text: 'more', is_checked: true }]),
+    })).toEqual({ checklist_items: [{ text: 'changed', is_checked: false }, { text: 'more', is_checked: true }] })
+  })
+
+  it('withholds edit controls for a field the server marks non-editable', () => {
+    expect(isPendingOperationEditableField({ ...item.fields[0]!, isEditable: false })).toBe(false)
+  })
+
+  it('keeps complete typed reminder arrays across edits', () => {
+    const reminderTimes = [15, 30]
+    const scheduledReminders = [{ when: 'same_day', time: '08:00' }, { when: 'day_before', time: '19:00' }]
+    const withLists: PendingOperationItem = { ...item, fields: [
+      { ...item.fields[0]!, field: 'reminder_times', newValue: '15 and more', proposedValue: reminderTimes, isEditable: true },
+      { ...item.fields[0]!, field: 'scheduled_reminders', newValue: '2 reminders', proposedValue: scheduledReminders, isEditable: true },
+    ] }
+    const draft = pendingOperationDraft(withLists)
+    const changedTimes = changePendingOperationListRow(draft.reminder_times!, 0, 'value', '20')
+    const changedSchedule = changePendingOperationListRow(draft.scheduled_reminders!, 1, 'time', '20:00')
+    expect(pendingOperationEdits(withLists, { reminder_times: changedTimes, scheduled_reminders: changedSchedule })).toEqual({
+      reminder_times: [20, 30],
+      scheduled_reminders: [{ when: 'same_day', time: '08:00' }, { when: 'day_before', time: '20:00' }],
+    })
+    expect(JSON.parse(removePendingOperationListRow(addPendingOperationListRow(draft.reminder_times!, 'reminder_times'), 1)))
+      .toEqual([15, ''])
+  })
+
+  it('rejects an incomplete numeric reminder offset on save', () => {
+    const withOffsets: PendingOperationItem = { ...item, fields: [
+      { ...item.fields[0]!, field: 'reminder_times', proposedValue: [15, 30], isEditable: true },
+    ] }
+    expect(() => pendingOperationEdits(withOffsets, { reminder_times: '["",30]' })).toThrow('Invalid reminder offset')
+  })
+
+  it('starts scalar drafts from typed values', () => {
+    const withBoolean: PendingOperationItem = { ...item, fields: [
+      { ...item.fields[0]!, newValue: 'True', proposedValue: true, isEditable: true },
+    ] }
+    expect(pendingOperationDraft(withBoolean)).toEqual({ reminder_enabled: 'true' })
+    expect(pendingOperationEdits(withBoolean, { reminder_enabled: 'false' })).toEqual({ reminder_enabled: false })
   })
 
   it('keeps drafts by item and replaces them when a different server fingerprint arrives', () => {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   issuePendingOperationStepUp: vi.fn(),
   verifyPendingOperationStepUp: vi.fn(),
   revisePendingOperation: vi.fn(),
+  refreshPendingOperation: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -22,6 +23,7 @@ vi.mock('@/app/actions/chat', () => ({
   issuePendingOperationStepUp: mocks.issuePendingOperationStepUp,
   verifyPendingOperationStepUp: mocks.verifyPendingOperationStepUp,
   revisePendingOperation: mocks.revisePendingOperation,
+  refreshPendingOperation: mocks.refreshPendingOperation,
 }))
 
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
@@ -46,6 +48,7 @@ describe('useChatPendingOperations', () => {
     mocks.issuePendingOperationStepUp.mockReset()
     mocks.verifyPendingOperationStepUp.mockReset()
     mocks.revisePendingOperation.mockReset()
+    mocks.refreshPendingOperation.mockReset()
   })
 
   afterEach(() => {
@@ -88,6 +91,29 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toEqual({ ok: true, result: response })
     expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
+  })
+
+  it('refreshes a preview without confirming or executing', async () => {
+    const preview = { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' }
+    const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false, preview }
+    mocks.refreshPendingOperation.mockResolvedValue({ ok: true, data: response })
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+    let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
+    expect(mocks.refreshPendingOperation).toHaveBeenCalledWith('pending-1', null)
+    expect(outcome).toEqual({ ok: true, result: response })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(onExecuted).not.toHaveBeenCalled()
+  })
+
+  it('keeps account changes separate from stale preview conflicts', async () => {
+    mocks.refreshPendingOperation.mockResolvedValue({ ok: false, status: 409, code: 'ACCOUNT_CHANGED',
+      error: 'The signed in account changed before this request ran', sessionRefreshFailed: false })
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged', stale: false })
   })
 
   it('does not forward an execution that returns after the account changes', async () => {

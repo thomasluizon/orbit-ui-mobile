@@ -1243,6 +1243,20 @@ describe('ai schemas', () => {
     expect(confirmationResult.success).toBe(true)
     expect(executionResult.success).toBe(true)
   })
+
+  it('preserves the API proposed value and editability through the pending preview schema', () => {
+    const proposedValue = [{ text: 'Pack shoes', is_checked: false }, { text: 'Pack water', is_checked: true }]
+    const field = { entityId: 'habit-1', entityName: 'Run', field: 'checklist_items',
+      oldValue: null, newValue: 'Pack shoes and more', valueType: 'text', proposedValue, isEditable: true }
+    const parsed = pendingAgentOperationSchema.parse({
+      id: 'pending-1', capabilityId: 'habits.bulk.write', displayName: 'Bulk update', summary: 'Update habits',
+      riskClass: 'Low', confirmationRequirement: 'None', expiresAtUtc: '2025-01-15T10:00:00Z',
+      changes: [field], changeTargetCount: 1,
+      items: [{ itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', fields: [field], stateFingerprint: 'state-1' }],
+      previewFingerprint: 'preview-1',
+    })
+    expect(parsed.items?.[0]?.fields[0]).toMatchObject({ proposedValue, isEditable: true })
+  })
 })
 
 
