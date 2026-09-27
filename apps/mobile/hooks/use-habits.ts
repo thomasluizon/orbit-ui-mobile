@@ -84,6 +84,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { captureHabitLogged } from '@/lib/posthog'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -205,6 +206,8 @@ export function useLogHabit() {
       if (isQueuedResult(response)) {
         return
       }
+
+      captureHabitLogged()
 
       const loggedHabit = findHabitInList(
         queryClient
