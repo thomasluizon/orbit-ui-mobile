@@ -202,6 +202,19 @@ describe('serverAuthFetch', () => {
     expect(result).toBeNull()
   })
 
+  it('forwards the event origin from a bound account mutation', async () => {
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    mockFetch.mockResolvedValue({ ok: true, status: 204 })
+
+    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, JSON.stringify({
+      accountId: null, eventOrigin: 'connection-1',
+    }))
+
+    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Orbit-Event-Origin': 'connection-1' }),
+    }))
+  })
+
   it('attaches the X-App-Version header when APP_VERSION is set', async () => {
     vi.stubEnv('APP_VERSION', '1.2.3')
     resolveServerSessionMock.mockResolvedValue({

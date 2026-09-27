@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
 import { responseReportsSessionRefreshFailure } from './session-refresh'
+import { getAccountEventOrigin } from './account-event-origin'
 
 
 type TranslateFn = (key: string) => string
@@ -76,7 +77,15 @@ export async function sessionAwareFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const response = await fetch(input, init)
+  const method = init?.method?.toUpperCase() ?? 'GET'
+  const origin = getAccountEventOrigin()
+  let requestInit = init
+  if (origin && method !== 'GET' && method !== 'HEAD') {
+    const headers = new Headers(init?.headers)
+    headers.set('X-Orbit-Event-Origin', origin)
+    requestInit = { ...init, headers }
+  }
+  const response = await fetch(input, requestInit)
   await applySessionRefreshFailure(response)
   return response
 }

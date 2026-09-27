@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
 import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
+import { getAccountEventOrigin } from '@/lib/account-event-origin'
 
 let activeAccountIntent: string | null | undefined
 
@@ -85,6 +86,11 @@ export function bindAccountServerAction<Arguments extends unknown[], T>(
 ): (...arguments_: Arguments) => Promise<T> {
   return (...arguments_) => runServerAction(action(
     ...arguments_,
-    activeAccountIntent === undefined ? getHeldAccountId() : activeAccountIntent,
+    accountIntentWithOrigin(activeAccountIntent === undefined ? getHeldAccountId() : activeAccountIntent),
   ))
+}
+
+export function accountIntentWithOrigin(accountId: string | null): string | null {
+  const eventOrigin = getAccountEventOrigin()
+  return eventOrigin ? JSON.stringify({ accountId, eventOrigin }) : accountId
 }

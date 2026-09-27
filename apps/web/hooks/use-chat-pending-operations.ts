@@ -10,7 +10,7 @@ import {
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
-import { applyServerActionFailure } from '@/lib/client-action'
+import { accountIntentWithOrigin, applyServerActionFailure } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
 
@@ -36,7 +36,7 @@ export function useChatPendingOperations(
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     try {
-    const intendedAccountId = getHeldAccountId()
+    const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
     const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
     await applyServerActionFailure(confirmation)
     if (!confirmation.ok) {
@@ -64,7 +64,7 @@ export function useChatPendingOperations(
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
       try {
-      const intendedAccountId = getHeldAccountId()
+      const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
       const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
       await applyServerActionFailure(confirmation)
       if (!confirmation.ok) {
@@ -97,7 +97,7 @@ export function useChatPendingOperations(
       confirmationToken: string,
     ) => {
       try {
-      const intendedAccountId = getHeldAccountId()
+      const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
       const verification = await verifyPendingOperationStepUp(
         pendingOperationId,
         challengeId,

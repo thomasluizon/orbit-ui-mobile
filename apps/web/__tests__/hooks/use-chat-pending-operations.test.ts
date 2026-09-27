@@ -24,6 +24,7 @@ vi.mock('@/app/actions/chat', () => ({
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import { toast } from 'sonner'
+import { setAccountEventOrigin } from '@/lib/account-event-origin'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
@@ -42,6 +43,7 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
+    setAccountEventOrigin('chat-connection')
     setApiFetchTranslate((key) => key)
     vi.mocked(toast.error).mockClear()
     mocks.confirmPendingOperation.mockReset()
@@ -51,6 +53,7 @@ describe('useChatPendingOperations', () => {
   })
 
   afterEach(() => {
+    setAccountEventOrigin(null)
     vi.clearAllMocks()
   })
 
@@ -71,8 +74,9 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
     })
 
-    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', null)
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
+    const intent = JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' })
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', intent)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', intent)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
   })
@@ -112,7 +116,7 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.prepareStepUpForBubble('pending-2')
     })
 
-    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', null)
+    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(outcome).toEqual({
       ok: true,
       challengeId: 'challenge-2',
@@ -154,8 +158,9 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.verifyStepUpForBubble('pending-2', 'challenge-2', '123456', 'token-2')
     })
 
-    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'challenge-2', '123456', null)
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', null)
+    const intent = JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' })
+    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'challenge-2', '123456', intent)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', intent)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Done'))
     expect(outcome).toMatchObject({ ok: true })
   })

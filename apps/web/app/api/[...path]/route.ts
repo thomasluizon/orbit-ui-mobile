@@ -105,6 +105,10 @@ async function proxyRequest(
 
   const method = request.method
   const headers: Record<string, string> = {}
+  const eventOrigin = request.headers.get('x-orbit-event-origin')
+  if (eventOrigin && eventOrigin.length <= 128 && method !== 'GET' && method !== 'HEAD') {
+    headers['X-Orbit-Event-Origin'] = eventOrigin
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
