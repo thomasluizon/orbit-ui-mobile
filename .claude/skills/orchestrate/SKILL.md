@@ -1188,6 +1188,8 @@ the `merged` sha or the `blocker` string. Nothing else clears it.
 If a pull request closes without a merge, confirm that state and write `closed: true` and a
 recorded `blocker` on its ledger identity. Do not create a readiness receipt for a closed pull
 request. Keep the row so the stop hook reports a BLOCKED ending that names it.
+If that pull request reopens, record a later sighting with `closed: false`. Omit the old closure
+blocker unless a current blocker still applies. The row then needs a readiness receipt again.
 
 ## Step 10. Hand over
 
@@ -1475,6 +1477,8 @@ A confirmed close without a merge is recorded as boolean `closed: true` with a n
 `writeRunState` keeps that closure within the session even if a later sighting omits it. A row
 without a written receipt may end BLOCKED only with both facts. An open row without a receipt,
 or a closed row without a blocker, still refuses the stop.
+Record a reopening with explicit boolean `closed: false`; it clears the closure and any old
+blocker unless the new sighting supplies a current blocker. Omitting `closed` does not reopen it.
 A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
 invalid because UI and API can have the same PR number. The stop hook opens each written ledger
 receipt, matches its repository and PR identity, and allows completion when that receipt reports

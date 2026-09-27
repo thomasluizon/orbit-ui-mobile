@@ -19,6 +19,7 @@ import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validate
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
+import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -614,6 +615,15 @@ T(
   ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("api#535") && !verdict.message.includes("ui#1023"))(
     stop({ state: { ...closedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }, closedRows[0]] } }),
   ),
+  true,
+)
+const reopenedCheckout = join(root, "reopened-pull-request")
+mkdirSync(join(reopenedCheckout, ".git"), { recursive: true })
+writeRunState({ ...sleeping, remaining: [], pullRequests: [closedRows[0]] }, reopenedCheckout)
+writeRunState({ ...sleeping, remaining: [], pullRequests: [{ ...closedRows[0], closed: false, blocker: null }] }, reopenedCheckout)
+T(
+  "sleep-stop: a reopened row without a receipt or blocker refuses the stop again",
+  blocks(stop({ state: readRunState(reopenedCheckout) })),
   true,
 )
 
