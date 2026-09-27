@@ -14,41 +14,44 @@ The owner's written authorization overrides the sleep skill's generic hard stops
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. The run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. At handoff time the board had 145 open tickets, all 145 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. The run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. At handoff time the board had 126 open tickets, all 126 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
 
-## Priority: Supabase egress
-
-The Supabase project hit its monthly egress quota. Egress stays first until the spec's `### Batch E: Supabase egress, first` is done: measure per query shape, rank by bytes, fix the biggest first with before and after evidence. Egress fixes go to `main`; `redesign/main` is synced from `main`.
-
-Done: #742 to #744, #758 and #759 merged, and the per-shape delta measured (every old large shape stopped growing). In flight: the four remaining root causes, #760 to #763, below. After they deploy, take two `pg_stat_statements` snapshots an hour apart, record each ticket's after-deploy rows per call on it, and record the remaining egress per active user in the spec's `## Current state`.
+THE REDESIGN GATE is an owner stop: the owner has not decided whether the closed internal build talks to a staging API or production, and no gate build is made until that decision arrives. Everything before the gate is the run's work.
 
 ## In flight (verify each first)
 
 | item | disposition |
 |---|---|
-| `orbit-ui-mobile` PR 1172 (`#216`, base `main`) | all three review attempts used; head `07bf5220` has every check green and zero unresolved threads; waiting only on Pullfrog's approval of that head. Merge when approved; a new blocking finding makes it an exhausted-fixer blocker to record |
-| `orbit-api` PR 596 (`#760`, base `main`) | worker delivered; allowlist fix pushed at `7ee0025d`; waiting on CI and the first Pullfrog review. Drive through review, merge, deploy |
-| `orbit-api` PR 597 (`#761`, base `main`) | worker delivered at `1f64aeb2`; waiting on CI and the first Pullfrog review. Drive through review, merge, deploy |
-| `#762` worker (worktree `orbit-api/ticket-762-completion-dates-sql`, branch `fix/ticket-762-completion-dates-sql`, newest `#762-*.log` in the launcher log directory) | relaunched with the decision to keep skip logs in achievement progress; outcome unknown. Read the worktree and log first; at handoff it held one unpushed commit and uncommitted changes. Its branch has used two launches; a relaunch needs `--relaunch-reason` |
-| `#763` worker (worktree `orbit-api/ticket-763-summary-log-window`, branch `fix/ticket-763-summary-log-window`) | relaunched (third launch) with the overdue-date and measurement decisions; outcome unknown. Read the worktree and newest `#763-*.log` first; at handoff it held uncommitted changes |
+| `orbit-api` PR 613 (`#784`, base `redesign/main`, head `1eccb7df`) | review-batch commit `21359cb3` ("fix: execute confirmed tool after step stream failure") is committed but NOT pushed, in worktree `orca/workspaces/orbit-api/ticket-784-live-tool-steps`. Merge its report into the body (`tools/merge-review-batch-body.mjs`), resolve its open thread, push once, wait for the review, then merge into `orbit-api` `redesign/main` |
+| `orbit-ui-mobile` PR 1201 (`#682`, base `redesign/main`, head `b4bf124b`) | NOT approved: the newest Pullfrog review of that head commented, `pullfrog-approval` is red, and 2 threads are open in `packages/shared/src/chat/pending-operation-card-view.ts` (line 230, bulk-deletion action rows; line 248, targets past the first ten lose per-item removal). Launch a `--review-batch` worker (check the branch launch count; a third launch needs `--relaunch-reason`), then merge when approved. It completes Batch 1 with PR 613 |
+| `orbit-ui-mobile` PR 1204 (`chore/contract-snapshot`, base `main`, head `2b3d98ba`) | the automated contract rebaseline; blocked on checks and review. Drive it to approval and merge it to `main` |
 | `#745` | record the Supavisor 24-hour `Connection authenticated` count after its deploy on the ticket (before: 5,092; the window closes about 16:34 UTC the day after the deploy), then close it |
-| `#556` sync | due: carry every `main` merge since the last sync (ads removal, the notification poll, the Codex worker isolation, the habit refetch fix, the reminder model, and `#216` once merged) |
-| Stashes, other worktrees | no stashes in the three primary checkouts; landing has no open pull requests; the other UI worktrees used this session are clean and pushed |
+| `#762`, `#763` | merged on `main`; take two `pg_stat_statements` snapshots at least an hour apart in daytime traffic, record after-deploy rows per call on each ticket, close them, and record egress per active user in the spec's `## Current state` |
+| `#556`, `#746` syncs | due after the next `main` merges in each repository (PR 1204 for the UI) |
+| `#565`, `#566` | seven-day watch windows; close each after seven days with no recurrence on the carrying release |
+| `#390`, `#134` | wait for the owner's device test; nothing for the run |
+| Running workers | none |
+| Stashes | none in any of the three repositories |
+| Unpushed commits | `ticket-784-live-tool-steps` (1, above). `ticket-620`, `ticket-666`, `ticket-674`, `ticket-680` show 39 to 40 and 2 commits ahead, but their PRs (1113, 1110, 1114, 1116) are merged; confirm with `git cherry` and remove the worktrees |
+| Dirty detached worktrees | `merge-1126` (98 files), `ui-main` (1), `menu-probe` (4), `merge-api-583` (7), `merge-api-584` (8): old merge and probe checkouts whose pull requests merged; read each `git status`, then remove them if nothing unmerged remains |
+| Superseded | worktree `ticket-757-codex-no-apps` and branch `ticket-589-fortnightly-import`: nothing depends on them; delete at teardown |
 
 ## Then, in order
 
-1. Once PR 1172 merges, run `/android-release` to the open track: 1.3.35 is the first build without AdMob. After it is live, update Play Console Data safety (remove the advertising ID and ads declarations) through the `claude-in-chrome` skill.
-2. The spec's `## The order`: the rest of Batch E, Batch 0b, Batch 0c, Batch 1, then STOP at THE REDESIGN GATE (a closed Play internal build for the owner; never merge `redesign/main` to `main`).
-3. Owner decisions already taken, recorded on the tickets: `#740` extends the relative reminder model (deployed; paired editor ticket `#752` is next in Batch 0c); `#297` uses real-time push; ads are deleted everywhere (`#200` removes the backend); copy is written and approved by the run through `BRAND.md`, the brain, `/humanizer` and `/second-opinion`; console and dashboard steps are the run's, through the `claude-in-chrome` skill; every client egress waste is fixed, not only ticketed.
-4. A ticket body names the outcome and its acceptance; when a suggested method conflicts with the acceptance (identical results), the acceptance wins. Two egress tickets this run had to be corrected by comment for that reason.
+1. The in-flight rows above.
+2. The spec's `## The order`: the rest of Batch E (measurements), Batch 0b (syncs), Batch 0c (watch windows and owner device tests), Batch 1 (`#784`, `#682`), then STOP at THE REDESIGN GATE and wait for the owner's API decision.
+3. Owner decisions already taken, recorded on the tickets: copy is written and approved by the run through `BRAND.md`, the brain, `/humanizer` and `/second-opinion`; console and dashboard steps are the run's, through the `claude-in-chrome` skill; every client egress waste is fixed, not only ticketed. Egress fixes go to `main`; `redesign/main` is synced from `main`.
+4. A ticket body names the outcome and its acceptance; when a suggested method conflicts with the acceptance (identical results), the acceptance wins.
 
 ## Previous prompt, disposition
 
-- Its opening, entry point, sleep authorization, goal and `## Carried` instructions: carried above in its words.
-- Its egress priority: carried above; the per-shape measurement is done and became #760 to #763.
-- Its in-flight rows: PR 1176 done (merged `2376c94d`, #758 closed); PR 1173 done (merged `0e815b28`); PR 1171 done (merged `f88082bd`); PR 1170 done (merged `eaa66406`); PR 1168 done (merged `1a630821`, #632 closed); `orbit-api` PR 594 done (merged `3c49e9ad`, deployed, mixed reminder habits 1 to 0 with the habit keeping its local times, recorded on #740); PR 1172 carried above; `#745` carried above; worktree `ticket-757-codex-no-apps` superseded (nothing depends on it; delete it at teardown).
-- Its step 1, `/android-release`: carried as step 1 (PR 594 is deployed; PR 1172 remains).
-- Its steps 2 and 3: carried as steps 2 and 3.
+- Opening, entry point, sleep authorization and goal: carried above in its words; the board count is updated to 126.
+- Egress priority: done for fixes (`#742` to `#745` and `#758` to `#763` merged on `main`); the measurements are carried as in-flight rows.
+- PR 1172 (`#216`): done, merged and `#216` closed. `orbit-api` PR 596 (`#760`) and PR 597 (`#761`): done, merged and deployed, tickets closed. `#762` and `#763` workers: done, merged on `main`; measurement carried.
+- `#745`: carried above. `#556` sync: done (PR 1202); the next sync is carried. Worktree `ticket-757-codex-no-apps`: carried as superseded.
+- Step 1, `/android-release` and Data safety: done. 1.3.36 (95) and 1.3.37 (96) are live on the open track, 95 is on the internal track, and Data safety now declares the Sentry data with no advertising ID; Google is reviewing it.
+- Step 2 (the order to the gate): carried as step 2, with the gate now an owner stop on the API choice.
+- Steps 3 and 4: carried as steps 3 and 4; `#740`, `#297` and `#200` are done and closed.
 
 ## Carried
 

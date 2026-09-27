@@ -78,15 +78,12 @@ The first root causes (#742 Today log window, #743 streak and achievement projec
 projections, #745 warm connection pools), the client notification poll (#759) and the client habit
 refetch fix (#758) are merged on `main`. A per-shape delta (two `pg_stat_statements` snapshots 59
 minutes apart, plus the shapes whose `stats_since` falls after the latest deploys) showed every old
-large shape stopped growing. What still grows became four tickets. One account holds about 4,650 of
+large shape stopped growing. What still grew became four tickets: `#760` (reminder scheduler probe, 48 rows to 1 per call), `#761` (one schedule load per log), `#762` (completion dates from projected dates) and `#763` (daily summary columns and dates), all merged on `main`. One account holds about 4,650 of
 the 5,033 logs and 996 habits, so per-call cost tracks that account.
 
-- `#760` The reminder scheduler rereads every reminder habit, user and sent reminder each minute (about 20 MB a day idle); `orbit-api` PR 596 caches the reads behind a per-minute probe
-- `#761` Each log loads the user's whole habit schedule twice (UserStreakService and GamificationService); `orbit-api` PR 597 shares one load
-- `#762` Completion dates are built from whole log rows (streak-freeze job, streak history, achievements); achievement progress keeps skip logs, because its streak rule reads them
 - `#763` The daily summary reads 366 days of full log rows; overdue detection needs every date it inspects, so the saving is columns and dates, not one row per habit
 - `#745` Record the Supavisor `Connection authenticated` count for the 24 hours after its deploy (the before count is on the ticket; the window closes about 16:34 UTC the day after the deploy), then close it
-- After `#760` to `#763` deploy: take two snapshots at least an hour apart, record each ticket's after-deploy rows per call on it, and record the remaining egress per active user in `## Current state`. Rows come from `pg_stat_statements`; bytes are rows times the `pg_column_size` width of the selected columns. The Today per-habit facts read (queryid -5099751649154393568, about 630 rows per call) is the next shape to check
+- After the deploy of `#760` to `#763`: take two snapshots at least an hour apart during daytime traffic, record the after-deploy rows per call on `#762` and `#763`, close each, and record the remaining egress per active user in `## Current state`. Rows come from `pg_stat_statements`; bytes are rows times the `pg_column_size` width of the selected columns. The Today per-habit facts read (queryid -5099751649154393568, about 630 rows per call) is the next shape to check
 
 ### Batch 0b: the harness, before the redesign
 
@@ -95,7 +92,8 @@ file a harness ticket as a substitute for a fix.
 
 - `#556` The standing `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
-- `#702` Contract rebaseline pull requests start no required checks because GITHUB_TOKEN opens them (App set up and verified; closes when the next rebaseline pull request shows every required context)
+
+The contract rebaseline App (`#702`) is done: its pull requests now start every required check.
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -103,17 +101,10 @@ Defects a person hits in the shipped build today (web on `main`, Android from `m
 `main` deploy). They target `main` under D99 and the route-by-subject rule; an Android fix is followed by
 `/android-release` to the open track.
 
-- `#752` Add after-due and day-before wall-clock reminders to the web and mobile editors (`#740` is deployed)
-- `#754` Give actionable 403 guidance for textless actions
-- `#755` Resolve the Play foreground service permissions declaration
-- `#200` Remove the rewarded-ad backend and its DTO field
-- `#297` A continuously foregrounded Today view never reflects a change made from another device (real-time push; API design first)
 - `#566` Resolve orphan offline IDs before reorder mutations expire (merged; closes after seven days without ORBIT-MOBILE-5 on the carrying release)
 - `#134` Habit row three-dot menu does not reliably open on Android (verify on a device, then close)
-- `#216` Fix the UI claims that are not true, starting with delete cannot be undone
 - `#565` Root-cause the Today-page non-array map failure (map the minified frame from the release's own build first; never add a blanket guard)
 - `#390` Restore deferred bulk mutations and settle parents from the replay once the API is idempotent
-- `#253` use-habits.ts follow-ups from ORB-183: XP guard, its deleted test, and two lost WHY comments
 
 ### Batch 1: close the redesign
 
@@ -121,24 +112,16 @@ Every ticket whose work lands on `redesign/main` in either code repository, incl
 redesign screens wait on. **This batch ends** when `node tools/redesign-coverage.mjs` reports a valid mapping
 AND every screen ticket closes against its own acceptance criteria.
 
-- `#747` Expose a fresh pending-operation preview after a stale revision (`orbit-api` `redesign/main`; completes `#24` Stage 3)
-- `#748` Expose typed editable values in pending-operation previews (`orbit-api` `redesign/main`; completes `#24` Stage 3)
-- `#750` Expose child habit creation time in detail and schedule responses (`orbit-api`; lets `#632` stop confirming every past child date)
-- `#24` Chat surface UX: Stage 3 (part 1, per-item edit and reject, is merged on `redesign/main`; the rest waits on `#747` and `#748`; unblocks `#682`)
-- `#682` Show diff rows in Astra previews, a thinking trace, and follow-up chips (blocked by `#24` Stage 3)
-- `#214` Android software keyboard covers the Astra chat input (Stage 1 shipped on `main`; Stage 2 gives the redesign shell composer one inset owner)
-- `#497` Collapse the six colour schemes to the one granted accent, UI half
-- `#589` Import a fortnightly weekday calendar event instead of refusing it, and stop mapping INTERVAL onto frequencyQuantity
-- `#592` Convert a timed UNTIL in the event's own timezone once the API projects it
-- `#614` Let a long sub-habit title render its own message, not the habit one
-- `#647` Measure and reduce the 60-row All-to-Today view switch cost
-- `#393` Restore the Today screen's main-thread headroom so the LCP budget holds on a slow runner
+- `#784` Stream Astra tool step events as each tool runs, not after the tool loop ends (`orbit-api` `redesign/main`; the in-progress trace lines of `#682` depend on it)
+- `#682` Show diff rows in Astra previews, a thinking trace, and follow-up chips (`#24` Stage 3 is merged)
 
 ### THE REDESIGN GATE, between batch 1 and batch 2a
 
 Unchanged and absolute. Once every screen ticket is done, a run **stops** and ships a closed Play
 INTERNAL build off `redesign/main` for the owner to test as a real update. It does not merge to `main`
 and does not start the next batch. **Only the owner's approval merges `redesign/main` to `main`.**
+
+The build is not made until the owner decides which API it talks to: a staging API or production. `redesign/main` of `orbit-api` is not deployed anywhere, so a build pointed at production would call endpoints that do not exist there yet. The run stops at the gate and waits for that decision.
 
 **The merge carries one protection change in the same moment.** `main` requires
 `Suppressions Ratchet` again, because `main` still has both `eslint-suppressions.json` baselines and
@@ -229,6 +212,7 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#19` Execute Astra bulk intents server side on the full matching set and report the true affected count
 - `#21` Constrain Astra free text answers to tool returned facts
 - `#23` Localize Astra tool result card text via structured message keys in the contract
+- `#24` Chat surface UX: Stage 1, localized tool-result cards, which needs the `#23` message keys (Stages 2 and 3 are merged on `redesign/main`)
 - `#26` Build the Astra prompt to behavior eval harness and gate launch on it
 - `#48` Ground the Astra daily summary in real multi-day adherence data
 - `#49` Localize the Astra action-chip labels for UpdateChecklist and the other unmapped tool types
@@ -259,6 +243,7 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#115` Cancel the Stripe and Play subscription when a user confirms account deletion
 - `#568` Make destructive EF schema changes safe across rolling deploys
 - `#753` Drop the legacy AdMob privacy disclosure once 1.3.35 is the minimum supported version
+- `#765` Drop the ad reward profile field and user columns once 1.3.35 is the minimum supported version (expand-contract; waits on the same `MinSupportedVersion` raise as `#753`)
 - `#732` Remove the legacy bulk replay lookup once the `#727` deploy has aged past the 30-day idempotency retention window
 - `#718` Drop the habit-log slip insert trigger and make `IsSlip` non-nullable after the `#665` deploy replaces old instances
 - `#621` Stop controllerActions reading as enforcement, because 51 capabilities declare it and nothing reads it at request time
@@ -353,24 +338,32 @@ Current operational rules above take precedence when a record conflicts.
 - The worker launcher reads `.claude/orchestrator.json` from the orchestrating checkout, which runs on `redesign/main`. A launcher change merged on `main` reaches workers only after the `#556` sync carries it. Codex workers start with `--disable apps --ignore-user-config` once it does, which also skips the user-level Codex hooks in `$CODEX_HOME/hooks.json`.
 - A worker's final report does not always use the `## Test evidence`, `## Assumptions`, `## Manual steps` and one-lane-per-line `## Review harness` shape that `merge-review-batch-body.mjs` reads, and its log prints the final message twice. Rebuild the report in that shape from the last copy before merging it into a pull request body.
 - Count Codex hook events as `hook: <Event>` lines (`LC_ALL=C grep -a`); the bare word "hook" also matches source text in the log.
+- Play Console validates every active track, so an old build on the internal track blocks a new declaration or upload on another track. Replace the internal build with the current one first.
+- The `## Review harness` block has one line per lane. A pull request with no animation change writes the motion lane exactly as `not applicable: no changed animation`.
+- Start `tools/launch-worker.mjs` and `tools/wait-ci.mjs` as background tasks with no pipe and no `&`; a pipe ends the process early and the wake notification never arrives.
+- The `orbit-api` `Mutation (domain)` job can reach its 45-minute timeout on a large diff. It is not a required check; rerun it once and record the timeout on the pull request.
+- The Orbit MCP `bulk_log_habits` tool takes no idempotency key, so a replay check against production cannot go through it; `#390` needs a device test.
 - Keep decision logs with times in the scratchpad, outside the repository. Tracked specs, prompts and skill output carry rules and current state without session history, dates, attribution or machine paths.
 
 ## Current state
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Shipped on `main` and live: the Supabase egress fixes (Today reads only its page's logs, streak and achievement reads use projected dates, the schedulers read only the columns they use, the connection pools stay warm), notifications poll every 15 minutes only while visible, habit lists stay fresh for five minutes with reconnect refetching only stale data and every mutation settling from the server (web requests per scenario 12 to 6, mobile 9 to 6), relative reminders keep their local times (the one mixed habit folded, 0 left), bulk delete removes whole subtrees, and every ad path is deleted. Codex workers start with no account apps or user MCP servers once the next `#556` sync carries that change. Android 1.3.34 is on the open track; 1.3.35 is the first build without AdMob and ships once `#216` merges.
+Shipped on `main` and live: every Batch E egress fix (`#742` to `#745`, `#758` to `#763`; the reminder probe now reads 1 row per call instead of 48), the live account event stream on both platforms (`#297`), the actionable 403 copy (`#754`), both reminder editors (`#752`), the rewarded-ad backend removal (`#200`), the corrected UI claims (`#216`), the `use-habits` follow-ups (`#253`), and the event stream origin fix (`#783`). Android 1.3.37 (96) is on the open track and 1.3.36 (95) is on the internal track. The Play Data safety form declares crash logs, diagnostics, device IDs and approximate location for Sentry, and Google is reviewing it.
 
-On `redesign/main`: the implausible-date log gate, an earlier `#556` sync of `main` fixes, per-item edit and reject in Astra previews (a controlled sheet close now finishes even when the native dismissal rejects), and the handoff prompt gate (a `/wrap-up --sleep` or `/handoff` prompt that misses the required shape is refused at commit and at stop).
+On `redesign/main`: every Batch 1 ticket except `#682` and `#784`, and a `#556` and `#746` sync of `main` in both code repositories.
 
 Open pull requests:
 
-- `orbit-ui-mobile` `#1172` (`#216`, base `main`): all three review attempts used; head `07bf5220` has every check green and the last thread resolved; it waits only on Pullfrog's approval of that head. Merge it when approved; a new blocking finding is an exhausted-fixer blocker.
-- `orbit-api` `#596` (`#760`, base `main`): allowlist fix pushed at `7ee0025d`; waiting on CI and the first Pullfrog review. The probe returns one row per reminder habit per minute; `Habit.Log` updates `UpdatedAtUtc`, so a log refreshes the cache.
-- `orbit-api` `#597` (`#761`, base `main`): opened by its worker at `1f64aeb2`; waiting on CI and the first Pullfrog review.
+- `orbit-ui-mobile` `#1201` (`#682`, base `redesign/main`, head `b4bf124b`): the newest Pullfrog review of that head commented and `pullfrog-approval` is red. Two threads are open, both in `packages/shared/src/chat/pending-operation-card-view.ts`: action-only rows for bulk deletion (line 230) and targets beyond the first ten losing per-item removal (line 248). It needs a review batch.
+- `orbit-api` `#613` (`#784`, base `redesign/main`, head `1eccb7df`): the review-batch commit `21359cb3` (execute a confirmed tool after a step stream failure) is committed but NOT pushed, in the `ticket-784-live-tool-steps` worktree. Merge its report into the body, resolve its thread, push, and wait for the review.
+- `orbit-ui-mobile` `#1204` (`chore/contract-snapshot`, base `main`, head `2b3d98ba`): the automated contract rebaseline; blocked on its checks and review.
 
-Workers were running at handoff on `#762` (relaunched with the skip-log decision; its worktree held one unpushed commit and uncommitted changes) and `#763` (relaunched with the overdue and measurement decisions; its worktree held uncommitted changes). Their outcomes are unknown.
+Measurement still open: the after-deploy rows per call for `#762` and `#763`, the remaining egress per active user, and the `#745` 24-hour Supavisor count (before: 5,092).
 
-The egress per active user after `#760` to `#763` is not measured yet.
+Waiting on the owner:
 
-Waiting on the owner: the on-device three-dot menu check (`#134`) and the chat keyboard (`#214`) on the next Android build. Nothing else.
+- Which API the redesign gate build talks to (staging or production). The gate build waits for it.
+- A device test of `#390` (bulk log replay) and of `#134` (three-dot menu) on the current open-track build.
+
+Watch windows: `#565` and `#566` close after seven days with no recurrence on the carrying release.
