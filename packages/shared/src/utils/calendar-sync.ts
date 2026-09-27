@@ -19,6 +19,7 @@ export interface CalendarSyncEvent {
 export interface CalendarSyncParsedRecurrence {
   frequencyUnit?: FrequencyUnit
   frequencyQuantity?: number
+  intervalWeeks?: number
   days?: string[]
 }
 
@@ -55,6 +56,25 @@ function parseRuleParts(rule: string): Record<string, string> {
       })
       .filter((entry): entry is readonly [string, string] => entry !== null),
   )
+}
+
+function applyRecurrenceInterval(
+  parts: Record<string, string>,
+  result: CalendarSyncParsedRecurrence,
+): void {
+  if (parts.INTERVAL) {
+    const parsed = Number.parseInt(parts.INTERVAL, 10)
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      if (result.frequencyUnit === 'Week' && parts.BYDAY) {
+        result.frequencyQuantity = 1
+        result.intervalWeeks = parsed
+      } else {
+        result.frequencyQuantity = parsed
+      }
+    }
+  } else if (result.frequencyUnit) {
+    result.frequencyQuantity = 1
+  }
 }
 
 function parseRecurrenceInterval(rule: string): number {
@@ -124,14 +144,7 @@ export function parseCalendarSyncRecurrence(
     result.frequencyUnit = FREQUENCY_UNIT_MAP[parts.FREQ]
   }
 
-  if (parts.INTERVAL) {
-    const parsed = Number.parseInt(parts.INTERVAL, 10)
-    if (Number.isFinite(parsed) && parsed >= 1) {
-      result.frequencyQuantity = parsed
-    }
-  } else if (result.frequencyUnit) {
-    result.frequencyQuantity = 1
-  }
+  applyRecurrenceInterval(parts, result)
 
   if (parts.BYDAY) {
     const days = parts.BYDAY.split(',')
@@ -212,6 +225,7 @@ export function buildCalendarSyncImportRequest(
         dueEndTime: event.endTime,
         frequencyUnit: recurrence.frequencyUnit ?? null,
         frequencyQuantity: quantity,
+        ...(recurrence.intervalWeeks !== undefined && { intervalWeeks: recurrence.intervalWeeks }),
         days,
         reminderEnabled: event.reminders.length > 0,
         reminderTimes,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { bulkHabitItemSchema } from '../types/habit'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -13,9 +14,65 @@ describe('calendar-sync utils', () => {
   it('parses RRULE recurrence data', () => {
     expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE')).toEqual({
       frequencyUnit: 'Week',
-      frequencyQuantity: 2,
+      frequencyQuantity: 1,
+      intervalWeeks: 2,
       days: ['Monday', 'Wednesday'],
     })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=2')).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 2,
+    })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=DAILY;INTERVAL=3')).toEqual({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 3,
+    })
+  })
+
+  it('sends weekday intervals through the bulk contract in manual and automatic imports', () => {
+    const event = {
+      id: 'event-2',
+      title: 'Practice',
+      description: null,
+      startDate: '2026-04-08',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+      reminders: [],
+    }
+    const expected = {
+      days: ['Monday', 'Wednesday'],
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      intervalWeeks: 2,
+    }
+
+    const manualItem = buildCalendarSyncImportRequest([event]).habits[0]
+    const automaticItem = buildCalendarAutoSyncImportRequest([{
+      id: 'suggestion-2',
+      googleEventId: event.id,
+      discoveredAtUtc: '2026-04-08T10:00:00Z',
+      event,
+    }]).habits[0]
+    expect(manualItem).toMatchObject(expected)
+    expect(automaticItem).toMatchObject(expected)
+    expect(bulkHabitItemSchema.parse(manualItem)).toMatchObject(expected)
+
+    const weeklyItem = buildCalendarSyncImportRequest([{
+      ...event,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE',
+    }]).habits[0]
+    expect(weeklyItem).toMatchObject({
+      days: ['Monday', 'Wednesday'],
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+    })
+    expect(weeklyItem).not.toHaveProperty('intervalWeeks')
   })
 
   it('formats recurrence labels with translation and plural helpers', () => {

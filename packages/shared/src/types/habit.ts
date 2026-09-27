@@ -395,6 +395,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   emoji?: string | null
   frequencyUnit?: FrequencyUnit | null
   frequencyQuantity?: number | null
+  intervalWeeks?: number | null
   days?: string[] | null
   isBadHabit?: boolean
   isGeneral?: boolean
@@ -417,6 +418,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().nullable().optional(),
+  intervalWeeks: z.number().nullable().optional(),
   days: z.array(z.string()).nullable().optional(),
   isBadHabit: z.boolean().optional(),
   isGeneral: z.boolean().optional(),
