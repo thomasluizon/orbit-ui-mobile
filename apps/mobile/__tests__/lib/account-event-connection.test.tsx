@@ -79,6 +79,37 @@ it('refreshes a restored Today query on its first cursorless stream', async () =
   unsubscribe()
 })
 
+it('refreshes a query fetched while the first stream open failed', async () => {
+  mocks.queryClient = queryClient
+  mocks.expoFetch
+    .mockRejectedValueOnce(new Error('stream unavailable'))
+    .mockResolvedValueOnce({
+      ok: true, status: 200,
+      body: new ReadableStream<Uint8Array>({ start() {} }),
+    })
+  vi.useFakeTimers()
+  let view!: ReturnType<typeof TestRenderer.create>
+  const queryKey = ['habits', 'list', { date: 'today' }]
+  const fetchHabits = vi.fn(() => Promise.resolve(['after connection']))
+  let unsubscribe = () => {}
+  try {
+    await act(async () => { view = TestRenderer.create(React.createElement(AccountEventConnection)); await Promise.resolve() })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(1)
+    queryClient.setQueryData(queryKey, ['while disconnected'], { updatedAt: Date.now() - 1 })
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: fetchHabits, staleTime: Infinity })
+    unsubscribe = observer.subscribe(() => {})
+    expect(fetchHabits).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    expect(fetchHabits).toHaveBeenCalledTimes(1)
+    expect(observer.getCurrentResult().data).toEqual(['after connection'])
+  } finally {
+    await act(() => { (view as unknown as { unmount: () => void }).unmount() })
+    unsubscribe()
+    vi.useRealTimers()
+  }
+})
+
 it('uses the bearer stream while active and closes it in background', async () => {
   const id = '123e4567-e89b-42d3-a456-426614174000'
   const ownChange = `event: changes\ndata: ${JSON.stringify({
