@@ -282,7 +282,7 @@ export function useDeleteGoal() {
           return
         }
         restoreGoal.mutate(goalId)
-      })
+      }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
     onMutate: async (goalId) => {
