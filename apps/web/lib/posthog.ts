@@ -1,6 +1,6 @@
 'use client'
 
-import type { CaptureResult } from 'posthog-js'
+import type { CaptureResult, PostHogInterface } from 'posthog-js'
 
 type PostHogClient = typeof import('posthog-js')['default']
 
@@ -42,7 +42,7 @@ function containsSensitiveUrl(value: unknown, propertyName = ''): boolean {
 }
 
 function beforeSend(event: CaptureResult | null): CaptureResult | null {
-  if (!event || isSensitiveUrl(globalThis.location.href)) return null
+  if (!event || !identityReady || !analyticsEnabled || isSensitiveUrl(globalThis.location.href)) return null
   if (containsSensitiveUrl(event.properties) || containsSensitiveUrl(event.$set) || containsSensitiveUrl(event.$set_once)) return null
   return {
     ...event,
@@ -59,6 +59,19 @@ let initialized = false
 let analyticsEnabled = false
 let accountId: string | null = null
 let pendingHabitEvents = 0
+let pendingReset = false
+let identityReady = false
+
+function activatePostHog(client: PostHogInterface): void {
+  const shouldReset = pendingReset || (!identityReady && !accountId)
+    || (accountId !== null && client.get_distinct_id() !== accountId)
+  identityReady = false
+  if (shouldReset) client.reset()
+  pendingReset = false
+  if (accountId) client.identify(accountId)
+  identityReady = true
+  client.opt_in_capturing()
+}
 
 export async function applyPostHogGate(enabled: boolean): Promise<void> {
   analyticsEnabled = enabled
@@ -70,8 +83,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
   }
 
   if (posthog) {
-    posthog.opt_in_capturing()
-    if (accountId) posthog.identify(accountId)
+    activatePostHog(posthog)
     return
   }
 
@@ -87,12 +99,12 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
       capture_performance: { web_vitals: true },
       cross_subdomain_cookie: true,
       disable_session_recording: true,
-      opt_out_capturing_by_default: false,
+      opt_out_capturing_by_default: true,
       before_send: beforeSend,
+      loaded: activatePostHog,
     })
     posthog = client
     initialized = true
-    if (accountId) client.identify(accountId)
     while (pendingHabitEvents > 0) {
       client.capture('habit_logged')
       pendingHabitEvents -= 1
@@ -100,20 +112,31 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
     return
   }
 
-  client.opt_in_capturing()
-  if (accountId) client.identify(accountId)
+  activatePostHog(client)
 }
 
 export function identifyPostHogUser(userId: string): void {
+  const previousAccountId = accountId
   accountId = userId.toLowerCase()
-  if (posthog && analyticsEnabled) posthog.identify(accountId)
+  if (posthog && analyticsEnabled) {
+    if (previousAccountId && previousAccountId !== accountId) {
+      identityReady = false
+      posthog.reset()
+    }
+    posthog.identify(accountId)
+    identityReady = true
+  }
 }
 
 export function resetPostHogUser(): void {
   accountId = null
   pendingHabitEvents = 0
+  pendingReset = true
   if (!posthog) return
+  identityReady = false
   posthog.reset()
+  pendingReset = false
+  identityReady = true
   if (analyticsEnabled) posthog.opt_in_capturing()
   else posthog.opt_out_capturing()
 }
