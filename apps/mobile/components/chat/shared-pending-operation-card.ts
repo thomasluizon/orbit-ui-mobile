@@ -41,6 +41,7 @@ export function SharedPendingOperationCard({
   const card = usePendingOperationCardState({
     pendingOperationId: pendingOperation.id,
     previewFingerprint: revision.operation.previewFingerprint,
+    authorizationVersion: revision.authorizationVersion,
     onConfirmExecute: async (id) => {
       const result = await onConfirmExecute(id)
       if (result.stale) revision.markStale()
@@ -60,6 +61,11 @@ export function SharedPendingOperationCard({
       ...card, revision,
       confirmOpen: card.confirmOpen && !revision.stale,
       preparedStepUp: revision.stale ? undefined : card.preparedStepUp,
+      closingStepUp: revision.stale ? card.preparedStepUp ?? card.closingStepUp : card.closingStepUp,
+      clearClosingStepUp: () => {
+        if (revision.stale && card.preparedStepUp) card.closeStepUp()
+        else card.clearClosingStepUp()
+      },
       execute: async () => { if (!staleRef.current) await card.execute() },
       startStepUp: async () => { if (!staleRef.current) await card.startStepUp() },
       setConfirmOpen: (open) => { if (!staleRef.current) card.setConfirmOpen(open) },

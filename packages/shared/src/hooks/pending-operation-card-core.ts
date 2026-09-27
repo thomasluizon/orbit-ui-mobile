@@ -21,6 +21,7 @@ export type PendingOperationCardStatus = 'done' | 'failed' | undefined
 export interface PendingOperationAuthorizationState {
   sourceId: string
   sourceFingerprint: string | null | undefined
+  authorizationVersion: number
   confirmOpen: boolean
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
@@ -31,26 +32,30 @@ export interface PendingOperationAuthorizationState {
 export function createPendingOperationAuthorizationState(
   sourceId: string,
   sourceFingerprint: string | null | undefined,
+  authorizationVersion = 0,
 ): PendingOperationAuthorizationState {
-  return { sourceId, sourceFingerprint, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, dismissed: false }
+  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, dismissed: false }
 }
 
 export function matchesPendingOperationAuthorization(
-  current: Pick<PendingOperationAuthorizationState, 'sourceId' | 'sourceFingerprint'>,
+  current: Pick<PendingOperationAuthorizationState, 'sourceId' | 'sourceFingerprint' | 'authorizationVersion'>,
   sourceId: string,
   sourceFingerprint: string | null | undefined,
+  authorizationVersion = 0,
 ): boolean {
   return current.sourceId === sourceId && current.sourceFingerprint === sourceFingerprint
+    && current.authorizationVersion === authorizationVersion
 }
 
 export function reconcilePendingOperationAuthorizationState(
   current: PendingOperationAuthorizationState,
   sourceId: string,
   sourceFingerprint: string | null | undefined,
+  authorizationVersion = 0,
 ): PendingOperationAuthorizationState {
-  if (matchesPendingOperationAuthorization(current, sourceId, sourceFingerprint)) return current
+  if (matchesPendingOperationAuthorization(current, sourceId, sourceFingerprint, authorizationVersion)) return current
   return {
-    ...createPendingOperationAuthorizationState(sourceId, sourceFingerprint),
+    ...createPendingOperationAuthorizationState(sourceId, sourceFingerprint, authorizationVersion),
     closingStepUp: current.preparedStepUp ?? current.closingStepUp,
   }
 }

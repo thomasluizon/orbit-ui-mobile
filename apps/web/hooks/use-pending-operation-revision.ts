@@ -78,7 +78,8 @@ export function usePendingOperationRevision(
         const preview = response.result.preview
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
           ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview }),
-              sourceFingerprint: current.sourceFingerprint } : current)
+              sourceFingerprint: current.sourceFingerprint,
+              authorizationVersion: current.authorizationVersion + 1 } : current)
         setStaleFingerprint(undefined)
       }
     } catch {
@@ -108,7 +109,8 @@ export function usePendingOperationRevision(
   }, [draft, editingItem, items, operation.previewFingerprint, revise])
 
   return {
-    operation, items, canRevise, editingItem, draft, editedItemIds, busy, stale, rejected, error,
+    operation, items, canRevise, editingItem, draft, editedItemIds, authorizationVersion: synchronized.authorizationVersion,
+    busy, stale, rejected, error,
     canRefresh: Boolean(onRefresh && !refreshUnavailable), refresh,
     markStale: () => { if (operation.previewFingerprint) setStaleFingerprint(operation.previewFingerprint) },
     setDraftField: (field: string, value: string) => setRevision((current) => changePendingOperationRevisionDraft(current, field, value)),

@@ -1367,10 +1367,10 @@
       "remove": "Remover",
       "rejected": "Recusado:",
       "invalid": "Confira os valores editados e tente novamente.",
-      "stale": "Esta prévia mudou desde que o Astra a preparou.",
+      "stale": "Seus hábitos mudaram desde que a Astra preparou esta prévia.",
       "refresh": "Atualizar prévia",
       "refreshFailed": "Não foi possível atualizar. Tente novamente.",
-      "staleUnavailable": "Não é mais possível atualizar esta prévia. Peça ao Astra para prepará-la novamente.",
+      "staleUnavailable": "Você não pode mais atualizar esta prévia. Peça à Astra para prepará-la novamente.",
       "list": {
         "add": "Adicionar item",
         "checklistLimit": "Limite de 50 itens. Remova um para adicionar outro.",

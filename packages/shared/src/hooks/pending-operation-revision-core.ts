@@ -13,12 +13,13 @@ export interface PendingOperationRevisionState {
   editingItemId: string | undefined
   drafts: Readonly<Record<string, Readonly<Record<string, string>>>>
   editedItemIds: readonly string[]
+  authorizationVersion: number
 }
 
 export function createPendingOperationRevisionState(operation: PendingAgentOperation): PendingOperationRevisionState {
   return {
     sourceId: operation.id, sourceFingerprint: operation.previewFingerprint,
-    operation, editingItemId: undefined, drafts: {}, editedItemIds: [],
+    operation, editingItemId: undefined, drafts: {}, editedItemIds: [], authorizationVersion: 0,
   }
 }
 
@@ -69,6 +70,7 @@ export function applyPendingOperationRevisionPreview(
   return {
     ...current,
     operation: { ...current.operation, ...preview },
+    authorizationVersion: current.authorizationVersion + 1,
     drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
     editedItemIds: [...new Set([...current.editedItemIds, ...(editedItemId ? [editedItemId] : [])])]
       .filter((id) => itemIds.has(id)),

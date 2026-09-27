@@ -1367,10 +1367,10 @@
       "remove": "Remove",
       "rejected": "Declined:",
       "invalid": "Check the edited values and try again.",
-      "stale": "This preview changed since Astra prepared it.",
+      "stale": "Your habits changed since Astra prepared this preview.",
       "refresh": "Refresh preview",
       "refreshFailed": "Couldn't refresh. Try again.",
-      "staleUnavailable": "This preview can no longer be refreshed. Ask Astra to prepare it again.",
+      "staleUnavailable": "You can't refresh this preview anymore. Ask Astra to prepare it again.",
       "list": {
         "add": "Add item",
         "checklistLimit": "50 items max. Remove one to add another.",

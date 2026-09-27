@@ -331,6 +331,29 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).toContain('chat.operation.invalid')
   })
 
+  it('edits scheduled reminder rows and submits the complete typed list', async () => {
+    const scheduled = [{ when: 'same_day', time: '08:00' }]
+    const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'scheduled_reminders',
+      newValue: 'One reminder', proposedValue: scheduled, isEditable: true }] }
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const { tree } = renderCard({ ...preview, items: [listItem] }, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.list.dayBefore').props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.list.sameDay').props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.list.dayBefore').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.scheduled_reminders 1: chat.operation.list.time' }).props.onChangeText('19:00'))
+    TestRenderer.act(() => press(tree, 'chat.operation.list.add').props.onPress())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'chat.operation.field.scheduled_reminders 2: chat.operation.list.time')).toHaveLength(1)
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.remove chat.operation.field.scheduled_reminders 2' }).props.onPress())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'chat.operation.field.scheduled_reminders 2: chat.operation.list.time')).toHaveLength(0)
+    await TestRenderer.act(async () => { press(tree, 'common.save').props.onPress(); await Promise.resolve() })
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: {
+        scheduled_reminders: [{ when: 'day_before', time: '19:00' }],
+      } }],
+    })
+  })
+
   it('refreshes a stale preview and closes the old confirmation', async () => {
     const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
     const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
@@ -350,6 +373,60 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
     await TestRenderer.act(async () => { oldConfirm(); await Promise.resolve() })
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('requires a new confirmation after refresh returns the same fingerprint', async () => {
+    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
+    const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
+      pendingOperationId: 'pending-1', cancelled: false,
+      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-1' } } })
+    const { tree, handlers } = renderCard(destructive, revise, refresh)
+    TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
+    const oldConfirm = tree.root.findByType('ConfirmSheet').props.onConfirm
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.remove Run' }).props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })
+    expect(refresh).toHaveBeenCalledWith('pending-1')
+    expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
+    await TestRenderer.act(async () => { oldConfirm(); await Promise.resolve() })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
+    expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(1)
+  })
+
+  it('dismisses the native identity sheet when verification reports stale', async () => {
+    sheetTestControls.defer(true)
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const { tree, handlers } = renderCard(highRisk, vi.fn(), vi.fn())
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    handlers.onVerifyStepUp.mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'stepUp.codeLabel' }).props.onChangeText('123456'))
+    await TestRenderer.act(async () => { press(tree, 'stepUp.confirm').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.stale')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+  })
+
+  it('discards prepared identity approval after refresh returns the same fingerprint', async () => {
+    sheetTestControls.defer(true)
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
+    const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
+      pendingOperationId: 'pending-1', cancelled: false,
+      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-1' } } })
+    const { tree, handlers } = renderCard(highRisk, revise, refresh)
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+    const oldVerify = tree.root.findAll((node: any) => node.props.prepared?.challengeId === 'challenge-1' && typeof node.props.onVerify === 'function')[0]?.props.onVerify
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.remove Run' }).props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'chat.operation.refresh' }).props.onPress(); await Promise.resolve() })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+    await oldVerify?.('pending-1', 'challenge-1', '123456', 'confirmation-1')
+    expect(handlers.onVerifyStepUp).not.toHaveBeenCalled()
   })
 
   it('keeps approval blocked after refresh returns conflict', async () => {
