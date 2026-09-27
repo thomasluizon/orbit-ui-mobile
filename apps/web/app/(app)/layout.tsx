@@ -63,25 +63,16 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { AccountEventConnection } from '@/lib/account-event-connection'
 
 export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const [EventConnection, setEventConnection] = useState<(() => null) | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    void import('@/lib/account-event-connection').then(({ AccountEventConnection }) => {
-      if (mounted) setEventConnection(() => AccountEventConnection)
-    })
-    return () => { mounted = false }
-  }, [])
-
   return (
     <Providers>
-      {EventConnection && <EventConnection />}
+      <AccountEventConnection />
       <TodayProvider>
         <Suspense fallback={null}>
           <AppLayoutContent>{children}</AppLayoutContent>
