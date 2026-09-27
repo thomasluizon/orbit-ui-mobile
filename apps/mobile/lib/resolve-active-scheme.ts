@@ -1,4 +1,3 @@
-import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -9,6 +8,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 export function resolveActiveScheme(
   profile: Pick<Profile, 'colorScheme' | 'hasProAccess'> | null | undefined,
 ): ColorScheme | null {
-  if (profile) return resolveAccessibleColorScheme(profile.colorScheme, profile.hasProAccess)
+  if (profile) return 'orange'
   return null
 }
