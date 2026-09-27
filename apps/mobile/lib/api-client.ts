@@ -5,9 +5,8 @@ import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
 import { consumePendingIdempotencyKey } from './idempotency-key'
 import { getAccountEventOrigin } from './account-event-origin'
+import { API_BASE } from './api-base'
 import type { ZodType } from 'zod'
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
 type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: string | FormData | null
