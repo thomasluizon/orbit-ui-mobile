@@ -58,6 +58,12 @@ export const cases = () => {
     readRunState(closed)?.readinessLedger?.[0]?.closed === true,
     JSON.stringify(readRunState(closed)?.readinessLedger),
   )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
+  T(
+    `${TOOL}: a later sighting without a blocker keeps a closed row's blocker`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === true && readRunState(closed)?.readinessLedger?.[0]?.blocker === "superseded",
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
   writeRunState({ sessionId: "s2", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
   T(`${TOOL}: a closure from another session is not inherited`, readRunState(closed)?.readinessLedger?.[0]?.closed === false)
 

@@ -75,10 +75,11 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
       continue
     }
     // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
-    // the earlier sighting did not know about. It may also clear one that has since been resolved.
+    // the earlier sighting did not know about. It may also clear one that has since been resolved,
+    // except on a closed row: a closure cannot be resolved, so silence keeps the recorded blocker.
     existing.receiptPath = entry.receiptPath
-    existing.blocker = blocker
     existing.closed ||= closed
+    existing.blocker = blocker ?? (existing.closed ? existing.blocker : null)
   }
   const readinessLedger = [...rows.values()].map((row) => ({
     repositoryKey: row.repositoryKey,
