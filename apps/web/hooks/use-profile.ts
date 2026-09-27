@@ -22,7 +22,7 @@ function writeLocaleCookie(value: string) {
   }
 }
 
-export function useProfile(options?: { enabled?: boolean }) {
+export function useProfile(options?: { enabled?: boolean; initialData?: Profile }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
   const {
@@ -35,6 +35,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: () => fetchJson<Profile>(API.profile.get),
+    initialData: options?.initialData,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: true,
