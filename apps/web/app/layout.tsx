@@ -95,7 +95,6 @@ export default async function RootLayout({
         const match = cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
         return match ? decodeURIComponent(match[1]) : null
       }
-      const schemeName = readCookie('orbit_color_scheme')
       const themeName = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
       const root = document.documentElement
 
@@ -109,7 +108,7 @@ export default async function RootLayout({
 
       const schemeNames = ${JSON.stringify(schemeNames)}
       schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
-      const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
+      const activeScheme = 'orange'
       root.classList.add('scheme-' + activeScheme)
 
       root.style.setProperty('color-scheme', themeName)
@@ -128,7 +127,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`dark scheme-purple ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
+      className={`dark scheme-orange ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
       style={defaultThemeStyle}
       suppressHydrationWarning
     >

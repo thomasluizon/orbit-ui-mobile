@@ -328,6 +328,20 @@ describe('offline mutations', () => {
     expect(mocks.queued).toHaveLength(0)
   })
 
+  it('discards a persisted scheme mutation without sending it', async () => {
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setColorScheme', scope: 'profile', endpoint: API.profile.colorScheme,
+      method: 'PUT', payload: { colorScheme: 'rose' },
+    }))
+    mocks.setOnline(true)
+
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.queued).toHaveLength(0)
+    expect(result.remaining).toBe(0)
+  })
+
   it('keeps a dependent habit queued when its account timezone is rejected, then replays after a successful retry', async () => {
     const timezone = buildQueuedMutation({
       type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,

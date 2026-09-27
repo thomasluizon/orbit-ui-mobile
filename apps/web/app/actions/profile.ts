@@ -9,7 +9,6 @@ import type {
   SetMarketingEmailConsentRequest,
   SetWeekStartDayRequest,
   SetThemePreferenceRequest,
-  SetColorSchemeRequest,
   UserDataExport,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
@@ -91,16 +90,6 @@ export async function updateThemePreference(
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.themePreference, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }, intendedAccountId))
-}
-
-export async function updateColorScheme(
-  data: SetColorSchemeRequest,
-  intendedAccountId: string | null,
-): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.profile.colorScheme, {
     method: 'PUT',
     body: JSON.stringify(data),
   }, intendedAccountId))

@@ -8,27 +8,18 @@ import {
   type ThemeMode,
 } from '@orbit/shared'
 
-export const VALID_COLOR_SCHEMES = new Set<ColorScheme>([
-  'purple',
-  'blue',
-  'green',
-  'rose',
-  'orange',
-  'cyan',
-])
+export const VALID_COLOR_SCHEMES = new Set<ColorScheme>(['orange'])
 
 export function normalizeThemeMode(value: string | null | undefined): ThemeMode {
   return value === 'light' ? 'light' : 'dark'
 }
 
-export function normalizeColorScheme(value: string | null | undefined): ColorScheme {
-  return value && VALID_COLOR_SCHEMES.has(value as ColorScheme)
-    ? (value as ColorScheme)
-    : 'purple'
+export function normalizeColorScheme(_value: string | null | undefined): ColorScheme {
+  return 'orange'
 }
 
 /** Resolved canvas hex for the scheme/mode (drives meta theme-color). */
-export function canvasColor(scheme: ColorScheme, theme: ThemeMode): string {
+export function canvasColor(_scheme: ColorScheme, theme: ThemeMode): string {
   return neutralColors[theme].bg
 }
 
@@ -36,7 +27,7 @@ export function resolveWebThemeVariables(
   scheme: ColorScheme,
   theme: ThemeMode,
 ): Record<`--${string}`, string> {
-  const definition = schemes[scheme]
+  const definition = schemes.orange
   const accent = definition.accent[theme]
   const neutral = neutralColors[theme]
   const status = statusConstants[theme]
@@ -107,7 +98,7 @@ export function applyThemeTokensToDOM(
   }
 
   for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
-  root.classList.add(`scheme-${scheme}`)
+  root.classList.add('scheme-orange')
 
   root.style.setProperty('color-scheme', theme)
   for (const [property, value] of Object.entries(resolveWebThemeVariables(scheme, theme))) {

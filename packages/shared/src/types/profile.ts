@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { calendarAutoSyncStatusSchema } from './calendar'
 
+export type ColorScheme = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'cyan'
+
 export const planTypeSchema = z.enum(['free', 'pro'])
 
 export type PlanType = z.infer<typeof planTypeSchema>
