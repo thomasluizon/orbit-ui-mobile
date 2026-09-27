@@ -289,12 +289,12 @@
     "loadFailed": "Erro ao carregar o progresso"
   },
   "astraRail": {
-    "open": "Abrir o Astra",
-    "close": "Recolher o Astra",
+    "open": "Abrir a Astra",
+    "close": "Recolher a Astra",
     "maximize": "Maximizar",
     "minimize": "Minimizar",
-    "title": "Copiloto Astra",
-    "subtitle": "Seu copiloto de hábitos"
+    "title": "Copilota Astra",
+    "subtitle": "Sua copilota de hábitos"
   },
   "reviewMoment": {
     "eyebrow": "Um recado da Astra",
@@ -1331,7 +1331,7 @@
       "open": "Abrir Perfil"
     },
     "preview": {
-      "proposed": "Proposto pelo Astra",
+      "proposed": "Proposto pela Astra",
       "editItem": "Editar item",
       "editName": "Editar {name}",
       "approve": "Aprovar",
@@ -1352,7 +1352,7 @@
       "retry": "Tentar os {count} que faltaram"
     },
     "operation": {
-      "unknown": "Operação do Astra",
+      "unknown": "Operação da Astra",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
       "irreversible": "Definitivo",
@@ -1825,7 +1825,7 @@
       "title": "Dados que guardamos",
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
-      "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
+      "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
       "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
     },
@@ -1966,8 +1966,8 @@
       "when": {
         "astraRead": "Entendi assim. Toque para corrigir.",
         "direct": "Escolha os dias e a hora.",
-        "proposedBy": "Proposto pelo Astra",
-        "emojiLabel": "Emoji proposto pelo Astra",
+        "proposedBy": "Proposto pela Astra",
+        "emojiLabel": "Emoji proposto pela Astra",
         "correctSchedule": "Corrigir agenda",
         "scheduleDetails": "{title}. {cadence}. Hora: {time}",
         "anyTime": "Qualquer hora",
@@ -2257,7 +2257,7 @@
       }
     },
     "convert": {
-      "promise": "O plano muda o Astra, nunca os seus hábitos e registros.",
+      "promise": "O plano muda a Astra, nunca os seus hábitos e registros.",
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
@@ -2270,7 +2270,7 @@
       "cancelAnytime": "Cancele quando quiser.",
       "handOff": "O pagamento acontece com nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
       "stayFree": "Continuar no plano grátis",
-      "allowanceLabel": "Cota diária do Astra",
+      "allowanceLabel": "Cota diária da Astra",
       "freeAllowance": "5",
       "proAllowance": "50",
       "perDay": "mensagens por dia",
@@ -2284,11 +2284,11 @@
       },
       "retrospective": {
         "title": "A retrospectiva do período",
-        "body": "O Astra fecha a semana e o mês com o que aconteceu e o que mudar."
+        "body": "A Astra fecha a semana e o mês com o que aconteceu e o que mudar."
       },
       "noticing": {
-        "title": "O Astra percebe sem você pedir",
-        "body": "Ele avisa quando algo escapa em vez de esperar você abrir o app."
+        "title": "A Astra percebe sem você pedir",
+        "body": "Ela avisa quando algo escapa em vez de esperar você abrir o app."
       }
     },
     "plans": {
@@ -2304,7 +2304,7 @@
       "yearly": {
         "name": "Anual",
         "period": " por ano",
-        "heroLine": "O jeito mais barato de ter o Astra o ano inteiro.",
+        "heroLine": "O jeito mais barato de ter a Astra o ano inteiro.",
         "equivalent": "Sai a {price} por mês, {percent}% menos que o mensal."
       },
       "recommended": "Recomendado",
@@ -2335,7 +2335,7 @@
         "trialHint": "Seu teste termina em {date}",
         "monthlyPrice": "Preço mensal do plano: {price}",
         "yearlyPrice": "Preço anual do plano: {price}",
-        "proBody": "As {limit} mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Astra.",
+        "proBody": "As {limit} mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos da Astra.",
         "canceledBody": "A assinatura foi cancelada e não renova. Tudo do Pro continua ligado até o fim do período.",
         "pastDueBody": "A última cobrança não passou. Tudo do Pro continua ligado enquanto o provedor tenta de novo; atualizar o cartão no portal resolve.",
         "lifetimeBadge": "Vitalício"
@@ -2384,7 +2384,7 @@
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
-        "lostMessages": "As mensagens do Astra voltaram para {limit} por dia.",
+        "lostMessages": "As mensagens da Astra voltaram para {limit} por dia.",
         "lostCalendar": "A agenda do Google não sincroniza mais.",
         "lostRetrospective": "A retrospectiva do período parou.",
         "paymentFix": "Atualize a forma de pagamento no provedor.",
@@ -3060,7 +3060,7 @@
     },
     "ai": {
       "title": "Recursos de IA",
-      "body": "O Orbit inclui um assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
+      "body": "O Orbit inclui uma assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
     },
     "noMedicalAdvice": {
       "title": "Não é aconselhamento médico ou profissional",
