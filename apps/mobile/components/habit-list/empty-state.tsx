@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
@@ -94,14 +93,6 @@ export function HabitListEmptyState({
       {emptyActions}
     </View>
   )
-}
-
-// react-doctor-disable-next-line only-export-components -- co-located empty-state message helper dedicated to this module; Fast Refresh dev-only, no runtime effect https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
 }
 
 const styles = StyleSheet.create({

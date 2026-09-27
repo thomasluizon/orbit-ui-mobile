@@ -387,12 +387,10 @@ export {
 } from './habit-picker'
 export type { HabitPickerOption } from './habit-picker'
 export {
-  buildHabitDateBuckets,
   computeParentSettlementDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'
 export type {
-  HabitDateBucket,
   HabitResolution,
   HabitResolutionMode,
   ParentPromptProgress,
@@ -504,7 +502,6 @@ export {
   collectVisibleHabitTreeIds,
   DEFAULT_OVERDUE_WINDOW_DAYS,
   determineHabitDayStatus,
-  getHabitEmptyStateKey,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
   isWithinOverdueWindow,

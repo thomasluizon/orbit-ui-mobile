@@ -2,7 +2,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { isHabitSelectableAsMoveTarget } from '@orbit/shared/utils'
 import type { MoveParentOption } from './move-parent-overlay'
 
-export type HabitView = 'today' | 'all' | 'general'
+export type HabitView = 'today'
 
 export interface DragItem {
   id: string

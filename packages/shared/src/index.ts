@@ -145,7 +145,6 @@ export {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
-  getHabitEmptyStateKey,
   hasAncestorInSet,
   buildHabitCalendarDayCells,
   buildHabitCalendarWeekdayKeys,

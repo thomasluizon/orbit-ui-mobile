@@ -2,7 +2,6 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   HabitListEmptyState,
-  getEmptyHabitsMessage,
 } from '@/components/habit-list/empty-state'
 
 vi.mock('react-i18next', () => ({
@@ -125,17 +124,5 @@ describe('HabitListEmptyState', () => {
     expect(
       tree.root.findAll((node) => node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
-  })
-})
-
-describe('getEmptyHabitsMessage', () => {
-  it('resolves a distinct message key per view', () => {
-    const translate = (key: string) => key
-    const today = getEmptyHabitsMessage('today', translate)
-    const all = getEmptyHabitsMessage('all', translate)
-    const general = getEmptyHabitsMessage('general', translate)
-    expect(today).not.toBe(all)
-    expect(all).not.toBe(general)
-    expect(today).toBe('habits.noDueToday')
   })
 })

@@ -81,7 +81,6 @@ function paginated(items: HabitScheduleItem[]): PaginatedResponse<HabitScheduleI
 
 function todayQueryKey(dateStr: string, includeOverdue: boolean) {
   const filters = buildTodayFilters({
-    view: 'today',
     dateStr,
     isTodayDate: includeOverdue,
     searchQuery: '',

@@ -1,63 +1,6 @@
 import type { NormalizedHabit } from '../types/habit'
 import { hasHabitScheduleOnDate } from './habits'
 
-export interface HabitDateBucket {
-  key: string
-  isOverdue: boolean
-  habits: NormalizedHabit[]
-}
-
-/**
- * Overdue membership follows the authoritative `isOverdue` flag rather than a raw `dueDate <
- * today` check, so an always-due daily habit whose `DueDate` has gone stale is NOT
- * mislabelled overdue (it is surfaced under today).
- */
-export function buildHabitDateBuckets(
-  habits: NormalizedHabit[],
-  today: string,
-): HabitDateBucket[] {
-  const overdue: NormalizedHabit[] = []
-  const groups = new Map<string, NormalizedHabit[]>()
-
-  for (const habit of habits) {
-    if (!habit.isCompleted && habit.isOverdue) {
-      overdue.push(habit)
-      continue
-    }
-
-    const due = habit.dueDate
-    if (!due) {
-      const group = groups.get('') ?? []
-      group.push(habit)
-      groups.set('', group)
-      continue
-    }
-
-    const key = due < today ? today : due
-    const group = groups.get(key) ?? []
-    group.push(habit)
-    groups.set(key, group)
-  }
-
-  const result: HabitDateBucket[] = []
-
-  if (overdue.length > 0) {
-    result.push({
-      key: '__overdue__',
-      isOverdue: true,
-      habits: [...overdue].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-    })
-  }
-
-  for (const [key, groupHabits] of Array.from(groups.entries()).sort(
-    ([a], [b]) => a.localeCompare(b),
-  )) {
-    result.push({ key, isOverdue: false, habits: groupHabits })
-  }
-
-  return result
-}
-
 export interface ParentPromptProgress {
   done: number
   total: number
@@ -76,7 +19,6 @@ export interface ParentPromptProgressOptions {
   getChildren: (parentId: string) => NormalizedHabit[]
   isRelevantToday: (habit: NormalizedHabit) => boolean
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean
-  isListView: boolean
   skippedIds: ReadonlySet<string>
   resolvedModes?: ReadonlyMap<string, HabitResolutionMode>
 }
@@ -130,7 +72,6 @@ export function computeParentPromptProgress(
     getChildren,
     isRelevantToday,
     isDueOnSelectedDate,
-    isListView,
     skippedIds,
     resolvedModes,
   } = options
@@ -157,7 +98,6 @@ export function computeParentPromptProgress(
       isAssumedCompleted ||
       isSkipped
     const countsForDay =
-      isListView ||
       child.isGeneral ||
       isDueOnSelectedDate(child) ||
       child.isOverdue ||
@@ -166,7 +106,6 @@ export function computeParentPromptProgress(
       isSkipped
 
     if (
-      !isListView &&
       !child.isGeneral &&
       !isRelevantToday(child) &&
       !child.isOverdue &&

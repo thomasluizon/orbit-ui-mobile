@@ -81,6 +81,7 @@ function CalendarSyncPageContent() {
 
   const isReviewMode = searchParams.get('mode') === 'review'
   const isProUser = Boolean(profile) && hasProAccess
+  const weekStartDay = profile?.weekStartDay ?? 1
 
   /**
    * `events`, `selectedIds`, `visibleCount` and the latch below re-derive from the query cache
@@ -116,7 +117,7 @@ function CalendarSyncPageContent() {
     return []
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${incomingEvents.map((e) => e.id).join('|')}`
+  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${weekStartDay}:${incomingEvents.map((e) => e.id).join('|')}`
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
@@ -124,7 +125,7 @@ function CalendarSyncPageContent() {
     setSelectedIds(
       resolveSyncedSelection(
         selectedIds,
-        incomingEvents.filter(isCalendarSyncEventImportable),
+        incomingEvents.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
         isReviewMode,
         previousEventsKey,
       ),
@@ -132,8 +133,8 @@ function CalendarSyncPageContent() {
   }
 
   const importableEvents = useMemo(
-    () => events.filter(isCalendarSyncEventImportable),
-    [events],
+    () => events.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
+    [events, weekStartDay],
   )
   const allSelected =
     importableEvents.length > 0 && selectedIds.size === importableEvents.length
@@ -219,8 +220,9 @@ function CalendarSyncPageContent() {
       const habits = isReviewMode
         ? buildCalendarAutoSyncImportRequest(
             suggestions.filter((s) => selectedIds.has(s.event.id)),
+            weekStartDay,
           ).habits
-        : buildCalendarSyncImportRequest(events.filter((e) => selectedIds.has(e.id))).habits
+        : buildCalendarSyncImportRequest(events.filter((e) => selectedIds.has(e.id)), weekStartDay).habits
 
       bulkCreateHabits.mutate(
         { habits },
@@ -431,6 +433,7 @@ function CalendarSyncPageContent() {
                   <CalendarSyncEventRow
                     key={event.id}
                     event={event}
+                    weekStartDay={weekStartDay}
                     selected={selectedIds.has(event.id)}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
