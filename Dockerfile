@@ -24,7 +24,8 @@ RUN npx turbo run build --filter=@orbit/web
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+ARG WEB_COMMIT_SHA
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 WEB_COMMIT_SHA=$WEB_COMMIT_SHA
 
 RUN groupadd --system orbit && useradd --system --gid orbit orbit
 COPY --from=builder --chown=orbit:orbit /app/apps/web/.next/standalone ./

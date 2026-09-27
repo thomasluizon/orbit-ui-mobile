@@ -1,3 +1,3 @@
 export function GET() {
-  return new Response(null, { status: 200 })
+  return Response.json({ status: 'ok', commit: process.env.WEB_COMMIT_SHA ?? null })
 }
