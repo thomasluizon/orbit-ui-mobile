@@ -6,6 +6,31 @@ import { AnchoredMenu, useAnchoredMenu, type AnchoredMenuController } from '@/co
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
 describe('AnchoredMenu', () => {
+  it('closes another row menu when a second row opens its menu', () => {
+    const controllers: AnchoredMenuController[] = []
+    function RowMenu({ index }: { index: number }) {
+      const controller = useAnchoredMenu()
+      controllers[index] = controller
+      return <AnchoredMenu
+        visible={controller.visible}
+        isClosing={controller.isClosing}
+        openRevision={controller.openRevision}
+        anchorRect={controller.anchorRect}
+        onClose={controller.close}
+        onCloseComplete={controller.finishClose}
+      ><Item /></AnchoredMenu>
+    }
+    function Item() { return null }
+    void TestRenderer.act(() => {
+      TestRenderer.create(<><RowMenu index={0} /><RowMenu index={1} /></>)
+    })
+    void TestRenderer.act(() => controllers[0]!.open())
+    expect(controllers[0]!.visible).toBe(true)
+    void TestRenderer.act(() => controllers[1]!.open())
+    expect(controllers[0]!.visible).toBe(false)
+    expect(controllers[1]!.visible).toBe(true)
+  })
+
   it('keeps an immediately opened menu mounted through pending animation updates', () => {
     const callbacks: ((result: { finished: boolean }) => void)[] = []
     const timing = vi.spyOn(Animated, 'timing').mockImplementation(() => ({

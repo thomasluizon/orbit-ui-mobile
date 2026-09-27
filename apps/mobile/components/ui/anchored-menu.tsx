@@ -29,6 +29,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
+let activeMenuClose: (() => void) | null = null
+
 export interface AnchoredMenuController {
   anchorRef: RefObject<View | null>
   visible: boolean
@@ -43,6 +45,7 @@ export interface AnchoredMenuController {
 
 export function useAnchoredMenu(): AnchoredMenuController {
   const anchorRef = useRef<View>(null)
+  const ownsActiveMenu = useRef(false)
   const [phase, setPhase] = useState<'closed' | 'open' | 'closing'>('closed')
   const [openRevision, setOpenRevision] = useState(0)
   const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
@@ -53,14 +56,25 @@ export function useAnchoredMenu(): AnchoredMenuController {
     })
   }, [])
 
+  const close = useCallback(() => {
+    if (ownsActiveMenu.current) {
+      ownsActiveMenu.current = false
+      activeMenuClose = null
+    }
+    setPhase((current) => current === 'open' ? 'closing' : current)
+  }, [])
+
   const open = useCallback(() => {
+    if (!ownsActiveMenu.current) activeMenuClose?.()
+    ownsActiveMenu.current = true
+    activeMenuClose = close
     setPhase('open')
     setOpenRevision((revision) => revision + 1)
     measureAnchor()
-  }, [measureAnchor])
+  }, [close, measureAnchor])
 
-  const close = useCallback(() => {
-    setPhase((current) => current === 'open' ? 'closing' : current)
+  useEffect(() => () => {
+    if (ownsActiveMenu.current) activeMenuClose = null
   }, [])
 
   const finishClose = useCallback(() => {
