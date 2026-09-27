@@ -411,6 +411,7 @@ export default function SupportScreen() {
         backLabel={t('common.backToProfile')}
       />
       <KeyboardAwareScrollView
+        avoidKeyboard={false}
         style={styles.container}
         containerStyle={styles.container}
         contentContainerStyle={styles.scrollContent}

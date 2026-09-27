@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { StyleSheet } from 'react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { __emitKeyboardEvent } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
@@ -8,8 +9,10 @@ import ProgressScreen from '@/app/(tabs)/progress'
 
 vi.mock('@/components/progress/progress-content', () => ({ ProgressContent: () => React.createElement('ProgressContent') }))
 
+const safeArea = vi.hoisted(() => ({ bottom: 24 }))
+
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }),
+  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: safeArea.bottom, left: 0 }),
   SafeAreaView: (props: Record<string, unknown>) => React.createElement('SafeAreaView', props),
 }))
 vi.mock('@/lib/theme', () => ({
@@ -29,6 +32,86 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 }
 
 describe('Shell412 mobile', () => {
+  beforeEach(() => {
+    safeArea.bottom = 24
+  })
+
+  it.each([0, 24])('handles a %s pixel navigation inset as the keyboard opens and closes', async (bottom) => {
+    safeArea.bottom = bottom
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 composer={React.createElement('Composer')} tabBar={React.createElement('TabBar')}>
+          {React.createElement('DestinationList')}
+        </Shell412>,
+      )
+    })
+    const padding = () => (
+      StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]?.props.style) as { paddingBottom?: number }
+    ).paddingBottom
+    expect(padding()).toBe(bottom)
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+    })
+    expect(padding()).toBe(0)
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidHide')
+    })
+    expect(padding()).toBe(bottom)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it.each(['today', 'calendar', 'progress', 'profile'])('keeps the %s composer and scroller under one keyboard owner', async (destination) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 composer={React.createElement('Composer', { destination })} tabBar={React.createElement('TabBar')}>
+          {React.createElement('DestinationList', { destination })}
+        </Shell412>,
+      )
+    })
+
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.props.behavior).toBe('height')
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-scroller')).toHaveLength(1)
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
+
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+    })
+    expect(findByTestId(tree, 'shell-bottom')[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 0 })]),
+    )
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidHide')
+    })
+    expect(findByTestId(tree, 'shell-bottom')[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 24 })]),
+    )
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('keeps the conversation overlay inside the shell keyboard owner', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412
+          composer={React.createElement('Composer')}
+          conversation={React.createElement('Conversation')}
+          conversationLabel="Astra conversation"
+          tabBar={React.createElement('TabBar')}
+        >
+          {React.createElement('DestinationList')}
+        </Shell412>,
+      )
+    })
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-conversation')).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('renders Progress below the shell inset without a second top safe area', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 tabBar={null}><ProgressScreen /></Shell412>) })
@@ -233,6 +316,45 @@ describe('Shell412 mobile', () => {
 
     expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.props.behavior).toBeUndefined()
+  })
+
+  it('preserves stack state when navigation visibility changes', async () => {
+    let setDraft!: (value: string) => void
+    let mounts = 0
+
+    function RootStackScreens() {
+      const [draft, updateDraft] = useState(() => {
+        mounts += 1
+        return ''
+      })
+      setDraft = updateDraft
+      return React.createElement('StackDraft', { draft })
+    }
+
+    const renderShell = (navigationEnabled: boolean) => navigationEnabled ? (
+      <Shell412 tabBar={React.createElement('TabBar')}><RootStackScreens /></Shell412>
+    ) : (
+      <Shell412 nav={false}><RootStackScreens /></Shell412>
+    )
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(renderShell(true))
+    })
+    const draft = () => tree.root.findAll((node) => String(node.type) === 'StackDraft')[0]?.props.draft
+    const keyboardBehavior = () => tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')[0]?.props.behavior
+    await TestRenderer.act(() => setDraft('unsaved'))
+    expect(draft()).toBe('unsaved')
+
+    await TestRenderer.act(() => tree.update(renderShell(false)))
+    expect(draft()).toBe('unsaved')
+    expect(keyboardBehavior()).toBeUndefined()
+    await TestRenderer.act(() => tree.update(renderShell(true)))
+    expect(draft()).toBe('unsaved')
+    expect(keyboardBehavior()).toBe('height')
+    expect(mounts).toBe(1)
   })
 
   it('presents conversation modally and hides the screen accessibility tree', async () => {

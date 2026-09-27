@@ -9,7 +9,7 @@ export function createStyles(tokens: Tokens) {
     safeArea: {
       flex: 1,
     },
-    keyboardAvoid: {
+    content: {
       flex: 1,
     },
     emptyState: {
