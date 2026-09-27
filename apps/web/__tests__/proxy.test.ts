@@ -118,12 +118,12 @@ describe('proxy', () => {
     const response = await proxy(createRequest('/terms'))
     const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
       .find((directive) => directive.startsWith('connect-src '))?.split(' ')
-    expect(apiBase).toBe('http://localhost:5000')
+    expect(apiBase).toBe(process.env.API_BASE)
     expect(connectSource).toContain(new URL(apiBase).origin)
   })
 
   it('uses the public event origin for the stream and connect-src when the API is internal', async () => {
-    vi.stubEnv('API_BASE', 'http://api.internal:5000')
+    vi.stubEnv('API_BASE', 'http://localhost:5000')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://events.example.test')
     vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
     const ticketResponse = await issueEventTicket()
@@ -134,7 +134,7 @@ describe('proxy', () => {
 
     expect(apiBase).toBe('https://events.example.test')
     expect(connectSource).toContain(new URL(apiBase).origin)
-    expect(connectSource).not.toContain('http://api.internal:5000')
+    expect(connectSource).not.toContain(process.env.API_BASE)
   })
 
   it('keeps the production API origin for tickets and streams', async () => {
