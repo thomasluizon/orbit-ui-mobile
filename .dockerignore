@@ -1,0 +1,13 @@
+.git
+.github
+.orca
+**/node_modules
+**/.next
+**/coverage
+**/test-results
+**/playwright-report
+**/__tests__
+apps/mobile
+architecture.json
+architecture.html
+architecture.mmd
