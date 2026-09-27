@@ -63,8 +63,7 @@ export function useTodayHabitsData({
   const filters = useMemo<HabitsFilter>(
     () =>
       buildTodayFilters({
-        view: 'today',
-        dateStr,
+            dateStr,
         isTodayDate,
         searchQuery: '',
         selectedFrequency: null,

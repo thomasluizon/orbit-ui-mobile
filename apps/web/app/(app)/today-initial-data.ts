@@ -28,7 +28,6 @@ export async function loadTodayInitialHabits(
     ? requestedDate
     : today
   const filters = buildTodayFilters({
-    view: 'today',
     dateStr,
     isTodayDate: dateStr === today,
     searchQuery: '',

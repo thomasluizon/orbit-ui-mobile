@@ -605,170 +605,6 @@ describe('HabitList', () => {
     expect(screen.queryByTestId('habit-card-completed-earlier')).toBeNull()
   })
 
-  it('hides only completed one-time habits in all view when showCompleted is false', () => {
-    const habit1 = createMockHabit({ id: 'h-1', title: 'Active', isCompleted: false })
-    const habit2 = createMockHabit({ id: 'h-2', title: 'Done one-time', isCompleted: true, frequencyUnit: null })
-    const habit3 = createMockHabit({ id: 'h-3', title: 'Done recurring', isCompleted: true, frequencyUnit: 'Day' })
-    const habit4 = createMockHabit({ id: 'h-4', title: 'General', isGeneral: true })
-
-    mockHabitsData.habitsById.set('h-1', habit1)
-    mockHabitsData.habitsById.set('h-2', habit2)
-    mockHabitsData.habitsById.set('h-3', habit3)
-    mockHabitsData.habitsById.set('h-4', habit4)
-    mockHabitsData.topLevelHabits = [habit1, habit2, habit3, habit4]
-
-    renderWithProviders(
-      <HabitList
-        filters={defaultFilters}
-        view="all"
-        showCompleted={false}
-      />,
-    )
-    expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
-    expect(screen.getByTestId('habit-card-h-3')).toBeDefined()
-    expect(screen.queryByTestId('habit-card-h-2')).toBeNull()
-    expect(screen.queryByTestId('habit-card-h-4')).toBeNull()
-  })
-
-  it('shows completed one-time habits in all view when showCompleted is true', () => {
-    const habit1 = createMockHabit({ id: 'h-1', title: 'Active', isCompleted: false })
-    const habit2 = createMockHabit({ id: 'h-2', title: 'Done', isCompleted: true, frequencyUnit: null })
-
-    mockHabitsData.habitsById.set('h-1', habit1)
-    mockHabitsData.habitsById.set('h-2', habit2)
-    mockHabitsData.topLevelHabits = [habit1, habit2]
-
-    renderWithProviders(
-      <HabitList
-        filters={defaultFilters}
-        view="all"
-        showCompleted={true}
-      />,
-    )
-    expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
-    expect(screen.getByTestId('habit-card-h-2')).toBeDefined()
-  })
-
-  it('hides completed one-time all-view children when showCompleted is false', () => {
-    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
-    const activeChild = createMockHabit({ id: 'active-child', title: 'Active child', parentId: 'parent' })
-    const completedOneTimeChild = createMockHabit({
-      id: 'completed-one-time-child',
-      title: 'Done child',
-      parentId: 'parent',
-      isCompleted: true,
-      frequencyUnit: null,
-    })
-    const completedRecurringChild = createMockHabit({
-      id: 'completed-recurring-child',
-      title: 'Done recurring child',
-      parentId: 'parent',
-      isCompleted: true,
-      frequencyUnit: 'Day',
-    })
-    const generalChild = createMockHabit({
-      id: 'general-child',
-      title: 'General child',
-      parentId: 'parent',
-      isGeneral: true,
-    })
-
-    for (const habit of [
-      parent,
-      activeChild,
-      completedOneTimeChild,
-      completedRecurringChild,
-      generalChild,
-    ]) {
-      mockHabitsData.habitsById.set(habit.id, habit)
-    }
-    mockHabitsData.childrenByParent.set(parent.id, [
-      activeChild.id,
-      completedOneTimeChild.id,
-      completedRecurringChild.id,
-      generalChild.id,
-    ])
-    mockHabitsData.topLevelHabits = [parent]
-
-    renderWithProviders(
-      <HabitList
-        filters={defaultFilters}
-        view="all"
-        showCompleted={false}
-      />,
-    )
-
-    expect(screen.getByTestId('habit-card-parent')).toBeDefined()
-    expect(screen.getByTestId('habit-card-active-child')).toBeDefined()
-    expect(screen.getByTestId('habit-card-completed-recurring-child')).toBeDefined()
-    expect(screen.queryByTestId('habit-card-completed-one-time-child')).toBeNull()
-    expect(screen.queryByTestId('habit-card-general-child')).toBeNull()
-  })
-
-  it('renders the bad status circle on bad-habit sub-habit rows', () => {
-    const parent = createMockHabit({ id: 'parent', title: 'Bad Habits', hasSubHabits: true, isBadHabit: true })
-    const badChild = createMockHabit({
-      id: 'bad-child',
-      title: 'Cheat diet',
-      parentId: 'parent',
-      isBadHabit: true,
-      frequencyUnit: 'Day',
-    })
-
-    for (const habit of [parent, badChild]) {
-      mockHabitsData.habitsById.set(habit.id, habit)
-    }
-    mockHabitsData.childrenByParent.set(parent.id, [badChild.id])
-    mockHabitsData.topLevelHabits = [parent]
-
-    renderWithProviders(
-      <HabitList
-        filters={defaultFilters}
-        view="all"
-        showCompleted={false}
-      />,
-    )
-
-    expect(screen.getByTestId('habit-card-parent').getAttribute('data-state')).toBe('bad')
-    expect(screen.getByTestId('habit-card-bad-child').getAttribute('data-state')).toBe('bad')
-  })
-
-  it('renders deeply nested all-view children up to the configured depth', () => {
-    const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
-    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
-    const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
-    const greatGrandchild = createMockHabit({ id: 'great-grandchild', title: 'Great grandchild', parentId: 'grandchild', frequencyUnit: 'Day', isCompleted: true })
-
-    for (const habit of [root, child, grandchild, greatGrandchild]) {
-      mockHabitsData.habitsById.set(habit.id, habit)
-    }
-    mockHabitsData.childrenByParent.set(root.id, [child.id])
-    mockHabitsData.childrenByParent.set(child.id, [grandchild.id])
-    mockHabitsData.childrenByParent.set(grandchild.id, [greatGrandchild.id])
-    mockHabitsData.topLevelHabits = [root]
-
-    renderWithProviders(
-      <HabitList
-        filters={defaultFilters}
-        view="all"
-        showCompleted={false}
-      />,
-    )
-
-    expect(screen.getByTestId('habit-card-root')).toBeDefined()
-    expect(screen.getByTestId('habit-card-child')).toBeDefined()
-    expect(screen.getByTestId('habit-card-grandchild')).toBeDefined()
-    expect(screen.getByTestId('habit-card-great-grandchild')).toBeDefined()
-  })
-
-  it('renders the ask-astra and create-manually actions in all view empty state', () => {
-    renderWithProviders(
-      <HabitList filters={defaultFilters} view="all" />,
-    )
-    expect(screen.getByText('habits.askAstra')).toBeDefined()
-    expect(screen.getByText('habits.createManually')).toBeDefined()
-  })
-
   it('passes selected date to habit cards', () => {
     const habit1 = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set('h-1', habit1)
@@ -782,23 +618,6 @@ describe('HabitList', () => {
       />,
     )
     expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
-  })
-
-  it('renders with general view', () => {
-    const habit1 = createMockHabit({
-      id: 'h-1',
-      title: 'General Habit',
-      isGeneral: true,
-      isCompleted: false,
-    })
-    mockHabitsData.habitsById.set('h-1', habit1)
-    mockHabitsData.topLevelHabits = [habit1]
-
-    renderWithProviders(
-      <HabitList filters={defaultFilters} view="general" />,
-    )
-    expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
-    expect(screen.getByText('General Habit')).toBeDefined()
   })
 
   it('logs a habit immediately from the card action', async () => {
@@ -936,49 +755,6 @@ describe('HabitList', () => {
     })
   })
 
-  it('keeps a general habit visible while direct logging is pending', async () => {
-    const habit = createMockHabit({
-      id: 'h-1',
-      title: 'Exercise',
-      isGeneral: true,
-      isCompleted: false,
-    })
-    mockHabitsData.habitsById.set('h-1', habit)
-    mockHabitsData.topLevelHabits = [habit]
-
-    let resolveLog: (() => void) | undefined
-    const pendingLog = new Promise<void>((resolve) => {
-      resolveLog = resolve
-    })
-
-    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
-      const nextHabit = mockHabitsData.habitsById.get(habitId)
-      if (nextHabit) {
-        const completedHabit = { ...nextHabit, isCompleted: true }
-        mockHabitsData.habitsById.set(habitId, completedHabit)
-        mockHabitsData.topLevelHabits = mockHabitsData.topLevelHabits.map((item) =>
-          item.id === habitId ? completedHabit : item,
-        )
-      }
-
-      return pendingLog
-    })
-
-    const { rerenderWithProviders } = renderWithProviders(
-      <HabitList filters={defaultFilters} view="general" />,
-    )
-
-    fireEvent.click(screen.getByTestId('log-h-1'))
-
-    rerenderWithProviders(<HabitList filters={defaultFilters} view="general" />)
-
-    expect(screen.getByTestId('habit-card-h-1')).toBeDefined()
-
-    await act(async () => {
-      resolveLog?.()
-      await pendingLog
-    })
-  })
   it('logs an incomplete parent immediately', async () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -2399,7 +2175,7 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(parent.id, [childA.id, childB.id])
     mockHabitsData.topLevelHabits = [parent]
 
-    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
@@ -2445,7 +2221,7 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(parent.id, [loggedChild.id, skippedChild.id])
     mockHabitsData.topLevelHabits = [parent]
 
-    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-skipped'))
@@ -2497,7 +2273,7 @@ describe('HabitList', () => {
       () => new Promise<void>((resolve) => resolveSkips.push(resolve)),
     )
 
-    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
     sheetTestControls.defer(true)
 
     act(() => {
@@ -2525,7 +2301,7 @@ describe('HabitList', () => {
       .toBeDefined()
 
     mockHabitsDataUpdatedAt += 1
-    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     fireEvent.click(within(
       screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
@@ -2579,7 +2355,7 @@ describe('HabitList', () => {
     logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => (
       habitId === parent.id ? pendingParentMutation : Promise.resolve()
     ))
-    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     await act(async () => {
       fireEvent.click(screen.getByTestId(`skip-${skippedChild.id}`))
@@ -2595,7 +2371,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
     mockHabitsDataUpdatedAt += 1
-    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+    rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     await act(async () => {
       resolveParentMutation()
