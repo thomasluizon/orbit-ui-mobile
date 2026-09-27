@@ -15,8 +15,9 @@ const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <
   --help, -h          print this usage and exit 0
 
 All four checks must pass before anything is removed: the tree is clean, the pull request is merged
-with its merge commit present in the target branch, the local branch tip is contained in the pull
-request head, and the linked ticket is closed with board status Done.
+with its merge commit present in the target branch, the local branch adds no content beyond the
+pull request head and base, and the linked ticket is closed with board status Done or listed as a
+standing ticket.
 
 The local contract branch is retained because deleting a branch that is the base of a stacked pull
 request can close that pull request. Existing worktrees can be cleared safely by running this tool
@@ -139,12 +140,23 @@ const contains = (commit, container) => {
 
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
 const localTip = git(path, ["rev-parse", branch])
+const unsafeLocalCommit = () => {
+  if (contains(localTip, pullRequest.headRefOid)) return null
+  const extraCommits = git(path, ["rev-list", "--reverse", localTip, "--not", pullRequest.headRefOid, baseRef]).split("\n").filter(Boolean)
+  for (const commit of extraCommits) {
+    const parents = git(path, ["rev-list", "--parents", "-n", "1", commit]).split(" ")
+    if (parents.length < 3 || git(path, ["show", "--remerge-diff", "--format=", "--no-ext-diff", commit]) !== "") return commit
+  }
+  return null
+}
+const unsafeCommit = unsafeLocalCommit()
+const mergeCommitInTarget = contains(pullRequest.mergeCommit.oid, baseRef)
 
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: `uncommitted paths: ${dirty.join(", ")}` },
-  { name: "merge-commit-in-target", ok: contains(pullRequest.mergeCommit.oid, baseRef), detail: `pull request #${pullRequest.number} merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}` },
-  { name: "local-tip-in-pull-request-head", ok: contains(localTip, pullRequest.headRefOid), detail: `local tip ${localTip} is not contained in pull request #${pullRequest.number} head ${pullRequest.headRefOid}; local commits would be lost` },
-  { name: "ticket-done", ok: ticket.state === "CLOSED" && ticket.status === config.tickets.states.done, detail: `ticket is ${ticket.state} with board status ${ticket.status ?? "unknown"}, expected CLOSED and Done` },
+  { name: "merge-commit-in-target", ok: mergeCommitInTarget, detail: `pull request #${pullRequest.number} merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}` },
+  { name: "local-tip-in-pull-request-head", ok: unsafeCommit === null, detail: `local tip ${localTip} is not contained in pull request #${pullRequest.number} head ${pullRequest.headRefOid}; local commits would be lost (unsafe commit ${unsafeCommit})` },
+  { name: "ticket-done", ok: (ticket.state === "CLOSED" && ticket.status === config.tickets.states.done) || (config.tickets.standing.includes(ticket.number) && mergeCommitInTarget), detail: `ticket is ${ticket.state} with board status ${ticket.status ?? "unknown"}, expected CLOSED and Done` },
 ]
 const unmet = checks.filter((check) => !check.ok)
 if (unmet.length > 0) {
