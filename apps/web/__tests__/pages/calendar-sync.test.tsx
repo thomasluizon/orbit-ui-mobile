@@ -435,6 +435,42 @@ describe('CalendarSyncPage', () => {
     expect(row).toHaveStyle({ background: 'var(--bg-elev)' })
   })
 
+  it('enables and imports an alternating weekday suggestion', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'suggestion-alternate-weeks',
+        event: {
+          id: 'event-alternate-weeks',
+          title: 'Alternate week training',
+          description: null,
+          startDate: '2026-09-21',
+          startTime: null,
+          endTime: null,
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+          reminders: [],
+        },
+      }],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    expect((await screen.findByText('Alternate week training')).closest('button')).not.toBeDisabled()
+    const importButton = screen.getByText(/calendar.importButton/).closest('button')
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton!)
+    expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({
+        days: ['Monday', 'Wednesday'],
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      })],
+    }), expect.anything())
+  })
+
   it('explains and disables a finite month-end suggestion before import', async () => {
     mockSearchParams.set('mode', 'review')
     mockSuggestions = {

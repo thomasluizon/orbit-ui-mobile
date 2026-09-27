@@ -36,17 +36,16 @@ export interface CalendarSyncParsedRecurrence {
   frequencyUnit?: FrequencyUnit
   frequencyQuantity?: number
   days?: string[]
+  intervalWeeks?: number
 }
 
 export type CalendarSyncImportIssue =
-  | 'weekday-interval'
   | 'ordinal-weekday'
   | 'finite-date-clamp'
   | 'finite-date-range'
   | 'utc-until-offset-shift'
 
 export type CalendarSyncImportIssueMessageKey =
-  | 'calendar.importIssue.weekdayInterval'
   | 'calendar.importIssue.ordinalWeekday'
   | 'calendar.importIssue.finiteDateClamp'
   | 'calendar.importIssue.finiteDateRange'
@@ -158,6 +157,26 @@ interface CalendarSyncRuleResolution {
   hasWeekdays: boolean
 }
 
+function assignRecurrenceInterval(
+  parts: Record<string, string>,
+  recurrence: CalendarSyncParsedRecurrence,
+): void {
+  if (!parts.INTERVAL) {
+    if (recurrence.frequencyUnit) recurrence.frequencyQuantity = 1
+    return
+  }
+
+  const parsed = Number.parseInt(parts.INTERVAL, 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return
+
+  if (parts.FREQ === 'WEEKLY' && parts.BYDAY) {
+    recurrence.frequencyQuantity = 1
+    recurrence.intervalWeeks = parsed
+  } else {
+    recurrence.frequencyQuantity = parsed
+  }
+}
+
 function resolveCalendarSyncRule(rule: string | null): CalendarSyncRuleResolution {
   if (!rule) {
     return {
@@ -176,14 +195,7 @@ function resolveCalendarSyncRule(rule: string | null): CalendarSyncRuleResolutio
     result.frequencyUnit = FREQUENCY_UNIT_MAP[parts.FREQ]
   }
 
-  if (parts.INTERVAL) {
-    const parsed = Number.parseInt(parts.INTERVAL, 10)
-    if (Number.isFinite(parsed) && parsed >= 1) {
-      result.frequencyQuantity = parsed
-    }
-  } else if (result.frequencyUnit) {
-    result.frequencyQuantity = 1
-  }
+  assignRecurrenceInterval(parts, result)
 
   const weekdayTokens = parts.BYDAY?.split(',').map((day) => day.trim()) ?? []
   if (weekdayTokens.length > 0) {
@@ -275,6 +287,7 @@ function resolveWeekdayCountOffset(
   startWeekday: number,
   weekdays: number[],
   count: number,
+  intervalWeeks = 1,
 ): number {
   const firstWeekOffsets = weekdays
     .filter((weekday) => weekday >= startWeekday)
@@ -284,7 +297,7 @@ function resolveWeekdayCountOffset(
   const remaining = count - firstWeekOffsets.length
   const fullWeeks = Math.floor((remaining - 1) / weekdays.length)
   const finalWeekday = weekdays[(remaining - 1) % weekdays.length] ?? 0
-  return DAYS_IN_WEEK - startWeekday + fullWeeks * DAYS_IN_WEEK + finalWeekday
+  return (fullWeeks + 1) * DAYS_IN_WEEK * intervalWeeks - startWeekday + finalWeekday
 }
 
 function isUntilBeyondCalendarSyncRange(until: string): boolean {
@@ -307,7 +320,9 @@ function hasFiniteDateRangeIssue(
 
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
   if (hasWeekdays) {
-    const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count)
+    const offsetDays = resolveWeekdayCountOffset(
+      start.getUTCDay(), weekdayIndexes, count, parts.FREQ === 'WEEKLY' ? interval : 1,
+    )
     const remainingDays = Math.floor((MAX_CALENDAR_SYNC_DATE - start.getTime()) / MILLISECONDS_PER_DAY)
     return !Number.isFinite(offsetDays) || offsetDays > remainingDays
   }
@@ -454,7 +469,8 @@ function resolveCalendarSyncEndDateFromResolution(
     return resolveUnfilteredCountEndDate(parts, start, count).endDate
   }
 
-  const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count)
+  const intervalWeeks = parts.FREQ === 'WEEKLY' ? parsePositiveInteger(parts.INTERVAL) ?? 1 : 1
+  const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count, intervalWeeks)
   const end = new Date(start)
   end.setUTCDate(end.getUTCDate() + offsetDays)
   return formatUtcDate(end)
@@ -535,11 +551,6 @@ function getCalendarSyncImportIssueFromResolution(
     return 'ordinal-weekday'
   }
 
-  const interval = parts.INTERVAL ? Number.parseInt(parts.INTERVAL, 10) : 1
-  if (weekdayTokens.length > 0 && Number.isFinite(interval) && interval > 1) {
-    return 'weekday-interval'
-  }
-
   if (hasFiniteDateRangeIssue(resolution, startDate)) {
     return 'finite-date-range'
   }
@@ -568,7 +579,6 @@ export function getCalendarSyncImportIssueMessageKey(
   issue: CalendarSyncImportIssue,
 ): CalendarSyncImportIssueMessageKey {
   const keys: Record<CalendarSyncImportIssue, CalendarSyncImportIssueMessageKey> = {
-    'weekday-interval': 'calendar.importIssue.weekdayInterval',
     'ordinal-weekday': 'calendar.importIssue.ordinalWeekday',
     'finite-date-clamp': 'calendar.importIssue.finiteDateClamp',
     'finite-date-range': 'calendar.importIssue.finiteDateRange',
@@ -656,6 +666,7 @@ export function buildCalendarSyncImportRequest(
         frequencyUnit: hasWeekdays ? 'Day' : (recurrence.frequencyUnit ?? null),
         frequencyQuantity: quantity,
         days,
+        ...(recurrence.intervalWeeks !== undefined && { intervalWeeks: recurrence.intervalWeeks }),
         endDate: resolveCalendarSyncEndDateFromResolution(
           resolution,
           event.startDate,

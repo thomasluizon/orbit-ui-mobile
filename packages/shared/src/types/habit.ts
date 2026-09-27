@@ -401,6 +401,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   endDate?: string | null
   googleEventId?: string | null
   tags?: string[] | null
+  intervalWeeks?: number | null
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -422,6 +423,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   endDate: z.string().nullable().optional(),
   googleEventId: z.string().nullable().optional(),
   tags: z.array(z.string()).nullable().optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).nullable().optional(),
 })
 
 export type BulkHabitItem = z.infer<typeof bulkHabitItemSchema>

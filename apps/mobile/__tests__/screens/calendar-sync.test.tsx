@@ -507,7 +507,7 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.showError).not.toHaveBeenCalled();
   });
 
-  it("explains and disables a weekday interval suggestion before import", async () => {
+  it("enables and imports an alternating weekday suggestion", async () => {
     const event = {
       ...buildEvents(1)[0]!,
       title: "Alternate week training",
@@ -524,34 +524,34 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
 
-    expect(
-      tree.root.findAll(
-        (node: TestNode) =>
-          node.props.children === "calendar.importIssue.weekdayInterval",
-      ).length,
-    ).toBeGreaterThan(0);
     const eventRow = tree.root.find(
       (node: TestNode) =>
-        node.props.accessibilityRole === "checkbox" &&
-        node.props.accessibilityHint === "calendar.importIssue.weekdayInterval",
+        node.props.accessibilityRole === "checkbox",
     );
-    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.disabled).toBe(false);
     expect(eventRow.props.accessibilityState).toEqual({
-      checked: false,
-      disabled: true,
+      checked: true,
+      disabled: false,
     });
-    expect(eventRow.props.style({ pressed: false })).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: "#111111" }),
-      ]),
-    );
     const importPill = tree.root.find(
       (node: TestNode & { type?: unknown }) =>
-        node.type === "PillButton" &&
+        typeof node.props.onClick === "function" &&
         typeof node.props.children === "string" &&
         node.props.children.includes("calendar.importButton"),
     );
-    expect(importPill.props.disabled).toBe(true);
+    expect(importPill.props.disabled).toBe(false);
+    await TestRenderer.act(async () => {
+      (importPill.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    expect(mocks.bulkMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habits: [expect.objectContaining({
+        days: ["Monday", "Wednesday"],
+        frequencyUnit: "Day",
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      })],
+    }));
   });
 
   it("explains and disables a finite month-end suggestion before import", async () => {
