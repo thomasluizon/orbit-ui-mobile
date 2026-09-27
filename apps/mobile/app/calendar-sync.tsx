@@ -36,6 +36,7 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
+import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
@@ -249,11 +250,13 @@ export default function CalendarSyncScreen() {
         forceConsent: true,
       })
       if (result.type !== 'success') {
+        allowGoogleErrorLogin()
         router.replace('/login?googleError=1')
         return
       }
       router.replace('/auth-callback')
     } catch {
+      allowGoogleErrorLogin()
       router.replace('/login?googleError=1')
     } finally {
       setIsConnecting(false)

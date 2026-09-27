@@ -289,4 +289,18 @@ describe('proxy', () => {
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/')
   })
+
+  it('shows a Google callback error on login while an existing session remains active', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: 'valid-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const response = await proxy(createRequest('/login?googleError=1', {
+      cookies: { auth_token: 'valid-token' },
+    }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
 })

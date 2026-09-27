@@ -27,6 +27,8 @@ let pendingGoogleAuthSession: PendingGoogleAuthSessionState = {
 }
 let pendingCredentials: { verifier: string; state: string } | null = null
 const listeners = new Set<() => void>()
+const errorLoginListeners = new Set<() => void>()
+let googleErrorLoginAllowed = false
 
 function emit() { listeners.forEach((listener) => listener()) }
 function subscribe(listener: () => void) {
@@ -37,6 +39,27 @@ function snapshot() { return pendingGoogleAuthSession }
 
 export function usePendingGoogleAuthSession() {
   return useSyncExternalStore(subscribe, snapshot, snapshot)
+}
+
+export function allowGoogleErrorLogin(): void {
+  googleErrorLoginAllowed = true
+  errorLoginListeners.forEach((listener) => listener())
+}
+
+export function clearGoogleErrorLogin(): void {
+  googleErrorLoginAllowed = false
+  errorLoginListeners.forEach((listener) => listener())
+}
+
+export function useGoogleErrorLogin(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      errorLoginListeners.add(listener)
+      return () => { errorLoginListeners.delete(listener) }
+    },
+    () => googleErrorLoginAllowed,
+    () => googleErrorLoginAllowed,
+  )
 }
 
 export function markPendingGoogleAuthSession(returnUrlAttemptId: number, verifier: string, state: string): void {

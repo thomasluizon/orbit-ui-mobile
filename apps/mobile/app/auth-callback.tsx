@@ -21,6 +21,7 @@ import {
 } from '@/lib/auth-flow'
 import {
   AUTH_CALLBACK_URL,
+  allowGoogleErrorLogin,
   clearPendingGoogleAuthSession,
   extractGoogleAuthParams,
   resolveGoogleAuthCallbackUrl,
@@ -123,6 +124,7 @@ export default function AuthCallbackScreen() {
     function recoverCallback() {
       try {
         if (candidateUrl && !setPendingGoogleAuthCallbackUrl(candidateUrl)) {
+          allowGoogleErrorLogin()
           router.replace('/login?googleError=1')
         }
       } catch (error: unknown) {
@@ -179,6 +181,7 @@ export default function AuthCallbackScreen() {
         router.replace(returnUrl)
       } catch {
         clearPendingGoogleAuthSession(returnUrlAttemptId)
+        allowGoogleErrorLogin()
         router.replace('/login?googleError=1')
       }
     }

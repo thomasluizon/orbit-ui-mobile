@@ -126,7 +126,7 @@ export async function proxy(request: NextRequest) {
     return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }
 
-  if (session.token && pathname === '/login') {
+  if (session.token && pathname === '/login' && request.nextUrl.searchParams.get('googleError') !== '1') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     url.search = ''
