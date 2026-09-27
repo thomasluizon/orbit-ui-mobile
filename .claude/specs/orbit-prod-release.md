@@ -2,7 +2,7 @@
 
 ## What this is
 
-The goal is a production release with an empty ticket board. Complete the redesign on web and Android, obtain the owner's whole-redesign approval, then complete the remaining batches and `/prod-readiness` findings. Use the granted canvas under `DESIGN.md` and keep web and mobile behavior aligned.
+The goal is a production release with an empty ticket board. First, Orbit moves to its new stack (Batch M): Render for the API, web, landing and Postgres, Amazon SES for email, a separate staging, and production deployed only through release workflows. Everything else is parked until Batch M is done. Complete the redesign on web and Android, obtain the owner's whole-redesign approval, then complete the remaining batches and `/prod-readiness` findings. Use the granted canvas under `DESIGN.md` and keep web and mobile behavior aligned.
 
 ## Standing rules
 
@@ -15,7 +15,13 @@ The goal is a production release with an empty ticket board. Complete the redesi
 - Write and approve every piece of user-facing copy in the run, in both locales: write it against `BRAND.md`, the brain decisions and `/humanizer`, and approve it with `/second-opinion` before merge. Never hold copy for the owner and never add an owner copy-review gate. Pricing, positioning and brand direction stay the owner's (the rule above).
 - Orbit has no ads; Orbit Pro is the only monetization. Ad code anywhere is dead code to delete, never a product option or a question.
 - Supabase egress is the first priority until it is fixed: the project hit its monthly egress quota. Measure egress per query shape, rank by bytes, and fix the largest waste first (N+1 calls where one bulk call serves, over-fetching rows or columns, unbounded list queries, polling) with before and after evidence. A plan upgrade does not replace the optimization.
-- Android fixes merged to `main` ship to the open track through `/android-release`; the owner approved releasing them.
+- Batch M (the move to the new stack) outranks every other batch; everything else waits until staging and production both run on the new stack.
+- Operate every platform through Terraform, CLIs, APIs and MCPs. A console step goes through `claude-in-chrome` only when no API covers it. The owner does only account creation, passwords, 2FA, payment and legal identity.
+- Record every infrastructure decision and research result in the brain (`/brain`) as it is made.
+- A merge to `main` never deploys production once Batch M lands. Staging deploys automatically from the integration branch (`redesign/main` while THE REDESIGN GATE is open, `main` after it). Production deploys only through the manual release workflows, behind the GitHub Environment `production` with the owner as required reviewer, and the `/release` skill runs them.
+- Play internal and closed tracks carry staging builds (staging API baked in); open and production tracks carry production builds. Never promote a binary between tracks.
+- After a verified cutover, cancel the plans Orbit no longer uses (Vercel Pro, Resend Pro) and pause what is left on retired platforms (Supabase). Permanent deletion of an old project or its data stays the owner's.
+- Android fixes merged to `main` ship to the open track through `/android-release` (through `/release` once Batch M lands); the owner approved releasing them.
 - Route redesign-only work to `redesign/main`; route shipped defects, performance and egress fixes, harness work, CI and security work to `main`. If a shared fix depends on redesign code, land it on `redesign/main` and backport it to `main`.
 - Keep `redesign/main` synced with `main` in both code repositories: #556 carries `orbit-ui-mobile` and #746 carries `orbit-api`. Sync pull requests merge by squash, so `main` never becomes an ancestor of `redesign/main`; each sync cherry-picks with `-x` only the `main` commits added since the last one, skipping any already carried, and changes no behaviour beyond carrying them.
 - Do console and dashboard steps yourself through the `claude-in-chrome` skill (Play Console, AdMob, Cloudflare, Render, Supabase): a manual step is the run's work unless it needs the owner's password, 2FA, payment or a legal identity choice. A Play Data safety change waits until the build it describes is live.
@@ -35,7 +41,7 @@ The goal is a production release with an empty ticket board. Complete the redesi
 - Turnstile enforcement starts only after web and Android sign-in send a token.
 - Keep locale out of auth and deep-link URLs.
 - `/handoff` ends its session after committing the spec and one `NEXT.md`. `/wrap-up` runs `/progress`, `/questions`, then `/handoff`.
-- The orchestrator merges a pull request with `gh pr merge --squash --match-head-commit <sha>` after the exact head has green checks, a Pullfrog approval submitted after its push, and zero unresolved threads. Redesign-only work merges to `redesign/main`; other work merges to `main`. Deploy an `orbit-api` merge to `main`.
+- The orchestrator merges a pull request with `gh pr merge --squash --match-head-commit <sha>` after the exact head has green checks, a Pullfrog approval submitted after its push, and zero unresolved threads. Redesign-only work merges to `redesign/main`; other work merges to `main`. Until Batch M turns it off, an `orbit-api` merge to `main` deploys; after it, only the release workflows deploy.
 - Admin merges happen only inside `/merge-prs` after the owner invokes it for an approved frozen set. Never use a direct merge API.
 - Launch Codex workers about 90 seconds apart, never several in the same second. Never pipe a launcher into `head`, because its final line dies on EPIPE.
 - Start a waiter only as a background task. A trailing `&` does not wake the session.
@@ -53,6 +59,21 @@ The goal is a production release with an empty ticket board. Complete the redesi
 ## The order
 
 Reconcile the open board with these batches before each handoff. Place each new ticket exactly once. A batch completes before the next begins. Within a batch, use dependency order; drive already open pull requests first.
+
+### Batch M: move to the new stack, before everything
+
+The decision and its research: brain ADR `Move Orbit to Render with Amazon SES, a free staging and manual release workflows.md`. File one ticket per coherent piece (`repo:api`, `repo:ui` or `repo:landing`, `needs:no-conversation`) and place every one here. The batch ends when staging and production both run on the new stack, every item below is verified live, and the retired plans are cancelled.
+
+1. Tooling first: install Terraform, the AWS CLI, the Render CLI and the Render MCP server (the Render API key already exists in the environment as `RENDER_MCP_TOKEN`), and any other CLI the steps need; configure each and prove it with a read call. The AWS account is the owner's to create; until the AWS CLI can sign in, do every step that does not need AWS and keep Resend running.
+2. Infrastructure as code in `orbit-api` `infra/`: the official Render Terraform provider (`render-oss/render`) for the production and staging services, Postgres and environment groups; the AWS provider for SES; the Cloudflare provider for DNS (move `useorbit.org` DNS from Spaceship to Cloudflare, which Turnstile needs anyway). Terraform state never enters a repository (they are public): an S3 backend with native locking in the AWS account, and a local state file outside every repository until that account exists (`terraform init -migrate-state` moves it). Import the existing production API service (`srv-d6tc2isr85hc739bf75g`, Ohio) so its URL does not change.
+3. Production: API web service, Next.js web service (standalone Docker image built in GitHub Actions, pushed to GHCR, deployed by digest), landing as a Render static site, Render Postgres 17 in the same region. Size from measured use (the API averaged 0.004 CPU and 343 MB over 30 days): API and web at 0.5 CPU / 512 MB, Postgres 1 GB; raise the API to 1 CPU / 2 GB when memory nears its limit.
+4. Staging: web on the free plan; API on the free plan with a scheduled `/health` ping every 5 minutes only between 08:00 and 24:00 America/Sao_Paulo (the 750 free instance hours a month are shared by every free service); Postgres on the free plan, recreated and re-seeded by a scheduled workflow every 4 weeks (free databases expire 30 days after creation). Staging deploys automatically from the integration branch.
+5. Data: copy the production database from Supabase to Render Postgres (schema and data, including `hangfire`) in a short maintenance window, verify row counts table by table, switch the API connection string, and verify the live app end to end.
+6. Google sign-in in the API, web and Android, including the calendar scopes, replacing Supabase Auth. Keep the Supabase Auth path working for installed Android builds until `AppConfig.MinSupportedVersion` passes the first build with the new sign-in (expand, then contract). Add the new redirect URIs to the existing Google OAuth client.
+7. Email on Amazon SES: verified domain with DKIM through Terraform, production access, bounce and complaint handling, and the waitlist contacts moved from Resend into Orbit's own database.
+8. Release workflows: `orbit-api` `deploy-api.yml` (build, EF Core migration bundle, deploy, health check, GitHub Deployment record); `orbit-ui-mobile` `deploy-web.yml` and `android-release.yml` mapping the track to the API base (internal and closed to staging, open and production to production). Turn off Render auto-deploy and Vercel auto-deploy.
+9. The `/release` skill in `orbit-ui-mobile`: compare each service's last production deployment with the current head (API, web, Android), deploy only the services with undeployed changes, in the order API, web, Android, wait for each and verify it; it also serves staging.
+10. Cutover and retirement: move `app.useorbit.org` and `useorbit.org` to Render, then cancel Vercel Pro and remove its domains; cancel Resend Pro after SES is live; pause the Supabase project after its Auth path is retired, keeping a final database dump. Record each step in the brain.
 
 ### Batch 0a: DONE
 
@@ -104,6 +125,7 @@ Defects a person hits in the shipped build today (web on `main`, Android from `m
 
 - `#566` Resolve orphan offline IDs before reorder mutations expire (merged; closes after seven days without ORBIT-MOBILE-5 on the carrying release)
 - `#134` Habit row three-dot menu does not reliably open on Android (verify on a device, then close)
+- File a ticket and fix: on production web Today, a habit's three-dot menu once stayed open while a second habit's menu opened below it, so two menus showed at once (not reproducible on demand; investigate the menu open state and outside-dismiss logic on both platforms)
 - `#565` Root-cause the Today-page non-array map failure (map the minified frame from the release's own build first; never add a blanket guard)
 - `#390` Restore deferred bulk mutations and settle parents from the replay once the API is idempotent
 
@@ -121,7 +143,7 @@ Unchanged and absolute. Once every screen ticket is done, a run **stops** and sh
 INTERNAL build off `redesign/main` for the owner to test as a real update. It does not merge to `main`
 and does not start the next batch. **Only the owner's approval merges `redesign/main` to `main`.**
 
-The build is not made until the owner decides which API it talks to: a new Render service running `orbit-api` `redesign/main`, or production. `redesign/main` of `orbit-api` is not deployed anywhere, so a build pointed at production would call endpoints that do not exist there yet. The run stops at the gate and waits for that decision.
+The gate runs on the new staging after Batch M: staging deploys `redesign/main` of both repositories, and the closed test build goes to the internal and closed tracks with the staging API baked in. The run deploys it, verifies it, and stops for the owner's approval.
 
 **The merge carries one protection change in the same moment.** `main` requires
 `Suppressions Ratchet` again, because `main` still has both `eslint-suppressions.json` baselines and
@@ -294,7 +316,8 @@ known); `cat` and `ls` miss the frontmatter and backlinks that record which deci
 They live under `2 Areas/20-29 Orbit Engineering/Decisions/`. A filename is a lead: list the directory
 and copy the names that come back.
 
-- `Keep Supabase and fix the unbounded habit-list query rather than migrate.md` (the egress batch)
+- `Move Orbit to Render with Amazon SES, a free staging and manual release workflows.md` (Batch M; supersedes the next one)
+- `Keep Supabase and fix the unbounded habit-list query rather than migrate.md` (the egress batch; superseded for hosting)
 - the redesign gate ADR (search the directory for `redesign gate ships a closed internal build`)
 - `Run the rest of the redesign unattended and review it once as a whole.md`
 - `Redesign PRs target redesign-main only until the redesign ships.md` and `The shipping branch outranks the redesign when the machine cannot run both.md` (branch routing)
@@ -337,7 +360,11 @@ Current operational rules above take precedence when a record conflicts.
 - Workers often forget the `parity:exempt` label on a one-sided mobile change; Cross-Platform Parity then fails until the label and a `## Parity` line are added (`#736` moves the check into delivery).
 - A worker branch has a launch cap of two; a review-fix relaunch beyond it needs `--relaunch-reason`, or the launcher refuses without starting a worker.
 - Admission refuses new ticket work when open pull requests plus live reservations exceed ten across the three repositories; review fixes on open pull requests are still admitted.
-- `orbit-api` auto-deploys to Render on every push to `main`; there is no deploy workflow to read, so a UI change that needs a new API response waits a deploy cycle after the API merge.
+- Until Batch M lands, `orbit-api` auto-deploys to Render on every push to `main`. After it, production deploys only through `deploy-api.yml`, `deploy-web.yml` and `android-release.yml`, run by `/release`.
+- The repositories stay public: GitHub-hosted CI is free only for public repositories (one day measured 21,300 Linux minutes across the three), CodeQL's licence covers only open source code, and GitHub Environment required reviewers are free only on public repositories. Never commit Terraform state or a secret.
+- Render free web services sleep after 15 minutes without inbound traffic; free Postgres expires 30 days after creation, has no backups and is limited to one per workspace. Staging is built around both limits.
+- The Render MCP creates services, triggers deploys, edits environment variables and reads logs, metrics and read-only SQL; it cannot delete or change other settings, so those go through Terraform or the Render API.
+- Google Play numbers versionCode once per package across every track, so staging and production builds share one sequence. A binary promoted between tracks keeps the API base it was built with.
 - The worker launcher reads `.claude/orchestrator.json` from the orchestrating checkout, which runs on `redesign/main`. A launcher change merged on `main` reaches workers only after the `#556` sync carries it. Codex workers start with `--disable apps --ignore-user-config` once it does, which also skips the user-level Codex hooks in `$CODEX_HOME/hooks.json`.
 - A worker's final report does not always use the `## Test evidence`, `## Assumptions`, `## Manual steps` and one-lane-per-line `## Review harness` shape that `merge-review-batch-body.mjs` reads, and its log prints the final message twice. Rebuild the report in that shape from the last copy before merging it into a pull request body.
 - Count Codex hook events as `hook: <Event>` lines (`LC_ALL=C grep -a`); the bare word "hook" also matches source text in the log.
@@ -352,22 +379,22 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Shipped on `main` and live: every Batch E egress fix (`#742` to `#745`, `#758` to `#763`, `#790` to `#792`), the live account event stream on both platforms (`#297`) and its recovery and origin fix (`#783`), the actionable 403 copy (`#754`), both reminder editors (`#752`), the rewarded-ad backend removal (`#200`), the corrected UI claims (`#216`), the `use-habits` follow-ups (`#253`), and the harness fixes `#785` to `#789`. Android 1.3.37 (96) is on the open track and 1.3.36 (95) is on the internal track. The Play Data safety form declares crash logs, diagnostics, device IDs and approximate location for Sentry, and Google is reviewing it.
+Batch M has not started: nothing of the new stack exists yet. Today production runs the API on Render (Starter, Ohio, auto-deploy on `main`), web and landing on Vercel, the database and the Google OAuth broker on Supabase (Free; the organization shows "Services restricted" after exceeding its egress quota, which currently breaks sign-in), email and waitlist contacts on Resend Pro. DNS for `useorbit.org` is at Spaceship. Locally installed: `gh`, `gcloud`; not installed: `terraform`, `aws`, `render`, `wrangler`.
+
+Shipped on `main` and live: every Batch E egress fix (`#742` to `#745`, `#758` to `#763`, `#790` to `#792`), the live account event stream on both platforms (`#297`) and its recovery and origin fix (`#783`), the actionable 403 copy (`#754`), both reminder editors (`#752`), the rewarded-ad backend removal (`#200`), the corrected UI claims (`#216`), the `use-habits` follow-ups (`#253`), and the harness fixes `#785` to `#789`. Android 1.3.37 (96) is on the open track and 1.3.36 (95) is on the internal track.
 
 On `redesign/main` in both code repositories: every Batch 1 ticket, and `#556` and `#746` syncs of every `main` merge (UI through `#1213` except the branch-specific contract pin `#1204`; API through `#618`). The UI redesign contract snapshot pins orbit-api `redesign/main` at `16c08268`.
 
-Open pull requests: none in any repository.
+Open pull requests: none in any repository. Board: 123 open tickets, all placed in `## The order`.
 
-Egress: daily egress on the Supabase usage page was 640.1 MB on the last full day before the latest fixes and 365.4 MB on the day they deployed; the next full day with real use gives the after-fix figure per active account (only one or two accounts write logs on a given day). The current billing cycle shows 8.053 GB used, and the organization page shows a "Services restricted" banner for the Free plan quota while the API still reaches the database through the pooler.
-
-Measurement still open: `#763` rows per call once the busiest account requests a summary; the after-deploy rows per call for `#790` and `#792`; the egress per active account.
+Measurement still open: `#763` rows per call once the busiest account requests a summary; the after-deploy rows per call for `#790` and `#792`. Egress per active account stops mattering once the database shares Render's private network; record rows per call on the new database instead.
 
 Waiting on the owner:
 
-- Which API the redesign gate build talks to (a new Render service for `orbit-api` `redesign/main`, or production). The gate build waits for it.
-- Whether to upgrade the Supabase plan behind the "Services restricted" banner (a billing choice; it does not replace the egress work).
+- Create the AWS account and sign in the AWS CLI (SES and the Terraform state backend wait on it); create a Cloudflare account if none exists (DNS and Turnstile).
 - A device test of `#390` (bulk log replay) and of `#134` (three-dot menu) on the current open-track build.
+- The redesign approval at THE REDESIGN GATE, on staging.
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Stale worktrees whose branches have no remote left: UI `ticket-299`, `ticket-306`, `ticket-565`, `ticket-642`, `ticket-647`, `ticket-735`, `ticket-769`; API `ticket-664-openapi-removals`, plus six detached API checkouts from an older session (`api-rd-check`, `merge-api-569`, `-571`, `-574`, `-583` with 7 dirty files, `-584` with 8). Verify each (clean, merged, tip in the pull request head) before removing it.
+Stale worktrees: 33 UI worktrees and 5 API worktrees on local branches with no remote left (squash-merged ticket branches, all clean), and six detached API checkouts (`api-rd-check`, `merge-api-569`, `-571`, `-574`, `-583` with 7 dirty files, `-584` with 8). List them with `git worktree list` in each repository; verify each (clean, merged, tip in the pull request head) before removing it.
