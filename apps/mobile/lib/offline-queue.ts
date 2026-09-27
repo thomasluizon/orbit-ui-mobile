@@ -5,7 +5,6 @@ import {
   type MutationEntityType,
   type MutationScope,
   type PersistedQueuedMutation,
-  type QueuedMutation,
   type QueuedMutationStatus,
 } from '@orbit/shared/types/sync'
 
@@ -204,8 +203,8 @@ function mergePayload(existing: unknown, incoming: unknown): unknown {
 
 function compactQueuedMutations(
   existing: PersistedQueuedMutation[],
-  incoming: QueuedMutation,
-): PersistedQueuedMutation[] {
+  incoming: PersistedQueuedMutation,
+): { mutations: PersistedQueuedMutation[]; compactedCreate: PersistedQueuedMutation | null } {
   let next = [...existing]
 
   if (incoming.dedupeKey && LAST_WRITE_WINS_TYPES.has(incoming.type)) {
@@ -226,17 +225,22 @@ function compactQueuedMutations(
         ...createMutation,
         payload: mergePayload(createMutation.payload, incoming.payload),
       }
-      return next
+      return { mutations: next, compactedCreate: null }
     }
 
-    if (createMutation && DROP_CREATE_TYPES.has(incoming.type)) {
+    if (
+      createMutation &&
+      createMutation.status === 'pending' &&
+      createMutation.retries === 0 &&
+      DROP_CREATE_TYPES.has(incoming.type)
+    ) {
       next.splice(createIndex, 1)
-      return next
+      return { mutations: next, compactedCreate: createMutation }
     }
   }
 
   next.push(incoming)
-  return next
+  return { mutations: next, compactedCreate: null }
 }
 
 function replaceValue(value: unknown, oldId: string, newId: string): unknown {
@@ -263,12 +267,12 @@ function replaceValue(value: unknown, oldId: string, newId: string): unknown {
 }
 
 export function enqueue(
-  mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'> & {
+  mutation: Omit<PersistedQueuedMutation, 'retries' | 'maxRetries'> & {
     retries?: number
     maxRetries?: number
   },
-): void {
-  const normalized: QueuedMutation = {
+): PersistedQueuedMutation | null {
+  const normalized: PersistedQueuedMutation = {
     ...mutation,
     retries: mutation.retries ?? 0,
     maxRetries: mutation.maxRetries ?? 3,
@@ -277,7 +281,8 @@ export function enqueue(
   }
 
   const compacted = compactQueuedMutations(getAll(), normalized)
-  replaceAll(compacted)
+  replaceAll(compacted.mutations)
+  return compacted.compactedCreate
 }
 
 export function dequeue(): PersistedQueuedMutation | null {

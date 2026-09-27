@@ -134,6 +134,7 @@ export interface QueuedMutationBuildOptions {
 }
 
 let queuedMutationSequence = 0
+const compactedCreatesByDeleteId = new Map<string, PersistedQueuedMutation>()
 
 export function isQueuedResult(value: unknown): value is QueuedMarker {
   return (
@@ -158,7 +159,20 @@ export function cancelQueuedDeleteForUndo(
   mutationId: string,
 ): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
   const mutation = getById(mutationId)
-  if (!mutation) return Promise.resolve('replayed')
+  if (!mutation) {
+    const compactedCreate = compactedCreatesByDeleteId.get(mutationId)
+    if (!compactedCreate) return Promise.resolve('replayed')
+    enqueue(compactedCreate)
+    compactedCreatesByDeleteId.delete(mutationId)
+    if (compactedCreate.entityType && compactedCreate.clientEntityId) {
+      return markOfflineTombstone(
+        compactedCreate.entityType,
+        compactedCreate.clientEntityId,
+        false,
+      ).then(() => 'cancelled')
+    }
+    return Promise.resolve('cancelled')
+  }
   if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
 
   return new Promise((resolve) => {
@@ -556,7 +570,10 @@ export function getMutationScope(type: string): MutationScope | undefined {
 }
 
 async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
-  enqueue(mutation)
+  const compactedCreate = enqueue(mutation)
+  if (compactedCreate && (mutation.type === 'deleteHabit' || mutation.type === 'deleteGoal')) {
+    compactedCreatesByDeleteId.set(mutation.id, compactedCreate)
+  }
 
   if (mutation.entityType && mutation.clientEntityId) {
     await upsertOfflineEntity({
