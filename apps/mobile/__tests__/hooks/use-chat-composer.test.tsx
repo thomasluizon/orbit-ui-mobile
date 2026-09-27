@@ -117,7 +117,6 @@ vi.mock('@/hooks/use-gamification', () => ({
   useReportEvent: () => ({ mutate: vi.fn() }),
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
-vi.mock('@/hooks/use-ad-mob', () => ({ useAdMob: () => ({ initialize: vi.fn() }) }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { elevated: { backgroundColor: '#18181b' }, screen: { backgroundColor: '#111111' } } }) }))

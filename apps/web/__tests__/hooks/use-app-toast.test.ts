@@ -58,6 +58,13 @@ describe('useAppToast', () => {
         action: undefined,
       }),
     )
+    act(() => {
+      result.current.showQueued('Undo stays available', 'Undo', onUndo, undefined, Infinity)
+    })
+    expect(mockToast).toHaveBeenCalledWith(
+      'Undo stays available',
+      expect.objectContaining({ duration: Infinity }),
+    )
   })
 
   it('calls toast.error with message and duration', () => {

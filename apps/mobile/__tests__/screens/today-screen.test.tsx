@@ -93,9 +93,6 @@ vi.mock('react-i18next', async () => {
   }
 })
 
-vi.mock('@/hooks/use-ad-mob', () => ({
-  useAdMob: () => ({ showInterstitialIfDue: vi.fn() }),
-}))
 
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),

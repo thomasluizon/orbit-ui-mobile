@@ -21,6 +21,8 @@ import {
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
+import { queryClient } from '@/lib/query-client'
+import { invalidateNotificationList } from '@/lib/notification-cache-helpers'
 import {
   normalizePermissionStatus,
   type NotificationPermissionStatus,
@@ -69,6 +71,7 @@ interface ExpoNotificationsModule {
   addNotificationResponseReceivedListener: (
     listener: (response: ExpoNotificationResponse) => void,
   ) => { remove: () => void }
+  addNotificationReceivedListener: (listener: () => void) => { remove: () => void }
 }
 type PushRegistrationStatus = NativePushRegistrationStatus
 
@@ -140,6 +143,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
     hasFunctionProperty(value, 'getLastNotificationResponse') &&
     hasFunctionProperty(value, 'clearLastNotificationResponse') &&
+    hasFunctionProperty(value, 'addNotificationReceivedListener') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
@@ -613,10 +617,14 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     )
     const initialResponse = activeNotificationsModule.getLastNotificationResponse()
     if (initialResponse) routeNotificationResponse(initialResponse)
+    const receivedSubscription = activeNotificationsModule.addNotificationReceivedListener(() => {
+      void invalidateNotificationList(queryClient)
+    })
 
     return () => {
       appStateSubscription.remove()
       responseSubscription.remove()
+      receivedSubscription.remove()
     }
   }, [isSupported, router, setAstraConversationOpen, syncGrantedPermission])
 

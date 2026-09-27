@@ -212,12 +212,14 @@ it('pauses both retained consumers through the app focus bridge and resumes one 
   expect(apiClient).toHaveBeenCalledTimes(1)
 })
 
-it('refreshes a fresh notification cache immediately when Android returns active with both consumers attached', async () => {
+it('keeps a fresh notification cache until the next poll after Android returns active', async () => {
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
   expect(apiClient).not.toHaveBeenCalled()
   await TestRenderer.act(() => { listeners.forEach((listener) => listener('background')) })
   expect(apiClient).not.toHaveBeenCalled()
   await TestRenderer.act(() => { listeners.forEach((listener) => listener('active')) })
+  expect(apiClient).not.toHaveBeenCalled()
+  await advance(NOTIFICATIONS_REFETCH_INTERVAL)
   expect(apiClient).toHaveBeenCalledTimes(1)
 })
 
