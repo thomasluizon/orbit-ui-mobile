@@ -814,6 +814,10 @@ For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixe
    blocker, or exhaustion of the bounded fixer budget, produces a precise handoff and keeps
    the PR in the run record. Never merge.
 
+If a pull request closes without a merge, confirm that state and write `closed: true` and a
+recorded `blocker` on its ledger identity. Do not create a readiness receipt for a closed pull
+request. Keep the row so the stop hook reports a BLOCKED ending that names it.
+
 ## Step 10. Hand over
 
 Set the actual ticket reference to In Review only from a READY receipt.
@@ -941,10 +945,10 @@ from:
   "sleep": true,
   "remaining": ["ORB-2", "ORB-3"],
   "pullRequests": [
-    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>","closed":false}
   ],
   "readinessLedger": [
-    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>","receiptWritten":false,"blocker":null,"closed":false}
   ]
 }
 ```
@@ -952,16 +956,22 @@ from:
 `pullRequests` holds repository-qualified identities and receipt paths for every pull request this
 run opened. Within one exact `sessionId`, `writeRunState` mechanically unions those identities into
 the append-only `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`.
+A confirmed close without a merge is recorded as boolean `closed: true` with a named `blocker`.
+`writeRunState` keeps that closure within the session even if a later sighting omits it. A row
+without a written receipt may end BLOCKED only with both facts. An open row without a receipt,
+or a closed row without a blocker, still refuses the stop.
 A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
-invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
-matches its repository and PR identity, and allows completion only when that receipt reports READY.
-It reads disk alone. `record-readiness.mjs` checks live GitHub when recording readiness.
+invalid because UI and API can have the same PR number. The stop hook opens each written ledger
+receipt, matches its repository and PR identity, and allows completion when it reports READY or
+reports a blocked ending for closed rows with blockers. It reads disk alone.
+`record-readiness.mjs` checks live GitHub when recording readiness.
 
 
 `sessionId` is what keeps yesterday's record from blocking today: a record whose session does not
 match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
-but never remove `readinessLedger`. The READY receipts let the hook distinguish completion from a
-mistakenly cleared queue, then the run may print the step 11 report.
+but never remove `readinessLedger`. READY receipts or closed rows with recorded blockers let the
+hook distinguish a completed or BLOCKED run from a mistakenly cleared queue, then the run may
+print the step 11 report.
 
 What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
