@@ -1,6 +1,10 @@
 export function getMcpEndpointUrl(apiBase: string): string {
-  return `${apiBase.replace(/\/+$/, '')}/mcp`
+  let end = apiBase.length
+  while (end > 0 && apiBase.charCodeAt(end - 1) === SLASH_CHAR_CODE) end -= 1
+  return `${apiBase.slice(0, end)}/mcp`
 }
+
+const SLASH_CHAR_CODE = 47
 
 export const MCP_CONFIG_TABS = ['web', 'code'] as const
 

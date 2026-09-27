@@ -20,6 +20,12 @@ describe('advanced settings utils', () => {
     expect(JSON.parse(buildMcpConfigJson(endpoint)).mcpServers.orbit.url).toBe(endpoint)
   })
 
+  it('trims any run of trailing slashes in linear time', () => {
+    const slashes = '/'.repeat(100_000)
+    expect(getMcpEndpointUrl(`https://api.useorbit.org${slashes}`)).toBe('https://api.useorbit.org/mcp')
+    expect(getMcpEndpointUrl(`${slashes}x${slashes}`)).toBe(`${slashes}x/mcp`)
+  })
+
   it('defines the supported config tabs', () => {
     expect(MCP_CONFIG_TABS).toEqual(['web', 'code'])
   })
