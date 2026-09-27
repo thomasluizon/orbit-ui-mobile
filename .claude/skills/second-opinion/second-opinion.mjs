@@ -88,7 +88,7 @@ function parseEvents(stdout) {
 
 /** Pull the verdict object out of the model's reply, tolerating code fences and surrounding prose. */
 function parseVerdict(text) {
-  for (let start = text.lastIndexOf('{'); start !== -1; start = text.lastIndexOf('{', start - 1)) {
+  for (let start = text.lastIndexOf('{'); start !== -1; start = start > 0 ? text.lastIndexOf('{', start - 1) : -1) {
     let depth = 0;
     let inString = false;
     let escaped = false;

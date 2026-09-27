@@ -726,10 +726,11 @@ const secondOpinionReply = (reply) => {
   const run = spawnSync(process.execPath, [secondOpinionScript], {
     input: "Review the quoted finding",
     encoding: "utf8",
+    timeout: 2_000,
     env: { ...process.env, PATH: `${codexFixtureDirectory}:${process.env.PATH}`, ORBIT_TEST_REPLY: reply },
   })
   T("second-opinion: process exits successfully", run.status, 0)
-  return JSON.parse(run.stdout)
+  return run.status === 0 ? JSON.parse(run.stdout) : {}
 }
 const placeholderVerdict = JSON.stringify({ verdict: "AGREE", confidence: "high", reasoning: "Remove {name} on {date}." })
 const placeholderResult = secondOpinionReply(placeholderVerdict)
@@ -746,6 +747,10 @@ T("second-opinion: the newest verdict wins", [newestResult.status, newestResult.
 const invalidReply = "No JSON verdict here."
 const invalidResult = secondOpinionReply(invalidReply)
 T("second-opinion: unparseable replies retain raw text", [invalidResult.status, invalidResult.reason, invalidResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidReply])
+for (const invalidObject of ['{"verdict":"MAYBE"}', "{"]) {
+  const invalidObjectResult = secondOpinionReply(invalidObject)
+  T("second-opinion: invalid object at start returns unavailable", [invalidObjectResult.status, invalidObjectResult.reason, invalidObjectResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidObject])
+}
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)
