@@ -1558,5 +1558,42 @@ const hookPayload = { tool_name: "Edit", tool_input: { file_path: join(repoRoot,
 T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status, 2)
 T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
 
+console.log("\n# second-opinion verdict parsing")
+const codexFixtureDirectory = join(root, "second-opinion-bin")
+mkdirSync(codexFixtureDirectory)
+writeFileSync(join(codexFixtureDirectory, "codex"), `#!/usr/bin/env node
+process.stdout.write(JSON.stringify({ type: "item.completed", item: { id: "item_0", type: "agent_message", text: process.env.ORBIT_TEST_REPLY } }) + "\\n")
+`, { mode: 0o755 })
+const secondOpinionScript = join(repoRoot, ".claude", "skills", "second-opinion", "second-opinion.mjs")
+const secondOpinionReply = (reply) => {
+  const run = spawnSync(process.execPath, [secondOpinionScript], {
+    input: "Review the quoted finding",
+    encoding: "utf8",
+    timeout: 2_000,
+    env: { ...process.env, PATH: `${codexFixtureDirectory}:${process.env.PATH}`, ORBIT_TEST_REPLY: reply },
+  })
+  T("second-opinion: process exits successfully", run.status, 0)
+  return run.status === 0 ? JSON.parse(run.stdout) : {}
+}
+const placeholderVerdict = JSON.stringify({ verdict: "AGREE", confidence: "high", reasoning: "Remove {name} on {date}." })
+const placeholderResult = secondOpinionReply(placeholderVerdict)
+T("second-opinion: placeholders inside reasoning keep the verdict", [placeholderResult.status, placeholderResult.verdict, placeholderResult.confidence], ["OK", "AGREE", "high"])
+const fencedResult = secondOpinionReply(`\`\`\`json\n${placeholderVerdict}\n\`\`\``)
+T("second-opinion: a fenced verdict parses", [fencedResult.status, fencedResult.verdict], ["OK", "AGREE"])
+const proseResult = secondOpinionReply(`Before. ${placeholderVerdict} After.`)
+T("second-opinion: prose around a verdict parses", [proseResult.status, proseResult.verdict], ["OK", "AGREE"])
+const escapedVerdict = JSON.stringify({ verdict: "DISAGREE", confidence: "medium", reasoning: 'The code says "{name}" and uses {"key":1}.' })
+const escapedResult = secondOpinionReply(escapedVerdict)
+T("second-opinion: escaped quotes do not break brace matching", [escapedResult.status, escapedResult.verdict, escapedResult.reasoning], ["OK", "DISAGREE", 'The code says "{name}" and uses {"key":1}.'])
+const newestResult = secondOpinionReply(`${placeholderVerdict}\n${escapedVerdict}`)
+T("second-opinion: the newest verdict wins", [newestResult.status, newestResult.verdict], ["OK", "DISAGREE"])
+const invalidReply = "No JSON verdict here."
+const invalidResult = secondOpinionReply(invalidReply)
+T("second-opinion: unparseable replies retain raw text", [invalidResult.status, invalidResult.reason, invalidResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidReply])
+for (const invalidObject of ['{"verdict":"MAYBE"}', "{"]) {
+  const invalidObjectResult = secondOpinionReply(invalidObject)
+  T("second-opinion: invalid object at start returns unavailable", [invalidObjectResult.status, invalidObjectResult.reason, invalidObjectResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidObject])
+}
+
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)
