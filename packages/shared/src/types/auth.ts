@@ -68,3 +68,6 @@ export const googleCodeAuthRequestSchema = z.object({
 })
 
 export type GoogleCodeAuthRequest = z.infer<typeof googleCodeAuthRequestSchema>
+
+export const googleCodeAuthResponseSchema = backendLoginResponseSchema
+export type GoogleCodeAuthResponse = z.infer<typeof googleCodeAuthResponseSchema>

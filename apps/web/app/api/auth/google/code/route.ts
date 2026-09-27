@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { setSessionCookies } from '@/lib/auth-api'
 import { buildAuthErrorPayload, buildRequestIdResponseHeaders, ORBIT_REQUEST_ID_HEADER, resolveRequestId, resolveResponseRequestId } from '@/lib/auth-proxy'
-import { googleCodeAuthRequestSchema, type BackendLoginResponse } from '@orbit/shared/types/auth'
+import { googleCodeAuthRequestSchema, googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const callbackSchema = z.object({
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const backendRequestId = resolveResponseRequestId(response, requestId)
     headers.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
     if (!response.ok) return finish(NextResponse.json(buildAuthErrorPayload(data, backendRequestId), { status: response.status, headers }))
-    const loginResponse = data as BackendLoginResponse
+    const loginResponse = googleCodeAuthResponseSchema.parse(data)
     await setSessionCookies(loginResponse.token, loginResponse.refreshToken)
     const { token: _token, refreshToken: _refreshToken, ...safeResponse } = loginResponse
     return finish(NextResponse.json(safeResponse, { headers }))

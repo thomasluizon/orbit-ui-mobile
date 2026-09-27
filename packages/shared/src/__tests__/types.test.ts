@@ -18,6 +18,8 @@ import {
   sendCodeRequestSchema,
   verifyCodeRequestSchema,
   googleAuthRequestSchema,
+  googleCodeAuthRequestSchema,
+  googleCodeAuthResponseSchema,
 } from '../types/auth'
 
 import {
@@ -725,6 +727,29 @@ describe('auth schemas', () => {
     it('rejects missing accessToken', () => {
       const result = googleAuthRequestSchema.safeParse({ language: 'en' })
       expect(result.success).toBe(false)
+    })
+  })
+
+  describe('Google authorization code contract', () => {
+    it('requires the code, verifier, and exact redirect URI', () => {
+      const request = {
+        code: 'authorization-code',
+        codeVerifier: 'verifier',
+        redirectUri: 'https://app.useorbit.org/auth-callback',
+        language: 'pt-BR',
+        referralCode: 'REF123',
+      }
+      expect(googleCodeAuthRequestSchema.safeParse(request).success).toBe(true)
+      expect(googleCodeAuthRequestSchema.safeParse({ ...request, codeVerifier: undefined }).success).toBe(false)
+    })
+
+    it('validates the Orbit session returned after code exchange', () => {
+      const response = {
+        userId: 'user-1', token: 'orbit-token', name: 'Alex',
+        email: 'alex@example.com', wasReactivated: false, refreshToken: null,
+      }
+      expect(googleCodeAuthResponseSchema.safeParse(response).success).toBe(true)
+      expect(googleCodeAuthResponseSchema.safeParse({ ...response, token: undefined }).success).toBe(false)
     })
   })
 })

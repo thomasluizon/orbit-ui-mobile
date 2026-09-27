@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 
 const mocks = vi.hoisted(() => ({ apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
@@ -65,7 +66,7 @@ describe('mobile Google authorization code flow', () => {
       method: 'POST',
       body: JSON.stringify({ code: 'google-code', codeVerifier: '01'.repeat(32), redirectUri: callback,
         language: 'pt-BR', referralCode: 'REF123' }),
-    })
+    }, googleCodeAuthResponseSchema)
   })
 
   it('rejects a mismatched state without calling the API', async () => {

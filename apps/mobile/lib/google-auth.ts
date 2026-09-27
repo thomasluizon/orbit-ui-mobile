@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser'
 import * as Crypto from 'expo-crypto'
 import { API } from '@orbit/shared/api'
-import type { BackendLoginResponse } from '@orbit/shared/types/auth'
+import { googleCodeAuthResponseSchema, type GoogleCodeAuthResponse } from '@orbit/shared/types/auth'
 import { buildGoogleAuthorizeUrl, bytesToHex } from '@orbit/shared/utils'
 import { apiClient } from './api-client'
 import {
@@ -32,12 +32,12 @@ export async function completeGoogleAuthFromUrl(
   rawUrl: string,
   language: string,
   referralCode?: string,
-): Promise<BackendLoginResponse> {
+): Promise<GoogleCodeAuthResponse> {
   const params = extractGoogleAuthParams(rawUrl)
   if (params.error || !params.code || !params.state) throw new Error('Authentication failed')
   const verifier = getPendingGoogleAuthVerifier(params.state)
   if (!verifier) throw new Error('Invalid OAuth state')
-  return apiClient<BackendLoginResponse>(API.auth.googleCode, {
+  return apiClient<GoogleCodeAuthResponse>(API.auth.googleCode, {
     method: 'POST',
     body: JSON.stringify({
       code: params.code,
@@ -46,7 +46,7 @@ export async function completeGoogleAuthFromUrl(
       language,
       ...(referralCode ? { referralCode } : {}),
     }),
-  })
+  }, googleCodeAuthResponseSchema)
 }
 
 export async function startMobileGoogleAuth({
