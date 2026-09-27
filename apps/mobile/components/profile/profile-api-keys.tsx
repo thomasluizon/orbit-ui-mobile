@@ -434,7 +434,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           <View style={[styles.mcpWell, { backgroundColor: tokens.bgWell }]}>
             <Text style={[styles.mcpTitle, { color: tokens.fg1 }]}>{t('profile.apiKeys.mcpTitle')}</Text>
             <Text style={[styles.description, { color: tokens.fg3 }]}>{t('profile.apiKeys.mcpLine')}</Text>
-            <Text selectable style={[styles.description, { color: tokens.fg2 }]}>{getMcpEndpointUrl(API_BASE)}</Text>
+            <Text selectable style={[styles.mcpEndpoint, { color: tokens.fg2 }]}>{getMcpEndpointUrl(API_BASE)}</Text>
           </View>
         </>
       </ApiKeyAccessContent>
@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
   errorState: { alignItems: 'flex-start', gap: 8 },
   mcpWell: { borderRadius: 12, gap: 4, padding: 16 },
   mcpTitle: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  mcpEndpoint: { fontFamily: 'GeistMono_400Regular', fontSize: 13, lineHeight: 18.2 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
   keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: 16 },
