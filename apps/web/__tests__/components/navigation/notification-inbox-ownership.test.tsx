@@ -248,12 +248,14 @@ it('clears the shared interval on focus loss and resumes one poll on focus', asy
   expect(fetchJson).toHaveBeenCalledTimes(1)
 })
 
-it('refreshes a fresh notification cache immediately on focus with both consumers attached', async () => {
+it('keeps a fresh notification cache on focus and resumes the shared poll', async () => {
   render(shell(true))
   expect(fetchJson).not.toHaveBeenCalled()
   await act(async () => { focusManager.setFocused(false) })
   expect(fetchJson).not.toHaveBeenCalled()
   await act(async () => { focusManager.setFocused(true) })
+  expect(fetchJson).not.toHaveBeenCalled()
+  await advance(NOTIFICATIONS_REFETCH_INTERVAL)
   expect(fetchJson).toHaveBeenCalledTimes(1)
 })
 

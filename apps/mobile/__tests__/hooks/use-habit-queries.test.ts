@@ -116,7 +116,7 @@ describe('useHabits refetch behavior', () => {
     renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
     expect(lastQuery().refetchInterval).toBeUndefined()
     expect(lastQuery().refetchOnWindowFocus).toBe(true)
-    expect(lastQuery().refetchOnReconnect).toBe('always')
+    expect(lastQuery().refetchOnReconnect).toBe(true)
   })
 })
 

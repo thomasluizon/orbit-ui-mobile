@@ -22,9 +22,11 @@ import {
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
   rollbackOptimisticHabitLogs,
+  plural,
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
+  HabitScheduleChild,
   HabitDetail,
   HabitFullDetail,
   LogHabitResponse,
@@ -48,6 +50,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
+  cancelQueuedDeleteForUndo,
   createTempEntityId,
   isQueuedResult,
   OfflineMutationPreflightError,
@@ -119,6 +122,25 @@ type OfflineBulkMutationOutcome<TResponse> = TResponse & {
 
 type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
   hasConfirmedSuccess: boolean
+}
+type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> & {
+  queuedDeletes: { habitId: string; mutationId: string }[]
+}
+
+function selectedDescendantsInSnapshots(
+  snapshots: HabitListSnapshots,
+  selectedIds: Set<string>,
+): Set<string> {
+  const descendants = new Set<string>()
+  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
+    const selected = selectedIds.has(habit.id)
+    if (selected && selectedAncestor) descendants.add(habit.id)
+    for (const child of habit.children) visit(child, selectedAncestor || selected)
+  }
+  for (const [, habits] of snapshots) {
+    for (const habit of habits ?? []) visit(habit, false)
+  }
+  return descendants
 }
 
 export {
@@ -267,9 +289,10 @@ export function useLogHabit() {
             date,
             completed,
             optimisticLogId,
-          ))
+          ), { includeUnfiltered: false })
       } else {
-        updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+          (items) => optimisticToggleCompletion(items, habitId))
       }
 
       return { previousLists, previousLogs, previousCalendars }
@@ -407,7 +430,7 @@ export function useLogHabit() {
     },
 
     onSettled: (data, error, { habitId }) => {
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeHistory: true })
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false })
     },
   })
 }
@@ -438,7 +461,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
 
       if (!date) {
-        updateHabitLists(queryClient, (items) => {
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)
           if (!habit) return items
           return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
@@ -456,8 +479,10 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: (data, error) =>
+    onSettled: (data, error, { habitId }) =>
       finalizeHabitMutation(queryClient, data, error, {
+        habitId,
+        includeCount: false,
         includeGoals: true,
         includeProfile: true,
         includeGamification: true,
@@ -505,7 +530,6 @@ export function useCreateHabit() {
       const optimisticHabit = buildOptimisticHabit(queryClient, tempId, data)
 
       updateHabitLists(queryClient, (items) => optimisticInsertHabit(items, optimisticHabit))
-      adjustHabitCount(queryClient, 1)
 
       return { previousLists, tempId }
     },
@@ -513,7 +537,6 @@ export function useCreateHabit() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -1)
     },
 
     onSuccess: (result) => {
@@ -650,7 +673,6 @@ export function useDeleteHabit() {
         { queryKey: habitKeys.details() },
         (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
       )
-      adjustHabitCount(queryClient, -1)
 
       return { previousLists, previousDetails }
     },
@@ -661,18 +683,31 @@ export function useDeleteHabit() {
       for (const [queryKey, detail] of context.previousDetails) {
         if (detail) queryClient.setQueryData(queryKey, detail)
       }
-      adjustHabitCount(queryClient, 1)
     },
 
-    onSuccess: (_data, habitId) => {
-      showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
+    onSuccess: (data, habitId, context) => {
+      showUndoToast(t('undo.habitDeleted'), () => {
+        if (isQueuedResult(data)) {
+          void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
+            if (outcome !== 'replayed') {
+              restoreHabitLists(queryClient, context.previousLists)
+              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+              void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+            }
+            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
+          })
+          return
+        }
+        restoreHabit.mutate(habitId)
+      })
     },
 
-    onSettled: (data, error) => {
+    onSettled: (data, error, habitId) => {
       if (!isQueuedResult(data)) {
         void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
       }
       finalizeHabitMutation(queryClient, data, error, {
+        habitId,
         includeGoals: true,
         includeCount: true,
         includeProfile: true,
@@ -1013,7 +1048,6 @@ export function useBulkCreateHabits() {
           items,
         ),
       )
-      adjustHabitCount(queryClient, optimisticHabits.length)
 
       return { previousLists, createdCount: optimisticHabits.length }
     },
@@ -1021,7 +1055,6 @@ export function useBulkCreateHabits() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -context.createdCount)
     },
 
     onSettled: (data, error) =>
@@ -1031,9 +1064,12 @@ export function useBulkCreateHabits() {
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useMutation<
-    OfflineBulkMutationOutcome<BulkDeleteResponse>,
+    BulkDeleteMutationOutcome,
     Error,
     string[],
     { previousLists: HabitListSnapshots }
@@ -1042,6 +1078,7 @@ export function useBulkDeleteHabits() {
       const results: BulkDeleteResponse['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      const queuedDeletes: BulkDeleteMutationOutcome['queuedDeletes'] = []
       for (let index = 0; index < habitIds.length; index += 4) {
         const chunk = habitIds.slice(index, index + 4)
         const outcomes = await Promise.allSettled(chunk.map((habitId) =>
@@ -1066,6 +1103,9 @@ export function useBulkDeleteHabits() {
             }
             return
           }
+          if (isQueuedResult(outcome.value)) {
+            queuedDeletes.push({ habitId, mutationId: outcome.value.queuedMutationId })
+          }
           results.push({
             index: index + itemIndex,
             status: 'Success',
@@ -1074,7 +1114,7 @@ export function useBulkDeleteHabits() {
           })
         })
       }
-      return { results, ambiguousIds, offlineFailureIds }
+      return { results, ambiguousIds, offlineFailureIds, queuedDeletes }
     },
 
     onMutate: async (habitIds) => {
@@ -1091,18 +1131,53 @@ export function useBulkDeleteHabits() {
       restoreHabitLists(queryClient, context.previousLists)
     },
 
-    onSuccess: (data, _vars, context) => {
+    onSuccess: (result, _vars, context) => {
       const failedIds = new Set(
-        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
+        result.results.flatMap((item) => item.status === 'Failed' ? [item.habitId] : []),
       )
-      for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
-      if (failedIds.size === 0) return
-      for (const [key, snapshot] of context.previousLists) {
-        if (!snapshot) continue
-        queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
-          current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
-        )
+      for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
+      if (failedIds.size > 0) {
+        for (const [key, snapshot] of context.previousLists) {
+          if (!snapshot) continue
+          queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+            current ? restoreDeletedHabits(current, snapshot, failedIds) : current,
+          )
+        }
       }
+      const deleted = result.results.filter((item) => item.status === 'Success')
+      if (deleted.length === 0) return
+      const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
+      showUndoToast(message, () => {
+        void (async () => {
+          const queuedByHabit = new Map(result.queuedDeletes.map(({ habitId, mutationId }) => [habitId, mutationId]))
+          const locallyRestored = new Set<string>()
+          const serverRestoreIds = new Set<string>()
+          await Promise.all(deleted.map(async (item) => {
+            const mutationId = queuedByHabit.get(item.habitId)
+            if (!mutationId) {
+              serverRestoreIds.add(item.habitId)
+              return
+            }
+            const outcome = await cancelQueuedDeleteForUndo(mutationId)
+            if (outcome !== 'replayed') locallyRestored.add(item.habitId)
+            if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
+          }))
+          for (const [key, snapshot] of context.previousLists) {
+            if (!snapshot || locallyRestored.size === 0) continue
+            queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>
+              current ? restoreDeletedHabits(current, snapshot, locallyRestored) : current,
+            )
+          }
+          if (locallyRestored.size > 0) {
+            void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+            void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+          }
+          const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, serverRestoreIds)
+          for (const habitId of serverRestoreIds) {
+            if (!selectedDescendants.has(habitId)) restoreHabit.mutate(habitId)
+          }
+        })()
+      })
     },
 
     onSettled: (data, error) =>

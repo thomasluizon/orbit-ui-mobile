@@ -23,3 +23,4 @@ export {
 
 export type { HabitListKey, HabitListSnapshots } from './keys'
 export { attachNotificationPolling } from './notification-polling'
+export { updateHabitListsForDate, invalidateHabitDependents } from './habit-cache'

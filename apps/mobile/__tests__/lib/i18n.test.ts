@@ -39,13 +39,15 @@ describe('mobile i18n interpolation', () => {
   it('matches web plural selection for scoped bulk and calendar copy', () => {
     expect(
       plural(i18n.t('habits.bulkDeleteMessage', { count: 1 }), 1),
-    ).toBe('This deletes 1 habit and its sub habits. It cannot be undone.')
+    ).toBe('This removes 1 habit and any sub-habits. You can undo it from the message that appears.')
+    expect(plural(i18n.t('undo.habitsDeleted', { count: 1 }), 1)).toBe('1 habit deleted')
+    expect(plural(i18n.t('undo.habitsDeleted', { count: 2 }), 2)).toBe('2 habits deleted')
     expect(
       plural(i18n.t('habits.deleteListConfirmMessage', { name: 'Read', count: 1 }), 1),
-    ).toBe('Read and 1 item inside it leave your list. This cannot be undone.')
+    ).toBe('Read and 1 item inside it leave your list. You can undo it from the message that appears.')
     expect(
       plural(i18n.t('habits.deleteListConfirmMessage', { name: 'Read', count: 2 }), 2),
-    ).toBe('Read and 2 items inside it leave your list. This cannot be undone.')
+    ).toBe('Read and 2 items inside it leave your list. You can undo it from the message that appears.')
     expect(
       i18n.t('calendar.dayDetail.completionSummary', { done: 1, total: 1 }),
     ).toBe('1 of 1 logged')

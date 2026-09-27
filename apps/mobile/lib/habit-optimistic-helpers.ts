@@ -12,7 +12,7 @@ import type {
 } from '@orbit/shared/types/habit'
 import { findHabitInList, optimisticPatchHabit, withChildren } from '@orbit/shared/utils'
 
-export { optimisticPatchHabit }
+export { optimisticPatchHabit, optimisticRemoveHabits } from '@orbit/shared/utils'
 
 /** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
@@ -136,33 +136,6 @@ export function optimisticUpdateChecklist(
       item.children.map((child) => updateChecklistInChild(child, habitId, newItems)),
     )
   })
-}
-
-function removeChildHabits(
-  children: HabitScheduleChild[],
-  habitIds: Set<string>,
-): HabitScheduleChild[] {
-  const remaining: HabitScheduleChild[] = []
-  for (const child of children) {
-    if (habitIds.has(child.id)) continue
-    remaining.push(withChildren(child, removeChildHabits(child.children, habitIds)))
-  }
-  return remaining
-}
-
-/** Remove one or more parent/child habits from the cached list */
-export function optimisticRemoveHabits(
-  items: HabitScheduleItem[],
-  habitIds: Iterable<string>,
-): HabitScheduleItem[] {
-  const ids = new Set(habitIds)
-
-  const remaining: HabitScheduleItem[] = []
-  for (const item of items) {
-    if (ids.has(item.id)) continue
-    remaining.push(withChildren(item, removeChildHabits(item.children, ids)))
-  }
-  return remaining
 }
 
 function restoreDeletedChildren(

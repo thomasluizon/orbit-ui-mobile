@@ -156,6 +156,41 @@ export function isQueuedResult(value: unknown): value is QueuedMarker {
   )
 }
 
+function cancelUnsentDelete(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
+  remove(mutation.id)
+  const outcome = mutation.retries > 0 ? 'uncertain' : 'cancelled'
+  if (mutation.entityType && mutation.targetEntityId) {
+    return markOfflineTombstone(mutation.entityType, mutation.targetEntityId, false)
+      .then(() => outcome)
+  }
+  return Promise.resolve(outcome)
+}
+
+export function cancelQueuedDeleteForUndo(
+  mutationId: string,
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
+  const mutation = getById(mutationId)
+  if (!mutation) return Promise.resolve('replayed')
+  if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
+
+  return new Promise((resolve) => {
+    const unsubscribe = subscribeFlushResults((result) => {
+      const current = getById(mutationId)
+      if (current?.status === 'syncing') return
+      unsubscribe()
+      if (current) {
+        void cancelUnsentDelete(current).then(resolve)
+        return
+      }
+      if (result.droppedMutations.some((dropped) => dropped.id === mutationId)) {
+        resolve('dropped')
+      } else {
+        resolve('replayed')
+      }
+    })
+  })
+}
+
 export function createTempEntityId(entityType: MutationEntityType): string {
   return nextQueuedIdentifier(`offline-${entityType}`)
 }
@@ -883,6 +918,10 @@ async function processQueuedMutationFlush(
     const prepared = await prepareQueuedMutationFlush(mutation, dependencies, touchedScopes)
     if (prepared.step) return prepared.step
     mutation = prepared.mutation
+  }
+
+  if (!getById(mutation.id)) {
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
 
   await markMutationSyncing(mutation)

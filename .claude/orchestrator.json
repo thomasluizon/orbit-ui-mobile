@@ -5,6 +5,9 @@
       "command": "codex",
       "args": [
         "exec",
+        "--disable",
+        "apps",
+        "--ignore-user-config",
         "--dangerously-bypass-approvals-and-sandbox"
       ],
       "models": {

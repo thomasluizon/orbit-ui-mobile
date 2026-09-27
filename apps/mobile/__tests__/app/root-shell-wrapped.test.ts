@@ -64,9 +64,6 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
   useProfile: () => ({ profile: null }),
 }))
-vi.mock('@/hooks/use-ad-mob', () => ({
-  useAdMob: () => ({ initialize: vi.fn() }),
-}))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
 vi.mock('@/lib/theme', () => ({
