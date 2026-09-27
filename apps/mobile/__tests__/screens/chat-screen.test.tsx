@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
+import { Shell412 } from '@/components/shell/shell-412'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 const TestRenderer = require('react-test-renderer')
@@ -167,6 +168,24 @@ async function renderScreen() {
   return tree
 }
 
+async function renderShellScreen() {
+  let tree!: TestTree
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(
+      <Shell412
+        tabBar={React.createElement('TabBar')}
+        conversation={<AstraConversation chat={mocks.composer as never} />}
+        conversationLabel="chat.title"
+      >
+        {React.createElement('DestinationList')}
+      </Shell412>,
+    )
+    await Promise.resolve()
+  })
+  mountedTrees.push(tree)
+  return tree
+}
+
 function findByLabel(root: TestNode, label: string): TestNode | undefined {
   return root.findAll((node) => node.props.accessibilityLabel === label)[0]
 }
@@ -207,13 +226,15 @@ describe('ChatScreen composer recoveries', () => {
 
   it.each([true, false])('keeps the composer inside Android keyboard avoidance when suggestions are %s', async (showSuggestions) => {
     mocks.composer.showSuggestions = showSuggestions
-    const tree = await renderScreen()
+    const tree = await renderShellScreen()
     const avoidingView = findByType(tree.root, 'KeyboardAvoidingView')
 
     expect(avoidingView).toBeDefined()
+    expect(tree.root.findAll((node) => node.type === 'KeyboardAvoidingView')).toHaveLength(1)
     expect(avoidingView?.props.behavior).toBe('height')
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
-    expect(mocks.keyboardDidShow).toBeNull()
+    expect(findByType(avoidingView!, 'DestinationList')).toBeDefined()
+    expect(findByType(avoidingView!, 'KeyboardAwareFlatList') === undefined).toBe(showSuggestions)
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -343,7 +364,7 @@ describe('ChatScreen composer recoveries', () => {
   })
 
   it('keeps the composer inside Android keyboard avoidance with safe-area padding', async () => {
-    const tree = await renderScreen()
+    const tree = await renderShellScreen()
     const avoidingView = findByType(tree.root, 'KeyboardAvoidingView')
     const composerContainer = avoidingView?.findAll((node) => {
       const style = node.props.style
@@ -354,8 +375,8 @@ describe('ChatScreen composer recoveries', () => {
     expect(avoidingView?.props.behavior).toBe('height')
     expect(composerContainer?.props.style).toMatchObject({ paddingBottom: 20 })
     expect(composerContainer?.props.style).not.toHaveProperty('marginBottom')
-    expect(mocks.keyboardDidShow).toBeNull()
-    expect(mocks.keyboardDidHide).toBeNull()
+    expect(mocks.keyboardDidShow).not.toBeNull()
+    expect(mocks.keyboardDidHide).not.toBeNull()
   })
 
   afterEach(async () => {
