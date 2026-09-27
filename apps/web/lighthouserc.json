@@ -5,7 +5,7 @@
     "total-blocking-time": "1200 ms. Warm batch medians: mean 792.1 ms, sd 131.4 ms, max 1058.2 ms, so 1200 (just above mean+3sd) fails no clean batch and still fails a regression that adds about 400 ms of main-thread blocking. Re-derive if the warm median moves by more than about 20 percent.",
     "largest-contentful-paint": "7000 ms. The original warm-route population was 37 complete batches of the previous Today screen, with p50 4743 ms and largest median 5854 ms. The redesigned route now preloads the account profile on the server so its content can render before the client profile query completes. Compare consecutive same-head CI artifacts before changing this ceiling; the earlier client-gated route showed overlapping clean and regressed runner distributions.",
     "resource-summary:script:size": "820000 bytes. Batch medians of script transferSize spanned 749508 to 770185 bytes (2.8 percent), and 820000 is 6.5 percent above the largest, tight enough to catch a real dependency or code-splitting regression.",
-    "aggregation": "numberOfRuns 5 with median aggregation for total-blocking-time and script size."
+    "aggregation": "numberOfRuns 5 with median aggregation for largest-contentful-paint, total-blocking-time and script size."
   },
   "ci": {
     "collect": {
