@@ -472,7 +472,14 @@ describe("CalendarSyncScreen", () => {
 
   it("shows text-bearing recovery when importing a review suggestion is blocked", async () => {
     mocks.searchParams = { mode: "review" };
-    mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
+    mocks.suggestions = [{
+      id: "suggestion-1",
+      event: {
+        ...buildEvents(1)[0],
+        isRecurring: true,
+        recurrenceRule: "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE",
+      },
+    }];
     mocks.bulkMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
 
     let tree: any;
@@ -488,12 +495,19 @@ describe("CalendarSyncScreen", () => {
         typeof node.props.children === "string" &&
         node.props.children.includes("calendar.importButton"),
     );
+    expect(importPill.props.disabled).toBe(false);
     await TestRenderer.act(async () => {
       (importPill.props.onPress as () => void)();
       await Promise.resolve();
     });
 
-    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0].title).toBe("Event 0");
+    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0]).toMatchObject({
+      title: "Event 0",
+      days: ["Monday", "Wednesday"],
+      frequencyUnit: "Week",
+      frequencyQuantity: 1,
+      intervalWeeks: 2,
+    });
     expect(tree.root.findAll(
       (node: TestNode) => node.props.children === "errors.api.edgeBlocked",
     ).length).toBeGreaterThan(0);

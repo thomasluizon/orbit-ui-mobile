@@ -551,7 +551,7 @@ describe('CalendarSyncPage', () => {
       data: [
         {
           id: 'sug-1',
-          event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+          event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: true, recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE', reminders: [], calendarName: null },
         },
       ],
       isLoading: false,
@@ -574,7 +574,18 @@ describe('CalendarSyncPage', () => {
     const { queryClient } = renderPage()
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
 
-    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+    const importButton = await screen.findByText(/calendar\.importButton/)
+    expect(importButton).not.toBeDisabled()
+    fireEvent.click(importButton)
+
+    expect(mockBulkMutate.mock.calls[0]?.[0]).toMatchObject({
+      habits: [{
+        days: ['Monday', 'Wednesday'],
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        intervalWeeks: 2,
+      }],
+    })
 
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
