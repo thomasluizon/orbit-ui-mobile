@@ -234,8 +234,8 @@ vi.mock('@/components/ui/app-bar', () => ({
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }) => open
-    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm })
+  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
+    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm, onCancel })
     : null,
 }))
 vi.mock('@/components/ui/error-state', () => ({
@@ -1155,6 +1155,26 @@ describe('HabitDetailScreen', () => {
     })
     expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'unlog' })
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.logDateUnavailable')).toBe(false)
+  })
+
+  it('keeps a precreation child log when permanent removal is canceled', () => {
+    mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-28'),
+      createdAtUtc: '2026-08-29T08:00:00Z',
+      createdAtUtcIsInherited: false,
+      isCompleted: true,
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onUnlog())
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toBe('habits.detail.logDateConfirmPermanentUnlogMessage')
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onCancel())
+
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(0)
+    expect(mocks.log).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onUnlog())
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toBe('habits.detail.logDateConfirmPermanentUnlogMessage')
   })
 
   it.each([

@@ -123,8 +123,8 @@ vi.mock('@/components/ui/app-bar', () => ({
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }) => open
-    ? <button type="button" data-testid={`confirm-${title}`} data-message={message} data-confirm-label={confirmLabel} onClick={onConfirm}>{title}</button>
+  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
+    ? <><button type="button" data-testid={`confirm-${title}`} data-message={message} data-confirm-label={confirmLabel} onClick={onConfirm}>{title}</button><button type="button" data-testid={`cancel-${title}`} onClick={onCancel}>Cancel</button></>
     : null,
 }))
 vi.mock('@/components/ui/error-state', () => ({
@@ -978,6 +978,25 @@ describe('HabitDetailScreen', () => {
     await act(async () => Promise.resolve())
     expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'unlog' })
     expect(screen.queryByText('habits.detail.logDateUnavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps a precreation child log when permanent removal is canceled', () => {
+    mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-28'),
+      createdAtUtc: '2026-08-29T08:00:00Z',
+      createdAtUtcIsInherited: false,
+      isCompleted: true,
+    })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'unlog-child' }))
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'habits.detail.logDateConfirmPermanentUnlogMessage')
+    fireEvent.click(screen.getByTestId('cancel-habits.detail.logDateConfirmTitle'))
+
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'unlog-child' }))
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'habits.detail.logDateConfirmPermanentUnlogMessage')
   })
 
   it.each([

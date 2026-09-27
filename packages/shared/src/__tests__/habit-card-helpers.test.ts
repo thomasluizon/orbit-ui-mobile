@@ -9,6 +9,7 @@ import {
   computeHabitFutureHint,
   computeHabitMatchBadges,
   getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -21,6 +22,24 @@ function createTranslator() {
 }
 
 describe('habit card helpers', () => {
+  it('uses permanent removal copy only for an unlog before a known child creation date', () => {
+    const child = createMockHabit({
+      parentId: 'parent-1',
+      createdAtUtc: '2025-01-08T12:00:00Z',
+      createdAtUtcIsInherited: false,
+      frequencyUnit: 'Day',
+    })
+
+    const decision = getHabitLogDateDecision(child, '2025-01-07', '2025-01-10', 'UTC', false, 'unlog')
+
+    expect(decision).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateConfirmationKeys('unlog', decision === 'confirm-permanent-unlog')).toEqual({
+      message: 'habits.detail.logDateConfirmPermanentUnlogMessage',
+      action: 'habits.detail.logDateConfirmUnlog',
+    })
+    expect(getHabitLogDateConfirmationKeys('unlog', false).message).toBe('habits.detail.logDateConfirmUnlogMessage')
+  })
+
   it('derives the overdue status for an overdue one-time task', () => {
     const habit = createMockHabit({
       isCompleted: false,
