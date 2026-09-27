@@ -239,7 +239,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               </Text>
             </Pressable>
           ) : null}
-          <Composer {...composerProps} />
+          <Composer
+            {...composerProps}
+            onInputFocus={keyboardScroll.onComposerFocus}
+            onInputBlur={keyboardScroll.onComposerBlur}
+          />
         </View>
       </View>
 

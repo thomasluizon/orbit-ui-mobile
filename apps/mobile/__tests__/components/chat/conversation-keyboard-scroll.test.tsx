@@ -31,6 +31,7 @@ describe('conversation keyboard scroll', () => {
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
       owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
+      owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       owner.controls().onLayout()
       await Promise.resolve()
@@ -58,6 +59,7 @@ describe('conversation keyboard scroll', () => {
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
       owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
+      owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       __emitKeyboardEvent('keyboardDidHide')
       await Promise.resolve()
@@ -84,6 +86,7 @@ describe('conversation keyboard scroll', () => {
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
       owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
+      owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       frames.shift()?.()
       __emitKeyboardEvent('keyboardDidHide')
@@ -92,6 +95,28 @@ describe('conversation keyboard scroll', () => {
       await Promise.resolve()
     })
     expect(owner.scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    await TestRenderer.act(async () => {
+      owner.tree.update(<></>)
+      await Promise.resolve()
+    })
+    vi.unstubAllGlobals()
+  })
+
+  it('does not leave an older focused message when its keyboard opens', async () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
+      callback(0)
+      return 0
+    })
+    const owner = await renderScrollOwner()
+    await TestRenderer.act(async () => {
+      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 80 } } })
+      owner.controls().onComposerFocus()
+      owner.controls().onComposerBlur()
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+      owner.controls().onLayout()
+      await Promise.resolve()
+    })
+    expect(owner.scrollToEnd).not.toHaveBeenCalled()
     await TestRenderer.act(async () => {
       owner.tree.update(<></>)
       await Promise.resolve()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { StyleSheet } from 'react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { __emitKeyboardEvent } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
@@ -9,8 +9,10 @@ import ProgressScreen from '@/app/(tabs)/progress'
 
 vi.mock('@/components/progress/progress-content', () => ({ ProgressContent: () => React.createElement('ProgressContent') }))
 
+const safeArea = vi.hoisted(() => ({ bottom: 24 }))
+
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }),
+  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: safeArea.bottom, left: 0 }),
   SafeAreaView: (props: Record<string, unknown>) => React.createElement('SafeAreaView', props),
 }))
 vi.mock('@/lib/theme', () => ({
@@ -30,6 +32,35 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 }
 
 describe('Shell412 mobile', () => {
+  beforeEach(() => {
+    safeArea.bottom = 24
+  })
+
+  it.each([0, 24])('handles a %s pixel navigation inset as the keyboard opens and closes', async (bottom) => {
+    safeArea.bottom = bottom
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 composer={React.createElement('Composer')} tabBar={React.createElement('TabBar')}>
+          {React.createElement('DestinationList')}
+        </Shell412>,
+      )
+    })
+    const padding = () => (
+      StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]?.props.style) as { paddingBottom?: number }
+    ).paddingBottom
+    expect(padding()).toBe(bottom)
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+    })
+    expect(padding()).toBe(0)
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidHide')
+    })
+    expect(padding()).toBe(bottom)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it.each(['today', 'calendar', 'progress', 'profile'])('keeps the %s composer and scroller under one keyboard owner', async (destination) => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

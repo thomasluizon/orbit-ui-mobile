@@ -4,6 +4,7 @@ import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Shell412 } from '@/components/shell/shell-412'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { __emitKeyboardEvent, __resetTestHostConfig } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -12,10 +13,6 @@ const mocks = vi.hoisted(() => ({
   openSettings: vi.fn(),
   setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
-  keyboardDidShow: null as null | ((event: { endCoordinates: { height: number } }) => void),
-  keyboardDidHide: null as null | (() => void),
-  removeKeyboardDidShow: vi.fn(),
-  removeKeyboardDidHide: vi.fn(),
   composer: {
     flatListRef: { current: null },
     messages: [] as ChatMessage[],
@@ -63,16 +60,6 @@ vi.mock('react-native', async (importOriginal) => {
     },
     Linking: { openSettings: (...arguments_: unknown[]) => mocks.openSettings(...arguments_) },
     Platform: { ...actual.Platform, OS: 'android' },
-    Keyboard: {
-      addListener: vi.fn((event: string, callback: unknown) => {
-        if (event === 'keyboardDidShow') {
-          mocks.keyboardDidShow = callback as typeof mocks.keyboardDidShow
-          return { remove: mocks.removeKeyboardDidShow }
-        }
-        mocks.keyboardDidHide = callback as typeof mocks.keyboardDidHide
-        return { remove: mocks.removeKeyboardDidHide }
-      }),
-    },
     FlatList: React.forwardRef<unknown, {
       data: ChatMessage[]
       renderItem: (entry: { item: ChatMessage }) => React.ReactNode
@@ -211,14 +198,14 @@ function nodeText(node: unknown): string {
 describe('ChatScreen composer recoveries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetTestHostConfig()
     mocks.composer.sendError = null
     mocks.composer.canRetryLastSend = false
     mocks.composer.messages = []
     mocks.composer.showSuggestions = true
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
-    mocks.keyboardDidShow = null
-    mocks.keyboardDidHide = null
+    mocks.composer.flatListRef.current = null
   })
 
   it.each([true, false])('keeps the composer inside Android keyboard avoidance when suggestions are %s', async (showSuggestions) => {
@@ -232,6 +219,37 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
     expect(findByType(avoidingView!, 'DestinationList')).toBeDefined()
     expect(findByType(avoidingView!, 'FlatList') === undefined).toBe(showSuggestions)
+  })
+
+  it('keeps the mounted conversation at the last message and restores its scroll offset', async () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
+      callback(0)
+      return 0
+    })
+    const scrollToEnd = vi.fn()
+    const scrollToOffset = vi.fn()
+    mocks.composer.flatListRef.current = { scrollToEnd, scrollToOffset } as never
+    mocks.composer.showSuggestions = false
+    const tree = await renderShellScreen()
+    const feed = findByType(tree.root, 'FlatList')
+    const composer = findByType(tree.root, 'Composer')
+
+    await TestRenderer.act(async () => {
+      ;(feed?.props.onScroll as (event: unknown) => void)({ nativeEvent: { contentOffset: { y: 180 } } })
+      ;(composer?.props.onInputFocus as () => void)()
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+      ;(feed?.props.onLayout as () => void)()
+      await Promise.resolve()
+    })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+
+    await TestRenderer.act(async () => {
+      __emitKeyboardEvent('keyboardDidHide')
+      ;(feed?.props.onLayout as () => void)()
+      await Promise.resolve()
+    })
+    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    vi.unstubAllGlobals()
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -372,8 +390,11 @@ describe('ChatScreen composer recoveries', () => {
     expect(avoidingView?.props.behavior).toBe('height')
     expect(composerContainer?.props.style).toMatchObject({ paddingBottom: 20 })
     expect(composerContainer?.props.style).not.toHaveProperty('marginBottom')
-    expect(mocks.keyboardDidShow).not.toBeNull()
-    expect(mocks.keyboardDidHide).not.toBeNull()
+    await TestRenderer.act(async () => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+      await Promise.resolve()
+    })
+    expect(findByType(tree.root, 'KeyboardAvoidingView')).toBeDefined()
   })
 
   afterEach(async () => {
