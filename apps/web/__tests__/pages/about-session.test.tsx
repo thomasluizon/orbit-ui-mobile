@@ -1,23 +1,42 @@
-import type { ReactNode } from 'react'
+import { use, type ReactNode } from 'react'
+import { renderToString } from 'react-dom/server'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi, afterEach } from 'vitest'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import RootLayout from '@/app/layout'
 import AppLayout from '@/app/(app)/layout'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-const mocks = vi.hoisted(() => ({ cookie: '', fetch: vi.fn(), router: { prefetch: vi.fn() } }))
+const mocks = vi.hoisted(() => ({
+  cookie: '',
+  fetch: vi.fn(),
+  pathname: '/about',
+  searchPending: false,
+  searchParams: new URLSearchParams(),
+  router: { prefetch: vi.fn(), replace: vi.fn() },
+}))
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
 vi.mock('@/app/fonts', () => ({ geist: {}, geistMono: {}, spaceGrotesk: {} }))
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
-vi.mock('next/navigation', () => ({ usePathname: () => '/about', useRouter: () => mocks.router, useSearchParams: () => new URLSearchParams() }))
-vi.mock('next/dynamic', () => ({ default: () => () => null }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => mocks.pathname,
+  useRouter: () => mocks.router,
+  useSearchParams: () => {
+    if (mocks.searchPending) use(new Promise<URLSearchParams>(() => {}))
+    return mocks.searchParams
+  },
+}))
+vi.mock('next/dynamic', () => ({
+  default: () => (props: { initialDate?: string | null }) =>
+    'initialDate' in props ? <div data-testid="create-habit-modal">{props.initialDate}</div> : null,
+}))
 vi.mock('sonner', () => ({ Toaster: () => null }))
 vi.mock('@vercel/analytics/next', () => ({ Analytics: () => null }))
 vi.mock('@vercel/speed-insights/next', () => ({ SpeedInsights: () => null }))
@@ -59,9 +78,45 @@ vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => nu
 
 beforeEach(() => {
   mocks.cookie = ''
+  mocks.pathname = '/about'
+  mocks.searchPending = false
+  mocks.searchParams = new URLSearchParams()
+  mocks.router.replace.mockClear()
   mocks.fetch.mockReset()
   vi.stubGlobal('fetch', mocks.fetch)
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
+  useUIStore.setState({ activeView: 'today', showCreateModal: false })
+})
+
+it('keeps the Today shell and content in server markup while search parameters are pending', () => {
+  mocks.pathname = '/'
+  mocks.searchPending = true
+
+  const html = renderToString(<AppLayout><p>Today content</p></AppLayout>)
+
+  expect(html).toContain('Destination shell')
+  expect(html).toContain('Today content')
+})
+
+it('opens an Astra deep link once while the shell rerenders', () => {
+  mocks.pathname = '/'
+  mocks.searchParams = new URLSearchParams({ astra: 'open' })
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
+
+  render(<AppLayout><p>Today content</p></AppLayout>)
+
+  expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
+})
+
+it('passes the selected Today date to the create modal', () => {
+  mocks.pathname = '/'
+  mocks.searchParams = new URLSearchParams({ date: '2026-08-20' })
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
+
+  render(<AppLayout><p>Today content</p></AppLayout>)
+  act(() => useUIStore.getState().setShowCreateModal(true))
+
+  expect(screen.getByTestId('create-habit-modal')).toHaveTextContent('2026-08-20')
 })
 
 it.each(['auth_token', 'refresh_token'])('restores the destination shell on a hard load of About with %s', async (cookieName) => {

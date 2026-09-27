@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import type { Profile } from '@orbit/shared/types/profile'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const mocks = vi.hoisted(() => ({
   animate: vi.fn(
@@ -56,7 +60,9 @@ vi.mock('next-intl', () => ({
     values ? `${key}:${values.days}` : key,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } : undefined }),
+  useProfile: (options?: { initialData?: Profile }) => ({
+    profile: options?.initialData ?? (mocks.profileReady ? { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } : undefined),
+  }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
@@ -130,6 +136,37 @@ describe('web Today Astra owned surfaces', () => {
     mocks.profileReady = true
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
     expect(screen.getByTestId('today-habit-list')).toBeInTheDocument()
+  })
+
+  it('renders Today content in server markup when the account profile is preloaded', () => {
+    mocks.profileReady = false
+
+    const markup = renderToString(
+      <TodayPageClient
+        initialToday="2026-08-29"
+        initialHabits={null}
+        initialProfile={profileFixture}
+      />,
+    )
+
+    expect(markup).toContain('data-testid="today-habit-list"')
+  })
+
+  it('drops the preloaded profile after the account changes', () => {
+    mocks.profileReady = false
+    render(
+      <TodayPageClient
+        initialToday="2026-08-29"
+        initialHabits={null}
+        initialProfile={profileFixture}
+      />,
+    )
+    expect(screen.getByTestId('today-habit-list')).toBeInTheDocument()
+
+    act(() => advanceAccountGeneration())
+
+    expect(screen.queryByTestId('today-habit-list')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('stands down while the create surface is open', () => {

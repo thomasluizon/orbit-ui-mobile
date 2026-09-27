@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, m, useMotionValue, useReducedMotion } from 'motion/react'
 import { motionEasings, motionDurations } from '@orbit/shared/theme'
@@ -12,7 +12,9 @@ import {
 } from './today-page-view'
 import { TodayAstra } from '@/components/today/today-astra'
 import type { TodayInitialHabits } from './today-initial-data'
+import type { Profile } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 interface TodayPageClientProps {
   initialToday: string
   initialHabits: TodayInitialHabits | null
+  initialProfile?: Profile | null
 }
 
 function TodayDayTransition({
@@ -75,9 +78,14 @@ function TodayDayTransition({
 export function TodayPageClient({
   initialToday,
   initialHabits,
+  initialProfile,
 }: Readonly<TodayPageClientProps>) {
   const t = useTranslations()
-  const { profile, isError, refetch } = useProfile()
+  const accountGeneration = useAccountGeneration()
+  const [seedAccountGeneration] = useState(accountGeneration)
+  const { profile, isError, refetch } = useProfile({
+    initialData: accountGeneration === seedAccountGeneration ? initialProfile ?? undefined : undefined,
+  })
   if (!profile) {
     return isError
       ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} />

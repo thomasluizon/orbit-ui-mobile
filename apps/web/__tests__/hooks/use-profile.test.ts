@@ -140,6 +140,21 @@ describe('useProfile', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
+  it('seeds a profile query already opened by the app shell', () => {
+    const profile = createMockProfile()
+
+    const { result } = renderHook(() => {
+      const shell = useProfile({ enabled: false })
+      const today = useProfile({ enabled: false, initialData: profile })
+      const habitList = useProfile({ enabled: false })
+      return { shell, today, habitList }
+    }, { wrapper: createWrapper() })
+
+    expect(result.current.today.profile).toEqual(profile)
+    expect(result.current.habitList.profile).toEqual(profile)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('surfaces a 401 and exposes the failed-refresh sign-in state', async () => {
     mockErrorResponse(
       401,
