@@ -21,6 +21,10 @@ export const chatClientContextSchema = z.object({
   supportsCalendarCard: z.boolean().optional(),
   supportsRecordListCard: z.boolean().optional(),
   supportsAccountRowsCard: z.boolean().optional(),
+  supportsPendingOperationChanges: z.boolean().optional(),
+  supportsToolSteps: z.boolean().optional(),
+  supportsFollowUps: z.boolean().optional(),
+  messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
 })
 
@@ -334,6 +338,8 @@ export const chatMessageSchema = z.object({
   calendarCard: calendarCardSchema.nullable().optional(),
   recordList: recordListCardSchema.nullable().optional(),
   accountRows: accountRowsCardSchema.nullable().optional(),
+  followUps: z.array(z.string()).nullable().optional(),
+  toolSteps: z.array(z.object({ domain: z.string(), access: z.string() })).optional(),
   timestamp: z.date(),
 })
 
@@ -356,6 +362,7 @@ export const chatResponseSchema = z.object({
   calendarCard: calendarCardSchema.nullable().optional(),
   recordList: recordListCardSchema.nullable().optional(),
   accountRows: accountRowsCardSchema.nullable().optional(),
+  followUps: z.array(z.string()).nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
@@ -371,6 +378,7 @@ export const chatStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('round'), iteration: z.number() }),
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
+  z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
   z.object({ type: z.literal('final'), response: chatResponseSchema }),
   z.object({
     type: z.literal('error'),

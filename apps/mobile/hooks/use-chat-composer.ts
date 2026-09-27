@@ -65,6 +65,7 @@ interface AttemptedSend {
   restoreDraftOnFailure: boolean;
   clearDraftOnSuccess: boolean;
   restoredDraftRevision: number | null;
+  messageOrigin?: 'followUp';
 }
 
 interface SelectedChatTextFile {
@@ -166,6 +167,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const pendingVoiceCommit = useRef(false);
 
   const [sendError, setSendError] = useState<string | null>(null);
+  const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([]);
+  const activeStepsRef = useRef<{ domain: string; access: string }[]>([]);
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -180,6 +183,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
    * itself, and every field added here is covered by the same subscription.
    */
   useResetOnAccountChange(() => {
+    activeStepsRef.current = [];
+    setActiveSteps([]);
     setLastFailedSend(null);
     setSendError(null);
     setSelectedImage(null);
@@ -398,6 +403,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       attempted: AttemptedSend,
       draftMessageId: string | null,
     ) => {
+      activeStepsRef.current = [];
+      setActiveSteps([]);
       setIsTyping(false);
       let failedAttempt = attempted;
       if (attempted.restoreDraftOnFailure) {
@@ -454,8 +461,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const applyFinalResponse = useCallback(
-    async (response: ChatResponse, draftMessageId: string | null) => {
+    async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[]) => {
       setIsTyping(false);
+      activeStepsRef.current = [];
+      setActiveSteps([]);
 
       const finalFields = {
         content: response.aiMessage || "",
@@ -474,6 +483,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         calendarCard: response.calendarCard,
         recordList: response.recordList,
         accountRows: response.accountRows,
+        followUps: response.followUps,
+        toolSteps,
       };
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
@@ -559,6 +570,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         supportsCalendarCard: true,
         supportsRecordListCard: true,
         supportsAccountRowsCard: true,
+        supportsPendingOperationChanges: true,
+        supportsToolSteps: true,
+        supportsFollowUps: true,
+        ...(attempted.messageOrigin ? { messageOrigin: attempted.messageOrigin } : {}),
         ...(entryPointIntent ? { entryPointIntent } : {}),
       } satisfies ChatClientContext;
       formData.append("clientContext", JSON.stringify(clientContext));
@@ -630,13 +645,18 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
               if (draftMessageId) updateMessage(draftMessageId, { content: "" });
               setIsTyping(true);
             },
+            onStep: (step) => {
+              if (!ownsAccount()) return;
+              activeStepsRef.current = [...activeStepsRef.current, step];
+              setActiveSteps(activeStepsRef.current);
+            },
           },
         );
 
         if (!ownsAccount()) return false;
 
         if (outcome.kind === "final") {
-          await applyFinalResponse(outcome.response, draftMessageId);
+          await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current);
           return true;
         }
         if (outcome.kind === "error") {
@@ -688,6 +708,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
+      activeStepsRef.current = [];
+      setActiveSteps([]);
       setSendError(null);
       setLastFailedSend(null);
 
@@ -712,7 +734,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const sendMessage = useCallback(
-    async (content?: string) => {
+    async (content?: string, messageOrigin?: 'followUp') => {
       const typedContent = content?.trim() ?? input.trim();
       const messageContent = selectedTextFile
         ? buildChatMessageWithFileContent({
@@ -751,6 +773,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
+        messageOrigin,
       };
 
       setInput("");
@@ -919,6 +942,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, [queryClient]);
 
   return {
+    activeSteps,
+    canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
+    isOnline,
     flatListRef,
     messages,
     isTyping,

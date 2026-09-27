@@ -1333,8 +1333,103 @@
       "copyError": "Não foi possível copiar o código. Tente de novo.", "shareError": "Não foi possível compartilhar o link. Tente de novo.",
       "open": "Abrir Perfil"
     },
+    "trace": {
+      "working": "a Astra está trabalhando",
+      "steps": "{count, plural, one {# etapa} other {# etapas}}",
+      "steps_one": "{count} etapa",
+      "steps_other": "{count} etapas",
+      "unknown": "Cuidando do seu pedido",
+      "account": {
+        "read": "Consultando dados da conta",
+        "write": "Atualizando dados da conta"
+      },
+      "auth": {
+        "read": "Consultando dados de acesso",
+        "write": "Atualizando dados de acesso"
+      },
+      "calendar": {
+        "read": "Consultando calendário",
+        "write": "Atualizando calendário"
+      },
+      "catalog": {
+        "read": "Consultando ações disponíveis",
+        "write": "Atualizando ações disponíveis"
+      },
+      "chat": {
+        "read": "Consultando conversa",
+        "write": "Atualizando conversa"
+      },
+      "checklists": {
+        "read": "Consultando listas de tarefas",
+        "write": "Atualizando listas de tarefas"
+      },
+      "config": {
+        "read": "Consultando configurações",
+        "write": "Atualizando configurações"
+      },
+      "gamification": {
+        "read": "Consultando progresso",
+        "write": "Atualizando progresso"
+      },
+      "goals": {
+        "read": "Consultando metas",
+        "write": "Atualizando metas"
+      },
+      "habits": {
+        "read": "Consultando hábitos",
+        "write": "Atualizando hábitos"
+      },
+      "marketing": {
+        "read": "Consultando preferências",
+        "write": "Atualizando preferências"
+      },
+      "media": {
+        "read": "Consultando mídia",
+        "write": "Atualizando mídia"
+      },
+      "memory": {
+        "read": "Consultando dados salvos",
+        "write": "Atualizando dados salvos"
+      },
+      "notifications": {
+        "read": "Consultando notificações",
+        "write": "Atualizando notificações"
+      },
+      "profile": {
+        "read": "Consultando perfil",
+        "write": "Atualizando perfil"
+      },
+      "referrals": {
+        "read": "Consultando indicações",
+        "write": "Atualizando indicações"
+      },
+      "social": {
+        "read": "Consultando conexões",
+        "write": "Atualizando conexões"
+      },
+      "subscriptions": {
+        "read": "Consultando assinatura",
+        "write": "Atualizando assinatura"
+      },
+      "support": {
+        "read": "Consultando informações de suporte",
+        "write": "Atualizando informações de suporte"
+      },
+      "sync": {
+        "read": "Consultando estado da sincronização",
+        "write": "Atualizando estado da sincronização"
+      },
+      "tags": {
+        "read": "Consultando etiquetas",
+        "write": "Atualizando etiquetas"
+      }
+    },
+    "followUps": {"label": "Próximas perguntas"},
     "preview": {
       "proposed": "Proposto pelo Astra",
+      "notSet": "Não definido",
+      "diff": "{field}: de {old} para {new}",
+      "more": "e mais {count}",
       "editItem": "Editar item",
       "editName": "Editar {name}",
       "approve": "Aprovar",

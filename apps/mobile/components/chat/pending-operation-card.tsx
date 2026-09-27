@@ -1,7 +1,7 @@
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { I18nManager, Pressable, Text, View } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -13,7 +13,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { X } from '@/components/ui/icons'
+import { ArrowRight, X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -184,7 +184,19 @@ const pendingOperationRenderers = {
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <Text accessibilityRole="text">{message}</Text>,
   actionRow: (...children) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>,
+  diffLabel: (field, oldValue, newValue, accessible) => <DiffLabel field={field} oldValue={oldValue} newValue={newValue} accessible={accessible} />,
 } satisfies PendingOperationCardRenderers
+
+function DiffLabel({ field, oldValue, newValue, accessible }: Readonly<{ field: string; oldValue: string; newValue: string; accessible: string }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <View accessible accessibilityLabel={accessible} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+    <Text style={{ color: tokens.fg1, fontSize: 14 }}>{field}:</Text>
+    <Text style={{ color: tokens.fg3, fontSize: 14 }}>{oldValue}</Text>
+    <ArrowRight accessible={false} color={tokens.fg2} size={16} strokeWidth={1.5} style={I18nManager.isRTL ? { transform: [{ rotate: '180deg' }] } : undefined} />
+    <Text style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{newValue}</Text>
+  </View>
+}
 
 export function PendingOperationCard({
   pendingOperation,

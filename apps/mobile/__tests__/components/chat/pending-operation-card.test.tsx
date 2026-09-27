@@ -11,6 +11,17 @@ import { sheetTestControls } from '../../support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
+vi.mock('react-native', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-native')>(),
+  I18nManager: { isRTL: false },
+}))
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
+  if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
+  if (key === 'chat.preview.more') return `and ${values?.count} more`
+  return key
+} }) }))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
@@ -48,6 +59,19 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it('renders field diffs with accessible old and new values', () => {
+    const { tree } = renderCard({
+      riskClass: 'Low', confirmationRequirement: 'None',
+      changes: [
+        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
+        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
+      ], changeTargetCount: 2,
+    })
+    const labels = tree.root.findAll((node: any) => typeof node.props.accessibilityLabel === 'string').map((node: any) => node.props.accessibilityLabel)
+    expect(labels).toContain('chat.operation.field.date: from chat.preview.notSet to Monday')
+    expect(labels).toContain('count: from 2 to 3')
+  })
+
   const firstItem = {
     itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', stateFingerprint: 'state-1',
     fields: [{ entityId: 'habit-1', entityName: 'Run', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' }],

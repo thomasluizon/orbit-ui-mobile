@@ -20,6 +20,8 @@ const labels: PendingOperationCardLabels = {
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', risk: 'Destructive',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
+  notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
+  more: (count) => `and ${count} more`,
 }
 
 it('labels the pending operation from its capability and risk', () => {
@@ -60,11 +62,49 @@ function createRenderers() {
     notice: (message) => message,
     actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
+    diffLabel: (_field, _oldValue, _newValue, accessible) => accessible,
   }
   return { record, render }
 }
 
 describe('pending operation card view', () => {
+  it('shows each changed field and the count of unseen targets', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        riskClass: 'Low', confirmationRequirement: 'None',
+        changes: [
+          { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
+          { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
+        ],
+        changeTargetCount: 40,
+      }),
+    })
+    expect(record.frame?.items.map((item) => item.label)).toEqual([
+      'date: from Not set to Monday',
+      'count: from 2 to 3',
+      'and 38 more',
+    ])
+    expect(record.frame?.items.every((item) => item.proposed !== true)).toBe(true)
+  })
+
+  it('counts truncated entities rather than changed fields', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        riskClass: 'Low', confirmationRequirement: 'None', changeTargetCount: 40,
+        changes: Array.from({ length: 10 }, (_, index) => ({
+          entityId: `habit-${index}`, entityName: `Habit ${index}`,
+          field: 'count', oldValue: '1', newValue: '2', valueType: 'number',
+        })),
+      }),
+    })
+    expect(record.frame?.items).toHaveLength(11)
+    expect(record.frame?.items.at(-1)?.label).toBe('and 30 more')
+  })
+
   it('offers item editing and rejection before approving a preview', () => {
     const card = createCard()
     const { record, render } = createRenderers()

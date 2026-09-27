@@ -1,18 +1,45 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
+import { chatTraceLabelKey } from '@orbit/shared/chat'
 import { AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { RefreshCw } from '@/components/ui/icons'
+import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
+import { FollowUpChips } from './follow-up-chips'
+
+function ThinkingTrace({ steps, running }: Readonly<{
+  steps: readonly { domain: string; access: string }[]
+  running: boolean
+}>) {
+  const t = useTranslations()
+  const [expanded, setExpanded] = useState(false)
+  const panelId = useId()
+  if (steps.length === 0) return null
+  const lines = steps.map((step, index) => <div key={`${step.domain}-${step.access}-${index}`} className="flex items-center gap-2 text-sm text-[var(--fg-3)]">
+    <span>{t(chatTraceLabelKey(step.domain, step.access))}</span>
+    {running && index === steps.length - 1 ? <WorkingMark /> : null}
+  </div>)
+  if (running) return <div className="flex flex-col gap-1 px-4 py-2" aria-live="off">
+    <span role="status" aria-live="polite" className="sr-only">{t('chat.trace.working')}</span>
+    {lines}
+  </div>
+  return <div className="px-4 py-2">
+    <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="min-h-11 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
+      {t('chat.trace.steps', { count: steps.length })}
+    </button>
+    <div id={panelId} hidden={!expanded} className="flex flex-col gap-1" aria-live="off">{lines}</div>
+  </div>
+}
 
 type ChatController = Omit<
   ReturnType<typeof useChatComposer>,
@@ -31,6 +58,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     streamingMessageId,
     showSuggestions,
     sendMessage,
+    activeSteps,
+    canShowFollowUps,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
@@ -114,14 +143,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         aria-live="polite"
         aria-relevant="additions text"
         aria-atomic="false"
-        aria-busy={isTyping}
+        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0}
         aria-label={t('chat.title')}
       >
         {showSuggestions && <ChatEmptyState onSelectSuggestion={(s) => void sendMessage(s)} />}
 
         {messages.map((msg) => (
+          <div key={msg.id}>
           <MessageBubble
-            key={msg.id}
             message={msg}
             animateEntry={!initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
@@ -133,7 +162,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
+          {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
+          {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
+          </div>
         ))}
+        {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
 
       </div>
 

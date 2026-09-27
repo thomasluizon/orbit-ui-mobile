@@ -235,6 +235,7 @@ function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   }
 }
 
+
 const frame = (json: string) => `data: ${json}\n\n`
 
 function finalFrame(response: ChatResponse): string {
@@ -300,6 +301,24 @@ function documentPickerAsset(
 }
 
 describe('mobile useChatComposer', () => {
+  it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(
+      frame('{"type":"step","domain":"habits","access":"read"}'),
+      frame('{"type":"step","domain":"goals","access":"write"}'),
+      finalFrame(makeChatResponse({ followUps: ['Check goals', 'Review habits'] })),
+    ))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Check goals', 'followUp') })
+    const answer = useChatStore.getState().messages.at(-1)
+    expect(answer?.toolSteps).toEqual([
+      { domain: 'habits', access: 'read' }, { domain: 'goals', access: 'write' },
+    ])
+    expect(answer?.followUps).toEqual(['Check goals', 'Review habits'])
+    const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
+  })
+
   beforeEach(() => {
     mocks.state.profile = undefined
     mocks.state.speechError = null
@@ -1459,6 +1478,8 @@ describe('mobile useChatComposer', () => {
     let send!: Promise<void>
     TestRenderer.act(() => { send = composer.current.sendMessage('Account A prompt') })
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"step","domain":"habits","access":"read"}')))
+    await vi.waitFor(() => expect(composer.current.activeSteps).toHaveLength(1))
 
     await TestRenderer.act(async () => {
       await useChatStore.getState().resetAccountScopedChat()
@@ -1479,6 +1500,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.sendError).toBeNull()
+    expect(composer.current.activeSteps).toEqual([])
   })
 
   it('finishes a live stream when only the session epoch changes', async () => {

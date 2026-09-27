@@ -1333,8 +1333,103 @@
       "copyError": "Couldn't copy the code. Try again.", "shareError": "Couldn't share the link. Try again.",
       "open": "Open Profile"
     },
+    "trace": {
+      "working": "Astra is working",
+      "steps": "{count, plural, one {# step} other {# steps}}",
+      "steps_one": "{count} step",
+      "steps_other": "{count} steps",
+      "unknown": "Working on your request",
+      "account": {
+        "read": "Reading account details",
+        "write": "Updating account details"
+      },
+      "auth": {
+        "read": "Reading sign-in details",
+        "write": "Updating sign-in details"
+      },
+      "calendar": {
+        "read": "Reading calendar",
+        "write": "Updating calendar"
+      },
+      "catalog": {
+        "read": "Reading available actions",
+        "write": "Updating available actions"
+      },
+      "chat": {
+        "read": "Reading conversation",
+        "write": "Updating conversation"
+      },
+      "checklists": {
+        "read": "Reading checklists",
+        "write": "Updating checklists"
+      },
+      "config": {
+        "read": "Reading settings",
+        "write": "Updating settings"
+      },
+      "gamification": {
+        "read": "Reading progress",
+        "write": "Updating progress"
+      },
+      "goals": {
+        "read": "Reading goals",
+        "write": "Updating goals"
+      },
+      "habits": {
+        "read": "Reading habits",
+        "write": "Updating habits"
+      },
+      "marketing": {
+        "read": "Reading preferences",
+        "write": "Updating preferences"
+      },
+      "media": {
+        "read": "Reading media",
+        "write": "Updating media"
+      },
+      "memory": {
+        "read": "Reading saved details",
+        "write": "Updating saved details"
+      },
+      "notifications": {
+        "read": "Reading notifications",
+        "write": "Updating notifications"
+      },
+      "profile": {
+        "read": "Reading profile",
+        "write": "Updating profile"
+      },
+      "referrals": {
+        "read": "Reading referrals",
+        "write": "Updating referrals"
+      },
+      "social": {
+        "read": "Reading connections",
+        "write": "Updating connections"
+      },
+      "subscriptions": {
+        "read": "Reading subscription",
+        "write": "Updating subscription"
+      },
+      "support": {
+        "read": "Reading support information",
+        "write": "Updating support information"
+      },
+      "sync": {
+        "read": "Reading sync status",
+        "write": "Updating sync status"
+      },
+      "tags": {
+        "read": "Reading tags",
+        "write": "Updating tags"
+      }
+    },
+    "followUps": {"label": "Next questions"},
     "preview": {
       "proposed": "Proposed by Astra",
+      "notSet": "Not set",
+      "diff": "{field}: from {old} to {new}",
+      "more": "and {count} more",
       "editItem": "Edit item",
       "editName": "Edit {name}",
       "approve": "Approve",

@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
     flatListRef: { current: null },
     messages: [] as ChatMessage[],
     isTyping: false,
+    activeSteps: [] as { domain: string; access: string }[],
+    canShowFollowUps: false,
     streamingMessageId: null as string | null,
     sendError: null as string | null,
     canRetryLastSend: false,
@@ -47,7 +49,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { count?: number }) =>
+    key === 'chat.trace.steps' ? `${values?.count} steps` : key }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
 vi.mock('react-native', async (importOriginal) => {
@@ -57,6 +60,7 @@ vi.mock('react-native', async (importOriginal) => {
     AccessibilityInfo: {
       ...actual.AccessibilityInfo,
       sendAccessibilityEvent: mocks.sendAccessibilityEvent,
+      announceForAccessibility: vi.fn(),
     },
     Linking: { openSettings: (...arguments_: unknown[]) => mocks.openSettings(...arguments_) },
     Platform: { ...actual.Platform, OS: 'android' },
@@ -202,6 +206,8 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.sendError = null
     mocks.composer.canRetryLastSend = false
     mocks.composer.messages = []
+    mocks.composer.activeSteps = []
+    mocks.composer.canShowFollowUps = false
     mocks.composer.showSuggestions = true
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
@@ -329,12 +335,39 @@ describe('ChatScreen composer recoveries', () => {
     })
 
     const feed = findByType(tree.root, 'FlatList')
-    expect(feed?.props.accessibilityState).toEqual({ busy: false })
+    expect(feed?.props.accessibilityState).toEqual({ busy: true })
     TestRenderer.act(() => {
       const contentChanged = feed?.props.onContentSizeChange as (() => void)
       contentChanged()
     })
     expect(mocks.composer.scrollToBottom).toHaveBeenCalledOnce()
+  })
+
+  it('collapses two tool steps on the finished message', async () => {
+    mocks.composer.showSuggestions = false
+    mocks.composer.messages = [{ id: 'answer', role: 'ai', content: 'Done', timestamp: new Date(), toolSteps: [
+      { domain: 'habits', access: 'read' }, { domain: 'other', access: 'read' },
+    ] }]
+    const tree = await renderScreen()
+    const disclosure = findByLabel(tree.root, '2 steps')
+    expect(disclosure?.props['aria-expanded']).toBe(false)
+    TestRenderer.act(() => press(disclosure))
+    expect(findByLabel(tree.root, '2 steps')?.props['aria-expanded']).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Text' && nodeText(node).includes('chat.trace.unknown'))).toHaveLength(1)
+  })
+
+  it('shows follow-ups only after the latest AI message and sends their origin', async () => {
+    mocks.composer.showSuggestions = false
+    mocks.composer.canShowFollowUps = true
+    mocks.composer.messages = [
+      { id: 'old', role: 'ai', content: 'Old', timestamp: new Date(), followUps: ['Old one', 'Old two'] },
+      { id: 'new', role: 'ai', content: 'New', timestamp: new Date(), followUps: ['Check goals', 'Review habits'] },
+    ]
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'Text' && nodeText(node).includes('Old one'))).toHaveLength(0)
+    const chip = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && nodeText(node).includes('Check goals'))[0]
+    TestRenderer.act(() => press(chip))
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Check goals', 'followUp')
   })
 
   it('retries a failed send inline', async () => {

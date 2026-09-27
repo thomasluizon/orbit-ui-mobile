@@ -5,6 +5,7 @@ export * from './pending-operation-card'
 export * from './pending-operation-card-view'
 export * from './related-surfaces'
 export * from './sse-stream'
+export * from './trace'
 export * from './account-rows-core'
 export * from './record-list-core'
 
