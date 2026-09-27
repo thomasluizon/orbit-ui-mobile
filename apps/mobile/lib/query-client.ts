@@ -2,6 +2,7 @@ import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
+import { configKeys } from '@orbit/shared/query'
 
 /**
  * Bridges AppState to TanStack Query focus so foreground refetching and
@@ -82,6 +83,7 @@ export async function persistQueryCache(): Promise<void> {
     }[] = []
     for (const query of cache) {
       if (query.state.status !== 'success') continue
+      if (query.queryKey[0] === configKeys.all[0]) continue
       serializable.push({
         queryKey: query.queryKey,
         state: {
@@ -120,6 +122,7 @@ export async function restoreQueryCache(): Promise<void> {
       return
     }
     for (const entry of parsed.entries) {
+      if (entry.queryKey[0] === configKeys.all[0]) continue
       queryClient.setQueryData(entry.queryKey, entry.state.data, {
         updatedAt: entry.state.dataUpdatedAt,
       })

@@ -70,6 +70,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+import { captureHabitLogged } from '@/lib/posthog'
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -126,6 +127,7 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
+      captureHabitLogged()
       const loggedHabit = findHabitInList(
         queryClient
           .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })

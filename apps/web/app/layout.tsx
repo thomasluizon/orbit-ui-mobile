@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from 'lucide-react'
 import { Toaster } from 'sonner'
+import { PostHogProvider } from '@/components/posthog-provider'
 import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { rubik, inter, roboto } from './fonts'
@@ -86,6 +87,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
+        <PostHogProvider>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Suspense fallback={null}>
             <NavigationHistoryTracker />
@@ -115,6 +117,7 @@ export default async function RootLayout({
             }}
           />
         </NextIntlClientProvider>
+        </PostHogProvider>
       </body>
     </html>
   )
