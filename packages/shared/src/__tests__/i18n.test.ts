@@ -117,6 +117,7 @@ describe('i18n locale parity', () => {
       expect(value, key).not.toMatch(/\b(?:o|ao|do|no|pelo) Astra\b/i)
     }
     expect(ptBR.astraRail.title).toBe('Copilota Astra')
+    expect(ptBR.astraRail.subtitle).toBe('Sua copilota de hábitos')
     expect(ptBR.upgrade.outcomes.noticing.body).toMatch(/^Ela avisa\b/)
   })
 
