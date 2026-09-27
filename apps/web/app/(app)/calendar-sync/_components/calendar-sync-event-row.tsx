@@ -38,6 +38,7 @@ export function CalendarSyncEventRow({
     event.startDate,
     event.startTime,
     event.startUtc,
+    event.recurrenceTimeZone,
   )
   const importIssueLabel = importIssue
     ? t(getCalendarSyncImportIssueMessageKey(importIssue))

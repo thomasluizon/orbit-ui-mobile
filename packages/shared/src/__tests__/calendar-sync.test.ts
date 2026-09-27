@@ -644,6 +644,7 @@ describe('calendar-sync utils', () => {
         startDate: '2026-09-14',
         startTime: '08:00',
         startUtc: '2026-09-13T23:00:00Z',
+        recurrenceTimeZone: 'Asia/Tokyo',
         endTime: null,
         isRecurring: true,
         recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
@@ -652,6 +653,7 @@ describe('calendar-sync utils', () => {
     })
 
     expect(suggestion.event.startUtc).toBe('2026-09-13T23:00:00Z')
+    expect(suggestion.event.recurrenceTimeZone).toBe('Asia/Tokyo')
   })
 
   it('converts a UTC UNTIL bound to the same local calendar date', () => {
@@ -729,6 +731,49 @@ describe('calendar-sync utils', () => {
     expect(() => buildCalendarSyncImportRequest([event])).toThrow(
       'Unsupported calendar recurrence: utc-until-offset-shift',
     )
+  })
+
+  it.each([
+    {
+      direction: 'winter to summer',
+      startDate: '2026-01-01',
+      startUtc: '2026-01-01T05:30:00Z',
+      until: '20260701T043000Z',
+      expectedEndDate: '2026-07-01',
+    },
+    {
+      direction: 'summer to winter',
+      startDate: '2026-07-01',
+      startUtc: '2026-07-01T04:30:00Z',
+      until: '20270101T043000Z',
+      expectedEndDate: '2026-12-31',
+    },
+  ])('imports a zoned UTC UNTIL bound across the $direction shift', ({
+    startDate, startUtc, until, expectedEndDate,
+  }) => {
+    const event = {
+      id: 'event-zoned-transition',
+      title: 'Midnight routine',
+      description: null,
+      startDate,
+      startTime: '00:30',
+      startUtc,
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: `RRULE:FREQ=DAILY;UNTIL=${until}`,
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+      event.recurrenceTimeZone,
+    )).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe(expectedEndDate)
   })
 
   it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {
