@@ -75,6 +75,7 @@ jobs:
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com
       - name: Record digest
         run: echo "Pushed ${IMAGE}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy production digest
