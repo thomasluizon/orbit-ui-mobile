@@ -137,18 +137,27 @@ describe('PushPrompt', () => {
     })
     mockNotificationPermission = 'default'
 
-    render(<PushPrompt />)
+    const { unmount } = render(<PushPrompt />)
 
     await waitFor(() => {
       expect(screen.getByText('pushPrompt.later')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('pushPrompt.later'))
-
     await waitFor(() => {
       const dialog = screen.getByRole('dialog')
-      expect(dialog.style.opacity).toBe('0')
+      expect(dialog.style.opacity).toBe('1')
     })
+
+    vi.useFakeTimers()
+    try {
+      fireEvent.click(screen.getByText('pushPrompt.later'))
+      expect(screen.getByRole('dialog').style.opacity).toBe('0')
+
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('hides the prompt when X button is clicked', async () => {
@@ -176,6 +185,7 @@ describe('PushPrompt', () => {
       const dialog = screen.getByRole('dialog')
       expect(dialog.style.opacity).toBe('0')
     })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('does not show prompt when already subscribed with granted permission', async () => {

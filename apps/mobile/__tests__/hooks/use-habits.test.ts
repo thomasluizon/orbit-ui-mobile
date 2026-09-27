@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createApiClientError } from '@orbit/shared'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -23,6 +24,16 @@ import {
   useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+const storage = vi.hoisted(() => ({
+  getItem: vi.fn(() => Promise.resolve(null as string | null)),
+  setItem: vi.fn(() => Promise.resolve()),
+  removeItem: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: storage }))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -319,6 +330,31 @@ function getCount(): number {
   )
 }
 
+function listInvalidationCount(): number {
+  return mocks.queryClient.invalidateQueries.mock.calls.filter((call) =>
+    JSON.stringify((call as unknown as [{ queryKey: readonly unknown[] }])[0].queryKey) ===
+      JSON.stringify(habitKeys.lists()),
+  ).length
+}
+
+type RestoreInput = string | { habitId: string; reconcileNotFound: true }
+
+function executeRestoreMutation(
+  input: RestoreInput,
+  restore: MutationConfig<unknown, RestoreInput, undefined>,
+): void {
+  void restore.mutationFn(input).then(
+    (result) => {
+      restore.onSuccess?.(result, input, undefined)
+      restore.onSettled?.(result, null, input, undefined)
+    },
+    (error: Error) => {
+      restore.onError?.(error, input, undefined)
+      restore.onSettled?.(undefined, error, input, undefined)
+    },
+  )
+}
+
 describe('mobile habit hooks', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -351,6 +387,8 @@ describe('mobile habit hooks', () => {
     mocks.showUndoToast.mockClear()
     mocks.restoreHabitMutate.mockClear()
     mocks.cancelQueuedDeleteForUndo.mockClear()
+    useOfflineSyncStore.setState({ drops: [] })
+    storage.setItem.mockClear()
   })
 
   it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
@@ -764,7 +802,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onSuccess?.(undefined, 'habit-1', undefined)
 
-    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function), undefined)
   })
 
   it('cancels an offline single delete before Undo restores the habit locally', async () => {
@@ -776,10 +814,59 @@ describe('mobile habit hooks', () => {
       'habit-1',
       { previousLists: [] },
     )
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function), 'mutation-1')
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
     expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+  })
+
+  it.each(['success', 'not-found'] as const)(
+    'reconciles a dropped single delete after the final replay response is lost and restore returns %s',
+    async (restoreOutcome) => {
+    let serverHasHabit = restoreOutcome === 'not-found'
+    mocks.runQueuedMutation.mockImplementationOnce(() => {
+      if (restoreOutcome === 'not-found') {
+        return Promise.reject(createApiClientError(404, {
+          error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND',
+        }, 'Request failed: 404'))
+      }
+      serverHasHabit = true
+      return Promise.resolve({})
+    })
+    const restore = useRestoreHabit() as unknown as MutationConfig<unknown, RestoreInput, undefined>
+    mocks.restoreHabitMutate.mockImplementationOnce((input: RestoreInput) => executeRestoreMutation(input, restore))
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string,
+      { previousLists: HabitSnapshotContext['previousLists'] }
+    >
+    const context = await mutation.onMutate?.('habit-1')
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    useOfflineSyncStore.getState().addDrop({
+      id: 'mutation-1', type: 'deleteHabit', lastError: 'response lost',
+      mutation: mocks.buildQueuedMutation({
+        type: 'deleteHabit', scope: 'habits', endpoint: API.habits.delete('habit-1'),
+        method: 'DELETE', payload: null,
+      }),
+    })
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toEqual(['mutation-1'])
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith({
+      habitId: 'habit-1', reconcileNotFound: true,
+    }))
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
+    )
+    await vi.waitFor(() => expect(listInvalidationCount()).toBe(2))
+    expect(serverHasHabit).toBe(true)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.showSuccess).toHaveBeenCalledTimes(restoreOutcome === 'success' ? 1 : 0)
   })
 
   it('leaves the habit count to the server when Undo cancels an offline single delete', async () => {
@@ -819,6 +906,36 @@ describe('mobile habit hooks', () => {
     const mutation = useRestoreHabit() as unknown as MutationConfig<unknown, string, undefined>
 
     mutation.onError?.(new Error('boom'), 'habit-1', undefined)
+
+    expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
+  })
+
+  it('invalidates lists without an error when dropped-delete restore finds a live habit', () => {
+    const mutation = useRestoreHabit() as unknown as MutationConfig<
+      unknown, { habitId: string; reconcileNotFound: true }, undefined
+    >
+    const input = { habitId: 'habit-1', reconcileNotFound: true as const }
+    const error = createApiClientError(404, {
+      error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND',
+    }, 'Request failed: 404')
+
+    mutation.onError?.(error, input, undefined)
+    mutation.onSettled?.(undefined, error, input, undefined)
+
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it.each([
+    { input: { habitId: 'habit-1', reconcileNotFound: true as const }, code: 'SERVER_ERROR' },
+    { input: 'habit-1', code: 'HABIT_NOT_FOUND' },
+  ])('keeps restore error handling for $code outside dropped-delete reconciliation', ({ input, code }) => {
+    const mutation = useRestoreHabit() as unknown as MutationConfig<unknown, typeof input, undefined>
+    const error = createApiClientError(code === 'HABIT_NOT_FOUND' ? 404 : 500, {
+      error: 'Restore failed', errorCode: code,
+    }, 'Restore failed')
+
+    mutation.onError?.(error, input, undefined)
 
     expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
   })
@@ -919,12 +1036,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
-  /**
-   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
-   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
-   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
-   * it. That gate is what dropped every reward for a habit missing from the list cache.
-   */
+  /** The server sends no XP for a bad habit; celebration still uses the cached habit type. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
@@ -951,6 +1063,31 @@ describe('mobile habit hooks', () => {
     expect(profile.currentStreak).toBe(1)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(100)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('banks server XP and refreshes the profile when the cached habit type is stale', () => {
+    seedHabitState([makeHabit({ id: 'edited-habit', isBadHabit: true })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-edited-habit',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'edited-habit' }, undefined)
+
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(125)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
   /**
@@ -986,18 +1123,22 @@ describe('mobile habit hooks', () => {
 
   it.each([
     {
-      name: 'does not celebrate a bad top-level habit completion',
-      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
-      habitId: 'bad-habit',
-      isFirstCompletionToday: true,
-      celebrates: false,
-    },
-    {
       name: 'celebrates a good top-level habit completion',
       habits: [makeHabit({ id: 'good-habit' })],
       habitId: 'good-habit',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 25,
+      expectedXp: 125,
+    },
+    {
+      name: 'does not celebrate or bank XP for a bad top-level habit completion',
+      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
     {
       name: 'celebrates a good sub-habit completion',
@@ -1008,6 +1149,20 @@ describe('mobile habit hooks', () => {
       habitId: 'good-child',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
+      name: 'does not celebrate or bank XP for a bad sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
     {
       name: 'does not celebrate an unresolvable habit completion',
@@ -1015,6 +1170,8 @@ describe('mobile habit hooks', () => {
       habitId: 'missing-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'does not celebrate a repeat completion',
@@ -1022,10 +1179,13 @@ describe('mobile habit hooks', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: false,
       celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
-  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates, xpEarned, expectedXp }) => {
     seedHabitState(habits)
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
@@ -1035,6 +1195,7 @@ describe('mobile habit hooks', () => {
       logId: 'log-streak',
       isFirstCompletionToday,
       currentStreak: 3,
+      xpEarned,
     }
 
     mutation.onSuccess?.(response, { habitId }, undefined)
@@ -1046,6 +1207,8 @@ describe('mobile habit hooks', () => {
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(expectedXp)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
@@ -1359,6 +1522,65 @@ describe('mobile habit hooks', () => {
     performUndo()
     await vi.waitFor(() => expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1']))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1')
+  })
+
+  it.each(['success', 'not-found'] as const)(
+    'reconciles a dropped bulk delete after the final replay response is lost and restore returns %s',
+    async (restoreOutcome) => {
+    seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
+    const serverHabits = new Set(restoreOutcome === 'not-found' ? ['habit-1', 'habit-2'] : [])
+    const restore = useRestoreHabit() as unknown as MutationConfig<unknown, RestoreInput, undefined>
+    for (const habitId of ['habit-1', 'habit-2']) {
+      mocks.runQueuedMutation.mockImplementationOnce(() => {
+        if (restoreOutcome === 'not-found') {
+          return Promise.reject(createApiClientError(404, {
+            error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND',
+          }, 'Request failed: 404'))
+        }
+        serverHabits.add(habitId)
+        return Promise.resolve({})
+      })
+      mocks.restoreHabitMutate.mockImplementationOnce((input: RestoreInput) => executeRestoreMutation(input, restore))
+    }
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    useOfflineSyncStore.getState().addDrop({
+      id: 'mutation-1', type: 'bulkDeleteHabits', lastError: 'response lost',
+      mutation: mocks.buildQueuedMutation({
+        type: 'bulkDeleteHabits', scope: 'habits', endpoint: API.habits.bulk,
+        method: 'DELETE', payload: { habitIds: ['habit-1', 'habit-2'] },
+      }),
+    })
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toEqual(['mutation-1'])
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'habit-1' },
+        { status: 'Success', habitId: 'habit-2' },
+      ],
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    }, ['habit-1', 'habit-2'], context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
+    )
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-1', reconcileNotFound: true })
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-2', reconcileNotFound: true })
+    await vi.waitFor(() => expect(listInvalidationCount()).toBe(3))
+    expect([...serverHabits].sort()).toEqual(['habit-1', 'habit-2'])
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.showSuccess).toHaveBeenCalledTimes(restoreOutcome === 'success' ? 2 : 0)
   })
 
   it('restores rejected bulk deletes while keeping accepted items removed', async () => {

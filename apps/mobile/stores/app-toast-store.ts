@@ -9,6 +9,7 @@ interface AppToastItem {
   variant: AppToastVariant
   actionLabel?: string
   onAction?: () => void
+  onDismiss?: () => void
 }
 
 interface AppToastStore {
@@ -18,7 +19,7 @@ interface AppToastStore {
   showError: (message: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
-  showQueued: (message: string, actionLabel?: string, onAction?: () => void) => void
+  showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => void
   triggerAction: () => void
   dismissToast: () => void
 }
@@ -30,6 +31,7 @@ function createToast(
   variant: AppToastVariant,
   actionLabel?: string,
   onAction?: () => void,
+  onDismiss?: () => void,
 ): AppToastItem {
   toastCounter += 1
 
@@ -39,6 +41,7 @@ function createToast(
     variant,
     actionLabel,
     onAction,
+    onDismiss,
   }
 }
 
@@ -109,13 +112,13 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
     }),
-  showQueued: (message, actionLabel, onAction) =>
+  showQueued: (message, actionLabel, onAction, onDismiss) =>
     set((state) => {
       const trimmedMessage = message.trim()
       if (!trimmedMessage) return state
 
       void triggerHaptic('selection')
-      const nextToast = createToast(trimmedMessage, 'queued', actionLabel, onAction)
+      const nextToast = createToast(trimmedMessage, 'queued', actionLabel, onAction, onDismiss)
       if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
@@ -126,6 +129,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
     useAppToastStore.getState().dismissToast()
   },
   dismissToast: () => {
+    const dismissed = useAppToastStore.getState().currentToast
     set((state) => {
       if (state.queue.length === 0) {
         return {
@@ -140,5 +144,6 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
         queue: remainingQueue,
       }
     })
+    dismissed?.onDismiss?.()
   },
 }))

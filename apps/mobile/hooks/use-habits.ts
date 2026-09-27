@@ -10,7 +10,7 @@ import {
   updateHabitListsForDate,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
+import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
@@ -79,6 +79,7 @@ import {
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
@@ -92,6 +93,7 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 
 function reconcileBulkCompletion(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -172,6 +174,7 @@ export function useLogHabit() {
       }),
 
     onMutate: ({ habitId, date }) => {
+      /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
@@ -295,6 +298,7 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)
@@ -424,23 +428,24 @@ export function useRestoreHabit() {
   const { t } = useTranslation()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation<void | QueuedMarker, Error, string>({
-    mutationFn: (habitId) =>
+  return useMutation<void | QueuedMarker, Error, RestoreHabitInput>({
+    mutationFn: (input) =>
       performQueuedApiMutation<void>({
         type: 'restoreHabit',
         scope: 'habits',
-        endpoint: API.habits.restore(habitId),
+        endpoint: API.habits.restore(typeof input === 'string' ? input : input.habitId),
         method: 'POST',
         payload: null,
         entityType: 'habit',
-        targetEntityId: habitId,
+        targetEntityId: typeof input === 'string' ? input : input.habitId,
       }),
 
     onSuccess: () => {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
+    onError: (error, input) => {
+      if (typeof input !== 'string' && extractBackendErrorCode(error) === 'HABIT_NOT_FOUND') return
       showError(t('undo.restoreFailed'))
     },
 
@@ -495,12 +500,16 @@ export function useDeleteHabit() {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
               void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
             }
-            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(data.queuedMutationId)
+              restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            }
+            else if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })
           return
         }
         restoreHabit.mutate(habitId)
-      })
+      }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
     onSettled: (data, error, habitId) =>
@@ -918,7 +927,10 @@ export function useBulkDeleteHabits() {
             if (outcome !== 'replayed') {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
             }
-            if (outcome === 'replayed' || outcome === 'uncertain') {
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(result.queuedMutationId)
+              for (const habitId of restoreIds) restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            } else if (outcome === 'replayed' || outcome === 'uncertain') {
               for (const habitId of restoreIds) restoreHabit.mutate(habitId)
             }
           })

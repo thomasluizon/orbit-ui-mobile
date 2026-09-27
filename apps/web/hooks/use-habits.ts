@@ -100,6 +100,7 @@ export function useLogHabit() {
     }) => logHabitAction(habitId, date ? { date } : undefined),
 
     onMutate: ({ habitId, date }) => {
+      /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
@@ -194,6 +195,7 @@ export function useSkipHabit() {
         queryKey: habitKeys.lists(),
       })
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)

@@ -163,6 +163,7 @@ vi.mock('@/lib/offline-queue', () => ({
   remove: mocks.remove,
   update: mocks.update,
   replaceEntityReferences: mocks.replaceEntityReferences,
+  subscribeQueueClear: () => () => {},
 }))
 
 vi.mock('@/stores/offline-sync-store', () => ({
@@ -1629,6 +1630,45 @@ describe('offline mutations', () => {
       expect(mocks.count()).toBe(0)
       expect(dropped).toEqual([{ id: 'bounded-retry', type: 'updateHabit' }])
       unsubscribe()
+    })
+
+    it.each([
+      { type: 'deleteHabit' as const, endpoint: '/api/habits/habit-1', payload: null },
+      { type: 'bulkDeleteHabits' as const, endpoint: '/api/habits/bulk', payload: { habitIds: ['habit-1'] } },
+    ])('reports a dropped $type to Undo when the final delete response is lost', async ({ type, endpoint, payload }) => {
+      mocks.setOnline(true)
+      const serverHabits = new Set(['habit-1'])
+      let loseFinalResponse!: () => void
+      mocks.apiClient
+        .mockRejectedValueOnce(new TypeError('Network request failed'))
+        .mockRejectedValueOnce(new TypeError('Network request failed'))
+        .mockImplementationOnce(() => new Promise((_resolve, reject) => {
+          serverHabits.delete('habit-1')
+          loseFinalResponse = () => reject(new TypeError('Network request failed'))
+        }))
+      const mutation = buildQueuedMutation({
+        type,
+        scope: 'habits',
+        endpoint,
+        method: 'DELETE',
+        payload,
+        entityType: type === 'deleteHabit' ? 'habit' : undefined,
+        targetEntityId: type === 'deleteHabit' ? 'habit-1' : undefined,
+      })
+      mocks.queued.push(mutation)
+
+      await flushQueuedMutations()
+      await vi.advanceTimersByTimeAsync(2_000)
+      const finalReplay = vi.advanceTimersByTimeAsync(4_000)
+      await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(3))
+      const undo = cancelQueuedDeleteForUndo(mutation.id)
+      expect(mocks.getById(mutation.id)?.status).toBe('syncing')
+      loseFinalResponse()
+      await finalReplay
+
+      expect(await undo).toBe('dropped')
+      expect(serverHabits.has('habit-1')).toBe(false)
+      expect(mocks.queued).toHaveLength(0)
     })
 
     it('cancelScheduledFlush prevents a pending retry from firing', async () => {

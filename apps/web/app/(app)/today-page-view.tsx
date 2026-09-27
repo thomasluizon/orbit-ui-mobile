@@ -5,14 +5,14 @@ import { useCallback } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
+import dynamic from 'next/dynamic'
 import { habitKeys } from '@orbit/shared/query'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
-import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { TodayHeader, TodayTabs, TodayDateNavigation, TodayUtilityRow } from './today-shell'
 import {
   TodayEngagementCards,
@@ -21,6 +21,9 @@ import {
   TodayHabitsListShell,
 } from './today-sections'
 import type { TodayView } from './use-today-page'
+
+const GoalsView = dynamic(() => import('@/components/goals/goals-view').then((module) => module.GoalsView))
+const ReferralDrawer = dynamic(() => import('@/components/referral/referral-drawer').then((module) => module.ReferralDrawer))
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const { nav, currentActiveView } = view
@@ -151,6 +154,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const isClient = useIsClient()
   const { selection } = view
   const count = view.selectedHabitIds.size
+  const hasOpenedReferral = useMountedAfterOpen(view.showReferral)
 
   return (
     <>
@@ -205,7 +209,9 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onCancel={() => selection.setShowBulkSkipConfirm(false)}
       />
 
-      <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />
+      {hasOpenedReferral && (
+        <ReferralDrawer open={view.showReferral} onOpenChange={view.setShowReferral} />
+      )}
     </>
   )
 }
