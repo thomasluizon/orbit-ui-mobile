@@ -1185,6 +1185,10 @@ record. An operator who meets an unexplained blocked receipt at 03:00 has no way
 receipt stays `CI_STALE` after the merge, so what ends the night is the ledger row, carrying either
 the `merged` sha or the `blocker` string. Nothing else clears it.
 
+If a pull request closes without a merge, confirm that state and write `closed: true` and a
+recorded `blocker` on its ledger identity. Do not create a readiness receipt for a closed pull
+request. Keep the row so the stop hook reports a BLOCKED ending that names it.
+
 ## Step 10. Hand over
 
 Set the actual ticket reference to In Review only from a READY receipt.
@@ -1454,11 +1458,11 @@ from:
   "sleep": true,
   "remaining": ["ORB-2", "ORB-3"],
   "pullRequests": [
-    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>","closed":false}
   ],
   "readinessLedger": [
     {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>",
-     "blocker":"<what made READY unreachable, or absent>",
+     "receiptWritten":false,"blocker":null,"closed":false,
      "merged":"<the real merge commit sha once it is merged, or absent; a left-in placeholder is refused>"}
   ]
 }
@@ -1467,15 +1471,19 @@ from:
 `pullRequests` holds repository-qualified identities and receipt paths for every pull request this
 run opened. Within one exact `sessionId`, `writeRunState` mechanically unions those identities into
 the append-only `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`.
+A confirmed close without a merge is recorded as boolean `closed: true` with a named `blocker`.
+`writeRunState` keeps that closure within the session even if a later sighting omits it. A row
+without a written receipt may end BLOCKED only with both facts. An open row without a receipt,
+or a closed row without a blocker, still refuses the stop.
 A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
 matches its repository and PR identity, and allows completion only when that receipt reports READY,
-or the row carries a `merged` sha or a `blocker` string. Those two are the other dispositions, and
+or the row carries a `merged` sha or a `blocker` string. Those are the other dispositions, and
 each is a fact the run writes down rather than a verdict it asserts: a merge sha is checkable
-against GitHub, and a blocker names what made READY unreachable. `merged` is sticky, because a merge
-cannot be undone, while a resolved `blocker` clears. The sha is checked in SHAPE, against
-`/^[0-9a-f]{7,40}$/`, by the recorder at `tools/lib/run-state.mjs:46` and by the hook at
-`.claude/hooks/_lib/rules-sleep.mjs:84`, so the template value above left unfilled records no merge
+against GitHub, and a blocker names what made READY unreachable. `merged` and `closed` are sticky,
+because neither a merge nor a closure can be undone. A closed row also keeps its blocker when a later
+sighting omits it; an open row can clear a resolved blocker. The sha is checked in SHAPE, against
+`/^[0-9a-f]{7,40}$/`, by the recorder and by the hook, so the template value above left unfilled records no merge
 at all and the row keeps blocking. A merged row also gets a terminal MERGED banner, the way a
 blocked row gets a BLOCKED one, so the ending reaches a reader.
 It reads disk alone and never calls GitHub. Whether a receipt is stale against live
@@ -1485,8 +1493,9 @@ as a finished queue even if a fallible session clears the active list.
 
 `sessionId` is what keeps yesterday's record from blocking today: a record whose session does not
 match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
-but never remove `readinessLedger`. The READY receipts let the hook distinguish completion from a
-mistakenly cleared queue, then the run may print the step 11 report.
+but never remove `readinessLedger`. READY receipts or closed rows with recorded blockers let the
+hook distinguish a completed or BLOCKED run from a mistakenly cleared queue, then the run may
+print the step 11 report.
 
 What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke

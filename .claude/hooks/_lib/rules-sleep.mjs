@@ -32,11 +32,9 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   const notReady = openPullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const blockedPullRequests = notReady.filter(hasRecordedBlocker)
   const pendingPullRequests = notReady.filter((entry) => !hasRecordedBlocker(entry))
-  /** A ledger row whose receipt file was never written is an invalid identity too. It used to read
-   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. A merged
-   * row is exempt: its receipt debt is moot once the pull request is closed by a merge, and the sha
-   * is stronger evidence than the receipt it would have replaced. */
-  const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false)
+  /** A merged row needs no receipt. A closed, unmerged row with a blocker cannot acquire one and
+   * ends BLOCKED. Every other unwritten receipt remains an invalid identity. */
+  const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false && !(entry.closed === true && hasRecordedBlocker(entry)))
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
   if (orphanedWakeSources.length > 0) {
@@ -123,10 +121,10 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       "If a NAMED blocker makes READY unreachable, that is a legitimate ending and there is now a\n" +
       "state for it. Record a machine-readable `blocker` string on that pull request's ledger entry\n" +
       "and the run may end as BLOCKED, reported as blocked rather than as finished. Writing the\n" +
-      "blocker down is the whole bar: a blocker is a fact this run records, never a verdict it\n" +
-      "asserts about its own work.\n\n" +
-      "If the pull request was MERGED, it is finished and neither state above describes it. Record\n" +
-      "its merge commit sha as the `merged` string on that ledger entry. A merge closes the row for\n" +
-      "good, which is what a receipt waiting on a check that will never publish cannot do.",
+      "blocker down is the whole bar for a live pull request. If it closed without a merge and\n" +
+      "cannot have a receipt, also record `closed: true` from that fact. A blocker is a fact this\n" +
+      "run records, never a verdict it asserts about its own work.\n\n" +
+      "If the pull request was MERGED, record its merge commit sha as the `merged` string on that\n" +
+      "ledger entry. A merge closes the row for good, even when a receipt cannot become READY.",
   }
 }
