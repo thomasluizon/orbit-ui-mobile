@@ -418,6 +418,13 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     )
   })
 
+  it.each(['habit', 'subHabit'] as const)('maps raw sub-habit title errors in %s context', (context) => {
+    const required = createApiClientError(400, { error: 'Sub-habit title must not be empty' }, 'fallback')
+    const tooLong = createApiClientError(400, { error: 'Sub-habit title must not exceed 200 characters' }, 'fallback')
+    expect(getFriendlyErrorKey(required, 'errors.generic', context)).toBe('habits.form.subHabitTitleRequired')
+    expect(getFriendlyErrorKey(tooLong, 'errors.generic', context)).toBe('habits.form.subHabitTitleTooLong')
+  })
+
   it('maps linked goals limit for habit', () => {
     const err = validationFailure('GoalIds', 'A habit can have at most 10 linked goals.')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.goalLimit')

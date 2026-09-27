@@ -305,6 +305,9 @@ function getContextualMessageKey(
     if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
   }
 
+  if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
+    return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
+  }
   if (
     normalizedMessage.includes('title') &&
     normalizedMessage.includes(String(MAX_HABIT_TITLE_LENGTH))
