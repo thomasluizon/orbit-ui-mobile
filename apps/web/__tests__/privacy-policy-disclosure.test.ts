@@ -140,14 +140,16 @@ describe('privacy policy disclosures', () => {
     expect(en.privacy.dataResidency.body).toContain('United States')
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
     expect(en.privacy.dataResidency.body).toContain(
-      "Orbit's database, backend application servers, and web application are hosted with Render",
+      'Vercel hosts the web application on its global network',
     )
     expect(ptBR.privacy.dataResidency.body).toContain(
-      'O banco de dados, os servidores de aplicação e o aplicativo web do Orbit ficam na Render',
+      'A Vercel hospeda o aplicativo web em sua rede global',
     )
-    expect(en.privacy.dataResidency.body).toContain('International transfers to Render')
+    expect(en.privacy.dataResidency.body).toContain('PostgreSQL')
+    expect(ptBR.privacy.dataResidency.body).toContain('PostgreSQL')
+    expect(en.privacy.dataResidency.body).toContain('International transfers to Vercel')
     expect(ptBR.privacy.dataResidency.body).toContain(
-      'As transferências internacionais para a Render',
+      'As transferências internacionais para a Vercel',
     )
     expect(en.privacy.lastUpdated).toBe('Last updated: August 2026')
     expect(ptBR.privacy.lastUpdated).toBe('Última atualização: agosto de 2026')
