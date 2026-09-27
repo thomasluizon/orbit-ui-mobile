@@ -365,14 +365,14 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.subHabitLimit')
   })
 
-  it('maps sub-habit title required error', () => {
-    const err = createApiClientError(400, { error: 'Sub-habit title cannot be empty' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.subHabitTitleRequired')
+  it.each(['habit', 'subHabit'] as const)('maps sub-habit title required error in %s context', (context) => {
+    const err = createApiClientError(400, { error: 'Sub-habit title must not be empty' }, 'fallback')
+    expect(getFriendlyErrorKey(err, 'errors.generic', context)).toBe('habits.form.subHabitTitleRequired')
   })
 
-  it('maps sub-habit title too long via title+200 check', () => {
-    const err = createApiClientError(400, { error: 'Sub-habit title must be at most 200 characters' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.titleTooLong')
+  it.each(['habit', 'subHabit'] as const)('maps sub-habit title too long error in %s context', (context) => {
+    const err = createApiClientError(400, { error: 'Sub-habit title must not exceed 200 characters' }, 'fallback')
+    expect(getFriendlyErrorKey(err, 'errors.generic', context)).toBe('habits.form.subHabitTitleTooLong')
   })
 
   it('maps linked goals limit for habit', () => {

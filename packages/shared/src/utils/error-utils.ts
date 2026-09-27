@@ -297,16 +297,16 @@ function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
 ): string | null {
+  for (const rule of CONTEXTUAL_RULES) {
+    if (rule.contexts && !rule.contexts.has(context)) continue
+    if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
+  }
+
   if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
     return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
   }
   if (normalizedMessage.includes('title') && normalizedMessage.includes('200')) {
     return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
-  }
-
-  for (const rule of CONTEXTUAL_RULES) {
-    if (rule.contexts && !rule.contexts.has(context)) continue
-    if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
   }
 
   return null
