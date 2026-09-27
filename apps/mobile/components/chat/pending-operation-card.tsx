@@ -12,12 +12,66 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { isPendingOperationEditableField } from '@orbit/shared/hooks'
+import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
 import { X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { MAX_CHECKLIST_ITEMS, MAX_SCHEDULED_REMINDERS } from '@orbit/shared/validation'
+
+function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<{
+  field: string
+  row: Record<string, unknown>
+  rowLabel: string
+  labels: PendingOperationEditSheetProps['labels']
+  busy: boolean
+  change: (key: string, value: string | boolean) => void
+}>) {
+  if (field === 'checklist_items') return <>
+    <Input label={rowLabel} value={typeof row.text === 'string' ? row.text : ''} onChange={(next) => change('text', next)} disabled={busy} />
+    <Switch label={`${rowLabel}: ${labels.checked}`} checked={row.is_checked === true} onChange={(next) => change('is_checked', next)} disabled={busy} />
+  </>
+  if (field === 'scheduled_reminders') return <>
+    <RadioGroup accessibilityLabel={`${rowLabel}: ${labels.reminderWhen}`}>
+    {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
+    {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
+    </RadioGroup>
+    <Input label={`${rowLabel}: ${labels.reminderTime}`} value={typeof row.time === 'string' ? row.time : ''} onChange={(next) => change('time', next)} disabled={busy} />
+  </>
+  return <Input label={rowLabel} value={typeof row.value === 'string' || typeof row.value === 'number' ? String(row.value) : ''} onChange={(next) => change('value', next)} disabled={busy} kind="number" />
+}
+
+function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readonly<{
+  field: string
+  value: string
+  labels: PendingOperationEditSheetProps['labels']
+  busy: boolean
+  error: string | undefined
+  onChange: (value: string) => void
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const fieldLabel = labels.fieldLabels[field] ?? field
+  const rows = pendingOperationListRows(value)
+  const limit = field === 'checklist_items' ? MAX_CHECKLIST_ITEMS : field === 'scheduled_reminders' ? MAX_SCHEDULED_REMINDERS : undefined
+  const atLimit = limit !== undefined && rows.length >= limit
+  return <View style={{ gap: 12 }}>
+    <Text style={{ color: tokens.fg1 }}>{fieldLabel}</Text>
+    {error ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{labels.invalid}</Text> : null}
+    {rows.map((entry, index) => {
+      const row = typeof entry === 'object' && entry !== null ? entry as Record<string, unknown> : { value: entry }
+      const rowLabel = `${fieldLabel} ${index + 1}`
+      return <View key={`${field}-${index}`} style={{ gap: 8 }}>
+        <View style={{ alignItems: 'flex-end' }}><RemoveItemButton label={`${labels.remove} ${rowLabel}`} disabled={busy} onClick={() => onChange(removePendingOperationListRow(value, index))} /></View>
+        <ListRowFields field={field} row={row} rowLabel={rowLabel} labels={labels} busy={busy} change={(key, next) => onChange(changePendingOperationListRow(value, index, key, next))} />
+      </View>
+    })}
+    <Button size="sm" variant="ghost" disabled={busy || atLimit} onClick={() => onChange(addPendingOperationListRow(value, field))}>{labels.addListRow}</Button>
+    {atLimit ? <Text style={{ color: tokens.fg2 }}>{field === 'checklist_items' ? labels.checklistLimit : labels.scheduledLimit}</Text> : null}
+  </View>
+}
 
 function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string; disabled: boolean; onClick: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -55,6 +109,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           : <RadioRow key={entry.itemId} label={entry.entityName} selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</View></View> : null}
       {item.fields.filter(isPendingOperationEditableField).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
+        if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
         if (field.valueType === 'boolean') return <View key={field.field} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><Switch label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} /></View>
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
@@ -135,6 +190,7 @@ export function PendingOperationCard({
   pendingOperation,
   onConfirmExecute,
   onRevise,
+  onRefresh,
   onPrepareStepUp,
   onVerifyStepUp,
 }: Readonly<PendingOperationCardAdapterProps>) {
@@ -144,6 +200,7 @@ export function PendingOperationCard({
     pendingOperation={pendingOperation}
     onConfirmExecute={onConfirmExecute}
     onRevise={onRevise}
+    onRefresh={onRefresh}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
     render={pendingOperationRenderers}

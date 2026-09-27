@@ -50,6 +50,7 @@ export function MessageBubble({
   onBreakdownConfirmed,
   onActionChipClick,
   onPendingOperationRevise,
+  onPendingOperationRefresh,
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
@@ -237,6 +238,7 @@ export function MessageBubble({
                 key={pendingOperation.id}
                 pendingOperation={pendingOperation}
                 onRevise={onPendingOperationRevise}
+                onRefresh={onPendingOperationRefresh}
                 onConfirmExecute={onPendingOperationConfirmExecute}
                 onPrepareStepUp={onPendingOperationPrepareStepUp}
                 onVerifyStepUp={onPendingOperationVerifyStepUp}

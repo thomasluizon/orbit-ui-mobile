@@ -132,6 +132,7 @@ export const API = {
     surfaces: '/api/ai/surfaces',
     pendingOperationConfirm: (id: string) => `/api/ai/pending-operations/${id}/confirm` as const,
     pendingOperationRevise: (id: string) => `/api/ai/pending-operations/${id}/revise` as const,
+    pendingOperationRefresh: (id: string) => `/api/ai/pending-operations/${id}/preview/refresh` as const,
     pendingOperationStepUp: (id: string) => `/api/ai/pending-operations/${id}/step-up` as const,
     pendingOperationVerifyStepUp: (id: string) =>
       `/api/ai/pending-operations/${id}/step-up/verify` as const,

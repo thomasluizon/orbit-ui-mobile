@@ -124,16 +124,15 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 
   if (frameProps.state === 'stale') {
     return (
-      <div className="flex shrink-0 items-center gap-3 text-sm text-[var(--fg-2)]">
-        <span className="min-w-0 flex-1">{frameProps.staleMessage}</span>
-        <button
+      <div className="flex shrink-0 justify-end text-sm text-[var(--fg-2)]">
+        {frameProps.onRefresh ? <button
           className="flex min-h-11 items-center gap-2 rounded-[8px] px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
           onClick={frameProps.onRefresh}
           type="button"
         >
           <RefreshCw aria-hidden="true" size={20} strokeWidth={1.5} />
-          <span>{t('refresh')}</span>
-        </button>
+          <span>{frameProps.refreshLabel ?? t('refresh')}</span>
+        </button> : null}
       </div>
     )
   }
@@ -184,6 +183,9 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         ) : null}
         {props.risk}
       </header>
+      <p role="status" aria-live="polite" className={props.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
+        {props.state === 'stale' ? props.staleMessage : ''}
+      </p>
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (

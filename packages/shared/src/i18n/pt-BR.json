@@ -1367,7 +1367,20 @@
       "remove": "Remover",
       "rejected": "Recusado:",
       "invalid": "Confira os valores editados e tente novamente.",
-      "stale": "Esta prévia mudou. Peça ao Astra para prepará-la novamente.",
+      "stale": "Esta prévia mudou desde que o Astra a preparou.",
+      "refresh": "Atualizar prévia",
+      "refreshFailed": "Não foi possível atualizar. Tente novamente.",
+      "staleUnavailable": "Não é mais possível atualizar esta prévia. Peça ao Astra para prepará-la novamente.",
+      "list": {
+        "add": "Adicionar item",
+        "checklistLimit": "Limite de 50 itens. Remova um para adicionar outro.",
+        "scheduledLimit": "Limite de 5 lembretes. Remova um para adicionar outro.",
+        "checked": "Concluído",
+        "when": "Quando",
+        "sameDay": "No mesmo dia",
+        "dayBefore": "No dia anterior",
+        "time": "Horário"
+      },
       "field": {
         "title": "Nome",
         "description": "Descrição",
@@ -1388,7 +1401,7 @@
         "enabled": "Ativado",
         "is_completed": "Concluído",
         "reminder_enabled": "Lembrete ativado",
-        "reminder_times": "Horários dos lembretes",
+        "reminder_times": "Minutos antes do horário",
         "scheduled_reminders": "Lembretes agendados"
       },
       "confirmTitle": "Aprovar esta mudança?",

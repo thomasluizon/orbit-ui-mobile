@@ -3,6 +3,7 @@ import type { AgentExecuteOperationResponse } from '../types/ai'
 export type PendingOperationExecutionResult = {
   ok: boolean
   error?: string
+  stale?: boolean
   response?: AgentExecuteOperationResponse
 }
 
@@ -13,7 +14,7 @@ export type PreparedPendingOperationStepUp = {
 
 export type PendingOperationStepUpPreparationResult =
   | { ok: true; challengeId: string; confirmationToken: string }
-  | { ok: false; error?: string }
+  | { ok: false; error?: string; stale?: boolean }
 
 export type PendingOperationCardStatus = 'done' | 'failed' | undefined
 
