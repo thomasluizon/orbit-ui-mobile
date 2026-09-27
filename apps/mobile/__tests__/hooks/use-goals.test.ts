@@ -480,7 +480,7 @@ describe('mobile goal hooks', () => {
 
     mutation.onSuccess?.(undefined, 'goal-1', undefined)
 
-    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.goalDeleted', expect.any(Function))
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.goalDeleted', expect.any(Function), undefined)
   })
 
   it('cancels an offline goal delete before Undo restores the goal locally', async () => {
@@ -490,6 +490,7 @@ describe('mobile goal hooks', () => {
     mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' }, 'goal-1', { previousLists: [] },
     )
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.goalDeleted', expect.any(Function), 'mutation-1')
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))

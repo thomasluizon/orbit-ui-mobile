@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { View, Text, } from "react-native";
 import { X, Plus, Bell } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
@@ -16,6 +16,9 @@ interface ReminderSectionProps {
   onReminderTimesChange: (times: number[]) => void;
   onToggleReminder: () => void;
   reminderLabel: (minutes: number) => string;
+  children?: ReactNode;
+  scheduledReminderCount?: number;
+  onValidationError?: (message: string) => void;
 }
 
 export function ReminderSection({
@@ -25,6 +28,9 @@ export function ReminderSection({
   onReminderTimesChange,
   onToggleReminder,
   reminderLabel,
+  children,
+  scheduledReminderCount = 0,
+  onValidationError,
 }: Readonly<ReminderSectionProps>) {
   const { t } = useTranslation();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
@@ -32,14 +38,20 @@ export function ReminderSection({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customValue, setCustomValue] = useState("");
   const [customUnit, setCustomUnit] = useState<"min" | "hours" | "days">("min");
+  const [customDirection, setCustomDirection] = useState<"before" | "after">("before");
   const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
   const availablePresets = useMemo(
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   );
+  const atLimit = reminderTimes.length + scheduledReminderCount >= 15;
 
   function addPreset(value: number) {
+    if (reminderTimes.length + scheduledReminderCount >= 15) {
+      onValidationError?.(t("habits.form.relativeReminderMax"));
+      return;
+    }
     if (!reminderTimes.includes(value)) {
       onReminderTimesChange([...reminderTimes, value].sort((a, b) => b - a));
     }
@@ -48,11 +60,22 @@ export function ReminderSection({
 
   function addCustomReminder() {
     const num = Number(customValue);
-    if (!num || num <= 0) return;
+    if (!Number.isInteger(num) || num <= 0) {
+      onValidationError?.(t("habits.form.invalidRelativeReminder"));
+      return;
+    }
     let multiplier = 1;
     if (customUnit === "days") multiplier = 1440;
     else if (customUnit === "hours") multiplier = 60;
-    const minutes = num * multiplier;
+    const minutes = num * multiplier * (customDirection === "after" ? -1 : 1);
+    if (minutes < -1439 || minutes > 10080) {
+      onValidationError?.(t("habits.form.invalidRelativeReminder"));
+      return;
+    }
+    if (reminderTimes.length + scheduledReminderCount >= 15) {
+      onValidationError?.(t("habits.form.relativeReminderMax"));
+      return;
+    }
     if (!reminderTimes.includes(minutes)) {
       onReminderTimesChange([...reminderTimes, minutes].sort((a, b) => b - a));
     }
@@ -99,9 +122,9 @@ export function ReminderSection({
                   {reminderLabel(time)}
                 </Text>
                 <Pressable
-                  disabled={reminderTimes.length <= 1}
+                  disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   style={({ pressed }) => [
-                    reminderTimes.length <= 1 && { opacity: 0.45 },
+                    reminderTimes.length + scheduledReminderCount <= 1 && { opacity: 0.45 },
                     pressed && { transform: [{ scale: 0.96 }] },
                   ]}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
@@ -114,13 +137,14 @@ export function ReminderSection({
               </View>
             ))}
           </View>
-          {reminderTimes.length === 1 ? (
+          {reminderTimes.length === 1 && scheduledReminderCount === 0 ? (
             <Text style={sectionStyles.hintText}>
               {t("habits.form.reminderLastRequired")}
             </Text>
           ) : null}
 
-          <Pressable
+          {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax")}</Text> : null}
+          {!atLimit ? <Pressable
             style={({ pressed }) => [
               sectionStyles.addButton,
               pressed && { transform: [{ scale: 0.96 }] },
@@ -136,9 +160,9 @@ export function ReminderSection({
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>
-          </Pressable>
+          </Pressable> : null}
 
-          {showAddReminder && (
+          {showAddReminder && !atLimit && (
             <View style={sectionStyles.dropdown}>
               {availablePresets.map((preset) => (
                 <Pressable
@@ -195,6 +219,28 @@ export function ReminderSection({
                       </Pressable>
                     ))}
                   </View>
+                  <View style={sectionStyles.unitRow}>
+                    {(["before", "after"] as const).map((direction) => (
+                      <Pressable
+                        key={direction}
+                        style={[
+                          sectionStyles.unitButton,
+                          customDirection === direction && sectionStyles.unitButtonActive,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: customDirection === direction }}
+                        hitSlop={{ top: 6, bottom: 6 }}
+                        onPress={() => setCustomDirection(direction)}
+                      >
+                        <Text style={[
+                          sectionStyles.unitButtonText,
+                          customDirection === direction && sectionStyles.unitButtonTextActive,
+                        ]}>
+                          {t(direction === "before" ? "habits.form.reminderBefore" : "habits.form.reminderAfter")}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                   <Pressable
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
@@ -226,6 +272,7 @@ export function ReminderSection({
               </Pressable>
             </View>
           )}
+          {children}
         </View>
       )}
     </View>

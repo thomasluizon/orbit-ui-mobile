@@ -10,7 +10,7 @@ import {
   profileKeys,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
+import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
@@ -92,6 +92,7 @@ import {
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
@@ -110,6 +111,7 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 type LogHabitSnapshot = {
   previousLists: HabitListSnapshots
   previousLogs: HabitLog[] | undefined
@@ -122,9 +124,23 @@ type OfflineBulkMutationOutcome<TResponse> = TResponse & {
 
 type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
   hasConfirmedSuccess: boolean
+  queuedIds: string[]
+}
+type BulkSkipMutationOutcome = OfflineBulkMutationOutcome<BulkSkipResult> & {
+  queuedIds: string[]
 }
 type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> & {
   queuedDeletes: { habitId: string; mutationId: string }[]
+}
+
+function refreshProfileAfterLog(
+  queryClient: ReturnType<typeof useQueryClient>,
+  response: LogHabitResponse,
+  intent: 'log' | 'unlog',
+): void {
+  if (intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
+    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+  }
 }
 
 function selectedDescendantsInSnapshots(
@@ -412,8 +428,7 @@ export function useLogHabit() {
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
       }
-
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      refreshProfileAfterLog(queryClient, response, variables.intent)
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -460,6 +475,7 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)
@@ -606,23 +622,24 @@ export function useRestoreHabit() {
   const { t } = useTranslation()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation<void | QueuedMarker, Error, string>({
-    mutationFn: (habitId) =>
+  return useMutation<void | QueuedMarker, Error, RestoreHabitInput>({
+    mutationFn: (input) =>
       performQueuedApiMutation<void>({
         type: 'restoreHabit',
         scope: 'habits',
-        endpoint: API.habits.restore(habitId),
+        endpoint: API.habits.restore(typeof input === 'string' ? input : input.habitId),
         method: 'POST',
         payload: null,
         entityType: 'habit',
-        targetEntityId: habitId,
+        targetEntityId: typeof input === 'string' ? input : input.habitId,
       }),
 
     onSuccess: () => {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
+    onError: (error, input) => {
+      if (typeof input !== 'string' && extractBackendErrorCode(error) === 'HABIT_NOT_FOUND') return
       showError(t('undo.restoreFailed'))
     },
 
@@ -694,12 +711,16 @@ export function useDeleteHabit() {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
               void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
             }
-            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(data.queuedMutationId)
+              restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            }
+            else if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })
           return
         }
         restoreHabit.mutate(habitId)
-      })
+      }, isQueuedResult(data) ? data.queuedMutationId : undefined)
     },
 
     onSettled: (data, error, habitId) => {
@@ -1036,6 +1057,7 @@ export function useBulkCreateHabits() {
           reminderEnabled: habit.reminderEnabled ?? undefined,
           reminderTimes: habit.reminderTimes ?? undefined,
           scheduledReminders: habit.scheduledReminders ?? undefined,
+          relativeReminders: habit.relativeReminders ?? undefined,
           checklistItems: habit.checklistItems ?? undefined,
           subHabits: habit.subHabits?.map((subHabit) => subHabit.title) ?? undefined,
           endDate: habit.endDate ?? undefined,
@@ -1136,6 +1158,7 @@ export function useBulkDeleteHabits() {
         result.results.flatMap((item) => item.status === 'Failed' ? [item.habitId] : []),
       )
       for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
+      for (const queued of result.queuedDeletes) failedIds.add(queued.habitId)
       if (failedIds.size > 0) {
         for (const [key, snapshot] of context.previousLists) {
           if (!snapshot) continue
@@ -1152,6 +1175,7 @@ export function useBulkDeleteHabits() {
           const queuedByHabit = new Map(result.queuedDeletes.map(({ habitId, mutationId }) => [habitId, mutationId]))
           const locallyRestored = new Set<string>()
           const serverRestoreIds = new Set<string>()
+          const droppedRestoreIds = new Set<string>()
           await Promise.all(deleted.map(async (item) => {
             const mutationId = queuedByHabit.get(item.habitId)
             if (!mutationId) {
@@ -1160,6 +1184,11 @@ export function useBulkDeleteHabits() {
             }
             const outcome = await cancelQueuedDeleteForUndo(mutationId)
             if (outcome !== 'replayed') locallyRestored.add(item.habitId)
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(mutationId)
+              droppedRestoreIds.add(item.habitId)
+              serverRestoreIds.add(item.habitId)
+            }
             if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
           }))
           for (const [key, snapshot] of context.previousLists) {
@@ -1174,7 +1203,11 @@ export function useBulkDeleteHabits() {
           }
           const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, serverRestoreIds)
           for (const habitId of serverRestoreIds) {
-            if (!selectedDescendants.has(habitId)) restoreHabit.mutate(habitId)
+            if (!selectedDescendants.has(habitId)) {
+              restoreHabit.mutate(droppedRestoreIds.has(habitId)
+                ? { habitId, reconcileNotFound: true }
+                : habitId)
+            }
           }
         })()
       })
@@ -1202,6 +1235,7 @@ export function useBulkLogHabits() {
       const results: BulkLogResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
       let hasConfirmedSuccess = false
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
@@ -1224,6 +1258,7 @@ export function useBulkLogHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
           if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
             hasConfirmedSuccess = true
           }
@@ -1237,7 +1272,7 @@ export function useBulkLogHabits() {
           }
         }
       }
-      return { results, ambiguousIds, offlineFailureIds, hasConfirmedSuccess }
+      return { results, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
     },
 
     onMutate: async (items) => {
@@ -1270,10 +1305,13 @@ export function useBulkLogHabits() {
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
 
       for (const result of data.results) {
         if (result.status !== 'Success') continue
+        if (data.queuedIds.includes(result.habitId)) continue
         const item = variables[result.index]
         if (!item) continue
         useReviewReminderStore
@@ -1294,7 +1332,7 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    OfflineBulkMutationOutcome<BulkSkipResult>,
+    BulkSkipMutationOutcome,
     Error,
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
@@ -1303,6 +1341,7 @@ export function useBulkSkipHabits() {
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
@@ -1323,6 +1362,7 @@ export function useBulkSkipHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error: unknown) {
           const failedIds = chunk.map((item) => item.habitId)
@@ -1333,7 +1373,7 @@ export function useBulkSkipHabits() {
           }
         }
       }
-      return { results, ambiguousIds, offlineFailureIds }
+      return { results, ambiguousIds, offlineFailureIds, queuedIds }
     },
 
     onMutate: async (items) => {
@@ -1363,6 +1403,8 @@ export function useBulkSkipHabits() {
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 

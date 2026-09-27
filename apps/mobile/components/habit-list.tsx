@@ -80,6 +80,7 @@ import {
   type DragItem,
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
+import { subscribeBulkReplaySuccesses } from '@/lib/bulk-replay-events'
 
 interface HabitListProps {
   view?: 'today'
@@ -1012,6 +1013,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [habitsById, markRecentlyCompleted, recordHabitResolution, selectedDateStr, settleParentAutomatically])
 
+    useEffect(() => subscribeBulkReplaySuccesses((success) => {
+      const available = promptDataRef.current?.habitsById
+      const matched = success.items.filter((item) =>
+        item.date === selectedDateStr && available?.has(item.habitId))
+      const remaining = success.items.filter((item) =>
+        item.date !== selectedDateStr || !available?.has(item.habitId))
+      if (matched.length > 0) {
+        const mode = success.type === 'bulkLogHabits' ? 'log' : 'skip'
+        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr)
+        const selection = useUIStore.getState()
+        if (selection.isSelectMode) {
+          const resolvedIds = new Set(matched.map((item) => item.habitId))
+          const stillSelected = [...selection.selectedHabitIds].filter((id) => !resolvedIds.has(id))
+          if (stillSelected.length < selection.selectedHabitIds.size) {
+            if (stillSelected.length > 0) selection.selectAllHabits(stillSelected)
+            else selection.clearSelection()
+          }
+        }
+      }
+      return remaining.length === success.items.length ? false : remaining
+    }), [habitsById, selectedDateStr, settleBulkHabitResolutions])
+
     const confirmParentSettlement = useCallback(async () => {
       const settlementData = promptDataRef.current
       const confirmedResolutions = confirmedResolutionsRef.current
@@ -1413,11 +1436,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         allCollapsed,
         allLoadedIds,
         checkAndPromptParentLog,
+        settleBulkHabitResolutions,
         collapseAll,
         expandAll,
         markRecentlyCompleted,
         refetch,
-        settleBulkHabitResolutions,
       ],
     )
 

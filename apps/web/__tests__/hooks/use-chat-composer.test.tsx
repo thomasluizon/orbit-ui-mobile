@@ -46,6 +46,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/components/shell/destination-shell', () => ({
   DestinationShell: ({ composer }: { composer: React.ReactNode }) => <main>{composer}</main>,

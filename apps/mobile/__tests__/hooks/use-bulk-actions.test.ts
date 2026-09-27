@@ -1,9 +1,9 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
+import type { HabitListHandle } from '@/components/habit-list'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import type { HabitListHandle } from '@/components/habit-list'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -75,7 +75,7 @@ function renderBulkActions(
     tree = TestRenderer.create(React.createElement(Probe))
   })
   return {
-    captured, onSuccess, onPartialFailure, settleBulkHabitResolutions,
+    captured, onSuccess, onPartialFailure, settleBulkHabitResolutions, habitListRef,
     setCompletionReadOnly(value: boolean) {
       currentCompletionReadOnly = value
       TestRenderer.act(() => tree.update(React.createElement(Probe)))
@@ -86,6 +86,47 @@ function renderBulkActions(
 function bulkSuccess(ids: string[]) {
   return { results: ids.map((habitId) => ({ habitId, status: 'Success' as const })) }
 }
+
+describe('useBulkActions replay acknowledgement', () => {
+  beforeEach(() => {
+    bulkLog.mutateAsync.mockReset()
+    bulkSkip.mutateAsync.mockReset()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('keeps queued bulk %s pending until the server confirms it', async (
+    mode, mutation, action,
+  ) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      queuedIds: ['child'],
+      results: [{ index: 0, status: 'Success', habitId: 'child' }],
+    })
+    const { captured, habitListRef } = renderBulkActions(new Set(['child']))
+
+    await TestRenderer.act(async () => { await captured.current![action]() })
+
+    expect(mutation.mutateAsync).toHaveBeenCalledWith([
+      { habitId: 'child', date: VIEWED_DATE },
+    ])
+    expect(habitListRef.current?.settleBulkHabitResolutions).not.toHaveBeenCalled()
+  })
+
+  it('settles only accepted bulk log items', async () => {
+    bulkLog.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Success', habitId: 'accepted' },
+      { index: 1, status: 'Failed', habitId: 'rejected' },
+    ] })
+    const { captured, habitListRef } = renderBulkActions(new Set(['accepted', 'rejected']))
+
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkLog() })
+
+    expect(habitListRef.current?.settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'accepted', mode: 'log' }], VIEWED_DATE,
+    )
+  })
+})
 
 describe('useBulkActions confirmBulkDelete', () => {
   beforeEach(() => {

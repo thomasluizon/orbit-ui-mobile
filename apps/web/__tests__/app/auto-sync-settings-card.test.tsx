@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 import { act } from '@testing-library/react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -45,13 +46,6 @@ vi.mock('@/hooks/use-calendar-auto-sync', async (importOriginal) => {
 vi.mock('@/lib/actions/calendar', () => ({
   setCalendarAutoSync: (...args: unknown[]) => hoisted.setAutoSyncAction(...args),
   runCalendarSyncNow: (...args: unknown[]) => hoisted.runSyncNowAction(...args),
-}))
-
-vi.mock('@orbit/shared/utils', () => ({
-  formatCalendarAutoSyncLastSynced: () => 'last synced just now',
-  getFriendlyErrorMessage: () => 'friendly-error',
-  isCalendarAutoSyncStatusReconnectRequired: (status?: string | null) =>
-    status === 'reconnect_required',
 }))
 
 vi.mock('sonner', () => ({ toast: hoisted.toast }))
@@ -128,12 +122,12 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('surfaces a friendly error when the toggle mutation fails', async () => {
-    hoisted.setAutoSync.mutateAsync.mockRejectedValue(new Error('nope'))
+    hoisted.setAutoSync.mutateAsync.mockRejectedValue(new ApiClientError(403, 'Forbidden'))
     render(<AutoSyncSettingsCard />)
 
     fireEvent.click(toggle())
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('friendly-error'))
+    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it.each([true, false])('ignores the previous account toggle %s outcome after the next account toggles', async (succeeds) => {
@@ -198,12 +192,12 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('reports a friendly error when the manual sync fails', async () => {
-    hoisted.runSyncNow.mutateAsync.mockRejectedValue(new Error('down'))
+    hoisted.runSyncNow.mutateAsync.mockRejectedValue(new ApiClientError(403, 'Forbidden'))
     render(<AutoSyncSettingsCard />)
 
     fireEvent.click(screen.getByRole('button', { name: /calendar\.autoSync\.syncNow/ }))
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('friendly-error'))
+    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('releases Sync now and hides the previous account error after replacement', async () => {
@@ -223,7 +217,7 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('offers reconnect when the status requires it and launches the Google flow', async () => {
-    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'reconnect_required', lastSyncedAt: null }
+    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'ReconnectRequired', lastSyncedAt: null }
     render(<AutoSyncSettingsCard />)
 
     expect(screen.getByText('calendar.autoSync.reconnectTitle')).toBeInTheDocument()
@@ -233,7 +227,7 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('shows a Google error toast when reconnect fails', async () => {
-    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'reconnect_required', lastSyncedAt: null }
+    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'ReconnectRequired', lastSyncedAt: null }
     hoisted.connectGoogle.mockRejectedValue(new Error('oauth'))
     render(<AutoSyncSettingsCard />)
 

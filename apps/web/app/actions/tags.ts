@@ -2,13 +2,12 @@
 
 import { API } from '@orbit/shared/api'
 import { suggestTagsResponseSchema, type SuggestTagsResponse } from '@orbit/shared/types/habit'
+import { tagListSchema, type Tag } from '@orbit/shared/types/tag'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
-type Tag = { id: string; name: string; color: string }
-
 export async function getTags(): Promise<ServerActionResult<Tag[]>> {
-  return wrapServerAction(() => serverAuthFetch(API.tags.list, { method: 'GET' }))
+  return wrapServerAction(() => serverAuthFetch(API.tags.list, { method: 'GET' }, tagListSchema))
 }
 
 export async function createTag(

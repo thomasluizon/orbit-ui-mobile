@@ -6,7 +6,7 @@ interface UseAppToastResult {
   showError: (message: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
-  showQueued: (message: string, actionLabel?: string, onAction?: () => void) => void
+  showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => void
 }
 
 export function useAppToast(): UseAppToastResult {
@@ -28,8 +28,8 @@ export function useAppToast(): UseAppToastResult {
     showInfoFromStore(message)
   }, [showInfoFromStore])
 
-  const showQueued = useCallback((message: string, actionLabel?: string, onAction?: () => void) => {
-    showQueuedFromStore(message, actionLabel, onAction)
+  const showQueued = useCallback((message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => {
+    showQueuedFromStore(message, actionLabel, onAction, onDismiss)
   }, [showQueuedFromStore])
 
   return { showToast, showError, showSuccess, showInfo, showQueued }

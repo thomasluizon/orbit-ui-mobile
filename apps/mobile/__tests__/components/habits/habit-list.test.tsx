@@ -79,6 +79,17 @@ let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
+const replaySelection = vi.hoisted(() => ({
+  selectedHabitIds: new Set<string>(),
+  isSelectMode: true,
+  selectAllHabits: vi.fn(),
+  clearSelection: vi.fn(),
+}))
+const replayDelivery = vi.hoisted(() => ({ listener: null as null | ((event: {
+  mutationId: string
+  type: 'bulkLogHabits' | 'bulkSkipHabits'
+  items: { habitId: string; date?: string }[]
+}) => unknown) }))
 const colorProxy: Record<string, string> = new Proxy(
   {},
   {
@@ -315,12 +326,23 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
   }
 })
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: any) => unknown) =>
-    selector({
+vi.mock('@/stores/ui-store', () => {
+  const getState = () => ({
       toggleSelectMode,
       toggleSelectionCascade,
-    }),
+      ...replaySelection,
+    })
+  return { useUIStore: Object.assign(
+    (selector: (state: any) => unknown) => selector(getState()),
+    { getState },
+  ) }
+})
+
+vi.mock('@/lib/bulk-replay-events', () => ({
+  subscribeBulkReplaySuccesses: (listener: typeof replayDelivery.listener) => {
+    replayDelivery.listener = listener
+    return () => { replayDelivery.listener = null }
+  },
 }))
 
 vi.mock('@/lib/habit-selection-state', async (importOriginal) => (
@@ -486,6 +508,9 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    replaySelection.selectedHabitIds = new Set()
+    replaySelection.isSelectMode = true
+    replayDelivery.listener = null
     accountDate.timeZone = undefined
     capturedDrillOptions = undefined
     vi.clearAllMocks()
@@ -523,6 +548,32 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('removes only confirmed bulk replay habits from the current selection', () => {
+    const confirmed = createMockHabit({ id: 'confirmed' })
+    const failed = createMockHabit({ id: 'failed' })
+    seedHabits([confirmed, failed])
+    replaySelection.selectedHabitIds = new Set([confirmed.id, failed.id])
+    TestRenderer.act(() => {
+      TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${TODAY}T09:00:00Z`)}
+        showCompleted isSelectMode selectedHabitIds={replaySelection.selectedHabitIds} onCreatePress={vi.fn()} />)
+    })
+
+    expect(replayDelivery.listener).not.toBeNull()
+    TestRenderer.act(() => {
+      replayDelivery.listener?.({ mutationId: 'replayed', type: 'bulkLogHabits',
+        items: [{ habitId: confirmed.id, date: TODAY }] })
+    })
+
+    expect(replaySelection.selectAllHabits).toHaveBeenCalledWith([failed.id])
+    expect(replaySelection.clearSelection).not.toHaveBeenCalled()
+    replaySelection.selectedHabitIds = new Set([failed.id])
+    TestRenderer.act(() => {
+      replayDelivery.listener?.({ mutationId: 'replayed-later', type: 'bulkSkipHabits',
+        items: [{ habitId: failed.id, date: TODAY }] })
+    })
+    expect(replaySelection.clearSelection).toHaveBeenCalledTimes(1)
   })
 
   it('blocks an account-old completion before it enters the offline queue', () => {

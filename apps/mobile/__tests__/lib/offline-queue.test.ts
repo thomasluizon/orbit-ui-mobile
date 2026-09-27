@@ -6,6 +6,7 @@ import {
   count,
   dequeue,
   enqueue,
+  enqueueWithCompaction,
   findUnfinalizedFirstWrite,
   getAll,
   incrementRetries,
@@ -214,7 +215,7 @@ describe('mobile offline queue', () => {
       targetEntityId: 'offline-habit-2',
     }))
 
-    enqueue(makeMutation({
+    const { compactedCreate } = enqueueWithCompaction(makeMutation({
       id: 'delete-1',
       type: 'deleteHabit',
       method: 'DELETE',
@@ -224,6 +225,10 @@ describe('mobile offline queue', () => {
     }))
 
     expect(getAll()).toHaveLength(0)
+    expect(compactedCreate).toMatchObject({
+      id: 'create-1',
+      payload: { title: 'Drink Water' },
+    })
   })
 
   it('drops a pending create when a cascading selection delete targets it', () => {
@@ -245,6 +250,25 @@ describe('mobile offline queue', () => {
 
     expect(getAll()).toHaveLength(0)
   })
+
+  it.each(['syncing', 'failed'] as const)(
+    'keeps a %s create and its delete when the create may have reached the server',
+    (status) => {
+      enqueue(makeMutation({
+        id: 'create-1', type: 'createGoal', scope: 'goals', entityType: 'goal',
+        clientEntityId: 'offline-goal-1', status, retries: status === 'failed' ? 1 : 0,
+      }))
+
+      const result = enqueueWithCompaction(makeMutation({
+        id: 'delete-1', type: 'deleteGoal', scope: 'goals', entityType: 'goal',
+        method: 'DELETE', endpoint: '/api/goals/offline-goal-1',
+        targetEntityId: 'offline-goal-1', payload: null,
+      }))
+
+      expect(result.compactedCreate).toBeNull()
+      expect(getAll().map((mutation) => mutation.id)).toEqual(['create-1', 'delete-1'])
+    },
+  )
 
   it('keeps only the latest last-write-wins mutation for the same dedupe key', () => {
     enqueue(makeMutation({

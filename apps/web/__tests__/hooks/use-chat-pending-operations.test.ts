@@ -27,6 +27,7 @@ vi.mock('@/app/actions/chat', () => ({
 }))
 
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
+import { setAccountEventOrigin } from '@/lib/account-event-origin'
 
 function makeExecution(summary: string): AgentExecuteOperationResponse {
   return {
@@ -43,6 +44,7 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
+    setAccountEventOrigin('chat-connection')
     mocks.confirmPendingOperation.mockReset()
     mocks.executePendingOperation.mockReset()
     mocks.issuePendingOperationStepUp.mockReset()
@@ -52,6 +54,7 @@ describe('useChatPendingOperations', () => {
   })
 
   afterEach(() => {
+    setAccountEventOrigin(null)
     vi.clearAllMocks()
   })
 
@@ -72,8 +75,9 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
     })
 
-    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', null)
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
+    const intent = JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' })
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', intent)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', intent)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
   })
@@ -87,7 +91,7 @@ describe('useChatPendingOperations', () => {
     const request = { previewFingerprint: 'current', items: [{ itemId: 'habit-1', edits: { emoji: 'B' } }] }
     let outcome: Awaited<ReturnType<typeof result.current.revisePendingOperationForBubble>> | null = null
     await act(async () => { outcome = await result.current.revisePendingOperationForBubble('pending-1', request) })
-    expect(mocks.revisePendingOperation).toHaveBeenCalledWith('pending-1', request, null)
+    expect(mocks.revisePendingOperation).toHaveBeenCalledWith('pending-1', request, JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(outcome).toEqual({ ok: true, result: response })
     expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
@@ -101,7 +105,7 @@ describe('useChatPendingOperations', () => {
     const { result } = renderHook(() => useChatPendingOperations(onExecuted))
     let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
     await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
-    expect(mocks.refreshPendingOperation).toHaveBeenCalledWith('pending-1', null)
+    expect(mocks.refreshPendingOperation).toHaveBeenCalledWith('pending-1', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(outcome).toEqual({ ok: true, result: response })
     expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
@@ -113,7 +117,7 @@ describe('useChatPendingOperations', () => {
     const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
     let outcome: Awaited<ReturnType<typeof result.current.refreshPendingOperationForBubble>> | null = null
     await act(async () => { outcome = await result.current.refreshPendingOperationForBubble('pending-1') })
-    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged', stale: false })
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged' })
   })
 
   it('does not forward an execution that returns after the account changes', async () => {
@@ -186,7 +190,7 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.prepareStepUpForBubble('pending-2')
     })
 
-    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', null)
+    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(outcome).toEqual({
       ok: true,
       challengeId: 'challenge-2',
@@ -232,9 +236,9 @@ describe('useChatPendingOperations', () => {
       'pending-2',
       'challenge-2',
       '123456',
-      null,
+      JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }),
     )
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', null)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }))
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Done'))
     expect(outcome).toMatchObject({ ok: true })
   })

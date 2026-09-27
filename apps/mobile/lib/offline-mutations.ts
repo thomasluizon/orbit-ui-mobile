@@ -17,21 +17,26 @@ import type {
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { updateTimezoneRequestSchema, type Profile } from '@orbit/shared/types/profile'
-import { reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { z } from 'zod'
 import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
+import { getAccountId } from './account-scope'
+import { notifyBulkReplaySuccess } from './bulk-replay-events'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
   accountTimezoneDependency,
   ACCOUNT_TIMEZONE_DEPENDENCY,
   count,
   enqueue,
+  enqueueWithCompaction,
   findUnfinalizedFirstWrite,
   getAll,
   getById,
   remove,
   replaceEntityReferences,
+  subscribeQueueClear,
   update,
 } from './offline-queue'
 import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveOfflineEntity, setOfflineEntityStatus, upsertOfflineEntity } from './offline-state'
@@ -41,6 +46,8 @@ import { persistQueryCache, queryClient } from './query-client'
 import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 export { accountTimezoneDependency, ACCOUNT_TIMEZONE_DEPENDENCY } from './offline-queue'
+
+export { subscribeBulkReplaySuccesses } from './bulk-replay-events'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -68,8 +75,6 @@ export class OfflineMutationPreflightError extends Error {
 }
 
 const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
-  'bulkSkipHabits',
-  'bulkLogHabits',
   'bulkCascadeDeleteHabits',
 ])
 
@@ -146,6 +151,20 @@ export interface QueuedMutationBuildOptions {
 }
 
 let queuedMutationSequence = 0
+const compactedCreatesByDeleteId = new Map<string, {
+  mutation: PersistedQueuedMutation
+  accountId: string | null
+}>()
+
+export function discardCompactedCreateForUndo(mutationId: string): void {
+  compactedCreatesByDeleteId.delete(mutationId)
+}
+
+export function clearCompactedCreatesForUndo(): void {
+  compactedCreatesByDeleteId.clear()
+}
+
+subscribeQueueClear(clearCompactedCreatesForUndo)
 
 export function isQueuedResult(value: unknown): value is QueuedMarker {
   return (
@@ -170,7 +189,22 @@ export function cancelQueuedDeleteForUndo(
   mutationId: string,
 ): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
   const mutation = getById(mutationId)
-  if (!mutation) return Promise.resolve('replayed')
+  if (!mutation) {
+    const retained = compactedCreatesByDeleteId.get(mutationId)
+    if (!retained) return Promise.resolve('replayed')
+    compactedCreatesByDeleteId.delete(mutationId)
+    if (retained.accountId !== getAccountId()) return Promise.resolve('replayed')
+    const compactedCreate = retained.mutation
+    enqueue({ ...compactedCreate, type: mutationTypeSchema.parse(compactedCreate.type) })
+    if (compactedCreate.entityType && compactedCreate.clientEntityId) {
+      return markOfflineTombstone(
+        compactedCreate.entityType,
+        compactedCreate.clientEntityId,
+        false,
+      ).then(() => 'cancelled')
+    }
+    return Promise.resolve('cancelled')
+  }
   if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
 
   return new Promise((resolve) => {
@@ -579,7 +613,13 @@ export function getMutationScope(type: string): MutationScope | undefined {
 }
 
 async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
-  const queuedMutationId = enqueue(mutation)
+  const { id: queuedMutationId, compactedCreate } = enqueueWithCompaction(mutation)
+  if (compactedCreate && (mutation.type === 'deleteHabit' || mutation.type === 'deleteGoal')) {
+    compactedCreatesByDeleteId.set(mutation.id, {
+      mutation: compactedCreate,
+      accountId: getAccountId(),
+    })
+  }
 
   if (mutation.entityType && mutation.clientEntityId) {
     await upsertOfflineEntity({
@@ -668,6 +708,28 @@ function extractCreatedEntityId(response: unknown): string | null {
 
 function serializeMutationPayload(payload: unknown): string | undefined {
   return payload === undefined || payload === null ? undefined : JSON.stringify(payload)
+}
+
+async function reportBulkReplaySuccess(
+  mutation: PersistedQueuedMutation,
+  response: unknown,
+  accountId: string | null,
+): Promise<void> {
+  if (mutation.type !== 'bulkLogHabits' && mutation.type !== 'bulkSkipHabits') return
+  const itemSchema = mutation.type === 'bulkLogHabits'
+    ? bulkLogItemRequestSchema
+    : bulkSkipItemRequestSchema
+  const payload = z.object({ items: z.array(itemSchema) }).parse(mutation.payload)
+  const results = mutation.type === 'bulkLogHabits'
+    ? bulkLogResultSchema.parse(response).results
+    : bulkSkipResultSchema.parse(response).results
+  const items = results.flatMap((result) => {
+    const item = payload.items[result.index]
+    return result.status === 'Success' && item?.habitId === result.habitId ? [item] : []
+  })
+  if (items.length > 0) {
+    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items }, accountId)
+  }
 }
 
 function addTouchedScope(
@@ -916,6 +978,7 @@ async function processQueuedMutationFlush(
     )
     return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
   }
+  const accountId = getAccountId()
 
   let mutation = await resolveMutationReferences(currentMutation)
   const dependencies = getPendingOfflineDependencies(mutation)
@@ -942,6 +1005,7 @@ async function processQueuedMutationFlush(
       getMutationResponseSchema(mutation.type),
     )
 
+    await reportBulkReplaySuccess(mutation, response, accountId)
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
