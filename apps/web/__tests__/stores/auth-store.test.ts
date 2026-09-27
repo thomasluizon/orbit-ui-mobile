@@ -178,11 +178,17 @@ describe('auth store', () => {
   it('logs out and calls the BFF logout endpoint', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().logout()
+    unsubscribe()
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
     expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -362,8 +368,14 @@ describe('auth store', () => {
       json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().confirmSessionRefreshFailure()
+    unsubscribe()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,

@@ -1042,8 +1042,12 @@ describe('mobile auth store security paths', () => {
     })
 
     const order: string[] = []
+    const resetCountsAtSignedOut: number[] = []
     const unsubscribe = useAuthStore.subscribe((state) => {
-      if (!state.isAuthenticated) order.push('unauthenticated')
+      if (!state.isAuthenticated) {
+        order.push('unauthenticated')
+        resetCountsAtSignedOut.push(posthogMocks.resetPostHogUser.mock.calls.length)
+      }
     })
     queryClientClearMock.mockImplementation(() => {
       order.push('clearCache')
@@ -1052,6 +1056,7 @@ describe('mobile auth store security paths', () => {
     await useAuthStore.getState().logout()
     expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     unsubscribe()
+    expect(resetCountsAtSignedOut).toContain(1)
 
     expect(replaceMock).not.toHaveBeenCalled()
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)

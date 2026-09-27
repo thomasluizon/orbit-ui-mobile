@@ -168,6 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (session.kind === 'rejected') {
       clearSupabaseSession()
       sessionRecoveryUser ??= get().user
+      resetPostHogUser()
       set({
         isAuthenticated: false,
         user: null,
@@ -303,6 +304,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     getQueryClient().clear()
     startAccountScopedSession(get().heldAccountId, null)
     sessionRecoveryUser = null
+    resetPostHogUser()
     set({
       isAuthenticated: false,
       heldAccountId: null,
@@ -310,8 +312,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       expiresAt: null,
       sessionRefreshFailed: false,
     })
-    resetPostHogUser()
-
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }

@@ -2,14 +2,17 @@
 
 import { useEffect, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { isFeatureEnabled } from '@orbit/shared/utils'
 import { useConfig } from '@/hooks/use-config'
 import { getQueryClient } from '@/lib/query-client'
 import { applyPostHogGate, initializePostHog } from '@/lib/posthog'
 
 function PostHogGate() {
-  const { config } = useConfig()
-  const enabled = isFeatureEnabled(config, 'analytics', 'free')
+  const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
+  const enabled = isFetchedAfterMount && !isFetching && config.features.analytics?.enabled === true
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
 
   useEffect(() => {
     initializePostHog(enabled)

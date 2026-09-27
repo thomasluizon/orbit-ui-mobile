@@ -208,6 +208,7 @@ async function clearSessionCredentials(
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     sessionEpoch += 1
     credentialVersion += 1
+    resetPostHogUser()
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
       isLoading: false,
@@ -254,7 +255,6 @@ async function runSessionTeardown(
   if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
-  resetPostHogUser()
   return teardown
 }
 

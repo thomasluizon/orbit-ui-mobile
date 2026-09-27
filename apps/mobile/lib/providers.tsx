@@ -30,7 +30,6 @@ import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import { PostHogProvider } from 'posthog-react-native'
 import { useSegments } from 'expo-router'
-import { isFeatureEnabled } from '@orbit/shared/utils'
 import { useConfig } from '@/hooks/use-config'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
 import './i18n'
@@ -51,10 +50,14 @@ function OfflineManager() {
 }
 
 function PostHogGate() {
-  const { config } = useConfig()
-  const enabled = isFeatureEnabled(config, 'analytics', 'free')
+  const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
+  const enabled = isFetchedAfterMount && !isFetching && config.features.analytics?.enabled === true
   const segments = useSegments()
   const screen = segments.join('/') || 'index'
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
 
   useEffect(() => {
     void applyPostHogGate(enabled).then(() => {
