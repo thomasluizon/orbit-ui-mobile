@@ -7,6 +7,7 @@ import {
   Pressable,
   Linking,
   Platform,
+  FlatList,
   type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,7 +22,6 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { RefreshCw } from "@/components/ui/icons";
-import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -153,7 +153,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           />
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
-            <KeyboardAwareFlatList
+            <FlatList
               ref={flatListRef}
               data={messages}
               renderItem={renderMessage}

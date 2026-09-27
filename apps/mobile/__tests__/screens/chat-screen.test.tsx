@@ -73,6 +73,14 @@ vi.mock('react-native', async (importOriginal) => {
         return { remove: mocks.removeKeyboardDidHide }
       }),
     },
+    FlatList: React.forwardRef<unknown, {
+      data: ChatMessage[]
+      renderItem: (entry: { item: ChatMessage }) => React.ReactNode
+    }>((props, _ref) => React.createElement(
+      'FlatList',
+      props,
+      props.data.map((item) => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))),
+    )),
   }
 })
 vi.mock('react-native-safe-area-context', () => ({
@@ -128,17 +136,6 @@ vi.mock('@/components/ui/pill-button', () => ({
       },
       React.createElement('Text', null, props.children),
     ),
-}))
-vi.mock('@/components/ui/keyboard-aware-scroll-view', async (importOriginal) => ({
-  KeyboardAwareView: (await importOriginal<typeof import('@/components/ui/keyboard-aware-scroll-view')>()).KeyboardAwareView,
-  KeyboardAwareFlatList: (props: {
-    data: ChatMessage[]
-    renderItem: (entry: { item: ChatMessage }) => React.ReactNode
-  }) => React.createElement(
-    'KeyboardAwareFlatList',
-    props,
-    props.data.map((item) => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))),
-  ),
 }))
 vi.mock('@/components/chat/conversation.styles', () => ({
   createStyles: () => new Proxy({}, { get: () => ({}) }),
@@ -234,7 +231,7 @@ describe('ChatScreen composer recoveries', () => {
     expect(avoidingView?.props.behavior).toBe('height')
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
     expect(findByType(avoidingView!, 'DestinationList')).toBeDefined()
-    expect(findByType(avoidingView!, 'KeyboardAwareFlatList') === undefined).toBe(showSuggestions)
+    expect(findByType(avoidingView!, 'FlatList') === undefined).toBe(showSuggestions)
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -313,7 +310,7 @@ describe('ChatScreen composer recoveries', () => {
       params: { id: 'habit-1' },
     })
 
-    const feed = findByType(tree.root, 'KeyboardAwareFlatList')
+    const feed = findByType(tree.root, 'FlatList')
     expect(feed?.props.accessibilityState).toEqual({ busy: false })
     TestRenderer.act(() => {
       const contentChanged = feed?.props.onContentSizeChange as (() => void)

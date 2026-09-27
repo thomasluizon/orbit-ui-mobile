@@ -13,18 +13,25 @@ export function useConversationKeyboardScroll(
   const keyboardVisible = useRef(false)
   const restoreOnLayout = useRef(false)
 
+  const restorePreviousOffset = useCallback(() => {
+    if (!restoreOnLayout.current) return
+    listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
+    restoreOnLayout.current = false
+  }, [listRef])
+
   const onScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    if (!keyboardVisible.current) previousOffset.current = event.nativeEvent.contentOffset.y
+    if (!keyboardVisible.current && !restoreOnLayout.current) {
+      previousOffset.current = event.nativeEvent.contentOffset.y
+    }
   }, [])
 
   const onLayout = useCallback(() => {
     if (restoreOnLayout.current) {
-      listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
-      restoreOnLayout.current = false
+      restorePreviousOffset()
     } else if (keyboardVisible.current) {
       listRef.current?.scrollToEnd({ animated: false })
     }
-  }, [listRef])
+  }, [listRef, restorePreviousOffset])
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {
@@ -35,15 +42,13 @@ export function useConversationKeyboardScroll(
     const hide = Keyboard.addListener('keyboardDidHide', () => {
       keyboardVisible.current = false
       restoreOnLayout.current = true
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
-      })
+      requestAnimationFrame(restorePreviousOffset)
     })
     return () => {
       show.remove()
       hide.remove()
     }
-  }, [listRef])
+  }, [listRef, restorePreviousOffset])
 
   return { onScroll, onLayout }
 }
