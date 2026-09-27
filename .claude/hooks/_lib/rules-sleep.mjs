@@ -25,9 +25,9 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
   const notReady = uniquePullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const blockedPullRequests = notReady.filter(hasRecordedBlocker)
   const pendingPullRequests = notReady.filter((entry) => !hasRecordedBlocker(entry))
-  /** A ledger row whose receipt file was never written is an invalid identity too. It used to read
-   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. */
-  const unwrittenReceipts = uniquePullRequests.filter((entry) => entry.receiptWritten === false)
+  /** A closed, unmerged pull request cannot acquire a readiness receipt. Its recorded closure and
+   * blocker let it end BLOCKED; every other unwritten receipt remains an invalid identity. */
+  const unwrittenReceipts = uniquePullRequests.filter((entry) => entry.receiptWritten === false && !(entry.closed === true && hasRecordedBlocker(entry)))
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isAlive(source.pid))
 
@@ -74,7 +74,8 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       "If a NAMED blocker makes READY unreachable, that is a legitimate ending and there is now a\n" +
       "state for it. Record a machine-readable `blocker` string on that pull request's ledger entry\n" +
       "and the run may end as BLOCKED, reported as blocked rather than as finished. Writing the\n" +
-      "blocker down is the whole bar: a blocker is a fact this run records, never a verdict it\n" +
-      "asserts about its own work.",
+      "blocker down is the whole bar for a live pull request. If it closed without a merge and\n" +
+      "cannot have a receipt, also record `closed: true` from that fact. A blocker is a fact this\n" +
+      "run records, never a verdict it asserts about its own work.",
   }
 }

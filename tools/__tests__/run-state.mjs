@@ -49,6 +49,24 @@ export const cases = () => {
     JSON.stringify(readRunState(late)?.readinessLedger),
   )
 
+  const closed = stageCheckout("closed-pull-request")
+  const closedIdentity = { repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", closed: true, blocker: "superseded" }
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [closedIdentity] }, closed)
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ ...closedIdentity, closed: false }] }, closed)
+  T(
+    `${TOOL}: a recorded closure survives later sightings in the same session`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === true,
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
+  T(
+    `${TOOL}: a later sighting without a blocker keeps a closed row's blocker`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === true && readRunState(closed)?.readinessLedger?.[0]?.blocker === "superseded",
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
+  writeRunState({ sessionId: "s2", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
+  T(`${TOOL}: a closure from another session is not inherited`, readRunState(closed)?.readinessLedger?.[0]?.closed === false)
+
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 

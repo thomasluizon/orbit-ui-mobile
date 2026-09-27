@@ -68,15 +68,18 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
     const key = `${entry.repositoryKey}#${entry.prNumber}`
     const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
+    const closed = entry.closed === true
     const existing = rows.get(key)
     if (!existing) {
-      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker })
+      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, closed })
       continue
     }
     // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
-    // the earlier sighting did not know about. It may also clear one that has since been resolved.
+    // the earlier sighting did not know about. It may also clear one that has since been resolved,
+    // except on a closed row: a closure cannot be resolved, so silence keeps the recorded blocker.
     existing.receiptPath = entry.receiptPath
-    existing.blocker = blocker
+    existing.closed ||= closed
+    existing.blocker = blocker ?? (existing.closed ? existing.blocker : null)
   }
   const readinessLedger = [...rows.values()].map((row) => ({
     repositoryKey: row.repositoryKey,
@@ -84,6 +87,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     receiptPath: row.receiptPath,
     receiptWritten: existsSync(row.receiptPath),
     blocker: row.blocker,
+    closed: row.closed,
   }))
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
