@@ -63,8 +63,8 @@ describe('PendingOperationCard', () => {
         { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
       ], changeTargetCount: 2,
     })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByLabelText(/from .* to Monday/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/from 2 to 3/)).toBeInTheDocument()
+    expect(screen.getByText(/from .* to Monday/)).toHaveClass('sr-only')
+    expect(screen.getByText(/from 2 to 3/)).toHaveClass('sr-only')
     expect(screen.queryByText('and 1 more')).not.toBeInTheDocument()
   })
 

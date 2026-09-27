@@ -1334,7 +1334,7 @@
       "open": "Abrir Perfil"
     },
     "trace": {
-      "working": "a Astra está trabalhando",
+      "working": "A Astra está trabalhando",
       "steps": "{count, plural, one {# etapa} other {# etapas}}",
       "steps_one": "{count} etapa",
       "steps_other": "{count} etapas",

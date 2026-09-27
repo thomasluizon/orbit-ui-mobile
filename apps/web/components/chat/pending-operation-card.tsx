@@ -173,10 +173,11 @@ const pendingOperationRenderers = {
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
   actionRow: (...children) => <div className="flex flex-wrap items-center gap-2">{children}</div>,
-  diffLabel: (field, oldValue, newValue, accessible) => <span aria-label={accessible} className="flex flex-wrap items-center gap-2 text-sm">
-    <span>{field}:</span><span className="text-[var(--fg-3)]">{oldValue}</span>
+  diffLabel: (field, oldValue, newValue, accessible) => <span className="flex flex-wrap items-center gap-2 text-sm">
+    <span className="sr-only">{accessible}</span>
+    <span aria-hidden="true">{field}:</span><span aria-hidden="true" className="text-[var(--fg-3)]">{oldValue}</span>
     <ArrowRight aria-hidden="true" size={16} strokeWidth={1.5} className="rtl:rotate-180" />
-    <span className="font-medium text-[var(--fg-1)]">{newValue}</span>
+    <span aria-hidden="true" className="font-medium text-[var(--fg-1)]">{newValue}</span>
   </span>,
 } satisfies PendingOperationCardRenderers
 

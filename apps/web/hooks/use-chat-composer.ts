@@ -616,7 +616,7 @@ export function useChatComposer() {
   const sendMessage = useCallback(
     async (content?: string, messageOrigin?: 'followUp') => {
       const typedContent = content?.trim() ?? input.trim()
-      const messageContent = selectedTextFile
+      const messageContent = selectedTextFile && messageOrigin !== 'followUp'
         ? buildChatMessageWithFileContent({
             message: typedContent,
             fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
@@ -649,17 +649,19 @@ export function useChatComposer() {
         intendedAccountId: getHeldAccountId(),
         content: messageContent,
         draftContent: typedContent,
-        image: selectedImage,
-        preview: imagePreview,
+        image: messageOrigin === 'followUp' ? null : selectedImage,
+        preview: messageOrigin === 'followUp' ? null : imagePreview,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
       }
 
-      setInput('')
-      clearImage()
-      removeTextFile()
+      if (messageOrigin !== 'followUp') {
+        setInput('')
+        clearImage()
+        removeTextFile()
+      }
 
       await performSend(attempted, false)
     },

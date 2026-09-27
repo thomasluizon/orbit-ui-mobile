@@ -23,7 +23,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
-import { RefreshCw } from "@/components/ui/icons";
+import { ChevronDown, RefreshCw } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -50,15 +50,16 @@ function ThinkingTrace({ steps, running }: Readonly<{
   }, [running, steps.length, t]);
   if (steps.length === 0) return null;
   const lines = steps.map((step, index) => <View key={`${step.domain}-${step.access}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-    <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t(chatTraceLabelKey(step.domain, step.access))}</Text>
+    <Text style={{ color: tokens.fg3, fontSize: 14, flexShrink: 1 }}>{t(chatTraceLabelKey(step.domain, step.access))}</Text>
     {running && index === steps.length - 1 ? <View accessible={false} style={{ flexDirection: 'row', gap: 4 }}>
       {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
     </View> : null}
   </View>);
   if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingHorizontal: 16, paddingVertical: 8 }}>{lines}</View>;
   return <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
-    <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: 44, justifyContent: 'center' }}>
+    <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
+      <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
     </Pressable>
     <View nativeID={panelId} accessibilityLiveRegion="none" style={{ display: expanded ? 'flex' : 'none', gap: 4 }}>{lines}</View>
   </View>;

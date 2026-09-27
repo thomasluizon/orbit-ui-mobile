@@ -308,6 +308,13 @@ describe('mobile useChatComposer', () => {
       finalFrame(makeChatResponse({ followUps: ['Check goals', 'Review habits'] })),
     ))
     const composer = await renderComposer()
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset()] })
+    mocks.readFileText.mockResolvedValue('Keep this file')
+    await TestRenderer.act(async () => {
+      composer.current.composerProps.onAttachFile?.()
+      await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    })
+    TestRenderer.act(() => composer.current.setInput('Keep this draft'))
     await TestRenderer.act(async () => { await composer.current.sendMessage('Check goals', 'followUp') })
     const answer = useChatStore.getState().messages.at(-1)
     expect(answer?.toolSteps).toEqual([
@@ -315,6 +322,10 @@ describe('mobile useChatComposer', () => {
     ])
     expect(answer?.followUps).toEqual(['Check goals', 'Review habits'])
     const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(formData.get('message')).toBe('Check goals')
+    expect(formData.get('image')).toBeNull()
+    expect(composer.current.input).toBe('Keep this draft')
+    expect(composer.current.selectedTextFile?.name).toBe('notes.txt')
     const context = JSON.parse(formData.get('clientContext') as string)
     expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
   })
@@ -670,6 +681,7 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream
       .mockResolvedValueOnce(sseStreamResponse(
         frame('{"type":"started"}'),
+        frame('{"type":"step","domain":"habits","access":"read"}'),
         frame('{"type":"error","status":500,"error":"boom"}'),
       ))
       .mockResolvedValueOnce(sseStreamResponse(
@@ -682,6 +694,8 @@ describe('mobile useChatComposer', () => {
       await composer.current.sendMessage('log water')
     })
     expect(composer.current.canRetryLastSend).toBe(true)
+    expect(composer.current.activeSteps).toEqual([])
+    expect(useChatStore.getState().messages.every((message) => !message.toolSteps?.length)).toBe(true)
 
     await TestRenderer.act(async () => {
       await composer.current.retryLastSend()

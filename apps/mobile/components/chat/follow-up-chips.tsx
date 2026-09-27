@@ -17,13 +17,14 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
       {followUps.slice(0, 3).map((text) => <Pressable
         key={text}
         accessibilityRole="button"
+        accessibilityLabel={text}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
-          minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999,
+          minHeight: 44, maxWidth: '100%', justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999,
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}
-      ><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{text}</Text></Pressable>)}
+      ><Text numberOfLines={1} ellipsizeMode="tail" style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{text}</Text></Pressable>)}
     </View>
   </View>
 }

@@ -736,7 +736,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const sendMessage = useCallback(
     async (content?: string, messageOrigin?: 'followUp') => {
       const typedContent = content?.trim() ?? input.trim();
-      const messageContent = selectedTextFile
+      const messageContent = selectedTextFile && messageOrigin !== 'followUp'
         ? buildChatMessageWithFileContent({
             message: typedContent,
             fileLabel: t("chat.fileAttached", { name: selectedTextFile.name }),
@@ -768,18 +768,20 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const attempted: AttemptedSend = {
         content: messageContent,
         draftContent: typedContent,
-        image: selectedImage,
-        preview: imagePreview,
+        image: messageOrigin === 'followUp' ? null : selectedImage,
+        preview: messageOrigin === 'followUp' ? null : imagePreview,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
       };
 
-      setInput("");
-      setSelectedImage(null);
-      setImagePreview(null);
-      setSelectedTextFile(null);
+      if (messageOrigin !== 'followUp') {
+        setInput("");
+        setSelectedImage(null);
+        setImagePreview(null);
+        setSelectedTextFile(null);
+      }
 
       await performSend(attempted, false);
     },

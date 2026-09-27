@@ -224,6 +224,8 @@ describe('web useChatComposer streaming send', () => {
       finalFrame(makeChatResponse({ followUps: ['Check goals', 'Review habits'] })),
     ))
     const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Keep this file'))) })
+    act(() => result.current.setInput('Keep this draft'))
     await act(async () => { await result.current.sendMessage('Check goals', 'followUp') })
     const answer = useChatStore.getState().messages.at(-1)
     expect(answer?.toolSteps).toEqual([
@@ -231,6 +233,10 @@ describe('web useChatComposer streaming send', () => {
     ])
     expect(answer?.followUps).toEqual(['Check goals', 'Review habits'])
     const formData = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    expect(formData.get('message')).toBe('Check goals')
+    expect(formData.get('image')).toBeNull()
+    expect(result.current.input).toBe('Keep this draft')
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
     const context = JSON.parse(formData.get('clientContext') as string)
     expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
   })
@@ -603,6 +609,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.fetch
       .mockResolvedValueOnce(sseResponse(
         frame('{"type":"started"}'),
+        frame('{"type":"step","domain":"habits","access":"read"}'),
         frame('{"type":"error","status":500,"error":"boom"}'),
       ))
       .mockResolvedValueOnce(sseResponse(
@@ -615,6 +622,8 @@ describe('web useChatComposer streaming send', () => {
       await result.current.sendMessage('log water')
     })
     expect(result.current.canRetryLastSend).toBe(true)
+    expect(result.current.activeSteps).toEqual([])
+    expect(useChatStore.getState().messages.every((message) => !message.toolSteps?.length)).toBe(true)
 
     await act(async () => {
       await result.current.retryLastSend()
