@@ -5,8 +5,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from 'lucide-react'
 import { Toaster } from 'sonner'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
@@ -120,8 +118,6 @@ export default async function RootLayout({
           />
         </NextIntlClientProvider>
         </PostHogProvider>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   )

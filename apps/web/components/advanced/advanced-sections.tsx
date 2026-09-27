@@ -14,14 +14,15 @@ import {
 import type { ApiKey } from '@orbit/shared/types'
 import {
   buildMcpConfigJson,
+  getMcpEndpointUrl,
   MCP_CONFIG_TABS,
-  MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
 
@@ -403,7 +404,8 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
   const [configCopied, setConfigCopied] = useState(false)
   const [endpointCopied, setEndpointCopied] = useState(false)
 
-  const mcpConfigJson = buildMcpConfigJson()
+  const mcpEndpointUrl = getMcpEndpointUrl(accountEventApiBase())
+  const mcpConfigJson = buildMcpConfigJson(mcpEndpointUrl)
 
   async function copyConfig() {
     const didCopy = await copyToClipboard(mcpConfigJson)
@@ -413,7 +415,7 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
   }
 
   async function copyEndpoint() {
-    const didCopy = await copyToClipboard(MCP_ENDPOINT_URL)
+    const didCopy = await copyToClipboard(mcpEndpointUrl)
     if (!didCopy) return
     setEndpointCopied(true)
     setTimeout(() => setEndpointCopied(false), 2000)
@@ -465,7 +467,7 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
                 t('orbitMcp.webStep3'),
                 t('orbitMcp.webStep4'),
               ]}
-              content={MCP_ENDPOINT_URL}
+              content={mcpEndpointUrl}
               copied={endpointCopied}
               onCopy={() => {
                 void copyEndpoint()
