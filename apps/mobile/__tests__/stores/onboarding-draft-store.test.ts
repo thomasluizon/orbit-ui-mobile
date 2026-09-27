@@ -61,14 +61,12 @@ describe('onboarding draft store', () => {
     store.bufferFirstLog(index, '2026-07-05')
     store.bufferGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     store.bufferWeekStartDay(1)
-    store.bufferColorScheme('blue')
 
     expect(useOnboardingDraftStore.getState().buildApplyPayload()).toEqual({
       habits: [{ title: 'Meditate' }],
       firstLog: { habitIndex: 0, date: '2026-07-05' },
       goal: { title: 'Run 100km', targetValue: 100, unit: 'km' },
       weekStartDay: 1,
-      colorScheme: 'blue',
     })
 
     useOnboardingDraftStore.getState().reset()

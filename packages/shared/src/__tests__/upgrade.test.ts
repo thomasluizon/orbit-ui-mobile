@@ -200,9 +200,10 @@ describe('upgrade utils', () => {
   })
 
   it('falls back to the default free color scheme', () => {
-    expect(resolveAccessibleColorScheme('blue', false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
-    expect(resolveAccessibleColorScheme('purple', false)).toBe('purple')
-    expect(resolveAccessibleColorScheme('blue', true)).toBe('blue')
+    for (const stored of ['purple', 'blue', 'green', 'rose', 'orange', 'cyan', null]) {
+      expect(resolveAccessibleColorScheme(stored, true)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+      expect(resolveAccessibleColorScheme(stored, false)).toBe(DEFAULT_FREE_COLOR_SCHEME)
+    }
   })
 
   it('parses premium denials into upgrade actions', () => {

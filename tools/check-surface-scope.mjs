@@ -165,7 +165,7 @@ async function measuredThemes(repositoryRoot) {
   const themes = {}
   for (const mode of ["dark", "light"]) {
     const neutral = neutralColors[mode]
-    const accent = schemes.purple.accent[mode]
+    const accent = schemes.orange.accent[mode]
     const status = statusConstants[mode]
     const tokenValues = {
       "--fg-1": neutral.fg1,

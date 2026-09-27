@@ -3,17 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  resolveAccessibleColorScheme,
   type ColorScheme,
   type ThemeMode,
 } from '@orbit/shared'
 import {
-  updateColorScheme as updateColorSchemeAction,
   updateThemePreference as updateThemePreferenceAction,
 } from '@/lib/actions/profile'
 import {
   applyThemeTokensToDOM,
-  normalizeColorScheme,
   normalizeThemeMode,
 } from '@/lib/theme-dom'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -34,31 +31,15 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 export function useColorScheme() {
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
-  const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() =>
-    normalizeColorScheme(getCookie('orbit_color_scheme')),
-  )
+  const currentScheme: ColorScheme = 'orange'
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() =>
     normalizeThemeMode(getCookie('orbit_theme_mode')),
   )
 
   useEffect(() => {
+    setCookie('orbit_color_scheme', currentScheme)
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
-
-  const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
-    const intendedAccountId = getHeldAccountId()
-    setCookie('orbit_color_scheme', scheme)
-    setCurrentScheme(scheme)
-    applyThemeTokensToDOM(scheme, currentTheme, true)
-
-    if (persistToDb) {
-      updateColorSchemeAction({ colorScheme: scheme }, intendedAccountId).catch((error: unknown) => {
-        if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
-        }
-      })
-    }
-  }, [currentTheme, showPersistentError, t])
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
     const intendedAccountId = getHeldAccountId()
@@ -87,36 +68,6 @@ export function useColorScheme() {
     applyTheme(next)
   }, [currentTheme, applyTheme])
 
-  /**
-   * Sync cookie with DB value (DB is source of truth).
-   * Call this after profile loads to ensure cross-device sync.
-   */
-  const syncSchemeFromProfile = useCallback((
-    dbColorScheme: string | null,
-    hasProAccess = true,
-  ) => {
-    const dbScheme = dbColorScheme
-      ? resolveAccessibleColorScheme(normalizeColorScheme(dbColorScheme), hasProAccess)
-      : null
-    if (dbScheme && dbScheme !== currentScheme) {
-      setCookie('orbit_color_scheme', dbScheme)
-      setCurrentScheme(dbScheme)
-      applyThemeTokensToDOM(dbScheme, currentTheme)
-    }
-  }, [currentScheme, currentTheme])
-
-  /**
-   * First-login detection: if DB colorScheme is null, save current
-   * cookie value (default purple) so future logins are consistent.
-   */
-  const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
-    if (dbColorScheme !== null) return
-    updateColorSchemeAction({ colorScheme: currentScheme }, getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) {
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
-      }
-    })
-  }, [currentScheme, showPersistentError, t])
 
   /**
    * Sync cookie with DB value (DB is source of truth).
@@ -156,11 +107,8 @@ export function useColorScheme() {
   return {
     currentScheme,
     currentTheme,
-    applyScheme,
     applyTheme,
     toggleTheme,
-    syncSchemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,
   }

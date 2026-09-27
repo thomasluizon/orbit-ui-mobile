@@ -47,7 +47,6 @@ describe('onboarding draft store', () => {
     store.getState().bufferFirstLog(0, '2026-07-05')
     store.getState().bufferGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     store.getState().bufferWeekStartDay(0)
-    store.getState().bufferColorScheme('blue')
 
     const payload = store.getState().buildApplyPayload()
 
@@ -56,7 +55,6 @@ describe('onboarding draft store', () => {
       firstLog: { habitIndex: 0, date: '2026-07-05' },
       goal: { title: 'Run 100km', targetValue: 100, unit: 'km' },
       weekStartDay: 0,
-      colorScheme: 'blue',
     })
   })
 
@@ -112,7 +110,6 @@ describe('onboarding draft store', () => {
       firstLog: null,
       goal: null,
       weekStartDay: null,
-      colorScheme: null,
       onboardingLocallyDone: false,
       pushPermissionGranted: false,
       pushRegistrationFailed: false,
@@ -121,6 +118,14 @@ describe('onboarding draft store', () => {
     const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })
     expect(partial.onboardingLocallyDone).toBe(true)
     expect(partial.habits).toEqual([])
+  })
+
+  it('drops a retired scheme from a persisted draft before applying onboarding', () => {
+    const draft = migrateOnboardingDraft({
+      habits: [{ title: 'Read' }],
+      colorScheme: 'rose',
+    })
+    expect(buildApplyOnboardingPayload(draft)).toEqual({ habits: [{ title: 'Read' }] })
   })
 
   it('claims an anonymous signup draft and clears it for another account', () => {
@@ -143,7 +148,6 @@ describe('onboarding draft store', () => {
       firstLog: null,
       goal: null,
       weekStartDay: 1,
-      colorScheme: null,
       onboardingLocallyDone: true,
       pushPermissionGranted: false,
       pushRegistrationFailed: false,

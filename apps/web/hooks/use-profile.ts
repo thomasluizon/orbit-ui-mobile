@@ -26,9 +26,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
   const {
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   } = useColorScheme()
 
@@ -46,16 +44,12 @@ export function useProfile(options?: { enabled?: boolean }) {
 
   useEffect(() => {
     if (!profile) return
-    syncSchemeFromProfile(profile.colorScheme, profile.hasProAccess)
     syncThemeFromProfile(profile.themePreference)
-    detectAndSaveSchemeIfNeeded(profile.colorScheme)
     detectAndSaveThemeIfNeeded(profile.themePreference)
     // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
     profile,
-    syncSchemeFromProfile,
     syncThemeFromProfile,
-    detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   ])
 

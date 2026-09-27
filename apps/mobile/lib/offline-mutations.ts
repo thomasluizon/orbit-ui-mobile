@@ -903,6 +903,11 @@ async function processQueuedMutationFlush(
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
 
+  if (currentMutation.type === 'setColorScheme') {
+    remove(currentMutation.id)
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
+  }
+
   if (isAutomaticReplayBlocked(currentMutation.type)) {
     const dropped = await dropQueuedMutation(
       currentMutation,

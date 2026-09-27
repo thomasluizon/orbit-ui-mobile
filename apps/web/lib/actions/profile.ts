@@ -11,7 +11,6 @@ export const updateProactiveAstra = bindServerAction(serverActions.updateProacti
 export const updateMarketingConsent = bindServerAction(serverActions.updateMarketingConsent)
 export const updateWeekStartDay = bindServerAction(serverActions.updateWeekStartDay)
 export const updateThemePreference = bindServerAction(serverActions.updateThemePreference)
-export const updateColorScheme = bindServerAction(serverActions.updateColorScheme)
 export const completeOnboarding = bindServerAction(serverActions.completeOnboarding)
 export const resetAccount = bindServerAction(serverActions.resetAccount)
 export const exportUserData = bindServerAction(serverActions.exportUserData)

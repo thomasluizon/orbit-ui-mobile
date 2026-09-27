@@ -8,7 +8,7 @@ import {
 } from '../types/onboarding'
 import { isRecord } from '../utils/is-record'
 
-export const ONBOARDING_DRAFT_STORAGE_VERSION = 2
+export const ONBOARDING_DRAFT_STORAGE_VERSION = 3
 
 type OnboardingDraftSet = (
   partial:
@@ -27,7 +27,6 @@ export interface PersistedOnboardingDraft {
   firstLog: ApplyOnboardingFirstLog | null
   goal: CreateGoalRequest | null
   weekStartDay: OnboardingWeekStartDay | null
-  colorScheme: string | null
   onboardingLocallyDone: boolean
   pushPermissionGranted: boolean
   pushRegistrationFailed: boolean
@@ -41,7 +40,6 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
   bufferFirstLog: (habitIndex: number, date: string) => void
   bufferGoal: (goal: CreateGoalRequest | null) => void
   bufferWeekStartDay: (day: OnboardingWeekStartDay) => void
-  bufferColorScheme: (scheme: string) => void
   markOnboardingLocallyDone: () => void
   markPushPermissionGranted: () => void
   markPushRegistrationFailed: () => void
@@ -57,7 +55,6 @@ function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string |
     firstLog: null,
     goal: null,
     weekStartDay: null,
-    colorScheme: null,
     onboardingLocallyDone: false,
     pushPermissionGranted: false,
     pushRegistrationFailed: false,
@@ -73,7 +70,6 @@ export function getPersistedOnboardingDraft(
     firstLog: state.firstLog ? { ...state.firstLog } : null,
     goal: state.goal ? { ...state.goal } : null,
     weekStartDay: state.weekStartDay,
-    colorScheme: state.colorScheme,
     onboardingLocallyDone: state.onboardingLocallyDone,
     pushPermissionGranted: state.pushPermissionGranted,
     pushRegistrationFailed: state.pushRegistrationFailed,
@@ -104,10 +100,6 @@ export function migrateOnboardingDraft(
       persistedState.weekStartDay === 0 || persistedState.weekStartDay === 1
         ? persistedState.weekStartDay
         : null,
-    colorScheme:
-      typeof persistedState.colorScheme === 'string'
-        ? persistedState.colorScheme
-        : null,
     onboardingLocallyDone: persistedState.onboardingLocallyDone === true,
     pushPermissionGranted: persistedState.pushPermissionGranted === true,
     pushRegistrationFailed: persistedState.pushRegistrationFailed === true,
@@ -122,7 +114,6 @@ export function buildApplyOnboardingPayload(
     ...(draft.firstLog ? { firstLog: { ...draft.firstLog } } : {}),
     ...(draft.goal ? { goal: { ...draft.goal } } : {}),
     ...(draft.weekStartDay !== null ? { weekStartDay: draft.weekStartDay } : {}),
-    ...(draft.colorScheme !== null ? { colorScheme: draft.colorScheme } : {}),
   }
 }
 
@@ -160,7 +151,6 @@ export function createOnboardingDraftState(
 
     bufferWeekStartDay: (day) => set({ weekStartDay: day }),
 
-    bufferColorScheme: (scheme) => set({ colorScheme: scheme }),
 
     markOnboardingLocallyDone: () => set({ onboardingLocallyDone: true }),
 
@@ -176,8 +166,7 @@ export function createOnboardingDraftState(
         state.goal !== null ||
         state.firstLog !== null ||
         state.weekStartDay !== null ||
-        state.colorScheme !== null
-        || state.pushPermissionGranted
+        state.pushPermissionGranted
       )
     },
 
