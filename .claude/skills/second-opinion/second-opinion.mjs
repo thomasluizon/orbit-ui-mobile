@@ -88,10 +88,24 @@ function parseEvents(stdout) {
 
 /** Pull the verdict object out of the model's reply, tolerating code fences and surrounding prose. */
 function parseVerdict(text) {
-  const candidates = [...text.matchAll(/\{[\s\S]*?\}/g)].map((match) => match[0]).reverse();
-  for (const candidate of candidates) {
+  for (let start = text.lastIndexOf('{'); start !== -1; start = text.lastIndexOf('{', start - 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = start;
+    for (; end < text.length; end++) {
+      const character = text[end];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (character === '\\') escaped = true;
+        else if (character === '"') inString = false;
+      } else if (character === '"') inString = true;
+      else if (character === '{') depth++;
+      else if (character === '}' && --depth === 0) break;
+    }
+    if (depth !== 0) continue;
     try {
-      const parsed = JSON.parse(candidate);
+      const parsed = JSON.parse(text.slice(start, end + 1));
       const verdict = String(parsed.verdict || '').toUpperCase();
       if (verdict === 'AGREE' || verdict === 'DISAGREE' || verdict === 'UNSURE') {
         return {
