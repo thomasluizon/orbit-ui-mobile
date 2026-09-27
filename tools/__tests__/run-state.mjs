@@ -52,16 +52,34 @@ export const cases = () => {
   const closed = stageCheckout("closed-pull-request")
   const closedIdentity = { repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", closed: true, blocker: "superseded" }
   writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [closedIdentity] }, closed)
-  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ ...closedIdentity, closed: false }] }, closed)
-  T(
-    `${TOOL}: a recorded closure survives later sightings in the same session`,
-    readRunState(closed)?.readinessLedger?.[0]?.closed === true,
-    JSON.stringify(readRunState(closed)?.readinessLedger),
-  )
   writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)
   T(
-    `${TOOL}: a later sighting without a blocker keeps a closed row's blocker`,
+    `${TOOL}: a sighting that omits closed preserves the closure and its blocker`,
     readRunState(closed)?.readinessLedger?.[0]?.closed === true && readRunState(closed)?.readinessLedger?.[0]?.blocker === "superseded",
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", closed: false }] }, closed)
+  T(
+    `${TOOL}: explicit closed false reopens the row and clears the closure blocker`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === false && readRunState(closed)?.readinessLedger?.[0]?.blocker === null,
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [closedIdentity] }, closed)
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [{ ...closedIdentity, closed: false, blocker: "review pending" }] }, closed)
+  T(
+    `${TOOL}: a reopened row keeps a blocker carried by the reopening sighting`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === false && readRunState(closed)?.readinessLedger?.[0]?.blocker === "review pending",
+    JSON.stringify(readRunState(closed)?.readinessLedger),
+  )
+  writeRunState({ sessionId: "s1", sleep: true, remaining: [], pullRequests: [closedIdentity] }, closed)
+  writeRunState({
+    sessionId: "s1", sleep: true, remaining: [],
+    pullRequests: [closedIdentity],
+    readinessLedger: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", closed: false }],
+  }, closed)
+  T(
+    `${TOOL}: a reopening in the ledger wins over a stale closed pull request entry in the same write`,
+    readRunState(closed)?.readinessLedger?.[0]?.closed === false && readRunState(closed)?.readinessLedger?.[0]?.blocker === null,
     JSON.stringify(readRunState(closed)?.readinessLedger),
   )
   writeRunState({ sessionId: "s2", sleep: true, remaining: [], pullRequests: [{ repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json" }] }, closed)

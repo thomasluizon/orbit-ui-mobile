@@ -57,11 +57,12 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
+  // Ledger entries come after pull request entries, so the ledger copy wins as it does in the Stop hook.
   const identities = [
-    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
-    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
+    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
+    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
   ]
   const rows = new Map()
   for (const entry of identities) {
@@ -74,11 +75,11 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
       rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, closed })
       continue
     }
-    // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
-    // the earlier sighting did not know about. It may also clear one that has since been resolved,
-    // except on a closed row: a closure cannot be resolved, so silence keeps the recorded blocker.
+    // A later sighting supersedes the receipt path. An explicit closed value updates the row;
+    // silence preserves a closure and its blocker. Reopening clears the old blocker unless this
+    // sighting records one of its own.
     existing.receiptPath = entry.receiptPath
-    existing.closed ||= closed
+    if (typeof entry.closed === "boolean") existing.closed = closed
     existing.blocker = blocker ?? (existing.closed ? existing.blocker : null)
   }
   const readinessLedger = [...rows.values()].map((row) => ({
