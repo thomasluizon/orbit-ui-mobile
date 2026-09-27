@@ -116,7 +116,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
       "is not an exception: opening it is the middle of salvage, never the end.\n\n" +
       "If the queue really is done, keep its append-only readinessLedger intact. The hook reads\n" +
-      "each receipt and allows completion only when every one mechanically reports READY.\n" +
+      "written receipts and also honors recorded merges and blocked closures.\n" +
       "Never clear the ledger to manufacture an exhausted queue.\n\n" +
       "If a NAMED blocker makes READY unreachable, that is a legitimate ending and there is now a\n" +
       "state for it. Record a machine-readable `blocker` string on that pull request's ledger entry\n" +

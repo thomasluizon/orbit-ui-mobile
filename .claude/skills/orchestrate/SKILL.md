@@ -1476,9 +1476,9 @@ A confirmed close without a merge is recorded as boolean `closed: true` with a n
 without a written receipt may end BLOCKED only with both facts. An open row without a receipt,
 or a closed row without a blocker, still refuses the stop.
 A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
-invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
-matches its repository and PR identity, and allows completion only when that receipt reports READY,
-or the row carries a `merged` sha or a `blocker` string. Those are the other dispositions, and
+invalid because UI and API can have the same PR number. The stop hook opens each written ledger
+receipt, matches its repository and PR identity, and allows completion when that receipt reports
+READY, a valid `merged` sha exempts the row, or a row with a recorded blocker ends BLOCKED. Those are the other dispositions, and
 each is a fact the run writes down rather than a verdict it asserts: a merge sha is checkable
 against GitHub, and a blocker names what made READY unreachable. `merged` and `closed` are sticky,
 because neither a merge nor a closure can be undone. A closed row also keeps its blocker when a later
@@ -1493,7 +1493,7 @@ as a finished queue even if a fallible session clears the active list.
 
 `sessionId` is what keeps yesterday's record from blocking today: a record whose session does not
 match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
-but never remove `readinessLedger`. READY receipts or closed rows with recorded blockers let the
+but never remove `readinessLedger`. READY receipts, merged rows, or closed rows with recorded blockers let the
 hook distinguish a completed or BLOCKED run from a mistakenly cleared queue, then the run may
 print the step 11 report.
 
