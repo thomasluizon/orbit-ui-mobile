@@ -1,8 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { buildGoogleAuthorizeUrl } from '@orbit/shared/utils'
-
-export const GOOGLE_OAUTH_COOKIE = 'orbit_google_oauth'
+import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 export function GET(request: NextRequest) {
   const purpose = new URL(request.url).searchParams.get('purpose')

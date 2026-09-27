@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto'
 const setSessionCookies = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth-api', () => ({ setSessionCookies }))
 
-import { GET, GOOGLE_OAUTH_COOKIE } from '@/app/api/auth/google/start/route'
+import { GET } from '@/app/api/auth/google/start/route'
 import { DELETE, POST } from '@/app/api/auth/google/code/route'
+import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const origin = 'https://staging.useorbit.org'
 const loginResponse = {
