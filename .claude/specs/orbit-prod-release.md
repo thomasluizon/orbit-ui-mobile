@@ -81,9 +81,10 @@ minutes apart, plus the shapes whose `stats_since` falls after the latest deploy
 large shape stopped growing. What still grew became four tickets: `#760` (reminder scheduler probe, 48 rows to 1 per call), `#761` (one schedule load per log), `#762` (completion dates from projected dates) and `#763` (daily summary columns and dates), all merged on `main`. One account holds about 4,650 of
 the 5,033 logs and 996 habits, so per-call cost tracks that account.
 
-- `#763` The daily summary reads 366 days of full log rows; overdue detection needs every date it inspects, so the saving is columns and dates, not one row per habit
-- `#745` Record the Supavisor `Connection authenticated` count for the 24 hours after its deploy (the before count is on the ticket; the window closes about 16:34 UTC the day after the deploy), then close it
-- After the deploy of `#760` to `#763`: take two snapshots at least an hour apart during daytime traffic, record the after-deploy rows per call on `#762` and `#763`, close each, and record the remaining egress per active user in `## Current state`. Rows come from `pg_stat_statements`; bytes are rows times the `pg_column_size` width of the selected columns. The Today per-habit facts read (queryid -5099751649154393568, about 630 rows per call) is the next shape to check
+Later fixes, all merged and deployed on `main` and carried to `redesign/main`: `#790` (the Today schedule reads 19 candidate columns and full rows only for the page; 167 B instead of 348 B per candidate row), `#791` (page rows keep the schedule fields they were filtered on) and `#792` (Today log facts as day-offset arrays; the busiest account's facts fell from 88,369 to 32,385 bytes per call). `#762` and `#745` are recorded and closed (Supavisor authentications 5,088 to 532 per day).
+
+- `#763` The daily summary reads 366 days of full log rows; overdue detection needs every date it inspects, so the saving is columns and dates, not one row per habit. Its after shape (the `jsonb_to_recordset` summary reader) has run only for accounts with no windows; record rows per call on the ticket once the busiest account requests a summary, then close it
+- After real use resumes, record on `#790` and `#792` the after-deploy rows per call of the candidate read and the facts read, and record the remaining egress per active user in the Current state section from the Supabase usage page (organization usage, Egress per day) divided by the day's active accounts. Rows come from `pg_stat_statements`; bytes are rows times the `pg_column_size` width of the selected columns. The next shapes to check are the full `Users` row reads (queryid 4312627288915722739, about 11 rows per call, and -4857207453161324362, one row per call) and the per-user schedule projection (8385022281071737821, about 611 rows of 91 B per call)
 
 ### Batch 0b: the harness, before the redesign
 
@@ -93,7 +94,7 @@ file a harness ticket as a substitute for a fix.
 - `#556` The standing `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
 
-The contract rebaseline App (`#702`) is done: its pull requests now start every required check.
+The contract rebaseline App (`#702`) is done: its pull requests now start every required check. The redesign rebaseline passes the App key to its reusable workflow (`#787`): dispatch `redesign-drift.yml` on `redesign/main` after each orbit-api `redesign/main` merge that changes the contract. Worktree teardown accepts clean local base merges (`#785`) and merged carry worktrees of the standing tickets listed in `tickets.standing` (`#786`); a closed, unmerged ledger row with a blocker and `closed: true` ends a sleep run BLOCKED (`#788`), and an explicit `closed: false` reopens it (`#789`).
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -112,8 +113,7 @@ Every ticket whose work lands on `redesign/main` in either code repository, incl
 redesign screens wait on. **This batch ends** when `node tools/redesign-coverage.mjs` reports a valid mapping
 AND every screen ticket closes against its own acceptance criteria.
 
-- `#784` Stream Astra tool step events as each tool runs, not after the tool loop ends (`orbit-api` `redesign/main`; the in-progress trace lines of `#682` depend on it)
-- `#682` Show diff rows in Astra previews, a thinking trace, and follow-up chips (`#24` Stage 3 is merged)
+DONE: `#784` and `#682` merged; `node tools/redesign-coverage.mjs` reports a valid mapping (201 manifest surfaces accounted for, 15 deleted, 3 excluded).
 
 ### THE REDESIGN GATE, between batch 1 and batch 2a
 
@@ -121,7 +121,7 @@ Unchanged and absolute. Once every screen ticket is done, a run **stops** and sh
 INTERNAL build off `redesign/main` for the owner to test as a real update. It does not merge to `main`
 and does not start the next batch. **Only the owner's approval merges `redesign/main` to `main`.**
 
-The build is not made until the owner decides which API it talks to: a staging API or production. `redesign/main` of `orbit-api` is not deployed anywhere, so a build pointed at production would call endpoints that do not exist there yet. The run stops at the gate and waits for that decision.
+The build is not made until the owner decides which API it talks to: a new Render service running `orbit-api` `redesign/main`, or production. `redesign/main` of `orbit-api` is not deployed anywhere, so a build pointed at production would call endpoints that do not exist there yet. The run stops at the gate and waits for that decision.
 
 **The merge carries one protection change in the same moment.** `main` requires
 `Suppressions Ratchet` again, because `main` still has both `eslint-suppressions.json` baselines and
@@ -130,6 +130,8 @@ no `Lint Severity` job, so the `#617` swap had made every pull request to `main`
 required context back to `Lint Severity` when that pull request is ready to merge. Payload shape:
 `gh api -X PATCH repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks
 --input <json>` with `{strict: true, checks: [{context, app_id}]}` (`app_id` 15368 for Actions).
+
+The same merge must keep `main`'s scheduled contract rebaseline: `redesign/main`'s `.github/workflows/contract-rebaseline.yml` is the `workflow_call`-only redesign copy (it checks out `redesign/main`), so a plain merge would drop `main`'s six-hourly run. Keep `main`'s scheduled workflow and retire or rename the redesign copy in that pull request.
 
 ### Batch 2a: the API contracts the UI is waiting on
 
@@ -297,6 +299,7 @@ and copy the names that come back.
 - `Run the rest of the redesign unattended and review it once as a whole.md`
 - `Redesign PRs target redesign-main only until the redesign ships.md` and `The shipping branch outranks the redesign when the machine cannot run both.md` (branch routing)
 - `An idempotency key for an AI tool retry binds to call position never to model-generated arguments.md`
+- `An AI tool action reuses the app's own command never a raw repository call.md`
 - `A shared timeless-text gate blocks a machine path an owner name and a dated anecdote across all three repos.md`
 - `Gate new ticket work when shared CI and review capacity is full.md` and `An unattended run caps its own CI demand in code and waits on CI through a registered wake source.md`
 - `A written instruction is the authorization ship on it without asking again.md` and the product-questions ADR (search for `product questions only, settle engineering calls`)
@@ -349,21 +352,22 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Shipped on `main` and live: every Batch E egress fix (`#742` to `#745`, `#758` to `#763`; the reminder probe now reads 1 row per call instead of 48), the live account event stream on both platforms (`#297`), the actionable 403 copy (`#754`), both reminder editors (`#752`), the rewarded-ad backend removal (`#200`), the corrected UI claims (`#216`), the `use-habits` follow-ups (`#253`), and the event stream origin fix (`#783`). Android 1.3.37 (96) is on the open track and 1.3.36 (95) is on the internal track. The Play Data safety form declares crash logs, diagnostics, device IDs and approximate location for Sentry, and Google is reviewing it.
+Shipped on `main` and live: every Batch E egress fix (`#742` to `#745`, `#758` to `#763`, `#790` to `#792`), the live account event stream on both platforms (`#297`) and its recovery and origin fix (`#783`), the actionable 403 copy (`#754`), both reminder editors (`#752`), the rewarded-ad backend removal (`#200`), the corrected UI claims (`#216`), the `use-habits` follow-ups (`#253`), and the harness fixes `#785` to `#789`. Android 1.3.37 (96) is on the open track and 1.3.36 (95) is on the internal track. The Play Data safety form declares crash logs, diagnostics, device IDs and approximate location for Sentry, and Google is reviewing it.
 
-On `redesign/main`: every Batch 1 ticket except `#682` and `#784`, and a `#556` and `#746` sync of `main` in both code repositories.
+On `redesign/main` in both code repositories: every Batch 1 ticket, and `#556` and `#746` syncs of every `main` merge (UI through `#1213` except the branch-specific contract pin `#1204`; API through `#618`). The UI redesign contract snapshot pins orbit-api `redesign/main` at `16c08268`.
 
-Open pull requests:
+Open pull requests: none in any repository.
 
-- `orbit-ui-mobile` `#1201` (`#682`, base `redesign/main`, head `b4bf124b`): the newest Pullfrog review of that head commented and `pullfrog-approval` is red. Two threads are open, both in `packages/shared/src/chat/pending-operation-card-view.ts`: action-only rows for bulk deletion (line 230) and targets beyond the first ten losing per-item removal (line 248). It needs a review batch.
-- `orbit-api` `#613` (`#784`, base `redesign/main`, head `1eccb7df`): the review-batch commit `21359cb3` (execute a confirmed tool after a step stream failure) is committed but NOT pushed, in the `ticket-784-live-tool-steps` worktree. Merge its report into the body, resolve its thread, push, and wait for the review.
-- `orbit-ui-mobile` `#1204` (`chore/contract-snapshot`, base `main`, head `2b3d98ba`): the automated contract rebaseline; blocked on its checks and review.
+Egress: daily egress on the Supabase usage page was 640.1 MB on the last full day before the latest fixes and 365.4 MB on the day they deployed; the next full day with real use gives the after-fix figure per active account (only one or two accounts write logs on a given day). The current billing cycle shows 8.053 GB used, and the organization page shows a "Services restricted" banner for the Free plan quota while the API still reaches the database through the pooler.
 
-Measurement still open: the after-deploy rows per call for `#762` and `#763`, the remaining egress per active user, and the `#745` 24-hour Supavisor count (before: 5,092).
+Measurement still open: `#763` rows per call once the busiest account requests a summary; the after-deploy rows per call for `#790` and `#792`; the egress per active account.
 
 Waiting on the owner:
 
-- Which API the redesign gate build talks to (staging or production). The gate build waits for it.
+- Which API the redesign gate build talks to (a new Render service for `orbit-api` `redesign/main`, or production). The gate build waits for it.
+- Whether to upgrade the Supabase plan behind the "Services restricted" banner (a billing choice; it does not replace the egress work).
 - A device test of `#390` (bulk log replay) and of `#134` (three-dot menu) on the current open-track build.
 
-Watch windows: `#565` and `#566` close after seven days with no recurrence on the carrying release.
+Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
+
+Stale worktrees whose branches have no remote left: UI `ticket-299`, `ticket-306`, `ticket-565`, `ticket-642`, `ticket-647`, `ticket-735`, `ticket-769`; API `ticket-664-openapi-removals`, plus six detached API checkouts from an older session (`api-rd-check`, `merge-api-569`, `-571`, `-574`, `-583` with 7 dirty files, `-584` with 8). Verify each (clean, merged, tip in the pull request head) before removing it.
