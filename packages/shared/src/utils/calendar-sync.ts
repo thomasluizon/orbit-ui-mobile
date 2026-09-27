@@ -1,4 +1,4 @@
-import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
+import { MAX_HABIT_INTERVAL_WEEKS, type BulkCreateRequest, type FrequencyUnit } from '../types/habit'
 import type {
   CalendarAutoSyncState,
   CalendarAutoSyncStatus,
@@ -41,12 +41,14 @@ export interface CalendarSyncParsedRecurrence {
 
 export type CalendarSyncImportIssue =
   | 'ordinal-weekday'
+  | 'unsupported-weekday-recurrence'
   | 'finite-date-clamp'
   | 'finite-date-range'
   | 'utc-until-offset-shift'
 
 export type CalendarSyncImportIssueMessageKey =
   | 'calendar.importIssue.ordinalWeekday'
+  | 'calendar.importIssue.unsupportedWeekdayRecurrence'
   | 'calendar.importIssue.finiteDateClamp'
   | 'calendar.importIssue.finiteDateRange'
   | 'calendar.importIssue.utcUntilOffsetShift'
@@ -527,6 +529,7 @@ export function getCalendarSyncImportIssue(
   startDate: string | null = null,
   startTime: string | null = null,
   startUtc?: string | null,
+  weekStartDay: 0 | 1 = 1,
 ): CalendarSyncImportIssue | null {
   if (!rule) return null
 
@@ -535,7 +538,27 @@ export function getCalendarSyncImportIssue(
     startDate,
     startTime,
     startUtc,
+    weekStartDay,
   )
+}
+
+function hasDifferentActiveWeekPartition(
+  resolution: CalendarSyncRuleResolution,
+  startDate: string | null,
+  weekStartDay: 0 | 1,
+): boolean {
+  const { parts, weekdayIndexes } = resolution
+  const ruleWeekStart = WEEKDAY_DEFINITION[parts.WKST ?? 'MO']?.index
+  if (ruleWeekStart === weekStartDay) return false
+  const anchorWeekday = startDate ? new Date(`${startDate}T00:00:00Z`).getUTCDay() : Number.NaN
+  if (ruleWeekStart === undefined || Number.isNaN(anchorWeekday)) return true
+
+  return weekdayIndexes.some((weekday) => {
+    const daysAfterAnchor = (weekday - anchorWeekday + 7) % 7
+    const ruleWeekOffset = Math.floor(((anchorWeekday - ruleWeekStart + 7) % 7 + daysAfterAnchor) / 7)
+    const accountWeekOffset = Math.floor(((anchorWeekday - weekStartDay + 7) % 7 + daysAfterAnchor) / 7)
+    return ruleWeekOffset !== accountWeekOffset
+  })
 }
 
 function getCalendarSyncImportIssueFromResolution(
@@ -543,12 +566,22 @@ function getCalendarSyncImportIssueFromResolution(
   startDate: string | null,
   startTime: string | null,
   startUtc: string | null | undefined,
+  weekStartDay: 0 | 1,
 ): CalendarSyncImportIssue | null {
-  const { parts, weekdayTokens } = resolution
+  const { parts, weekdayTokens, hasWeekdays } = resolution
   const hasOrdinalPrefix = weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))
   const hasPositionalSelection = weekdayTokens.length > 0 && !!parts.BYSETPOS
   if (hasOrdinalPrefix || hasPositionalSelection) {
     return 'ordinal-weekday'
+  }
+
+  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
+  if (hasWeekdays && interval > 1 && (
+    parts.FREQ !== 'WEEKLY'
+    || interval > MAX_HABIT_INTERVAL_WEEKS
+    || hasDifferentActiveWeekPartition(resolution, startDate, weekStartDay)
+  )) {
+    return 'unsupported-weekday-recurrence'
   }
 
   if (hasFiniteDateRangeIssue(resolution, startDate)) {
@@ -566,12 +599,13 @@ function getCalendarSyncImportIssueFromResolution(
   return null
 }
 
-export function isCalendarSyncEventImportable(event: CalendarSyncEvent): boolean {
+export function isCalendarSyncEventImportable(event: CalendarSyncEvent, weekStartDay: 0 | 1 = 1): boolean {
   return getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
     event.startTime,
     event.startUtc,
+    weekStartDay,
   ) === null
 }
 
@@ -580,6 +614,7 @@ export function getCalendarSyncImportIssueMessageKey(
 ): CalendarSyncImportIssueMessageKey {
   const keys: Record<CalendarSyncImportIssue, CalendarSyncImportIssueMessageKey> = {
     'ordinal-weekday': 'calendar.importIssue.ordinalWeekday',
+    'unsupported-weekday-recurrence': 'calendar.importIssue.unsupportedWeekdayRecurrence',
     'finite-date-clamp': 'calendar.importIssue.finiteDateClamp',
     'finite-date-range': 'calendar.importIssue.finiteDateRange',
     'utc-until-offset-shift': 'calendar.importIssue.utcUntilOffsetShift',
@@ -637,6 +672,7 @@ export function isCalendarSyncNotConnectedMessage(message: string): boolean {
 
 export function buildCalendarSyncImportRequest(
   events: CalendarSyncEvent[],
+  weekStartDay: 0 | 1 = 1,
 ): BulkCreateRequest {
   return {
     habits: events.map((event) => {
@@ -646,6 +682,7 @@ export function buildCalendarSyncImportRequest(
         event.startDate,
         event.startTime,
         event.startUtc,
+        weekStartDay,
       )
       if (importIssue) {
         throw new Error(`Unsupported calendar recurrence: ${importIssue}`)
@@ -684,8 +721,9 @@ export function buildCalendarSyncImportRequest(
 
 export function buildCalendarAutoSyncImportRequest(
   suggestions: CalendarSyncSuggestion[],
+  weekStartDay: 0 | 1 = 1,
 ): BulkCreateRequest {
-  return buildCalendarSyncImportRequest(suggestions.map((s) => s.event))
+  return buildCalendarSyncImportRequest(suggestions.map((s) => s.event), weekStartDay)
 }
 
 export function isCalendarAutoSyncStatusReconnectRequired(

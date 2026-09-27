@@ -37,6 +37,7 @@ function eventRowBackground(
 
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
+  weekStartDay: 0 | 1
   index: number
   selected: boolean
   isReviewMode: boolean
@@ -51,6 +52,7 @@ interface CalendarSyncEventRowProps {
 
 export function CalendarSyncEventRow({
   event,
+  weekStartDay,
   index,
   selected,
   isReviewMode,
@@ -67,6 +69,7 @@ export function CalendarSyncEventRow({
     event.startDate,
     event.startTime,
     event.startUtc,
+    weekStartDay,
   )
   const importIssueLabel = importIssue
     ? t(getCalendarSyncImportIssueMessageKey(importIssue))

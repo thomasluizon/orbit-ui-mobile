@@ -471,6 +471,27 @@ describe('CalendarSyncPage', () => {
     }), expect.anything())
   })
 
+  it.each([
+    ['a monthly weekday interval', 'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO', '2026-09-21', 1],
+    ['a weekday interval above the API bound', 'RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO', '2026-09-21', 1],
+    ['a different active-week partition', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO', '2026-09-27', 0],
+  ])('disables %s in review', async (_name, recurrenceRule, startDate, weekStartDay) => {
+    mockProfile = { id: 'u1', hasProAccess: true, weekStartDay }
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = { data: [{
+      id: 'suggestion-unsupported',
+      event: { id: 'event-unsupported', title: 'Unsupported training', description: null,
+        startDate, startTime: null, endTime: null, isRecurring: true, recurrenceRule, reminders: [] },
+    }], isLoading: false }
+
+    renderPage()
+
+    expect((await screen.findByText('Unsupported training')).closest('button')).toBeDisabled()
+    expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
+    expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
+    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+  })
+
   it('explains and disables a finite month-end suggestion before import', async () => {
     mockSearchParams.set('mode', 'review')
     mockSuggestions = {

@@ -14,6 +14,7 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
+  weekStartDay: 0 | 1
   selected: boolean
   isReviewMode: boolean
   suggestionId: string | null
@@ -25,6 +26,7 @@ interface CalendarSyncEventRowProps {
 
 export function CalendarSyncEventRow({
   event,
+  weekStartDay,
   selected,
   isReviewMode,
   suggestionId,
@@ -38,6 +40,7 @@ export function CalendarSyncEventRow({
     event.startDate,
     event.startTime,
     event.startUtc,
+    weekStartDay,
   )
   const importIssueLabel = importIssue
     ? t(getCalendarSyncImportIssueMessageKey(importIssue))

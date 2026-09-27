@@ -554,6 +554,35 @@ describe("CalendarSyncScreen", () => {
     }));
   });
 
+  it.each([
+    ["a monthly weekday interval", "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO", "2026-09-21", 1],
+    ["a weekday interval above the API bound", "RRULE:FREQ=WEEKLY;INTERVAL=53;BYDAY=MO", "2026-09-21", 1],
+    ["a different active-week partition", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO", "2026-09-27", 0],
+  ])("disables %s in review", async (_name, recurrenceRule, startDate, weekStartDay) => {
+    mocks.profile = createMockProfile({ hasProAccess: true, weekStartDay: weekStartDay as 0 | 1 });
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-unsupported", event: {
+      ...buildEvents(1)[0]!, title: "Unsupported training", startDate,
+      isRecurring: true, recurrenceRule,
+    } }];
+
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+
+    const eventRow = tree.root.find((node: TestNode) => node.props.accessibilityRole === "checkbox");
+    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.accessibilityHint).toBe("calendar.importIssue.unsupportedWeekdayRecurrence");
+    const importPill = tree.root.find((node: TestNode) =>
+      typeof node.props.onClick === "function" &&
+      typeof node.props.children === "string" &&
+      node.props.children.includes("calendar.importButton"),
+    );
+    expect(importPill.props.disabled).toBe(true);
+  });
+
   it("explains and disables a finite month-end suggestion before import", async () => {
     const event = {
       ...buildEvents(1)[0]!,
