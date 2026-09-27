@@ -57,6 +57,7 @@ describe('proxy', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
@@ -107,7 +108,6 @@ describe('proxy', () => {
 
   it('returns the ticket API origin for the stream and allows it in connect-src', async () => {
     vi.stubEnv('API_BASE', 'http://localhost:5000')
-    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
     const ticketResponse = await issueEventTicket()
     const { apiBase } = await ticketResponse.json() as { apiBase: string }
@@ -118,8 +118,22 @@ describe('proxy', () => {
     expect(connectSource).toContain(new URL(apiBase).origin)
   })
 
+  it('uses the public event origin for the stream and connect-src when the API is internal', async () => {
+    vi.stubEnv('API_BASE', 'http://api.internal:5000')
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://events.example.test')
+    vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
+    const ticketResponse = await issueEventTicket()
+    const { apiBase } = await ticketResponse.json() as { apiBase: string }
+    const response = await proxy(createRequest('/terms'))
+    const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
+      .find((directive) => directive.startsWith('connect-src '))?.split(' ')
+
+    expect(apiBase).toBe('https://events.example.test')
+    expect(connectSource).toContain(new URL(apiBase).origin)
+    expect(connectSource).not.toContain('http://api.internal:5000')
+  })
+
   it('keeps the production API origin for tickets and streams', async () => {
-    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
     const ticketResponse = await issueEventTicket()
     expect(await ticketResponse.json()).toMatchObject({ apiBase: 'https://api.useorbit.org' })
