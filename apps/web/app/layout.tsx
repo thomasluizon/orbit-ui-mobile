@@ -33,7 +33,7 @@ const variablesByScheme = Object.fromEntries(
   ]),
 )
 const defaultThemeStyle = {
-  ...resolveWebThemeVariables('purple', 'dark'),
+  ...resolveWebThemeVariables('orange', 'dark'),
   '--skeleton-pulse-iterations': skeletonPulseIterations,
 } as CSSProperties
 
