@@ -169,6 +169,17 @@ describe('Composer (mobile)', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
+  it('reports input focus and blur to the conversation scroll owner', async () => {
+    const onInputFocus = vi.fn()
+    const onInputBlur = vi.fn()
+    const tree = await renderComposer(props({ onInputFocus, onInputBlur }))
+    const input = byLabel(tree.root, words.placeholder)[0]
+    TestRenderer.act(() => input.props.onFocus())
+    TestRenderer.act(() => input.props.onBlur())
+    expect(onInputFocus).toHaveBeenCalledOnce()
+    expect(onInputBlur).toHaveBeenCalledOnce()
+  })
+
   it.each(['', '   '])('does not send a blank value %j', async (value) => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value, onSend }))

@@ -907,6 +907,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const {
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -951,6 +952,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     scrollToBottom,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

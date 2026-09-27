@@ -7,6 +7,7 @@ import {
   Pressable,
   Linking,
   Platform,
+  FlatList,
   type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,8 +22,8 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { RefreshCw } from "@/components/ui/icons";
-import { KeyboardAwareFlatList, KeyboardAwareView } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
+import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
@@ -65,10 +66,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     scrollToBottom,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = chat;
+  const keyboardScroll = useConversationKeyboardScroll(flatListRef);
 
   const microphonePermissionDenied = speechError === t("speech.micDenied");
 
@@ -112,6 +115,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
         onPendingOperationRevise={revisePendingOperationForBubble}
+        onPendingOperationRefresh={refreshPendingOperationForBubble}
         onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
         onPendingOperationVerifyStepUp={verifyStepUpForBubble}
@@ -123,6 +127,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       handleBreakdownConfirmed,
       initialMessageIds,
       revisePendingOperationForBubble,
+      refreshPendingOperationForBubble,
       prepareStepUpForBubble,
       streamingMessageId,
       verifyStepUpForBubble,
@@ -133,10 +138,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <KeyboardAwareView
-        style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
+      <View style={styles.content}>
         <AppBar
           titleRef={titleRef}
           onBack={closeConversation}
@@ -154,7 +156,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           />
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
-            <KeyboardAwareFlatList
+            <FlatList
               ref={flatListRef}
               data={messages}
               renderItem={renderMessage}
@@ -162,6 +164,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={scrollToBottom}
+              onScroll={keyboardScroll.onScroll}
+              onLayout={keyboardScroll.onLayout}
               accessibilityLabel={t("chat.title")}
               accessibilityLiveRegion="polite"
               accessibilityState={{ busy: isTyping }}
@@ -238,9 +242,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               </Text>
             </Pressable>
           ) : null}
-          <Composer {...composerProps} />
+          <Composer
+            {...composerProps}
+            onInputFocus={keyboardScroll.onComposerFocus}
+            onInputBlur={keyboardScroll.onComposerBlur}
+          />
         </View>
-      </KeyboardAwareView>
+      </View>
 
       {selectedGoalId && (
         <GoalDetailDrawer

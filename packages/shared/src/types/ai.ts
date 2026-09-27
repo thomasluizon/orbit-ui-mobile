@@ -71,6 +71,8 @@ export const pendingOperationChangeSchema = z.object({
   oldValue: z.string().nullable(),
   newValue: z.string().nullable(),
   valueType: z.string(),
+  proposedValue: z.unknown().nullable().optional(),
+  isEditable: z.boolean().optional(),
 })
 
 export const pendingOperationItemSchema = z.object({

@@ -20,6 +20,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  View,
   findNodeHandle,
   type FlatListProps,
   type KeyboardAvoidingViewProps,
@@ -33,6 +34,7 @@ interface KeyboardAwareViewProps {
   style?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
   behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
+  avoidKeyboard?: boolean
 }
 
 interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView> {
@@ -40,6 +42,7 @@ interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView>
   containerStyle?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
   behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
+  avoidKeyboard?: boolean
 }
 
 interface KeyboardAwareSheetScrollViewProps
@@ -281,11 +284,12 @@ export function KeyboardAwareView({
   style,
   keyboardVerticalOffset = 0,
   behavior,
+  avoidKeyboard = true,
 }: Readonly<KeyboardAwareViewProps>) {
   return (
     <KeyboardAvoidingView
       style={style}
-      behavior={resolveKeyboardBehavior(behavior)}
+      behavior={avoidKeyboard ? resolveKeyboardBehavior(behavior) : undefined}
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       {children}
@@ -298,6 +302,7 @@ export function KeyboardAwareScrollView({
   containerStyle,
   keyboardVerticalOffset = 0,
   behavior,
+  avoidKeyboard = true,
   keyboardShouldPersistTaps = 'always',
   contentInsetAdjustmentBehavior = 'automatic',
   ...props
@@ -315,24 +320,32 @@ export function KeyboardAwareScrollView({
     [keyboardAwareContext, props],
   )
 
+  const scrollContent = (
+    <ScrollView
+      {...props}
+      ref={scrollRef}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
+      automaticallyAdjustKeyboardInsets
+      onScroll={handleScroll}
+    >
+      {children}
+    </ScrollView>
+  )
+
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
-      <KeyboardAwareView
-        style={[styles.container, containerStyle]}
-        keyboardVerticalOffset={keyboardVerticalOffset}
-        behavior={behavior}
-      >
-        <ScrollView
-          {...props}
-          ref={scrollRef}
-          keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-          contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
-          automaticallyAdjustKeyboardInsets
-          onScroll={handleScroll}
+      {avoidKeyboard ? (
+        <KeyboardAwareView
+          style={[styles.container, containerStyle]}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+          behavior={behavior}
         >
-          {children}
-        </ScrollView>
-      </KeyboardAwareView>
+          {scrollContent}
+        </KeyboardAwareView>
+      ) : (
+        <View style={[styles.container, containerStyle]}>{scrollContent}</View>
+      )}
     </KeyboardAwareContext.Provider>
   )
 }
