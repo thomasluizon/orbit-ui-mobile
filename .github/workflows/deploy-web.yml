@@ -1,0 +1,115 @@
+# The production GitHub Environment must require the owner's review.
+# Repository secret: RENDER_API_KEY. Repository variables: RENDER_WEB_SERVICE_ID,
+# PRODUCTION_WEB_HOST, PRODUCTION_NEXT_PUBLIC_SUPABASE_URL,
+# PRODUCTION_NEXT_PUBLIC_SUPABASE_ANON_KEY, PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+# PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE, PRODUCTION_NEXT_PUBLIC_SITE_URL,
+# PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY, PRODUCTION_NEXT_PUBLIC_SENTRY_DSN.
+# The Render service needs a GHCR registry credential and runtime API_BASE.
+name: Deploy web production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+
+concurrency:
+  group: deploy-web-production
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/thomasluizon/orbit-web
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve source
+        id: source
+        env:
+          SOURCE_REF: ${{ inputs.ref }}
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "branch_tag=${SOURCE_REF//\//-}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push production image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.sha }}
+            ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.branch_tag }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.PRODUCTION_NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_EVENT_API_BASE=${{ vars.PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.PRODUCTION_NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
+      - name: Record digest
+        run: echo "Pushed ${IMAGE}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy production digest
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image_url="${IMAGE}@${DIGEST}"
+          response=$(curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
+          deploy_id=$(jq -er '.id' <<< "$response")
+          for attempt in $(seq 1 60); do
+            sleep 10
+            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            echo "Deploy poll ${attempt}: ${status}"
+            case "$status" in
+              live) echo "Production deploy ${deploy_id} is live"; exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|deactivated|canceled) echo "Deploy failed: ${status}" >&2; exit 1 ;;
+              created|queued|build_in_progress|pre_deploy_in_progress|update_in_progress) ;;
+              *) echo "Unknown deploy status: ${status}" >&2; exit 1 ;;
+            esac
+          done
+          echo "Timed out waiting for production deploy ${deploy_id}" >&2
+          exit 1
+      - name: Check production health
+        env:
+          PRODUCTION_WEB_HOST: ${{ vars.PRODUCTION_WEB_HOST }}
+        run: curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "https://${PRODUCTION_WEB_HOST}/api/health"
+      - name: Record GitHub deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_REF: ${{ inputs.ref }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          jq -nc --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" --arg digest "$DIGEST" \
+            '{ref:$sha,environment:"production",auto_merge:false,required_contexts:[],production_environment:true,description:("Web image " + $digest),payload:{source_ref:$ref,sha:$sha,digest:$digest}}' |
+            curl -fsS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments" \
+              -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+              -H 'Content-Type: application/json' --data-binary @- > /dev/null

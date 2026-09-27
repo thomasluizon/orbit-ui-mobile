@@ -1,0 +1,121 @@
+# Repository variables: STAGING_NEXT_PUBLIC_SUPABASE_URL, STAGING_NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY, STAGING_NEXT_PUBLIC_EVENT_API_BASE,
+# STAGING_NEXT_PUBLIC_SITE_URL, STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+# STAGING_NEXT_PUBLIC_SENTRY_DSN, RENDER_WEB_STAGING_SERVICE_ID.
+# Repository secret: RENDER_API_KEY. The Render service also needs a GHCR registry credential.
+name: Web image
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - apps/web/**
+      - packages/shared/**
+      - package.json
+      - package-lock.json
+      - turbo.json
+      - .github/workflows/web-image.yml
+  push:
+    branches: [redesign/main, main]
+
+env:
+  INTEGRATION_BRANCH: redesign/main
+  IMAGE: ghcr.io/thomasluizon/orbit-web
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  select-staging:
+    runs-on: ubuntu-latest
+    outputs:
+      selected: ${{ steps.branch.outputs.selected }}
+    steps:
+      - id: branch
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "${INTEGRATION_BRANCH}" ] && [ "${GITHUB_EVENT_NAME}" = push ]; then
+            echo selected=true >> "$GITHUB_OUTPUT"
+          else
+            echo selected=false >> "$GITHUB_OUTPUT"
+          fi
+
+  image:
+    needs: select-staging
+    if: github.event_name == 'pull_request' || needs.select-staging.outputs.selected == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Set image tags
+        if: github.event_name == 'push'
+        id: tags
+        run: |
+          branch_tag="${GITHUB_REF_NAME//\//-}"
+          echo "value=${IMAGE}:${GITHUB_SHA},${IMAGE}:${branch_tag}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build web image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: ${{ github.event_name == 'pull_request' }}
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ github.event_name == 'push' && steps.tags.outputs.value || 'orbit-web:smoke' }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.STAGING_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_EVENT_API_BASE=${{ vars.STAGING_NEXT_PUBLIC_EVENT_API_BASE }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.STAGING_NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
+      - name: Smoke test container
+        if: github.event_name == 'pull_request'
+        run: |
+          docker run -d --name orbit-web-smoke -p 3000:3000 orbit-web:smoke
+          for attempt in $(seq 1 30); do
+            echo "Health attempt ${attempt}"
+            if curl -fsS http://localhost:3000/api/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs orbit-web-smoke
+          exit 1
+      - name: Record digest
+        if: github.event_name == 'push'
+        run: echo "Pushed ${IMAGE}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy staging digest
+        if: github.event_name == 'push'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image_url="${IMAGE}@${DIGEST}"
+          response=$(curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
+          deploy_id=$(jq -er '.id' <<< "$response")
+          for attempt in $(seq 1 60); do
+            sleep 10
+            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            echo "Deploy poll ${attempt}: ${status}"
+            case "$status" in
+              live) echo "Staging deploy ${deploy_id} is live"; exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|deactivated|canceled) echo "Deploy failed: ${status}" >&2; exit 1 ;;
+              created|queued|build_in_progress|pre_deploy_in_progress|update_in_progress) ;;
+              *) echo "Unknown deploy status: ${status}" >&2; exit 1 ;;
+            esac
+          done
+          echo "Timed out waiting for staging deploy ${deploy_id}" >&2
+          exit 1

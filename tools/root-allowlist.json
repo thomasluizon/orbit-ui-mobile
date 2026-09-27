@@ -1,6 +1,7 @@
 {
   "files": [
     ".claudeignore",
+    ".dockerignore",
     ".env",
     ".env.local",
     ".gitattributes",
@@ -10,6 +11,7 @@
     "BRAND.md",
     "CLAUDE.md",
     "DESIGN.md",
+    "Dockerfile",
     "FEATURES.md",
     "LICENSE",
     "README.md",
