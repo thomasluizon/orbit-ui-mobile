@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
-import { consumeAccountEventStream, invalidateAccountEvent } from '@orbit/shared/query'
+import { consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesBefore } from '@orbit/shared/query'
 import { useAuthStore } from '@/stores/auth-store'
 import { openAccountEventStream } from './account-event-stream'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
+
+let firstOpenCutoff = Date.now()
 
 export function AccountEventConnection(): null {
   const queryClient = useQueryClient()
@@ -25,6 +27,9 @@ export function AccountEventConnection(): null {
       return
     }
     if (appState !== 'active') return
+    if (!hasOpened.current && !lastEventId.current) {
+      invalidateAccountQueriesBefore(queryClient, firstOpenCutoff)
+    }
     if (hasOpened.current && !lastEventId.current) {
       invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
     }
@@ -48,6 +53,7 @@ export function AccountEventConnection(): null {
     })
     return () => {
       controller.abort()
+      firstOpenCutoff = Date.now()
       setAccountEventOrigin(null)
     }
   }, [appState, isAuthenticated, queryClient])

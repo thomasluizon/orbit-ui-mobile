@@ -4,7 +4,10 @@ import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
 
 const invalidateQueries = vi.fn()
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries }) }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({
+  invalidateQueries,
+  getQueryCache: () => ({ findAll: () => [] }),
+}) }))
 
 afterEach(() => {
   vi.unstubAllGlobals()

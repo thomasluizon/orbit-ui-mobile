@@ -1,8 +1,10 @@
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
+import { QueryObserver } from '@tanstack/query-core'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
+import { QUERY_CACHE_VERSION, queryClient, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
 
 const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
@@ -10,9 +12,21 @@ const mocks = vi.hoisted(() => ({
   getToken: vi.fn(() => Promise.resolve('token')),
   refreshSessionToken: vi.fn(),
   onAppState: null as null | ((state: string) => void),
+  getItem: vi.fn(),
+  queryClient: null as null | typeof queryClient,
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQueryClient: () => mocks.queryClient ?? {
+    invalidateQueries: mocks.invalidateQueries,
+    getQueryCache: () => ({ findAll: () => [] }),
+  },
+}))
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { getItem: mocks.getItem, setItem: vi.fn(), removeItem: vi.fn() },
+}))
+vi.mock('@react-native-community/netinfo', () => ({ default: { addEventListener: vi.fn(() => () => {}) } }))
 vi.mock('react-native', () => ({ AppState: {
   currentState: 'active',
   addEventListener: (_type: string, listener: (state: string) => void) => {
@@ -31,6 +45,38 @@ afterEach(() => {
   mocks.expoFetch.mockReset()
   mocks.invalidateQueries.mockReset()
   setAccountEventOrigin(null)
+  queryClient.clear()
+  mocks.queryClient = null
+  mocks.getItem.mockReset()
+})
+
+it('refreshes a restored Today query on its first cursorless stream', async () => {
+  mocks.queryClient = queryClient
+  await setQueryCacheScope('account-1')
+  const queryKey = ['habits', 'list', { date: 'today' }]
+  mocks.getItem.mockResolvedValue(JSON.stringify({
+    version: QUERY_CACHE_VERSION,
+    entries: [{ queryKey, state: { data: ['before remote change'], dataUpdatedAt: Date.now() - 1000 } }],
+  }))
+  await restoreQueryCache()
+
+  const fetchHabits = vi.fn(() => Promise.resolve(['after remote change']))
+  const observer = new QueryObserver(queryClient, { queryKey, queryFn: fetchHabits, staleTime: 300_000 })
+  const unsubscribe = observer.subscribe(() => {})
+  expect(observer.getCurrentResult().data).toEqual(['before remote change'])
+  expect(fetchHabits).not.toHaveBeenCalled()
+
+  mocks.expoFetch.mockResolvedValue({
+    ok: true, status: 200,
+    body: new ReadableStream<Uint8Array>({ start() {} }),
+  })
+  let view!: ReturnType<typeof TestRenderer.create>
+  await act(async () => { view = TestRenderer.create(React.createElement(AccountEventConnection)); await Promise.resolve() })
+  expect(mocks.expoFetch).toHaveBeenCalledTimes(1)
+  await vi.waitFor(() => expect(fetchHabits).toHaveBeenCalledTimes(1))
+  expect(observer.getCurrentResult().data).toEqual(['after remote change'])
+  await act(() => { (view as unknown as { unmount: () => void }).unmount() })
+  unsubscribe()
 })
 
 it('uses the bearer stream while active and closes it in background', async () => {

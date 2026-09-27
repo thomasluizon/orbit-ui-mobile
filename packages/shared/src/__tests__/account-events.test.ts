@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { createAccountEventParser, consumeAccountEventStream } from '../query/account-event-stream'
-import { accountChangeQueryKeys, invalidateAccountEvent } from '../query/account-events'
-import { habitKeys, notificationKeys } from '../query/keys'
+import { accountChangeQueryKeys, invalidateAccountEvent, invalidateAccountQueriesBefore } from '../query/account-events'
+import { goalKeys, habitKeys, notificationKeys } from '../query/keys'
 
 const habitId = '123e4567-e89b-42d3-a456-426614174000'
 const payload = { v: 1 as const, changes: [{ kind: 'habitLog' as const, op: 'create' as const, ids: [habitId], dates: ['2026-09-26'] }], origin: 'own' }
@@ -24,6 +25,32 @@ describe('account events', () => {
     invalidateAccountEvent({ invalidateQueries }, { type: 'changes', payload }, 'other')
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
     expect(accountChangeQueryKeys({ kind: 'futureKind', op: 'update', ids: [] })).toContainEqual(habitKeys.all)
+  })
+
+  it('refreshes cached account data from before mount without fetching fresh data again', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const mountedAt = Date.now() - 500
+    const oldKey = habitKeys.list({ date: 'today' })
+    const freshKey = goalKeys.list({ status: 'active' })
+    client.setQueryData(oldKey, 'old', { updatedAt: mountedAt - 1 })
+    client.setQueryData(freshKey, 'fresh', { updatedAt: mountedAt + 1 })
+    const fetchOld = vi.fn(async () => 'changed')
+    const fetchFresh = vi.fn(async () => 'fresh')
+    const oldObserver = new QueryObserver(client, { queryKey: oldKey, queryFn: fetchOld, staleTime: Infinity })
+    const freshObserver = new QueryObserver(client, { queryKey: freshKey, queryFn: fetchFresh, staleTime: Infinity })
+    const stopOld = oldObserver.subscribe(() => {})
+    const stopFresh = freshObserver.subscribe(() => {})
+    expect(fetchOld).not.toHaveBeenCalled()
+    expect(fetchFresh).not.toHaveBeenCalled()
+
+    invalidateAccountQueriesBefore(client, mountedAt)
+    await vi.waitFor(() => expect(oldObserver.getCurrentResult().data).toBe('changed'))
+    invalidateAccountQueriesBefore(client, mountedAt)
+    expect(fetchOld).toHaveBeenCalledTimes(1)
+    expect(fetchFresh).not.toHaveBeenCalled()
+    stopOld()
+    stopFresh()
+    client.clear()
   })
 
   it('reconnects with the last event id and recovers on resync', async () => {

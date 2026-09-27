@@ -26,6 +26,6 @@ export {
   invalidateHabitDependents,
 } from './habit-cache'
 
-export { accountChangeQueryKeys, invalidateAccountEvent } from './account-events'
+export { accountChangeQueryKeys, invalidateAccountEvent, invalidateAccountQueriesBefore } from './account-events'
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'

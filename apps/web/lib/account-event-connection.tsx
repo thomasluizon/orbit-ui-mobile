@@ -2,11 +2,13 @@
 
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { consumeAccountEventStream, invalidateAccountEvent } from '@orbit/shared/query'
+import { consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesBefore } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
 interface TicketResponse { ticket: string; apiBase: string }
+
+let firstOpenCutoff = Date.now()
 
 export function AccountEventConnection(): null {
   const queryClient = useQueryClient()
@@ -16,6 +18,7 @@ export function AccountEventConnection(): null {
     let lastEventId: string | null = null
     let hasOpened = false
     function close() {
+      if (controller) firstOpenCutoff = Date.now()
       controller?.abort()
       controller = null
       setAccountEventOrigin(null)
@@ -23,6 +26,9 @@ export function AccountEventConnection(): null {
     function syncVisibility() {
       close()
       if (document.visibilityState !== 'visible') return
+      if (!hasOpened && !lastEventId) {
+        invalidateAccountQueriesBefore(queryClient, firstOpenCutoff)
+      }
       if (hasOpened && !lastEventId) {
         invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
       }
