@@ -13,10 +13,10 @@ let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, followUpBeforeMerge = false, localMerge = null, laterCleanMerge = false, contractSwitch = false, linkedDependency = false, lockReason } = {}) => {
+const stageTeardownWorktree = (label, { ticketNumber = 124, base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, followUpBeforeMerge = false, localMerge = null, laterCleanMerge = false, contractSwitch = false, linkedDependency = false, lockReason } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
-  const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
+  const child = join(root, "teardown", label, hasTicketName ? `ticket-${ticketNumber}-${label}` : "child")
   const remote = join(root, "teardown", label, "remote.git")
   mkdirSync(primary, { recursive: true })
   const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
@@ -160,7 +160,9 @@ syncBuiltinESMExports()
 }
 
 export const cases = () => {
-  const staged = stageWithConfig("teardown-worktree", TOOL, realOrchestratorConfig())
+  const config = realOrchestratorConfig()
+  T(`${TOOL}: shipped standing tickets are 556 and 746`, JSON.stringify(config.tickets.standing) === JSON.stringify([556, 746]))
+  const staged = stageWithConfig("teardown-worktree", TOOL, config)
   stagedToolPath = staged.path
   stagedConfigPath = staged.configPath
   stage(
@@ -168,6 +170,8 @@ export const cases = () => {
     `export const resolveTicket = (reference) => {
   const value = String(reference).toUpperCase()
   if (value === "ORB-124") return { identifier: "ORB-124", number: 124 }
+  if (value === "#556" || value === "556") return { identifier: null, number: 556 }
+  if (value === "#746" || value === "746") return { identifier: null, number: 746 }
   if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
   throw new Error("Unknown migrated ticket " + reference)
 }
@@ -265,6 +269,22 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const unmerged = stageTeardownWorktree("unmerged", { changed: true })
   check(TOOL, "a branch with no merged pull request is refused", ["--issue", "ORB-124"], { status: 1, stderr: /no merged pull request with merge and head commits was found for feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(unmerged, { pullRequests: [], removePath: unmerged.child })) })
   T(`${TOOL}: the unmerged refusal leaves the tree in place`, existsSync(unmerged.child), "the unmerged fixture was removed")
+
+  const standingOpen = stageTeardownWorktree("standing-open", { ticketNumber: 746, changed: true })
+  check(TOOL, "a standing ticket with an open pull request is refused", ["--issue", "#746"], { status: 1, stderr: /no merged pull request with merge and head commits was found/ }, { env: { ...orcaEnv(teardownPlan(standingOpen, { pullRequests: [] })), ORBIT_TICKET_STATUS: "In Progress", ORBIT_TICKET_STATE: "OPEN" } })
+  T(`${TOOL}: an open standing pull request leaves the tree in place`, existsSync(standingOpen.child))
+
+  const ordinaryOpen = stageTeardownWorktree("ordinary-open", { ticketNumber: 9001, changed: true, fastForwardMerged: true })
+  check(TOOL, "an ordinary open ticket with a merged pull request is refused", ["--issue", "#9001"], { status: 1, stderr: /UNMET ticket-done: ticket is OPEN with board status In Progress/ }, { env: { ...orcaEnv(teardownPlan(ordinaryOpen)), ORBIT_TICKET_STATUS: "In Progress", ORBIT_TICKET_STATE: "OPEN" } })
+  T(`${TOOL}: an ordinary open ticket leaves the tree in place`, existsSync(ordinaryOpen.child))
+
+  const standingMerged = stageTeardownWorktree("standing-merged", { ticketNumber: 556, changed: true, fastForwardMerged: true })
+  check(TOOL, "a standing ticket with a merged pull request is removed", ["--issue", "#556"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch/ }, { env: { ...orcaEnv(teardownPlan(standingMerged)), ORBIT_TICKET_STATUS: "In Progress", ORBIT_TICKET_STATE: "OPEN" } })
+  T(`${TOOL}: a merged standing pull request deletes the fixture`, !existsSync(standingMerged.child))
+
+  const standingMissingTarget = stageTeardownWorktree("standing-missing-target", { ticketNumber: 746, changed: true })
+  check(TOOL, "a standing ticket whose merge commit is absent from the target is refused", ["--issue", "#746"], { status: 1, stderr: /UNMET merge-commit-in-target:[\s\S]*UNMET ticket-done:/ }, { env: { ...orcaEnv(teardownPlan(standingMissingTarget, { pullRequests: [{ ...mergedPullRequest(standingMissingTarget), mergeCommit: { oid: standingMissingTarget.headCommit } }] })), ORBIT_TICKET_STATUS: "In Progress", ORBIT_TICKET_STATE: "OPEN" } })
+  T(`${TOOL}: a standing ticket without a merge in target leaves the tree in place`, existsSync(standingMissingTarget.child))
 
   const lookupFailure = stageTeardownWorktree("lookup-failure", { changed: true })
   check(TOOL, "a failed pull-request lookup is exit 3, never an absence of evidence", ["--issue", "ORB-124"], { status: 3, stderr: /gh pr list for feature\/orb-124-teardown failed/ }, { env: orcaEnv(teardownPlan(lookupFailure, { pullRequestOutput: "", pullRequestExit: 1, removePath: lookupFailure.child })) })

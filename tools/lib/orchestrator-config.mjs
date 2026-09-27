@@ -54,6 +54,9 @@ const TICKET_STATES = { working: "In Progress", review: "In Review", done: "Done
 const validateTickets = (tickets) => {
   if (!isRecord(tickets)) throw new Error(".claude/orchestrator.json must declare a tickets object")
   nonEmptyString(tickets.repository, "tickets.repository")
+  if (!Array.isArray(tickets.standing) || tickets.standing.some((number) => !Number.isInteger(number) || number <= 0) || new Set(tickets.standing).size !== tickets.standing.length) {
+    throw new Error(".claude/orchestrator.json tickets.standing must be an array of unique positive ticket numbers")
+  }
   if (!/^[^/\s]+\/[^/\s]+$/.test(tickets.repository)) {
     throw new Error(".claude/orchestrator.json tickets.repository must be an owner/repository slug")
   }
