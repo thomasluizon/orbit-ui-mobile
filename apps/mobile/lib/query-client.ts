@@ -1,5 +1,5 @@
 import { extractBackendStatus } from '@orbit/shared/utils'
-import { habitKeys } from '@orbit/shared/query'
+import { configKeys, habitKeys } from '@orbit/shared/query'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -90,6 +90,7 @@ export async function persistQueryCache({ discardHabitSearches = false } = {}): 
     }[] = []
     for (const query of cache) {
       if (query.state.status !== 'success') continue
+      if (query.queryKey[0] === configKeys.all[0]) continue
       serializable.push({
         queryKey: query.queryKey,
         state: {
@@ -128,6 +129,7 @@ export async function restoreQueryCache(): Promise<void> {
       return
     }
     for (const entry of parsed.entries) {
+      if (entry.queryKey[0] === configKeys.all[0]) continue
       queryClient.setQueryData(entry.queryKey, entry.state.data, {
         updatedAt: entry.state.dataUpdatedAt,
       })

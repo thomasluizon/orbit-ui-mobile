@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { configKeys } from '@orbit/shared/query'
 
 import {
   queryClient,
@@ -93,6 +94,25 @@ describe('mobile query client', () => {
 
     expect(getItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
     expect(queryClient.getQueryData(['restored'])).toEqual({ value: 1 })
+  })
+
+  it('does not trust a persisted analytics flag before a fresh config response', async () => {
+    await setQueryCacheScope('user-1')
+    queryClient.setQueryData(configKeys.detail(), { features: { analytics: { enabled: true, planRequirement: null } } })
+    await persistQueryCache()
+    const written = JSON.parse(setItemMock.mock.calls[0]![1] as string) as { entries: { queryKey: unknown[] }[] }
+    expect(written.entries).not.toContainEqual(expect.objectContaining({ queryKey: configKeys.detail() }))
+
+    queryClient.clear()
+    getItemMock.mockResolvedValue(JSON.stringify({
+      version: QUERY_CACHE_VERSION,
+      entries: [{
+        queryKey: configKeys.detail(),
+        state: { data: { features: { analytics: { enabled: true, planRequirement: null } } }, dataUpdatedAt: 456 },
+      }],
+    }))
+    await restoreQueryCache()
+    expect(queryClient.getQueryData(configKeys.detail())).toBeUndefined()
   })
 
   it('discards a persisted cache written by an older schema version', async () => {

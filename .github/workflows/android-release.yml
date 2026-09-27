@@ -1,5 +1,8 @@
 name: Android Release
 
+# Repository variables: PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY,
+# STAGING_EXPO_PUBLIC_POSTHOG_KEY.
+
 # Carry the dispatch inputs in the run title so `gh run list` identifies every
 # release without opening it: the default title is the workflow name, which
 # makes a list of past runs indistinguishable from one another.
@@ -247,6 +250,8 @@ jobs:
         shell: bash
         env:
           RELEASE_TRACK: ${{ inputs.track }}
+          STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
+          PRODUCTION_POSTHOG_KEY: ${{ vars.PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY }}
         run: |
           set -euo pipefail
 
@@ -254,10 +259,12 @@ jobs:
             internal|closed)
               build_api_base="https://api-staging.useorbit.org"
               deployment_environment="staging"
+              build_posthog_key="${STAGING_POSTHOG_KEY}"
               ;;
             open|production)
               build_api_base="https://api.useorbit.org"
               deployment_environment="production"
+              build_posthog_key="${PRODUCTION_POSTHOG_KEY}"
               ;;
             *)
               echo "::error::Unknown release track: ${RELEASE_TRACK}"
@@ -267,6 +274,7 @@ jobs:
 
           {
             echo "BUILD_API_BASE=${build_api_base}"
+            echo "BUILD_POSTHOG_KEY=${build_posthog_key}"
             echo "DEPLOYMENT_ENVIRONMENT=${deployment_environment}"
             echo "BUILD_EAS_PROFILE=production"
           } >> "${GITHUB_ENV}"
@@ -285,6 +293,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
         run: |
           set -euo pipefail
 
@@ -341,6 +350,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |

@@ -32,7 +32,7 @@ import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
-import { useGlobalSearchParams } from 'expo-router'
+import { useGlobalSearchParams, useSegments } from 'expo-router'
 import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
 import {
   captureBuildEnabled,
@@ -42,6 +42,9 @@ import {
 } from './capture-mode'
 import { pinCaptureAnimationDurations } from './capture-animation-pin'
 import { i18n } from './i18n'
+import { PostHogProvider } from 'posthog-react-native'
+import { useConfig } from '@/hooks/use-config'
+import { applyPostHogGate, captureScreen, posthog } from './posthog'
 
 void SplashScreen.preventAutoHideAsync()
 if (captureBuildEnabled) pinCaptureAnimationDurations()
@@ -62,6 +65,25 @@ export function useCaptureReady() {
 
 function OfflineManager() {
   useOffline(true)
+  return null
+}
+
+function PostHogGate() {
+  const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
+  const enabled = isFetchedAfterMount && !isFetching && config.features.analytics?.enabled === true
+  const segments = useSegments()
+  const screen = segments.join('/') || 'index'
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  useEffect(() => {
+    void applyPostHogGate(enabled).then(() => {
+      if (enabled) captureScreen(screen)
+    })
+  }, [enabled, screen])
+
   return null
 }
 
@@ -203,8 +225,9 @@ export function Providers({ children }: Readonly<ProvidersProps>) {
     [captureLocale, captureTheme],
   )
 
-  return (
+  const content = (
     <QueryClientProvider client={queryClient}>
+      {posthog && <PostHogGate />}
       <ReducedMotionConfig
         mode={captureBuildEnabled ? ReduceMotion.Always : ReduceMotion.System}
       />
@@ -212,5 +235,12 @@ export function Providers({ children }: Readonly<ProvidersProps>) {
         {children}
       </AuthInitializer>
     </QueryClientProvider>
+  )
+
+  if (!posthog) return content
+  return (
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false, captureTouches: false }}>
+      {content}
+    </PostHogProvider>
   )
 }

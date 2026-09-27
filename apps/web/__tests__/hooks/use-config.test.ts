@@ -30,6 +30,7 @@ describe('useConfig', () => {
     const customConfig: AppConfig = {
       ...DEFAULT_CONFIG,
       limits: { ...DEFAULT_CONFIG.limits, maxTagsPerHabit: 10 },
+      features: { ...DEFAULT_CONFIG.features, analytics: { enabled: true, planRequirement: null } },
     }
     mockFetch.mockResolvedValue({
       ok: true,
@@ -41,6 +42,7 @@ describe('useConfig', () => {
     })
 
     await waitFor(() => expect(result.current.config.limits.maxTagsPerHabit).toBe(10))
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 
   it('falls back to DEFAULT_CONFIG on error', async () => {
@@ -55,6 +57,7 @@ describe('useConfig', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
   })
 
   it('provides config immediately via placeholderData', () => {
@@ -68,6 +71,7 @@ describe('useConfig', () => {
     })
 
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
   })
 })
 

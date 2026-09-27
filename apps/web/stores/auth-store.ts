@@ -15,6 +15,7 @@ import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
+import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
@@ -39,6 +40,8 @@ let lastObservedAccountId: string | null = null
  * because both are cheap to redo and unsafe to keep.
  */
 function startAccountScopedSession(nextAccountId: string | null, preserveAnonymousDraft = false): void {
+  const accountChanged = nextAccountId !== null && nextAccountId !== lastObservedAccountId
+  if (accountChanged && lastObservedAccountId !== null) resetPostHogUser()
   if (nextAccountId !== null) {
     resetAccountScopedState(lastObservedAccountId, nextAccountId, preserveAnonymousDraft)
   }
@@ -48,6 +51,7 @@ function startAccountScopedSession(nextAccountId: string | null, preserveAnonymo
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
   if (nextAccountId !== null) forgetPreviousAccountContent()
+  if (accountChanged) identifyPostHogUser(nextAccountId)
 }
 
 /**
@@ -63,6 +67,7 @@ function forgetPreviousAccountContent(): void {
 }
 
 function clearAccountScopedSessionState(): void {
+  if (lastObservedAccountId !== null) resetPostHogUser()
   clearSupabaseSession()
   startAccountScopedSession(null)
   clearStepUpState()
@@ -188,6 +193,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+
     sessionRecoveryUser = null
     bindStepUpStateToAccount(loginResponse.userId)
     startAccountScopedSession(loginResponse.userId, true)
