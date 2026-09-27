@@ -14,6 +14,7 @@ import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_li
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
+import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -336,6 +337,15 @@ T("sleep-stop: the blocked ending names every closed row", closedRows.every((row
 T("sleep-stop: an unwritten receipt with a blocker but no closed marker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: false }] } })), true)
 T("sleep-stop: a closed row without a blocker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], blocker: null }] } })), true)
 T("sleep-stop: a nonboolean closed marker cannot excuse an unwritten receipt", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: "true" }] } })), true)
+const reopenedCheckout = join(root, "reopened-pull-request")
+mkdirSync(join(reopenedCheckout, ".git"), { recursive: true })
+writeRunState({ ...sleeping, remaining: [], pullRequests: [closedRows[0]] }, reopenedCheckout)
+writeRunState({ ...sleeping, remaining: [], pullRequests: [{ ...closedRows[0], closed: false, blocker: null }] }, reopenedCheckout)
+T(
+  "sleep-stop: a reopened row without a receipt or blocker refuses the stop again",
+  blocks(stop({ state: readRunState(reopenedCheckout) })),
+  true,
+)
 
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"
