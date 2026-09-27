@@ -3,7 +3,7 @@
     "whyThisKeyExists": "lhci parses this file with JSON.parse and reads only ci, lhci, ci:client and ci:server, so this sibling key records the source of the assertions below without reaching lhci.",
     "population": "37 complete batches (185 runs) read from retained .lighthouseci artifacts. apps/web/perf/lhci-hermetic-auth.cjs warms the authenticated route before collection, so the first-request compile of the production server is not measured.",
     "total-blocking-time": "1200 ms. Warm batch medians: mean 792.1 ms, sd 131.4 ms, max 1058.2 ms, so 1200 (just above mean+3sd) fails no clean batch and still fails a regression that adds about 400 ms of main-thread blocking. Re-derive if the warm median moves by more than about 20 percent.",
-    "largest-contentful-paint": "7000 ms. The original warm-route population was 37 complete batches of the previous Today screen, with p50 4743 ms and largest median 5854 ms. The redesigned route now preloads the account profile on the server so its content can render before the client profile query completes. Compare consecutive same-head CI artifacts before changing this ceiling; the earlier client-gated route showed overlapping clean and regressed runner distributions.",
+    "largest-contentful-paint": "Reporting only. On this runner clean and regressed five-run batches overlap (a 500 ms server-render delay passed a 7800 ms median gate), so apps/web/perf/report-lcp.mjs prints all five values and summary statistics without failing the job. Do not restore an LCP gate without a runner whose clean and regressed distributions separate.",
     "resource-summary:script:size": "820000 bytes. Batch medians of script transferSize spanned 749508 to 770185 bytes (2.8 percent), and 820000 is 6.5 percent above the largest, tight enough to catch a real dependency or code-splitting regression.",
     "aggregation": "numberOfRuns 5 with median aggregation for total-blocking-time and script size."
   },
@@ -22,7 +22,6 @@
     "assert": {
       "aggregationMethod": "median",
       "assertions": {
-        "largest-contentful-paint": ["error", { "maxNumericValue": 7000 }],
         "total-blocking-time": ["error", { "maxNumericValue": 1200 }],
         "resource-summary:script:size": ["error", { "maxNumericValue": 820000 }]
       }

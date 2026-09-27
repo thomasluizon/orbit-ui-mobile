@@ -49,7 +49,7 @@ jobs:
           echo "::error::mock orbit-api failed to become healthy on :5099"
           exit 1
 
-      - name: Run median LCP, TBT, and script budget gates
+      - name: Run median TBT and script budget gates
         run: npx lhci autorun --config apps/web/lighthouserc.json
 
       - name: Report authed Today LCP
