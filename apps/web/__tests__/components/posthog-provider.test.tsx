@@ -6,13 +6,11 @@ import { PostHogProvider } from '@/components/posthog-provider'
 
 const mocks = vi.hoisted(() => ({
   useConfig: vi.fn(),
-  initializePostHog: vi.fn(),
   applyPostHogGate: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-config', () => ({ useConfig: mocks.useConfig }))
 vi.mock('@/lib/posthog', () => ({
-  initializePostHog: mocks.initializePostHog,
   applyPostHogGate: mocks.applyPostHogGate,
 }))
 
@@ -36,7 +34,6 @@ describe('web PostHog provider', () => {
     })
 
     const view = render(<PostHogProvider><div>Orbit</div></PostHogProvider>)
-    expect(mocks.initializePostHog).toHaveBeenCalledWith(false)
     expect(mocks.applyPostHogGate).toHaveBeenCalledWith(false)
     expect(refetch).toHaveBeenCalledOnce()
 

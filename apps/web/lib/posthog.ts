@@ -1,7 +1,8 @@
 'use client'
 
-import posthog from 'posthog-js'
 import type { CaptureResult } from 'posthog-js'
+
+type PostHogClient = typeof import('posthog-js')['default']
 
 const URL_PROPERTY = /url|href|pathname|referrer/i
 const CREDENTIAL_PARAMETERS = new Set(['code', 'state', 'access_token', 'refresh_token', 'provider_token'])
@@ -52,52 +53,73 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
+let posthog: PostHogClient | null = null
+let loading: Promise<PostHogClient> | null = null
 let initialized = false
-let analyticsEnabled = true
+let analyticsEnabled = false
 let accountId: string | null = null
+let pendingHabitEvents = 0
 
-export function initializePostHog(enabled: boolean): void {
-  if (!key || initialized) return
+export async function applyPostHogGate(enabled: boolean): Promise<void> {
   analyticsEnabled = enabled
-  posthog.init(key, {
-    api_host: '/ingest',
-    ui_host: 'https://us.posthog.com',
-    autocapture: false,
-    capture_pageview: true,
-    capture_performance: { web_vitals: true },
-    cross_subdomain_cookie: true,
-    disable_session_recording: true,
-    opt_out_capturing_by_default: !enabled,
-    before_send: beforeSend,
-  })
-  initialized = true
-  if (accountId && enabled) posthog.identify(accountId)
-}
+  if (!key) return
+  if (!enabled) {
+    pendingHabitEvents = 0
+    posthog?.opt_out_capturing()
+    return
+  }
 
-export function applyPostHogGate(enabled: boolean): void {
-  analyticsEnabled = enabled
-  if (!initialized) return
-  if (enabled) {
+  if (posthog) {
     posthog.opt_in_capturing()
     if (accountId) posthog.identify(accountId)
-  } else {
-    posthog.opt_out_capturing()
+    return
   }
+
+  loading ??= import('posthog-js').then((module) => module.default)
+  const client = await loading
+  if (!analyticsEnabled) return
+  if (!initialized) {
+    client.init(key, {
+      api_host: '/ingest',
+      ui_host: 'https://us.posthog.com',
+      autocapture: false,
+      capture_pageview: true,
+      capture_performance: { web_vitals: true },
+      cross_subdomain_cookie: true,
+      disable_session_recording: true,
+      opt_out_capturing_by_default: false,
+      before_send: beforeSend,
+    })
+    posthog = client
+    initialized = true
+    if (accountId) client.identify(accountId)
+    while (pendingHabitEvents > 0) {
+      client.capture('habit_logged')
+      pendingHabitEvents -= 1
+    }
+    return
+  }
+
+  client.opt_in_capturing()
+  if (accountId) client.identify(accountId)
 }
 
 export function identifyPostHogUser(userId: string): void {
   accountId = userId.toLowerCase()
-  if (initialized && analyticsEnabled) posthog.identify(accountId)
+  if (posthog && analyticsEnabled) posthog.identify(accountId)
 }
 
 export function resetPostHogUser(): void {
   accountId = null
-  if (!initialized) return
+  pendingHabitEvents = 0
+  if (!posthog) return
   posthog.reset()
   if (analyticsEnabled) posthog.opt_in_capturing()
   else posthog.opt_out_capturing()
 }
 
 export function captureHabitLogged(): void {
-  if (initialized && analyticsEnabled) posthog.capture('habit_logged')
+  if (!key || !analyticsEnabled) return
+  if (posthog) posthog.capture('habit_logged')
+  else pendingHabitEvents += 1
 }

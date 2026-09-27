@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useConfig } from '@/hooks/use-config'
 import { getQueryClient } from '@/lib/query-client'
-import { applyPostHogGate, initializePostHog } from '@/lib/posthog'
+import { applyPostHogGate } from '@/lib/posthog'
 
 function PostHogGate() {
   const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
@@ -15,8 +15,7 @@ function PostHogGate() {
   }, [refetch])
 
   useEffect(() => {
-    initializePostHog(enabled)
-    applyPostHogGate(enabled)
+    void applyPostHogGate(enabled)
   }, [enabled])
 
   return null
