@@ -802,7 +802,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onSuccess?.(undefined, 'habit-1', undefined)
 
-    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function), undefined)
   })
 
   it('cancels an offline single delete before Undo restores the habit locally', async () => {
@@ -814,6 +814,7 @@ describe('mobile habit hooks', () => {
       'habit-1',
       { previousLists: [] },
     )
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function), 'mutation-1')
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))

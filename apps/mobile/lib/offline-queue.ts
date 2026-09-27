@@ -36,6 +36,12 @@ interface QueueRow {
 type QueueListener = (count: number) => void
 
 const queueListeners = new Set<QueueListener>()
+const queueClearListeners = new Set<() => void>()
+
+export function subscribeQueueClear(listener: () => void): () => void {
+  queueClearListeners.add(listener)
+  return () => { queueClearListeners.delete(listener) }
+}
 
 function getDb(): SQLite.SQLiteDatabase {
   if (!db) {
@@ -342,6 +348,7 @@ export function incrementRetries(id: string): void {
 export function clear(): void {
   const database = getDb()
   database.runSync('DELETE FROM mutation_queue')
+  for (const listener of queueClearListeners) listener()
   emitQueueCount()
 }
 

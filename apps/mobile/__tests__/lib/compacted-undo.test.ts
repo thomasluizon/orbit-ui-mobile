@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React from 'react'
 import {
   buildQueuedMutation,
   cancelQueuedDeleteForUndo,
@@ -6,7 +7,12 @@ import {
   flushQueuedMutations,
   queueOrExecute,
 } from '@/lib/offline-mutations'
-import { getAll } from '@/lib/offline-queue'
+import { clear, getAll } from '@/lib/offline-queue'
+import { useUndoToast } from '@/hooks/use-undo-toast'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
+
+const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
   const rows = new Map<string, {
@@ -14,9 +20,12 @@ const mocks = vi.hoisted(() => {
     payload: string; retries: number; max_retries: number; meta: string
   }>()
   let online = false
+  let accountId: string | null = 'test-account'
   return {
     rows,
     setOnline(value: boolean) { online = value },
+    setAccountId(value: string | null) { accountId = value },
+    getAccountId: () => accountId,
     getCurrentConnectivity: vi.fn(() => Promise.resolve(online)),
     apiClient: vi.fn(),
     markOfflineTombstone: vi.fn(() => Promise.resolve()),
@@ -46,7 +55,19 @@ vi.mock('expo-sqlite', () => ({
   }),
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
-vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
+vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId, setAccountId: mocks.setAccountId }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('@/stores/referral-prompt-store', () => ({ setEngagementPromptAccountScope: () => Promise.resolve() }))
+vi.mock('@/stores/ui-store', () => ({ setUIAccountScope: () => Promise.resolve() }))
+vi.mock('@/stores/onboarding-draft-store', () => ({
+  useOnboardingDraftStore: {
+    getState: () => ({ reset: () => {}, setAccountScope: () => {} }),
+    persist: { rehydrate: () => Promise.resolve() },
+  },
+}))
+vi.mock('@/stores/tour-store', () => ({
+  useTourStore: { getInitialState: () => ({}), setState: () => {} },
+}))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: mocks.getCurrentConnectivity }))
 vi.mock('@/lib/offline-state', () => ({
   upsertOfflineEntity: () => Promise.resolve(),
@@ -69,9 +90,73 @@ describe('compacted offline delete Undo', () => {
   beforeEach(() => {
     mocks.rows.clear()
     mocks.setOnline(false)
+    mocks.setAccountId('test-account')
     mocks.apiClient.mockReset()
     mocks.markOfflineTombstone.mockClear()
     cancelScheduledFlush()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+  })
+
+  async function queueCompactedDelete(entityType: 'habit' | 'goal') {
+    const suffix = entityType === 'habit' ? 'Habit' : 'Goal'
+    const scope = entityType === 'habit' ? 'habits' : 'goals'
+    const entityId = `offline-${entityType}-1`
+    const create = buildQueuedMutation({
+      type: `create${suffix}`, scope, endpoint: `/api/${scope}`, method: 'POST',
+      payload: { title: suffix }, entityType, clientEntityId: entityId,
+    })
+    const deletion = buildQueuedMutation({
+      type: `delete${suffix}`, scope, endpoint: `/api/${scope}/${entityId}`,
+      method: 'DELETE', payload: null, entityType, targetEntityId: entityId,
+    })
+    await queueOrExecute({ mutation: create, execute: () => Promise.resolve(null), queuedResult: null })
+    await queueOrExecute({ mutation: deletion, execute: () => Promise.resolve(null), queuedResult: null })
+    expect(getAll()).toHaveLength(0)
+    return deletion.id
+  }
+
+  it.each(['habit', 'goal'] as const)('drops a %s create when its Undo toast expires', async (entityType) => {
+    const deletionId = await queueCompactedDelete(entityType)
+    let showUndoToast!: ReturnType<typeof useUndoToast>
+    function Probe() {
+      showUndoToast = useUndoToast()
+      return null
+    }
+    TestRenderer.act(() => { TestRenderer.create(React.createElement(Probe)) })
+    TestRenderer.act(() => {
+      showUndoToast('Deleted', () => { void cancelQueuedDeleteForUndo(deletionId) }, deletionId)
+      useAppToastStore.getState().dismissToast()
+    })
+
+    expect(await cancelQueuedDeleteForUndo(deletionId)).toBe('replayed')
+    expect(getAll()).toHaveLength(0)
+  })
+
+  it.each(['habit', 'goal'] as const)('drops a %s create when the queue clears', async (entityType) => {
+    const deletionId = await queueCompactedDelete(entityType)
+    clear()
+
+    expect(await cancelQueuedDeleteForUndo(deletionId)).toBe('replayed')
+    expect(getAll()).toHaveLength(0)
+  })
+
+  it.each(['habit', 'goal'] as const)('does not undo a %s delete in another account', async (entityType) => {
+    const deletionId = await queueCompactedDelete(entityType)
+    mocks.setAccountId('replacement-account')
+
+    expect(await cancelQueuedDeleteForUndo(deletionId)).toBe('replayed')
+    expect(getAll()).toHaveLength(0)
+  })
+
+  it.each([
+    ['habit', 'test-account'],
+    ['goal', null],
+  ] as const)('drops a %s create when account scope resets to %s', async (entityType, accountId) => {
+    const deletionId = await queueCompactedDelete(entityType)
+    await startAccountScopedSession(accountId)
+
+    expect(await cancelQueuedDeleteForUndo(deletionId)).toBe('replayed')
+    expect(getAll()).toHaveLength(0)
   })
 
   it.each([
@@ -94,6 +179,7 @@ describe('compacted offline delete Undo', () => {
     expect(getAll()).toHaveLength(0)
 
     expect(await cancelQueuedDeleteForUndo(deletion.id)).toBe('cancelled')
+    expect(await cancelQueuedDeleteForUndo(deletion.id)).toBe('replayed')
     expect(getAll()).toEqual([expect.objectContaining({
       id: create.id, type: create.type, payload,
     })])

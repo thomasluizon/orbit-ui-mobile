@@ -163,6 +163,7 @@ vi.mock('@/lib/offline-queue', () => ({
   remove: mocks.remove,
   update: mocks.update,
   replaceEntityReferences: mocks.replaceEntityReferences,
+  subscribeQueueClear: () => () => {},
 }))
 
 vi.mock('@/stores/offline-sync-store', () => ({

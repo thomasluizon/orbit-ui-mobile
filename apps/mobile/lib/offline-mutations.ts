@@ -37,6 +37,7 @@ import {
   getById,
   remove,
   replaceEntityReferences,
+  subscribeQueueClear,
   update,
 } from './offline-queue'
 import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveOfflineEntity, setOfflineEntityStatus, upsertOfflineEntity } from './offline-state'
@@ -134,7 +135,20 @@ export interface QueuedMutationBuildOptions {
 }
 
 let queuedMutationSequence = 0
-const compactedCreatesByDeleteId = new Map<string, PersistedQueuedMutation>()
+const compactedCreatesByDeleteId = new Map<string, {
+  mutation: PersistedQueuedMutation
+  accountId: string | null
+}>()
+
+export function discardCompactedCreateForUndo(mutationId: string): void {
+  compactedCreatesByDeleteId.delete(mutationId)
+}
+
+export function clearCompactedCreatesForUndo(): void {
+  compactedCreatesByDeleteId.clear()
+}
+
+subscribeQueueClear(clearCompactedCreatesForUndo)
 
 export function isQueuedResult(value: unknown): value is QueuedMarker {
   return (
@@ -160,10 +174,12 @@ export function cancelQueuedDeleteForUndo(
 ): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
   const mutation = getById(mutationId)
   if (!mutation) {
-    const compactedCreate = compactedCreatesByDeleteId.get(mutationId)
-    if (!compactedCreate) return Promise.resolve('replayed')
-    enqueue(compactedCreate)
+    const retained = compactedCreatesByDeleteId.get(mutationId)
+    if (!retained) return Promise.resolve('replayed')
     compactedCreatesByDeleteId.delete(mutationId)
+    if (retained.accountId !== getAccountId()) return Promise.resolve('replayed')
+    const compactedCreate = retained.mutation
+    enqueue(compactedCreate)
     if (compactedCreate.entityType && compactedCreate.clientEntityId) {
       return markOfflineTombstone(
         compactedCreate.entityType,
@@ -572,7 +588,10 @@ export function getMutationScope(type: string): MutationScope | undefined {
 async function markQueuedMutation(mutation: QueuedMutation): Promise<void> {
   const compactedCreate = enqueue(mutation)
   if (compactedCreate && (mutation.type === 'deleteHabit' || mutation.type === 'deleteGoal')) {
-    compactedCreatesByDeleteId.set(mutation.id, compactedCreate)
+    compactedCreatesByDeleteId.set(mutation.id, {
+      mutation: compactedCreate,
+      accountId: getAccountId(),
+    })
   }
 
   if (mutation.entityType && mutation.clientEntityId) {
