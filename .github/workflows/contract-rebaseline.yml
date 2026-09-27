@@ -2,6 +2,9 @@ name: API contract rebaseline
 
 on:
   workflow_call:
+    secrets:
+      CONTRACT_REBASELINE_APP_PRIVATE_KEY:
+        required: true
 
 permissions:
   contents: read
