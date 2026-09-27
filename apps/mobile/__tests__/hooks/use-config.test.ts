@@ -5,6 +5,7 @@ import { configKeys } from '@orbit/shared/query'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
 
 import { useConfig } from '@/hooks/use-config'
+import { isFeatureEnabled } from '@orbit/shared/utils'
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -51,6 +52,7 @@ describe('mobile useConfig', () => {
 
     expect(mocks.state.lastOptions?.queryKey).toEqual(configKeys.detail())
     expect(result.config).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(result.config, 'analytics', 'free')).toBe(true)
   })
 
   it('returns fetched config when the api call succeeds', async () => {
@@ -71,5 +73,6 @@ describe('mobile useConfig', () => {
     const response = await mocks.state.lastOptions?.queryFn()
 
     expect(response).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(response!, 'analytics', 'free')).toBe(true)
   })
 })

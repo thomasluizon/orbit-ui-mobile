@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
@@ -253,6 +254,7 @@ async function runSessionTeardown(
   if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
+  resetPostHogUser()
   return teardown
 }
 
@@ -516,6 +518,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      identifyPostHogUser(user.userId, previousAccountId)
       return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {
       await runSessionTeardown({
@@ -626,6 +629,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: false })
       useReviewReminderStore.getState().setAccountScope(get().user?.userId ?? null)
+      const restoredUserId = get().user?.userId
+      if (restoredUserId) identifyPostHogUser(restoredUserId)
 
       profileHydrationInFlight = (async () => {
         await hydrateSessionProfile()

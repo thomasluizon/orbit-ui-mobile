@@ -29,6 +29,13 @@ import { accountStorageKey } from '@/lib/account-storage-key'
 import { getAccountId, setAccountId } from '@/lib/account-scope'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
+const posthogMocks = vi.hoisted(() => ({
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog', () => posthogMocks)
+
 const TestRenderer = require('react-test-renderer')
 const clearSupabaseSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
@@ -316,6 +323,8 @@ describe('mobile auth store security paths', () => {
   })
 
   beforeEach(() => {
+    posthogMocks.identifyPostHogUser.mockClear()
+    posthogMocks.resetPostHogUser.mockClear()
     setAccountId(null)
     asyncStorageEntries.clear()
     replaceMock.mockReset()
@@ -373,6 +382,7 @@ describe('mobile auth store security paths', () => {
     expect(setTokenMock).toHaveBeenCalledWith('access-token')
     expect(setRefreshTokenMock).not.toHaveBeenCalled()
     expect(saveWidgetTokenMock).toHaveBeenCalledWith('access-token')
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1', null)
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
@@ -1040,6 +1050,7 @@ describe('mobile auth store security paths', () => {
     })
 
     await useAuthStore.getState().logout()
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     unsubscribe()
 
     expect(replaceMock).not.toHaveBeenCalled()
@@ -1889,6 +1900,8 @@ describe('mobile auth store security paths', () => {
 
     await useAuthStore.getState().initialize()
     await whenProfileHydrated()
+
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledWith('user-1')
 
     expect(useAuthStore.getState().user).toMatchObject({
       name: 'Fresh Name',

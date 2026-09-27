@@ -55,6 +55,7 @@ describe('useConfig', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 
   it('provides config immediately via placeholderData', () => {
@@ -68,6 +69,7 @@ describe('useConfig', () => {
     })
 
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 })
 

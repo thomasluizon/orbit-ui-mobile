@@ -12,6 +12,13 @@ import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-gene
 import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
 import { accountStorageKey } from '@/lib/account-storage-key'
 
+const posthogMocks = vi.hoisted(() => ({
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog', () => posthogMocks)
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
@@ -37,6 +44,7 @@ describe('auth store', () => {
       sessionRefreshFailed: false,
     })
     mockFetch.mockReset()
+    vi.clearAllMocks()
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -75,6 +83,7 @@ describe('auth store', () => {
         email: 'thomas@example.com',
       },
     })
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1')
   })
 
   it('asks the replacement account for marketing consent', () => {
@@ -133,6 +142,7 @@ describe('auth store', () => {
     await useAuthStore.getState().checkSession()
 
     expect(getHeldAccountId()).toBe('account-a')
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('account-a')
   })
 
   it('drops a persisted draft from another account on a cold session', async () => {
@@ -172,6 +182,7 @@ describe('auth store', () => {
     await useAuthStore.getState().logout()
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,

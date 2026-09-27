@@ -7,6 +7,7 @@ import { Bell, Check, X } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { PostHogProvider } from '@/components/posthog-provider'
 import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { rubik, inter, roboto } from './fonts'
@@ -88,6 +89,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
+        <PostHogProvider>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Suspense fallback={null}>
             <NavigationHistoryTracker />
@@ -117,6 +119,7 @@ export default async function RootLayout({
             }}
           />
         </NextIntlClientProvider>
+        </PostHogProvider>
         <Analytics />
         <SpeedInsights />
       </body>
