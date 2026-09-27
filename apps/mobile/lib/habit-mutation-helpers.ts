@@ -76,27 +76,7 @@ export function updateHabitLists(
   )
 }
 
-function listQueryIncludesDate(queryKey: readonly unknown[], date: string): boolean {
-  const filters = queryKey[queryKey.length - 1]
-  if (typeof filters !== 'object' || filters === null) return false
-
-  const { dateFrom, dateTo } = filters as Record<string, unknown>
-  if (typeof dateFrom !== 'string' && typeof dateTo !== 'string') return false
-
-  return (typeof dateFrom !== 'string' || dateFrom <= date)
-    && (typeof dateTo !== 'string' || date <= dateTo)
-}
-
-export function updateHabitListsForDate(
-  queryClient: QueryClient,
-  date: string,
-  updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
-): void {
-  for (const [queryKey, items] of snapshotHabitLists(queryClient)) {
-    if (!items || !listQueryIncludesDate(queryKey, date)) continue
-    queryClient.setQueryData(queryKey, updater(items))
-  }
-}
+export { updateHabitListsForDate } from '@orbit/shared/query'
 
 export function adjustHabitCount(queryClient: QueryClient, delta: number): void {
   queryClient.setQueryData<number>(habitKeys.count(), (old) => {
@@ -684,10 +664,10 @@ function runBackgroundInvalidations(tasks: Promise<unknown>[]) {
 
 interface HabitInvalidationOptions {
   habitId?: string
-  includeHistory?: boolean
   includeGoals?: boolean
   includeGamification?: boolean
   includeProfile?: boolean
+  includeLists?: boolean
   includeCount?: boolean
 }
 
@@ -696,8 +676,6 @@ export function invalidateHabitMutationQueries(
   options?: HabitInvalidationOptions,
 ): void {
   const invalidations: Promise<unknown>[] = [
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
-    queryClient.invalidateQueries({ queryKey: habitKeys.searches() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
     /**
      * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`. `useSummary`
@@ -708,7 +686,12 @@ export function invalidateHabitMutationQueries(
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
   ]
 
-  if (options?.includeCount) {
+  if (options?.includeLists !== false) {
+    invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.lists() }))
+  }
+  invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.searches() }))
+
+  if (options?.includeCount !== false) {
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.count() }))
   }
 
@@ -716,11 +699,6 @@ export function invalidateHabitMutationQueries(
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) }),
       queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(options.habitId) }),
-    )
-  }
-
-  if (options?.habitId && options.includeHistory) {
-    invalidations.push(
       queryClient.invalidateQueries({ queryKey: habitKeys.logs(options.habitId) }),
       queryClient.invalidateQueries({ queryKey: habitKeys.metrics(options.habitId) }),
     )

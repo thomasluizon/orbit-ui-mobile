@@ -39,7 +39,6 @@ jobs:
       # and the Gradle release assemble still compile, and it does NOT cover
       # the Firebase google-services step, which only a real release build runs.
       EXPO_PUBLIC_CAPTURE_MODE: "true"
-      EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "true"
       EXPO_NO_TELEMETRY: "1"
       EXPO_NO_METRO_WORKSPACE_ROOT: "1"
 

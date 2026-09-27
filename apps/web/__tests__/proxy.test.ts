@@ -121,7 +121,6 @@ describe('proxy', () => {
     for (const url of [
       'http://localhost:3000/api/profile',
       'http://localhost:3000/_next/static/chunks/app.js',
-      'http://localhost:3000/app-ads.txt',
       'http://localhost:3000/favicon.ico',
       'http://localhost:3000/images/orbit-logo.png',
     ]) {

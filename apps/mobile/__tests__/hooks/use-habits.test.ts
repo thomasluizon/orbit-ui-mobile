@@ -115,7 +115,12 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => config),
+    useMutation: vi.fn((config: unknown) => ({
+      ...(config as object),
+      mutate: mocks.restoreHabitMutate,
+    })),
+    restoreHabitMutate: vi.fn(),
+    cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       mutation: { type: string }
       queuedResult?: unknown
@@ -202,6 +207,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   queueOrExecute: mocks.queueOrExecute,
   OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
   withQueuedMarker: mocks.withQueuedMarker,
+  cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
@@ -431,6 +437,8 @@ describe('mobile habit hooks', () => {
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
     useReviewReminderStore.getState().reset()
+    mocks.restoreHabitMutate.mockClear()
+    mocks.cancelQueuedDeleteForUndo.mockClear()
   })
 
   it('gives queued toggles a durable habit and occurrence date key', async () => {
@@ -939,7 +947,7 @@ describe('mobile habit hooks', () => {
     vi.useRealTimers()
   })
 
-  it('queues an optimistic habit create offline and skips invalidation', async () => {
+  it('queues an optimistic habit create offline and leaves count server-owned', async () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit()] },
       {
@@ -984,7 +992,7 @@ describe('mobile habit hooks', () => {
       scheduledDates: ['2025-01-01'],
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
-    expect(count).toBe(3)
+    expect(count).toBe(2)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
     expect(mocks.invalidateHabitMutationQueries).not.toHaveBeenCalled()
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
@@ -1305,6 +1313,34 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.(undefined, 'habit-1', undefined)
 
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
+  })
+
+  it('cancels an offline single delete before Undo restores the habit locally', async () => {
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: [] }
+    >
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      'habit-1',
+      { previousLists: [] },
+    )
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
+    expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+  })
+
+  it('leaves the habit count to the server when Undo cancels an offline single delete', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 7)
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const context = await mutation.onMutate?.('habit-1')
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() }))
+    expect(mocks.queryClient.getQueryData(habitKeys.count())).toBe(7)
   })
 
   it('restores a habit through the queued path, targets the restore endpoint, and confirms', async () => {
@@ -1682,7 +1718,7 @@ describe('mobile habit hooks', () => {
     expect(byId('habit-2')?.position).toBe(1)
   })
 
-  it('optimistically deletes a habit, decrements the count, and restores both on failure', async () => {
+  it('optimistically deletes a habit, keeps the count, and restores the list on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
 
     const mutation = useDeleteHabit() as unknown as MutationConfig<
@@ -1693,7 +1729,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.('habit-1')
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-2'])
-    expect(getCount()).toBe(1)
+    expect(getCount()).toBe(2)
 
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
@@ -1764,7 +1800,7 @@ describe('mobile habit hooks', () => {
     expect(context?.tempId).toBeNull()
   })
 
-  it('inserts a batch of optimistic habits and rolls the whole batch back on failure', async () => {
+  it('inserts a batch of optimistic habits without predicting the count and rolls back on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' })], 1)
 
     const mutation = useBulkCreateHabits() as unknown as MutationConfig<
@@ -1777,7 +1813,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().map((habit) => habit.title)).toEqual(['Exercise', 'Read', 'Meditate'])
-    expect(getCount()).toBe(3)
+    expect(getCount()).toBe(1)
     expect(context?.createdCount).toBe(2)
 
     mutation.onError?.(new Error('Bulk create failed'), variables, context)
@@ -1931,6 +1967,7 @@ describe('mobile habit hooks', () => {
       results: [],
       ambiguousIds: deleteVariables,
       offlineFailureIds: [],
+      queuedDeletes: [],
     })
     expect(getHabitList()).toEqual([])
 
@@ -1982,6 +2019,159 @@ describe('mobile habit hooks', () => {
     })
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it('offers Undo for successful bulk deletes and restores only those habits', async () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'habit-1' },
+        { status: 'Failed', habitId: 'habit-2' },
+        { status: 'Success', habitId: 'habit-3' },
+      ],
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['habit-1', 'habit-2', 'habit-3'], { previousLists: [], deletedCount: 0 })
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted:{"count":2}', expect.any(Function))
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-1')
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-3')
+  })
+
+  it('does not offer Undo when no bulk delete succeeds', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [{ status: 'Failed', habitId: 'habit-1' }],
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['habit-1'], { previousLists: [] })
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+  })
+
+  it('restores a selected parent once when its child is also selected', async () => {
+    seedHabitState([makeHabit({
+      id: 'parent', children: [makeChild({ id: 'child' })], hasSubHabits: true,
+    })], 2)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      unknown
+    >
+    const context = await mutation.onMutate?.(['parent', 'child'])
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'parent' },
+        { status: 'Success', habitId: 'child' },
+      ],
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['parent', 'child'], context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1))
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('parent')
+  })
+
+  it('cancels a queued offline bulk delete before Undo restores locally', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      unknown
+    >
+    const context = await mutation.onMutate?.(['habit-1'])
+    const result = await mutation.mutationFn(['habit-1'])
+    expect(result).toMatchObject({
+      queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
+    })
+    mutation.onSuccess?.(result, ['habit-1'], context)
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => Promise<void>
+    await performUndo()
+    expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1')
+    expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+  })
+
+  it('reconciles a failed queued bulk delete and restores the cached list offline', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['habit-1'])
+    expect(getHabitList()).toEqual([])
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('uncertain')
+    mutation.onSuccess?.({
+      results: [{ status: 'Success', habitId: 'habit-1' }],
+      offlineFailureIds: [],
+      queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
+    }, ['habit-1'], context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1']))
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1')
+  })
+
+  it('restores a selected parent once after its queued bulk delete replays', async () => {
+    seedHabitState([makeHabit({
+      id: 'parent', children: [makeChild({ id: 'child' })], hasSubHabits: true,
+    })], 2)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['parent', 'child'])
+    let finishReplay!: () => void
+    mocks.cancelQueuedDeleteForUndo.mockImplementationOnce(() => new Promise((resolve) => {
+      finishReplay = () => resolve('replayed')
+    }))
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'parent' },
+        { status: 'Success', habitId: 'child' },
+      ],
+      offlineFailureIds: [],
+      queuedDeletes: [
+        { habitId: 'parent', mutationId: 'mutation-1' },
+        { habitId: 'child', mutationId: 'mutation-2' },
+      ],
+    }, ['parent', 'child'], context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+    expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-2')
+    finishReplay()
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalled())
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('parent')
+  })
+
+  it('shows the singular bulk Undo toast for one deleted habit', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown, string[], unknown
+    >
+    mutation.onSuccess?.({
+      results: [{ status: 'Success', habitId: 'habit-1' }],
+      offlineFailureIds: [],
+      queuedDeletes: [],
+    }, ['habit-1'], { previousLists: [], deletedCount: 0 })
+    expect(mocks.showUndoToast).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":1}', expect.any(Function),
+    )
   })
 
   it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {

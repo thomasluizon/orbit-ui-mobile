@@ -202,6 +202,17 @@ export const cases = async () => {
   const ordinary = check(TOOL, "without --measurement the ordinary cap applies", [...argv, "--dry-run"], { status: 0 }, options)
   const ordinaryPlan = JSON.parse(ordinary.stdout)
   discardLog(ordinary.stdout)
+  const isolationArgs = ["exec", "--disable", "apps", "--ignore-user-config"]
+  T(
+    `${TOOL}: ordinary Codex workers disable account apps and user MCP servers`,
+    JSON.stringify(ordinaryPlan.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
+    `argv starts ${JSON.stringify(ordinaryPlan.args.slice(0, isolationArgs.length))}`,
+  )
+  T(
+    `${TOOL}: measurement Codex workers disable account apps and user MCP servers`,
+    JSON.stringify(measuredPlan.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
+    `argv starts ${JSON.stringify(measuredPlan.args.slice(0, isolationArgs.length))}`,
+  )
   T(
     `${TOOL}: the measurement cap is longer than the ordinary one, and both are reported`,
     measuredPlan.measurement === true && ordinaryPlan.measurement === false && measuredPlan.noProgressMinutes > ordinaryPlan.noProgressMinutes,
