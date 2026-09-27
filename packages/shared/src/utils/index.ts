@@ -455,8 +455,8 @@ export type {
 export {
   buildAgentScopeOptions,
   buildMcpConfigJson,
+  getMcpEndpointUrl,
   MCP_CONFIG_TABS,
-  MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from './advanced-settings'

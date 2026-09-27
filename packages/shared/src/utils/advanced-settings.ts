@@ -1,14 +1,16 @@
-export const MCP_ENDPOINT_URL = 'https://api.useorbit.org/mcp'
+export function getMcpEndpointUrl(apiBase: string): string {
+  return `${apiBase.replace(/\/+$/, '')}/mcp`
+}
 
 export const MCP_CONFIG_TABS = ['web', 'code'] as const
 
 export type McpConfigTab = 'web' | 'code'
 
-export function buildMcpConfigJson(apiKeyPlaceholder = 'YOUR_API_KEY'): string {
+export function buildMcpConfigJson(endpointUrl: string, apiKeyPlaceholder = 'YOUR_API_KEY'): string {
   return `{
   "mcpServers": {
     "orbit": {
-      "url": "${MCP_ENDPOINT_URL}",
+      "url": "${endpointUrl}",
       "headers": {
         "Authorization": "Bearer ${apiKeyPlaceholder}"
       }
