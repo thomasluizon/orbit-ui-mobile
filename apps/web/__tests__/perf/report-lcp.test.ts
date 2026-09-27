@@ -7,7 +7,7 @@ import { summarizeLcp } from '../../perf/report-lcp.mjs'
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
 describe('authed Today LCP report', () => {
-  it('reports the complete noisy batch without asserting a runner-dependent statistic', () => {
+  it('summarizes the complete batch for review', () => {
     const observedValues = [7977.57175, 7540.904800000004, 7855.43025, 7991.522, 3196.785]
 
     expect(summarizeLcp(observedValues)).toEqual({
@@ -34,11 +34,16 @@ describe('authed Today LCP report', () => {
     )
   })
 
-  it('keeps LCP out of the enforced LHCI assertions', () => {
+  it('enforces the original LCP budget over five median-aggregated runs', () => {
     const config = JSON.parse(
       fs.readFileSync(path.join(repositoryRoot, 'apps/web/lighthouserc.json'), 'utf8'),
     )
 
-    expect(config.ci.assert.assertions['largest-contentful-paint']).toBeUndefined()
+    expect(config.ci.collect.numberOfRuns).toBe(5)
+    expect(config.ci.assert.aggregationMethod).toBe('median')
+    expect(config.ci.assert.assertions['largest-contentful-paint']).toEqual([
+      'error',
+      { maxNumericValue: 7000 },
+    ])
   })
 })
