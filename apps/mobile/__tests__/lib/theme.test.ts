@@ -171,6 +171,17 @@ describe('mobile theme runtime', () => {
     expect(tokens.primary).toBe('#C4530F')
   })
 
+  for (const mode of MODES) {
+    it(`${mode} keeps every accent contrast floor and completed status separate`, () => {
+      const resolved = createTokensV2('orange', mode)
+      const canvas = parseColor(resolved.bg).channels
+      expect(contrast(resolved.fgOnPrimary, parseColor(resolved.primary).channels)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(resolved.primary, canvas)).toBeGreaterThanOrEqual(3)
+      expect(contrast(resolved.primarySoft, canvas)).toBeGreaterThanOrEqual(4.5)
+      expect(resolved.statusDone).not.toBe(resolved.primary)
+    })
+  }
+
   it('exposes AA status text variants alongside the base status colors', () => {
     const dark = createTokensV2('orange', 'dark')
     const light = createTokensV2('orange', 'light')

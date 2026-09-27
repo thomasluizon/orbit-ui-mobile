@@ -119,6 +119,7 @@ describe('web theme variables', () => {
           '--fg-on-overdue': status.fgOnOverdue,
           '--scrim': neutral.scrim,
         })
+        expect(variables['--status-done']).not.toBe(variables['--primary'])
       })
     }
   }
