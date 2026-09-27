@@ -1829,7 +1829,7 @@
       "title": "Dados que guardamos",
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
-      "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
+      "chat": "Mensagens do chat com a IA: suas conversas com a assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
       "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
     },
@@ -3064,7 +3064,7 @@
     },
     "ai": {
       "title": "Recursos de IA",
-      "body": "O Orbit inclui um assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
+      "body": "O Orbit inclui uma assistente de IA (Astra) que usa provedores terceiros, como a OpenAI. As respostas da IA são geradas automaticamente, podem ser imprecisas ou incompletas e servem apenas como apoio. Você é responsável por como age a partir das sugestões da IA."
     },
     "noMedicalAdvice": {
       "title": "Não é aconselhamento médico ou profissional",

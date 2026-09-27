@@ -119,6 +119,8 @@ describe('i18n locale parity', () => {
     expect(ptBR.astraRail.title).toBe('Copilota Astra')
     expect(ptBR.astraRail.subtitle).toBe('Sua copilota de hábitos')
     expect(ptBR.upgrade.outcomes.noticing.body).toMatch(/^Ela avisa\b/)
+    expect(ptBR.terms.ai.body).toContain('uma assistente de IA (Astra)')
+    expect(ptBR.privacy.dataCollected.chat).toContain('com a assistente de IA do Orbit')
   })
 
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
