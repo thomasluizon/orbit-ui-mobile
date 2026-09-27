@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
@@ -122,8 +123,8 @@ vi.mock('@/components/ui/app-bar', () => ({
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }) => open
-    ? <button type="button" data-testid={`confirm-${title}`} data-message={message} data-confirm-label={confirmLabel} onClick={onConfirm}>{title}</button>
+  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
+    ? <><button type="button" data-testid={`confirm-${title}`} data-message={message} data-confirm-label={confirmLabel} onClick={onConfirm}>{title}</button><button type="button" data-testid={`cancel-${title}`} onClick={onCancel}>Cancel</button></>
     : null,
 }))
 vi.mock('@/components/ui/error-state', () => ({
@@ -933,13 +934,98 @@ describe('HabitDetailScreen', () => {
     expect(mocks.log).not.toHaveBeenCalled()
   })
 
-  it('confirms a child date when its creation time is unavailable from the schedule', () => {
+  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
     const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
     mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByTestId('child-child-1'))
     expect(mocks.log).not.toHaveBeenCalled()
     expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', expect.stringContaining('August 28, 2026'))
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+  })
+
+  it('blocks a child date before its own creation despite an earlier parent and due date', () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-29T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByTestId('child-child-1'))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(screen.getByTestId('child-child-1').parentElement?.parentElement).toHaveTextContent('habits.detail.logDateUnavailable')
+  })
+
+  it('unlogs a previously saved child date before its own creation', async () => {
+    mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-28'),
+      createdAtUtc: '2026-08-29T08:00:00Z',
+      createdAtUtcIsInherited: false,
+      isCompleted: true,
+    })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'unlog-child' }))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-confirm-label', 'habits.detail.logDateConfirmUnlog')
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'habits.detail.logDateConfirmPermanentUnlogMessage')
+    expect(en.habits.detail.logDateConfirmPermanentUnlogMessage).toBe('This removes the log for {name} on {date}. It cannot be undone.')
+    expect(ptBR.habits.detail.logDateConfirmPermanentUnlogMessage).toBe('Isso remove o registro de {name} em {date}. Não dá para desfazer.')
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'unlog' })
+    expect(screen.queryByText('habits.detail.logDateUnavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps a precreation child log when permanent removal is canceled', () => {
+    mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-28'),
+      createdAtUtc: '2026-08-29T08:00:00Z',
+      createdAtUtcIsInherited: false,
+      isCompleted: true,
+    })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'unlog-child' }))
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'habits.detail.logDateConfirmPermanentUnlogMessage')
+    fireEvent.click(screen.getByTestId('cancel-habits.detail.logDateConfirmTitle'))
+
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'unlog-child' }))
+    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'habits.detail.logDateConfirmPermanentUnlogMessage')
+  })
+
+  it.each([
+    ['child-1', 'habit-1'],
+    ['grandchild-1', 'child-1'],
+  ])('blocks a direct %s detail log before its own creation', (targetId, parentId) => {
+    const schedule = makeHabitScheduleItem()
+    const child = schedule.children[0]!
+    schedule.children = [{ ...child, createdAtUtc: '2026-08-29T08:00:00Z', children: [{ ...child, id: 'grandchild-1', createdAtUtc: '2026-08-29T08:00:00Z', children: [] }] }]
+    mocks.allHabits = normalizeHabitQueryData([schedule]).habitsById
+    mocks.detail = { ...makeDetail(), id: targetId, createdAtUtc: '2026-08-29T08:00:00Z', children: [] }
+    render(<HabitDetailScreen habitId={targetId} parentId={parentId} date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.logDateUnavailable')).toBeInTheDocument()
+  })
+
+  it('logs a child date after its own creation without confirmation', async () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-27T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByTestId('child-child-1'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
   })
 
   it('replaces checklist confirmation with the unusual-date confirmation', async () => {

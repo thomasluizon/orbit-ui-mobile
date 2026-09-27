@@ -460,6 +460,7 @@ describe('optimisticMoveHabitParent', () => {
   it('moves a child habit to the top level and reindexes the list', () => {
     const movingChild = makeChild({
       id: 'child-1',
+      createdAtUtc: '2025-01-20T09:00:00Z',
       scheduledDates: ['2025-02-10'],
       isOverdue: true,
     })
@@ -477,7 +478,7 @@ describe('optimisticMoveHabitParent', () => {
     expect(result[2]).toMatchObject({
       id: 'child-1',
       position: 2,
-      createdAtUtc: '2025-01-01T00:00:00Z',
+      createdAtUtc: '2025-01-20T09:00:00Z',
       scheduledDates: ['2025-02-10'],
       isOverdue: true,
     })
@@ -490,7 +491,7 @@ describe('optimisticMoveHabitParent', () => {
       children: [nestedParent],
       hasSubHabits: true,
     })
-    const movingHabit = makeHabit({ id: 'move-me', position: 1 })
+    const movingHabit = makeHabit({ id: 'move-me', position: 1, createdAtUtc: '2025-01-20T09:00:00Z' })
 
     const result = optimisticMoveHabitParent(
       [topLevelParent, movingHabit],
@@ -500,7 +501,23 @@ describe('optimisticMoveHabitParent', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0]?.children[0]?.children[0]?.id).toBe('move-me')
+    expect(result[0]?.children[0]?.children[0]?.createdAtUtc).toBe('2025-01-20T09:00:00Z')
     expect(result[0]?.children[0]?.hasSubHabits).toBe(true)
+  })
+
+  it('uses the move time when an older child response has no creation date', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-02-10T12:00:00Z'))
+    try {
+      const child = makeChild({ id: 'child-1', createdAtUtc: undefined })
+      const parent = makeHabit({ id: 'parent-1', children: [child], hasSubHabits: true })
+
+      const result = optimisticMoveHabitParent([parent], 'child-1', null)
+
+      expect(result[1]?.createdAtUtc).toBe('2025-02-10T12:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('prevents moving a habit under its own descendant', () => {

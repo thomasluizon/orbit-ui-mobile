@@ -58,7 +58,8 @@ function normalizeChildren(
     const { children: grandchildren, ...childData } = child
     map.set(child.id, {
       ...childData,
-      createdAtUtc: rootItem.createdAtUtc,
+      createdAtUtc: child.createdAtUtc ?? rootItem.createdAtUtc,
+      createdAtUtcIsInherited: child.createdAtUtc === undefined,
       parentId,
       position: child.position ?? null,
       scheduledDates: child.scheduledDates ?? [],

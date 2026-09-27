@@ -9,6 +9,7 @@ import {
   computeHabitFutureHint,
   computeHabitMatchBadges,
   getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -21,6 +22,24 @@ function createTranslator() {
 }
 
 describe('habit card helpers', () => {
+  it('uses permanent removal copy only for an unlog before a known child creation date', () => {
+    const child = createMockHabit({
+      parentId: 'parent-1',
+      createdAtUtc: '2025-01-08T12:00:00Z',
+      createdAtUtcIsInherited: false,
+      frequencyUnit: 'Day',
+    })
+
+    const decision = getHabitLogDateDecision(child, '2025-01-07', '2025-01-10', 'UTC', false, 'unlog')
+
+    expect(decision).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateConfirmationKeys('unlog', decision === 'confirm-permanent-unlog')).toEqual({
+      message: 'habits.detail.logDateConfirmPermanentUnlogMessage',
+      action: 'habits.detail.logDateConfirmUnlog',
+    })
+    expect(getHabitLogDateConfirmationKeys('unlog', false).message).toBe('habits.detail.logDateConfirmUnlogMessage')
+  })
+
   it('derives the overdue status for an overdue one-time task', () => {
     const habit = createMockHabit({
       isCompleted: false,
@@ -335,10 +354,20 @@ describe('getHabitLogDateDecision', () => {
   })
 
   it('confirms a past date for a child with an unknown creation time', () => {
-    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', frequencyUnit: 'Day' })
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', createdAtUtcIsInherited: true, frequencyUnit: 'Day' })
     expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('confirm')
     expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC', true)).toBe('write')
     expect(getHabitLogDateDecision(child, today, today, 'UTC')).toBe('write')
+  })
+
+  it('blocks dates before a child was created and writes accepted dates immediately', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-08T12:00:00Z', createdAtUtcIsInherited: false, dueDate: '2025-01-01', frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC')).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', false, 'unlog')).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true, 'unlog')).toBe('write')
+    expect(getHabitLogDateDecision(child, '2025-01-08', today, 'UTC')).toBe('write')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('write')
   })
 })
 
