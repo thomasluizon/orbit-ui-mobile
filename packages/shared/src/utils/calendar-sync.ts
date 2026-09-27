@@ -362,6 +362,23 @@ interface UtcUntilContext {
   occurrenceSeconds: number
 }
 
+function formatZonedDateTimeAsUtc(instant: Date, timeZone: string): Date {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant).map(({ type, value }) => [type, value]))
+  const localAsUtc = new Date(0)
+  localAsUtc.setUTCFullYear(Number(parts.year), Number(parts.month) - 1, Number(parts.day))
+  localAsUtc.setUTCHours(Number(parts.hour), Number(parts.minute), Number(parts.second))
+  return localAsUtc
+}
+
 function resolveUtcUntilContext(
   untilUtc: Date,
   startDate: string | null,
@@ -376,25 +393,6 @@ function resolveUtcUntilContext(
 
   const [, year, month, day, hour, minute, second = '0'] = localStartMatch
   const occurrenceSeconds = Number(hour) * 3600 + Number(minute) * 60 + Number(second)
-  if (recurrenceTimeZone) {
-    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
-      timeZone: recurrenceTimeZone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).formatToParts(untilUtc).map(({ type, value }) => [type, value]))
-    const localBound = new Date(0)
-    localBound.setUTCFullYear(Number(parts.year), Number(parts.month) - 1, Number(parts.day))
-    localBound.setUTCHours(Number(parts.hour), Number(parts.minute), Number(parts.second))
-    return { localBound, occurrenceSeconds }
-  }
-
-  const startInstant = startUtc ? new Date(startUtc) : null
-  if (!startInstant || Number.isNaN(startInstant.getTime())) return null
   const localStartAsUtc = Date.UTC(
     Number(year),
     Number(month) - 1,
@@ -403,6 +401,18 @@ function resolveUtcUntilContext(
     Number(minute),
     Number(second),
   )
+  const startInstant = startUtc ? new Date(startUtc) : null
+  if (recurrenceTimeZone) {
+    const sourceBound = formatZonedDateTimeAsUtc(untilUtc, recurrenceTimeZone)
+    const sourceStart = startInstant && !Number.isNaN(startInstant.getTime())
+      ? formatZonedDateTimeAsUtc(startInstant, recurrenceTimeZone)
+      : null
+    const projectionOffset = sourceStart ? localStartAsUtc - sourceStart.getTime() : 0
+    const localBound = new Date(sourceBound.getTime() + projectionOffset)
+    return { localBound, occurrenceSeconds }
+  }
+
+  if (!startInstant || Number.isNaN(startInstant.getTime())) return null
   const offset = localStartAsUtc - startInstant.getTime()
   return {
     localBound: new Date(untilUtc.getTime() + offset),

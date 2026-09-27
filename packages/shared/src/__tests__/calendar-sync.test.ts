@@ -776,6 +776,25 @@ describe('calendar-sync utils', () => {
     expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe(expectedEndDate)
   })
 
+  it('uses the projected start clock when the recurrence zone differs from the account zone', () => {
+    const event = {
+      id: 'event-projected-zone',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:00',
+      startUtc: '2026-01-01T06:00:00Z',
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
+  })
+
   it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {
     const event = {
       id: 'event-transition-safe',
