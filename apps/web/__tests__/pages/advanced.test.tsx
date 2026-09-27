@@ -298,18 +298,24 @@ describe('AdvancedPage', () => {
   })
 
   it('shows web instructions by default', () => {
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org/')
     render(<AdvancedPage />)
     fireEvent.click(screen.getByText('orbitMcp.connectionInstructions').closest('button')!)
     expect(screen.getByText('orbitMcp.webInstructions')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.webNoApiKey')).toBeInTheDocument()
+    expect(screen.getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
+    vi.unstubAllEnvs()
   })
 
   it('switches to the code instructions tab', () => {
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org')
     render(<AdvancedPage />)
     fireEvent.click(screen.getByText('orbitMcp.connectionInstructions').closest('button')!)
     fireEvent.click(screen.getByText('orbitMcp.claudeCode'))
     expect(screen.getByText('orbitMcp.configInstructions')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.replaceKey')).toBeInTheDocument()
+    expect(screen.getByText(/https:\/\/api-staging\.useorbit\.org\/mcp/)).toBeInTheDocument()
+    vi.unstubAllEnvs()
   })
 
   it('does not show API keys section for non-Pro users', () => {

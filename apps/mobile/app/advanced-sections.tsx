@@ -20,8 +20,8 @@ import {
 import type { ApiKey } from '@orbit/shared/types'
 import {
   buildMcpConfigJson,
+  getMcpEndpointUrl,
   MCP_CONFIG_TABS,
-  MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
   type WidgetFeatureIconKey,
@@ -29,6 +29,7 @@ import {
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { Chip } from '@/components/ui/chip'
 import { tintFromPrimary } from '@/lib/theme'
+import { API_BASE } from '@/lib/api-base'
 import { styles, type Tokens } from './advanced-styles'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -341,10 +342,11 @@ export function McpConnectionInstructions({
     ],
   }))
 
-  const mcpConfigJson = buildMcpConfigJson()
+  const mcpEndpointUrl = getMcpEndpointUrl(API_BASE)
+  const mcpConfigJson = buildMcpConfigJson(mcpEndpointUrl)
 
   function copyEndpoint() {
-    Clipboard.setString(MCP_ENDPOINT_URL)
+    Clipboard.setString(mcpEndpointUrl)
     setEndpointCopied(true)
     setTimeout(() => setEndpointCopied(false), 2000)
   }
@@ -356,7 +358,7 @@ export function McpConnectionInstructions({
   }
 
   const codeContent =
-    activeConfigTab === 'web' ? MCP_ENDPOINT_URL : mcpConfigJson
+    activeConfigTab === 'web' ? mcpEndpointUrl : mcpConfigJson
   const codeCopied =
     activeConfigTab === 'web' ? endpointCopied : configCopied
   const onCopy = activeConfigTab === 'web' ? copyEndpoint : copyConfig
