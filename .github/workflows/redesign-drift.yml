@@ -152,3 +152,5 @@ jobs:
       contents: write
       pull-requests: write
     uses: ./.github/workflows/contract-rebaseline.yml
+    secrets:
+      CONTRACT_REBASELINE_APP_PRIVATE_KEY: ${{ secrets.CONTRACT_REBASELINE_APP_PRIVATE_KEY }}
