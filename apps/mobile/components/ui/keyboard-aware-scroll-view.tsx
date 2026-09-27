@@ -34,6 +34,7 @@ interface KeyboardAwareViewProps {
   style?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
   behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
+  avoidKeyboard?: boolean
 }
 
 interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView> {
@@ -283,11 +284,12 @@ export function KeyboardAwareView({
   style,
   keyboardVerticalOffset = 0,
   behavior,
+  avoidKeyboard = true,
 }: Readonly<KeyboardAwareViewProps>) {
   return (
     <KeyboardAvoidingView
       style={style}
-      behavior={resolveKeyboardBehavior(behavior)}
+      behavior={avoidKeyboard ? resolveKeyboardBehavior(behavior) : undefined}
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       {children}

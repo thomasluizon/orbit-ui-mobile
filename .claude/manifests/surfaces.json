@@ -8237,6 +8237,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8255,6 +8256,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8273,6 +8275,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8291,6 +8294,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8309,6 +8313,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8327,6 +8332,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8345,6 +8351,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -8363,6 +8370,7 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
+        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",

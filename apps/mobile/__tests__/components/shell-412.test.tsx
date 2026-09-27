@@ -316,7 +316,45 @@ describe('Shell412 mobile', () => {
 
     expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
-    expect(tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')).toHaveLength(0)
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.props.behavior).toBeUndefined()
+  })
+
+  it('preserves stack state when navigation visibility changes', async () => {
+    let setDraft!: (value: string) => void
+    let mounts = 0
+
+    function RootStackScreens() {
+      const [draft, updateDraft] = useState(() => {
+        mounts += 1
+        return ''
+      })
+      setDraft = updateDraft
+      return React.createElement('StackDraft', { draft })
+    }
+
+    const renderShell = (navigationEnabled: boolean) => navigationEnabled ? (
+      <Shell412 tabBar={React.createElement('TabBar')}><RootStackScreens /></Shell412>
+    ) : (
+      <Shell412 nav={false}><RootStackScreens /></Shell412>
+    )
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(renderShell(true))
+    })
+    const draft = () => tree.root.findAll((node) => String(node.type) === 'StackDraft')[0]?.props.draft
+    const keyboardBehavior = () => tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')[0]?.props.behavior
+    await TestRenderer.act(() => setDraft('unsaved'))
+    expect(draft()).toBe('unsaved')
+
+    await TestRenderer.act(() => tree.update(renderShell(false)))
+    expect(draft()).toBe('unsaved')
+    expect(keyboardBehavior()).toBeUndefined()
+    await TestRenderer.act(() => tree.update(renderShell(true)))
+    expect(draft()).toBe('unsaved')
+    expect(keyboardBehavior()).toBe('height')
+    expect(mounts).toBe(1)
   })
 
   it('presents conversation modally and hides the screen accessibility tree', async () => {

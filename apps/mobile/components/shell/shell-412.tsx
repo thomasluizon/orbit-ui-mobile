@@ -133,9 +133,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   return (
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
-        {navigationEnabled ? (
-          <KeyboardAwareView style={styles.keyboardOwner}>{shell}</KeyboardAwareView>
-        ) : shell}
+        <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
+          {shell}
+        </KeyboardAwareView>
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>
   )
