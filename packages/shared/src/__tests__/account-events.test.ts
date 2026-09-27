@@ -74,6 +74,7 @@ describe('account events', () => {
       const running = consumeAccountEventStream({
         open,
         signal: controller.signal,
+        onOpen: () => {},
         onReconnect: () => events.push('reconnect'),
         onEvent: (event) => {
           events.push(event.type)
@@ -87,5 +88,44 @@ describe('account events', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('refreshes queries fetched during a failed first open when the cursorless stream opens', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const controller = new AbortController()
+    const oldKey = habitKeys.list({ date: 'today' })
+    const freshKey = goalKeys.list({ status: 'active' })
+    client.setQueryData(oldKey, 'before connection', { updatedAt: Date.now() - 1000 })
+    client.setQueryData(freshKey, 'already fresh', { updatedAt: Date.now() + 10000 })
+    const fetchOld = vi.fn(async () => 'after connection')
+    const fetchFresh = vi.fn(async () => 'already fresh')
+    const stopOld = new QueryObserver(client, { queryKey: oldKey, queryFn: fetchOld, staleTime: Infinity }).subscribe(() => {})
+    const stopFresh = new QueryObserver(client, { queryKey: freshKey, queryFn: fetchFresh, staleTime: Infinity }).subscribe(() => {})
+    const open = vi.fn()
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockResolvedValueOnce({ ok: true, body: new ReadableStream<Uint8Array>({ start(stream) { stream.close() } }) })
+    vi.useFakeTimers()
+    try {
+      const running = consumeAccountEventStream({
+        open,
+        signal: controller.signal,
+        onEvent: () => {},
+        onReconnect: () => {},
+        onOpen: (openedAt) => {
+          invalidateAccountQueriesBefore(client, openedAt)
+        },
+      })
+      await vi.advanceTimersByTimeAsync(2000)
+      controller.abort()
+      await running
+    } finally {
+      vi.useRealTimers()
+    }
+    await vi.waitFor(() => expect(fetchOld).toHaveBeenCalledTimes(1))
+    expect(fetchFresh).not.toHaveBeenCalled()
+    expect(open).toHaveBeenCalledTimes(2)
+    stopOld()
+    stopFresh()
+    client.clear()
   })
 })

@@ -6,8 +6,6 @@ import { useAuthStore } from '@/stores/auth-store'
 import { openAccountEventStream } from './account-event-stream'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
-let firstOpenCutoff = Date.now()
-
 export function AccountEventConnection(): null {
   const queryClient = useQueryClient()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -27,18 +25,18 @@ export function AccountEventConnection(): null {
       return
     }
     if (appState !== 'active') return
-    if (!hasOpened.current && !lastEventId.current) {
-      invalidateAccountQueriesBefore(queryClient, firstOpenCutoff)
-    }
     if (hasOpened.current && !lastEventId.current) {
       invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
     }
-    hasOpened.current = true
     const controller = new AbortController()
     void consumeAccountEventStream({
       signal: controller.signal,
       lastEventId: lastEventId.current,
       open: openAccountEventStream,
+      onOpen: (openedAt) => {
+        hasOpened.current = true
+        invalidateAccountQueriesBefore(queryClient, openedAt)
+      },
       onReconnect: (lastEventId) => {
         setAccountEventOrigin(null)
         if (!lastEventId) {
@@ -53,7 +51,6 @@ export function AccountEventConnection(): null {
     })
     return () => {
       controller.abort()
-      firstOpenCutoff = Date.now()
       setAccountEventOrigin(null)
     }
   }, [appState, isAuthenticated, queryClient])

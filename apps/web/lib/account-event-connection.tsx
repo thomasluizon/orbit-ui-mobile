@@ -8,8 +8,6 @@ import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-or
 
 interface TicketResponse { ticket: string; apiBase: string }
 
-let firstOpenCutoff = Date.now()
-
 export function AccountEventConnection(): null {
   const queryClient = useQueryClient()
 
@@ -18,7 +16,6 @@ export function AccountEventConnection(): null {
     let lastEventId: string | null = null
     let hasOpened = false
     function close() {
-      if (controller) firstOpenCutoff = Date.now()
       controller?.abort()
       controller = null
       setAccountEventOrigin(null)
@@ -26,13 +23,9 @@ export function AccountEventConnection(): null {
     function syncVisibility() {
       close()
       if (document.visibilityState !== 'visible') return
-      if (!hasOpened && !lastEventId) {
-        invalidateAccountQueriesBefore(queryClient, firstOpenCutoff)
-      }
       if (hasOpened && !lastEventId) {
         invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
       }
-      hasOpened = true
       controller = new AbortController()
       void consumeAccountEventStream({
         signal: controller.signal,
@@ -48,6 +41,10 @@ export function AccountEventConnection(): null {
             cache: 'no-store',
             headers: lastEventId ? { 'Last-Event-ID': lastEventId } : undefined,
           })
+        },
+        onOpen: (openedAt) => {
+          hasOpened = true
+          invalidateAccountQueriesBefore(queryClient, openedAt)
         },
         onReconnect: (lastEventId) => {
           setAccountEventOrigin(null)
