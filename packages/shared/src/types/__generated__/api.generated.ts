@@ -566,6 +566,15 @@ export const DeleteApiChecklistTemplatesIdResponse = zod.void()
 export const GetApiConfigResponse = zod.unknown()
 
 
+export const PostApiEventsTicketResponse = zod.object({
+  "ticket": zod.string(),
+  "expiresAtUtc": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetApiEventsResponse = zod.unknown()
+
+
 export const GetApiFriendsResponse = zod.unknown()
 
 
@@ -1770,6 +1779,9 @@ export const GetApiSubscriptionsBillingResponse = zod.unknown()
 export const GetApiSubscriptionsPlansResponse = zod.unknown()
 
 
+/**
+ * @deprecated
+ */
 export const PostApiSubscriptionsAdRewardResponse = zod.unknown()
 
 
