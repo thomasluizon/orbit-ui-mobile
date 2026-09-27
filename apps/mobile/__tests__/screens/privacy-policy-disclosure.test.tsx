@@ -88,4 +88,23 @@ describe('PrivacyScreen disclosures', () => {
     expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
     expect(rendersText(tree!.root, en.privacy.dataCollected.device)).toBe(true)
   })
+
+  it('shows the cutover processors and data locations', () => {
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(en.privacy.thirdParty).toEqual(expect.objectContaining({
+      ses: expect.stringContaining('Amazon SES'),
+      s3: expect.stringContaining('Amazon S3'),
+      render: expect.stringContaining('Render'),
+      turnstile: expect.stringContaining('Cloudflare Turnstile'),
+    }))
+    expect(en.privacy.thirdParty).not.toHaveProperty('resend')
+    expect(en.privacy.thirdParty).not.toHaveProperty('vercel')
+    expect(en.privacy.dataResidency.body).toContain('Ohio')
+    expect(en.privacy.dataResidency.body).toContain('us-east-2')
+    expect(rendersText(tree!.root, en.privacy.dataResidency.body)).toBe(true)
+  })
 })

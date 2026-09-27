@@ -97,11 +97,25 @@ describe('privacy policy disclosures', () => {
     )
   })
 
-  it('names PostHog and Vercel in both locales', () => {
-    expect(en.privacy.thirdParty.posthog).toContain('PostHog')
-    expect(en.privacy.thirdParty.vercel).toContain('Vercel')
-    expect(ptBR.privacy.thirdParty.posthog).toContain('PostHog')
-    expect(ptBR.privacy.thirdParty.vercel).toContain('Vercel')
+  it.each([
+    ['English', en.privacy],
+    ['Portuguese', ptBR.privacy],
+  ])('names the cutover processors and removes retired processors in %s', (_locale, privacy) => {
+    expect(privacy.thirdParty).toEqual(expect.objectContaining({
+      google: expect.stringContaining('Google'),
+      ses: expect.stringContaining('Amazon SES'),
+      s3: expect.stringContaining('Amazon S3'),
+      render: expect.stringContaining('Render'),
+      posthog: expect.stringContaining('PostHog'),
+      turnstile: expect.stringContaining('Cloudflare Turnstile'),
+    }))
+    expect(privacy.thirdParty).not.toHaveProperty('resend')
+    expect(privacy.thirdParty).not.toHaveProperty('vercel')
+    expect(privacy.thirdParty.posthog).toMatch(/traffic|tráfego/)
+    expect(privacy.thirdParty.posthog).toMatch(/performance|desempenho/)
+    expect(privacy.dataResidency.body).toContain('Ohio')
+    expect(privacy.dataResidency.body).toContain('us-east-2')
+    expect(privacy.dataResidency.body).not.toMatch(/Supabase|Vercel|Resend/)
   })
 
   it('discloses AdMob only for older Android versions in both locales', () => {
@@ -139,17 +153,9 @@ describe('privacy policy disclosures', () => {
   it('discloses international processor locations and the current update month', () => {
     expect(en.privacy.dataResidency.body).toContain('United States')
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
-    expect(en.privacy.dataResidency.body).toContain(
-      'Vercel hosts the web application on its global network',
-    )
-    expect(ptBR.privacy.dataResidency.body).toContain(
-      'A Vercel hospeda o aplicativo web em sua rede global',
-    )
-    expect(en.privacy.dataResidency.body).toContain('International transfers to Vercel')
-    expect(ptBR.privacy.dataResidency.body).toContain(
-      'As transferências internacionais para a Vercel',
-    )
-    expect(en.privacy.lastUpdated).toBe('Last updated: August 2026')
-    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: agosto de 2026')
+    expect(en.privacy.dataResidency.body).toContain('Render hosts the web application, API, and database')
+    expect(ptBR.privacy.dataResidency.body).toContain('A Render hospeda o aplicativo web, a API e o banco de dados')
+    expect(en.privacy.lastUpdated).toBe('Last updated: September 2026')
+    expect(ptBR.privacy.lastUpdated).toBe('Última atualização: setembro de 2026')
   })
 })
