@@ -74,4 +74,9 @@ export async function cases() {
   const recovered = await planRelease(failed)
   T("failed latest deployment does not replace last success", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
   T("failed latest deployment status was checked", failed.calls.some((path) => path.includes("/deployments/2/statuses")))
+
+  let stagingError = ""
+  try { await planRelease(clientFor({ noDeployment: ["api", "web"] }), "staging") }
+  catch (error) { stagingError = error.message }
+  T("staging without deployment records is reported as unknown", stagingError.includes("no verified deployment baseline"))
 }

@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url"
 const USAGE = `usage: release-plan.mjs [--environment production|staging]
 
 Read GitHub release records and list commits not yet deployed for each service.
-The default environment is production. Staging compares redesign/main with staging records.
+The default environment is production. Staging requires recorded staging deployments.
 --help, -h  print this usage and exit 0
 exit codes: 0 plan produced; 1 GitHub read or response error; 2 invalid arguments`
 
@@ -20,7 +20,17 @@ const SHA = /^[a-f0-9]{40}$/
 
 export const githubClient = {
   read(path) {
-    return JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8", timeout: 30_000 }))
+    const projection = path.includes("/deployments/") && path.includes("/statuses?")
+      ? "[.[] | {state}]"
+      : path.includes("/deployments?")
+        ? "[.[] | {id,sha,environment,task}]"
+        : path.includes("/actions/workflows/")
+          ? "{workflow_runs:[.workflow_runs[] | {display_title,conclusion,status,head_branch,head_sha}]}"
+          : path.includes("/compare/")
+            ? "{ahead_by,behind_by,total_commits,commits:[.commits[] | {sha,commit:{message:.commit.message}}]}"
+            : "{sha,commit:{message:.commit.message}}"
+    return JSON.parse(execFileSync("gh", ["api", path, "--jq", projection],
+      { encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }))
   },
 }
 
@@ -107,7 +117,12 @@ async function planService(client, service, environment) {
 export async function planRelease(client = githubClient, environment = "production") {
   if (!["production", "staging"].includes(environment)) throw new Error("invalid environment")
   const services = environment === "staging" ? SERVICES.filter((service) => service.name !== "landing") : SERVICES
-  return { environment, services: await Promise.all(services.map((service) => planService(client, service, environment))) }
+  const planned = await Promise.all(services.map((service) => planService(client, service, environment)))
+  const unverified = environment === "staging" ? planned.filter((service) => service.noBaseline) : []
+  if (unverified.length) {
+    throw new Error(`staging has no verified deployment baseline for ${unverified.map((service) => service.name).join(", ")}`)
+  }
+  return { environment, services: planned }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
