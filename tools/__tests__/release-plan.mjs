@@ -110,4 +110,8 @@ export async function cases() {
 
   const ids = stagingServiceIds(clientFor())
   T("staging service IDs use config and the documented GitHub variable", ids.api === "srv-dasotg8473hc739a5gjg" && ids.web === IDS.web)
+  let invalidVariable = ""
+  try { stagingServiceIds({ read: () => ({ total_count: 1, variables: [{ name: "RENDER_WEB_STAGING_SERVICE_ID", value: null }] }) }) }
+  catch (error) { invalidVariable = error.message }
+  T("malformed repository variable does not masquerade as a first deploy", invalidVariable.includes("unexpected shape"))
 }

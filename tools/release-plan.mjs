@@ -39,12 +39,13 @@ export const githubClient = {
     if (!process.env.RENDER_MCP_TOKEN) throw new Error("RENDER_MCP_TOKEN is required for staging")
     const response = await fetch(`https://api.render.com/v1/${path}`, {
       headers: { Authorization: `Bearer ${process.env.RENDER_MCP_TOKEN}` },
+      signal: AbortSignal.timeout(30_000),
     })
     if (!response.ok) throw new Error(`Render ${path} returned HTTP ${response.status}`)
     return response.json()
   },
   async readHealth(url) {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: AbortSignal.timeout(30_000) })
     if (!response.ok) throw new Error(`Web health returned HTTP ${response.status}`)
     return response.json()
   },
@@ -55,7 +56,8 @@ export const stagingServiceIds = (client = githubClient) => {
   const path = `repos/${OWNER}/orbit-ui-mobile/actions/variables?per_page=100`
   const variables = client.read(path)
   if (!Number.isInteger(variables?.total_count) || !Array.isArray(variables.variables) ||
-      variables.total_count !== variables.variables.length) {
+      variables.total_count !== variables.variables.length ||
+      variables.variables.some((variable) => typeof variable?.name !== "string" || typeof variable.value !== "string")) {
     throw new Error(`GitHub variables at ${path} have an unexpected shape or need pagination`)
   }
   const web = variables.variables.find((variable) => variable.name === "RENDER_WEB_STAGING_SERVICE_ID")
