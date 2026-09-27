@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import { withSentryConfig } from '@sentry/nextjs'
+import path from 'node:path'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
@@ -9,6 +10,8 @@ export function getLegacyRedirects() {
 }
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   productionBrowserSourceMaps: false,
   transpilePackages: ['@orbit/shared'],
   redirects: getLegacyRedirects,

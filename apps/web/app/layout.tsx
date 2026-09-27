@@ -6,8 +6,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from '@/components/ui/icons'
 import { Toaster } from 'sonner'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
@@ -171,8 +169,6 @@ export default async function RootLayout({
           />
         <ThrottleScreen />
         </NextIntlClientProvider>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   )
