@@ -59,6 +59,7 @@ interface AccountEventStreamOptions {
   open: (signal: AbortSignal, lastEventId: string | null) => Promise<StreamResponse>
   lastEventId?: string | null
   onEvent: (event: ParsedAccountEvent) => void
+  onOpen: (openedAt: number) => void
   onReconnect: (lastEventId: string | null) => void
   signal: AbortSignal
 }
@@ -83,6 +84,8 @@ function streamIsActive(signal: AbortSignal): boolean {
 export async function consumeAccountEventStream(options: AccountEventStreamOptions): Promise<void> {
   let lastEventId: string | null = options.lastEventId ?? null
   let retry = 0
+  let hasOpened = false
+  let failedSinceOpen = false
   for (;;) {
     if (options.signal.aborted) return
     let opened = false
@@ -90,6 +93,11 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
       const response = await options.open(options.signal, lastEventId)
       if (!response.ok || !response.body) throw new Error('Account event stream unavailable')
       opened = true
+      if (!lastEventId && (!hasOpened || failedSinceOpen) && streamIsActive(options.signal)) {
+        options.onOpen(Date.now())
+      }
+      hasOpened = true
+      failedSinceOpen = false
       await readEvents(response.body, options.signal, (event) => {
         if (event.id) lastEventId = event.id
         options.onEvent(event)
@@ -97,6 +105,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
       })
     } catch {
       retry = Math.min(retry + 1, 5)
+      failedSinceOpen = true
     }
     if (opened && streamIsActive(options.signal)) options.onReconnect(lastEventId)
     await waitForRetry(options.signal, Math.min(1000 * 2 ** retry, 30000))

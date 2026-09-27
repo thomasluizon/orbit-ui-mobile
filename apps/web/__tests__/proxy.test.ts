@@ -60,6 +60,8 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 describe('proxy', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
+    vi.stubEnv('API_BASE', 'https://api.useorbit.org')
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
@@ -108,7 +110,20 @@ describe('proxy', () => {
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
   })
 
-  it('allows the event stream origin returned by the ticket route', async () => {
+  it('returns the ticket API origin for the stream and allows it in connect-src', async () => {
+    vi.stubEnv('API_BASE', 'http://localhost:5000')
+    vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
+    const ticketResponse = await issueEventTicket()
+    const { apiBase } = await ticketResponse.json() as { apiBase: string }
+    const response = await proxy(createRequest('/terms'))
+    const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
+      .find((directive) => directive.startsWith('connect-src '))?.split(' ')
+    expect(apiBase).toBe(process.env.API_BASE)
+    expect(connectSource).toContain(new URL(apiBase).origin)
+  })
+
+  it('uses the public event origin for the stream and connect-src when the API is internal', async () => {
+    vi.stubEnv('API_BASE', 'http://localhost:5000')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://events.example.test')
     vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
     const ticketResponse = await issueEventTicket()
@@ -116,7 +131,16 @@ describe('proxy', () => {
     const response = await proxy(createRequest('/terms'))
     const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
       .find((directive) => directive.startsWith('connect-src '))?.split(' ')
+
+    expect(apiBase).toBe('https://events.example.test')
     expect(connectSource).toContain(new URL(apiBase).origin)
+    expect(connectSource).not.toContain(process.env.API_BASE)
+  })
+
+  it('keeps the production API origin for tickets and streams', async () => {
+    vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
+    const ticketResponse = await issueEventTicket()
+    expect(await ticketResponse.json()).toMatchObject({ apiBase: 'https://api.useorbit.org' })
   })
 
   it('allows local Supabase connections and development scripts in development', async () => {
