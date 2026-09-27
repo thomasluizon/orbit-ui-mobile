@@ -1022,6 +1022,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       if (matched.length > 0) {
         const mode = success.type === 'bulkLogHabits' ? 'log' : 'skip'
         settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr)
+        const selection = useUIStore.getState()
+        if (selection.isSelectMode) {
+          const resolvedIds = new Set(matched.map((item) => item.habitId))
+          const stillSelected = [...selection.selectedHabitIds].filter((id) => !resolvedIds.has(id))
+          if (stillSelected.length < selection.selectedHabitIds.size) {
+            if (stillSelected.length > 0) selection.selectAllHabits(stillSelected)
+            else selection.clearSelection()
+          }
+        }
       }
       return remaining.length === success.items.length ? false : remaining
     }), [habitsById, selectedDateStr, settleBulkHabitResolutions])

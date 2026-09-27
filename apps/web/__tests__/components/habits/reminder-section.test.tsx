@@ -184,31 +184,25 @@ describe('ReminderSection', () => {
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 
-  it('blocks a preset when offsets and clock reminders fill the shared limit', () => {
+  it('shows the shared limit instead of offering a preset when full', () => {
     const props = renderSection({
       reminderTimes: Array.from({ length: 14 }, (_, index) => index + 1),
       scheduledReminderCount: 1,
       onValidationError: vi.fn(),
     })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
-    fireEvent.click(screen.getByText('habits.form.reminder1hour'))
-    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 
-  it('blocks a custom offset when offsets and clock reminders fill the shared limit', () => {
+  it('shows the shared limit instead of offering a custom offset when full', () => {
     const props = renderSection({
       reminderTimes: [15],
       scheduledReminderCount: 14,
       onValidationError: vi.fn(),
     })
-    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
-    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
-      target: { value: '30' },
-    })
-    fireEvent.click(screen.getByLabelText('common.add'))
-    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(screen.getByText('habits.form.relativeReminderMax')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
 })

@@ -124,6 +124,7 @@ export function ScheduledReminderSection({
 
   return (
     <View style={nested ? sectionStyles.body : sectionStyles.container}>
+      {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
       {!nested && <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
           <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />

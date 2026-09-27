@@ -41,6 +41,7 @@ export function ReminderSection({
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   )
+  const atLimit = reminderTimes.length + scheduledReminderCount >= 15
 
   function addPreset(value: number) {
     if (reminderTimes.length + scheduledReminderCount >= 15) {
@@ -137,6 +138,8 @@ export function ReminderSection({
           ) : null}
 
           <div className="relative">
+            {atLimit ? <p className="text-[13px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax')}</p> : null}
+            {!atLimit ? <>
             <button
               type="button"
               aria-expanded={showAddReminder}
@@ -205,6 +208,7 @@ export function ReminderSection({
                 </button>
               </div>
             )}
+            </> : null}
           </div>
           {children}
         </div>

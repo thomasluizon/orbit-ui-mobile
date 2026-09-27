@@ -19,9 +19,12 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+const { drawerRender } = vi.hoisted(() => ({ drawerRender: vi.fn() }))
 vi.mock('@/components/referral/referral-drawer', () => ({
-  ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) =>
-    open ? <div data-testid="referral-drawer" /> : null,
+  ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) => {
+    drawerRender(open)
+    return open ? <div data-testid="referral-drawer" /> : null
+  },
 }))
 
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
@@ -53,6 +56,11 @@ async function settle() {
 }
 
 describe('ReferralPrompt', () => {
+  it('does not mount the drawer before the referral action', () => {
+    drawerRender.mockClear()
+    render(<ReferralPrompt />)
+    expect(drawerRender).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn())
@@ -131,7 +139,8 @@ describe('ReferralPrompt', () => {
     fireEvent.click(screen.getByText('referral.prompt.cta'))
 
     expect(screen.queryByTestId('sheet')).toBeNull()
-    expect(screen.getByTestId('referral-drawer')).toBeInTheDocument()
+    vi.useRealTimers()
+    expect(await screen.findByTestId('referral-drawer')).toBeInTheDocument()
   })
 
   it('dismisses without opening the drawer from "maybe later"', async () => {

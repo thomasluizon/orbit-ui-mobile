@@ -336,30 +336,23 @@ describe("ReminderSection", () => {
     expect(onReminderTimesChange).not.toHaveBeenCalled()
   })
 
-  it('blocks a preset when offsets and clock reminders fill the shared limit', () => {
-    const { tree, onReminderTimesChange, onValidationError } = renderSection({
+  it('shows the shared limit instead of offering a preset when full', () => {
+    const { tree, onReminderTimesChange } = renderSection({
       reminderTimes: Array.from({ length: 14 }, (_, index) => index + 1),
       scheduledReminderCount: 1,
     })
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminder1hour')!)
-    expect(onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'habits.form.relativeReminderMax')).toHaveLength(1)
+    expect(buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')).toBeUndefined()
     expect(onReminderTimesChange).not.toHaveBeenCalled()
   })
 
-  it('blocks a custom offset when offsets and clock reminders fill the shared limit', () => {
-    const { tree, onReminderTimesChange, onValidationError } = renderSection({
+  it('shows the shared limit instead of offering a custom offset when full', () => {
+    const { tree, onReminderTimesChange } = renderSection({
       reminderTimes: [15],
       scheduledReminderCount: 14,
     })
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
-    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
-    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
-    TestRenderer.act(() => {
-      ;(input.props as { onChangeText: (value: string) => void }).onChangeText('30')
-    })
-    press(tree, buttons(tree).find((node) => node.props.accessibilityLabel === 'common.add')!)
-    expect(onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'habits.form.relativeReminderMax')).toHaveLength(1)
+    expect(buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')).toBeUndefined()
     expect(onReminderTimesChange).not.toHaveBeenCalled()
   })
 });

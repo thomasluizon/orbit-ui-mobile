@@ -45,6 +45,7 @@ export function ReminderSection({
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   );
+  const atLimit = reminderTimes.length + scheduledReminderCount >= 15;
 
   function addPreset(value: number) {
     if (reminderTimes.length + scheduledReminderCount >= 15) {
@@ -142,7 +143,8 @@ export function ReminderSection({
             </Text>
           ) : null}
 
-          <Pressable
+          {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax")}</Text> : null}
+          {!atLimit ? <Pressable
             style={({ pressed }) => [
               sectionStyles.addButton,
               pressed && { transform: [{ scale: 0.96 }] },
@@ -158,9 +160,9 @@ export function ReminderSection({
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>
-          </Pressable>
+          </Pressable> : null}
 
-          {showAddReminder && (
+          {showAddReminder && !atLimit && (
             <View style={sectionStyles.dropdown}>
               {availablePresets.map((preset) => (
                 <Pressable
@@ -227,6 +229,7 @@ export function ReminderSection({
                         ]}
                         accessibilityRole="button"
                         accessibilityState={{ selected: customDirection === direction }}
+                        hitSlop={{ top: 6, bottom: 6 }}
                         onPress={() => setCustomDirection(direction)}
                       >
                         <Text style={[

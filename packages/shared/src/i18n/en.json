@@ -688,6 +688,7 @@
       "reminderUnitHours": "hours",
       "reminderUnitDays": "days",
       "scheduledReminder": "Remind me",
+      "scheduledReminderFixedTimes": "At fixed times",
       "scheduledReminderDayBefore": "Day before",
       "scheduledReminderSameDay": "Same day",
       "scheduledReminderDayBeforeAt": "Day before at {time}",
