@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { WebNav } from '@/components/navigation/web-nav'
@@ -15,8 +16,6 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
-import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
@@ -29,6 +28,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
+import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
@@ -63,6 +63,9 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+
+const CreateHabitModal = dynamic(() => import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal))
+const CreateGoalModal = dynamic(() => import('@/components/goals/create-goal-modal').then((module) => module.CreateGoalModal))
 
 export default function AppLayout({
   children,
@@ -121,6 +124,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
+  const hasOpenedCreateGoalModal = useMountedAfterOpen(showCreateGoalModal)
 
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
@@ -278,10 +282,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           }
         />
       )}
-      <CreateGoalModal
-        open={showCreateGoalModal}
-        onOpenChange={setShowCreateGoalModal}
-      />
+      {hasOpenedCreateGoalModal && (
+        <CreateGoalModal
+          open={showCreateGoalModal}
+          onOpenChange={setShowCreateGoalModal}
+        />
+      )}
 
       <ApiFetchI18nProvider />
       <TourProvider />

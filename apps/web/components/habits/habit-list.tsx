@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import {
   buildHabitDateBuckets,
   canLogHabitOnDate,
@@ -22,10 +23,6 @@ import {
   isHabitVisibleInAllView,
 } from '@orbit/shared/utils'
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
-import { HabitDetailDrawer } from './habit-detail-drawer'
-import { CreateHabitModal } from './create-habit-modal'
-import { EditHabitModal } from './edit-habit-modal'
-import { RescheduleSheet } from './reschedule-sheet'
 import {
   HabitListEmptyState,
   HabitListSkeleton,
@@ -59,6 +56,7 @@ import {
   useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
@@ -81,6 +79,11 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+
+const HabitDetailDrawer = dynamic(() => import('./habit-detail-drawer').then((module) => module.HabitDetailDrawer))
+const CreateHabitModal = dynamic(() => import('./create-habit-modal').then((module) => module.CreateHabitModal))
+const EditHabitModal = dynamic(() => import('./edit-habit-modal').then((module) => module.EditHabitModal))
+const RescheduleSheet = dynamic(() => import('./reschedule-sheet').then((module) => module.RescheduleSheet))
 
 interface HabitListProps {
   view?: 'today' | 'all' | 'general'
@@ -516,13 +519,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
 
   const [showDetailDrawer, setShowDetailDrawer] = useState(false)
+  const hasOpenedDetailDrawer = useMountedAfterOpen(showDetailDrawer)
   const [selectedHabit, setSelectedHabit] = useState<NormalizedHabit | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const hasOpenedEditModal = useMountedAfterOpen(showEditModal)
   const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
   const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
   const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
+  const hasOpenedRescheduleSheet = useMountedAfterOpen(showRescheduleSheet)
   const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
@@ -1134,29 +1140,35 @@ const isPostponeAction = useMemo(() => {
     <div data-tour="tour-habit-list" ref={listContainerRef}>
       {renderMainContent()}
 
-      <HabitDetailDrawer
-        open={showDetailDrawer}
-        onOpenChange={setShowDetailDrawer}
-        habit={selectedHabit}
-        onLogged={handleLogged}
-      />
+      {hasOpenedDetailDrawer && (
+        <HabitDetailDrawer
+          open={showDetailDrawer}
+          onOpenChange={setShowDetailDrawer}
+          habit={selectedHabit}
+          onLogged={handleLogged}
+        />
+      )}
 
-      <EditHabitModal
-        open={showEditModal}
-        onOpenChange={handleEditModalOpenChange}
-        habit={habitToEdit}
-        onSaved={editModalOnSaved ?? undefined}
-        lockedGeneral={editHabitLockedGeneral}
-      />
+      {hasOpenedEditModal && (
+        <EditHabitModal
+          open={showEditModal}
+          onOpenChange={handleEditModalOpenChange}
+          habit={habitToEdit}
+          onSaved={editModalOnSaved ?? undefined}
+          lockedGeneral={editHabitLockedGeneral}
+        />
+      )}
 
-      <RescheduleSheet
-        open={showRescheduleSheet}
-        onOpenChange={(open) => {
-          setShowRescheduleSheet(open)
-          if (!open) setHabitToReschedule(null)
-        }}
-        habit={habitToReschedule}
-      />
+      {hasOpenedRescheduleSheet && (
+        <RescheduleSheet
+          open={showRescheduleSheet}
+          onOpenChange={(open) => {
+            setShowRescheduleSheet(open)
+            if (!open) setHabitToReschedule(null)
+          }}
+          habit={habitToReschedule}
+        />
+      )}
 
       {showSubHabitModal && (
         <CreateHabitModal
