@@ -79,7 +79,7 @@ export function buildPendingOperationCardLabels(
       'interval_weeks', 'days', 'due_date', 'end_date', 'due_time',
       'is_bad_habit', 'is_general', 'is_flexible', 'checklist_items',
       'sub_habits', 'date', 'enabled', 'is_completed', 'reminder_enabled',
-      'reminder_times', 'scheduled_reminders',
+      'reminder_times', 'scheduled_reminders', 'delete', 'dismiss_import', 'run_sync',
     ].map((field) => [field, translate(`chat.operation.field.${field}`)])),
     dayLabels: Object.fromEntries(PENDING_OPERATION_WEEKDAYS.map((day) => [day, translate(`dates.daysLong.${day.toLowerCase()}`)])),
     yes: translate('common.yes'),

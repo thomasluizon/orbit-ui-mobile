@@ -1509,7 +1509,10 @@
         "is_completed": "Concluído",
         "reminder_enabled": "Lembrete ativado",
         "reminder_times": "Minutos antes do horário",
-        "scheduled_reminders": "Lembretes agendados"
+        "scheduled_reminders": "Lembretes agendados",
+        "delete": "Excluir",
+        "dismiss_import": "Dispensar importação",
+        "run_sync": "Sincronizar agora"
       },
       "confirmTitle": "Aprovar esta mudança?",
       "confirmBody": "Esta mudança não pode ser desfeita.",

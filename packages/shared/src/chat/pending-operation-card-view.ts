@@ -137,9 +137,24 @@ type CardRevision = NonNullable<PendingOperationCardActions['revision']>
 
 function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
   const value = field.newValue ?? ''
-  if (field.valueType === 'boolean') return value === 'true' ? labels.yes : labels.no
+  if (field.valueType === 'boolean') return localizedBoolean(value, labels)
   if (field.field === 'days') return value.split(',').map((day) => labels.dayLabels[day.trim()] ?? day.trim()).join(', ')
   return value
+}
+
+function localizedBoolean(value: string, labels: PendingOperationCardLabels): string {
+  if (value.toLowerCase() === 'true') return labels.yes
+  if (value.toLowerCase() === 'false') return labels.no
+  return value
+}
+
+function changeValue(value: string | null, valueType: string, labels: PendingOperationCardLabels): string {
+  if (value == null) return labels.notSet
+  return valueType === 'boolean' ? localizedBoolean(value, labels) : value
+}
+
+function actionLabel(field: string, labels: PendingOperationCardLabels): string {
+  return labels.fieldLabels[field] ?? labels.name
 }
 
 function pendingActions<Node>(
@@ -215,6 +230,36 @@ function previewRows<Node>(
   })
 }
 
+function unshownItemRows<Node>(
+  shownEntities: Set<string>,
+  revision: CardRevision | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+  destructive: boolean,
+): PendingOperationFrame<Node>['items'] {
+  if (!revision?.canRevise) return []
+  const rows: Array<PendingOperationFrame<Node>['items'][number]> = []
+  for (const item of revision.items) {
+    if (item.entityId != null && shownEntities.has(item.entityId)) continue
+    const action = item.fields.find((field) => field.valueType === 'action')
+    rows.push({
+      id: item.itemId,
+      label: action ? actionLabel(action.field, labels) : item.entityName,
+      meta: action ? item.entityName : labels.pending,
+      status: card.status,
+      irreversible: destructive && card.status == null,
+      wrapLabel: true,
+      editable: false,
+      control: card.status == null && !revision.stale
+        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
+        : undefined,
+    })
+    if (item.entityId != null) shownEntities.add(item.entityId)
+  }
+  return rows
+}
+
 function changeRows<Node>(
   changes: readonly PendingOperationChange[],
   count: number | null | undefined,
@@ -226,15 +271,19 @@ function changeRows<Node>(
 ): PendingOperationFrame<Node>['items'] {
   const shownEntities = new Set<string>()
   const rows: Array<PendingOperationFrame<Node>['items'][number]> = changes.map((change, index) => {
-    const field = labels.fieldLabels[change.field] ?? change.field
-    const oldValue = change.oldValue ?? labels.notSet
-    const newValue = change.newValue ?? labels.notSet
+    const field = change.valueType === 'action'
+      ? actionLabel(change.field, labels)
+      : labels.fieldLabels[change.field] ?? change.field
+    const oldValue = changeValue(change.oldValue, change.valueType, labels)
+    const newValue = changeValue(change.newValue, change.valueType, labels)
     const item = revision?.items.find((entry) => entry.entityId === change.entityId)
     const firstField = !shownEntities.has(change.entityId)
     shownEntities.add(change.entityId)
     return {
       id: `${change.entityId}-${change.field}-${index}`,
-      label: render.diffLabel(field, oldValue, newValue, labels.diff(field, oldValue, newValue)),
+      label: change.valueType === 'action'
+        ? field
+        : render.diffLabel(field, oldValue, newValue, labels.diff(field, oldValue, newValue)),
       meta: change.entityName,
       status: card.status,
       irreversible: destructive && card.status == null,
@@ -245,6 +294,7 @@ function changeRows<Node>(
         : undefined,
     }
   })
+  rows.push(...unshownItemRows(shownEntities, revision, card, labels, render, destructive))
   const remaining = count == null ? 0 : Math.max(0, count - shownEntities.size)
   if (remaining > 0) rows.push({
     id: 'remaining', label: labels.more(remaining), meta: '', status: card.status,

@@ -1509,7 +1509,10 @@
         "is_completed": "Completed",
         "reminder_enabled": "Reminder enabled",
         "reminder_times": "Minutes before due time",
-        "scheduled_reminders": "Scheduled reminders"
+        "scheduled_reminders": "Scheduled reminders",
+        "delete": "Delete",
+        "dismiss_import": "Dismiss import",
+        "run_sync": "Sync now"
       },
       "confirmTitle": "Approve this change?",
       "confirmBody": "This change cannot be undone.",
