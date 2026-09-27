@@ -30,6 +30,7 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
+import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import { useGlobalSearchParams } from 'expo-router'
 import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated'
@@ -164,6 +165,7 @@ function AuthInitializer({
       <ThemeProvider captureTheme={capturePreferences?.theme ?? null}>
         <View style={{ flex: 1 }}>
           <OfflineManager />
+          <AccountEventConnection />
           {children}
           {!appReady ? (
             <View

@@ -3,6 +3,7 @@ import { buildClientTimeZoneHeaders } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { getToken } from './secure-store'
 import { useThrottleStore } from '@/stores/throttle-store'
+import { getAccountEventOrigin } from './account-event-origin'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -13,7 +14,11 @@ async function executeStreamRequest(
   signal: AbortSignal,
   token: string | null,
 ): Promise<FetchResponse> {
-  const headers: Record<string, string> = { ...buildClientTimeZoneHeaders() }
+  const eventOrigin = getAccountEventOrigin()
+  const headers: Record<string, string> = {
+    ...buildClientTimeZoneHeaders(),
+    ...(eventOrigin ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
+  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }

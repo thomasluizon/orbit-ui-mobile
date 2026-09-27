@@ -61,6 +61,7 @@ import {
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { AccountEventConnection } from '@/lib/account-event-connection'
 
 const CreateHabitModal = dynamic(() =>
   import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal),
@@ -81,6 +82,7 @@ export default function AppLayout({
   if (pathname === '/about' && !isAuthenticated) return <>{children}</>
   return (
     <Providers>
+      <AccountEventConnection />
       <TodayProvider>
         <Suspense fallback={null}>
           <AppLayoutContent>{children}</AppLayoutContent>

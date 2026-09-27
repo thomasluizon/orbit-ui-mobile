@@ -8,6 +8,10 @@ import {
   setSessionCookies,
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
+import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
+import { serverAuthMutate } from '@/lib/server-fetch'
+
+vi.mock('@/lib/server-fetch', () => ({ serverAuthMutate: vi.fn() }))
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -22,7 +26,7 @@ vi.mock('@/lib/auth-api', async (importOriginal) => ({
 }))
 
 vi.mock('next/server', async () => {
-  const actual = await vi.importActual('next/server')
+  const actual = await vi.importActual<typeof import('next/server')>('next/server')
   const makeResponse = (type: 'next' | 'redirect', url?: string) => ({
     type,
     url,
@@ -35,6 +39,7 @@ vi.mock('next/server', async () => {
     NextResponse: {
       next: vi.fn(() => makeResponse('next')),
       redirect: vi.fn((url: URL) => makeResponse('redirect', url.toString())),
+      json: actual.NextResponse.json,
     },
   }
 })
@@ -103,6 +108,17 @@ describe('proxy', () => {
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
   })
 
+  it('allows the event stream origin returned by the ticket route', async () => {
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://events.example.test')
+    vi.mocked(serverAuthMutate).mockResolvedValue({ ticket: 'ticket' })
+    const ticketResponse = await issueEventTicket()
+    const { apiBase } = await ticketResponse.json() as { apiBase: string }
+    const response = await proxy(createRequest('/terms'))
+    const connectSource = response.headers.get('Content-Security-Policy')?.split('; ')
+      .find((directive) => directive.startsWith('connect-src '))?.split(' ')
+    expect(connectSource).toContain(new URL(apiBase).origin)
+  })
+
   it('allows local Supabase connections and development scripts in development', async () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321')
     vi.stubEnv('NODE_ENV', 'development')
@@ -113,7 +129,7 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).toContain("script-src 'self'")
     expect(contentSecurityPolicy).toContain("'unsafe-eval'")
     expect(contentSecurityPolicy).toContain(
-      "connect-src 'self' http://localhost:54321 ws://localhost:54321",
+      "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://api.useorbit.org",
     )
   })
 

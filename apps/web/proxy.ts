@@ -8,6 +8,7 @@ import {
   setSessionCookies,
   type SessionTokens,
 } from '@/lib/auth-api'
+import { accountEventApiBase } from '@/lib/account-event-api-base'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
@@ -84,7 +85,7 @@ function createContentSecurityPolicy(nonce: string): string {
     "frame-src https://challenges.cloudflare.com",
     `img-src 'self' blob: data: ${supabaseUrl.origin}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin}`,
+    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${new URL(accountEventApiBase()).origin}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
