@@ -76,6 +76,19 @@ describe('KeyboardAwareScrollView (mobile)', () => {
     expect(typeof capturedContext?.handleScroll).toBe('function')
   })
 
+  it('keeps input reveal without a second avoidance wrapper under the shell', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <KeyboardAwareScrollView avoidKeyboard={false}>
+          <ContextProbe />
+        </KeyboardAwareScrollView>,
+      )
+    })
+    expect(tree!.root.findAll((node: { type: unknown }) => String(node.type) === 'KeyboardAvoidingView')).toHaveLength(0)
+    expect(capturedContext?.revealInput).toBeTypeOf('function')
+  })
+
   it('tracks scroll offset through the wrapped onScroll handler', () => {
     const onScroll = vi.fn()
     const tree = renderScrollView(onScroll)

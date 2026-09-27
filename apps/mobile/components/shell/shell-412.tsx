@@ -1,5 +1,5 @@
-import { useMemo, type ReactNode } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Keyboard, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
@@ -7,6 +7,7 @@ import { zLayers } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
+import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 
 function ShellBottomChrome({
   navigationEnabled,
@@ -68,64 +69,82 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     : <>{props.notice}{registeredNotice.content}</>
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
+    return () => {
+      show.remove()
+      hide.remove()
+    }
+  }, [])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
 
+  const shell = (
+    <View
+      testID="shell-412"
+      style={[styles.root, { backgroundColor: tokens.bg }]}
+    >
+      <View
+        testID="shell-background"
+        style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
+        importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
+      >
+        {props.header !== undefined ? (
+          <View testID="shell-header">{props.header}</View>
+        ) : null}
+
+        <View testID="shell-scroller" style={styles.scroller}>
+          {props.children}
+        </View>
+
+        <ShellBottomChrome
+          navigationEnabled={navigationEnabled}
+          pinnedSlot={pinnedSlot}
+          notice={notice}
+          tabBar={props.tabBar}
+          fab={props.fab}
+          backgroundColor={tokens.bg}
+          borderTopColor={tokens.hairline}
+          safeAreaBottom={keyboardVisible ? 0 : insets.bottom}
+        />
+
+        {props.sheets}
+      </View>
+
+      {conversationOpen ? (
+        <View
+          accessibilityRole="none"
+          accessibilityLabel={props.conversationLabel}
+          accessibilityViewIsModal
+          testID="shell-conversation"
+          style={[styles.conversation, { backgroundColor: tokens.bg }]}
+        >
+          {props.conversation}
+        </View>
+      ) : null}
+    </View>
+  )
+
   return (
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
-        <View
-          testID="shell-412"
-          style={[styles.root, { backgroundColor: tokens.bg }]}
-        >
-          <View
-            testID="shell-background"
-            style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
-            importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
-          >
-            {props.header !== undefined ? (
-              <View testID="shell-header">{props.header}</View>
-            ) : null}
-
-            <View testID="shell-scroller" style={styles.scroller}>
-              {props.children}
-            </View>
-
-            <ShellBottomChrome
-              navigationEnabled={navigationEnabled}
-              pinnedSlot={pinnedSlot}
-              notice={notice}
-              tabBar={props.tabBar}
-              fab={props.fab}
-              backgroundColor={tokens.bg}
-              borderTopColor={tokens.hairline}
-              safeAreaBottom={insets.bottom}
-            />
-
-            {props.sheets}
-          </View>
-
-          {conversationOpen ? (
-            <View
-              accessibilityRole="none"
-              accessibilityLabel={props.conversationLabel}
-              accessibilityViewIsModal
-              testID="shell-conversation"
-              style={[styles.conversation, { backgroundColor: tokens.bg }]}
-            >
-              {props.conversation}
-            </View>
-          ) : null}
-        </View>
+        {navigationEnabled ? (
+          <KeyboardAwareView style={styles.keyboardOwner}>{shell}</KeyboardAwareView>
+        ) : shell}
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>
   )
 }
 
 const styles = StyleSheet.create({
+  keyboardOwner: {
+    flex: 1,
+  },
   root: {
     flex: 1,
     overflow: 'hidden',

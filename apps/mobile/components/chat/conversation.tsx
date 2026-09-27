@@ -21,8 +21,9 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { RefreshCw } from "@/components/ui/icons";
-import { KeyboardAwareFlatList, KeyboardAwareView } from "@/components/ui/keyboard-aware-scroll-view";
+import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
+import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
@@ -69,6 +70,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = chat;
+  const keyboardScroll = useConversationKeyboardScroll(flatListRef);
 
   const microphonePermissionDenied = speechError === t("speech.micDenied");
 
@@ -133,10 +135,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <KeyboardAwareView
-        style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
+      <View style={styles.content}>
         <AppBar
           titleRef={titleRef}
           onBack={closeConversation}
@@ -162,6 +161,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={scrollToBottom}
+              onScroll={keyboardScroll.onScroll}
+              onLayout={keyboardScroll.onLayout}
               accessibilityLabel={t("chat.title")}
               accessibilityLiveRegion="polite"
               accessibilityState={{ busy: isTyping }}
@@ -240,7 +241,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           ) : null}
           <Composer {...composerProps} />
         </View>
-      </KeyboardAwareView>
+      </View>
 
       {selectedGoalId && (
         <GoalDetailDrawer

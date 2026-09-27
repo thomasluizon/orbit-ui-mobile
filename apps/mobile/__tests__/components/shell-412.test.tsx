@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { __emitKeyboardEvent } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
@@ -29,6 +30,57 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 }
 
 describe('Shell412 mobile', () => {
+  it.each(['today', 'calendar', 'progress', 'profile'])('keeps the %s composer and scroller under one keyboard owner', async (destination) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 composer={React.createElement('Composer', { destination })} tabBar={React.createElement('TabBar')}>
+          {React.createElement('DestinationList', { destination })}
+        </Shell412>,
+      )
+    })
+
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.props.behavior).toBe('height')
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-scroller')).toHaveLength(1)
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
+
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+    })
+    expect(findByTestId(tree, 'shell-bottom')[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 0 })]),
+    )
+    await TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidHide')
+    })
+    expect(findByTestId(tree, 'shell-bottom')[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 24 })]),
+    )
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('keeps the conversation overlay inside the shell keyboard owner', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412
+          composer={React.createElement('Composer')}
+          conversation={React.createElement('Conversation')}
+          conversationLabel="Astra conversation"
+          tabBar={React.createElement('TabBar')}
+        >
+          {React.createElement('DestinationList')}
+        </Shell412>,
+      )
+    })
+    const owner = tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')
+    expect(owner).toHaveLength(1)
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-conversation')).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('renders Progress below the shell inset without a second top safe area', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 tabBar={null}><ProgressScreen /></Shell412>) })
@@ -233,6 +285,7 @@ describe('Shell412 mobile', () => {
 
     expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'KeyboardAvoidingView')).toHaveLength(0)
   })
 
   it('presents conversation modally and hides the screen accessibility tree', async () => {
