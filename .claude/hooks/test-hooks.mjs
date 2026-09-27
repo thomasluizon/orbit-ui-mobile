@@ -19,6 +19,7 @@ import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validate
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
+import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -599,6 +600,32 @@ T("sleep-stop: the merge-sha rule is identical in the Stop hook and in the recor
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
 T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
 T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
+const closedRows = [
+  { repositoryKey: "api", prNumber: 535, receiptPath: "C:/535.json", receiptWritten: false, closed: true, blocker: "superseded by merged work" },
+  { repositoryKey: "api", prNumber: 579, receiptPath: "C:/579.json", receiptWritten: false, closed: true, blocker: "superseded by another pull request" },
+]
+const closedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: closedRows }
+T("sleep-stop: closed unmerged rows with blockers end BLOCKED", stop({ state: closedRun })?.terminal, "BLOCKED")
+T("sleep-stop: the blocked ending names every closed row", closedRows.every((row) => stop({ state: closedRun })?.message.includes(`${row.repositoryKey}#${row.prNumber}: ${row.blocker}`)), true)
+T("sleep-stop: an unwritten receipt with a blocker but no closed marker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: false }] } })), true)
+T("sleep-stop: a closed row without a blocker still blocks", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], blocker: null }] } })), true)
+T("sleep-stop: a nonboolean closed marker cannot excuse an unwritten receipt", blocks(stop({ state: { ...closedRun, readinessLedger: [{ ...closedRows[0], closed: "true" }] } })), true)
+T(
+  "sleep-stop: a merged row stays exempt beside an unwritten closed row with a blocker",
+  ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("api#535") && !verdict.message.includes("ui#1023"))(
+    stop({ state: { ...closedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }, closedRows[0]] } }),
+  ),
+  true,
+)
+const reopenedCheckout = join(root, "reopened-pull-request")
+mkdirSync(join(reopenedCheckout, ".git"), { recursive: true })
+writeRunState({ ...sleeping, remaining: [], pullRequests: [closedRows[0]] }, reopenedCheckout)
+writeRunState({ ...sleeping, remaining: [], pullRequests: [{ ...closedRows[0], closed: false, blocker: null }] }, reopenedCheckout)
+T(
+  "sleep-stop: a reopened row without a receipt or blocker refuses the stop again",
+  blocks(stop({ state: readRunState(reopenedCheckout) })),
+  true,
+)
 
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"

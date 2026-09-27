@@ -270,11 +270,12 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
+  // Ledger entries come after pull request entries, so the ledger copy wins as it does in the Stop hook.
   const identities = [
-    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
-    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
+    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
+    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
   ]
   const rows = new Map()
   for (const entry of identities) {
@@ -282,19 +283,19 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     const key = `${entry.repositoryKey}#${entry.prNumber}`
     const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
     const merged = typeof entry.merged === "string" && MERGE_SHA.test(entry.merged) ? entry.merged : null
+    const closed = entry.closed === true
     const existing = rows.get(key)
     if (!existing) {
-      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged })
+      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged, closed })
       continue
     }
-    // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
-    // the earlier sighting did not know about. It may also clear one that has since been resolved.
+    // A later sighting supersedes the receipt path. An explicit closed value updates the row;
+    // silence preserves a closure and its blocker. Reopening clears the old blocker unless this
+    // sighting records one of its own.
     existing.receiptPath = entry.receiptPath
-    existing.blocker = blocker
-    // `merged` is STICKY, which is the one place this row does not take the latest value. A blocker
-    // can be resolved, so clearing it is a real transition; a merge cannot be undone, so a later
-    // write that simply does not carry the sha is silence rather than a reversal. Letting silence
-    // clear it would put a merged pull request back into the pending set at the next write.
+    if (typeof entry.closed === "boolean") existing.closed = closed
+    existing.blocker = blocker ?? (existing.closed ? existing.blocker : null)
+    // A merge and a closure are permanent facts; later sightings may omit them.
     existing.merged = merged ?? existing.merged
   }
   const readinessLedger = [...rows.values()].map((row) => ({
@@ -304,6 +305,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     receiptWritten: existsSync(row.receiptPath),
     blocker: row.blocker,
     merged: row.merged,
+    closed: row.closed,
   }))
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
