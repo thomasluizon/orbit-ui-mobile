@@ -16,7 +16,10 @@ function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi
     const repository = path.match(/^repos\/[^/]+\/([^/]+)\//)?.[1]
     const service = repository === "orbit-api" ? "api" : repository === "orbit-landing-page" ? "landing" : "web"
     if (path.includes("/actions/variables?")) {
-      return { total_count: 1, variables: [clone(renderFixture.variable)] }
+      return { total_count: 2, variables: [
+        { ...clone(renderFixture.variable), name: "RENDER_API_STAGING_SERVICE_ID", value: IDS.api },
+        clone(renderFixture.variable),
+      ] }
     }
     if (path.includes("/commits/")) {
       const commit = clone(fixture.commit)
@@ -109,7 +112,7 @@ export async function cases() {
     !noWeb.calls.includes(`services/${IDS.web}`))
 
   const ids = stagingServiceIds(clientFor())
-  T("staging service IDs use config and the documented GitHub variable", ids.api === "srv-dasotg8473hc739a5gjg" && ids.web === IDS.web)
+  T("staging service IDs use documented GitHub variables", ids.api === IDS.api && ids.web === IDS.web)
   let invalidVariable = ""
   try { stagingServiceIds({ read: () => ({ total_count: 1, variables: [{ name: "RENDER_WEB_STAGING_SERVICE_ID", value: null }] }) }) }
   catch (error) { invalidVariable = error.message }

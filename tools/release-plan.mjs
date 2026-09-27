@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process"
-import { readFileSync } from "node:fs"
 import { pathToFileURL } from "node:url"
 
 const USAGE = `usage: release-plan.mjs [--environment production|staging]
@@ -52,7 +51,6 @@ export const githubClient = {
 }
 
 export const stagingServiceIds = (client = githubClient) => {
-  const config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
   const path = `repos/${OWNER}/orbit-ui-mobile/actions/variables?per_page=100`
   const variables = client.read(path)
   if (!Number.isInteger(variables?.total_count) || !Array.isArray(variables.variables) ||
@@ -60,8 +58,8 @@ export const stagingServiceIds = (client = githubClient) => {
       variables.variables.some((variable) => typeof variable?.name !== "string" || typeof variable.value !== "string")) {
     throw new Error(`GitHub variables at ${path} have an unexpected shape or need pagination`)
   }
-  const web = variables.variables.find((variable) => variable.name === "RENDER_WEB_STAGING_SERVICE_ID")
-  return { api: config.release?.stagingApiServiceId, web: web?.value ?? null }
+  const valueOf = (name) => variables.variables.find((variable) => variable.name === name)?.value ?? null
+  return { api: valueOf("RENDER_API_STAGING_SERVICE_ID"), web: valueOf("RENDER_WEB_STAGING_SERVICE_ID") }
 }
 
 const expectArray = (value, path) => {

@@ -13,7 +13,7 @@ Only run a release when invoked. The plan is read-only. Never dispatch a workflo
 
 Run `node tools/release-plan.mjs` for production, or `node tools/release-plan.mjs --environment staging`. Read the JSON and show each service's branch, deployed SHA or `no staging baseline` / `first production deploy`, head SHA, and every listed commit. Preserve the tool's API, web, landing, Android order. An empty plan ends here with no workflow dispatch.
 
-The staging API baseline comes from the current live Render deploy. The staging web baseline comes from `/api/health` on the URL returned by its Render service record. The API service ID is in `.claude/orchestrator.json`; the web service ID is the UI repository variable `RENDER_WEB_STAGING_SERVICE_ID`. A missing web service or live deploy is a first deploy, not proof that staging is current. Do not use a custom staging hostname for these checks. If a comparison diverges or a remote read fails, stop and report the error; do not guess a baseline.
+The staging API baseline comes from the current live Render deploy. The staging web baseline comes from `/api/health` on the URL returned by its Render service record. Their service IDs are the UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID`. A missing web service or live deploy is a first deploy, not proof that staging is current. Do not use a custom staging hostname for these checks. If a comparison diverges or a remote read fails, stop and report the error; do not guess a baseline.
 
 ## Production dispatch
 
