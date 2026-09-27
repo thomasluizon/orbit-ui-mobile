@@ -95,6 +95,7 @@ const baseHabitFieldsSchema = z.object({
 
 export const habitScheduleChildSchema: z.ZodType<{
   id: string
+  createdAtUtc?: string
   title: string
   description: string | null
   emoji?: string | null
@@ -123,6 +124,7 @@ export const habitScheduleChildSchema: z.ZodType<{
   instances: HabitInstance[]
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
+  createdAtUtc: z.string().optional(),
   scheduledDates: z.array(z.string()).optional(),
   isOverdue: z.boolean().optional(),
   tags: z.array(habitTagSchema),
@@ -178,6 +180,7 @@ export type PaginatedResponse<T> = {
 
 export const habitDetailChildSchema: z.ZodType<{
   id: string
+  createdAtUtc?: string
   title: string
   description: string | null
   emoji?: string | null
@@ -198,6 +201,7 @@ export const habitDetailChildSchema: z.ZodType<{
   checklistItems: ChecklistItem[]
   children: HabitDetailChild[]
 }> = baseHabitFieldsSchema.extend({
+  createdAtUtc: z.string().optional(),
   isOverdue: z.boolean().optional(),
   children: z.lazy(() => z.array(habitDetailChildSchema)),
 })
@@ -216,6 +220,7 @@ export type HabitDetail = z.infer<typeof habitDetailSchema>
 
 export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
   createdAtUtc: z.string(),
+  createdAtUtcIsInherited: z.boolean().optional(),
   parentId: z.string().nullable(),
   scheduledDates: z.array(z.string()),
   isOverdue: z.boolean(),

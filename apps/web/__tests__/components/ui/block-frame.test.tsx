@@ -30,7 +30,7 @@ describe('BlockFrame on web', () => {
     const { container } = render(<BlockFrame {...resting({ items: [], body: <p>Nothing logged</p> })} />)
     expect(screen.getByText('Nothing logged')).toBeInTheDocument()
     expect(screen.queryByText('0')).not.toBeInTheDocument()
-    expect(container.querySelector('header')?.nextElementSibling).toContainElement(screen.getByText('Nothing logged'))
+    expect(container.querySelector('section')).toContainElement(screen.getByText('Nothing logged'))
   })
 
   it('renders a busy loading skeleton without row labels', () => {
@@ -43,7 +43,7 @@ describe('BlockFrame on web', () => {
   it('renders rows in order and derives the header count from items', () => {
     const { container } = render(<BlockFrame {...resting()} />)
     expect(screen.getByText('2')).toBeInTheDocument()
-    const body = container.querySelector('[aria-live="polite"]')
+    const body = container.querySelector('div[aria-live="polite"]')
     const labels = [...body!.children].map((row) => row.textContent)
     expect(labels).toEqual(['First row', 'Second rowSecond detail'])
   })

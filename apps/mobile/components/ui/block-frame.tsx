@@ -184,9 +184,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   if (frameProps.state === 'stale') {
     return (
       <View style={styles.staleRow}>
-        <Text style={[styles.staleMessage, { color: tokens.fg2 }]}>{frameProps.staleMessage}</Text>
-        <Pressable
-          accessibilityLabel={t('blockFrame.refresh')}
+        {frameProps.onRefresh ? <Pressable
+          accessibilityLabel={frameProps.refreshLabel ?? t('blockFrame.refresh')}
           accessibilityRole="button"
           onPress={frameProps.onRefresh}
           style={({ pressed }) => [
@@ -195,8 +194,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
           ]}
         >
           <RefreshCw accessible={false} color={tokens.fg1} size={20} strokeWidth={1.5} />
-          <Text style={[styles.refreshLabel, { color: tokens.fg1 }]}>{t('blockFrame.refresh')}</Text>
-        </Pressable>
+          <Text style={[styles.refreshLabel, { color: tokens.fg1 }]}>{frameProps.refreshLabel ?? t('blockFrame.refresh')}</Text>
+        </Pressable> : null}
       </View>
     )
   }
@@ -244,6 +243,9 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         ) : null}
         {props.risk}
       </View>
+      <Text accessibilityLiveRegion="polite" style={[styles.staleMessage, { color: tokens.fg2 }]}>
+        {props.state === 'stale' ? props.staleMessage : ''}
+      </Text>
       {props.state === 'loading' ? (
         <LoadingBody
           hasActions={canRenderActions && props.actions != null}

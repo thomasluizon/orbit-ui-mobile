@@ -257,6 +257,7 @@ export function useChatComposer() {
 
   const {
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -828,6 +829,7 @@ export function useChatComposer() {
     canRetryLastSend,
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
+    refreshPendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

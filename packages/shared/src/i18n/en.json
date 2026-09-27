@@ -834,6 +834,7 @@
       "logDateConfirmTitle": "Check this date",
       "logDateConfirmMessage": "This logs {name} on {date}.",
       "logDateConfirmUnlogMessage": "This undoes the log for {name} on {date}.",
+      "logDateConfirmPermanentUnlogMessage": "This removes the log for {name} on {date}. It cannot be undone.",
       "logDateConfirmLog": "Log habit",
       "logDateConfirmUnlog": "Undo log",
       "checklistError": "We could not update this checklist. Try again.",
@@ -1367,7 +1368,20 @@
       "remove": "Remove",
       "rejected": "Declined:",
       "invalid": "Check the edited values and try again.",
-      "stale": "This preview changed. Ask Astra to prepare it again.",
+      "stale": "Your habits changed since Astra prepared this preview.",
+      "refresh": "Refresh preview",
+      "refreshFailed": "Couldn't refresh. Try again.",
+      "staleUnavailable": "You can't refresh this preview anymore. Ask Astra to prepare it again.",
+      "list": {
+        "add": "Add item",
+        "checklistLimit": "50 items max. Remove one to add another.",
+        "scheduledLimit": "5 reminders max. Remove one to add another.",
+        "checked": "Done",
+        "when": "When",
+        "sameDay": "Same day",
+        "dayBefore": "Day before",
+        "time": "Time"
+      },
       "field": {
         "title": "Title",
         "description": "Description",
@@ -1388,7 +1402,7 @@
         "enabled": "Enabled",
         "is_completed": "Completed",
         "reminder_enabled": "Reminder enabled",
-        "reminder_times": "Reminder times",
+        "reminder_times": "Minutes before due time",
         "scheduled_reminders": "Scheduled reminders"
       },
       "confirmTitle": "Approve this change?",

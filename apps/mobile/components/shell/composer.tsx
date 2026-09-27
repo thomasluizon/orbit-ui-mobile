@@ -146,7 +146,12 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
   )
 }
 
-function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+type MobileComposerProps = ComposerProps & {
+  onInputFocus?: () => void
+  onInputBlur?: () => void
+}
+
+function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
   const voiceRef = useRef<View>(null)
   const [openConversationScale] = useState(() => new Animated.Value(1))
   const inputDisabled = props.state !== 'idle'
@@ -184,6 +189,8 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
           placeholderTextColor={tokens.fg3}
           value={props.value}
           onChangeText={props.onChangeValue}
+          onFocus={props.onInputFocus}
+          onBlur={props.onInputBlur}
           onSubmitEditing={() => {
             if (canSend) props.onSend()
           }}
@@ -289,7 +296,7 @@ function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens
   )
 }
 
-export function Composer(props: Readonly<ComposerProps>) {
+export function Composer(props: Readonly<MobileComposerProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const inputDisabled = props.state !== 'idle'

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HabitDetail, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
+import { habitDetailChildSchema, habitScheduleChildSchema } from '../types/habit'
+import { makeHabitDetailChild, makeHabitScheduleItem } from '../test-support/habit-detail-fixtures'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
@@ -47,6 +49,26 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     searchMatches: overrides.searchMatches,
   }
 }
+
+describe('child creation dates', () => {
+  it('parses the optional field in detail and schedule children', () => {
+    const detailChild = makeHabitDetailChild()
+    const scheduleChild = makeHabitScheduleItem().children[0]!
+    expect(habitDetailChildSchema.parse(detailChild).createdAtUtc).toBeUndefined()
+    expect(habitDetailChildSchema.parse({ ...detailChild, createdAtUtc: '2026-08-27T08:00:00Z' }).createdAtUtc).toBe('2026-08-27T08:00:00Z')
+    expect(habitScheduleChildSchema.parse(scheduleChild).createdAtUtc).toBeUndefined()
+    expect(habitScheduleChildSchema.parse({ ...scheduleChild, createdAtUtc: '2026-08-27T08:00:00Z' }).createdAtUtc).toBe('2026-08-27T08:00:00Z')
+  })
+
+  it('keeps each nested child creation date and marks an older response as inherited', () => {
+    const schedule = makeHabitScheduleItem()
+    const child = schedule.children[0]!
+    schedule.children = [{ ...child, createdAtUtc: '2026-08-27T08:00:00Z', children: [{ ...child, id: 'grandchild-1', children: [] }] }]
+    const habits = normalizeHabitQueryData([schedule]).habitsById
+    expect(habits.get('child-1')).toMatchObject({ createdAtUtc: '2026-08-27T08:00:00Z', createdAtUtcIsInherited: false })
+    expect(habits.get('grandchild-1')).toMatchObject({ createdAtUtc: schedule.createdAtUtc, createdAtUtcIsInherited: true })
+  })
+})
 
 describe('habit normalization utils', () => {
   it('sorts normalized habits by position then created time', () => {
@@ -297,4 +319,3 @@ describe('habitDetailToNormalized', () => {
     expect('children' in result).toBe(false)
   })
 })
-

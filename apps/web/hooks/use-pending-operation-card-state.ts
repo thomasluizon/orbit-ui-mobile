@@ -31,27 +31,29 @@ interface PendingOperationStepUpVerificationState {
 export function usePendingOperationCardState({
   pendingOperationId,
   previewFingerprint,
+  authorizationVersion = 0,
   onConfirmExecute,
   onPrepareStepUp,
 }: Readonly<{
   pendingOperationId: string
   previewFingerprint?: string | null
+  authorizationVersion?: number
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
 }>): PendingOperationCardState {
   const [busy, setBusy] = useState(false)
   const [authorization, setAuthorization] = useState(() =>
-    createPendingOperationAuthorizationState(pendingOperationId, previewFingerprint))
+    createPendingOperationAuthorizationState(pendingOperationId, previewFingerprint, authorizationVersion))
   const synchronized = reconcilePendingOperationAuthorizationState(
-    authorization, pendingOperationId, previewFingerprint)
+    authorization, pendingOperationId, previewFingerprint, authorizationVersion)
   if (synchronized !== authorization) setAuthorization(synchronized)
-  const sourceRef = useRef({ sourceId: pendingOperationId, sourceFingerprint: previewFingerprint })
+  const sourceRef = useRef({ sourceId: pendingOperationId, sourceFingerprint: previewFingerprint, authorizationVersion })
   useLayoutEffect(() => {
-    sourceRef.current = { sourceId: pendingOperationId, sourceFingerprint: previewFingerprint }
-  }, [pendingOperationId, previewFingerprint])
+    sourceRef.current = { sourceId: pendingOperationId, sourceFingerprint: previewFingerprint, authorizationVersion }
+  }, [pendingOperationId, previewFingerprint, authorizationVersion])
   const isCurrent = useCallback(() =>
-    matchesPendingOperationAuthorization(sourceRef.current, pendingOperationId, previewFingerprint),
-  [pendingOperationId, previewFingerprint])
+    matchesPendingOperationAuthorization(sourceRef.current, pendingOperationId, previewFingerprint, authorizationVersion),
+  [pendingOperationId, previewFingerprint, authorizationVersion])
 
   const setConfirmOpen = useCallback<Dispatch<SetStateAction<boolean>>>((open) => {
     if (!isCurrent()) return

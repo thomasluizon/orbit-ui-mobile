@@ -200,7 +200,7 @@ describe('calendar-sync utils', () => {
       startDate: '2026-09-21', startTime: null, endTime: null,
       isRecurring: true, recurrenceRule, reminders: [],
     }
-    expect(getCalendarSyncImportIssue(recurrenceRule, event.startDate, null, null, 1))
+    expect(getCalendarSyncImportIssue(recurrenceRule, event.startDate, null, null, null, 1))
       .toBe('unsupported-weekday-recurrence')
     expect(isCalendarSyncEventImportable(event, 1)).toBe(false)
     expect(() => buildCalendarSyncImportRequest([event], 1)).toThrow(
@@ -216,15 +216,15 @@ describe('calendar-sync utils', () => {
       recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=MO',
       reminders: [],
     }
-    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, 0))
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 0))
       .toBe('unsupported-weekday-recurrence')
     expect(isCalendarSyncEventImportable(event, 0)).toBe(false)
     expect(() => buildCalendarSyncImportRequest([event], 0)).toThrow(
       'Unsupported calendar recurrence: unsupported-weekday-recurrence',
     )
-    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, 1)).toBeNull()
-    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU', event.startDate, null, null, 0)).toBeNull()
-    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE', '2026-09-28', null, null, 0)).toBeNull()
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate, null, null, null, 1)).toBeNull()
+    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU', event.startDate, null, null, null, 0)).toBeNull()
+    expect(getCalendarSyncImportIssue('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE', '2026-09-28', null, null, null, 0)).toBeNull()
   })
 
   it('accepts only valid interval week values in bulk create requests', () => {
@@ -736,6 +736,7 @@ describe('calendar-sync utils', () => {
         startDate: '2026-09-14',
         startTime: '08:00',
         startUtc: '2026-09-13T23:00:00Z',
+        recurrenceTimeZone: 'Asia/Tokyo',
         endTime: null,
         isRecurring: true,
         recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
@@ -744,6 +745,7 @@ describe('calendar-sync utils', () => {
     })
 
     expect(suggestion.event.startUtc).toBe('2026-09-13T23:00:00Z')
+    expect(suggestion.event.recurrenceTimeZone).toBe('Asia/Tokyo')
   })
 
   it('converts a UTC UNTIL bound to the same local calendar date', () => {
@@ -821,6 +823,68 @@ describe('calendar-sync utils', () => {
     expect(() => buildCalendarSyncImportRequest([event])).toThrow(
       'Unsupported calendar recurrence: utc-until-offset-shift',
     )
+  })
+
+  it.each([
+    {
+      direction: 'winter to summer',
+      startDate: '2026-01-01',
+      startUtc: '2026-01-01T05:30:00Z',
+      until: '20260701T043000Z',
+      expectedEndDate: '2026-07-01',
+    },
+    {
+      direction: 'summer to winter',
+      startDate: '2026-07-01',
+      startUtc: '2026-07-01T04:30:00Z',
+      until: '20270101T043000Z',
+      expectedEndDate: '2026-12-31',
+    },
+  ])('imports a zoned UTC UNTIL bound across the $direction shift', ({
+    startDate, startUtc, until, expectedEndDate,
+  }) => {
+    const event = {
+      id: 'event-zoned-transition',
+      title: 'Midnight routine',
+      description: null,
+      startDate,
+      startTime: '00:30',
+      startUtc,
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: `RRULE:FREQ=DAILY;UNTIL=${until}`,
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+      event.recurrenceTimeZone,
+    )).toBeNull()
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe(expectedEndDate)
+  })
+
+  it('uses the projected start clock when the recurrence zone differs from the account zone', () => {
+    const event = {
+      id: 'event-projected-zone',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:00',
+      startUtc: '2026-01-01T06:00:00Z',
+      recurrenceTimeZone: 'America/New_York',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
   })
 
   it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {

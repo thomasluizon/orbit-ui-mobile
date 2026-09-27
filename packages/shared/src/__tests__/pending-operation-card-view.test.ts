@@ -14,7 +14,8 @@ import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from
 const labels: PendingOperationCardLabels = {
   approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Confirm',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
-  rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
+  rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
+  addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', risk: 'Destructive',
@@ -81,7 +82,7 @@ describe('pending operation card view', () => {
     })
     card.revision = {
       operation, canRevise: true, items: operation.items ?? [], editingItem: undefined,
-      draft: {}, editedItemIds: [], busy: false, stale: false, rejected: false, error: undefined,
+      draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: true, refresh: vi.fn(), rejected: false, error: undefined,
       setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
       saveEdit: vi.fn().mockResolvedValue(undefined),
       rejectItem: vi.fn().mockResolvedValue(undefined),
@@ -89,6 +90,7 @@ describe('pending operation card view', () => {
     }
     renderPendingOperationCard({ card, labels, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
+    expect(record.frame?.count).toBe(operation.changeTargetCount)
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
     expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
     expect(record.frame?.actions).toBe('Approve|Edit item|Reject')

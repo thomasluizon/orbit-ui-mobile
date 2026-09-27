@@ -27,6 +27,18 @@ export async function revisePendingOperation(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- serverAuthMutate enforces auth through wrapServerAction. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+export async function refreshPendingOperation(
+  id: string,
+  intendedAccountId: string | null,
+): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  return wrapServerAction(() =>
+    serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRefresh(id), {
+      method: 'POST',
+    }, intendedAccountId),
+  )
+}
+
 // react-doctor-disable-next-line server-auth-actions -- FP: serverAuthMutate enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function confirmPendingOperation(
   id: string,

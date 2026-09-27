@@ -529,6 +529,7 @@ export function mergeHabitDetailWithScopedHabit(
   return {
     ...listEnrichmentSource,
     ...normalized,
+    parentId: listEnrichmentSource.parentId,
     tags: listEnrichmentSource.tags,
     linkedGoals: relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
     slipAlertEnabled: relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,

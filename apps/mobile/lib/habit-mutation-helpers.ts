@@ -93,6 +93,7 @@ function cloneChildHabit(node: HabitTreeNode): HabitScheduleChild {
 
   return {
     id: node.id,
+    createdAtUtc: node.createdAtUtc,
     title: node.title,
     description: node.description,
     frequencyUnit: node.frequencyUnit,
@@ -139,7 +140,7 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     endDate: node.endDate,
     position: node.position,
     checklistItems: node.checklistItems,
-    createdAtUtc: 'createdAtUtc' in node ? node.createdAtUtc : new Date().toISOString(),
+    createdAtUtc: node.createdAtUtc ?? new Date().toISOString(),
     scheduledDates: ('scheduledDates' in node ? node.scheduledDates : []) ?? [],
     isOverdue: ('isOverdue' in node ? node.isOverdue : false) ?? false,
     reminderEnabled: 'reminderEnabled' in node ? node.reminderEnabled : false,

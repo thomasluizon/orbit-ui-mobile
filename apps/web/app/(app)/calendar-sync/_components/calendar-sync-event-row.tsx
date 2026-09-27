@@ -40,6 +40,7 @@ export function CalendarSyncEventRow({
     event.startDate,
     event.startTime,
     event.startUtc,
+    event.recurrenceTimeZone,
     weekStartDay,
   )
   const importIssueLabel = importIssue

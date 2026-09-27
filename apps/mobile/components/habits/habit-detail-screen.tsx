@@ -282,11 +282,15 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
-  const [pendingDateLog, setPendingDateLog] = useState<{ habitId: string; intent: 'log' | 'unlog'; date: string; name: string } | null>(null)
-  const [invalidLogDate, setInvalidLogDate] = useState<string | null>(null)
+  const [pendingDateLog, setPendingDateLog] = useState<{ habitId: string; intent: 'log' | 'unlog'; date: string; name: string; permanent: boolean } | null>(null)
+  const [invalidLogDate, setInvalidLogDate] = useState<{ date: string; habitId: string } | null>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
-  const habit = useMemo(() => detailQuery.data ? mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId)) : null, [allHabitsQuery.data, dateStr, detailQuery.data, habitId, habitsQuery.data])
+  const habit = useMemo(() => {
+    if (!detailQuery.data) return null
+    const merged = mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId))
+    return parentId ? { ...merged, parentId } : merged
+  }, [allHabitsQuery.data, dateStr, detailQuery.data, habitId, habitsQuery.data, parentId])
   const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
@@ -347,15 +351,16 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const targetHabit = targetHabitId === habitId ? habit
       : habitsQuery.data?.habitsById.get(targetHabitId) ?? allHabitsQuery.data?.habitsById.get(targetHabitId)
-    const decision = getHabitLogDateDecision(targetHabit, dateStr, accountToday, profile.timeZone, confirmed)
+    const decision = getHabitLogDateDecision(targetHabit, dateStr, accountToday, profile.timeZone, confirmed, intent)
     setInvalidLogDate(null)
     switch (decision) {
       case 'block':
-        setInvalidLogDate(dateStr)
+        setInvalidLogDate({ date: dateStr, habitId: targetHabitId })
         return false
       case 'confirm':
+      case 'confirm-permanent-unlog':
         setConfirm(null)
-        setPendingDateLog({ habitId: targetHabitId, intent, date: dateStr, name: targetHabit?.title ?? habit?.title ?? '' })
+        setPendingDateLog({ habitId: targetHabitId, intent, date: dateStr, name: targetHabit?.title ?? habit?.title ?? '', permanent: decision === 'confirm-permanent-unlog' })
         return false
     }
     const toggleKey = `habit-toggle:${targetHabitId}:${dateStr}`
@@ -430,18 +435,18 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   return (
     <FlowShell nav={false} header={appBar}>
       <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
-      <LogDateError visible={invalidLogDate === dateStr} tokens={tokens} />
+      <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
       <RescheduleBlock habit={habit} slipping={slipping} hasPro={hasPro} locale={profile.language ?? i18n.language} tokens={tokens} />
       {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></Surface> : null}
       <History habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? i18n.language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
+      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={profile.language ?? i18n.language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
       <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
-      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), profile.language ?? i18n.language, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), profile.language ?? i18n.language, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
         const pending = pendingDateLog
         setPendingDateLog(null)
         if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)

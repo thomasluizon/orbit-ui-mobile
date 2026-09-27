@@ -114,23 +114,29 @@ export function canLogHabitOnDate(
 }
 
 export function getHabitLogDateDecision(
-  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc' | 'parentId'>) | null | undefined,
+  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc' | 'createdAtUtcIsInherited' | 'parentId'>) | null | undefined,
   date: string,
   today: string,
   timeZone: string | null | undefined,
   confirmed = false,
-): 'write' | 'confirm' | 'block' {
+  intent: 'log' | 'unlog' = 'log',
+): 'write' | 'confirm' | 'confirm-permanent-unlog' | 'block' {
   if (!habit || resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
   const createdDate = formatAPIDateInTimeZone(new Date(habit.createdAtUtc), timeZone)
-  return (habit.parentId !== null && date < today) || date < createdDate || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
+  if (habit.parentId !== null && habit.createdAtUtcIsInherited === false && date < createdDate) {
+    if (intent === 'log') return 'block'
+    return confirmed ? 'write' : 'confirm-permanent-unlog'
+  }
+  return (habit.parentId !== null && habit.createdAtUtcIsInherited !== false && date < today) || (habit.parentId === null && date < createdDate) || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
     ? confirmed ? 'write' : 'confirm'
     : 'write'
 }
 
-export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog'): {
-  message: 'habits.detail.logDateConfirmUnlogMessage' | 'habits.detail.logDateConfirmMessage'
+export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog', permanent = false): {
+  message: 'habits.detail.logDateConfirmUnlogMessage' | 'habits.detail.logDateConfirmPermanentUnlogMessage' | 'habits.detail.logDateConfirmMessage'
   action: 'habits.detail.logDateConfirmUnlog' | 'habits.detail.logDateConfirmLog'
 } {
+  if (intent === 'unlog' && permanent) return { message: 'habits.detail.logDateConfirmPermanentUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' }
   return intent === 'unlog'
     ? { message: 'habits.detail.logDateConfirmUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' } as const
     : { message: 'habits.detail.logDateConfirmMessage', action: 'habits.detail.logDateConfirmLog' } as const
