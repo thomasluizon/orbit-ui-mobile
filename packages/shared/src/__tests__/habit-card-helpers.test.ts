@@ -345,6 +345,8 @@ describe('getHabitLogDateDecision', () => {
     const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-08T12:00:00Z', createdAtUtcIsInherited: false, dueDate: '2025-01-01', frequencyUnit: 'Day' })
     expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC')).toBe('block')
     expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', false, 'unlog')).toBe('confirm-permanent-unlog')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true, 'unlog')).toBe('write')
     expect(getHabitLogDateDecision(child, '2025-01-08', today, 'UTC')).toBe('write')
     expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('write')
   })

@@ -834,6 +834,7 @@
       "logDateConfirmTitle": "Confira esta data",
       "logDateConfirmMessage": "Isso registra {name} em {date}.",
       "logDateConfirmUnlogMessage": "Isso desfaz o registro de {name} em {date}.",
+      "logDateConfirmPermanentUnlogMessage": "Isso remove o registro de {name} em {date}. Não dá para desfazer.",
       "logDateConfirmLog": "Registrar hábito",
       "logDateConfirmUnlog": "Desfazer registro",
       "checklistError": "Não foi possível atualizar este checklist. Tente novamente.",
