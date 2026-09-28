@@ -10,7 +10,7 @@ import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthPara
   recoverPendingGoogleAuthCallbackUrl, resolveGoogleAuthCallbackUrl,
   usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
-import { useAuthStore } from '@/stores/auth-store'
+import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { captureBuildEnabled, shouldRetainEmptyAuthCallback } from '@/lib/capture-mode'
 import { LoginContent } from '@/components/auth/login-content'
 
@@ -28,6 +28,7 @@ export default function AuthCallbackScreen() {
     returnUrlAttemptId: sessionReturnUrlAttemptId } = usePendingGoogleAuthSession()
   const processed = useRef(false)
   const returnUrlAttemptRef = useRef<string | null>(null)
+  const accountBackEpochRef = useRef<number | null>(null)
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -58,18 +59,25 @@ export default function AuthCallbackScreen() {
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
     processed.current = true
     returnUrlAttemptRef.current = returnUrlAttemptId
+    const sessionEpoch = getSessionGeneration().epoch
     async function handleCallback(url: string) {
       try {
         if (extractGoogleAuthParams(url).error) throw new Error('Authentication failed')
         const referral = await getStoredReferralCode()
-        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) return
         const response = await completeGoogleAuthFromUrl(url, i18n.language, referral ?? undefined)
-        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId) || sessionEpoch !== getSessionGeneration().epoch) return
         await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        if (response.wasReactivated) { setAccountBack(response); setState('account'); return }
+        if (sessionEpoch !== getSessionGeneration().epoch) return
+        if (response.wasReactivated) {
+          accountBackEpochRef.current = sessionEpoch
+          setAccountBack(response)
+          setState('account')
+          return
+        }
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId, name: response.name, email: response.email,
-        })
+        }, sessionEpoch)
         if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
         if (referral) await clearStoredReferralCode()
         if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
@@ -78,7 +86,11 @@ export default function AuthCallbackScreen() {
         await clearStoredAuthReturnUrl(returnUrlAttemptId, isCurrentLoginSession)
         if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
         router.replace(getSafeReturnUrl(storedReturnUrl))
-      } catch { await clearPendingGoogleAuthSession(returnUrlAttemptId); setState('failed') }
+      } catch {
+        if (sessionEpoch !== getSessionGeneration().epoch) return
+        await clearPendingGoogleAuthSession(returnUrlAttemptId)
+        setState('failed')
+      }
     }
     void handleCallback(sessionCallbackUrl)
   }, [i18n.language, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
@@ -93,12 +105,15 @@ export default function AuthCallbackScreen() {
   async function continueAccount() {
     if (!accountBack || loading) return
     const returnUrlAttemptId = returnUrlAttemptRef.current
-    if (returnUrlAttemptId === null || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+    const expectedEpoch = accountBackEpochRef.current
+    if (returnUrlAttemptId === null || expectedEpoch === null
+      || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)
+      || expectedEpoch !== getSessionGeneration().epoch) return
     setLoading(true)
     try {
       const isCurrentLoginSession = await login(accountBack.token, accountBack.refreshToken, {
         userId: accountBack.userId, name: accountBack.name, email: accountBack.email,
-      })
+      }, expectedEpoch)
       if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
       const referralCode = await getStoredReferralCode()
       if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return

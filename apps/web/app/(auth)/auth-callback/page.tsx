@@ -7,6 +7,8 @@ import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { LoginContent } from '../login/login-content'
 import { getCookieValue, handleVerifySuccess } from '../login/login-form-helpers'
+import { hydrateProfilePresentation } from '@/lib/profile-presentation'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 export default function AuthCallbackPage() {
@@ -29,34 +31,60 @@ function AuthCallbackContent() {
     const code = params.get('code')
     const oauthState = params.get('state')
     if (params.has('error') || !code || !oauthState) {
+      const storedReturn = sessionStorage.getItem('auth_return_url')
+      const calendarReturn = storedReturn === '/calendar-sync' || storedReturn === '/calendar-sync?mode=review'
+      const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
+      const finish = () => {
+        if (storedReturn && calendarReturn && cancelled) router.replace(storedReturn)
+        else setState('failed')
+      }
       if (oauthState) {
         void fetch(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
-          .then(() => setState('failed'), () => setState('failed'))
-      } else queueMicrotask(() => setState('failed'))
+          .then(finish, finish)
+      } else queueMicrotask(finish)
       return
     }
 
+    let ownedGeneration = getAccountGeneration()
     async function complete() {
-      const generation = getAccountGeneration()
       const referralCode = getCookieValue('referral_code')
-      const response = await withCookieSettingLogin(() => fetch('/api/auth/google/code', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, state: oauthState, language: locale,
-          ...(referralCode ? { referralCode } : {}) }),
-      }))
-      if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
-      const loginResponse = await response.json() as LoginResponse
+      const generation = ownedGeneration
+      const loginResponse = await withCookieSettingLogin(async () => {
+        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        const response = await fetch('/api/auth/google/code', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, state: oauthState, language: locale,
+            ...(referralCode ? { referralCode } : {}) }),
+        })
+        if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
+        const result = await response.json() as LoginResponse
+        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        if (!result.wasReactivated) {
+          setAuth(result)
+          ownedGeneration = getAccountGeneration()
+        }
+        return result
+      })
       if (loginResponse.wasReactivated) {
+        if (generation !== getAccountGeneration()) return
         setAccountBack(loginResponse)
         setState('account')
         return
       }
+      await hydrateProfilePresentation()
+      if (ownedGeneration !== getAccountGeneration()) return
+      if (referralCode) {
+        document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
+      }
       const storedReturn = sessionStorage.getItem('auth_return_url')
       sessionStorage.removeItem('auth_return_url')
       const safeUrl = storedReturn?.startsWith('/') && !storedReturn.startsWith('//') ? storedReturn : '/'
-      await handleVerifySuccess(loginResponse, referralCode, setAuth, router, () => safeUrl)
+      setRouteTransitionIntent('replace')
+      router.push(safeUrl)
     }
-    void complete().catch(() => setState('failed'))
+    void complete().catch(() => {
+      if (ownedGeneration === getAccountGeneration()) setState('failed')
+    })
   }, [locale, router, setAuth])
 
   async function continueAccount() {

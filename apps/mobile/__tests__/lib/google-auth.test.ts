@@ -109,11 +109,15 @@ describe('mobile Google authorization code flow', () => {
     await expect(startMobileGoogleAuth({})).resolves.toMatchObject({ type: 'success' })
   })
 
-  it('rejects a Google error without calling the API', async () => {
+  it('returns a declined Google redirect without calling the API', async () => {
     mocks.open.mockImplementation((url: string) => Promise.resolve({
       type: 'success', url: `${callback}?error=access_denied&state=${new URL(url).searchParams.get('state')}`,
     }))
-    await expect(startMobileGoogleAuth({})).rejects.toThrow()
+    await expect(startMobileGoogleAuth({})).resolves.toEqual({
+      type: 'denied',
+      url: `${callback}?error=access_denied&state=${'02'.repeat(32)}`,
+    })
+    expect(hasPendingGoogleAuthSession()).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 

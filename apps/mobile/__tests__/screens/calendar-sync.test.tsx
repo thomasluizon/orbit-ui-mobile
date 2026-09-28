@@ -158,6 +158,10 @@ vi.mock("@/lib/google-auth", () => ({
   startMobileGoogleAuth: mocks.startGoogleAuth,
 }));
 
+vi.mock("expo-web-browser", () => ({
+  WebBrowserResultType: { CANCEL: "cancel", DISMISS: "dismiss" },
+}));
+
 const tokensV2Proxy: any = new Proxy(
   {},
   {
@@ -300,14 +304,27 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
   });
 
-  it("returns a cancelled calendar connection to login without opening the callback", async () => {
+  it.each(["cancel", "dismiss"])("keeps the calendar open when consent returns %s", async (type) => {
     mocks.eventsQuery.data = { status: "not-connected" };
-    mocks.startGoogleAuth.mockResolvedValue({ type: "cancel" });
+    mocks.startGoogleAuth.mockResolvedValue({ type });
 
     await pressConnect();
 
-    expect(mocks.router.replace).toHaveBeenCalledWith("/login?googleError=1");
-    expect(mocks.router.replace).not.toHaveBeenCalledWith("/auth-callback");
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it("keeps the calendar open when Google declines consent in the redirect URL", async () => {
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.startGoogleAuth.mockResolvedValue({
+      type: "denied",
+      url: "https://app.useorbit.org/auth-callback?error=access_denied&state=oauth-state",
+    });
+
+    await pressConnect();
+
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(mocks.showError).not.toHaveBeenCalled();
   });
 
   it("keeps the review return path and sends failed authorization to login", async () => {

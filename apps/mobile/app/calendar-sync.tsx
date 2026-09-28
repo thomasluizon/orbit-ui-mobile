@@ -38,6 +38,7 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { WebBrowserResultType } from 'expo-web-browser'
 import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
   resolveCalendarSyncStep,
@@ -258,6 +259,7 @@ export default function CalendarSyncScreen() {
           : '/calendar-sync',
         forceConsent: true,
       })
+      if (result.type === WebBrowserResultType.CANCEL || result.type === WebBrowserResultType.DISMISS || result.type === 'denied') return
       if (result.type !== 'success') {
         allowGoogleErrorLogin()
         router.replace('/login?googleError=1')
