@@ -1,7 +1,7 @@
 ---
 name: android-release
 description: Dispatch the Android Release GitHub Action that builds and publishes Orbit to Google Play. Defaults to the open track with the version and versionCode bumped one patch above the last run. Use when the user wants to ship a mobile release, publish to Play, or says /android-release. Not for a local APK, which is /android-generate.
-argument-hint: "[version] [--track internal|closed|open|production] [--code N] [--clear-cache] [--validate-deps] [--message <text>]"
+argument-hint: "[version] [--track internal|open|production] [--code N] [--clear-cache] [--validate-deps] [--message <text>]"
 effort: low
 ---
 
@@ -17,16 +17,17 @@ runs only after the user confirms the exact inputs.
 |---|---|---|
 | `app_version` | yes | user-facing version string, e.g. `1.3.27` |
 | `android_version_code` | yes | integer Play upload code, e.g. `86` |
-| `track` | yes | `internal` \| `closed` \| `open` \| `production` |
+| `track` | yes | `internal` \| `open` \| `production` |
 | `clear_cache` | no | boolean, default `false` |
 | `validate_expo_dependencies` | no | boolean, default `false` |
 | `message` | no | free text recorded in the run log and summary |
 
-The workflow builds `internal` and `closed` against `https://api-staging.useorbit.org` and
+The workflow builds `internal` against `https://api-staging.useorbit.org` and
 records them in the `staging` GitHub environment. It builds `open` and `production` against
-`https://api.useorbit.org` in the `production` environment, which requires the owner's approval.
+`https://api.useorbit.org` in the `production` environment.
 Each successful Play upload records an Android GitHub Deployment with the commit, version and
-versionCode. Play's versionCode sequence is shared across all tracks. A binary is never promoted
+versionCode. Play's versionCode sequence is shared across all tracks. `open` and `production` require `main`; `internal` builds the selected branch.
+A binary is never promoted
 between tracks because its API base is fixed when it is built.
 
 ## Step 1 - Read the last run to derive the defaults
@@ -54,7 +55,7 @@ a version, and never reuse a `versionCode` - Play rejects a duplicate and the bu
 Anything in `$ARGUMENTS` overrides the derived defaults:
 
 - a bare version-looking token (`1.4.0`) -> `app_version`
-- `--track <name>` -> `track`, validated against the four allowed values
+- `--track <name>` -> `track`, validated against the three allowed values
 - `--code <n>` -> `android_version_code`
 - `--clear-cache` -> `clear_cache=true`
 - `--validate-deps` -> `validate_expo_dependencies=true`

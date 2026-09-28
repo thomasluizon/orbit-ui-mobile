@@ -100,7 +100,7 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "b745388b11a56a62",
+      "digest": "c49c99032f0dd379",
       "calibratedAt": "2026-09-28",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
@@ -212,7 +212,7 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "7c4df4a7ee3064ac",
+      "digest": "3a5b604b2a062a0f",
       "calibratedAt": "2026-09-28",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
