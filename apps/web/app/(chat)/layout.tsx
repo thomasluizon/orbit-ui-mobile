@@ -4,6 +4,7 @@ import { Providers } from '@/lib/providers'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 
 export default function ChatLayout({
   children,
@@ -12,6 +13,7 @@ export default function ChatLayout({
 }>) {
   return (
     <Providers>
+      <ApiFetchI18nProvider />
       <div className="h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pt-[var(--safe-top)] flex flex-col">
         <div className="flex-1 min-h-0 mx-auto w-full max-w-[var(--app-max-w)] px-[var(--app-px)]">
           <RouteTransitionShell className="h-full">

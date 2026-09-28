@@ -62,9 +62,9 @@ export async function applyServerActionFailure<T>(result: ServerActionResult<T>)
   await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
-export async function runServerAction<T>(
+export async function runServerActionResult<T>(
   action: Promise<ServerActionResult<T>>,
-): Promise<T> {
+): Promise<ServerActionResult<T>> {
   let result: ServerActionResult<T>
   try {
     result = await action
@@ -78,12 +78,19 @@ export async function runServerAction<T>(
           duration: Infinity,
           action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
         })
-        return new Promise<T>(() => {})
+        return new Promise<ServerActionResult<T>>(() => {})
       }
     }
     throw error
   }
   await applyServerActionFailure(result)
+  return result
+}
+
+export async function runServerAction<T>(
+  action: Promise<ServerActionResult<T>>,
+): Promise<T> {
+  const result = await runServerActionResult(action)
   if (result.ok) return result.data
 
   throw createApiClientError(
