@@ -426,7 +426,7 @@ describe('useLogHabit', () => {
       await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'unlog' })).rejects.toThrow('Network failed')
     })
 
-    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.logHabit', 'common.dismiss')
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('habits.detail.logError', 'common.dismiss')
   })
 
   it('uses account-changed handling without a log error toast', async () => {

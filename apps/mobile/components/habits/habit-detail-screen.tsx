@@ -390,7 +390,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       await waitForQueuedDetailLog(response, toggleKey)
       return true
     } catch (error) {
-      if (mutationCompleted) showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'), t('common.dismiss'))
+      if (mutationCompleted) showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
       return false
     } finally {
       pendingToggleKeys.delete(toggleKey)
