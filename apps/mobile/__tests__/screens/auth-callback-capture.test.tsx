@@ -106,6 +106,7 @@ vi.mock('expo-web-browser', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) =>
     selector({ login: mocks.login }),
 }))
