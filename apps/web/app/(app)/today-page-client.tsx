@@ -13,7 +13,7 @@ import {
 import { TodayAstra } from '@/components/today/today-astra'
 import type { TodayInitialHabits } from './today-initial-data'
 import type { Profile } from '@orbit/shared/types/profile'
-import { useProfile } from '@/hooks/use-profile'
+import { PreloadedProfileContext, useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -83,8 +83,9 @@ export function TodayPageClient({
   const t = useTranslations()
   const accountGeneration = useAccountGeneration()
   const [seedAccountGeneration] = useState(accountGeneration)
+  const preloadedProfile = accountGeneration === seedAccountGeneration ? initialProfile ?? undefined : undefined
   const { profile, isError, refetch } = useProfile({
-    initialData: accountGeneration === seedAccountGeneration ? initialProfile ?? undefined : undefined,
+    initialData: preloadedProfile,
   })
   if (!profile) {
     return isError
@@ -96,10 +97,14 @@ export function TodayPageClient({
           <Skeleton variant="habit-row" grouped />
         </div>
   }
-  return <TodayPageContent initialToday={initialToday} initialHabits={initialHabits} />
+  return <TodayPageContent initialToday={initialToday} initialHabits={initialHabits} preloadedProfile={preloadedProfile} />
 }
 
-function TodayPageContent({ initialToday, initialHabits }: Readonly<TodayPageClientProps>) {
+function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Readonly<{
+  initialToday: string
+  initialHabits: TodayInitialHabits | null
+  preloadedProfile?: Profile
+}>) {
   const view = useTodayPage(initialToday, initialHabits)
 
   return (
@@ -110,7 +115,9 @@ function TodayPageContent({ initialToday, initialHabits }: Readonly<TodayPageCli
           suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
         />
 
-        <TodayHeaderRegion view={view} />
+        <PreloadedProfileContext.Provider value={preloadedProfile}>
+          <TodayHeaderRegion view={view} />
+        </PreloadedProfileContext.Provider>
 
         <TodayHabitsPanel view={view} />
       </TodayDayTransition>
