@@ -81,7 +81,9 @@ export async function startMobileGoogleAuth({
     const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
       encoding: Crypto.CryptoEncoding.BASE64,
     })
-    const codeChallenge = digest.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    let paddingStart = digest.length
+    while (paddingStart > 0 && digest[paddingStart - 1] === '=') paddingStart -= 1
+    const codeChallenge = digest.slice(0, paddingStart).replaceAll('+', '-').replaceAll('/', '_')
     markPendingGoogleAuthSession(returnUrlAttemptId, verifier, state)
     const authorizeUrl = buildGoogleAuthorizeUrl({
       clientId, redirectUri: AUTH_CALLBACK_URL, state, codeChallenge,
