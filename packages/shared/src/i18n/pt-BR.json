@@ -2768,7 +2768,7 @@
     },
     "window": {
       "empty": "Nada para medir ainda",
-      "emptyAction": "Começar hábito",
+      "emptyAction": "Começar um hábito",
       "chartLabel": "Últimos 30 dias",
       "completionRate": "Taxa de conclusão",
       "activeDays": "Dias com registro",

@@ -1092,7 +1092,7 @@ describe('ProgressContent', () => {
 
       expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-      expect(screen.getByText('progressScreen.window.empty')).toBeInTheDocument()
+      expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
       expect(screen.queryByText('0%')).not.toBeInTheDocument()
     } finally {
       mocks.retrospective.data = retrospectiveData

@@ -1325,7 +1325,7 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     let tree: { root: TestNode; update: (element: React.ReactNode) => void; unmount: () => void } | undefined
     TestRenderer.act(() => { tree = TestRenderer.create(<ProgressScreen />) })
-    const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID !== 'goal-reorder-status')
+    const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && !['goal-reorder-status', 'progress-window-status'].includes(String(node.props.testID)))
     expect(regions, 'the empty polite region must already be mounted').toHaveLength(1)
     const region = regions[0]!
     expect(region.props.accessibilityLabel ?? '').toBe('')
@@ -1335,12 +1335,12 @@ describe('mobile ProgressContent', () => {
       tree!.update(<ProgressScreen />)
       await Promise.resolve()
     })
-    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID !== 'goal-reorder-status')[0]).toBe(region)
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && !['goal-reorder-status', 'progress-window-status'].includes(String(node.props.testID)))[0]).toBe(region)
     expect(region.props.accessibilityLabel).toBe('progressScreen.streak.frozenToday')
     expect(region.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday').length).toBeGreaterThan(0)
     mocks.freeze.isFrozenToday = false
     TestRenderer.act(() => { tree!.update(<ProgressScreen />) })
-    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID !== 'goal-reorder-status')[0]).toBe(region)
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && !['goal-reorder-status', 'progress-window-status'].includes(String(node.props.testID)))[0]).toBe(region)
     expect(region.props.accessibilityLabel ?? '').toBe('')
     TestRenderer.act(() => { tree!.unmount() })
   })

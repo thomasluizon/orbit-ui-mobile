@@ -102,14 +102,16 @@ function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
-function WindowFrame({ children, title, tokens }: Readonly<{
+function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
   children: ReactNode
   title: string
   tokens: AppTokensV2
+  statusText?: string
 }>) {
   return (
     <View style={styles.windowSection}>
       <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.screenReaderTitle} testID="progress-window-status">{statusText}</Text>
       {children}
     </View>
   )
@@ -374,11 +376,18 @@ function GoalSeparator() {
 function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
+  const { width } = useWindowDimensions()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
-  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><EmptyState title={t('progressScreen.window.empty')} action={<PillButton variant="primary" size="sm" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>} /></WindowFrame>
+  if (hasNoHabits) {
+    const emptyAction = (
+      // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
+      <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>
+    )
+    return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={emptyAction} /></WindowFrame>
+  }
   if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
   if (!retrospective.data) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const metrics = retrospective.data.metrics

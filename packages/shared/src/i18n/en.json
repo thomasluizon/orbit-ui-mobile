@@ -2768,7 +2768,7 @@
     },
     "window": {
       "empty": "Nothing to measure yet",
-      "emptyAction": "Start habit",
+      "emptyAction": "Start a habit",
       "chartLabel": "Last 30 days",
       "completionRate": "Completion rate",
       "activeDays": "Days logged",

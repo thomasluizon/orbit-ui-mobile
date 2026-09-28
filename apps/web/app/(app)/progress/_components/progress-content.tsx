@@ -97,11 +97,12 @@ function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
-function WindowFrame({ children, title }: Readonly<{ children: ReactNode; title: string }>) {
+function WindowFrame({ children, title, statusText = '' }: Readonly<{ children: ReactNode; title: string; statusText?: string }>) {
   const headingId = useId()
   return (
     <section className="flex flex-col gap-3" aria-labelledby={headingId}>
       <h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
+      <p role="status" aria-live="polite" className="sr-only">{statusText}</p>
       {children}
     </section>
   )
@@ -449,11 +450,12 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
 function WindowSection() {
   const t = useTranslations()
   const locale = useLocale()
+  const isDesktop = useIsDesktop()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></WindowFrame>
-  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
+  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
   if (retrospective.isError) {
     return (
       <WindowFrame title={t('progressScreen.sections.window')}>
