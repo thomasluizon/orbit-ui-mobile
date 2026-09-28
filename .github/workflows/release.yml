@@ -182,8 +182,21 @@ jobs:
           origin=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.serviceDetails.url')
           origin="${origin%/}"
-          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${origin}/api/health" |
-            jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha'
+          check_health() {
+            local url="$1" deadline=$((SECONDS + 180)) body remaining
+            local last_body='<no response>'
+            while (( SECONDS <= deadline )); do
+              body=$(curl -sS --fail-with-body --max-time 5 "${url}/api/health") &&
+                jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$body" >/dev/null 2>&1 && return 0
+              if [ -n "$body" ]; then last_body="$body"; fi
+              remaining=$((deadline - SECONDS))
+              if (( remaining <= 0 )); then break; fi
+              if (( remaining > 10 )); then sleep 10; else sleep "$remaining"; fi
+            done
+            echo "Health at ${url} did not report status ok and commit ${SOURCE_SHA} within 3 minutes. Last observed body: ${last_body}" >&2
+            return 1
+          }
+          check_health "$origin"
           deployment_url="$origin"
           smoke_base_url="$origin"
           if [ "$RELEASE_ENVIRONMENT" = staging ]; then
@@ -194,8 +207,7 @@ jobs:
           fi
           if [ "$PRODUCTION_WEB_CUTOVER" = true ]; then
             public_url="https://${PRODUCTION_WEB_HOST}"
-            curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${public_url}/api/health" |
-              jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha'
+            check_health "$public_url"
             deployment_url="$public_url"
             smoke_base_url="$public_url"
             echo "Verified public host ${public_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
