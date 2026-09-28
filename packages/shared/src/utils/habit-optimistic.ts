@@ -1,5 +1,5 @@
 import type { HabitScheduleChild, HabitScheduleItem } from '../types/habit'
-import { formatAPIDate } from './dates'
+import { formatAPIDate, parseAPIDate } from './dates'
 
 type ChildContainer = {
   children: HabitScheduleChild[]
@@ -9,8 +9,8 @@ type ChildContainer = {
 export type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
 /** Returns tomorrow's date formatted for the API (used to postpone one-time habits). */
-export function getTomorrowDateString(): string {
-  const tomorrow = new Date()
+export function getTomorrowDateString(date = formatAPIDate(new Date())): string {
+  const tomorrow = parseAPIDate(date)
   tomorrow.setDate(tomorrow.getDate() + 1)
   return formatAPIDate(tomorrow)
 }
@@ -52,17 +52,19 @@ export function buildOptimisticSkipPatch(
   skippedDate = formatAPIDate(new Date()),
 ): Partial<HabitScheduleItem> {
   if (habit.frequencyUnit !== null) {
+    const remainingDates = habit.scheduledDates?.filter((date) => date !== skippedDate)
     return {
-      dueDate: habit.dueDate === skippedDate ? getTomorrowDateString() : habit.dueDate,
-      scheduledDates: habit.scheduledDates?.filter((date) => date !== skippedDate),
+      dueDate: habit.dueDate === skippedDate
+        ? remainingDates?.filter((date) => date > skippedDate).sort()[0] ?? getTomorrowDateString(skippedDate)
+        : habit.dueDate,
+      scheduledDates: remainingDates,
       instances: habit.instances.filter((instance) => instance.date !== skippedDate),
       isOverdue: false,
     }
   }
 
-  const dueDate = getTomorrowDateString()
+  const dueDate = getTomorrowDateString(skippedDate)
   return {
-    isCompleted: false,
     dueDate,
     scheduledDates: [dueDate],
     isOverdue: false,

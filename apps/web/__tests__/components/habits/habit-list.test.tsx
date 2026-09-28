@@ -162,8 +162,10 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({
+const rowImplementation = vi.hoisted(() => ({ actual: false }))
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  const StubHabitRow = ({
     habit,
     childProgress,
     state,
@@ -237,8 +239,15 @@ vi.mock('@/components/habits/habit-row', () => ({
         </button>
       )}
     </div>
-  ),
-}))
+  )
+  return {
+    ...actual,
+    HabitRow: (props: React.ComponentProps<typeof actual.HabitRow>) =>
+      rowImplementation.actual
+        ? React.createElement(actual.HabitRow, props)
+        : React.createElement(StubHabitRow, props),
+  }
+})
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
@@ -356,6 +365,7 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    rowImplementation.actual = false
     accountDate.timeZone = undefined
     capturedDrillOptions = undefined
     vi.clearAllMocks()
@@ -2644,6 +2654,35 @@ describe('HabitList', () => {
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
   })
 
+  it('opens the skip sheet from the recurring row menu without sending the mutation', async () => {
+    rowImplementation.actual = true
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 768px)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    const habit = createMockHabit({ id: 'row-menu', title: 'Walk', scheduledDates: [TODAY] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
+
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+    const confirmation = await screen.findByRole('dialog', {
+      name: 'habits.skipConfirmTitle({"name":"Walk"})',
+    })
+    expect(confirmation).toBeInTheDocument()
+    expect(Array.from(confirmation.querySelectorAll('[data-slot="dialog-action-pair"] button'))
+      .map((button) => button.textContent)).toEqual(['common.cancel', 'habits.skipConfirmButton'])
+    expect(confirmation.querySelector('[data-slot="dialog-action-pair"]'))
+      .toHaveClass('flex-row')
+    expect(within(confirmation).getByRole('button', { name: 'habits.skipConfirmButton' }))
+      .toHaveAttribute('data-variant', 'secondary')
+    vi.unstubAllGlobals()
+  })
+
   it('keeps a confirmed skip out of the done state while the list refreshes', async () => {
     const habit = createMockHabit({ id: 'skip-state', title: 'Walk', scheduledDates: [TODAY] })
     mockHabitsData.habitsById.set(habit.id, habit)
@@ -2654,6 +2693,28 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY })
     expect(screen.queryByTestId('recent-skip-state')).toHaveTextContent('no')
     expect(screen.queryByTestId('habit-card-skip-state')).not.toHaveAttribute('data-state', 'done')
+  })
+
+  it('discards an unconfirmed skip when the viewed date changes', async () => {
+    const habit = createMockHabit({ id: 'skip-date', title: 'Walk', scheduledDates: [TODAY] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    const renderDate = (date: string) => (
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderDate(TODAY))
+
+    fireEvent.click(screen.getByTestId('skip-skip-date'))
+    expect(await screen.findByRole('dialog', {
+      name: 'habits.skipConfirmTitle({"name":"Walk"})',
+    })).toBeInTheDocument()
+    rerenderWithProviders(renderDate(TOMORROW))
+    rerenderWithProviders(renderDate(TODAY))
+
+    expect(screen.queryByRole('dialog', {
+      name: 'habits.skipConfirmTitle({"name":"Walk"})',
+    })).toBeNull()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([

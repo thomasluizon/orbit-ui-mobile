@@ -6,7 +6,7 @@ import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { buildCalendarDayMap, getReturningInterval } from '@orbit/shared/utils'
+import { buildCalendarDayMap, getReturningInterval, hasHabitScheduleOnDate } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -661,6 +661,29 @@ describe('useSkipHabit', () => {
     })
 
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', '2025-01-15', 'account-a')
+  })
+
+  it('removes a dated skip from the cached day without marking it completed', async () => {
+    const date = '2025-01-15'
+    const { skipHabit } = await import('@/lib/actions/habits')
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
+    queryClient.setQueryData(listKey, [makeScheduleItem({
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'h-1', date })
+    })
+
+    const [skipped] = queryClient.getQueryData<HabitScheduleItem[]>(listKey) ?? []
+    expect(skipped?.isCompleted).toBe(false)
+    expect(hasHabitScheduleOnDate(skipped!, date)).toBe(false)
+    queryClient.clear()
   })
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {

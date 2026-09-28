@@ -487,7 +487,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
     const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
-    const [habitToSkip, setHabitToSkip] = useState<NormalizedHabit | null>(null)
+    const [habitToSkip, setHabitToSkip] = useState<{ habit: NormalizedHabit; date: string } | null>(null)
+    const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
+    if (skipStateDate !== selectedDateStr) {
+      setSkipStateDate(selectedDateStr)
+      setHabitToSkip(null)
+    }
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
       useState<NormalizedHabit | null>(null)
@@ -1445,7 +1450,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const rowActionHandlers: RowActionHandlers = {
       toggle: (habitId, intent) => { void handleDirectToggle(habitId, intent) },
-      skip: setHabitToSkip,
+      skip: (habit) => setHabitToSkip({ habit, date: selectedDateStr }),
       reschedule: (habit) => {
         setHabitToReschedule(habit)
         setShowRescheduleSheet(true)
@@ -1630,7 +1635,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           deleteHabitName={deleteConfirmation.name}
           deleteDescendantCount={deleteConfirmation.descendantCount}
           duplicateHabitName={habitToDuplicate?.title ?? null}
-          habitToSkip={habitToSkip}
+          habitToSkip={habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null}
           parentPrompt={getVisibleParentPrompt(parentPrompt, selectedDateStr)}
           onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
@@ -1640,7 +1645,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onConfirmDuplicate={() => void confirmDuplicate()}
           onCancelDuplicate={() => setHabitToDuplicate(null)}
           onConfirmSkip={() => {
-            const habit = habitToSkip
+            const habit = habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null
             setHabitToSkip(null)
             if (habit) void skipHabit(habit)
           }}

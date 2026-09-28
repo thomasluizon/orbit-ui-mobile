@@ -6,6 +6,7 @@ import {
   findHabitInTree,
   getTomorrowDateString,
 } from '../utils/habit-optimistic'
+import { hasHabitScheduleOnDate } from '../utils/habits'
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
@@ -121,7 +122,7 @@ describe('buildOptimisticSkipPatch', () => {
       ],
     }))
     expect(patch).toEqual({
-      dueDate: '2026-04-07',
+      dueDate: '2026-04-08',
       scheduledDates: ['2026-04-08'],
       instances: [{ date: '2026-04-08', status: 'Pending', logId: null }],
       isOverdue: false,
@@ -132,11 +133,29 @@ describe('buildOptimisticSkipPatch', () => {
     const patch = buildOptimisticSkipPatch(makeItem({ frequencyUnit: null }))
 
     expect(patch).toEqual({
-      isCompleted: false,
       dueDate: '2026-04-07',
       scheduledDates: ['2026-04-07'],
       isOverdue: false,
       instances: [{ date: '2026-04-07', status: 'Pending', logId: null }],
     })
+  })
+
+  it('moves the occurrence beyond an account day ahead of the device day', () => {
+    const recurringHabit = makeItem({
+      frequencyUnit: 'Day', dueDate: '2026-04-07',
+      scheduledDates: ['2026-04-07'],
+    })
+    const oneTimeHabit = makeItem({
+      frequencyUnit: null, dueDate: '2026-04-07', scheduledDates: ['2026-04-07'],
+    })
+    const recurring = buildOptimisticSkipPatch(recurringHabit, '2026-04-07')
+    const oneTime = buildOptimisticSkipPatch(oneTimeHabit, '2026-04-07')
+
+    expect(recurring.dueDate).toBe('2026-04-08')
+    expect(recurring.scheduledDates).toEqual([])
+    expect(oneTime.dueDate).toBe('2026-04-08')
+    expect(oneTime.isCompleted).toBeUndefined()
+    expect(hasHabitScheduleOnDate({ ...recurringHabit, ...recurring }, '2026-04-07')).toBe(false)
+    expect(hasHabitScheduleOnDate({ ...oneTimeHabit, ...oneTime }, '2026-04-07')).toBe(false)
   })
 })

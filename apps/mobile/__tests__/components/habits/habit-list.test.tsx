@@ -391,18 +391,24 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/ui/anchored-menu', () => ({
-  AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
-  MenuAnchorHost: ({ children }: any) => children,
-  useAnchoredMenu: () => ({
-    anchorRef: { current: null },
-    visible: false,
-    anchorRect: null,
-    open: () => {},
-    close: () => {},
-    toggle: () => {},
-  }),
-}))
+vi.mock('@/components/ui/anchored-menu', async () => {
+  const React = await import('react')
+  return {
+    AnchoredMenu: ({ visible, children }: any) => (visible ? children : null),
+    MenuAnchorHost: ({ children }: any) => children,
+    useAnchoredMenu: () => {
+      const [visible, setVisible] = React.useState(false)
+      return {
+        anchorRef: { current: null },
+        visible,
+        anchorRect: null,
+        open: () => setVisible(true),
+        close: () => setVisible(false),
+        toggle: () => setVisible((current) => !current),
+      }
+    },
+  }
+})
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
@@ -948,12 +954,19 @@ describe('HabitList', () => {
       )
     })
 
-    const habitCard = tree.root
-      .findAllByType(HabitRow)
-      .find((node: any) => node.props.habit.id === 'habit-1')
-
+    TestRenderer.act(() => {
+      const moreButton = tree.root.findAll((node: any) => (
+        node.props.accessibilityLabel === 'habits.actions.more'
+      ))[0]
+      moreButton.props.onPress()
+    })
+    const skipItem = tree.root.findAll((node: any) => (
+      node.props.accessibilityRole === 'menuitem' &&
+      flattenRenderedText(node).includes('habits.actions.skip')
+    ))[0]
+    expect(skipItem).toBeDefined()
     await TestRenderer.act(async () => {
-      habitCard?.props.actions.onSkip()
+      skipItem.props.onPress()
       await Promise.resolve()
     })
     expect(skipMutateAsync).not.toHaveBeenCalled()
@@ -1002,12 +1015,26 @@ describe('HabitList', () => {
     expect(tree.root.findByType(HabitRow).props.habit.isCompleted).toBe(false)
   })
 
-  /**
-   * Ticket #42 is the product authority: a confirmation belongs to an
-   * irreversible act only. Skipping is reversible, so it acts on one press;
-   * deleting is not, so it asks first.
-   */
-  it('asks before the irreversible delete, unlike the reversible skip', async () => {
+  it('discards an unconfirmed skip when the viewed date changes', () => {
+    const habit = createMockHabit({ id: 'skip-date', title: 'Walk', scheduledDates: [TODAY] })
+    seedHabits([habit])
+    const renderDate = (date: string) => (
+      <HabitList view="today" filters={{}} selectedDate={new Date(`${date}T09:00:00Z`)}
+        showCompleted onCreatePress={vi.fn()} />
+    )
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderDate(TODAY)) })
+
+    TestRenderer.act(() => { tree.root.findByType(HabitRow).props.actions.onSkip() })
+    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Walk"})')).toHaveLength(1)
+    TestRenderer.act(() => { tree.update(renderDate(TOMORROW)) })
+    TestRenderer.act(() => { tree.update(renderDate(TODAY)) })
+
+    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Walk"})')).toHaveLength(0)
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('asks before deleting a habit', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     const child = createMockHabit({ id: 'habit-2', title: 'Warm up', parentId: habit.id })
     seedHabits([habit, child])

@@ -44,6 +44,7 @@ export function HabitListConfirmDialogs({
     <>
       <ConfirmSheet
         open={habitToSkip !== null}
+        inlineActions
         title={t(postponing ? 'habits.postponeConfirmTitle' : 'habits.skipConfirmTitle', {
           name: habitToSkip?.title ?? '',
         })}
