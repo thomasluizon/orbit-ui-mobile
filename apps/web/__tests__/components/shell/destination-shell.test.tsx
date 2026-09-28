@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act } from 'react'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
@@ -64,7 +67,7 @@ vi.mock('@/components/shell/shell-412', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, items, onSelect, onCreate, notice, composer, account }: {
+  ShellWide: ({ children, items, onSelect, onCreate, notice, composer, account, paletteHint }: {
     children: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     onSelect?: (id: string) => void
@@ -72,10 +75,12 @@ vi.mock('@/components/shell/shell-wide', () => ({
     notice?: ReactNode
     composer?: ReactNode
     account?: string
+    paletteHint?: string
   }) => (
     <div data-testid="wide-shell">
       {children}{notice ? <div data-shell-notice="">{notice}</div> : null}
       {account ? <span data-testid="wide-account">{account}</span> : null}
+      {paletteHint ? <kbd>{paletteHint}</kbd> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
@@ -101,12 +106,71 @@ import {
 } from '@/lib/motion/route-intent'
 
 describe('DestinationShell', () => {
+  const originalUserAgentData = Object.getOwnPropertyDescriptor(navigator, 'userAgentData')
+  const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform')
+
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
     mocks.profileName = ''
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    if (originalUserAgentData) Object.defineProperty(navigator, 'userAgentData', originalUserAgentData)
+    else Reflect.deleteProperty(navigator, 'userAgentData')
+    if (originalPlatform) Object.defineProperty(navigator, 'platform', originalPlatform)
+    else Reflect.deleteProperty(navigator, 'platform')
+  })
+
+  it.each([
+    ['Mac', 'Win32', '⌘K'],
+    ['Windows', 'Win32', 'Ctrl K'],
+    ['Linux', 'Linux x86_64', 'Ctrl K'],
+  ])('shows the palette shortcut for %s', (platform, fallback, hint) => {
+    mocks.wide = true
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: { platform },
+    })
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      value: fallback,
+    })
+
+    render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getByText(hint, { selector: 'kbd' })).toBeInTheDocument()
+  })
+
+  it('uses the fallback platform and hydrates the neutral hint before switching', async () => {
+    mocks.wide = true
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      value: 'MacIntel',
+    })
+    const shell = <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>
+    const serverHtml = renderToString(shell)
+    expect(serverHtml).toContain('<kbd>Ctrl K</kbd>')
+    const container = document.createElement('div')
+    container.innerHTML = serverHtml
+    const initialMarkup = container.innerHTML
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+
+    await act(async () => {
+      root = hydrateRoot(container, shell, { onRecoverableError: recoverableError })
+    })
+
+    expect(initialMarkup).toBe(serverHtml)
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container.querySelector('kbd')).toHaveTextContent('⌘K')
+    await act(async () => root?.unmount())
   })
 
   it('renders exactly four compact destinations and keeps the FAB on Hoje only', () => {
