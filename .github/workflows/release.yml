@@ -219,11 +219,18 @@ jobs:
           DIGEST: ${{ inputs.environment == 'production' && steps.build_production.outputs.digest || steps.build_staging.outputs.digest }}
           RELEASE_ENVIRONMENT: ${{ inputs.environment }}
           DEPLOYMENT_URL: ${{ steps.health.outputs.deployment_url }}
+          SOURCE_REF: ${{ inputs.branch }}
         run: |
           set -euo pipefail
           jq -nc --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" --arg digest "$DIGEST" --arg url "$DEPLOYMENT_URL" --arg environment "$RELEASE_ENVIRONMENT" \
             '{ref:$sha,environment:$environment,auto_merge:false,required_contexts:[],production_environment:($environment == "production"),description:("Web image " + $digest),payload:{source_ref:$ref,sha:$sha,digest:$digest,url:$url}}' |
             curl -fsS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments" \
+              -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+              -H 'Content-Type: application/json' --data-binary @- > deployment.json
+          deployment_id=$(jq -er '.id' deployment.json)
+          jq -nc --arg url "$DEPLOYMENT_URL" --arg environment "$RELEASE_ENVIRONMENT" \
+            '{state:"success",environment:$environment,environment_url:$url}' |
+            curl -fsS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
               -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
               -H 'Content-Type: application/json' --data-binary @- > /dev/null
 
