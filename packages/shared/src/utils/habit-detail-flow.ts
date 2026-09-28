@@ -254,13 +254,14 @@ export function buildHabitStripModel(
 }
 
 export function isHabitSlipping(
-  habit: Pick<HabitScheduleSource, 'isBadHabit'>,
+  habit: Pick<HabitScheduleSource, 'isBadHabit' | 'createdAtUtc'>,
   metrics: HabitMetrics | null,
   logs: readonly HabitLog[],
   today: Date,
 ): boolean {
   if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= 50) return false
   const cutoff = formatAPIDate(addDays(today, -2))
+  if (formatAPIDate(new Date(habit.createdAtUtc)) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
   return habit.isBadHabit ? recentlyLogged : !recentlyLogged
 }

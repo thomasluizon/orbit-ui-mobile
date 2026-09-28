@@ -72,7 +72,6 @@ export default defineConfig({
         'components/habits/checklist-templates.tsx',
         'components/habits/description-viewer.tsx',
         'components/habits/goal-linking-field.tsx',
-        'components/habits/habit-calendar.tsx',
         'components/habits/habit-checklist.tsx',
         'components/habits/habit-form-fields/slip-alert-section.tsx',
         'components/habits/habit-form-fields/tag-editor-row.tsx',

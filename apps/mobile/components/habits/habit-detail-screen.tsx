@@ -9,12 +9,14 @@ import {
   buildHabitHistoryMonth,
   buildHabitStripModel,
   buildRescheduleUpdateRequest,
+  capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatAPIDateInTimeZone,
+  extractBackendErrorCode,
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
@@ -33,6 +35,7 @@ import {
 import type { ChecklistItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayStrip } from '@/components/dates/day-strip'
@@ -146,7 +149,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   }
   return (
     <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}>
-      <View style={styles.sectionHeader}><View><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{label}</Text></View><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
+      <View style={styles.sectionHeader}><View><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{capitalizeFirstLetter(label)}</Text></View><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
       <Animated.View style={{ opacity: monthOpacity }}><MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => {
         const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
         const cellLabel = day.loggedAt
@@ -176,13 +179,13 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   )
 }
 
-function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasPro: boolean; locale: string; tokens: ReturnType<typeof createTokensV2> }>) {
+function RescheduleBlock({ habit, slipping, overdue, hasPro, locale, tokens }: Readonly<{ habit: NormalizedHabit; slipping: boolean; overdue: boolean; hasPro: boolean; locale: string; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const updateHabit = useUpdateHabit()
   const { showError } = useAppToast()
-  const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && hasPro })
-  if (!slipping) return null
+  const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && overdue && hasPro })
+  if (!slipping || !overdue || extractBackendErrorCode(query.error) === 'HABIT_NOT_OVERDUE') return null
   if (!hasPro) {
     return <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><ListRow title={t('habits.detail.slipping')} value={t('habits.detail.proGate')} onClick={() => router.push('/upgrade')} /></Surface>
   }
@@ -199,9 +202,10 @@ function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{
       <View style={styles.proposedBlock}>
         <View style={styles.sectionHeading}>
           <Text style={[styles.proposedTitle, { color: tokens.fg1 }]}>{t('habits.detail.slipping')}</Text>
-          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.suggestion?.rationale ?? (query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading'))}</Text>
+          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : query.suggestion?.rationale ?? t('habits.detail.rescheduleLoading')}</Text>
         </View>
-        <View style={styles.proposedAction}><PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View>
+        {query.error ? <View style={styles.proposedAction}><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton></View> : null}
+        {query.suggestion && !query.error ? <View style={styles.proposedAction}><PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View> : null}
       </View>
     </Proposed>
   )
@@ -298,6 +302,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
   const strip = habit ? buildHabitStripModel(habit, logs, today, profile.language ?? i18n.language, profile.weekStartDay) : null
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
+  const overdue = habitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasPro = profile.hasProAccess
   const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
   const boundary = getTodayBoundary(dateStr, todayStr)
@@ -437,12 +442,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
-      <RescheduleBlock habit={habit} slipping={slipping} hasPro={hasPro} locale={profile.language ?? i18n.language} tokens={tokens} />
+      <RescheduleBlock habit={habit} slipping={slipping} overdue={overdue} hasPro={hasPro} locale={profile.language ?? i18n.language} tokens={tokens} />
       {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></Surface> : null}
       <History habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? i18n.language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
+      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={profile.language ?? i18n.language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
-      <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
+      <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />

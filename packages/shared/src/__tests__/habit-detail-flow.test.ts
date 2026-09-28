@@ -329,6 +329,18 @@ describe('habit detail flow model', () => {
     expect(isHabitSlipping(recurring, metrics, [log('2026-08-27')], today)).toBe(false)
   })
 
+  it('does not call a newly created habit slipping', () => {
+    const metrics: HabitMetrics = {
+      currentStreak: 0,
+      longestStreak: 0,
+      weeklyCompletionRate: 0,
+      monthlyCompletionRate: 0,
+      totalCompletions: 0,
+      lastCompletedDate: null,
+    }
+    expect(isHabitSlipping({ ...recurring, createdAtUtc: '2026-08-28T12:00:00Z' }, metrics, [], today)).toBe(false)
+  })
+
   it('treats clean bad-habit dates as resistance and positive logs as slips', () => {
     const badHabit = {
       ...recurring,

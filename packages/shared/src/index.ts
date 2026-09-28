@@ -146,9 +146,6 @@ export {
   collectVisibleHabitTreeIds,
   determineHabitDayStatus,
   hasAncestorInSet,
-  buildHabitCalendarDayCells,
-  buildHabitCalendarWeekdayKeys,
-  buildHabitLogDateSet,
   normalizeDrillDetailChild,
   normalizeHabitDetailForDrill,
   createHabitVisibilityHelpers,
@@ -210,10 +207,6 @@ export type {
   StreakFreezeFallback,
 } from './utils/gamification-selectors'
 export type { NormalizedDrillDetail } from './utils/drill-navigation'
-export type {
-  HabitCalendarDayCell,
-  HabitCalendarWeekdayKey,
-} from './utils/habit-calendar'
 export type {
   HabitVisibilityHelpers,
   HabitVisibilityOptions,
