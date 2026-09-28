@@ -54,7 +54,7 @@ vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => <div>{header}{notice}{children}{action}</div>,
 }))
 vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => <div>{children}{tabBar}</div> }))
-vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
+vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children, tabBar }: { children: React.ReactNode; tabBar?: React.ReactNode }) => <div>{children}{tabBar}</div> }))
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, onSelect }: { items: { id: string; label: string }[]; onSelect: (id: string) => void }) => <nav>{items.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav> }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => <button type="button" disabled={disabled || loading} onClick={onClick}>{children}</button>,

@@ -72,7 +72,7 @@ vi.mock('@/components/shell/shell-412', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -85,18 +85,21 @@ vi.mock('@/components/shell/shell-wide', () => ({
     paletteHint?: string
     onPalette?: () => void
     paletteLabel?: string
+    tabBar?: ReactNode
+    fab?: ReactNode
   }) => (
-    <div data-testid="wide-shell">
+    <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
       <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
-      {account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />}
-      {onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
-      {paletteHint ? <kbd>{paletteHint}</kbd> : null}
+      {mocks.wide && (account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />)}
+      {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
+      {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
-      {items?.map((item) => (
+      {mocks.wide ? items?.map((item) => (
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
-      ))}
-      {onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      )) : tabBar}
+      {mocks.wide && onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      {!mocks.wide ? fab : null}
     </div>
   ),
 }))

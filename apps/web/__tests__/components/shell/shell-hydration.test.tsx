@@ -2,19 +2,25 @@ import { act } from '@testing-library/react'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 function ShellHydrationProbe() {
-  const wide = useIsWideDesktop()
   const { isSupported: speechSupported } = useSpeechToText()
 
   return (
-    <div data-shell={wide ? 'wide' : '412'}>
+    <ShellWide
+      items={[{ id: 'hoje', label: 'Today', icon: 'home' }]}
+      activeId="hoje"
+      navLabel="Main navigation"
+      tabBar={<nav aria-label="Bottom navigation">Today</nav>}
+      composer={<div>Composer</div>}
+    >
+      <h1>Today</h1>
       {speechSupported ? <button type="button">Voice</button> : null}
-    </div>
+    </ShellWide>
   )
 }
 
@@ -33,11 +39,11 @@ describe('app shell hydration', () => {
     document.body.replaceChildren()
   })
 
-  it('matches the narrow server shell on the first client render at a wide viewport', async () => {
+  it.each([412, 1352])('renders the correct chrome before hydration at %ipx', async (width) => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn((query: string) => ({
-        matches: query === '(min-width: 1024px)',
+        matches: width >= 1024 && query === '(min-width: 1024px)',
         media: query,
         onchange: null,
         addListener: vi.fn(),
@@ -60,10 +66,16 @@ describe('app shell hydration', () => {
       root = hydrateRoot(container, <ShellHydrationProbe />, { onRecoverableError: recoverableError })
     })
 
-    expect(serverHtml).toContain('data-shell="412"')
+    expect(serverHtml).toContain('data-shell-sidebar=""')
+    expect(serverHtml).toContain('data-shell-tab-bar=""')
+    expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('hidden', 'lg:flex')
+    expect(container.querySelector('[data-shell-tab-bar]')).toHaveClass('lg:hidden')
+    expect(container.querySelectorAll('h1')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(1)
     expect(serverHtml).not.toContain('Voice')
     expect(recoverableError).not.toHaveBeenCalled()
-    expect(container.querySelector('[data-shell]')).toHaveAttribute('data-shell', 'wide')
+    expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-shell-tab-bar]')).toHaveLength(1)
     expect(container.querySelector('button')).toHaveTextContent('Voice')
   })
 })

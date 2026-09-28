@@ -49,7 +49,7 @@ describe('FlowShell', () => {
       </FlowShell>,
     )
 
-    expect(screen.getByTestId('compact-flow')).toHaveAttribute('data-nav', 'false')
+    expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-nav', 'false')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
@@ -68,7 +68,7 @@ describe('FlowShell', () => {
 
     const flow = screen.getByRole('heading', { name: 'Onboarding' }).closest('[data-shell="flow"]')
     expect(flow).toHaveAttribute('data-flow-mode', 'onboarding')
-    expect(flow).toHaveClass('max-w-[560px]')
+    expect(flow).toHaveClass('max-w-[440px]', 'lg:max-w-[560px]')
     expect(flow?.firstElementChild).not.toHaveClass('md:bg-[var(--bg-card)]')
     expect(flow?.firstElementChild).toHaveClass('my-auto')
   })
