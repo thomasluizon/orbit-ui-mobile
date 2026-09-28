@@ -44,9 +44,9 @@ vi.mock('next/server', async () => {
   }
 })
 
-function createRequest(path: string, options: { cookies?: Record<string, string> } = {}) {
+function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string } = {}) {
   const url = new URL(path, 'http://localhost:3000')
-  const request = new NextRequest(url)
+  const request = new NextRequest(url, { method: options.method })
 
   if (options.cookies) {
     for (const [name, value] of Object.entries(options.cookies)) {
@@ -80,6 +80,36 @@ describe('proxy', () => {
       expect(response).toMatchObject({ type: 'next' })
     }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('passes signed-out PostHog assets and capture requests through the proxy', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const assetUrl = 'http://localhost:3000/ingest/static/array.js'
+    const captureUrl = 'http://localhost:3000/ingest/e/'
+    const flagsUrl = 'http://localhost:3000/ingest/flags/?v=2'
+
+    for (const url of [assetUrl, captureUrl, flagsUrl]) {
+      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
+    }
+
+    const assetResponse = await proxy(createRequest('/ingest/static/array.js'))
+    const captureResponse = await proxy(createRequest('/ingest/e/', { method: 'POST' }))
+    const flagsResponse = await proxy(createRequest('/ingest/flags/?v=2', { method: 'POST' }))
+
+    expect(assetResponse).toMatchObject({ type: 'next' })
+    expect(captureResponse).toMatchObject({ type: 'next' })
+    expect(flagsResponse).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('keeps trailing slashes on PostHog requests for the rewrite', () => {
+    expect(nextConfig.skipTrailingSlashRedirect).toBe(true)
   })
 
   it('adds an enforcing nonce-based content security policy to rendered pages', async () => {
@@ -192,12 +222,12 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('/habits'))
+    await proxy(createRequest('/profile'))
 
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/habits')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/profile')
   })
 
   it('restores a missing access cookie from a valid refresh-backed session', async () => {

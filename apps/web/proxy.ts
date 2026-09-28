@@ -24,6 +24,7 @@ const PUBLIC_PATHS = [
   '/delete-account',
   '/turnstile-bridge',
   '/.well-known',
+  '/ingest',
 ]
 
 function isPublicPath(pathname: string): boolean {
