@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { ACCOUNT_ID_HEADER } from '@/lib/auth-api'
 import { Providers } from '@/lib/providers'
+import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { StepUpScreen } from './step-up-screen'
 
 /**
@@ -11,6 +12,7 @@ export default async function StepUpPage() {
   const serverAccountId = (await headers()).get(ACCOUNT_ID_HEADER)
   return (
     <Providers>
+      <ApiFetchI18nProvider />
       <StepUpScreen serverAccountId={serverAccountId} />
     </Providers>
   )
