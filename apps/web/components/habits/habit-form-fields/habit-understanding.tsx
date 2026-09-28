@@ -70,7 +70,7 @@ export function HabitUnderstanding({
             spellCheck={false}
             aria-invalid={!!error}
             aria-describedby={error ? 'habit-phrase-error' : undefined}
-            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-transparent caret-[var(--fg-1)]"
+            className="absolute inset-0 h-full min-h-[92px] w-full resize-none rounded-[12px] border-0 bg-transparent p-4 text-base leading-[1.45] text-transparent caret-[var(--fg-1)] focus-visible:outline-none"
             onChange={(event) => onValueChange(event.target.value)}
           />
         </div>

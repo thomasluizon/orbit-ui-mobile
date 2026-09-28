@@ -11,6 +11,15 @@ async function expectOneComposerRing(control: Locator, ringOwner: 'control' | 'w
       focusVisible: element.matches(':focus-visible'),
       controlOutlineStyle: controlStyle.outlineStyle,
       controlOutlineWidth: controlStyle.outlineWidth,
+      controlOutlineColor: controlStyle.outlineColor,
+      systemOutlineColor: (() => {
+        const sample = document.createElement('span')
+        sample.style.color = 'CanvasText'
+        document.body.append(sample)
+        const color = getComputedStyle(sample).color
+        sample.remove()
+        return color
+      })(),
       wrapperOutlineStyle: wrapperStyle.outlineStyle,
       wrapperOutlineWidth: wrapperStyle.outlineWidth,
     }
@@ -22,7 +31,8 @@ async function expectOneComposerRing(control: Locator, ringOwner: 'control' | 'w
     expect(styles.wrapperOutlineWidth).toBe('2px')
   } else {
     expect(styles.controlOutlineStyle).toBe('solid')
-    expect(styles.controlOutlineWidth).toBe('2px')
+    expect(Number.parseFloat(styles.controlOutlineWidth)).toBeGreaterThanOrEqual(2)
+    expect(styles.controlOutlineColor).toBe(styles.systemOutlineColor)
     expect(styles.wrapperOutlineStyle === 'none' || styles.wrapperOutlineWidth === '0px').toBe(true)
   }
 }
