@@ -21,8 +21,8 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
 
   const session = await page.request.get('/api/auth/session')
   expect(session.ok()).toBeTruthy()
-  const { accountId } = (await session.json()) as { accountId: string | null }
-  expect(accountId).toBeTruthy()
+  const { userId } = (await session.json()) as { userId: string | null }
+  expect(userId).toBeTruthy()
 
   await page.evaluate((id) => {
     window.localStorage.setItem(`orbit_trial_expired_seen:${id}`, '1')
@@ -30,7 +30,7 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
       `orbit_tour_sections:v1:${id}`,
       JSON.stringify({ habits: true, goals: true, chat: true, calendar: true, profile: true }),
     )
-  }, accountId)
+  }, userId)
 
   await page.context().storageState({ path: STORAGE_STATE_PATH })
 })
