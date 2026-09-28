@@ -30,14 +30,12 @@ import {
 } from '@orbit/shared/utils'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
-import { Shell412 } from '@/components/shell/shell-412'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { Toast } from '@/components/ui/toast'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
@@ -60,18 +58,19 @@ const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calen
 
 function DoneShell({ onSelect, children }: Readonly<{ onSelect: (id: string) => void; children: ReactNode }>) {
   const t = useTranslations()
-  const wide = useIsWideDesktop()
   const items = useMemo(() => [
     { id: 'hoje', label: t('nav.today'), icon: 'home' },
     { id: 'calendario', label: t('nav.calendar'), icon: 'calendar' },
     { id: 'progresso', label: t('nav.progress'), icon: 'chart-line' },
     { id: 'perfil', label: t('nav.profile'), icon: 'user' },
   ] satisfies ShellWideItem[], [t])
-  if (wide) return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect}><div className="mx-auto flex min-h-full w-full max-w-[560px] items-center">{children}</div></ShellWide>
-  return <Shell412 tabBar={<BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={items.map((item) => ({ ...item, icon: ({ active }) => {
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={items.map((item) => ({ ...item, icon: ({ active }) => {
     const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
     return <Icon size={24} strokeWidth={active ? 2 : 1.5} />
-  } }))} onSelect={onSelect} />}><div className="mx-auto flex min-h-full max-w-[440px] items-center px-6">{children}</div></Shell412>
+  } }))} onSelect={onSelect} />
+  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar}>
+    <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-6 lg:max-w-[560px] lg:px-0">{children}</div>
+  </ShellWide>
 }
 
 interface DecisionProps {
