@@ -357,7 +357,7 @@ export function useLogHabit() {
               : currentCalendar)
         }
       }
-      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'), t('common.dismiss'))
     },
 
     onSuccess: (response, variables) => {

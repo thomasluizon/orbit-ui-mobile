@@ -413,7 +413,7 @@ describe('useLogHabit', () => {
     })
 
     expect(queryClient.getQueryData<HabitScheduleItem[]>(listKey)?.[0]?.isCompleted).toBe(false)
-    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.logNotAllowed')
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.logNotAllowed', 'common.dismiss')
     expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
@@ -426,7 +426,7 @@ describe('useLogHabit', () => {
       await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'unlog' })).rejects.toThrow('Network failed')
     })
 
-    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.logHabit')
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.logHabit', 'common.dismiss')
   })
 
   it('uses account-changed handling without a log error toast', async () => {

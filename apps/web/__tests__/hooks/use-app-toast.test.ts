@@ -79,6 +79,21 @@ describe('useAppToast', () => {
     })
   })
 
+  it('keeps a log error visible until its dismiss action is used', () => {
+    mockToastError.mockReturnValueOnce(9)
+    const { result } = renderHook(() => useAppToast())
+
+    act(() => result.current.showError('Could not log', 'Dismiss'))
+
+    expect(mockToastError).toHaveBeenCalledWith('Could not log', expect.objectContaining({
+      duration: Infinity,
+      cancel: expect.objectContaining({ label: 'Dismiss' }),
+    }))
+    const options = mockToastError.mock.lastCall?.[1] as { cancel: { onClick: () => void } }
+    options.cancel.onClick()
+    expect(mockToastDismiss).toHaveBeenCalledWith(9)
+  })
+
   it('offers reload while keeping guidance visible until dismissal', () => {
     mockToastError.mockReturnValueOnce(7)
     const { result } = renderHook(() => useAppToast())

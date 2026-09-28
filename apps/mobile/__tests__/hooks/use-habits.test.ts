@@ -984,7 +984,7 @@ describe('mobile habit hooks', () => {
 
     expect(getHabitList()[0]?.isCompleted).toBe(false)
     expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed)
+    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed, 'common.dismiss')
   })
 
   it('shows the generic mapped error once for a network failure', () => {
@@ -995,7 +995,7 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Network failed'), { habitId: 'habit-1' }, undefined)
 
     expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(mocks.showError).toHaveBeenCalledWith('errors.logHabit')
+    expect(mocks.showError).toHaveBeenCalledWith('errors.logHabit', 'common.dismiss')
   })
 
   it('shows no error toast after a successful habit log', () => {
