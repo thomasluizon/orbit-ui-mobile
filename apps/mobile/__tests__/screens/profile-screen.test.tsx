@@ -338,7 +338,8 @@ vi.mock('@/components/ui/settings-group', () => ({
 }))
 
 vi.mock('@/components/ui/row-list', () => ({
-  RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  RowList: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('RowListStub', { rowCount: React.Children.toArray(children).length }, children),
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
@@ -539,6 +540,7 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBeUndefined()
 
     const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
+    expect(more.findAllByType('RowListStub')[0].props.rowCount).toBeGreaterThan(1)
     expect(
       more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
         .map((node: SettingsRowStubNode) => node.props.label),
@@ -1101,6 +1103,7 @@ describe('ProfileScreen', () => {
       accessibilityRole: 'switch',
       accessibilityLabel: 'profile.aiSummary.title',
     })
+    expect(astra.findAllByType('RowListStub')[0].props.rowCount).toBe(2)
     TestRenderer.act(() => {
       proactiveSwitch.props.onPress()
       summarySwitch.props.onPress()

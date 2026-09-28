@@ -137,8 +137,10 @@ function buildYouRows(
     <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('settings.weekStartDay.title')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
     <ProfileValueRow key="theme" label={t('preferences.themeMode')} control={themeChoice} />,
     <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
-      <Text style={{ color: tokens.fg1, fontSize: 17 }}>{t('settings.homeScreen.showGeneral')}</Text>
-      <Switch checked={controls.showGeneralOnToday} onChange={(next) => void controls.handleShowGeneralToggle(next)} label={t('settings.homeScreen.showGeneral')} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Text style={{ flex: 1, minWidth: 0, color: tokens.fg1, fontSize: 17 }}>{t('settings.homeScreen.showGeneral')}</Text>
+        <Switch checked={controls.showGeneralOnToday} onChange={(next) => void controls.handleShowGeneralToggle(next)} label={t('settings.homeScreen.showGeneral')} />
+      </View>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('settings.homeScreen.showGeneralDesc')}</Text>
     </View>,
     <ListRow key="plan" icon={icon(CreditCard, tokens.fg1)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
@@ -164,25 +166,27 @@ function buildAstraRows(
       {profile ? (
         <RowList>
           {profile.hasProAccess ? (
-            <>
+            [
               <ProfileValueRow
+                key="proactive"
                 label={t('profile.proactiveAstra.title')}
                 control={(
                   <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
                 )}
-              />
+              />,
               <ProfileValueRow
+                key="summary"
                 label={t('profile.aiSummary.title')}
                 control={(
                   <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
                 )}
-              />
-            </>
+              />,
+            ]
           ) : (
-            <>
-              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-            </>
+            [
+              <ListRow key="proactive" icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
+              <ListRow key="summary" icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
+            ]
           )}
         </RowList>
       ) : null}
@@ -242,7 +246,7 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
   )
 }
 
-function MoreRows({ context: { profile, router, t, tokens }, openWidget }: Readonly<{
+function buildMoreRows({ context: { profile, router, t, tokens }, openWidget }: Readonly<{
   context: RowContext
   openWidget: () => void
 }>) {
@@ -271,7 +275,7 @@ function MoreRows({ context: { profile, router, t, tokens }, openWidget }: Reado
     )
   })
 
-  return <>{navigationRows}<ShareCardEntryButton /></>
+  return [...navigationRows, <ShareCardEntryButton key="share" />]
 }
 
 interface EndingRowsOptions {
@@ -422,7 +426,7 @@ export function ProfileSettingsContent({
         </RowList>
       ) : null}
     </View>,
-    more: <MoreRows context={context} openWidget={() => setShowWidgetInfo(true)} />,
+    more: buildMoreRows({ context, openWidget: () => setShowWidgetInfo(true) }),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),

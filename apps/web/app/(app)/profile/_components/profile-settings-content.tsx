@@ -110,14 +110,10 @@ function buildYouRows(
         <button
           key={mode}
           type="button"
+          data-selected={controls.currentTheme === mode ? '' : undefined}
           aria-pressed={controls.currentTheme === mode}
           onClick={() => controls.handleThemeModeChange(mode)}
-          className="min-h-11 rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-          style={{
-            color: controls.currentTheme === mode ? 'var(--fg-1)' : 'var(--fg-2)',
-            background: controls.currentTheme === mode ? 'var(--primary-dim)' : 'var(--bg-well)',
-            boxShadow: controls.currentTheme === mode ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)',
-          }}
+          className="orbit-profile-theme-choice min-h-11 rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           {t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
         </button>
@@ -132,8 +128,10 @@ function buildYouRows(
     <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
     <ProfileValueRow key="theme" label={t('preferences.themeMode')} control={themeChoice} />,
     <div key="show-general" className="flex flex-col px-4 py-3" style={{ gap: 4 }}>
-      <p className="text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
-      <Switch checked={controls.showGeneralOnToday} onChange={controls.toggleShowGeneral} label={t('settings.homeScreen.showGeneral')} />
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
+        <Switch checked={controls.showGeneralOnToday} onChange={controls.toggleShowGeneral} label={t('settings.homeScreen.showGeneral')} />
+      </div>
       <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
     </div>,
     <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push('/upgrade')} />,
@@ -156,25 +154,27 @@ function buildAstraRows(
       {profile ? (
         <RowList>
           {profile.hasProAccess ? (
-            <>
+            [
               <ProfileValueRow
+                key="proactive"
                 label={t('profile.proactiveAstra.title')}
                 control={(
                   <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
                 )}
-              />
+              />,
               <ProfileValueRow
+                key="summary"
                 label={t('profile.aiSummary.title')}
                 control={(
                   <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
                 )}
-              />
-            </>
+              />,
+            ]
           ) : (
-            <>
-              <ListRow icon={icon(Lock)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-              <ListRow icon={icon(Lock)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-            </>
+            [
+              <ListRow key="proactive" icon={icon(Lock)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
+              <ListRow key="summary" icon={icon(Lock)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
+            ]
           )}
         </RowList>
       ) : null}
