@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-27",
+  "calibratedAt": "2026-09-28",
   "classifier": {
     "model": "gpt-6-luna",
     "promptDigest": "780092b4659dfd6e",
@@ -100,9 +100,9 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "511b9e409e86a2d9",
-      "calibratedAt": "2026-09-27",
-      "verdict": "current: dispatches one workflow with computed version numbers, so low effort is right."
+      "digest": "b745388b11a56a62",
+      "calibratedAt": "2026-09-28",
+      "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
@@ -208,6 +208,13 @@
       "digest": "a93044f359a5475d",
       "calibratedAt": "2026-09-27",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
+    },
+    ".claude/skills/release/SKILL.md": {
+      "model": null,
+      "effort": "high",
+      "digest": "7c4df4a7ee3064ac",
+      "calibratedAt": "2026-09-28",
+      "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,

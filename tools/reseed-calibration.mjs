@@ -62,7 +62,7 @@ const VERDICTS = {
   ".claude/skills/android-generate/SKILL.md":
     "current: a mechanical gradle build and emulator install, so low effort is right.",
   ".claude/skills/android-release/SKILL.md":
-    "current: dispatches one workflow with computed version numbers, so low effort is right.",
+    "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right.",
   ".claude/skills/audit-code-quality/SKILL.md":
     "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost.",
   ".claude/skills/audit-performance/SKILL.md":
@@ -93,6 +93,8 @@ const VERDICTS = {
     "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries.",
   ".claude/skills/questions/SKILL.md":
     "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision.",
+  ".claude/skills/release/SKILL.md":
+    "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch.",
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":

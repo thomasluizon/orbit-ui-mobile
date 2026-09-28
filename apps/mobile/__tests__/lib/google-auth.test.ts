@@ -2,8 +2,16 @@ import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 
-const mocks = vi.hoisted(() => ({ apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn(),
+  saveAttempt: vi.fn(), deleteAttempt: vi.fn(), readAttempt: vi.fn(),
+}))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('expo-secure-store', () => ({
+  setItemAsync: mocks.saveAttempt,
+  deleteItemAsync: mocks.deleteAttempt,
+  getItemAsync: mocks.readAttempt,
+}))
 vi.mock('expo-web-browser', () => ({
   openAuthSessionAsync: mocks.open,
   WebBrowserResultType: { DISMISS: 'dismiss', CANCEL: 'cancel' },
@@ -27,6 +35,9 @@ function authorizeUrl() {
 
 describe('mobile Google authorization code flow', () => {
   beforeEach(async () => {
+    mocks.saveAttempt.mockReset().mockResolvedValue(undefined)
+    mocks.deleteAttempt.mockReset().mockResolvedValue(undefined)
+    mocks.readAttempt.mockReset().mockResolvedValue(null)
     await clearPendingGoogleAuthSession()
     vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
     mocks.random.mockReset()
@@ -85,6 +96,17 @@ describe('mobile Google authorization code flow', () => {
     expect(mocks.open).toHaveBeenCalledWith(expect.any(String), callback)
     expect(hasPendingGoogleAuthSession()).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('clears an attempt when saving its verifier fails so sign in can retry', async () => {
+    mocks.saveAttempt.mockRejectedValueOnce(new Error('storage unavailable'))
+
+    await expect(startMobileGoogleAuth({})).rejects.toThrow('storage unavailable')
+    expect(mocks.open).not.toHaveBeenCalled()
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+
+    mocks.random.mockResolvedValue(new Uint8Array(32).fill(3))
+    await expect(startMobileGoogleAuth({})).resolves.toMatchObject({ type: 'success' })
   })
 
   it('rejects a Google error without calling the API', async () => {

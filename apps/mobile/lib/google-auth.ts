@@ -52,6 +52,23 @@ export async function completeGoogleAuthFromUrl(
   }, googleCodeAuthResponseSchema)
 }
 
+async function openGoogleAuthSession(authorizeUrl: string, returnUrlAttemptId: string): Promise<MobileGoogleAuthResult> {
+  const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
+  if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+    return { type: WebBrowser.WebBrowserResultType.CANCEL }
+  }
+  if (result.type !== 'success') {
+    await clearPendingGoogleAuthSession(returnUrlAttemptId)
+    return { type: result.type }
+  }
+  if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+    throw new Error('Invalid OAuth state')
+  }
+  const params = extractGoogleAuthParams(result.url)
+  if (params.error || !params.code) throw new Error('Authentication failed')
+  return { type: 'success', url: result.url }
+}
+
 export async function startMobileGoogleAuth({
   returnUrl,
   forceConsent = false,
@@ -63,8 +80,9 @@ export async function startMobileGoogleAuth({
     throw new Error('Authentication in progress')
   }
   googleAuthStartInProgress = true
+  let returnUrlAttemptId: string | null = null
   try {
-    const returnUrlAttemptId = createAuthReturnUrlAttempt()
+    returnUrlAttemptId = createAuthReturnUrlAttempt()
     if (returnUrl && isSafeReturnUrl(returnUrl)) {
       await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
     } else {
@@ -91,29 +109,12 @@ export async function startMobileGoogleAuth({
       purpose: forceConsent ? 'calendar' : 'signin',
     })
 
-    try {
-      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
-      if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
-        return { type: WebBrowser.WebBrowserResultType.CANCEL }
-      }
-      if (result.type !== 'success') {
-        await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        return { type: result.type }
-      }
-      if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
-        await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        throw new Error('Invalid OAuth state')
-      }
-      const params = extractGoogleAuthParams(result.url)
-      if (params.error || !params.code) {
-        await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        throw new Error('Authentication failed')
-      }
-      return { type: 'success', url: result.url }
-    } catch (error: unknown) {
-      await clearPendingGoogleAuthSession(returnUrlAttemptId)
-      throw error
+    return await openGoogleAuthSession(authorizeUrl, returnUrlAttemptId)
+  } catch (error: unknown) {
+    if (returnUrlAttemptId !== null) {
+      await clearPendingGoogleAuthSession(returnUrlAttemptId).catch(() => undefined)
     }
+    throw error
   } finally {
     googleAuthStartInProgress = false
   }
