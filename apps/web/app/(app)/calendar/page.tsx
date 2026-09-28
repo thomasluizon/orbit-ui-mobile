@@ -208,6 +208,7 @@ function CalendarProfileState({
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   return (
       <div className="flex min-w-0 flex-col">
+        <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
         {error ? (
           <CalendarLoadError onRetry={onRetry} />
         ) : (
@@ -681,6 +682,7 @@ function CalendarPageContent({
 
   return (
     <div className="relative">
+      <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className="relative z-[1]">
         {calendarHeader}
 

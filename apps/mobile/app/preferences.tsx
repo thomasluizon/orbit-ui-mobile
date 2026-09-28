@@ -8,7 +8,7 @@ import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { styles } from './preferences-styles'
 import { usePreferenceControls } from './use-preference-controls'
@@ -114,7 +114,7 @@ export default function PreferencesScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('preferences.title')}
         backLabel={t('common.backToProfile')}

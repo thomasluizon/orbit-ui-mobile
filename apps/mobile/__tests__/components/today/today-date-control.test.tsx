@@ -23,6 +23,8 @@ const props = {
   todayLabel: 'Today',
   nextLabel: 'Next day',
   moreLabel: 'More actions',
+  searchLabel: 'Search',
+  onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
   refreshLabel: 'Refresh',
@@ -30,6 +32,7 @@ const props = {
   isFetching: false,
   ...callbacks,
 }
+
 
 function renderControl() {
   let renderer: ReturnType<typeof TestRenderer.create>
@@ -47,6 +50,20 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
+  it('opens search from the final control in the date row', () => {
+    const renderer = renderControl()
+    const search = button(renderer, 'Search')
+    if (!search) throw new Error('Search control did not render')
+    TestRenderer.act(() => search.props.onPress())
+    expect(props.onSearch).toHaveBeenCalledOnce()
+  })
+  it('keeps the full date accessible and lets its labels wrap', () => {
+    const renderer = renderControl()
+    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
+    const labels = date.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && (node.props.children === 'Wednesday' || node.props.children === '08/04/2026'))
+    expect(labels).toHaveLength(2)
+    for (const label of labels) expect(label.props.numberOfLines).toBeUndefined()
+  })
   it('gives the arrows, jump action, and menu control pressed feedback', () => {
     const renderer = renderControl()
 

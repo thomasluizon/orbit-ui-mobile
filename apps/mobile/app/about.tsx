@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import Constants from 'expo-constants'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { RowList } from '@/components/ui/row-list'
@@ -72,7 +72,7 @@ export default function AboutScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
         backLabel={t('common.backToProfile')}

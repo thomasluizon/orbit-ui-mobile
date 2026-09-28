@@ -36,7 +36,7 @@ export function PreferenceSettingsList({
   const t = useTranslations()
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="flex-1 min-h-0">
       <div>
         <div className="stagger-enter">
           <SectionLabel>{t('preferences.general')}</SectionLabel>

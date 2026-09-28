@@ -51,7 +51,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -440,7 +440,7 @@ export default function CalendarSyncScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
+      <PageHeader
         onBack={handleBack}
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
         backLabel={t('common.backToProfile')}

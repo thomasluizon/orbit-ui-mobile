@@ -44,6 +44,8 @@ import {
 import {
   formatAPIDate,
   isShareableAchievement,
+  resolveShellChrome,
+  resolveShellDestination,
 } from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
@@ -60,7 +62,6 @@ import {
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
-import { SearchHeader } from '@/components/search/search-header-action'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
@@ -211,6 +212,8 @@ function RootLayoutNav() {
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const lastDestination = useUIStore((s) => s.lastDestination)
+  const setLastDestination = useUIStore((s) => s.setLastDestination)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
@@ -222,6 +225,11 @@ function RootLayoutNav() {
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
+  const shellChrome = resolveShellChrome(pathname, lastDestination)
+  const destination = resolveShellDestination(pathname)
+  useEffect(() => {
+    if (destination && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, pathname, setLastDestination])
   const captureProbeId = captureRouteProbeId(pathname, topSegment)
   const captureRequestId = captureRequestProbeIdFromUrl(
     captureBuildEnabled,
@@ -323,22 +331,16 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            header={<SearchHeader pathname={pathname} />}
             safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
-            composer={pathname === '/notifications' ? undefined : (
+            composer={shellChrome.composer ? (
               <Composer
                 {...chat.composerProps}
-                onOpenConversation={() => setAstraConversationOpen(true, pathname === '/support' ? 'support' : undefined)}
+                onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
-                onSend={() => {
-                  if (pathname === '/support' && !astraConversationOpen) {
-                    setAstraConversationOpen(true, 'support')
-                  }
-                  chat.composerProps.onSend()
-                }}
+                onSend={chat.composerProps.onSend}
               />
-            )}
+            ) : undefined}
             notice={<>
               <CelebrationPanel />
               {notificationDeleteNotice}

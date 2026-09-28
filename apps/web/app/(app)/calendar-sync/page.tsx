@@ -10,7 +10,7 @@ import {
   WifiOff,
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -289,14 +289,14 @@ function CalendarSyncPageContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
-      <AppBar
+    <div className="flex flex-col">
+      <PageHeader
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-8">
+      <div className="flex-1 min-h-0 pb-8">
         <div>
           {hasProAccess && (
             <>
