@@ -15,6 +15,7 @@ import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSc
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
@@ -263,6 +264,12 @@ export function useLogHabit() {
       }
 
       const today = formatAPIDate(new Date())
+      if (!variables.date || variables.date === today) {
+        updateHabitListsForDate(queryClient, today, (habits) => {
+          const habit = findHabitInList(habits, variables.habitId)
+          return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+        })
+      }
       const habitsData = getTodayHabitList(queryClient, today)
       if (habitsData && (!variables.date || variables.date === today)) {
         const normalized = normalizeHabits(habitsData)
@@ -1013,12 +1020,19 @@ export function useBulkLogHabits() {
 
     onSuccess: (result, items, context) => {
       reconcileBulkCompletion(queryClient, result, items, context.previousLists)
-      if (isQueuedResult(result) || !result.results.some((entry) => {
+      if (isQueuedResult(result)) return
+      const today = formatAPIDate(new Date())
+      const successfulIds = result.results.flatMap((entry) => {
         const item = items[entry.index]
         return entry.status === 'Success' && item?.habitId === entry.habitId &&
-          (!item.date || item.date === formatAPIDate(new Date()))
-      })) return
-      const today = formatAPIDate(new Date())
+          (!item.date || item.date === today) ? [item.habitId] : []
+      })
+      if (successfulIds.length === 0) return
+      updateHabitListsForDate(queryClient, today, (habits) =>
+        successfulIds.reduce((current, id) => {
+          const habit = findHabitInList(current, id)
+          return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+        }, habits))
       const habitsData = getTodayHabitList(queryClient, today)
       if (habitsData) {
         const normalized = normalizeHabits(habitsData)

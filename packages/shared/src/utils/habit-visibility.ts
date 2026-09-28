@@ -1,7 +1,7 @@
 import type { NormalizedHabit } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { hasHabitScheduleOnDate } from './habits'
-import { isHabitLoggedOnDate } from './all-done'
+import { isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 
 export type HabitVisibilityView = 'today' | 'all' | 'general'
 
@@ -141,6 +141,10 @@ export function createHabitVisibilityHelpers({
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
     const loggedOnSelectedDate = isHabitLoggedOnDate(habit, selectedDateStr)
+    if (isHabitSkippedOnDate(habit, selectedDateStr)) {
+      const children = getChildrenFromIndex(habit.id, habitsById, childrenByParent)
+      return children.some((child) => hasVisibleContent(child))
+    }
     if (showCompleted && (loggedOnSelectedDate || (habit.isGeneral && habit.isCompleted))) {
       return true
     }

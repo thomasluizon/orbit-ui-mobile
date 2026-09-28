@@ -8,6 +8,14 @@ type ChildContainer = {
 
 export type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
+export function buildSuccessfulLogPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
+  return {
+    isCompleted: true,
+    isLoggedInRange: true,
+    ...(habit.isFlexible ? { flexibleCompleted: (habit.flexibleCompleted ?? 0) + 1 } : {}),
+  }
+}
+
 /** Returns tomorrow's date formatted for the API (used to postpone one-time habits). */
 export function getTomorrowDateString(): string {
   const tomorrow = new Date()

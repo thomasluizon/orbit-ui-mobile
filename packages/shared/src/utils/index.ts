@@ -361,6 +361,7 @@ export {
 export type { NormalizedDrillDetail } from './drill-navigation'
 export {
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,

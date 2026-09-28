@@ -2,9 +2,14 @@ import type { NormalizedHabit } from '../types/habit'
 import { hasHabitScheduleOnDate } from './habits'
 
 export function isHabitLoggedOnDate(habit: NormalizedHabit, date: string): boolean {
-  return habit.isLoggedInRange || habit.instances.some(
-    (instance) => instance.date === date && instance.status === 'Completed',
-  )
+  void date
+  return habit.isLoggedInRange
+}
+
+export function isHabitSkippedOnDate(habit: NormalizedHabit, date: string): boolean {
+  if (habit.isLoggedInRange) return false
+  if (habit.isFlexible) return habit.flexibleTarget === 0 && habit.flexibleCompleted === 0
+  return habit.instances.some((instance) => instance.date === date && instance.status === 'Completed')
 }
 
 export function getAllDoneOnDate(
@@ -18,8 +23,13 @@ export function getAllDoneOnDate(
     if (!habit.isGeneral && !habit.isBadHabit &&
       (hasHabitScheduleOnDate(habit, date) || habit.isOverdue)) {
       const logged = isHabitLoggedOnDate(habit, date)
-      if (!habit.isCompleted && !logged) openCount++
-      if (habit.isCompleted || logged) count++
+      const skipped = isHabitSkippedOnDate(habit, date)
+      const done = habit.isFlexible
+        ? habit.flexibleTarget !== null && habit.flexibleCompleted !== null &&
+          habit.flexibleCompleted >= habit.flexibleTarget && logged
+        : logged
+      if (!done && !skipped) openCount++
+      if (done) count++
     }
     for (const childId of childrenByParent.get(habit.id) ?? []) {
       const child = habitsById.get(childId)

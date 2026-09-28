@@ -5,6 +5,20 @@ import { getAllDoneOnDate } from '../utils/all-done'
 const date = '2025-03-10'
 
 describe('getAllDoneOnDate', () => {
+  it('keeps a flexible habit open until its window target is reached', () => {
+    const habit = createMockHabit({ id: 'flexible', isFlexible: true, flexibleTarget: 2,
+      flexibleCompleted: 1, isCompleted: true, isLoggedInRange: true, scheduledDates: [date] })
+    expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date))
+      .toEqual({ allDone: false, count: 0 })
+  })
+
+  it('resolves a skipped occurrence without counting it as a positive log', () => {
+    const logged = createMockHabit({ id: 'logged', scheduledDates: [date], isLoggedInRange: true })
+    const skipped = createMockHabit({ id: 'skipped', scheduledDates: [date],
+      instances: [{ date, status: 'Completed', logId: 'skip-log' }] })
+    const habits = new Map([logged, skipped].map((habit) => [habit.id, habit]))
+    expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: true, count: 1 })
+  })
   it('counts a recurring habit logged in the date range', () => {
     const habit = createMockHabit({ id: 'recurring', isCompleted: false, isLoggedInRange: true, scheduledDates: [date] })
     expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date)).toEqual({ allDone: true, count: 1 })

@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { deduplicateHabitList, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
@@ -44,6 +44,7 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
 }
 
 export function useHabits(filters: HabitsFilter, enabled = true) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
@@ -51,11 +52,12 @@ export function useHabits(filters: HabitsFilter, enabled = true) {
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (requestFilters.dateFrom || requestFilters.page || firstPage.totalPages <= 1) {
+      if (requestFilters.page || firstPage.totalPages <= 1) {
+        queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
         return firstPage.items
       }
 
-      return fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
+      const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
         async (page) => {
           if (page === 1) return firstPage
 
@@ -64,6 +66,8 @@ export function useHabits(filters: HabitsFilter, enabled = true) {
           return apiClient<PaginatedResponse<HabitScheduleItem>>(pageUrl)
         },
       )
+      queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
+      return deduplicateHabitList(items)
     },
     staleTime: QUERY_STALE_TIMES.habits,
     enabled,

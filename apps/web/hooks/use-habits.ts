@@ -14,6 +14,7 @@ import {
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
@@ -170,6 +171,12 @@ export function useLogHabit() {
       }
 
       const today = formatAPIDate(new Date())
+      if (!variables.date || variables.date === today) {
+        updateHabitListsForDate(queryClient, today, (habits) => {
+          const habit = findHabitInList(habits, variables.habitId)
+          return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+        })
+      }
       const habitsData = getTodayHabitList(queryClient, today)
       if (habitsData && (!variables.date || variables.date === today)) {
         const normalized = normalizeHabits(habitsData)
@@ -551,7 +558,10 @@ export function useBulkLogHabits() {
       })
       if (successfulIds.length === 0) return
       updateHabitListsForDate(queryClient, today, (habits) =>
-        successfulIds.reduce((current, id) => optimisticPatchHabit(current, id, { isCompleted: true }), habits))
+        successfulIds.reduce((current, id) => {
+          const habit = findHabitInList(current, id)
+          return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+        }, habits))
       const habitsData = getTodayHabitList(queryClient, today)
       if (habitsData) {
         const normalized = normalizeHabits(habitsData)
