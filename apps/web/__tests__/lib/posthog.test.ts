@@ -9,13 +9,7 @@ const sdk = vi.hoisted(() => ({
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
 }))
-const sdkImports = vi.hoisted(() => ({ count: 0, pending: null as Promise<void> | null }))
-
-vi.mock('posthog-js', async () => {
-  sdkImports.count += 1
-  if (sdkImports.pending) await sdkImports.pending
-  return { default: sdk }
-})
+const sdkImports = vi.hoisted(() => ({ count: 0, pending: null as Promise<void> | null, fail: false }))
 
 describe('web PostHog adapter', () => {
   beforeEach(() => {
@@ -24,6 +18,13 @@ describe('web PostHog adapter', () => {
     localStorage.clear()
     sdkImports.count = 0
     sdkImports.pending = null
+    sdkImports.fail = false
+    vi.doMock('posthog-js', async () => {
+      sdkImports.count += 1
+      if (sdkImports.fail) throw new Error('SDK unavailable')
+      if (sdkImports.pending) await sdkImports.pending
+      return { default: sdk }
+    })
     sdk.init.mockImplementation((_key, options) => { options.loaded?.(sdk) })
     sdk.get_distinct_id.mockReturnValue('anonymous')
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', '')
@@ -57,6 +58,7 @@ describe('web PostHog adapter', () => {
 
     vi.resetModules()
     vi.resetAllMocks()
+    sdkImports.count = 0
     sdk.init.mockImplementation((_key, options) => { options.loaded?.(sdk) })
     const restarted = await import('@/lib/posthog')
     expect(restarted.getAnalyticsOptOut()).toBe(true)
@@ -70,6 +72,24 @@ describe('web PostHog adapter', () => {
     await restarted.setAnalyticsOptOut(false)
     expect(sdk.opt_in_capturing).toHaveBeenCalled()
     expect(localStorage.getItem('analytics-opt-out')).toBe('false')
+  })
+
+  it('keeps a persisted opt in when the first SDK import fails', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    localStorage.setItem('analytics-opt-out', 'true')
+    sdkImports.fail = true
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+    const listener = vi.fn()
+    analytics.subscribeAnalyticsOptOut(listener)
+
+    const saving = analytics.setAnalyticsOptOut(false)
+    await expect(saving).resolves.toBeUndefined()
+    expect(sdkImports.count).toBe(1)
+    expect(sdk.init).not.toHaveBeenCalled()
+    expect(localStorage.getItem('analytics-opt-out')).toBe('false')
+    expect(analytics.getAnalyticsOptOut()).toBe(false)
+    expect(listener).toHaveBeenCalledOnce()
   })
 
   it('resets a persisted account before the first pageview when accounts switch during loading', async () => {

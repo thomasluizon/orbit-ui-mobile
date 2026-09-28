@@ -93,6 +93,32 @@ describe('mobile PostHog adapter', () => {
     expect(await analytics.getAnalyticsOptOut()).toBe(true)
   })
 
+  it('restores the persisted opt out after overlapping failed writes', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    storage.getItem.mockResolvedValue('true')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+
+    const rejectWrites: ((error: Error) => void)[] = []
+    storage.setItem.mockImplementation(() => new Promise<void>((_resolve, reject) => {
+      rejectWrites.push(reject)
+    }))
+
+    const first = expect(analytics.setAnalyticsOptOut(false)).rejects.toThrow('first write failed')
+    const second = expect(analytics.setAnalyticsOptOut(true)).rejects.toThrow('second write failed')
+    await vi.waitFor(() => expect(rejectWrites).toHaveLength(1))
+    rejectWrites[0]!(new Error('first write failed'))
+    await vi.waitFor(() => expect(rejectWrites).toHaveLength(2))
+    rejectWrites[1]!(new Error('second write failed'))
+    await Promise.all([first, second])
+
+    expect(await analytics.getAnalyticsOptOut()).toBe(true)
+    analytics.identifyPostHogUser('user-1')
+    analytics.captureHabitLogged()
+    expect(analytics.posthog!.identify).not.toHaveBeenCalled()
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+  })
+
   it('resumes capture after an opted-out sign-out when the server gate stays on', async () => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

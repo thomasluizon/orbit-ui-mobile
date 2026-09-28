@@ -63,7 +63,7 @@ function readAnalyticsOptOut(): boolean {
   }
 }
 let posthog: PostHogClient | null = null
-let loading: Promise<PostHogClient> | null = null
+let loading: Promise<PostHogClient | null> | null = null
 let initialized = false
 let analyticsEnabled = false
 let serverEnabled = false
@@ -104,8 +104,14 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
     return
   }
 
-  loading ??= import('posthog-js').then((module) => module.default)
+  loading ??= import('posthog-js').then((module) => module.default).catch(() => {
+    loading = null
+    analyticsEnabled = false
+    pendingHabitEvents = 0
+    return null
+  })
   const client = await loading
+  if (!client) return
   if (!serverEnabled || optedOut) return
   if (!initialized) {
     client.init(key, {

@@ -17,6 +17,7 @@ export const posthog = key
 let analyticsEnabled = false
 let serverEnabled = false
 let optedOut = false
+let persistedOptOut = false
 let preferenceReady = false
 let preferenceLoad: Promise<void> | null = null
 let preferenceVersion = 0
@@ -27,9 +28,11 @@ let gateQueue = Promise.resolve()
 export async function getAnalyticsOptOut(): Promise<boolean> {
   preferenceLoad ??= AsyncStorage.getItem(PREFERENCE_KEY).then((value) => {
     optedOut = value === 'true'
+    persistedOptOut = optedOut
     preferenceReady = true
   }).catch(() => {
     optedOut = true
+    persistedOptOut = true
     preferenceReady = true
   })
   await preferenceLoad
@@ -55,19 +58,21 @@ export function applyPostHogGate(enabled: boolean): Promise<void> {
 
 export async function setAnalyticsOptOut(next: boolean): Promise<void> {
   await getAnalyticsOptOut()
-  const previous = optedOut
   const version = ++preferenceVersion
   optedOut = next
   analyticsEnabled = serverEnabled && !next
   const gateUpdate = applyPostHogGate(serverEnabled)
   try {
     await gateUpdate
-    const write = storageQueue.then(() => AsyncStorage.setItem(PREFERENCE_KEY, String(next)))
+    const write = storageQueue.then(async () => {
+      await AsyncStorage.setItem(PREFERENCE_KEY, String(next))
+      persistedOptOut = next
+    })
     storageQueue = write.catch(() => {})
     await write
   } catch (error) {
     if (version === preferenceVersion) {
-      optedOut = previous
+      optedOut = persistedOptOut
       await applyPostHogGate(serverEnabled)
     }
     throw error
