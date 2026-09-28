@@ -160,17 +160,6 @@ export default function AboutPage() {
               ) : null}
             </div>
 
-            <p
-              data-testid="about-credit"
-              style={{
-                color: 'var(--fg-1)',
-                fontSize: 16,
-                lineHeight: 1.55,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {t('about.credit')}
-            </p>
           </div>
         </div>
         <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
