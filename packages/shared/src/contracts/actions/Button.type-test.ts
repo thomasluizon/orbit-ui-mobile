@@ -18,6 +18,7 @@ type ExpectedButtonBase = {
   size?: 'md' | 'sm'
   loading?: boolean
   disabled?: boolean
+  matchedWidth?: boolean
   onClick?: () => void
   formId?: string
   hint?: string
@@ -43,6 +44,7 @@ export type ButtonTypeContract = [
   Assert<IsExactWidth<ButtonProps['size'], ExpectedButtonBase['size']>>,
   Assert<IsExactWidth<ButtonProps['loading'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<ButtonProps['matchedWidth'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<ButtonProps['formId'], string | undefined>>,
   Assert<IsExactWidth<ButtonProps['children'], React.ReactNode>>,

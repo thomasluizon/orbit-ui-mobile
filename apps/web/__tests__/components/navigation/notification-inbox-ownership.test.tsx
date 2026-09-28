@@ -108,7 +108,7 @@ it.each([
     fireEvent.click(screen.getByRole('button', { name: 'Mark all' }))
   } else {
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete notifications' }))
   }
 
   deferred.reject()

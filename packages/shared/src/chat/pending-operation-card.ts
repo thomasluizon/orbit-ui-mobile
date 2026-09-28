@@ -31,11 +31,11 @@ export interface PendingOperationCardLabels {
   checklistLimit: string
   scheduledLimit: string
   checked: string
+  confirm: string
   reminderWhen: string
   reminderSameDay: string
   reminderDayBefore: string
   reminderTime: string
-  confirm: string
   confirmBody: string
   confirmNote: string
   confirmTitle: string
@@ -88,11 +88,11 @@ export function buildPendingOperationCardLabels(
     checklistLimit: translate('chat.operation.list.checklistLimit'),
     scheduledLimit: translate('chat.operation.list.scheduledLimit'),
     checked: translate('chat.operation.list.checked'),
+    confirm: translate(capabilityKey?.replace('capability.', 'action.') ?? 'chat.pendingOp.action.applyChanges'),
     reminderWhen: translate('chat.operation.list.when'),
     reminderSameDay: translate('chat.operation.list.sameDay'),
     reminderDayBefore: translate('chat.operation.list.dayBefore'),
     reminderTime: translate('chat.operation.list.time'),
-    confirm: translate('chat.operation.confirm'),
     confirmBody: translate('chat.operation.confirmBody'),
     confirmNote: translate('chat.operation.confirmNote'),
     confirmTitle: translate('chat.operation.confirmTitle'),

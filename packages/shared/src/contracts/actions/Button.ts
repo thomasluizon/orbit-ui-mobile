@@ -10,6 +10,8 @@ interface ButtonBase {
   size?: 'md' | 'sm'
   loading?: boolean
   disabled?: boolean
+  /** Matches the width of its partner in a stacked dialog action pair. */
+  matchedWidth?: boolean
   onClick?: () => void
   /** Associates a web submit button with a form outside its DOM subtree. Native ignores this adapter hint. */
   formId?: string

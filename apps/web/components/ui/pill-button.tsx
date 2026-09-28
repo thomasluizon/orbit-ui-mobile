@@ -1,10 +1,10 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, Ref } from 'react'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
@@ -43,12 +43,12 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     .join(' ')
 }
 
-function actionStyle(size: ButtonSize, iconOnly = false): CSSProperties {
+function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
-    width: iconOnly ? sizeSpec.height : undefined,
+    width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,
     paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
@@ -65,14 +65,17 @@ export function Button({
   children,
   accessibleName,
   iconOnly,
+  matchedWidth = false,
   label,
   formId,
   descriptionId,
-}: Readonly<ButtonProps>) {
+  buttonRef,
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement> }>) {
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
     <button
+      ref={buttonRef}
       type={onClick ? 'button' : 'submit'}
       form={formId}
       onClick={loading ? undefined : onClick}
@@ -84,7 +87,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading)}
-      style={actionStyle(size, iconOnly)}
+      style={actionStyle(size, iconOnly, matchedWidth)}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />

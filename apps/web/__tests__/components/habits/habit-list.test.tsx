@@ -2644,7 +2644,7 @@ describe('HabitList', () => {
       'habits.deleteListConfirmMessage({"name":"Stretch","count":1})',
     )).toBeInTheDocument()
     await act(async () => {
-      fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
     })
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
   })

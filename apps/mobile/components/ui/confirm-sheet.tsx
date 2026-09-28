@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
@@ -91,18 +92,19 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <>
-          <PillButton variant="ghost" disabled={actionsDisabled} onClick={cancel}>
-            {cancelLabel ?? t('common.cancel')}
-          </PillButton>
+        <DialogActionPair>
           <PillButton
             variant={destructive ? 'destructive' : 'primary'}
+            matchedWidth
             disabled={actionsDisabled}
             onClick={confirm}
           >
             {confirmLabel}
           </PillButton>
-        </>
+          <PillButton variant="ghost" matchedWidth disabled={actionsDisabled} onClick={cancel}>
+            {cancelLabel ?? t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       }
     >
       <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>
