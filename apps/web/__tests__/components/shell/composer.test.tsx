@@ -70,6 +70,17 @@ describe('Composer', () => {
     expect(onChangeValue).toHaveBeenCalledWith('oi')
   })
 
+  it('gives the focused field one composer-level focus ring', () => {
+    render(<Composer {...props()} />)
+    const field = screen.getByRole('textbox', { name: words.placeholder })
+    field.focus()
+
+    expect(field).toHaveFocus()
+    expect(field.parentElement?.className.split(' ')).toContain('focus-within:outline-2')
+    expect(field).toHaveClass('focus-visible:outline-0')
+    expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
+  })
+
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
