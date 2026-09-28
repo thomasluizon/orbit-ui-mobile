@@ -25,7 +25,7 @@ pre-commit:
       # staged: it once repaired 718 local/spacing-scale violations across 65 of
       # them in one commit. Those violations and the baseline that recorded them
       # are gone (#175), but the whole-app rewrite is not, so --fix stays off.
-      run: npx expo lint -- {staged_files}
+      run: npx expo lint --no-cache -- {staged_files}
     dashes:
       run: node tools/check-dashes.mjs --files {staged_files}
     copy-register:

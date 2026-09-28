@@ -1,6 +1,6 @@
 import { PostHog } from 'posthog-react-native'
 
-const key = (process.env as Record<string, string | undefined>).EXPO_PUBLIC_POSTHOG_KEY
+const key = process.env.EXPO_PUBLIC_POSTHOG_KEY
 
 export const posthog = key
   ? new PostHog(key, {
