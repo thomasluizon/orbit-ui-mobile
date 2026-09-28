@@ -2,22 +2,31 @@ import { expect, test, type Locator } from '@playwright/test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'
 
-async function expectOneComposerRing(field: Locator): Promise<void> {
-  await field.focus()
-  await expect(field).toBeFocused()
-  const styles = await field.evaluate((element) => {
-    const fieldStyle = getComputedStyle(element)
+async function expectOneComposerRing(control: Locator): Promise<void> {
+  await control.focus()
+  await expect(control).toBeFocused()
+  const styles = await control.evaluate((element) => {
+    const controlStyle = getComputedStyle(element)
     const wrapperStyle = getComputedStyle(element.parentElement!)
     return {
-      fieldOutlineStyle: fieldStyle.outlineStyle,
-      fieldOutlineWidth: fieldStyle.outlineWidth,
+      focusVisible: element.matches(':focus-visible'),
+      controlOutlineStyle: controlStyle.outlineStyle,
+      controlOutlineWidth: controlStyle.outlineWidth,
       wrapperOutlineStyle: wrapperStyle.outlineStyle,
       wrapperOutlineWidth: wrapperStyle.outlineWidth,
     }
   })
-  expect(styles.fieldOutlineStyle === 'none' || styles.fieldOutlineWidth === '0px').toBe(true)
+  expect(styles.focusVisible).toBe(true)
+  expect(styles.controlOutlineStyle === 'none' || styles.controlOutlineWidth === '0px').toBe(true)
   expect(styles.wrapperOutlineStyle).toBe('solid')
   expect(styles.wrapperOutlineWidth).toBe('2px')
+}
+
+async function expectComposerControlsUseWrapperRing(container: Locator): Promise<void> {
+  await expectOneComposerRing(container.locator('[data-composer-input]'))
+  const attachFile = container.locator('[data-composer-input] + button')
+  await expect(attachFile).toBeVisible()
+  await expectOneComposerRing(attachFile)
 }
 
 for (const width of [412, 1280] as const) {
@@ -27,13 +36,13 @@ for (const width of [412, 1280] as const) {
       await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
       await page.goto('/')
 
-      await expectOneComposerRing(page.locator('[data-shell-pinned-slot] [data-composer-input]'))
+      await expectComposerControlsUseWrapperRing(page.locator('[data-shell-pinned-slot]'))
 
       if (width === 1280) {
         await page.getByRole('button', { name: ptBr.todayAstra.openConversation }).click()
         const panel = page.locator('[data-shell-conversation="panel"]')
         await expect(panel).toBeVisible()
-        await expectOneComposerRing(panel.locator('[data-composer-input]'))
+        await expectComposerControlsUseWrapperRing(panel)
       }
     })
   })

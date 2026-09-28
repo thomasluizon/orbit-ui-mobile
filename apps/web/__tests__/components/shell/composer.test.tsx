@@ -81,6 +81,24 @@ describe('Composer', () => {
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
   })
 
+  it('gives controls inside the composer only the wrapper focus ring', () => {
+    render(<Composer {...props({
+      onAttachFile: vi.fn(),
+      onAttachImage: vi.fn(),
+      onVoice: vi.fn(),
+      attachWords,
+      voiceWords,
+    })} />)
+
+    for (const name of [attachWords.file, attachWords.image, voiceWords.start]) {
+      const control = screen.getByRole('button', { name })
+      control.focus()
+      expect(control).toHaveFocus()
+      expect(control).toHaveClass('focus-visible:outline-0')
+      expect(control.parentElement?.className.split(' ')).toContain('focus-within:outline-2')
+    }
+  })
+
   it.each(['', '   '])('does not send a blank value %j', (value) => {
     const onSend = vi.fn()
     render(<Composer {...props({ value, onSend })} />)
