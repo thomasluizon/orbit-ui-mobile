@@ -32,6 +32,13 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
+const posthogMocks = vi.hoisted(() => ({
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog', () => posthogMocks)
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
@@ -64,6 +71,7 @@ describe('auth store', () => {
       sessionRefreshFailed: false,
     })
     mockFetch.mockReset()
+    vi.clearAllMocks()
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -153,15 +161,50 @@ describe('auth store', () => {
         email: 'alex@example.com',
       },
     })
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1')
+  })
+
+  it('resets analytics before identifying a replacement account', () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    posthogMocks.resetPostHogUser.mockClear()
+    posthogMocks.identifyPostHogUser.mockClear()
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenLastCalledWith('account-b')
+    expect(posthogMocks.resetPostHogUser.mock.invocationCallOrder[0]).toBeLessThan(
+      posthogMocks.identifyPostHogUser.mock.invocationCallOrder[0]!,
+    )
+  })
+
+  it('identifies the account from the server session before loading analytics', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'account-a' }),
+    })
+
+    await useAuthStore.getState().checkSession()
+
+    expect(getHeldAccountId()).toBe('account-a')
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledWith('account-a')
   })
 
   it('logs out and calls the BFF logout endpoint', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    posthogMocks.resetPostHogUser.mockClear()
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().logout()
+    unsubscribe()
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -409,8 +452,14 @@ describe('auth store', () => {
       json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().confirmSessionRefreshFailure()
+    unsubscribe()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,

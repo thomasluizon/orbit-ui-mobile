@@ -11,6 +11,27 @@ vi.mock('@/components/ui/icons', async (importOriginal) => {
   )
 })
 
+vi.mock('posthog-react-native', () => ({
+  PostHog: class {
+    identify = vi.fn()
+    reset = vi.fn()
+    capture = vi.fn(async () => {})
+    screen = vi.fn(async () => {})
+    optIn = vi.fn(async () => {})
+    optOut = vi.fn(async () => {})
+  },
+  PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
+vi.mock('expo-secure-store', () => {
+  const entries = new Map<string, string>()
+  return {
+    getItemAsync: (key: string) => Promise.resolve(entries.get(key) ?? null),
+    setItemAsync: (key: string, value: string) => { entries.set(key, value); return Promise.resolve() },
+    deleteItemAsync: (key: string) => { entries.delete(key); return Promise.resolve() },
+  }
+})
+
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true

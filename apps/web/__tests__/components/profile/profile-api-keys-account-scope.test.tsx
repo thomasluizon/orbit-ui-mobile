@@ -69,7 +69,19 @@ afterEach(() => {
   cleanup()
   queryClient.clear()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.clearAllMocks()
+})
+
+it('shows the MCP endpoint for the selected API environment', () => {
+  vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org/')
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ProfileApiKeys profile={proProfile()} unlocked />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
 })
 
 async function revealAccountAKey() {

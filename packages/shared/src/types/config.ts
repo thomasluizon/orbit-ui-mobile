@@ -38,6 +38,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     freeAiMessagesPerMonth: 15,
   },
   features: {
+    'analytics': { enabled: false, planRequirement: null },
+    'habits.create': { enabled: true, planRequirement: null },
     'habits.subHabits': { enabled: true, planRequirement: 'Pro' },
     'habits.bulk': { enabled: true, planRequirement: null },
     'goals': { enabled: true, planRequirement: null },

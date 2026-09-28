@@ -28,6 +28,9 @@ import {
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 
+const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
+vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
+
 const storage = vi.hoisted(() => ({
   getItem: vi.fn(() => Promise.resolve(null as string | null)),
   setItem: vi.fn(() => Promise.resolve()),
@@ -445,6 +448,7 @@ function executeRestoreMutation(
 
 describe('mobile habit hooks', () => {
   beforeEach(() => {
+    captureHabitLogged.mockClear()
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
     mocks.queryClient.cancelQueries.mockReset()
@@ -1725,6 +1729,9 @@ describe('mobile habit hooks', () => {
 
     mutation.onSuccess?.(response, { habitId, intent: 'log' }, undefined)
 
+    expect(captureHabitLogged).toHaveBeenCalledOnce()
+    expect(captureHabitLogged.mock.calls[0]).toEqual([])
+
     if (celebrates) {
       expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
@@ -1810,6 +1817,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onError?.(new Error('Log failed'), variables, context)
     expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
   it('optimistically completes a recurring skip and rolls it back on failure', async () => {

@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server'
 const IP_PATTERN = /^[\d.:a-fA-F]+$/
 
 const GEO_COUNTRY_HEADERS = [
-  ['x-vercel-ip-country', 'X-Vercel-IP-Country'],
   ['cf-ipcountry', 'CF-IPCountry'],
   ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
 ] as const
@@ -97,10 +96,9 @@ export function buildForwardedClientHeaders(request: NextRequest): Record<string
   const headers: Record<string, string> = {}
 
   const cfConnectingIp = sanitizeClientIp(request.headers.get('cf-connecting-ip'))
-  const vercelForwardedIp = sanitizeClientIp(request.headers.get('x-vercel-forwarded-for'))
   const forwardedIp = sanitizeClientIp(request.headers.get('x-forwarded-for'))
   const realIp = sanitizeClientIp(request.headers.get('x-real-ip'))
-  const clientIp = cfConnectingIp || vercelForwardedIp || forwardedIp || realIp
+  const clientIp = cfConnectingIp || forwardedIp || realIp
   if (clientIp) {
     headers['X-Forwarded-For'] = clientIp
   }

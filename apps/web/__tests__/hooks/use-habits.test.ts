@@ -57,6 +57,13 @@ const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowQueued = vi.fn()
 const mockSetStreakCelebration = vi.fn()
+const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
+
+vi.mock('@/lib/posthog', () => ({
+  captureHabitLogged,
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -357,6 +364,7 @@ describe('useHabits', () => {
 describe('useLogHabit', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    captureHabitLogged.mockClear()
   })
 
   it('calls logHabit action and invalidates caches on settled', async () => {
@@ -384,6 +392,20 @@ describe('useLogHabit', () => {
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
+    expect(captureHabitLogged).toHaveBeenCalledOnce()
+    expect(captureHabitLogged.mock.calls[0]).toEqual([])
+  })
+
+  it('does not capture a failed habit log', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockRejectedValueOnce(new Error('Log failed'))
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toThrow('Log failed')
+    })
+
+    expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
   it('reconciles habit data without refetching response-backed or AI summary families', async () => {

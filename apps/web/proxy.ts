@@ -160,5 +160,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/:path*'],
+  matcher: ['/((?!api/health$).*)'],
 }

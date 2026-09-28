@@ -1,14 +1,20 @@
-export const MCP_ENDPOINT_URL = 'https://api.useorbit.org/mcp'
+export function getMcpEndpointUrl(apiBase: string): string {
+  let end = apiBase.length
+  while (end > 0 && apiBase.charCodeAt(end - 1) === SLASH_CHAR_CODE) end -= 1
+  return `${apiBase.slice(0, end)}/mcp`
+}
+
+const SLASH_CHAR_CODE = 47
 
 export const MCP_CONFIG_TABS = ['web', 'code'] as const
 
 export type McpConfigTab = 'web' | 'code'
 
-export function buildMcpConfigJson(apiKeyPlaceholder = 'YOUR_API_KEY'): string {
+export function buildMcpConfigJson(endpointUrl: string, apiKeyPlaceholder = 'YOUR_API_KEY'): string {
   return `{
   "mcpServers": {
     "orbit": {
-      "url": "${MCP_ENDPOINT_URL}",
+      "url": "${endpointUrl}",
       "headers": {
         "Authorization": "Bearer ${apiKeyPlaceholder}"
       }

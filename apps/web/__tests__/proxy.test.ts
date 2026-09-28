@@ -168,6 +168,11 @@ describe('proxy', () => {
     }
   })
 
+  it('keeps the health route outside the auth proxy', async () => {
+    expect(unstable_doesMiddlewareMatch({ config, url: 'http://localhost:3000/api/health' })).toBe(false)
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
   it('adds the policy to static image responses without resolving a session', async () => {
     for (const path of ['/favicon.ico', '/images/orbit-logo.png']) {
       const response = await proxy(createRequest(path))

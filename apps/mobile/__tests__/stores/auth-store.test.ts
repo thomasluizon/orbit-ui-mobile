@@ -39,6 +39,13 @@ import { getAccountId, setAccountId } from '@/lib/account-scope'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const posthogMocks = vi.hoisted(() => ({
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog', () => posthogMocks)
+
 const TestRenderer = require('react-test-renderer')
 const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
 
@@ -287,6 +294,8 @@ describe('mobile auth store security paths', () => {
   beforeEach(() => {
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
+    posthogMocks.identifyPostHogUser.mockClear()
+    posthogMocks.resetPostHogUser.mockClear()
     setAccountId(null)
     asyncStorageEntries.clear()
     vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) =>
@@ -374,6 +383,7 @@ describe('mobile auth store security paths', () => {
     expect(setTokenMock).toHaveBeenCalledWith('access-token')
     expect(setRefreshTokenMock).not.toHaveBeenCalled()
     expect(saveWidgetTokenMock).toHaveBeenCalledWith('access-token')
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1', null)
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
@@ -1110,15 +1120,21 @@ describe('mobile auth store security paths', () => {
     })
 
     const order: string[] = []
+    const resetCountsAtSignedOut: number[] = []
     const unsubscribe = useAuthStore.subscribe((state) => {
-      if (!state.isAuthenticated) order.push('unauthenticated')
+      if (!state.isAuthenticated) {
+        order.push('unauthenticated')
+        resetCountsAtSignedOut.push(posthogMocks.resetPostHogUser.mock.calls.length)
+      }
     })
     queryClientClearMock.mockImplementation(() => {
       order.push('clearCache')
     })
 
     await useAuthStore.getState().logout()
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     unsubscribe()
+    expect(resetCountsAtSignedOut).toContain(1)
 
     expect(replaceMock).not.toHaveBeenCalled()
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
@@ -1978,6 +1994,8 @@ describe('mobile auth store security paths', () => {
 
     await useAuthStore.getState().initialize()
     await whenProfileHydrated()
+
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledWith('user-1')
 
     expect(useAuthStore.getState().user).toMatchObject({
       name: 'Fresh Name',

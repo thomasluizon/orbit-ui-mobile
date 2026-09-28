@@ -6,9 +6,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from '@/components/ui/icons'
 import { Toaster } from 'sonner'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
+import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
@@ -140,39 +139,39 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <Suspense fallback={null}>
-            <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
-            <NavigationHistoryTracker />
-          </Suspense>
-          {children}
-          <Toaster
-            theme="dark"
-            position="top-center"
-            icons={{
-              success: <Check size={16} strokeWidth={2.4} />,
-              error: <X size={16} strokeWidth={2.4} />,
-              info: <Bell size={16} strokeWidth={2.4} />,
-            }}
-            toastOptions={{
-              style: {
-                background: 'var(--bg-sheet)',
-                boxShadow:
-                  '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
-                border: 'none',
-                color: 'var(--fg-1)',
-                borderRadius: 18,
-                padding: '14px 16px',
-                gap: 12,
-                alignItems: 'center',
-                fontFamily: 'var(--font-sans)',
-              },
-            }}
-          />
-        <ThrottleScreen />
-        </NextIntlClientProvider>
-        <Analytics />
-        <SpeedInsights />
+        <PostHogProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <Suspense fallback={null}>
+              <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
+              <NavigationHistoryTracker />
+            </Suspense>
+            {children}
+            <Toaster
+              theme="dark"
+              position="top-center"
+              icons={{
+                success: <Check size={16} strokeWidth={2.4} />,
+                error: <X size={16} strokeWidth={2.4} />,
+                info: <Bell size={16} strokeWidth={2.4} />,
+              }}
+              toastOptions={{
+                style: {
+                  background: 'var(--bg-sheet)',
+                  boxShadow:
+                    '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+                  border: 'none',
+                  color: 'var(--fg-1)',
+                  borderRadius: 18,
+                  padding: '14px 16px',
+                  gap: 12,
+                  alignItems: 'center',
+                  fontFamily: 'var(--font-sans)',
+                },
+              }}
+            />
+            <ThrottleScreen />
+          </NextIntlClientProvider>
+        </PostHogProvider>
       </body>
     </html>
   )
