@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { AdjustmentsHorizontal, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
@@ -59,9 +59,11 @@ export function TodayDateControl({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
+  const { width } = useWindowDimensions()
+  const narrow = width < 400
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, narrow ? styles.narrowRow : null]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={previousLabel}
@@ -73,7 +75,7 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-      <View accessible accessibilityLabel={`${dayName}, ${numericDate}`} style={styles.dateText}>
+      <View accessible accessibilityLabel={`${dayName}, ${numericDate}`} style={[styles.dateText, narrow ? styles.narrowDateText : null]}>
         <Text style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
         <Text style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
       </View>
@@ -145,6 +147,13 @@ const styles = StyleSheet.create({
     gap: 4,
     minHeight: 53,
     paddingHorizontal: 0,
+  },
+  narrowRow: {
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  narrowDateText: {
+    minWidth: 150,
   },
   iconButton: {
     alignItems: 'center',

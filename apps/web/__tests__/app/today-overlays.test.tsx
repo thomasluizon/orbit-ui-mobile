@@ -108,7 +108,7 @@ function TodayHarness() {
 }
 
 function enterSelection() {
-  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
   fireEvent.click(screen.getByRole('menuitem', { name: 'common.select' }))
 }
 

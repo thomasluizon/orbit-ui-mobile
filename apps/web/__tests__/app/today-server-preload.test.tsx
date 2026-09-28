@@ -85,13 +85,13 @@ describe('Today server preload', () => {
     vi.useRealTimers()
   })
 
-  it('renders the real empty Today content and free plan trial line on the server', () => {
+  it('renders the real empty Today content without a plan line on the server', () => {
     const client = createTestQueryClient()
     try {
       const html = renderToString(createTodayTree(client))
 
       expect(html).toContain(`>${en.habits.noHabitsBody}<`)
-      expect(html).toContain('data-trial-line=""')
+      expect(html).not.toContain('data-trial-line')
     } finally {
       client.clear()
     }

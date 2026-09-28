@@ -4,6 +4,12 @@ import { AdjustmentsHorizontal } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { TodayDateControl } from '@/components/today/today-date-control'
 
+const windowState = vi.hoisted(() => ({ width: 320 }))
+vi.mock('react-native', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-native')>()),
+  useWindowDimensions: () => ({ width: windowState.width, height: 800, scale: 1, fontScale: 1 }),
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 const callbacks = {
@@ -103,6 +109,9 @@ describe('Today date control feedback (mobile)', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
     expect(StyleSheet.flatten(date.props.style)).not.toHaveProperty('alignItems', 'center')
+    expect(StyleSheet.flatten(date.props.style)).toHaveProperty('minWidth', 150)
+    const row = date.parent
+    expect(StyleSheet.flatten(row.props.style)).toHaveProperty('flexWrap', 'wrap')
     const day = date.findAllByType(Text)[0]
     expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
   })

@@ -238,6 +238,8 @@ describe('Hoje date control', () => {
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
     expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
     expect(screen.getByText('Wednesday').parentElement).not.toHaveClass('text-center')
+    expect(screen.getByText('Wednesday').parentElement).toHaveClass('max-[399px]:min-w-[150px]')
+    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).toHaveClass('max-[399px]:flex-wrap')
     expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[22px]')
   })
 
