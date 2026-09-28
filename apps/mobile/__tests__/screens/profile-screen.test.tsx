@@ -1,4 +1,5 @@
 import React from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
@@ -30,6 +31,7 @@ vi.mock('react-native', async (importOriginal) => {
     AccessibilityInfo: {
       ...native.AccessibilityInfo,
       sendAccessibilityEvent: mockSendAccessibilityEvent,
+      announceForAccessibility: mockAnnounceForAccessibility,
     },
     Platform: { ...native.Platform, OS: 'android' },
   }
@@ -48,6 +50,7 @@ const {
   mockRouterPush,
   mockSetAstraConversationOpen,
   mockSendAccessibilityEvent,
+  mockAnnounceForAccessibility,
   mockConversationOpen,
   mockProfileState,
   mockSearchParams,
@@ -69,6 +72,7 @@ const {
   mockRouterPush: vi.fn(),
   mockSetAstraConversationOpen: vi.fn(),
   mockSendAccessibilityEvent: vi.fn(),
+  mockAnnounceForAccessibility: vi.fn(),
   mockConversationOpen: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
@@ -261,10 +265,10 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 }))
 
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
-  MarketingConsentSection: () =>
+  MarketingConsentSection: ({ trailingRow }: { trailingRow?: React.ReactNode }) =>
     React.createElement('MarketingConsentSectionStub', {
       testID: 'marketing-consent-section',
-    }),
+    }, trailingRow),
 }))
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
@@ -423,7 +427,7 @@ async function renderProfileScreen(createNodeMock?: (element: { props: { label?:
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<ProfileScreen />, { createNodeMock })
-    await Promise.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return tree!
 }
@@ -467,6 +471,7 @@ describe('ProfileScreen', () => {
     mockRouterPush.mockClear()
     mockSetAstraConversationOpen.mockClear()
     mockSendAccessibilityEvent.mockClear()
+    mockAnnounceForAccessibility.mockClear()
     mockConversationOpen.current = false
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
@@ -1193,7 +1198,7 @@ describe('ProfileScreen', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('renders only product email consent in Notifications', async () => {
+  it('places usage analytics beside product email consent in Notifications', async () => {
     const tree = await renderProfileScreen()
     const notificationsGroup = tree.root.find(
       (node: { props: { testID?: string } }) =>
@@ -1206,6 +1211,14 @@ describe('ProfileScreen', () => {
           node.props.testID === 'marketing-consent-section',
       ),
     ).toHaveLength(1)
+    expect(nodeText(notificationsGroup)).toContain('profile.analytics.description')
+    expect(
+      notificationsGroup.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'switch' &&
+          node.props.accessibilityLabel === 'profile.analytics.title',
+      ).length,
+    ).toBeGreaterThan(0)
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
@@ -1229,6 +1242,28 @@ describe('ProfileScreen', () => {
           node.props.accessibilityLabel === 'profile.settingsRows.currentDevice',
       ),
     ).toHaveLength(0)
+  })
+
+  it('restores the analytics switch and announces a failed local save', async () => {
+    const write = vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('storage failed'))
+    try {
+      const tree = await renderProfileScreen()
+      const control = tree.root.find(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+          node.props.accessibilityRole === 'switch' &&
+          node.props.accessibilityLabel === 'profile.analytics.title' &&
+          typeof node.props.onPress === 'function',
+      )
+      await TestRenderer.act(async () => {
+        control.props.onPress()
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(control.props.accessibilityState?.checked).toBe(true)
+      expect(nodeText(tree.root)).toContain('profile.analytics.saveError')
+      expect(mockAnnounceForAccessibility).toHaveBeenCalledWith('profile.analytics.saveError')
+    } finally {
+      write.mockRestore()
+    }
   })
 
   it('redirects gated feature rows to upgrade for free users', async () => {

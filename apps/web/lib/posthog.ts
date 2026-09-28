@@ -1,6 +1,6 @@
 'use client'
 
-import type { CaptureResult, PostHogInterface } from 'posthog-js'
+import type { CaptureResult } from 'posthog-js'
 
 type PostHogClient = typeof import('posthog-js')['default']
 
@@ -53,16 +53,32 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const PREFERENCE_KEY = 'analytics-opt-out'
+function readAnalyticsOptOut(): boolean {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    return localStorage.getItem(PREFERENCE_KEY) === 'true'
+  } catch {
+    return true
+  }
+}
 let posthog: PostHogClient | null = null
-let loading: Promise<PostHogClient> | null = null
+let loading: Promise<PostHogClient | null> | null = null
 let initialized = false
 let analyticsEnabled = false
+let serverEnabled = false
+let optedOut = readAnalyticsOptOut()
+const preferenceListeners = new Set<() => void>()
 let accountId: string | null = null
 let pendingHabitEvents = 0
 let pendingReset = false
 let identityReady = false
 
-function activatePostHog(client: PostHogInterface): void {
+function activatePostHog(client: PostHogClient): void {
+  if (!analyticsEnabled) {
+    client.opt_out_capturing()
+    return
+  }
   const shouldReset = pendingReset || (!identityReady && !accountId)
     || (accountId !== null && client.get_distinct_id() !== accountId)
   identityReady = false
@@ -70,13 +86,14 @@ function activatePostHog(client: PostHogInterface): void {
   pendingReset = false
   if (accountId) client.identify(accountId)
   identityReady = true
-  client.opt_in_capturing()
+  client.opt_in_capturing({ captureEventName: false })
 }
 
 export async function applyPostHogGate(enabled: boolean): Promise<void> {
-  analyticsEnabled = enabled
+  serverEnabled = enabled
+  analyticsEnabled = enabled && !optedOut
   if (!key) return
-  if (!enabled) {
+  if (!analyticsEnabled) {
     pendingHabitEvents = 0
     posthog?.opt_out_capturing()
     return
@@ -87,9 +104,15 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
     return
   }
 
-  loading ??= import('posthog-js').then((module) => module.default)
+  loading ??= import('posthog-js').then((module) => module.default).catch(() => {
+    loading = null
+    analyticsEnabled = false
+    pendingHabitEvents = 0
+    return null
+  })
   const client = await loading
-  if (!analyticsEnabled) return
+  if (!client) return
+  if (!serverEnabled || optedOut) return
   if (!initialized) {
     client.init(key, {
       api_host: '/ingest',
@@ -101,7 +124,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
       disable_session_recording: true,
       opt_out_capturing_by_default: true,
       before_send: beforeSend,
-      loaded: activatePostHog,
+      loaded: () => activatePostHog(client),
     })
     posthog = client
     initialized = true
@@ -113,6 +136,22 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
   }
 
   activatePostHog(client)
+}
+
+export function getAnalyticsOptOut(): boolean {
+  return optedOut
+}
+
+export function subscribeAnalyticsOptOut(listener: () => void): () => void {
+  preferenceListeners.add(listener)
+  return () => { preferenceListeners.delete(listener) }
+}
+
+export async function setAnalyticsOptOut(next: boolean): Promise<void> {
+  localStorage.setItem(PREFERENCE_KEY, String(next))
+  optedOut = next
+  preferenceListeners.forEach((listener) => listener())
+  await applyPostHogGate(serverEnabled)
 }
 
 export function identifyPostHogUser(userId: string): void {
@@ -137,7 +176,7 @@ export function resetPostHogUser(): void {
   posthog.reset()
   pendingReset = false
   identityReady = true
-  if (analyticsEnabled) posthog.opt_in_capturing()
+  if (analyticsEnabled) posthog.opt_in_capturing({ captureEventName: false })
   else posthog.opt_out_capturing()
 }
 

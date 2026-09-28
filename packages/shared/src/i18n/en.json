@@ -1559,6 +1559,11 @@
     }
   },
   "profile": {
+    "analytics": {
+      "title": "Usage analytics",
+      "description": "Allow Orbit to collect usage data from this device.",
+      "saveError": "Change not saved. Try again."
+    },
     "groups": {
       "you": "You",
       "astra": "Astra",

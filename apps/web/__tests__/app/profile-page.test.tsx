@@ -715,7 +715,7 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders only the unanswered product email consent in Notifications', () => {
+  it('places usage analytics beside product email consent in Notifications', () => {
     render(<ProfilePage />)
 
     const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
@@ -729,6 +729,10 @@ describe('ProfilePage', () => {
         name: 'profile.marketingEmails.decline',
       }),
     ).toBeInTheDocument()
+    expect(within(notificationsGroup).getByText('profile.analytics.description')).toBeInTheDocument()
+    expect(within(notificationsGroup).getByRole('switch', {
+      name: 'profile.analytics.title',
+    })).toHaveAttribute('aria-checked', 'true')
     expect(
       within(notificationsGroup).queryByText('profile.settingsRows.remindersNote'),
     ).not.toBeInTheDocument()
@@ -737,6 +741,21 @@ describe('ProfilePage', () => {
         name: 'profile.settingsRows.currentDevice',
       }),
     ).not.toBeInTheDocument()
+  })
+
+  it('restores the analytics switch and explains a failed local save', async () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage failed')
+    })
+    try {
+      render(<ProfilePage />)
+      const control = screen.getByRole('switch', { name: 'profile.analytics.title' })
+      fireEvent.click(control)
+      await waitFor(() => expect(control).toHaveAttribute('aria-checked', 'true'))
+      expect(screen.getByRole('status')).toHaveTextContent('profile.analytics.saveError')
+    } finally {
+      write.mockRestore()
+    }
   })
 
   it('shows one eight-row settings skeleton before the groups arrive', () => {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -94,7 +94,8 @@ function MarketingConsentContent({
 export function MarketingConsentSection({
   showSectionLabel = true,
   contained = false,
-}: Readonly<{ showSectionLabel?: boolean; contained?: boolean }>) {
+  trailingRow,
+}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -148,8 +149,13 @@ export function MarketingConsentSection({
         <SectionLabel>{t('profile.sections.communication')}</SectionLabel>
       ) : null}
       {contained && profile?.marketingEmailConsent != null ? (
-        <RowList>{content}</RowList>
-      ) : content}
+        <RowList>{content}{trailingRow}</RowList>
+      ) : (
+        <>
+          {content}
+          {trailingRow ? <RowList>{trailingRow}</RowList> : null}
+        </>
+      )}
     </>
   )
 }
