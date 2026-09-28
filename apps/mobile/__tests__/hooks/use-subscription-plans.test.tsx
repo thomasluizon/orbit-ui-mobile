@@ -1,9 +1,10 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -57,14 +58,27 @@ async function renderUseSubscriptionPlans(
 
 describe('mobile useSubscriptionPlans', () => {
   beforeEach(() => {
+    setAccountId('subscription-test-account')
     mocks.state.data = undefined
     mocks.useQuery.mockClear()
+  })
+
+  afterEach(() => {
+    setAccountId(null)
   })
 
   it('returns null plans when nothing has loaded yet', async () => {
     const result = await renderUseSubscriptionPlans()
 
     expect(result.plans).toBeNull()
+  })
+
+  it('waits for the account session before fetching plans', async () => {
+    setAccountId(null)
+    const result = await renderUseSubscriptionPlans()
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+    expect(result.isLoading).toBe(true)
   })
 
   it('uses the shared pricing helpers for loaded plans', async () => {

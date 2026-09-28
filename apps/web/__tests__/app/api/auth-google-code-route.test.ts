@@ -35,7 +35,7 @@ function requestWithCookie(cookie: string, body: unknown, authToken?: string) {
 }
 
 async function start(purpose: 'signin' | 'calendar', authToken?: string) {
-  const response = GET(new NextRequest(`${origin}/api/auth/google/start?purpose=${purpose}`, {
+  const response = GET(new NextRequest(`http://0.0.0.0:10000/api/auth/google/start?purpose=${purpose}`, {
     headers: authToken ? { cookie: `auth_token=${authToken}` } : undefined,
   }))
   const url = new URL(response.headers.get('location')!)
@@ -46,7 +46,24 @@ async function start(purpose: 'signin' | 'calendar', authToken?: string) {
 describe('Google OAuth BFF', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', origin)
     setSessionCookies.mockReset()
+  })
+
+  it('uses the configured production origin for the authorize URL and exchange', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
+    const { url, session, cookie } = await start('signin')
+    expect(url.searchParams.get('redirect_uri')).toBe('https://app.useorbit.org/auth-callback')
+    expect(session.redirectUri).toBe('https://app.useorbit.org/auth-callback')
+
+    const api = vi.fn().mockResolvedValue(new Response(JSON.stringify(loginResponse)))
+    vi.stubGlobal('fetch', api)
+    await POST(requestWithCookie(cookie.value, {
+      code: 'google-code', state: session.state, language: 'en',
+    }))
+    expect(JSON.parse(String(api.mock.calls[0]?.[1]?.body))).toMatchObject({
+      redirectUri: 'https://app.useorbit.org/auth-callback',
+    })
   })
 
   it.each(['signin', 'calendar'] as const)('builds a %s authorize URL with PKCE and state', async (purpose) => {
