@@ -88,6 +88,7 @@ describe('useAppToast', () => {
     expect(mockToastError).toHaveBeenCalledWith('Could not log', expect.objectContaining({
       duration: Infinity,
       cancel: expect.objectContaining({ label: 'Dismiss' }),
+      cancelButtonStyle: { minHeight: 44 },
     }))
     const options = mockToastError.mock.lastCall?.[1] as { cancel: { onClick: () => void } }
     options.cancel.onClick()

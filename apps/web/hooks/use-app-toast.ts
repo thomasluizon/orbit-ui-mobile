@@ -14,6 +14,7 @@ export function useAppToast() {
       const toastId = toast.error(message, {
         duration: Infinity,
         cancel: { label: dismissLabel, onClick: () => toast.dismiss(toastId) },
+        cancelButtonStyle: { minHeight: 44 },
       })
       return
     }
