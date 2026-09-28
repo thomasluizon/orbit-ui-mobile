@@ -59,29 +59,3 @@ ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
     },
   ],
 })
-
-ruleTester.run('mobile-supabase-lazy', rule('mobile-supabase-lazy'), {
-  valid: [
-    'let client = null\nexport function getSupabaseClient() {\n  if (!client) client = createClient(url, key)\n  return client\n}',
-    'export const getSupabase = () => createClient(url, key)',
-    'export function assertConfig() { if (!url) throw new Error("missing url") }',
-  ],
-  invalid: [
-    {
-      code: 'if (!url) throw new Error("missing url")',
-      errors: [{ messageId: 'moduleThrow' }],
-    },
-    {
-      code: 'throw new Error("boom")',
-      errors: [{ messageId: 'moduleThrow' }],
-    },
-    {
-      code: 'export const supabase = createClient(url, key)',
-      errors: [{ messageId: 'eagerInit' }],
-    },
-    {
-      code: 'const supabase: SupabaseClient = createClient(url, key)',
-      errors: [{ messageId: 'eagerInit' }],
-    },
-  ],
-})

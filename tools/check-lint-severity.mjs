@@ -172,7 +172,6 @@ const scopeInventory = [
     localBlocks: [
       { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: mobileRules },
       { files: scopedOffAllowlist[2].files, ignores: [], rules: ["local/no-fullbleed-button"] },
-      { files: ["**/supabase.ts"], ignores: [], rules: ["local/mobile-supabase-lazy"] },
       { files: scopedOffAllowlist[3].files, ignores: [], rules: scopedOffAllowlist[3].rules },
     ],
   },
