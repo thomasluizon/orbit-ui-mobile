@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -10,6 +10,35 @@ import { getTodayBoundary } from '@orbit/shared/utils'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 import { HabitRow } from '@/components/habits/habit-row'
+
+describe('HabitRow overflow menus', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps only the second row menu open when another row opens', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    render(
+      <div onPointerDown={(event) => event.stopPropagation()}>
+        <HabitRow habit={createMockHabit({ id: 'first', title: 'Meditate' })} actions={{ onEdit: vi.fn() }} />
+        <HabitRow habit={createMockHabit({ id: 'second', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
+      </div>,
+    )
+
+    const [firstTrigger, secondTrigger] = screen.getAllByRole('button', { name: 'habits.actions.more' })
+    fireEvent.pointerDown(firstTrigger!)
+    fireEvent.click(firstTrigger!)
+    expect(await screen.findByRole('menuitem', { name: 'common.edit' })).toBeInTheDocument()
+
+    fireEvent.pointerDown(secondTrigger!)
+    fireEvent.click(secondTrigger!)
+    expect(await screen.findByRole('menuitem', { name: 'habits.deleteHabit' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
+  })
+})
 
 const styleElement = document.createElement('style')
 styleElement.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
