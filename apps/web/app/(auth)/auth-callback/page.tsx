@@ -6,7 +6,7 @@ import { useLocale } from 'next-intl'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { LoginContent } from '../login/login-content'
-import { getCookieValue, handleVerifySuccess } from '../login/login-form-helpers'
+import { getCookieValue } from '../login/login-form-helpers'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -21,6 +21,7 @@ function AuthCallbackContent() {
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
+  const accountBackGeneration = useRef<number | null>(null)
   const [loading, setLoading] = useState(false)
   const processed = useRef(false)
 
@@ -67,6 +68,7 @@ function AuthCallbackContent() {
       })
       if (loginResponse.wasReactivated) {
         if (generation !== getAccountGeneration()) return
+        accountBackGeneration.current = generation
         setAccountBack(loginResponse)
         setState('account')
         return
@@ -88,12 +90,25 @@ function AuthCallbackContent() {
   }, [locale, router, setAuth])
 
   async function continueAccount() {
-    if (!accountBack || loading) return
+    const expectedGeneration = accountBackGeneration.current
+    if (!accountBack || loading || expectedGeneration === null
+      || expectedGeneration !== getAccountGeneration()) return
     setLoading(true)
+    let ownedGeneration = expectedGeneration
     try {
+      setAuth(accountBack)
+      ownedGeneration = getAccountGeneration()
+      await hydrateProfilePresentation()
+      if (ownedGeneration !== getAccountGeneration()) return
       sessionStorage.removeItem('auth_return_url')
-      await handleVerifySuccess(accountBack, getCookieValue('referral_code'), setAuth, router, () => '/')
-    } catch { setState('failed') }
+      if (getCookieValue('referral_code')) {
+        document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
+      }
+      setRouteTransitionIntent('replace')
+      router.push('/')
+    } catch {
+      if (ownedGeneration === getAccountGeneration()) setState('failed')
+    }
     finally { setLoading(false) }
   }
 

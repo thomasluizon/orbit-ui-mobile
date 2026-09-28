@@ -1,7 +1,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0 }))
+const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
+  continueAccount: null as null | (() => void) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }) }))
 vi.mock('@/stores/auth-store', () => ({
@@ -9,8 +10,10 @@ vi.mock('@/stores/auth-store', () => ({
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 vi.mock('@/app/(auth)/login/login-content', () => ({
-  LoginContent: ({ callback }: { callback: { state: string } }) =>
-    <div data-testid="callback-state">{callback.state}</div>,
+  LoginContent: ({ callback }: { callback: { state: string; onContinue: () => void } }) => {
+    mocks.continueAccount = callback.onContinue
+    return <div data-testid="callback-state">{callback.state}</div>
+  },
 }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation }))
 vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: () => Promise.resolve() }))
@@ -26,6 +29,7 @@ describe('Google code callback', () => {
     mocks.replace.mockReset()
     fetchMock.mockReset()
     mocks.generation = 0
+    mocks.continueAccount = null
     vi.stubGlobal('fetch', fetchMock)
     sessionStorage.clear()
     window.history.replaceState(null, '', '/auth-callback')
@@ -42,6 +46,20 @@ describe('Google code callback', () => {
       releaseBody({ userId: 'old-user', name: 'Old', email: 'old@example.com' })
     })
     expect(mocks.replace).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it.each(['logout', 'replacement login'])('does not continue a reactivated callback after %s', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'old-user', name: 'Old',
+      email: 'old@example.com', wasReactivated: true }), { status: 200 }))
+    render(<AuthCallbackPage />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+
+    mocks.generation += 1
+    await act(async () => { mocks.continueAccount?.() })
+
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
   })
