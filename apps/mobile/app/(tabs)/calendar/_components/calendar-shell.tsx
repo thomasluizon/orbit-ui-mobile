@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,6 +26,8 @@ interface CalendarHeaderProps {
   onNextMonth: () => void;
   onCurrentMonth: () => void;
   onSelectYear: (year: number) => void;
+  viewSelector?: ReactNode;
+  showMonthNavigation?: boolean;
   tokens: ReturnType<typeof createTokensV2>;
 }
 
@@ -53,7 +55,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     headerWrap: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: 16,
       paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 4,
@@ -63,6 +66,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       gap: 0,
     },
+    titleLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    hiddenNavigation: { opacity: 0 },
     monthNavButton: {
       width: 36,
       height: 36,
@@ -80,7 +89,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 8,
+      paddingHorizontal: 4,
     },
     weekLabelButton: {
       height: 36,
@@ -94,8 +103,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.96 }],
     },
     monthTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 17,
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 34,
       letterSpacing: -0.17,
       color: tokens.fg1,
       textAlign: "center",
@@ -105,11 +114,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 8,
+      paddingHorizontal: 4,
     },
     yearTitle: {
       fontFamily: 'GeistMono_500Medium',
-      fontSize: 17,
+      fontSize: 12,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
@@ -184,6 +193,8 @@ export function CalendarHeader({
   onNextMonth,
   onCurrentMonth,
   onSelectYear,
+  viewSelector,
+  showMonthNavigation = true,
   tokens,
 }: Readonly<CalendarHeaderProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -205,7 +216,28 @@ export function CalendarHeader({
   };
 
   return (
-    <View ref={monthNavRef} collapsable={false} style={styles.headerWrap}>
+    <View ref={monthNavRef} collapsable={false} testID="calendar-header-group" style={styles.headerWrap}>
+      {showMonthNavigation ? <View style={styles.titleLine}>
+      <View style={styles.monthLabelGroup}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={currentMonthLabel}
+          onPress={onCurrentMonth}
+          hitSlop={4}
+          style={({ pressed }) => [styles.monthLabelButton, pressed && styles.monthLabelButtonPressed]}
+        >
+          <Text style={styles.monthTitle} numberOfLines={1}>{monthLabel}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={selectYearLabel}
+          onPress={() => setIsYearOpen(true)}
+          hitSlop={4}
+          style={({ pressed }) => [styles.yearButton, pressed && styles.monthLabelButtonPressed]}
+        >
+          <Text style={styles.yearTitle}>{year}</Text>
+        </Pressable>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={previousMonthLabel}
@@ -218,38 +250,6 @@ export function CalendarHeader({
       >
         <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
-      <View style={styles.monthLabelGroup}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={currentMonthLabel}
-          onPress={onCurrentMonth}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.monthLabelButton,
-            pressed && styles.monthLabelButtonPressed,
-          ]}
-        >
-          <Text style={styles.monthTitle} numberOfLines={1}>
-            {monthLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={selectYearLabel}
-          onPress={() => setIsYearOpen(true)}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.yearButton,
-            pressed && styles.monthLabelButtonPressed,
-          ]}
-        >
-          <Text
-            style={[styles.yearTitle, isYearOpen && { color: tokens.fg1 }]}
-          >
-            {year}
-          </Text>
-        </Pressable>
-      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={nextMonthLabel}
@@ -262,6 +262,15 @@ export function CalendarHeader({
       >
         <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
+      </View> : <View style={[styles.titleLine, styles.hiddenNavigation]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={styles.monthLabelGroup}>
+          <View style={styles.monthLabelButton}><Text style={styles.monthTitle} numberOfLines={1}>{monthLabel}</Text></View>
+          <View style={styles.yearButton}><Text style={styles.yearTitle}>{year}</Text></View>
+        </View>
+        <View style={styles.monthNavButton} />
+        <View style={styles.monthNavButton} />
+      </View>}
+      {viewSelector}
 
       <Modal
         visible={isYearOpen}

@@ -175,7 +175,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     vi.useRealTimers()
   })
 
-  it('navigates to the selected day only after the sheet finishes dismissing natively, and exactly once', () => {
+  it('navigates directly from the inline selected day without opening a sheet', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
@@ -186,34 +186,19 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(dayCell.props.onPress as () => void)()
     })
 
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
 
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.goToDay')
-    })
-
-    /** The sheet is still mounted and presented, so nothing may run yet. */
-    expect(mockPush).not.toHaveBeenCalled()
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
-    expect(sheetTestControls.isDismissPending).toBe(true)
-
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal()
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
     const pushedHref = mockPush.mock.calls[0]?.[0] as string
     expect(pushedHref).toMatch(/^\/\?date=\d{4}-\d{2}-15$/)
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
-
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal()
-    })
-
-    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
-  it('dismisses the free-plan day sheet before opening Orbit Pro', () => {
+  it('opens Orbit Pro directly from the inline free-plan day card', () => {
     profileHasProAccess = false
     let tree!: TestTree
     TestRenderer.act(() => {
@@ -227,19 +212,12 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       pressButton(tree.root, 'calendar.proBoundary.action')
     })
 
-    expect(mockPush).not.toHaveBeenCalled()
-    expect(sheetTestControls.isDismissPending).toBe(true)
-
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal()
-    })
-
     expect(mockPush).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
-  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
+  it('keeps the changed auto-sync value after selecting another day and returning', async () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
@@ -267,20 +245,16 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
 
     TestRenderer.act(() => {
-      const dismiss = tree.root.findAll(
-        (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss',
-      )[0]!
-      ;(dismiss.props.onPress as () => void)()
-      sheetTestControls.completeDismissal()
+      ;(findGridDayCell(tree.root, '2026-08-14').props.onPress as () => void)()
     })
     TestRenderer.act(() => {
       ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
     })
 
-    const reopened = tree.root.findAll(
+    const returned = tree.root.findAll(
       (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
     )[0]!
-    const accessibilityState = reopened.props.accessibilityState as { checked?: boolean }
+    const accessibilityState = returned.props.accessibilityState as { checked?: boolean }
     expect(accessibilityState.checked).toBe(false)
   })
 
@@ -295,7 +269,11 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     TestRenderer.act(() => {
       ;(olderDay.props.onPress as () => void)()
     })
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'calendar.goToDay')
+    })
+    expect(mockPush).toHaveBeenCalledWith('/?date=2026-08-01')
   })
 
   it('logs a selected writable day with its selected date', () => {

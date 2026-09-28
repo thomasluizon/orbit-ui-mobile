@@ -981,7 +981,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 ## Desktop density & orientation
 
-- At the desktop breakpoint, content composes **horizontally**. A single stretched mobile column is a defect, not a layout.
+- At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.**
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
 - **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
