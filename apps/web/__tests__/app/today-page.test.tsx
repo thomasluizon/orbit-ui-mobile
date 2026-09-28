@@ -228,8 +228,9 @@ describe('Hoje date control', () => {
 
   it('shows the day name over the numeric date', () => {
     render(<TodayDateControl {...baseProps} />)
-    expect(screen.getByText('Wednesday')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday')).not.toHaveClass('truncate')
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
   })
 
   it('opens search from the compact date row', () => {

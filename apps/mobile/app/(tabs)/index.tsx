@@ -43,13 +43,12 @@ export default function TodayScreen() {
   if (!profile) {
     return isError
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
-      : <View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
-          <ScreenReaderHeading title={t('nav.today')} />
+      : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
           <Skeleton variant="habit-row" grouped />
           <Skeleton variant="habit-row" grouped />
           <Skeleton variant="habit-row" grouped />
-        </View>
+        </View></>
   }
   return <TodayScreenContent />
 }

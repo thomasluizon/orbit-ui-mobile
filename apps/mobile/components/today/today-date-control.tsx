@@ -70,9 +70,9 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-      <View style={styles.dateText}>
-        <Text numberOfLines={1} style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
-        <Text numberOfLines={1} style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
+      <View accessible accessibilityLabel={`${dayName}, ${numericDate}`} style={styles.dateText}>
+        <Text style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
+        <Text style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
       </View>
       {!isTodaySelected ? (
         <Pressable
@@ -165,10 +165,12 @@ const styles = StyleSheet.create({
   dayName: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
+    textAlign: 'center',
   },
   numericDate: {
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
+    textAlign: 'center',
   },
   todayButton: {
     borderRadius: 8,

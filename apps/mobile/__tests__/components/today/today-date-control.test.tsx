@@ -57,6 +57,13 @@ describe('Today date control feedback (mobile)', () => {
     TestRenderer.act(() => search.props.onPress())
     expect(props.onSearch).toHaveBeenCalledOnce()
   })
+  it('keeps the full date accessible and lets its labels wrap', () => {
+    const renderer = renderControl()
+    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
+    const labels = date.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && (node.props.children === 'Wednesday' || node.props.children === '08/04/2026'))
+    expect(labels).toHaveLength(2)
+    for (const label of labels) expect(label.props.numberOfLines).toBeUndefined()
+  })
   it('gives the arrows, jump action, and menu control pressed feedback', () => {
     const renderer = renderControl()
 

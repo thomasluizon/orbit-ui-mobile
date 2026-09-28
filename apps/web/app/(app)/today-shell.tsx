@@ -75,9 +75,9 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      <div className="min-w-0 flex-1 text-center">
-        <p className="m-0 truncate text-sm font-medium text-[var(--fg-1)]">{dayName}</p>
-        <p className="m-0 truncate font-mono text-xs text-[var(--fg-3)]">{numericDate}</p>
+      <div className="min-w-0 flex-1 text-center" title={`${dayName}, ${numericDate}`}>
+        <p className="m-0 [overflow-wrap:anywhere] text-sm font-medium text-[var(--fg-1)]">{dayName}</p>
+        <p className="m-0 [overflow-wrap:anywhere] font-mono text-xs text-[var(--fg-3)]">{numericDate}</p>
       </div>
       {!isTodaySelected ? (
         <button
