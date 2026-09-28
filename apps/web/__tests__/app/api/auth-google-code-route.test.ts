@@ -3,7 +3,9 @@ import { NextRequest } from 'next/server'
 import { createHash } from 'node:crypto'
 
 const setSessionCookies = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/auth-api', () => ({ setSessionCookies }))
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(), setSessionCookies,
+}))
 
 import { GET } from '@/app/api/auth/google/start/route'
 import { DELETE, POST } from '@/app/api/auth/google/code/route'
@@ -15,17 +17,19 @@ const loginResponse = {
   userId: 'user-1', name: 'Alex', email: 'alex@example.com', wasReactivated: false,
 }
 
-function requestWithCookie(cookie: string, body: unknown) {
+function requestWithCookie(cookie: string, body: unknown, authToken?: string) {
   const request = new NextRequest(`${origin}/api/auth/google/code`, {
     method: 'POST',
-    headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(cookie)}` },
+    headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(cookie)}${authToken ? `; auth_token=${authToken}` : ''}` },
     body: JSON.stringify(body),
   })
   return request
 }
 
-async function start(purpose: 'signin' | 'calendar') {
-  const response = GET(new NextRequest(`${origin}/api/auth/google/start?purpose=${purpose}`))
+async function start(purpose: 'signin' | 'calendar', authToken?: string) {
+  const response = GET(new NextRequest(`${origin}/api/auth/google/start?purpose=${purpose}`, {
+    headers: authToken ? { cookie: `auth_token=${authToken}` } : undefined,
+  }))
   const url = new URL(response.headers.get('location')!)
   const cookie = response.cookies.get(GOOGLE_OAUTH_COOKIE)!
   return { url, cookie, session: JSON.parse(cookie.value) as { verifier: string; state: string; redirectUri: string } }
@@ -85,6 +89,43 @@ describe('Google OAuth BFF', () => {
     expect(response.status).toBe(400)
     expect(api).not.toHaveBeenCalled()
     expect(setSessionCookies).not.toHaveBeenCalled()
+    expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)).toBeUndefined()
+  })
+
+  it('preserves a newer attempt after a stale callback and Google error', async () => {
+    const first = await start('signin')
+    const second = await start('calendar')
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    const stale = await POST(requestWithCookie(second.cookie.value, {
+      code: 'old-code', state: first.session.state, language: 'en',
+    }))
+    const googleError = DELETE(new NextRequest(`${origin}/api/auth/google/code?state=${first.session.state}`, {
+      method: 'DELETE', headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(second.cookie.value)}` },
+    }))
+    expect(stale.status).toBe(400)
+    expect(stale.cookies.get(GOOGLE_OAUTH_COOKIE)).toBeUndefined()
+    expect(googleError.cookies.get(GOOGLE_OAUTH_COOKIE)).toBeUndefined()
+    expect(api).not.toHaveBeenCalled()
+    api.mockResolvedValue(new Response(JSON.stringify(loginResponse)))
+    const current = await POST(requestWithCookie(second.cookie.value, {
+      code: 'new-code', state: second.session.state, language: 'en',
+    }))
+    expect(current.status).toBe(200)
+    expect(setSessionCookies).toHaveBeenCalledWith('orbit-token', 'refresh-token')
+  })
+
+  it('rejects a callback after another login replaces the owning session', async () => {
+    const { session, cookie } = await start('signin', 'account-a-token')
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    const response = await POST(requestWithCookie(cookie.value, {
+      code: 'google-code', state: session.state, language: 'en',
+    }, 'account-b-token'))
+    expect(response.status).toBe(400)
+    expect(api).not.toHaveBeenCalled()
+    expect(setSessionCookies).not.toHaveBeenCalled()
+    expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)?.value).toBe('')
   })
 
   it('leaves the session unset when the API rejects the code', async () => {
@@ -96,8 +137,11 @@ describe('Google OAuth BFF', () => {
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)?.value).toBe('')
   })
 
-  it('clears the pending attempt after a Google error', () => {
-    const response = DELETE()
+  it('clears the owned pending attempt after a Google error', async () => {
+    const { session, cookie } = await start('signin')
+    const response = DELETE(new NextRequest(`${origin}/api/auth/google/code?state=${session.state}`, {
+      method: 'DELETE', headers: { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(cookie.value)}` },
+    }))
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)?.value).toBe('')
     expect(setSessionCookies).not.toHaveBeenCalled()
   })

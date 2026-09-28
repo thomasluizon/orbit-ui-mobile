@@ -15,6 +15,7 @@ import {
   AUTH_CALLBACK_URL,
   extractGoogleAuthParams,
   clearPendingGoogleAuthSession,
+  hasPendingGoogleAuthSession,
   getPendingGoogleAuthVerifier,
   markPendingGoogleAuthSession,
   setPendingGoogleAuthCallbackUrl,
@@ -23,6 +24,8 @@ import {
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
   | { type: WebBrowser.WebBrowserResultType }
+
+let googleAuthStartInProgress = false
 
 export function getGoogleAuthRedirectUrl(): string {
   return AUTH_CALLBACK_URL
@@ -56,51 +59,59 @@ export async function startMobileGoogleAuth({
   returnUrl?: string
   forceConsent?: boolean
 }>): Promise<MobileGoogleAuthResult> {
-  const returnUrlAttemptId = createAuthReturnUrlAttempt()
-  if (returnUrl && isSafeReturnUrl(returnUrl)) {
-    await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
-  } else {
-    await clearStoredAuthReturnUrl(returnUrlAttemptId)
+  if (googleAuthStartInProgress || hasPendingGoogleAuthSession()) {
+    throw new Error('Authentication in progress')
   }
-  if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
-    return { type: WebBrowser.WebBrowserResultType.CANCEL }
-  }
-
-  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID
-  if (!clientId) throw new Error('Google sign-in unavailable')
-  const verifier = bytesToHex(await Crypto.getRandomBytesAsync(32))
-  const state = bytesToHex(await Crypto.getRandomBytesAsync(32))
-  const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
-    encoding: Crypto.CryptoEncoding.BASE64,
-  })
-  const codeChallenge = digest.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  markPendingGoogleAuthSession(returnUrlAttemptId, verifier, state)
-  const authorizeUrl = buildGoogleAuthorizeUrl({
-    clientId, redirectUri: AUTH_CALLBACK_URL, state, codeChallenge,
-    purpose: forceConsent ? 'calendar' : 'signin',
-  })
-
+  googleAuthStartInProgress = true
   try {
-    const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
+    const returnUrlAttemptId = createAuthReturnUrlAttempt()
+    if (returnUrl && isSafeReturnUrl(returnUrl)) {
+      await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
+    } else {
+      await clearStoredAuthReturnUrl(returnUrlAttemptId)
+    }
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
-    if (result.type !== 'success') {
+
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID
+    if (!clientId) throw new Error('Google sign-in unavailable')
+    const verifier = bytesToHex(await Crypto.getRandomBytesAsync(32))
+    const state = bytesToHex(await Crypto.getRandomBytesAsync(32))
+    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
+      encoding: Crypto.CryptoEncoding.BASE64,
+    })
+    const codeChallenge = digest.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    markPendingGoogleAuthSession(returnUrlAttemptId, verifier, state)
+    const authorizeUrl = buildGoogleAuthorizeUrl({
+      clientId, redirectUri: AUTH_CALLBACK_URL, state, codeChallenge,
+      purpose: forceConsent ? 'calendar' : 'signin',
+    })
+
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
+      if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+        return { type: WebBrowser.WebBrowserResultType.CANCEL }
+      }
+      if (result.type !== 'success') {
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        return { type: result.type }
+      }
+      if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        throw new Error('Invalid OAuth state')
+      }
+      const params = extractGoogleAuthParams(result.url)
+      if (params.error || !params.code) {
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        throw new Error('Authentication failed')
+      }
+      return { type: 'success', url: result.url }
+    } catch (error: unknown) {
       clearPendingGoogleAuthSession(returnUrlAttemptId)
-      return { type: result.type }
+      throw error
     }
-    if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
-      clearPendingGoogleAuthSession(returnUrlAttemptId)
-      throw new Error('Invalid OAuth state')
-    }
-    const params = extractGoogleAuthParams(result.url)
-    if (params.error || !params.code) {
-      clearPendingGoogleAuthSession(returnUrlAttemptId)
-      throw new Error('Authentication failed')
-    }
-    return { type: 'success', url: result.url }
-  } catch (error: unknown) {
-    clearPendingGoogleAuthSession(returnUrlAttemptId)
-    throw error
+  } finally {
+    googleAuthStartInProgress = false
   }
 }

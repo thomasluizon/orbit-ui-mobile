@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
+import { getAccountGeneration, useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
@@ -26,20 +26,28 @@ function AuthCallbackContent() {
     const code = params.get('code')
     const state = params.get('state')
     if (params.has('error') || !code || !state) {
-      void fetch('/api/auth/google/code', { method: 'DELETE' })
-        .then(() => router.replace('/login?googleError=1'), () => router.replace('/login?googleError=1'))
+      if (state) {
+        void fetch(`/api/auth/google/code?state=${encodeURIComponent(state)}`, { method: 'DELETE' })
+          .then(() => router.replace('/login?googleError=1'), () => router.replace('/login?googleError=1'))
+      } else {
+        router.replace('/login?googleError=1')
+      }
       return
     }
 
     async function complete() {
       const referralCode = getCookieValue('referral_code')
-      const response = await withCookieSettingLogin(() => fetch('/api/auth/google/code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, state, language: locale, ...(referralCode ? { referralCode } : {}) }),
-      }))
-      if (!response.ok) throw new Error('Google sign-in failed')
-      setAuth((await response.json()) as LoginResponse)
+      const generation = getAccountGeneration()
+      await withCookieSettingLogin(async () => {
+        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        const response = await fetch('/api/auth/google/code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, state, language: locale, ...(referralCode ? { referralCode } : {}) }),
+        })
+        if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
+        setAuth((await response.json()) as LoginResponse)
+      })
       await hydrateProfilePresentation()
       if (referralCode) {
         localStorage.setItem('orbit_referral_applied', '1')

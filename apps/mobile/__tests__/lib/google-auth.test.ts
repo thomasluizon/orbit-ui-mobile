@@ -90,4 +90,21 @@ describe('mobile Google authorization code flow', () => {
     mocks.apiClient.mockRejectedValue(new Error('API rejected'))
     await expect(completeGoogleAuthFromUrl(result.url, 'en')).rejects.toThrow('API rejected')
   })
+
+  it('keeps the first browser attempt usable when a second start overlaps it', async () => {
+    let resolveFirst: ((value: { type: string; url: string }) => void) | undefined
+    mocks.random.mockResolvedValue(new Uint8Array(32).fill(3))
+    mocks.open.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+      .mockRejectedValueOnce(new Error('browser already open'))
+    const first = startMobileGoogleAuth({ returnUrl: '/calendar-sync' })
+    await vi.waitFor(() => expect(mocks.open).toHaveBeenCalledTimes(1))
+    const firstState = new URL(mocks.open.mock.calls[0]![0] as string).searchParams.get('state')
+    await expect(startMobileGoogleAuth({})).rejects.toThrow()
+    expect(mocks.open).toHaveBeenCalledTimes(1)
+    resolveFirst?.({ type: 'success', url: `${callback}?code=first-code&state=${firstState}` })
+    const result = await first
+    expect(result.type).toBe('success')
+    if (result.type !== 'success') return
+    await expect(completeGoogleAuthFromUrl(result.url, 'en')).resolves.toEqual(loginResponse)
+  })
 })

@@ -86,8 +86,12 @@ export function useLoginFlow() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   useEffect(() => {
-    if (params.googleError === '1') void Promise.resolve().then(() => setErrorMessage(t('auth.googleError')))
-  }, [params.googleError, t])
+    if (params.googleError === '1') void Promise.resolve().then(() => {
+      const message = t('auth.errors.googleError')
+      setErrorMessage(message)
+      showError(message)
+    })
+  }, [params.googleError, showError, t])
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -380,7 +384,7 @@ export function useLoginFlow() {
       })
 
       if (result.type !== 'success') {
-        reportError(t('auth.googleError'))
+        reportError(t('auth.errors.googleError'))
         return
       }
 

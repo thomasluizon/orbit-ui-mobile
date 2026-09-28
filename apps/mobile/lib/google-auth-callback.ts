@@ -72,6 +72,10 @@ export function getPendingGoogleAuthVerifier(state: string): string | null {
   return pendingCredentials?.state === state ? pendingCredentials.verifier : null
 }
 
+export function hasPendingGoogleAuthSession(): boolean {
+  return pendingCredentials !== null
+}
+
 export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAttemptId?: number): boolean {
   if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return false
   if (!pendingCredentials) return false

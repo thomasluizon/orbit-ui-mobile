@@ -7,6 +7,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replac
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (store: { setAuth: typeof mocks.setAuth }) => unknown) => selector({ setAuth: mocks.setAuth }),
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
+  getAccountGeneration: () => 0,
 }))
 vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: () => Promise.resolve() }))
 import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
@@ -40,7 +41,11 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', `/auth-callback${query}`)
     fetchMock.mockResolvedValue({ ok: true })
     render(<AuthCallbackPage />)
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', { method: 'DELETE' })
+    if (query.includes('state=')) {
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE' })
+    } else {
+      expect(fetchMock).not.toHaveBeenCalled()
+    }
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1'))
   })
 

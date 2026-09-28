@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { buildGoogleAuthorizeUrl } from '@orbit/shared/utils'
-import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 export function GET(request: NextRequest) {
   const purpose = new URL(request.url).searchParams.get('purpose')
@@ -19,7 +19,9 @@ export function GET(request: NextRequest) {
     clientId, redirectUri, state, codeChallenge, purpose,
   })
   const response = NextResponse.redirect(authorizeUrl)
-  response.cookies.set(GOOGLE_OAUTH_COOKIE, JSON.stringify({ verifier, state, redirectUri }), {
+  response.cookies.set(GOOGLE_OAUTH_COOKIE, JSON.stringify({
+    verifier, state, redirectUri, sessionOwner: getGoogleOAuthSessionOwner(request),
+  }), {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',

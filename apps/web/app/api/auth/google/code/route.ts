@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { setSessionCookies } from '@/lib/auth-api'
 import { buildAuthErrorPayload, buildRequestIdResponseHeaders, ORBIT_REQUEST_ID_HEADER, resolveRequestId, resolveResponseRequestId } from '@/lib/auth-proxy'
 import { googleCodeAuthRequestSchema, googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
-import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { getGoogleOAuthSessionOwner, GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const callbackSchema = z.object({
   code: z.string().min(1),
@@ -12,9 +12,18 @@ const callbackSchema = z.object({
   referralCode: z.string().optional(),
 })
 
-export function DELETE() {
+export function DELETE(request: NextRequest) {
   const response = NextResponse.json({})
-  response.cookies.delete(GOOGLE_OAUTH_COOKIE)
+  const state = new URL(request.url).searchParams.get('state')
+  const pendingRaw = request.cookies.get(GOOGLE_OAUTH_COOKIE)?.value
+  if (state && pendingRaw) {
+    try {
+      const pending: unknown = JSON.parse(pendingRaw)
+      if (z.object({ state: z.string() }).safeParse(pending).data?.state === state) {
+        response.cookies.delete(GOOGLE_OAUTH_COOKIE)
+      }
+    } catch { return response }
+  }
   return response
 }
 
@@ -29,11 +38,14 @@ export async function POST(request: NextRequest) {
   let pendingValue: unknown = null
   try { pendingValue = pendingRaw ? JSON.parse(pendingRaw) : null } catch { pendingValue = null }
   const pending = z.object({
-    verifier: z.string(), state: z.string(), redirectUri: z.string(),
+    verifier: z.string(), state: z.string(), redirectUri: z.string(), sessionOwner: z.string(),
   }).safeParse(pendingValue)
   const callback = callbackSchema.safeParse(await request.json().catch(() => null))
   if (!pending.success || !callback.success || pending.data.state !== callback.data.state) {
-    return finish(NextResponse.json({ error: 'Invalid OAuth state', requestId }, { status: 400, headers }))
+    return NextResponse.json({ error: 'Invalid OAuth state', requestId }, { status: 400, headers })
+  }
+  if (pending.data.sessionOwner !== getGoogleOAuthSessionOwner(request)) {
+    return finish(NextResponse.json({ error: 'Authentication session changed', requestId }, { status: 400, headers }))
   }
 
   const body = googleCodeAuthRequestSchema.parse({
