@@ -1168,22 +1168,25 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
   })
 
-  it('keeps the other sections open when the Pro figures report no habits', async () => {
+  it('shows the window empty state when the Pro figures report no habits', async () => {
     const retrospectiveData = mocks.retrospective.data
     mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
     mocks.retrospective.isError = true
     mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
 
-    const tree = await renderProgress()
-    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
-    expect(text).toEqual(expect.arrayContaining([
-      'progressScreen.sections.streak',
-      'progressScreen.sections.goals',
-    ]))
-    const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
-    expect(figures).toEqual(expect.arrayContaining(['0%', 0]))
-
-    mocks.retrospective.data = retrospectiveData
+    try {
+      const tree = await renderProgress()
+      const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+      expect(text).toEqual(expect.arrayContaining([
+        'progressScreen.sections.streak',
+        'progressScreen.sections.goals',
+      ]))
+      expect(text).toContain('progressScreen.window.empty')
+      const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
+      expect(figures).not.toContain('0%')
+    } finally {
+      mocks.retrospective.data = retrospectiveData
+    }
   })
 
   it('shows streak loading and failure without a false upgrade boundary', async () => {

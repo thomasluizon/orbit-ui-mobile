@@ -1081,19 +1081,22 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('keeps the page open when the Pro figures report no habits', () => {
+  it('shows the window empty state when the Pro figures report no habits', () => {
     const retrospectiveData = mocks.retrospective.data
     mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
     mocks.retrospective.isError = true
     mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
 
-    render(<ProgressContent />)
+    try {
+      render(<ProgressContent />)
 
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-    expect(screen.getByText('0%')).toBeInTheDocument()
-
-    mocks.retrospective.data = retrospectiveData
+      expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+      expect(screen.getByText('progressScreen.window.empty')).toBeInTheDocument()
+      expect(screen.queryByText('0%')).not.toBeInTheDocument()
+    } finally {
+      mocks.retrospective.data = retrospectiveData
+    }
   })
 
   it('shows streak loading and failure without a false upgrade boundary', () => {

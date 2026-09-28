@@ -2767,6 +2767,8 @@
       "reorderHint": "Hold and drag to reorder, or use the move actions"
     },
     "window": {
+      "empty": "Nothing to measure yet",
+      "emptyAction": "Start habit",
       "chartLabel": "Last 30 days",
       "completionRate": "Completion rate",
       "activeDays": "Days logged",

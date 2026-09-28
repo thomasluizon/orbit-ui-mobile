@@ -373,22 +373,24 @@ function GoalSeparator() {
 
 function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const { t, i18n } = useTranslation()
+  const router = useRouter()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
-  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
-  const metrics = retrospective.data?.metrics
-  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
-  const topHabit = metrics?.topHabits[0]
-  const points = metrics?.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
+  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><EmptyState title={t('progressScreen.window.empty')} action={<PillButton variant="primary" size="sm" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>} /></WindowFrame>
+  if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
+  if (!retrospective.data) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
+  const metrics = retrospective.data.metrics
+  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics.weeklyConsistency)
+  const topHabit = metrics.topHabits[0]
+  const points = metrics.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
   return (
     <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}>
       {points.some((point) => point.scheduled > 0) ? <BarChart points={points} label={t('progressScreen.window.chartLabel')} /> : null}
       <WindowFigureGrid>
-        <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
-        <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />
+        <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
+        <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
           ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
