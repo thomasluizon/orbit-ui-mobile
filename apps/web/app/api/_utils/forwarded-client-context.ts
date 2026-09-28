@@ -2,14 +2,12 @@ import type { NextRequest } from 'next/server'
 
 const IP_PATTERN = /^[\d.:a-fA-F]+$/
 
-const GEO_COUNTRY_HEADERS = [
-  ['cf-ipcountry', 'CF-IPCountry'],
-  ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
-] as const
+const GEO_COUNTRY_HEADERS = ['cf-ipcountry', 'cloudfront-viewer-country'] as const
 
 const PASS_THROUGH_HEADERS = [
   ['accept-language', 'Accept-Language'],
   ['x-orbit-time-zone', 'X-Orbit-Time-Zone'],
+  ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
 ] as const
 
 const TIME_ZONE_PATTERN = /^[A-Za-z0-9_./+-]{1,100}$/
@@ -78,7 +76,7 @@ function countryCodeFromTimeZone(value: string | null): string | null {
 }
 
 function resolveOrbitCountryCode(request: NextRequest): string | null {
-  for (const [headerName] of GEO_COUNTRY_HEADERS) {
+  for (const headerName of GEO_COUNTRY_HEADERS) {
     const countryCode = sanitizeClientCountryCode(request.headers.get(headerName))
     if (countryCode) return countryCode
   }
@@ -102,18 +100,8 @@ export function buildForwardedClientHeaders(request: NextRequest): Record<string
   if (clientIp) {
     headers['X-Forwarded-For'] = clientIp
   }
-  if (cfConnectingIp) {
-    headers['CF-Connecting-IP'] = cfConnectingIp
-  }
   if (realIp) {
     headers['X-Real-IP'] = realIp
-  }
-
-  for (const [headerName, forwardedHeaderName] of GEO_COUNTRY_HEADERS) {
-    const value = request.headers.get(headerName)?.trim()
-    if (value) {
-      headers[forwardedHeaderName] = value
-    }
   }
 
   for (const [headerName, forwardedHeaderName] of PASS_THROUGH_HEADERS) {

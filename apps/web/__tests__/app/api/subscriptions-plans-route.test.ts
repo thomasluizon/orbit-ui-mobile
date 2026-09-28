@@ -58,10 +58,8 @@ describe('subscriptions plans route', () => {
         headers: {
           Authorization: 'Bearer token',
           'X-Orbit-Country-Code': 'BR',
-          'CF-Connecting-IP': '177.10.20.30',
           'X-Forwarded-For': '177.10.20.30',
           'X-Real-IP': '198.51.100.5',
-          'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
