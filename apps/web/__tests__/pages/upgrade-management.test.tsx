@@ -265,7 +265,7 @@ describe('UpgradePage subscription management', () => {
         name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
       }))
     }
-    await waitFor(() => expect(document.querySelector('main')).toHaveAttribute('data-state', state))
+    await waitFor(() => expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', state))
     const hasProviderGuidance = !['lifetime', 'lapsed', 'loading', 'load-failed'].includes(state)
     expect(screen.queryAllByText('upgrade.billing.actions.providerNote')).toHaveLength(Number(hasProviderGuidance))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
@@ -788,7 +788,7 @@ describe('UpgradePage subscription management', () => {
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('upgrade.billing.usage.title')).toBeInTheDocument()
-    expect(document.querySelector('main')).toHaveAttribute('data-state', 'portal-opening')
+    expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'portal-opening')
   })
 
   it('does not substitute Stripe catalog pricing on the Play management panel', () => {

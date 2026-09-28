@@ -474,7 +474,7 @@ describe("CalendarScreen views (mobile)", () => {
           typeof node.type === "string" &&
           node.props.accessibilityRole === "header",
       ),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
     for (const row of agendaRows) {
       expect(row.props.readOnly).toBe(true);
       expect(row.props.wrapTitle).toBe(true);

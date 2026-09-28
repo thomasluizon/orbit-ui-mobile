@@ -290,7 +290,7 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <div className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>
