@@ -72,10 +72,15 @@
 .orbit-list-row-action:focus-visible,
 .orbit-list-row-body:focus-visible {
   outline: none;
+}
 
-  > span {
-    outline: 2px solid var(--primary);
-  }
+.orbit-list-row-shell:has(:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.orbit-list-row-shell {
+  transition: background-color 150ms var(--ease-standard);
 }
 
 .habit-form-disclosure {
@@ -101,10 +106,13 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-list-row:hover,
-  .orbit-list-row-body:hover > .orbit-list-row {
+  .orbit-list-row:hover {
     background: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  }
+
+  .orbit-list-row-interactive:hover {
+    background: var(--bg-hover);
   }
 }
 

@@ -1595,7 +1595,7 @@
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Ver Pro",
-      "open": "Abrir as chaves",
+      "open": "Gerir chaves de API",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
@@ -2378,7 +2378,7 @@
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
-      "trialHeading": "As 50 por dia ficam, ou voltam a ser 5.",
+      "trialHeading": "Com o Pro, você mantém 50 mensagens da Astra por dia. Sem o Pro, são 5 por dia.",
       "trialCta": "Manter o Pro",
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "Dez vezes mais Astra.",

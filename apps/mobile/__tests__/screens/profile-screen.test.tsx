@@ -9,7 +9,6 @@ import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
-import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
@@ -141,6 +140,24 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
+}))
+
+vi.mock('@/hooks/use-push-notifications', () => ({
+  usePushNotifications: () => ({
+    isSupported: false,
+    isEnabled: false,
+    isRegistered: false,
+    isLoading: false,
+    permissionStatus: null,
+    registrationStatus: 'unsupported',
+    refreshPermissionStatus: vi.fn(),
+    disablePushNotifications: vi.fn(),
+    requestPermission: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-persistent-reminder', () => ({
+  usePersistentReminder: () => ({ isSupported: false, enabled: false, isLoading: false, toggle: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-gamification', () => ({
@@ -568,7 +585,6 @@ describe('ProfileScreen', () => {
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
       'settings.weekStartDay.title',
-      'preferences.themeMode',
       'profile.subscription.plan',
       'profile.wrappedTitle',
       'profile.widgetTitle',
@@ -591,6 +607,8 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode').length).toBeGreaterThan(0)
   })
 
   it('keeps the share card reachable outside Ending things', async () => {
@@ -1299,15 +1317,14 @@ describe('ProfileScreen', () => {
       findRowByLabel(tree, 'profile.widgetTitle').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockRouterPush).toHaveBeenCalledWith('/advanced')
+    expect(mockRouterPush).not.toHaveBeenCalled()
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true, 'support')
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
@@ -1317,25 +1334,24 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
-  it('returns Android accessibility focus to Support after closing the conversation', async () => {
-    const supportNode = { label: 'profile.support.title' }
-    const tree = await renderProfileScreen(({ props }) =>
-      props.label === 'profile.support.title' ? supportNode : null)
-
+  it('opens each inline preference directly and sends Support to its form', async () => {
+    const tree = await renderProfileScreen()
+    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+      mockRouterPush.mockClear()
+      await TestRenderer.act(async () => {
+        findRowByLabel(tree, label).props.onPress?.()
+        await Promise.resolve()
+      })
+      expect(mockRouterPush).not.toHaveBeenCalled()
+    }
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode').length).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
-      mockConversationOpen.current = true
-      tree.update(<ProfileScreen />)
       await Promise.resolve()
     })
-    expect(mockSendAccessibilityEvent).not.toHaveBeenCalled()
-
-    await TestRenderer.act(async () => {
-      mockConversationOpen.current = false
-      tree.update(<ProfileScreen />)
-      await Promise.resolve()
-    })
-    expect(mockSendAccessibilityEvent).toHaveBeenCalledWith(supportNode, 'focus')
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
   })
 
   it('opens calendar sync directly for Pro', async () => {
@@ -1355,49 +1371,5 @@ describe('ProfileScreen', () => {
     expect(calendarRow.props.chevron).toBe(true)
     expect(calendarRow.props.hasTrailing).toBe(false)
     expect(mockRouterPush).toHaveBeenCalledWith('/calendar-sync')
-  })
-})
-
-describe('PreferenceSettingsList', () => {
-  it('does not render a color scheme row', () => {
-    const tokens = new Proxy({}, { get: () => '#111111' })
-    let tree!: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PreferenceSettingsList
-          tokens={tokens as never}
-          t={(key) => key}
-          languageLabel="English"
-          themeLabel="Dark"
-          weekStartLabel="Monday"
-          showGeneralOnToday={false}
-          onOpenPicker={vi.fn()}
-          onToggleShowGeneral={vi.fn()}
-          push={{
-            pushSupported: false,
-            pushEnabled: false,
-            pushRegistered: false,
-            pushLoading: false,
-            permissionStatus: null,
-            registrationStatus: 'unsupported',
-            onToggle: vi.fn(),
-            onOpenSettings: vi.fn(),
-          }}
-          persistentReminder={{
-            isSupported: false,
-            enabled: false,
-            isLoading: false,
-            onToggle: vi.fn(),
-          }}
-        />,
-      )
-    })
-    expect(
-      tree.root.findAll(
-        (node: SettingsRowStubNode) =>
-          node.type === 'SettingsRowStub' &&
-          node.props.label === 'profile.colorScheme.title',
-      ),
-    ).toHaveLength(0)
   })
 })

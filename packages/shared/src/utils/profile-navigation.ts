@@ -53,7 +53,7 @@ interface ProfileNavItemBase {
 
 export type ProfileNavItem = ProfileNavItemBase & (
   | { route: string; action?: never }
-  | { route: null; action: 'openSupport' }
+  | { route: null; action: 'openWidget' }
 )
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
@@ -73,7 +73,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'android-widget',
     section: 'features',
-    route: '/advanced',
+    route: null,
+    action: 'openWidget',
     iconKey: 'widget',
     titleKey: 'profile.widgetTitle',
     hintKey: 'profile.widgetHint',
@@ -99,8 +100,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'support',
     section: 'features',
-    route: null,
-    action: 'openSupport',
+    route: '/support',
     iconKey: 'support',
     titleKey: 'profile.support.title',
     hintKey: 'profile.support.description',

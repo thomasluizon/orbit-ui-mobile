@@ -240,23 +240,22 @@ describe('ProfilePage', () => {
       'profile.language.title',
       'profile.settingsRows.timezone',
       'settings.weekStartDay.title',
-      'preferences.themeMode',
       'profile.subscription.plan',
       'dataExport.button',
       'profile.logout',
       'profile.freshStart.button',
       'profile.deleteAccount.button',
-      'profile.support.title',
     ]
 
     for (const name of accessibleNames) {
       expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
+    expect(screen.getByRole('group', { name: 'preferences.themeMode' })).toBeInTheDocument()
     for (const name of [
       'profile.wrappedTitle',
-      'profile.widgetTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
+      'profile.support.title',
     ]) {
       expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
@@ -266,6 +265,20 @@ describe('ProfilePage', () => {
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('opens each inline preference directly and sends Support to its form', () => {
+    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+      const view = render(<ProfilePage />)
+      mockRouterPush.mockClear()
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      view.unmount()
+    }
+    render(<ProfilePage />)
+    expect(screen.getByRole('group', { name: 'preferences.themeMode' })).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
+    expect(screen.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
   })
 
   it('keeps the share card reachable outside Ending things', () => {
@@ -310,14 +323,11 @@ describe('ProfilePage', () => {
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
 
     expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
-    expect(freeMore.getByRole('link', { name: /profile\.widgetTitle/i })).toHaveAttribute('href', '/advanced')
+    expect(freeMore.getByRole('button', { name: /profile\.widgetTitle/i })).toBeInTheDocument()
     const calendarGate = freeMore.getByRole('link', { name: /calendar\.profileButton/i })
     expect(calendarGate).toHaveAttribute('href', '/upgrade')
     expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
-    const supportRow = freeMore.getByRole('button', { name: /profile\.support\.title/i })
-    fireEvent.click(supportRow)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(useUIStore.getState().astraEntryPointIntent).toBe('support')
+    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
     expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
 

@@ -3,8 +3,10 @@
 import { useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
+import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -19,7 +21,6 @@ import {
   Languages,
   Lock,
   LogOut,
-  Moon,
   RotateCcw,
   User,
   UserX,
@@ -44,12 +45,13 @@ import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore } from '@/stores/ui-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
 import { getAnalyticsOptOut, setAnalyticsOptOut, subscribeAnalyticsOptOut } from '@/lib/posthog'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
+import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
+import { derivePreferenceLabels } from '@/app/(app)/preferences/_components/preference-labels'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { DeleteAccountModal } from './delete-account-modal'
@@ -85,6 +87,7 @@ function buildYouRows(
   onEditName: () => void,
   onExport: () => void,
   onOpenTimeZone: () => void,
+  controls: ReturnType<typeof usePreferenceControls>,
 ) {
   const planLabel = profile?.isTrialActive
     ? t('profile.subscription.trial')
@@ -94,13 +97,45 @@ function buildYouRows(
   const timeZoneLabel = profile?.timeZone
     ? t('profile.settingsRows.timezoneValue', { timeZone: profile.timeZone })
     : t('profile.settingsRows.timezone')
+  const { languageLabel, weekStartLabel } = derivePreferenceLabels(t, {
+    selectedLanguage: controls.selectedLanguage,
+    currentTheme: controls.currentTheme,
+    weekStartDay: profile?.weekStartDay,
+    themeModeOptions: [],
+    weekStartOptions: buildWeekStartOptions(t),
+  })
+  const themeChoice = (
+    <div role="group" aria-label={t('preferences.themeMode')} className="flex gap-1">
+      {(['dark', 'light'] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          aria-pressed={controls.currentTheme === mode}
+          onClick={() => controls.handleThemeModeChange(mode)}
+          className="min-h-11 rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+          style={{
+            color: controls.currentTheme === mode ? 'var(--fg-1)' : 'var(--fg-2)',
+            background: controls.currentTheme === mode ? 'var(--primary-dim)' : 'var(--bg-well)',
+            boxShadow: controls.currentTheme === mode ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)',
+          }}
+        >
+          {t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
+        </button>
+      ))}
+    </div>
+  )
 
   return [
     <ListRow key="account" icon={icon(User)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
-    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
+    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} value={languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ListRow key="timezone" icon={icon(Clock)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
-    <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="theme" icon={icon(Moon)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
+    <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ProfileValueRow key="theme" label={t('preferences.themeMode')} control={themeChoice} />,
+    <div key="show-general" className="flex flex-col px-4 py-3" style={{ gap: 4 }}>
+      <p className="text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
+      <Switch checked={controls.showGeneralOnToday} onChange={controls.toggleShowGeneral} label={t('settings.homeScreen.showGeneral')} />
+      <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
+    </div>,
     <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push('/upgrade')} />,
     <ListRow key="export" icon={icon(Download)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
   ]
@@ -113,7 +148,8 @@ function buildAstraRows(
 ) {
   const onUpgrade = () => router.push('/upgrade')
   return (
-    <>
+    <div className="flex flex-col" style={{ gap: 32 }}>
+      <div className="flex flex-col" style={{ gap: 12 }}>
       {profile ? (
         <AstraAllowancePanel profile={profile} />
       ) : null}
@@ -142,8 +178,9 @@ function buildAstraRows(
           )}
         </RowList>
       ) : null}
+      </div>
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
-    </>
+    </div>
   )
 }
 
@@ -194,7 +231,7 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
   )
 }
 
-function buildMoreRows({ profile, t }: RowContext, openSupport: () => void) {
+function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
   const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     const href = redirectsToUpgrade ? '/upgrade' : item.route ?? undefined
@@ -207,7 +244,7 @@ function buildMoreRows({ profile, t }: RowContext, openSupport: () => void) {
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
         href={href}
-        onClick={item.action === 'openSupport' ? openSupport : undefined}
+        onClick={item.action === 'openWidget' ? openWidget : undefined}
       />
     )
   })
@@ -247,8 +284,9 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const preferenceControls = usePreferenceControls()
+  const pushPreferences = usePushNotificationPreferences()
   const {
     isExporting,
     exportDone,
@@ -293,11 +331,11 @@ export function ProfileSettingsContent({
       () => setShowEditName(true),
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
+      preferenceControls,
     ),
     astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
-    notifications: [
+    notifications: <div className="flex flex-col" style={{ gap: 12 }}>
       <MarketingConsentSection
-        key="product-email"
         showSectionLabel={false}
         contained
         acceptVariant="secondary"
@@ -315,9 +353,21 @@ export function ProfileSettingsContent({
             </span>
           </SettingsRow>
         )}
-      />,
-    ],
-    more: buildMoreRows(context, () => setAstraConversationOpen(true, 'support')),
+      />
+      <PushNotificationSection
+        push={{
+          supported: pushPreferences.supported,
+          subscribed: pushPreferences.subscribed,
+          permission: pushPreferences.permission,
+          loading: pushPreferences.loading,
+          status: pushPreferences.status,
+          onToggle: () => void pushPreferences.togglePush(),
+        }}
+        showSectionLabel={false}
+        contained
+      />
+    </div>,
+    more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
@@ -344,6 +394,7 @@ export function ProfileSettingsContent({
       <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
       <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} />
       <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} profile={profile} />
+      <WidgetInfoOverlay open={showWidgetInfo} onOpenChange={setShowWidgetInfo} t={t} />
       <TimeZonePicker
         controls={preferenceControls}
         mounted={mounted}

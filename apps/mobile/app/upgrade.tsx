@@ -80,9 +80,9 @@ function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
   const route = Array.isArray(from) ? from[0] : from
   const labels: Record<string, string> = {
     '/': 'nav.today', '/(tabs)': 'nav.today', '/calendar': 'nav.calendar',
-    '/progress': 'nav.progress', '/profile': 'nav.profile', '/advanced': 'advancedSettings.title',
+    '/progress': 'nav.progress', '/profile': 'nav.profile',
     '/ai-settings': 'aiSettings.title', '/calendar-sync': 'calendar.title',
-    '/preferences': 'preferences.title', '/about': 'about.title', '/wrapped': 'wrapped.title',
+    '/about': 'about.title', '/wrapped': 'wrapped.title',
   }
   if (route?.startsWith('/habits/')) return 'habits.detail.screenTitle'
   return labels[route ?? '/profile'] ?? 'nav.profile'

@@ -44,7 +44,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
       const retry = buildQueuedMutation({ ...mutation, scope, type: mutationTypeSchema.parse(mutation.type) })
       enqueue(mutation.type === 'setTimeZone' ? { ...retry, id: mutation.id } : retry)
     } else {
-      router.push(scope === 'habits' || scope === 'goals' || scope === 'tags' ? '/' : '/preferences')
+      router.push(scope === 'habits' || scope === 'goals' || scope === 'tags' ? '/' : '/profile')
     }
     dismissDrop(drop.id)
   }

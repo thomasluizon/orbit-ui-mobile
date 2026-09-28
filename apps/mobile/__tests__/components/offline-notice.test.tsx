@@ -244,7 +244,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
       mutation: { ...droppedLog.mutation, type: 'restoreGoal', scope: 'profile', dependsOn: ['offline-goal-missing'] },
     }) })
     TestRenderer.act(() => (toast().onAction as () => void)())
-    expect(mocks.push).toHaveBeenLastCalledWith('/preferences')
+    expect(mocks.push).toHaveBeenLastCalledWith('/profile')
   })
 
   it.each(['offline-work', 'offline-habit-123-1'])('retries a tag named %s without losing its payload', (name) => {
