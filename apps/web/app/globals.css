@@ -77,7 +77,6 @@
 .orbit-list-row-shell:has(.orbit-list-row-body:focus-visible) {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
-  border-radius: 20px;
 }
 
 .orbit-list-row-action:focus-visible > span {
@@ -86,6 +85,7 @@
 }
 
 .orbit-list-row-shell {
+  border-radius: 20px;
   transition: background-color 380ms var(--ease-standard);
 }
 
