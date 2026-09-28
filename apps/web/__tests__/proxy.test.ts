@@ -40,9 +40,12 @@ vi.mock('next/server', async () => {
   }
 })
 
-function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string } = {}) {
+function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string; host?: string } = {}) {
   const url = new URL(path, 'http://localhost:3000')
-  const request = new NextRequest(url, { method: options.method })
+  const request = new NextRequest(url, {
+    method: options.method,
+    headers: options.host ? { host: options.host } : undefined,
+  })
 
   if (options.cookies) {
     for (const [name, value] of Object.entries(options.cookies)) {
@@ -219,6 +222,55 @@ describe('proxy', () => {
     expect(unstable_doesMiddlewareMatch({ config, url: 'http://localhost:3000/api/health' })).toBe(false)
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
+
+  it('permanently redirects the service host to the public site before resolving a session', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    await proxy(createRequest('http://0.0.0.0:10000/login?x=1', {
+      host: 'orbit-web-staging-eakn.onrender.com',
+    }))
+
+    expect(NextResponse.redirect).toHaveBeenCalledWith(
+      new URL('https://staging.useorbit.org/login?x=1'),
+      308,
+    )
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('passes through the public site host and the service health route', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')
+
+    const siteResponse = await proxy(createRequest('http://0.0.0.0:10000/terms', {
+      host: 'staging.useorbit.org',
+    }))
+    const healthResponse = await proxy(createRequest('http://0.0.0.0:10000/api/health', {
+      host: 'orbit-web-staging-eakn.onrender.com',
+    }))
+
+    expect(siteResponse).toMatchObject({ type: 'next' })
+    expect(healthResponse).toMatchObject({ type: 'next' })
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, 'http://localhost:3000'])(
+    'skips canonical redirects when the public site URL is %s',
+    async (siteUrl) => {
+      vi.stubEnv('NEXT_PUBLIC_SITE_URL', siteUrl)
+
+      const response = await proxy(createRequest('http://0.0.0.0:10000/terms', {
+        host: 'orbit-web-staging-eakn.onrender.com',
+      }))
+
+      expect(response).toMatchObject({ type: 'next' })
+      expect(NextResponse.redirect).not.toHaveBeenCalled()
+    },
+  )
 
   it('adds the policy to static image responses without resolving a session', async () => {
     for (const path of ['/favicon.ico', '/images/orbit-logo.png']) {
