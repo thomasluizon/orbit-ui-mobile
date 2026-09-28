@@ -45,7 +45,7 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - Turnstile enforcement starts only after web and Android sign-in send a token.
 - Keep locale out of auth and deep-link URLs.
 - `/handoff` ends its session after committing the spec and one `NEXT.md`. `/wrap-up` runs `/progress`, `/questions`, then `/handoff`.
-- The orchestrator merges a pull request with `gh pr merge --squash --match-head-commit <sha>` after the exact head has green checks, a Pullfrog approval submitted after its push, and zero unresolved threads. Redesign-only work merges to `redesign/main`; other work merges to `main`. Until Batch M turns it off, an `orbit-api` merge to `main` deploys; after it, only the release workflows deploy.
+- The orchestrator merges a pull request with `gh pr merge --squash --match-head-commit <sha>` after the exact head has green checks, a Pullfrog approval submitted after its push, and zero unresolved threads. Redesign-only work merges to `redesign/main`; other work merges to `main`. Production auto-deploy is off: a merge to `main` deploys nothing, and production deploys only through the release workflows after the owner approves the `production` environment.
 - Admin merges happen only inside `/merge-prs` after the owner invokes it for an approved frozen set. Never use a direct merge API.
 - Launch Codex workers about 90 seconds apart, never several in the same second. Never pipe a launcher into `head`, because its final line dies on EPIPE.
 - Start a waiter only as a background task. A trailing `&` does not wake the session.
@@ -81,24 +81,16 @@ The decision and its research: brain ADR `Move Orbit to Render with Amazon SES, 
 
 Owner rules for Batch M: the production copy loses zero rows (writes frozen during the dump, every table verified by row count and checksum, Supabase paused until sign-off); staging seeds sample data for the owner's account only; PostHog replaces Vercel Analytics and Speed Insights; both databases stay reachable through the Render MCP and `psql`; MCPs, CLIs and APIs come before the browser.
 
-Tickets, in dependency order (`#793`, `#795` and `#798` are done):
+Tickets, in dependency order (`#793`, `#795`, `#796`, `#798`, `#799`, `#794`, `#804`, `#800`, `#802`, `#83`, `#803`, `#807` to `#813` are done):
 
-- `#799` Internal and closed Android tracks build against the staging API (ui, parity:no)
-- `#794` Web Docker image, `web-image.yml` staging auto-deploy and `deploy-web.yml` with the production smoke suite (ui, parity:no)
-- `#804` `useorbit.org` DNS on Cloudflare under Terraform, with the Turnstile widget (api)
-- `#800` `deploy-api.yml` with an EF Core migration bundle; turn Render auto-deploy off right before it merges, then apply Terraform (api)
-- `#801` Staging keep-alive and 4-weekly database recreate and reseed (api)
-- `#806` File uploads from Supabase Storage to S3, with a stable API read route that redirects to a fresh presigned GET (api); Supabase is paused only after it switches
-- `#797` Email through Amazon SES with bounce and complaint handling (api, after `#804`)
-- `#796` Google sign-in code exchange in the API (api)
-- `#802` Google sign-in and calendar connection on web and Android through the API (ui, parity:yes, after `#796`; completes `#250`)
-- `#83` PostHog client analytics and Web Vitals on web and mobile, replacing Vercel Analytics and Speed Insights (ui)
-- `#84` The analytics opt-out toggle on web and mobile (ui, after `#83`)
-- `#803` The `/release` skill (ui, after `#794`, `#799`, `#800`)
-- `#805` Web privacy disclosures for the Render, SES, S3 and PostHog processors (ui); merges only at cutover, once those processors are live
-- Staging billing (no ticket yet; file one per repository): Stripe test mode for staging (the test-mode secret key is in the Keychain as `orbit-stripe-test-secret-key`; create the test products, prices and webhook through the Stripe API and write them to `/orbit/staging/api/*`), and Google Play test billing on the internal and closed tracks through Play license testing, with a staging real-time developer notification route
-- PostHog dashboard: keep dashboard "Orbit - Acquisition and Signups" and its tiles; add web visitors, pageviews, Web Vitals, the sign-in funnel and app usage by platform once `#83` is live, and refresh its description
-- Operations after the code lands: apply Terraform for the web services with the first image digests; copy the production database from Supabase to Render (zero rows lost); switch connection strings; request SES production access; switch DNS nameservers from Spaceship to Cloudflare; cut `app.useorbit.org`, `useorbit.org` and `www` over to Render; remove the imported API's duplicated direct variables once the linked group is verified; then cancel and delete the retired services
+- `#814` Reject Terraform plans that update a web service in place (api, `api#631` open); Render provider v1.9.1 turns a digest image path into a tag on any service update, so a checked-in guard runs on every saved plan before apply, locally and as tests in `terraform.yml`
+- `#801` Staging keep-alive and 4-weekly database recreate and reseed (api, `api#626`: approved, blocked only on the GitGuardian false positive the owner clears); after merge, move `render_postgres.staging` into the separate `infra/staging-database` state with the documented `state rm` and `import`
+- `#806` File uploads from Supabase Storage to S3, with a stable API read route that redirects to a fresh presigned GET (api, `api#625`: blocked only on accepting SonarCloud `terraform:S6258` for the access-log bucket); `Storage:Provider` switches to S3 only after the web CSP (`#807`, merged) is live on the serving web host; Supabase Storage already answers HTTP 402
+- `#797` Email through Amazon SES with bounce and complaint handling (api, `api#628`: approved, SonarCloud still red on new-code findings); then apply its Terraform (SES identities and DKIM records in Cloudflare), request SES production access, and switch `production_email_provider` and `staging_email_provider` in `local.tfvars`
+- `#84` The analytics opt-out toggle on web and mobile (ui, targets `redesign/main`, placed in the marketing-consent section of the Perfil settings surface)
+- `#815` Capture the first web pageview after PostHog opts in (ui, `main`): app.useorbit.org sends `$opt_in` and `$pageleave` but no `$pageview`, so the dashboard's app pageview, sign-in funnel and Web Vitals tiles stay empty until it lands
+- `#805` Web privacy disclosures for the Render, SES, S3 and PostHog processors (ui, `ui#1217`); merges only at cutover, once those processors are live; its transfers sentence says the LGPD safeguards, not adequacy decisions or standard contractual clauses (owner decision in the ticket's comment)
+- Operations after the code lands, in order: copy the production database from Supabase to Render (the owner authorized this unattended as the next run's first step; zero rows lost, writes frozen, every table verified by count and checksum); switch the production API connection to Render Postgres and remove the imported API's duplicated direct variables once the linked group is verified; create `orbit-web` from the first production image (built by the owner-approved `deploy-web.yml` run) and set `RENDER_WEB_SERVICE_ID`; cut `app.useorbit.org`, `useorbit.org` and `www` over to Render and set `PRODUCTION_WEB_CUTOVER=true`; switch uploads to S3 and email to SES; cancel Vercel Pro and Resend Pro; pause Supabase after its Auth path is retired and the owner signs off; the owner deletes the retired projects
 
 ### Batch 0a: DONE
 
@@ -305,7 +297,6 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#230` API gate parity, part 2: clear the hand-written pragmas and `SuppressMessage` attributes (after `#235` and `#239` delete the code they sit in)
 - `#227` Habit model: split StartDate from NextDueDate and replace the three flags with enum HabitSchedule
 - `#205` Behaviour test suite for Google Calendar import and auto-sync
-- `#250` Drop the hard-coded Supabase URL fallback from the web CSP builder (closes with `#802`, which removes Supabase from both apps)
 - `#251` Re-exclude _next/static and _next/image from the web proxy matcher
 - `#206` Serve a real robots.txt on the web app and stop the auth proxy swallowing root text files
 - `#208` Turn on 3D Secure for the Stripe card flow
@@ -383,7 +374,12 @@ Current operational rules above take precedence when a record conflicts.
 - Workers often forget the `parity:exempt` label on a one-sided mobile change; Cross-Platform Parity then fails until the label and a `## Parity` line are added (`#736` moves the check into delivery).
 - A worker branch has a launch cap of two; a review-fix relaunch beyond it needs `--relaunch-reason`, or the launcher refuses without starting a worker.
 - Admission refuses new ticket work when open pull requests plus live reservations exceed ten across the three repositories; review fixes on open pull requests are still admitted.
-- Until Batch M lands, `orbit-api` auto-deploys to Render on every push to `main`. After it, production deploys only through `deploy-api.yml`, `deploy-web.yml` and `android-release.yml`, run by `/release`.
+- Production deploys only through `deploy-api.yml`, `deploy-web.yml` and `android-release.yml` (open and production tracks), run by `/release`, each waiting for the owner's `production` approval. Render auto-deploy is off for the production API. Applying Terraform to `render_web_service.production_api` makes Render deploy the branch head outside that gate: cancel that deploy (`POST /v1/services/{id}/deploys/{deployId}/cancel`) unless an approved release of the same commit is intended. Environment group updates start no deploy; the service picks them up at its next deploy.
+- Render provider v1.9.1 turns a digest image path into a tag on any web service update, so an existing web service is never updated through Terraform; the release workflows own web digests (`ignore_changes` on the digest) and the `#814` guard rejects in-place web service updates before apply.
+- The staging API (`orbit-api-staging`, free) auto-deploys `orbit-api` `redesign/main`; the staging web (`orbit-web-staging`, `srv-dass1t0jo6nc73d5s340`) takes each image `web-image.yml` builds on a push to `orbit-ui-mobile` `redesign/main`. Health: `https://orbit-api-staging-uqu2.onrender.com/health` and `https://orbit-web-staging-eakn.onrender.com/api/health`; the custom hosts `api-staging.useorbit.org` and `staging.useorbit.org` resolve through Cloudflare. The GHCR package `orbit-web` is public, so Render pulls it without a credential.
+- Staging billing runs on Stripe test mode: product, four prices and the webhook exist, with ids and secrets in SSM `/orbit/staging/api/Stripe__*`; `Stripe:PublishableKey` was deleted because nothing read it.
+- `useorbit.org` DNS is served by Cloudflare (zone `3f80ecc2735314886702b6643b15d150`, nameservers `candy` and `tom`). Cloudflare DNSSEC signs the zone (KSK key tag 2371, algorithm 13); its DS record (digest type 2, digest `550CC9A0902AC2319B30F903A53F7D487E2172A4B2E65C587348A0867EC2DC46`) is added at Spaceship > useorbit.org > DNSSEC. Never add a DS whose zone is not the delegated, signed one: that breaks resolution for validating resolvers.
+- Apply Terraform only with `-target` lists that exclude the web services and the production API service unless the change is intended; a full plan still carries items that need the approved release first.
 - The repositories stay public: GitHub-hosted CI is free only for public repositories (one day measured 21,300 Linux minutes across the three), CodeQL's licence covers only open source code, and GitHub Environment required reviewers are free only on public repositories. Never commit Terraform state or a secret.
 - Render free web services sleep after 15 minutes without inbound traffic; free Postgres expires 30 days after creation, has no backups and is limited to one per workspace. Staging is built around both limits.
 - The Render MCP creates services, triggers deploys, edits environment variables and reads logs, metrics and read-only SQL; it cannot delete or change other settings, so those go through Terraform or the Render API.
@@ -408,22 +404,24 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Batch M is under way; production still runs on the old stack (API on Render with auto-deploy on `main`, web on Vercel, database and Google OAuth broker on Supabase, email on Resend, DNS at Spaceship). Supabase Auth answers HTTP 402 for exceeding its egress quota, so Google sign-in is down until `#796` and `#802` ship; email-code sign-in works.
+Batch M is most of the way through. On the new stack now: the API runs on Render with auto-deploy off and deploys only through `deploy-api.yml` (the first run waits for the owner's approval, so production still serves the code merged before the release gate); Terraform owns Render, Cloudflare and AWS; `useorbit.org` DNS is delegated to Cloudflare with every record identical to the old Spaceship zone; staging web and API run on Render from `redesign/main`, with Stripe test billing configured; production web still runs on Vercel, the production database is still Supabase Postgres, uploads still target Supabase Storage (which answers HTTP 402, so uploads fail today), and email still goes through Resend.
 
-Built and live on the new stack: Terraform state and secrets in AWS (account 713285551626, us-east-2, CLI user `orbit-operator`); the Render project Orbit with a Production and a Staging environment; production Postgres 17 (1 GB, empty until the data copy); the landing on a free Render static site serving the current `main` build; the staging API (free, auto-deploys `redesign/main`, healthy) on its own free Postgres (a free database expires 30 days after creation; `#801` automates the recreate); waitlist contacts stored in Orbit's database with the single Resend contact imported; `production` GitHub environments that require the owner in all three repositories; the Google OAuth client allows the app, staging and localhost `/auth-callback` redirects; the Cloudflare account and token, and the Spaceship zone's 16 records exported into `#804`.
+Shipped on `main` and live on Vercel web: Google sign-in through the API authorization-code exchange (Supabase Auth is no longer used by web), PostHog client analytics behind the `analytics` flag row (enabled in production), signed-out `/ingest` requests, one open habit row menu at a time, the web CSP with the S3 bucket and API image origins, the `/release` skill, the public-host check after cutover, and the uncached mobile pre-commit lint. The Android side of these ships with the next open-track build.
+
+Staging login is broken: the email code is never sent (staging email configuration), and Google sign-in on staging still goes through Supabase because `redesign/main` does not yet carry `#1219`; the `#556` carry of `main`'s newest seven commits is the fix for the second.
 
 Open pull requests:
 
-- Approved at their current head with green checks, ready to merge: `api#622` (Google code sign-in; production already has `Google__AllowedRedirectUris__0`), `ui#1214` (Android tracks and MCP endpoint), `ui#1215` (web Docker image, release workflows, production smoke), `ui#1216` (PostHog analytics, fail-closed).
-- Need a review round: `api#623` (Cloudflare DNS; one P1 thread on `infra/README.md`), `api#624` (API release workflow; body finding, turn Render auto-deploy off before merging), `api#625` (S3 uploads, first review pending), `api#626` (staging lifecycle, first review pending).
-- Held until cutover: `ui#1217` (privacy processors); its three open threads are correct timing guards.
+- `api#628` SES (approved; SonarCloud red on new-code findings), `api#631` web plan guard (first review round), `api#626` staging lifecycle (approved; GitGuardian false positive), `api#625` S3 uploads (SonarCloud `terraform:S6258` on the access-log bucket), `ui#1217` privacy processors (held until cutover).
 
 Waiting on the owner:
 
+- Approve the waiting `Deploy API` run in `orbit-api` (production environment).
+- Accept SonarCloud `terraform:S6258` on `api#625` and resolve GitGuardian incident 37676070 on `api#626` as a test credential; both are false positives only a signed-in human can clear.
 - The redesign approval at THE REDESIGN GATE, on staging.
 - A device test of `#390` (bulk log replay) and `#134` (three-dot menu) on the current open-track build.
 - After the migration is verified: the final delete click on the Supabase project, the Vercel projects and Resend.
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Stale worktrees: every worktree of a merged Batch M branch (`ticket-793`, `ticket-795`, `ticket-798`) is clean and removable with `node tools/teardown-worktree.mjs`; older ones from earlier batches remain (list with `git worktree list` in each repository and verify each before removing it).
+Stale worktrees: every worktree of a merged branch is clean and removable with `node tools/teardown-worktree.mjs`; list them with `git worktree list` in each repository and verify each before removing it.
