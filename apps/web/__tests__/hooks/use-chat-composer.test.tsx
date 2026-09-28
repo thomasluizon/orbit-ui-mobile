@@ -130,6 +130,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
+import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
 import ProfilePage from '@/app/(app)/profile/page'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
@@ -345,6 +346,17 @@ describe('web useChatComposer streaming send', () => {
     const [, request] = mocks.fetch.mock.calls.find(([, options]) => options?.body instanceof FormData)!
     const context = JSON.parse((request.body as FormData).get('clientContext') as string)
     expect(context.entryPointIntent).toBe(expectedIntent)
+  })
+
+  it('registers recovery translations when the conversation is opened through the app layout', async () => {
+    mocks.pathname = '/support'
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+      expiresAt: Date.now() + 3_600_000, userId: 'test-user', refreshFailed: false,
+    })))
+    setApiFetchTranslate(() => 'unregistered')
+    render(<AppLayout><p>Support</p></AppLayout>)
+
+    await waitFor(() => expect(translateApiFetchMessage('errors.api.appUpdated')).toBe('errors.api.appUpdated'))
   })
 
   it('omits Support entry intent from a normal conversation', async () => {
