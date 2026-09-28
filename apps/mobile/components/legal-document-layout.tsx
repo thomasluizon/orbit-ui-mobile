@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -27,7 +27,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
-      <AppBar backLabel={backLabel} onBack={onBack} title={title} />
+      <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>

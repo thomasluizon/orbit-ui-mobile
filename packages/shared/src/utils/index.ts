@@ -109,7 +109,9 @@ export { isFeatureEnabled } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
+  resolveShellChrome,
   SHELL_DESTINATION_ROUTES,
+  SHELL_ROOT_ROUTES,
 } from './shell-destinations'
 export type {
   ShellDestinationId,

@@ -37,7 +37,7 @@ import {
   readStoredSupportDraft,
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
@@ -405,7 +405,7 @@ export default function SupportScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('profile.support.title')}
         backLabel={t('common.backToProfile')}

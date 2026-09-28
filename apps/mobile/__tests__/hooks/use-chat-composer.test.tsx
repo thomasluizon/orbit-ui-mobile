@@ -374,8 +374,6 @@ describe('mobile useChatComposer', () => {
   })
 
   it.each([
-    ['/support', 'open', 'support'],
-    ['/support', 'direct-send', 'support'],
     ['/profile', 'open', undefined],
     ['/profile', 'direct-send', undefined],
   ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {

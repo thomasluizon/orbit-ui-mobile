@@ -25,7 +25,7 @@ import {
   readStoredSupportDraft,
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
@@ -178,13 +178,13 @@ export default function SupportPage() {
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
-      <div className="flex flex-col min-h-[100dvh]">
-        <AppBar
+      <div className="flex flex-col">
+        <PageHeader
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.support.title')}
         />
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div className="min-h-0 flex-1 px-4 py-4">
           <p role="status" aria-live="polite" className="sr-only">
             {success ? t('profile.support.success') : ''}
           </p>

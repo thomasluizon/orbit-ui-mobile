@@ -7,6 +7,7 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -15,12 +16,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { resolveShellDestination } from '@orbit/shared/utils'
+import { resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
-import { AppBar } from '@/components/ui/app-bar'
-import { SearchHeaderAction } from '@/components/search/search-header-action'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -50,6 +49,7 @@ interface ShellComposerSlotContextValue {
 }
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
+const ShellHeaderSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 
 function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
@@ -75,6 +75,13 @@ export function useShellComposerSlot(
   }, [enabled, host, refreshKey])
 }
 
+export function useShellHeaderSlot(renderer: ComposerRenderer, refreshKey: string) {
+  const host = useContext(ShellHeaderSlotContext)
+  const registerRenderer = useEffectEvent(() => host?.register(renderer))
+  useEffect(() => registerRenderer(), [host, refreshKey])
+  return host !== null
+}
+
 type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
 
 const ROUTES: Record<BottomTab, string> = {
@@ -85,7 +92,7 @@ const ROUTES: Record<BottomTab, string> = {
 }
 
 function hasPrimaryNavigation(pathname: string): boolean {
-  return pathname !== '/upgrade' && pathname !== '/wrapped'
+  return pathname !== '/wrapped'
 }
 
 function getAccountLabel(profile: { name: string; email: string } | null | undefined) {
@@ -126,6 +133,7 @@ export function DestinationShell({
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
+  const registeredHeader = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
   const hostedNotice = registeredNotice.content === undefined
     ? notice
@@ -134,7 +142,9 @@ export function DestinationShell({
   return (
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotContext.Provider value={registeredComposer.value}>
+        <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
         <DestinationShellContent
+          header={registeredHeader.content}
           notice={hostedNotice}
           composer={registeredComposer.content ?? composer}
           conversation={conversation}
@@ -144,6 +154,7 @@ export function DestinationShell({
         >
           {children}
         </DestinationShellContent>
+        </ShellHeaderSlotContext.Provider>
       </ShellComposerSlotContext.Provider>
     </ShellNoticeSlotProvider>
   )
@@ -151,24 +162,43 @@ export function DestinationShell({
 
 function DestinationShellContent({
   children,
+  header,
   notice,
   composer,
   conversation,
   conversationOpen,
   conversationLabel,
   onCreate,
-}: Readonly<DestinationShellProps>) {
+}: Readonly<DestinationShellProps & { header?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
+  const previousPathname = useRef(pathname)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
+  const lastDestination = useShellStore((state) => state.lastDestination)
+  const setLastDestination = useShellStore((state) => state.setLastDestination)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
-  const navigationEnabled = hasPrimaryNavigation(pathname)
+  const chrome = resolveShellChrome(pathname, lastDestination)
+  useEffect(() => {
+    if (destination && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, pathname, setLastDestination])
+  useEffect(() => {
+    if (previousPathname.current === pathname) return
+    previousPathname.current = pathname
+    const frame = requestAnimationFrame(() => {
+      const heading = document.querySelector<HTMLElement>('[data-shell-header] h1, [data-shell-scroller] h1')
+      const target = heading ?? document.querySelector<HTMLElement>('[data-shell-scroller]')
+      if (target && !target.hasAttribute('tabindex')) target.tabIndex = -1
+      target?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pathname])
+  const navigationEnabled = hasPrimaryNavigation(pathname) && (wide || !chrome.flow)
   const conversationSlot = conversation !== undefined && conversationLabel
     ? { conversation, conversationOpen, conversationLabel }
     : {}
@@ -233,6 +263,9 @@ function DestinationShellContent({
       onCreateHabit={() => setShowCreateModal(true)}
     />
   )
+  const wideCreate = pathname === '/upgrade'
+    ? { onCreate: undefined, createLabel: undefined }
+    : { onCreate, createLabel: t('nav.create') }
 
   if (pathname === '/wrapped') {
     return children
@@ -240,11 +273,11 @@ function DestinationShellContent({
 
   if (!navigationEnabled) {
     const flow = wide ? (
-      <ShellWide nav={false} notice={notice}>
+      <ShellWide nav={false} header={header} notice={notice}>
         {children}
       </ShellWide>
     ) : (
-      <Shell412 nav={false} notice={notice}>
+      <Shell412 nav={false} header={header} notice={notice}>
         {children}
       </Shell412>
     )
@@ -263,17 +296,17 @@ function DestinationShellContent({
         <ShellWide
           {...conversationSlot}
           items={wideItems}
-          activeId={destination}
+          activeId={chrome.activeId}
           navLabel={t('nav.mainNavigation')}
           onSelect={(id) => navigate(id as BottomTab)}
-          onCreate={onCreate}
-          createLabel={t('nav.create')}
+          {...wideCreate}
           account={getAccountLabel(profile)}
           onPalette={() => setPaletteOpen(true)}
           paletteLabel={t('command.title')}
           paletteHint={paletteHint}
           notice={notice}
-          composer={pathname === '/notifications' ? undefined : composer}
+          header={header}
+          composer={chrome.composer ? composer : undefined}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -285,11 +318,11 @@ function DestinationShellContent({
   return (
     <>
       <Shell412
-        header={destination && pathname !== '/profile' ? <AppBar title={labels[destination]} action={<SearchHeaderAction />} /> : undefined}
+        header={header}
         {...conversationSlot}
         tabBar={
           <BottomTabBar
-            activeId={destination ?? ''}
+            activeId={chrome.activeId}
             items={[
               { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
               { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
@@ -308,7 +341,7 @@ function DestinationShellContent({
           ) : undefined
         }
         notice={notice}
-        composer={pathname === '/notifications' ? undefined : composer}
+        composer={chrome.composer ? composer : undefined}
       >
         {children}
       </Shell412>

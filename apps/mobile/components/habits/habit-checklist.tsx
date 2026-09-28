@@ -580,7 +580,6 @@ function createStyles(tokens: AppTokens) {
   },
   itemTextChecked: {
     color: tokens.fg3,
-    textDecorationLine: 'line-through',
   },
   addItemRow: {
     flexDirection: 'row',

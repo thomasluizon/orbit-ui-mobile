@@ -41,7 +41,7 @@ type ExpectedPalette = {
 type ExpectedNav = {
   nav?: true
   items: ShellWideItem[]
-  activeId: string | null
+  activeId: string
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
@@ -145,7 +145,7 @@ export type ShellWideTypeContract = [
   Assert<IsExactWidth<ShellWideProps['paletteHint'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['nav'], boolean | undefined>>,
   Assert<IsExactWidth<ShellWideProps['items'], ShellWideItem[] | undefined>>,
-  Assert<IsExactWidth<ShellWideProps['activeId'], string | null | undefined>>,
+  Assert<IsExactWidth<ShellWideProps['activeId'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['onSelect'], ((id: string) => void) | undefined>>,
   Assert<IsExactWidth<ShellWideProps['navLabel'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['account'], string | undefined>>,

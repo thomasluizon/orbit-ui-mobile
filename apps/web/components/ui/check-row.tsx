@@ -29,7 +29,7 @@ export function CheckRow({
       <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span
-          className={`text-base font-medium ${checked ? 'text-[var(--fg-3)] line-through' : 'text-[var(--fg-1)]'}`}
+          className={`text-base font-medium ${checked ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}
         >
           {label}
         </span>

@@ -1,4 +1,5 @@
 import type { HabitsFilter } from "../types/habit";
+import type { ShellDestinationId } from "../utils/shell-destinations";
 import { formatAPIDate } from "../utils/dates";
 import { isRecord } from "../utils/is-record";
 import {
@@ -66,6 +67,8 @@ export function migratePersistedUIState(
 }
 
 export interface UIStoreState {
+  lastDestination: ShellDestinationId;
+  setLastDestination: (destination: ShellDestinationId) => void;
   activeFilters: HabitsFilter;
   setFilters: (filters: Partial<HabitsFilter>) => void;
 
@@ -180,6 +183,8 @@ export function createUIStoreState(
   }
 
   return {
+    lastDestination: "hoje",
+    setLastDestination: (lastDestination) => set({ lastDestination }),
     activeFilters: {},
     setFilters: (filters) =>
       set((state) => ({
