@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import {
   useFonts,
   Rubik_400Regular,
@@ -100,7 +101,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         try { await restoreQueryCache() } catch {}
         syncWidgetDataSafely()
       } else {
-        queryClient.clear()
+        void resetAccountQueries(queryClient)
         try { await clearPersistedQueryCache() } catch {}
       }
 

@@ -82,6 +82,25 @@ describe('useAccountScopedMutation', () => {
     await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
   })
 
+  it('reconciles a write that started before the first session check adopted the account', async () => {
+    account.id = null
+    const gate = deferred()
+    const entered = deferred()
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => { entered.release(); await gate.promise },
+    }), { wrapper })
+
+    act(() => { result.current.mutate() })
+    await entered.promise
+    account.id = 'account-a'
+    account.generation = 2
+    await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
+  })
+
   it('clears optimistic data and reports an account refusal without local error state', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     queryClient.setQueryData(['habits'], 'optimistic account-a row')

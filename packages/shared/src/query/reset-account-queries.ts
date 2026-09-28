@@ -4,7 +4,7 @@ export function resetAccountQueries(queryClient: QueryClient): Promise<void> {
   notifyManager.batch(() => {
     const queryCache = queryClient.getQueryCache()
     for (const query of queryCache.getAll()) {
-      if (!query.isActive()) {
+      if (query.getObserversCount() === 0) {
         queryCache.remove(query)
         continue
       }

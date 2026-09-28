@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check, RotateCcw, X } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
@@ -157,7 +158,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         clearChecklistTemplates(),
         AsyncStorage.removeItem(accountStorageKey('orbit_trial_expired_seen')),
       ])
-      queryClient.clear()
+      void resetAccountQueries(queryClient)
       await clearPersistedQueryCache()
       onClose()
       setShowFreshStartAnim(true)
@@ -171,7 +172,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   function handleFreshStartComplete() {
     setShowFreshStartAnim(false)
-    queryClient.clear()
+    void resetAccountQueries(queryClient)
     router.replace('/')
   }
 

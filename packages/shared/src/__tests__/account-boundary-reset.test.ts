@@ -3,6 +3,27 @@ import { describe, expect, it, vi } from 'vitest'
 import { resetAccountQueries } from '../query/reset-account-queries'
 
 describe('account boundary reset', () => {
+  it('removes unobserved data while notifying disabled observers', async () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(['unobserved'], 'account-a')
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['disabled'],
+      queryFn: async () => 'account-b',
+      enabled: false,
+      initialData: 'account-a',
+    })
+    const seen: Array<string | undefined> = []
+    const unsubscribe = observer.subscribe((result) => seen.push(result.data))
+    try {
+      await resetAccountQueries(queryClient)
+      expect(queryClient.getQueryData(['unobserved'])).toBeUndefined()
+      expect(observer.getCurrentResult().data).toBeUndefined()
+      expect(seen).toContain(undefined)
+    } finally {
+      unsubscribe()
+    }
+  })
+
   it('settles a mounted observer whose first fetch was cancelled', async () => {
     const queryClient = new QueryClient()
     let answer: (value: string) => void = () => {}

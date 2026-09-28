@@ -11,6 +11,9 @@ import { useChatStore } from '@/stores/chat-store'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
 import { accountStorageKey } from '@/lib/account-storage-key'
+import { QueryObserver } from '@tanstack/query-core'
+import { profileKeys } from '@orbit/shared/query'
+import { getQueryClient } from '@/lib/query-client'
 
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
@@ -22,6 +25,38 @@ vi.mock('@/lib/posthog', () => posthogMocks)
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
+
+describe('the first session check under a query in flight', () => {
+  it('settles the mounted observer after the account boundary', async () => {
+    const queryClient = getQueryClient()
+    useAuthStore.setState({ heldAccountId: null })
+    let answer: (profile: { name: string }) => void = () => {}
+    const serverAnswer = new Promise<{ name: string }>((resolve) => { answer = resolve })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: profileKeys.detail(),
+      queryFn: () => serverAnswer,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('fetching'))
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-a' }),
+      })
+
+      await useAuthStore.getState().checkSession()
+      answer({ name: 'answered' })
+
+      await vi.waitFor(() => expect(observer.getCurrentResult()).toMatchObject({
+        status: 'success', fetchStatus: 'idle', data: { name: 'answered' },
+      }))
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+})
 
 describe('auth store', () => {
   beforeEach(() => {
