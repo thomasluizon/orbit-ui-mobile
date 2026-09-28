@@ -50,7 +50,6 @@ export default defineConfig({
         'components/auth/email-step.tsx',
         'components/auth/login-atoms.tsx',
         'app/login.tsx',
-        'app/preferences-labels.ts',
         'components/profile/preferences-sections.tsx',
         'app/privacy.tsx',
         'app/r/[code].tsx',

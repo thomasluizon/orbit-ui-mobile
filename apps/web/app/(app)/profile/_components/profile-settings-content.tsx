@@ -7,7 +7,7 @@ import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
-import { buildWeekStartOptions } from '@orbit/shared/utils'
+import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -51,8 +51,7 @@ import { isStepUpVerified } from '@/lib/step-up-storage'
 import { getAnalyticsOptOut, setAnalyticsOptOut, subscribeAnalyticsOptOut } from '@/lib/posthog'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
-import { derivePreferenceLabels } from '@/app/(app)/preferences/_components/preference-labels'
-import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
+import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
@@ -89,21 +88,14 @@ function buildYouRows(
   onOpenTimeZone: () => void,
   controls: ReturnType<typeof usePreferenceControls>,
 ) {
-  const planLabel = profile?.isTrialActive
-    ? t('profile.subscription.trial')
-    : profile?.hasProAccess
-      ? t('profile.subscription.pro')
-      : t('profile.subscription.free')
-  const timeZoneLabel = profile?.timeZone
-    ? t('profile.settingsRows.timezoneValue', { timeZone: profile.timeZone })
-    : t('profile.settingsRows.timezone')
-  const { languageLabel, weekStartLabel } = derivePreferenceLabels(t, {
+  const { planLabelKey, timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
+    profile,
     selectedLanguage: controls.selectedLanguage,
-    currentTheme: controls.currentTheme,
-    weekStartDay: profile?.weekStartDay,
-    themeModeOptions: [],
     weekStartOptions: buildWeekStartOptions(t),
   })
+  const timeZoneLabel = timeZone
+    ? t('profile.settingsRows.timezoneValue', { timeZone })
+    : t('profile.settingsRows.timezone')
   const themeChoice = (
     <div role="group" aria-label={t('preferences.themeMode')} className="flex max-w-full flex-wrap gap-1">
       {(['dark', 'light'] as const).map((mode) => (
@@ -134,7 +126,7 @@ function buildYouRows(
       </div>
       <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
     </div>,
-    <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push('/upgrade')} />,
+    <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={t(planLabelKey)} onClick={() => router.push('/upgrade')} />,
     <ListRow key="export" icon={icon(Download)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
   ]
 }
@@ -145,6 +137,7 @@ function buildAstraRows(
   apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push('/upgrade')
+  const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <div className="flex flex-col" style={{ gap: 32 }}>
       <div className="flex flex-col" style={{ gap: 12 }}>
@@ -153,29 +146,15 @@ function buildAstraRows(
       ) : null}
       {profile ? (
         <RowList>
-          {profile.hasProAccess ? (
-            [
-              <ProfileValueRow
-                key="proactive"
-                label={t('profile.proactiveAstra.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
-                )}
-              />,
-              <ProfileValueRow
-                key="summary"
-                label={t('profile.aiSummary.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
-                )}
-              />,
-            ]
+          {astraFeatures.map((feature) => !feature.locked ? (
+            <ProfileValueRow
+              key={feature.key}
+              label={t(feature.labelKey)}
+              control={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
+            />
           ) : (
-            [
-              <ListRow key="proactive" icon={icon(Lock)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
-              <ListRow key="summary" icon={icon(Lock)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />,
-            ]
-          )}
+            <ListRow key={feature.key} icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+          ))}
         </RowList>
       ) : null}
       </div>
@@ -192,17 +171,7 @@ interface TimeZonePickerProps {
 }
 
 function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePickerProps>) {
-  const weekStartOptions = buildWeekStartOptions(t)
-  const themeModeOptions = [
-    { value: 'dark' as const, label: t('preferences.themeModeDark') },
-    { value: 'light' as const, label: t('preferences.themeModeLight') },
-  ]
-  const pickerTitles: Record<PreferencePicker, string> = {
-    language: t('profile.language.title'),
-    theme: t('preferences.themeMode'),
-    timeZone: t('profile.settingsRows.timezone'),
-    weekStart: t('settings.weekStartDay.title'),
-  }
+  const pickerLabels = buildProfilePickerLabels(t)
 
   return (
     <PreferencePickerSheet
@@ -212,16 +181,7 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
       currentTheme={controls.currentTheme}
       timeZone={profile?.timeZone}
       weekStartDay={profile?.weekStartDay}
-      themeModeOptions={themeModeOptions}
-      weekStartOptions={weekStartOptions}
-      pickerTitles={pickerTitles}
-      pickerDescriptions={{
-        language: t('profile.language.description'),
-        weekStart: t('settings.weekStartDay.description'),
-      }}
-      timeZoneSearchLabel={t('profile.timezonePicker.search')}
-      timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
-      timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
+      {...pickerLabels}
       onClose={() => controls.setActivePicker(null)}
       onLanguageChange={(locale) => void controls.handleLanguageChange(locale)}
       onThemeModeChange={controls.handleThemeModeChange}

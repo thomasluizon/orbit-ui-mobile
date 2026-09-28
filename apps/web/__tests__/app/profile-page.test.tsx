@@ -19,6 +19,10 @@ const {
   mockApiKeys,
   mockCreateApiKey,
   mockRequestApiKeyCreationChallenge,
+  mockApplyTheme,
+  mockUpdateWeekStartDay,
+  mockUpdateLanguage,
+  mockTogglePush,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -33,6 +37,10 @@ const {
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockCreateApiKey: vi.fn(),
   mockRequestApiKeyCreationChallenge: vi.fn(),
+  mockApplyTheme: vi.fn(),
+  mockUpdateWeekStartDay: vi.fn(),
+  mockUpdateLanguage: vi.fn(),
+  mockTogglePush: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -46,6 +54,20 @@ vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
   updateProactiveAstra: mockUpdateProactiveAstra,
+  updateWeekStartDay: mockUpdateWeekStartDay,
+  updateLanguage: mockUpdateLanguage,
+}))
+
+vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  usePushNotificationPreferences: () => ({
+    supported: true,
+    subscribed: false,
+    permission: 'default',
+    loading: false,
+    status: 'not-registered',
+    togglePush: mockTogglePush,
+  }),
 }))
 
 vi.mock('@/lib/actions/api-keys', () => ({
@@ -77,7 +99,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-color-scheme', () => ({
-  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: vi.fn() }),
+  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: mockApplyTheme }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -120,8 +142,8 @@ vi.mock('@/hooks/use-gamification', () => ({
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => 'account-a',
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: vi.fn() }),
+  useAuthStore: (selector: (state: { logout: () => void; isAuthenticated: boolean }) => unknown) =>
+    selector({ logout: vi.fn(), isAuthenticated: true }),
   useHeldAccountId: () => 'user-1',
 }))
 
@@ -190,6 +212,10 @@ describe('ProfilePage', () => {
     mockApiKeys.current = []
     mockCreateApiKey.mockReset()
     mockRequestApiKeyCreationChallenge.mockReset().mockResolvedValue(undefined)
+    mockApplyTheme.mockReset()
+    mockUpdateWeekStartDay.mockReset().mockResolvedValue(undefined)
+    mockUpdateLanguage.mockReset().mockRejectedValue(new Error('save failed'))
+    mockTogglePush.mockReset().mockResolvedValue(undefined)
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -282,6 +308,39 @@ describe('ProfilePage', () => {
     expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
     expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
     expect(screen.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
+  })
+
+  it('changes the inline theme and general habits preference', () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem')
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
+    expect(mockApplyTheme).toHaveBeenCalledWith('light')
+
+    const showGeneral = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
+    fireEvent.click(showGeneral)
+    expect(showGeneral).toHaveAttribute('aria-checked', 'true')
+    expect(write).toHaveBeenCalledWith(expect.stringContaining('orbit_show_general_on_today'), 'true')
+    write.mockRestore()
+  })
+
+  it('commits a week start choice from the inline picker', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /settings\.weekStartDay\.title/i }))
+    fireEvent.click(screen.getByRole('radio', { name: 'settings.weekStartDay.sunday' }))
+    expect(mockUpdateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, 'account-a')
+  })
+
+  it('submits a language choice from the inline picker', async () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile\.language\.title/i }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Português' }))
+    await waitFor(() => expect(mockUpdateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a'))
+  })
+
+  it('uses the inline notification switch to toggle browser push', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'settings.notifications.title' }))
+    expect(mockTogglePush).toHaveBeenCalledOnce()
   })
 
   it('keeps the share card reachable outside Ending things', () => {
