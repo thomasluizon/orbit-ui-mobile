@@ -1595,7 +1595,7 @@
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Ver Pro",
-      "open": "Gerir chaves de API",
+      "open": "Gerenciar chaves de API",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
