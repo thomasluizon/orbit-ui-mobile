@@ -323,6 +323,15 @@ describe('ProfilePage', () => {
     write.mockRestore()
   })
 
+  it('routes the plan row to upgrade and opens widget help inline', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile\.subscription\.plan/i }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+
+    fireEvent.click(screen.getByRole('button', { name: /profile\.widgetTitle/i }))
+    expect(screen.getByRole('dialog', { name: 'profile.widgetTitle' })).toBeInTheDocument()
+  })
+
   it('commits a week start choice from the inline picker', () => {
     render(<ProfilePage />)
     fireEvent.click(screen.getByRole('button', { name: /settings\.weekStartDay\.title/i }))

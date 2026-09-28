@@ -34,6 +34,7 @@ vi.mock('react-native', async (importOriginal) => {
     },
     Platform: { ...native.Platform, OS: 'android' },
     Linking: { ...native.Linking, openSettings: mockOpenSettings },
+    AppState: { ...native.AppState, addEventListener: mockAddAppStateListener },
   }
 })
 
@@ -59,6 +60,9 @@ const {
   mockDisablePushNotifications,
   mockOpenSettings,
   mockRequestPushPermission,
+  mockRefreshPushPermissionStatus,
+  mockAddAppStateListener,
+  mockRemoveAppStateListener,
   mockReminderSupported,
   mockToggleReminder,
   mockConversationOpen,
@@ -91,6 +95,9 @@ const {
   mockDisablePushNotifications: vi.fn(),
   mockOpenSettings: vi.fn(),
   mockRequestPushPermission: vi.fn(),
+  mockRefreshPushPermissionStatus: vi.fn(),
+  mockRemoveAppStateListener: vi.fn(),
+  mockAddAppStateListener: vi.fn(),
   mockReminderSupported: { current: false },
   mockToggleReminder: vi.fn(),
   mockConversationOpen: { current: false },
@@ -171,7 +178,7 @@ vi.mock('@/hooks/use-push-notifications', () => ({
     isLoading: false,
     permissionStatus: mockPushPermissionStatus.current,
     registrationStatus: 'unsupported',
-    refreshPermissionStatus: vi.fn(),
+    refreshPermissionStatus: mockRefreshPushPermissionStatus,
     disablePushNotifications: mockDisablePushNotifications,
     requestPermission: mockRequestPushPermission,
   }),
@@ -519,6 +526,9 @@ describe('ProfileScreen', () => {
     mockDisablePushNotifications.mockReset().mockResolvedValue(undefined)
     mockOpenSettings.mockReset().mockResolvedValue(undefined)
     mockRequestPushPermission.mockReset().mockResolvedValue(undefined)
+    mockRefreshPushPermissionStatus.mockReset().mockResolvedValue(undefined)
+    mockRemoveAppStateListener.mockReset()
+    mockAddAppStateListener.mockReset().mockReturnValue({ remove: mockRemoveAppStateListener })
     mockReminderSupported.current = false
     mockToggleReminder.mockReset().mockResolvedValue(undefined)
     mockConversationOpen.current = false
@@ -1354,6 +1364,8 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
+      node.type === 'SheetStub' && node.props.title === 'profile.widgetTitle')).toHaveLength(1)
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
@@ -1388,6 +1400,34 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/support')
     expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+  })
+
+  it('routes the plan row to upgrade with the profile return path', async () => {
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.subscription.plan').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/upgrade', params: { from: '/profile' } })
+  })
+
+  it('refreshes push permission when the app becomes active', async () => {
+    mockPushSupported.current = true
+    const tree = await renderProfileScreen()
+    expect(mockAddAppStateListener).toHaveBeenCalledWith('change', expect.any(Function))
+    const onAppStateChange = mockAddAppStateListener.mock.calls[0]?.[1] as (state: string) => void
+    await TestRenderer.act(async () => {
+      onAppStateChange('background')
+      await Promise.resolve()
+    })
+    expect(mockRefreshPushPermissionStatus).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      onAppStateChange('active')
+      await Promise.resolve()
+    })
+    expect(mockRefreshPushPermissionStatus).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+    expect(mockRemoveAppStateListener).toHaveBeenCalledOnce()
   })
 
   it('changes theme and general habits from their inline controls', async () => {
