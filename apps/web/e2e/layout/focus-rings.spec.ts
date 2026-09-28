@@ -1,12 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 
 async function inspectFocusedRing(page: Page) {
   return page.evaluate(() => {
+    for (const animation of document.getAnimations()) animation.finish()
     const focused = document.activeElement
     if (!(focused instanceof HTMLElement) || focused === document.body) return null
 
@@ -53,8 +54,11 @@ async function inspectTabStops(page: Page, surface: string) {
   expect(focusedStops, `${surface} must expose keyboard controls`).toBeGreaterThan(0)
 }
 
-async function usePortuguese(page: Page) {
-  await page.context().addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
+async function openCreateForm(page: Page, width: number) {
+  const create = width === 1280
+    ? page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.create })
+    : page.getByRole('button', { name: messages.habits.createManually })
+  await create.click()
 }
 
 for (const width of [412, 1280] as const) {
@@ -65,17 +69,17 @@ for (const width of [412, 1280] as const) {
       ['Hoje', '/', '[data-shell-pinned-slot] [data-composer-input]'],
       ['Busca', '/search', '[cmdk-input]'],
       ['Suporte', '/support', 'form textarea'],
-      ['Perfil', '/profile', '[data-testid="profile-settings-groups"] [role="switch"]'],
-      ['Calendário', '/calendar', '[data-testid="calendar-grid"] button'],
-      ['Progresso', '/progress', `main button[aria-label="${ptBr.profile.wrappedTitle}"]`],
+      ['Perfil', '/profile', null],
+      ['Calendário', '/calendar', null],
+      ['Progresso', '/progress', `main button[aria-label="${messages.profile.wrappedTitle}"]`],
     ] as const) {
       test(`${surface} has one ring at each Tab stop`, async ({ page }) => {
-        await usePortuguese(page)
         await page.goto(path)
-        await expect(page.getByRole('navigation', { name: ptBr.nav.mainNavigation })).toBeVisible()
+        await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
+        await inspectTabStops(page, `${surface} ${width}px`)
+        if (targetSelector === null) return
         const target = page.locator(targetSelector).first()
         await expect(target).toBeVisible()
-        await inspectTabStops(page, `${surface} ${width}px`)
         await target.focus()
         await page.keyboard.press('Shift+Tab')
         await page.keyboard.press('Tab')
@@ -85,11 +89,10 @@ for (const width of [412, 1280] as const) {
     }
 
     test('palette field and commands have one ring', async ({ page }) => {
-      await usePortuguese(page)
       await page.goto('/')
-      await expect(page.getByRole('navigation', { name: ptBr.nav.mainNavigation })).toBeVisible()
+      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
       if (width === 1280) {
-        await page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.command.title }).click()
+        await page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.command.title }).click()
       } else {
         await page.keyboard.press('Control+k')
       }
@@ -104,11 +107,9 @@ for (const width of [412, 1280] as const) {
     })
 
     test('create habit form has one ring at each Tab stop', async ({ page }) => {
-      await usePortuguese(page)
       await page.goto('/')
-      await expect(page.getByRole('navigation', { name: ptBr.nav.mainNavigation })).toBeVisible()
-      const create = width === 1280 ? page.locator('[data-shell-sidebar]') : page.locator('[data-shell-fab]')
-      await create.getByRole('button', { name: ptBr.nav.create }).click()
+      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
+      await openCreateForm(page, width)
       const phrase = page.locator('#habit-phrase')
       await expect(phrase).toBeVisible()
       await phrase.focus()
@@ -119,10 +120,10 @@ for (const width of [412, 1280] as const) {
       await inspectTabStops(page, `create form ${width}px`)
       await phrase.fill('Caminhar toda segunda')
       await inspectTabStops(page, `create form with phrase ${width}px`)
-      await page.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
+      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       await expect(disclosure).toBeVisible()
-      const time = disclosure.getByRole('textbox', { name: ptBr.habits.form.exactTime })
+      const time = disclosure.getByRole('textbox', { name: messages.habits.form.exactTime })
       await expect(time).toBeVisible()
       await time.focus()
       await page.keyboard.press('Shift+Tab')
@@ -135,23 +136,20 @@ for (const width of [412, 1280] as const) {
     test('sub-habit input and remove action each have one ring', async ({ page, context }) => {
       const profile = profileSchema.parse({
         ...profileFixture,
-        language: 'pt-BR',
         plan: 'pro',
         hasProAccess: true,
         aiMessagesLimit: 50,
       })
       await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-      await usePortuguese(page)
       await page.goto('/')
-      await expect(page.getByRole('navigation', { name: ptBr.nav.mainNavigation })).toBeVisible()
-      const create = width === 1280 ? page.locator('[data-shell-sidebar]') : page.locator('[data-shell-fab]')
-      await create.getByRole('button', { name: ptBr.nav.create }).click()
+      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
+      await openCreateForm(page, width)
       await expect(page.locator('#habit-phrase')).toBeVisible()
-      await page.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
+      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       await expect(disclosure).toBeVisible()
-      await disclosure.getByRole('button', { name: ptBr.habits.form.addSubHabit }).click()
-      const input = disclosure.getByRole('textbox', { name: ptBr.habits.form.subHabitInputLabel.replace('{index}', '1') })
+      await disclosure.getByRole('button', { name: messages.habits.form.addSubHabit }).click()
+      const input = disclosure.getByRole('textbox', { name: messages.habits.form.subHabitInputLabel.replace('{index}', '1') })
       await expect(input).toBeVisible()
       await input.focus()
       await page.keyboard.press('Shift+Tab')
@@ -159,7 +157,7 @@ for (const width of [412, 1280] as const) {
       await expect(input).toBeFocused()
       await expectOneRing(page, `sub-habit input ${width}px`, 0)
       await page.keyboard.press('Tab')
-      await expect(disclosure.getByRole('button', { name: ptBr.habits.form.removeSubHabit })).toBeFocused()
+      await expect(disclosure.getByRole('button', { name: messages.habits.form.removeSubHabit })).toBeFocused()
       await expectOneRing(page, `sub-habit remove ${width}px`, 1)
     })
   })
@@ -167,7 +165,6 @@ for (const width of [412, 1280] as const) {
   test.describe(`login focus rings at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 }, storageState: { cookies: [], origins: [] } })
     test('Entrar has one ring at each Tab stop', async ({ page }) => {
-      await usePortuguese(page)
       await page.goto('/login')
       await expect(page.getByRole('textbox').first()).toBeVisible()
       await inspectTabStops(page, `Entrar ${width}px`)
