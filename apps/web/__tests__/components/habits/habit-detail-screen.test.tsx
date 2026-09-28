@@ -703,8 +703,8 @@ describe('HabitDetailScreen', () => {
 
   it('keeps the five content blocks in one column and discloses avoid-only fields', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    const main = document.querySelector('main')
-    if (!main) throw new Error('Expected the habit detail main surface')
+    const main = view.container.querySelector('[data-habit-detail-content]')
+    if (!main) throw new Error('Expected the habit detail content')
     const blocks = Array.from(main.children).filter((element) => (
       element.tagName === 'HEADER' || element.tagName === 'SECTION'
     ))

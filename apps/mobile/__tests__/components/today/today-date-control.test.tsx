@@ -23,6 +23,8 @@ const props = {
   todayLabel: 'Today',
   nextLabel: 'Next day',
   moreLabel: 'More actions',
+  searchLabel: 'Search',
+  onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
   refreshLabel: 'Refresh',
@@ -30,6 +32,7 @@ const props = {
   isFetching: false,
   ...callbacks,
 }
+
 
 function renderControl() {
   let renderer: ReturnType<typeof TestRenderer.create>
@@ -47,6 +50,13 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
+  it('opens search from the final control in the date row', () => {
+    const renderer = renderControl()
+    const search = button(renderer, 'Search')
+    if (!search) throw new Error('Search control did not render')
+    TestRenderer.act(() => search.props.onPress())
+    expect(props.onSearch).toHaveBeenCalledOnce()
+  })
   it('gives the arrows, jump action, and menu control pressed feedback', () => {
     const renderer = renderControl()
 

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, MoreVertical, Search } from '@/components/ui/icons'
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -25,6 +25,8 @@ interface TodayDateControlProps {
   onGoToPreviousDay: () => void
   onGoToToday: () => void
   onGoToNextDay: () => void
+  searchLabel: string
+  onSearch: () => void
 }
 
 export function TodayDateControl({
@@ -48,6 +50,8 @@ export function TodayDateControl({
   onGoToPreviousDay,
   onGoToToday,
   onGoToNextDay,
+  searchLabel,
+  onSearch,
 }: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -112,6 +116,10 @@ export function TodayDateControl({
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       </MenuAnchorHost>
+      <Pressable accessibilityRole="button" accessibilityLabel={searchLabel} onPress={onSearch}
+        style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <Search size={20} color={tokens.fg1} />
+      </Pressable>
       <Menu
         open={menu.visible}
         anchorRef={menu.anchorRef}
@@ -138,7 +146,7 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     minHeight: 53,
     paddingHorizontal: 0,
   },
@@ -166,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 44,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   todayText: {
     fontFamily: 'Geist_500Medium',

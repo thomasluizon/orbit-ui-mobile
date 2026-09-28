@@ -110,6 +110,21 @@ describe('ShellWide', () => {
     expect(account).not.toHaveTextContent('@')
   })
 
+  it('reserves the account row while its profile loads', () => {
+    const props = { items, activeId: 'hoje', navLabel: 'Main navigation', onCreate: vi.fn(), createLabel: 'Create' }
+    const { container, rerender } = render(<ShellWide {...props} />)
+    const create = screen.getByRole('button', { name: 'Create' })
+    const placeholder = container.querySelector('[data-shell-account]')
+    expect(placeholder).toHaveAttribute('data-loading', 'true')
+    expect(placeholder).toHaveClass('h-11')
+    expect(placeholder?.previousElementSibling).toBe(create)
+
+    rerender(<ShellWide {...props} account="Ada Lovelace" />)
+    const account = screen.getByRole('link', { name: 'Ada Lovelace' })
+    expect(account).toHaveClass('h-11')
+    expect(account.previousElementSibling).toBe(create)
+  })
+
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {
     const { container } = render(
       <ShellWide

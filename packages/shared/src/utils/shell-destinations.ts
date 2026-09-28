@@ -23,6 +23,7 @@ export const SHELL_DESTINATION_ROUTES: readonly ShellDestinationRoute[] = [
   { pattern: '/delete-account', destination: 'perfil' },
   { pattern: '/about', destination: 'perfil' },
   { pattern: '/support', destination: 'perfil' },
+  { pattern: '/upgrade', destination: 'perfil' },
   { pattern: '/step-up', destination: 'perfil' },
 ]
 
@@ -36,4 +37,21 @@ export function resolveShellDestination(pathname: string): ShellDestinationId | 
   return SHELL_DESTINATION_ROUTES.find(({ pattern }) =>
     matchesRoute(normalizedPathname, pattern),
   )?.destination ?? null
+}
+
+export const SHELL_ROOT_ROUTES = ['/', '/calendar', '/progress', '/profile'] as const
+
+export interface ShellChrome {
+  activeId: ShellDestinationId
+  composer: boolean
+  flow: boolean
+}
+
+export function resolveShellChrome(pathname: string, lastDestination: ShellDestinationId = 'hoje'): ShellChrome {
+  const destination = resolveShellDestination(pathname)
+  return {
+    activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
+    composer: SHELL_ROOT_ROUTES.some((route) => route === pathname) || /^\/habits\/[^/]+$/.test(pathname),
+    flow: pathname === '/wrapped' || pathname === '/upgrade',
+  }
 }

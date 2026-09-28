@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, MoreVertical, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
@@ -28,6 +28,8 @@ export interface TodayDateControlProps {
   onToggleCollapse: () => void
   onRefresh: () => void
   onToggleCompleted: () => void
+  searchLabel: string
+  onSearch: () => void
 }
 
 export function TodayDateControl({
@@ -51,6 +53,8 @@ export function TodayDateControl({
   onToggleCollapse,
   onRefresh,
   onToggleCompleted,
+  searchLabel,
+  onSearch,
 }: Readonly<TodayDateControlProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
@@ -62,7 +66,7 @@ export function TodayDateControl({
   ]
 
   return (
-    <div className="flex min-h-[53px] items-center gap-2 px-4">
+    <div className="flex min-h-[53px] items-center gap-1 px-2">
       <button
         type="button"
         aria-label={previousLabel}
@@ -102,6 +106,10 @@ export function TodayDateControl({
         onClick={() => setMenuOpen((open) => !open)}
       >
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      <button type="button" aria-label={searchLabel} onClick={onSearch}
+        className={`${DATE_ICON_BUTTON_CLASS_NAME} lg:hidden`}>
+        <Search size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <Menu
         open={menuOpen}

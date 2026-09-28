@@ -13,7 +13,7 @@ import {
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -284,16 +284,16 @@ export default function UpgradePage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
-      <AppBar
+    <div className="flex flex-col">
+      <PageHeader
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
-      </main>
+      </div>
     </div>
   )
 }

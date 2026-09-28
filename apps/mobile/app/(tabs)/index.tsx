@@ -11,6 +11,7 @@ import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { TodayDateControl } from '@/components/today/today-date-control'
+import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import { TodayModals } from '@/components/today/today-modals'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -41,8 +42,9 @@ export default function TodayScreen() {
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
     return isError
-      ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} />
+      ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
       : <View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
+          <ScreenReaderHeading title={t('nav.today')} />
           <Skeleton variant="settings" grouped />
           <Skeleton variant="habit-row" grouped />
           <Skeleton variant="habit-row" grouped />
@@ -170,6 +172,7 @@ function TodayScreenContent() {
 
   const listHeader = (
     <View style={styles.header}>
+      <ScreenReaderHeading title={t('nav.today')} />
       {todayFocused ? (
         <TodayAstra
           isTodaySelected={date.dateStr === date.today}
@@ -177,6 +180,8 @@ function TodayScreenContent() {
         />
       ) : null}
       <TodayDateControl
+        searchLabel={t('habits.search.title')}
+        onSearch={() => router.push('/search')}
         dayName={date.dayName}
         numericDate={date.numericDate}
         isTodaySelected={date.dateStr === date.today}

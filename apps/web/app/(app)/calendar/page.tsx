@@ -249,6 +249,7 @@ export default function CalendarPage() {
   if (!profile) {
     return (
       <div style={{ padding: '16px 4px' }}>
+        <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
         {profileError ? (
           <CalendarLoadError onRetry={() => void refetchProfile()} />
         ) : (
@@ -721,6 +722,7 @@ function CalendarPageContent({
 
   return (
     <div className="relative">
+      <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className="relative z-[1]">
         <div style={{ padding: '12px 16px 16px' }}>
           <SegmentedControl<CalendarView>

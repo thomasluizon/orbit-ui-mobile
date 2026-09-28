@@ -32,7 +32,7 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
-import { FlowShell } from '@/components/shell/flow-shell'
+import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -255,12 +255,20 @@ function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: strin
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
+function HabitDetailFrame({ header, children }: Readonly<{ header: React.ReactNode; children: React.ReactNode }>) {
+  const hosted = useShellHeaderSlot(() => header, 'habit-detail')
+  return <>
+    {hosted ? null : header}
+    <div data-habit-detail-content="" className="mx-auto flex min-h-full w-full max-w-[740px] flex-col gap-6 px-4 py-6">{children}</div>
+  </>
+}
+
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
-    return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={() => {
+    return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={() => {
       if (parentId || fromToday) router.back()
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
@@ -271,7 +279,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
             <Skeleton variant="stat-tile" grouped />
             <Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} grouped />
           </div>}
-    </FlowShell>
+    </HabitDetailFrame>
   }
   return <HabitDetailContent habitId={habitId} date={date} fromToday={fromToday} parentId={parentId} profile={profile} />
 }
@@ -425,8 +433,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   )
   const childUnavailableReason = t(childUnavailableReasonKey)
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></FlowShell>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
     .childrenByParent.get(habit.id) ?? [])
@@ -442,7 +450,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
 
   return (
-    <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
+    <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
@@ -462,6 +470,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
-    </FlowShell>
+    </HabitDetailFrame>
   )
 }

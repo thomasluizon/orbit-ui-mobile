@@ -6,7 +6,7 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useIsClient } from '@/hooks/use-is-client'
 import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   PreferencePickerSheet,
   type PreferencePicker,
@@ -76,8 +76,8 @@ export default function PreferencesPage() {
 
   return (
     <div className="md:mx-auto md:max-w-[760px]">
-      <div className="flex flex-col min-h-[100dvh]">
-        <AppBar
+      <div className="flex flex-col">
+        <PageHeader
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('preferences.title')}

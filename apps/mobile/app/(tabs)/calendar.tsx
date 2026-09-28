@@ -9,6 +9,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
   FadeInLeft,
   FadeInRight,
@@ -270,6 +271,7 @@ function CalendarProfileState({
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <ScreenReaderHeading title={t('nav.calendar')} />
       <View style={styles.profileStateWrap}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
@@ -812,6 +814,7 @@ function CalendarScreenContent({
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <ScreenReaderHeading title={t('nav.calendar')} />
       <View style={styles.viewSwitcher}>
         <SegmentedControl<CalendarView>
           options={viewOptions}

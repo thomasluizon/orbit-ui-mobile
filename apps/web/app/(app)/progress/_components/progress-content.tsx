@@ -570,7 +570,7 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
+    <div className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
@@ -588,6 +588,6 @@ export function ProgressContent() {
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.emptyAction')}</PillLink>} /></div> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
-    </main>
+    </div>
   )
 }

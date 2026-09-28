@@ -55,6 +55,13 @@ beforeEach(() => {
 })
 
 describe('habit search', () => {
+  it('lets the shell scroll results while the palette keeps its own list scroller', () => {
+    const page = mount(true)
+    expect(page.container.querySelector('[cmdk-list]')).not.toHaveClass('overflow-y-auto')
+    page.unmount()
+    const palette = mount(false)
+    expect(palette.container.querySelector('[cmdk-list]')).toHaveClass('overflow-y-auto')
+  })
   it('clears the search box when another account replaces the tab', async () => {
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
