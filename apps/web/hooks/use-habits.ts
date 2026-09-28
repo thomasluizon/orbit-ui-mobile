@@ -9,14 +9,17 @@ import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDependents,
+  getTodayHabitList,
 } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
   getFriendlyErrorMessage,
   normalizeHabits,
+  buildChildrenIndex,
   plural,
   optimisticRemoveHabits,
 } from '@orbit/shared/utils'
@@ -92,7 +95,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const { showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
+  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: ({
@@ -171,12 +174,17 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
-        habitKeys.list(activeFilters),
-      )
-      if (habitsData) {
+      const today = formatAPIDate(new Date())
+      if (!variables.date || variables.date === today) {
+        updateHabitListsForDate(queryClient, today, (habits) => {
+          const habit = findHabitInList(habits, variables.habitId)
+          return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+        })
+      }
+      const habitsData = getTodayHabitList(queryClient, today)
+      if (habitsData && (!variables.date || variables.date === today)) {
         const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
       }
     },
 
@@ -540,9 +548,30 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
+  const { checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
+
+    onSuccess: (result, items) => {
+      const today = formatAPIDate(new Date())
+      const successfulIds = result.results.flatMap((entry) => {
+        const item = items[entry.index]
+        return entry.status === 'Success' && item?.habitId === entry.habitId &&
+          (!item.date || item.date === today) ? [item.habitId] : []
+      })
+      if (successfulIds.length === 0) return
+      updateHabitListsForDate(queryClient, today, (habits) =>
+        successfulIds.reduce((current, id) => {
+          const habit = findHabitInList(current, id)
+          return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+        }, habits))
+      const habitsData = getTodayHabitList(queryClient, today)
+      if (habitsData) {
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+      }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

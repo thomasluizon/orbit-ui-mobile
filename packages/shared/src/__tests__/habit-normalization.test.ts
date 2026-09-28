@@ -136,7 +136,7 @@ describe('habit normalization utils', () => {
     expect(progress).toEqual({ done: 1, total: 2, loggedDone: 0 })
   })
 
-  it('derives top-level logged-in-range from completed instances', () => {
+  it('does not treat a completed skip instance as a positive log', () => {
     const data = normalizeHabitQueryData([
       makeScheduleItem({
         id: 'logged-recurring',
@@ -146,7 +146,7 @@ describe('habit normalization utils', () => {
       }),
     ])
 
-    expect(data.habitsById.get('logged-recurring')?.isLoggedInRange).toBe(true)
+    expect(data.habitsById.get('logged-recurring')?.isLoggedInRange).toBe(false)
   })
 
   it('applies linked goal updates without disturbing unrelated goals', () => {

@@ -18,6 +18,27 @@ export function updateHabitListsForDate(
   }
 }
 
+export function getTodayHabitList(queryClient: QueryClient, date: string): HabitScheduleItem[] | undefined {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    const filters = key[2] as HabitsFilter
+    if (filters.dateFrom === date && filters.dateTo === date && filters.includeOverdue === true &&
+      !filters.search && !filters.frequencyUnit && !filters.tagIds?.length &&
+      filters.page === undefined && filters.isCompleted === undefined &&
+      filters.isGeneral === undefined && items) {
+      const totalCount = queryClient.getQueryData<number>(habitKeys.listTotalCount(filters))
+      const scheduledCount = items.filter((item) => !item.isGeneral).length
+      if (totalCount === undefined ? scheduledCount < (filters.pageSize ?? 50) : totalCount === scheduledCount) {
+        return items
+      }
+    }
+  }
+  return undefined
+}
+
+export function deduplicateHabitList(items: HabitScheduleItem[]): HabitScheduleItem[] {
+  return Array.from(new Map(items.map((item) => [item.id, item])).values())
+}
+
 export function invalidateHabitDependents(queryClient: QueryClient, habitId: string): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })

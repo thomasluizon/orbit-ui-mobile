@@ -588,4 +588,27 @@ describe('habit-visibility', () => {
       'child',
     ])
   })
+  it('hides a habit skipped today unless a sub-habit still has something due', () => {
+    const today = '2026-04-09'
+    const skippedInstance = [{ date: today, status: 'Completed' as const, logId: null }]
+    const skippedParent = createMockHabit({ id: 'skipped', instances: skippedInstance, scheduledDates: [today] })
+    const parentWithOpenChild = createMockHabit({ id: 'parent', instances: skippedInstance, scheduledDates: [today] })
+    const openChild = createMockHabit({
+      id: 'child',
+      parentId: 'parent',
+      instances: [{ date: today, status: 'Pending', logId: null }],
+      scheduledDates: [today],
+    })
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([skippedParent, parentWithOpenChild, openChild]),
+      childrenByParent: new Map([['parent', ['child']]]),
+      selectedDate: today,
+      searchQuery: '',
+      showCompleted: true,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(skippedParent)).toBe(false)
+    expect(helpers.hasVisibleContent(parentWithOpenChild)).toBe(true)
+  })
 })

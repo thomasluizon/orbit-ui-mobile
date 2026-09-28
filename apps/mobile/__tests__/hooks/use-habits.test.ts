@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
+import { buildChildrenIndex, formatAPIDate, getAllDoneOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { BulkLogResult, ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 
 import {
@@ -160,6 +161,7 @@ const mocks = vi.hoisted(() => {
     setLastCreatedHabitId: vi.fn(),
     setStreakCelebration: vi.fn(),
     checkAllDoneCelebration: vi.fn(),
+    useRealUIStore: false,
     invalidateHabitMutationQueries: vi.fn(async () => {}),
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -204,16 +206,17 @@ vi.mock('@/lib/orbit-widget', () => ({
   syncWidgetData: mocks.syncWidgetData,
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: {
-    getState: () => ({
+vi.mock('@/stores/ui-store', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  return { useUIStore: {
+    getState: () => mocks.useRealUIStore ? actual.useUIStore.getState() : ({
       activeFilters: {},
       checkAllDoneCelebration: mocks.checkAllDoneCelebration,
       setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
     }),
-  },
-}))
+  }}
+})
 
 vi.mock('@/lib/habit-mutation-helpers', async () => {
   const actual = await vi.importActual<typeof import('@/lib/habit-mutation-helpers')>(
@@ -277,6 +280,7 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
     checklistItems: overrides.checklistItems ?? [],
     createdAtUtc: overrides.createdAtUtc ?? '2025-01-01T00:00:00Z',
     scheduledDates: overrides.scheduledDates ?? ['2025-01-01'],
+    isLoggedInRange: overrides.isLoggedInRange ?? false,
     isOverdue: overrides.isOverdue ?? false,
     reminderEnabled: overrides.reminderEnabled ?? false,
     reminderTimes: overrides.reminderTimes ?? [],
@@ -395,6 +399,7 @@ describe('mobile habit hooks', () => {
     mocks.setLastCreatedHabitId.mockClear()
     mocks.setStreakCelebration.mockClear()
     mocks.checkAllDoneCelebration.mockClear()
+    mocks.useRealUIStore = false
     mocks.invalidateHabitMutationQueries.mockClear()
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
@@ -403,6 +408,126 @@ describe('mobile habit hooks', () => {
     mocks.cancelQueuedDeleteForUndo.mockClear()
     useOfflineSyncStore.setState({ drops: [] })
     storage.setItem.mockClear()
+  })
+
+  it('celebrates the last Today log through the real store', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'habit-1', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+      makeHabit({ id: 'habit-2', dueDate: today, scheduledDates: [today], isLoggedInRange: false }),
+    ] }]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'habit-2' }
+    const context = await mutation.onMutate?.(variables)
+    expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[1]?.isCompleted).toBe(true)
+    const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: false, count: 1 })
+    mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+    const completed = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
+    expect(getAllDoneOnDate(completed, buildChildrenIndex(completed), today)).toEqual({ allDone: true, count: 2 })
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    mocks.useRealUIStore = false
+  })
+
+  it('keeps a flexible habit open after its first of two required logs', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: [makeHabit({ id: 'flexible', dueDate: today,
+      scheduledDates: [today], isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 })] }]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'flexible' }
+    const context = await mutation.onMutate?.(variables)
+    mutation.onSuccess?.({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    mocks.useRealUIStore = false
+  })
+
+  it('does not celebrate from a first page with an unseen due habit', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: Array.from({ length: 50 }, (_, index) =>
+      makeHabit({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
+        isLoggedInRange: index < 49 })) }]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'habit-49' }
+    const context = await mutation.onMutate?.(variables)
+    mutation.onSuccess?.({ logId: 'log-50', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    mocks.useRealUIStore = false
+  })
+
+  it('celebrates after the final log in a complete 51-item Today list', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true, includeGeneral: true }
+    mocks.state.entries = [
+      { key: habitKeys.list(filters), value: [...Array.from({ length: 51 }, (_, index) =>
+        makeHabit({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
+          isLoggedInRange: index < 50 })), makeHabit({ id: 'general', isGeneral: true, scheduledDates: [] })] },
+      { key: habitKeys.listTotalCount(filters), value: 51 },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'habit-50' }
+    const context = await mutation.onMutate?.(variables)
+    mutation.onSuccess?.({ logId: 'log-51', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 51 })
+    mocks.useRealUIStore = false
+  })
+
+  it('does not count a skipped occurrence when another log finishes Today', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'logged', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today],
+        instances: [{ date: today, status: 'Completed', logId: 'skip-log' }] }),
+      makeHabit({ id: 'open', dueDate: today, scheduledDates: [today] }),
+    ] }]
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'open' }
+    const context = await mutation.onMutate?.(variables)
+    mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    mocks.useRealUIStore = false
+  })
+
+  it('celebrates a successful bulk log that finishes Today', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'habit-1', dueDate: today, scheduledDates: [today] }),
+      makeHabit({ id: 'habit-2', dueDate: today, scheduledDates: [today] }),
+    ] }]
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<BulkLogResult, { habitId: string; date?: string }[], HabitSnapshotContext>
+    const items = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+    const context = await mutation.onMutate?.(items)
+    mutation.onSuccess?.({ results: [
+      { index: 0, status: 'Success', habitId: 'habit-1', logId: 'log-1', error: null },
+      { index: 1, status: 'Success', habitId: 'habit-2', logId: 'log-2', error: null },
+    ] }, items, context)
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    mocks.useRealUIStore = false
   })
 
   it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
@@ -998,6 +1123,7 @@ describe('mobile habit hooks', () => {
   it('applies streak, profile, gamification, and linked-goal updates on a fresh online completion', () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
+      { key: habitKeys.list({ dateFrom: formatAPIDate(new Date()), dateTo: formatAPIDate(new Date()), includeOverdue: true }), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
       { key: habitKeys.count(), value: 1 },
       { key: tagKeys.lists(), value: [] },
       {

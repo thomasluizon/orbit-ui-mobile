@@ -18,6 +18,7 @@ import {
   computeHabitReorderPositions,
   computeParentPromptProgress,
   formatAPIDate,
+  getAllDoneOnDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -1040,7 +1041,8 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
-    if (habits.length === 0 && view === 'today' && (data?.totalCount ?? 0) > 0) {
+    if (habits.length === 0 && view === 'today' &&
+      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone) {
       return (
         <HabitListEmptyState
           title={t('habits.allDoneToday')}

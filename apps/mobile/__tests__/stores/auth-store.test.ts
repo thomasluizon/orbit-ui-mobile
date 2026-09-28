@@ -251,7 +251,7 @@ describe('mobile auth store security paths', () => {
       const firstLogin = useAuthStore.getState().login('first-token', null, accountA)
       await vi.waitFor(() => expect(releaseA).toBeTypeOf('function'))
       await useAuthStore.getState().login('second-token', null, accountB)
-      useUIStore.getState().setFilters({ search: 'B filter' })
+      useUIStore.getState().setSearchQuery('B filter')
       useOnboardingDraftStore.getState().bufferColorScheme('blue')
 
       releaseA(null)
@@ -260,7 +260,7 @@ describe('mobile auth store security paths', () => {
       expect(useAuthStore.getState().user?.userId).toBe('account-b')
       expect(useUIStore.persist.getOptions().name).toBe('orbit-ui-store:account-b')
       expect(useEngagementPromptStore.persist.getOptions().name).toBe('orbit-referral-prompt-store:account-b')
-      expect(useUIStore.getState().activeFilters).toEqual({ search: 'B filter' })
+      expect(useUIStore.getState().searchQuery).toBe('B filter')
       expect(useOnboardingDraftStore.getState().colorScheme).toBe('blue')
     } finally {
       vi.mocked(AsyncStorage.getItem).mockImplementation(originalGetItem)
@@ -280,7 +280,7 @@ describe('mobile auth store security paths', () => {
     const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
     await useAuthStore.getState().login('first-token', null, accountA)
     useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
-    useUIStore.getState().setFilters({ search: 'previous' })
+    useUIStore.getState().setSearchQuery('previous')
     useUIStore.getState().selectAllHabits(['habit-a'])
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     useOnboardingDraftStore.getState().bufferColorScheme('purple')
@@ -291,7 +291,7 @@ describe('mobile auth store security paths', () => {
     await useAuthStore.getState().login('second-token', null, accountB)
 
     expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-    expect(useUIStore.getState().activeFilters).toEqual({})
+    expect(useUIStore.getState().searchQuery).toBe('')
     expect(useUIStore.getState().activeCelebration).toBeNull()
     expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
     expect(useTourStore.getState().isActive).toBe(false)

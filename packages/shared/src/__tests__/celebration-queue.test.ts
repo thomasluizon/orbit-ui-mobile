@@ -30,7 +30,7 @@ describe('sortCelebrationQueue', () => {
     const queue: CelebrationQueueItem[] = [
       createCelebrationItem('level-up', { level: 2 }, 5),
       createCelebrationItem('streak', { streak: 3 }, 4),
-      createCelebrationItem('all-done', {}, 1),
+      createCelebrationItem('all-done', { count: 1 }, 1),
       createCelebrationItem('goal-completed', { name: 'Ship' }, 0),
     ]
 
@@ -66,9 +66,9 @@ describe('isDuplicateCelebration', () => {
   })
 
   it('treats every all-done as a duplicate of an existing all-done', () => {
-    const queued = [createCelebrationItem('all-done', {}, 0)]
+    const queued = [createCelebrationItem('all-done', { count: 1 }, 0)]
 
-    expect(isDuplicateCelebration(queued, null, createCelebrationItem('all-done', {}, 1))).toBe(true)
+    expect(isDuplicateCelebration(queued, null, createCelebrationItem('all-done', { count: 1 }, 1))).toBe(true)
     expect(isDuplicateCelebration(queued, null, createCelebrationItem('level-up', { level: 4 }, 1))).toBe(false)
   })
 
@@ -118,7 +118,7 @@ describe('activateNextCelebration', () => {
   })
 
   it('derives legacy all-done and goal-completed state', () => {
-    expect(activateNextCelebration([createCelebrationItem('all-done', {}, 0)]).allDoneCelebration).toBe(true)
+    expect(activateNextCelebration([createCelebrationItem('all-done', { count: 1 }, 0)]).allDoneCelebration).toBe(true)
     expect(
       activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship' }, 0)]).goalCompletedCelebration,
     ).toEqual({ name: 'Ship' })

@@ -1,5 +1,6 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockHabit } from "@orbit/shared/__tests__/factories";
 import {
   createTourUIState,
   getPersistedUIState,
@@ -87,7 +88,6 @@ describe("mobile ui store", () => {
     useTourStore.getState().endTour();
     useTourStore.getState().setHiddenSections([]);
     useUIStore.setState({
-      activeFilters: {},
       activeView: "today",
       streakCelebration: null,
       allDoneCelebration: false,
@@ -111,9 +111,8 @@ describe("mobile ui store", () => {
     asyncStorageState.data.clear();
   });
 
-  it("merges filters and updates search state", () => {
+  it("updates search and view state", () => {
     const {
-      setFilters,
       setSearchQuery,
       setActiveView,
       setSelectedFrequency,
@@ -121,8 +120,6 @@ describe("mobile ui store", () => {
       setShowCompleted,
     } = useUIStore.getState();
 
-    setFilters({ dateFrom: "2026-04-06" });
-    setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
     setActiveView("goals");
     setSelectedFrequency("Week");
@@ -130,7 +127,6 @@ describe("mobile ui store", () => {
     setShowCompleted(true);
 
     expect(useUIStore.getState()).toMatchObject({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
       activeView: "goals",
       selectedFrequency: "Week",
@@ -282,19 +278,14 @@ describe("mobile ui store", () => {
     );
   });
 
-  it("shows all-done celebration only for completed top-level habits on today filters", () => {
-    useUIStore.setState({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
-    });
-
+  it("shows all-done celebration for a logged habit due today", () => {
+    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], isLoggedInRange: true });
     useUIStore.getState().checkAllDoneCelebration(
-      new Map([
-        ["parent-1", { parentId: null, isCompleted: true }],
-        ["child-1", { parentId: "parent-1", isCompleted: false }],
-      ]),
+      new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );
 
     expect(useUIStore.getState().allDoneCelebration).toBe(true);
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 });
   });
 
   it("clears the last created habit id after the timeout", async () => {
@@ -325,7 +316,6 @@ describe("mobile ui store", () => {
     await useUIStore.persist.rehydrate();
 
     expect(useUIStore.getState()).toMatchObject({
-      activeFilters: {},
       activeView: "general",
       searchQuery: "",
       selectedFrequency: "Month",
@@ -335,6 +325,7 @@ describe("mobile ui store", () => {
     expect(asyncStorageState.data.get("orbit-ui-store")).not.toContain(
       "searchQuery",
     );
+    expect(useUIStore.getState()).not.toHaveProperty("activeFilters");
   });
 
   it("drops legacy day-selection keys when rehydrating an old snapshot", async () => {
@@ -373,7 +364,6 @@ describe("mobile ui store", () => {
 
   it("creates the canonical tour ui state for a fresh session", () => {
     expect(createTourUIState()).toEqual({
-      activeFilters: {},
       activeView: "today",
       searchQuery: "",
       selectedFrequency: null,
@@ -418,21 +408,15 @@ describe("mobile ui store", () => {
 
   it("returns cloned persisted ui state snapshots", () => {
     useUIStore.setState({
-      activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
       selectedTagIds: ["focus"],
     });
 
     const snapshot = getPersistedUIState(useUIStore.getState());
 
     useUIStore.setState({
-      activeFilters: { dateFrom: "2026-04-07" },
       selectedTagIds: ["health"],
     });
 
-    expect(snapshot.activeFilters).toEqual({
-      dateFrom: "2026-04-06",
-      includeOverdue: true,
-    });
     expect(snapshot.selectedTagIds).toEqual(["focus"]);
   });
 });

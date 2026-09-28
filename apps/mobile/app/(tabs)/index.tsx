@@ -349,7 +349,6 @@ export default function TodayScreen() {
     setRenderBulkActionBar,
   } = useTodayMotion({ filterMotionKey, isRefetching });
 
-  const setFilters = useUIStore((s) => s.setFilters);
   const showCreateModal = useUIStore((s) => s.showCreateModal);
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
@@ -361,11 +360,9 @@ export default function TodayScreen() {
     currentActiveView,
     isSelectMode,
     pinnedDateStr,
-    filters,
     setShowScrollTop,
     setRenderBulkActionBar,
     setActiveView,
-    setFilters,
     closeSearch,
   });
 

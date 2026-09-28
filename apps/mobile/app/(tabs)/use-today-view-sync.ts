@@ -1,15 +1,12 @@
 import { useState } from "react";
-import type { HabitsFilter } from "@orbit/shared/types/habit";
 
 export interface TodayViewSyncParams {
   currentActiveView: string;
   isSelectMode: boolean;
   pinnedDateStr: string | null;
-  filters: HabitsFilter;
   setShowScrollTop: (value: boolean) => void;
   setRenderBulkActionBar: (value: boolean) => void;
   setActiveView: (view: "today") => void;
-  setFilters: (filters: HabitsFilter) => void;
   closeSearch: () => void;
 }
 
@@ -17,11 +14,9 @@ export function useTodayViewSync({
   currentActiveView,
   isSelectMode,
   pinnedDateStr,
-  filters,
   setShowScrollTop,
   setRenderBulkActionBar,
   setActiveView,
-  setFilters,
   closeSearch,
 }: TodayViewSyncParams) {
   const [prevScrollTopView, setPrevScrollTopView] = useState(currentActiveView);
@@ -51,10 +46,4 @@ export function useTodayViewSync({
     closeSearch();
   }
 
-  const [prevFilters, setPrevFilters] = useState(filters);
-  if (filters !== prevFilters) {
-    setPrevFilters(filters);
-    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter mirrors the just-computed filters under a change check, so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    setFilters(filters);
-  }
 }
