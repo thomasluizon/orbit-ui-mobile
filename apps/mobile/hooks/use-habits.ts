@@ -16,6 +16,7 @@ import {
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
+  getFriendlyErrorMessage,
   normalizeHabits,
   plural,
 } from '@orbit/shared/utils'
@@ -155,6 +156,8 @@ export { useSummary } from './use-summary'
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showError } = useAppToast()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useMutation<
@@ -192,7 +195,7 @@ export function useLogHabit() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -200,6 +203,7 @@ export function useLogHabit() {
           }
         }
       }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
     },
 
     onSuccess: (response, variables) => {

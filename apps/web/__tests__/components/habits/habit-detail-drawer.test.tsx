@@ -6,8 +6,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 
 const mockUpdateChecklistMutate = vi.fn()
-const mockLogHabitMutateAsync = vi.fn()
-const mockShowError = vi.fn()
+const mockLogHabitMutate = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -35,10 +34,6 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showError: mockShowError }),
-}))
-
 vi.mock('@/hooks/use-habits', () => ({
   useHabitFullDetail: () => ({
     data: {
@@ -59,7 +54,7 @@ vi.mock('@/hooks/use-habits', () => ({
     mutate: mockUpdateChecklistMutate,
   }),
   useLogHabit: () => ({
-    mutateAsync: mockLogHabitMutateAsync,
+    mutate: mockLogHabitMutate,
   }),
 }))
 
@@ -167,7 +162,7 @@ describe('HabitDetailDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLogHabitMutateAsync.mockResolvedValue({})
+    mockLogHabitMutate.mockImplementation((_input, options) => options?.onSuccess?.())
   })
 
   it('renders nothing when closed', () => {
@@ -371,8 +366,9 @@ describe('HabitDetailDrawer', () => {
     })
   })
 
-  it('surfaces an error toast when logging from the checklist-complete confirm fails', async () => {
-    mockLogHabitMutateAsync.mockRejectedValue(new Error('offline'))
+  it('does not notify onLogged when the checklist-complete log fails', () => {
+    mockLogHabitMutate.mockImplementation(() => {})
+    const onLogged = vi.fn()
     const habit = createMockHabit({
       id: 'h-1',
       isCompleted: false,
@@ -383,11 +379,13 @@ describe('HabitDetailDrawer', () => {
         open={true}
         onOpenChange={vi.fn()}
         habit={habit}
+        onLogged={onLogged}
       />,
     )
     fireEvent.click(screen.getByText('toggle-0'))
     fireEvent.click(screen.getByText('habits.checklistCompleteConfirm'))
-    await waitFor(() => expect(mockShowError).toHaveBeenCalledTimes(1))
+    expect(mockLogHabitMutate).toHaveBeenCalledOnce()
+    expect(onLogged).not.toHaveBeenCalled()
   })
 
   it('lists linked goals with a section label', () => {

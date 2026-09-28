@@ -15,6 +15,7 @@ import {
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
+  getFriendlyErrorMessage,
   normalizeHabits,
   plural,
   optimisticRemoveHabits,
@@ -89,6 +90,8 @@ export {
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useAccountScopedMutation({
@@ -116,7 +119,7 @@ export function useLogHabit() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -124,6 +127,7 @@ export function useLogHabit() {
           }
         }
       }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
     },
 
     onSuccess: (response, variables) => {

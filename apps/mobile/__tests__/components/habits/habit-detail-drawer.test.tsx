@@ -7,8 +7,7 @@ import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 const TestRenderer = require('react-test-renderer')
 
 const mockUpdateChecklistMutate = vi.fn()
-const mockLogHabitMutateAsync = vi.fn()
-const mockShowError = vi.fn()
+const mockLogHabitMutate = vi.fn()
 const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 
 vi.mock('expo-router', () => ({
@@ -17,13 +16,10 @@ vi.mock('expo-router', () => ({
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showError: mockShowError }),
-}))
 vi.mock('@/hooks/use-habits', () => ({
   useHabitFullDetail: () => ({ data: undefined, isLoading: false }),
   useUpdateChecklist: () => ({ mutate: mockUpdateChecklistMutate }),
-  useLogHabit: () => ({ mutateAsync: mockLogHabitMutateAsync }),
+  useLogHabit: () => ({ mutate: mockLogHabitMutate }),
 }))
 vi.mock('@/components/habits/habit-calendar', () => ({
   HabitCalendar: () => null,
@@ -115,7 +111,10 @@ function pressButton(root: TestNode, label: string) {
 describe('HabitDetailDrawer (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLogHabitMutateAsync.mockResolvedValue({})
+    mockLogHabitMutate.mockImplementation((_input, options) => {
+      options?.onSuccess?.()
+      options?.onSettled?.()
+    })
   })
 
   it('gates checklist clear behind a confirmation and only clears on confirm', () => {
@@ -169,8 +168,9 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
   })
 
-  it('surfaces an error toast when logging from the checklist-complete confirm fails', async () => {
-    mockLogHabitMutateAsync.mockRejectedValue(new Error('offline'))
+  it('does not notify onLogged when the checklist-complete log fails', async () => {
+    mockLogHabitMutate.mockImplementation((_input, options) => options?.onSettled?.())
+    const onLogged = vi.fn()
     const habit = createMockHabit({
       id: 'h-1',
       isCompleted: false,
@@ -178,7 +178,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
 
     const tree = render(
-      <HabitDetailDrawer open onClose={vi.fn()} habit={habit} />,
+      <HabitDetailDrawer open onClose={vi.fn()} habit={habit} onLogged={onLogged} />,
     )
 
     TestRenderer.act(() => {
@@ -190,7 +190,8 @@ describe('HabitDetailDrawer (mobile)', () => {
       pressButton(tree.root, 'habits.checklistCompleteConfirm')
       await Promise.resolve()
     })
-    expect(mockShowError).toHaveBeenCalledTimes(1)
+    expect(mockLogHabitMutate).toHaveBeenCalledOnce()
+    expect(onLogged).not.toHaveBeenCalled()
   })
 
   it('logs the habit and notifies onLogged when the checklist-complete confirm succeeds', async () => {
@@ -213,9 +214,8 @@ describe('HabitDetailDrawer (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-9' })
+    expect(mockLogHabitMutate).toHaveBeenCalledWith({ habitId: 'h-9' }, expect.any(Object))
     expect(onLogged).toHaveBeenCalledWith('h-9')
-    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('renders the description and linked goals and opens the description viewer on press', () => {
@@ -234,7 +234,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     TestRenderer.act(() => {
       pressButton(tree.root, 'habits.detail.viewDescription')
     })
-    expect(mockLogHabitMutateAsync).not.toHaveBeenCalled()
+    expect(mockLogHabitMutate).not.toHaveBeenCalled()
   })
 
   it('seeds a sub-habit chat draft and navigates only after the drawer dismisses when Ask Astra is pressed', () => {

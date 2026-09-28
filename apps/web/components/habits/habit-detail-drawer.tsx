@@ -19,12 +19,10 @@ import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-butto
 import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
-import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
   formatLocaleDate,
-  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 
 interface HabitDetailDrawerProps {
@@ -43,7 +41,6 @@ export function HabitDetailDrawer({
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
-  const { showError } = useAppToast()
   const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
@@ -90,23 +87,13 @@ export function HabitDetailDrawer({
     [habit, liveChecklist, updateChecklist],
   )
 
-  const confirmChecklistLog = useCallback(async () => {
+  const confirmChecklistLog = useCallback(() => {
     if (!habit) return
     setShowChecklistLogPrompt(false)
-    try {
-      await logHabit.mutateAsync({ habitId: habit.id })
-      onLogged?.(habit.id)
-    } catch (error: unknown) {
-      showError(
-        getFriendlyErrorMessage(
-          error,
-          (key, values) => t(key, values),
-          'errors.logHabit',
-          'habit',
-        ),
-      )
-    }
-  }, [habit, logHabit, onLogged, showError, t])
+    logHabit.mutate({ habitId: habit.id }, {
+      onSuccess: () => onLogged?.(habit.id),
+    })
+  }, [habit, logHabit, onLogged])
 
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
@@ -255,4 +242,3 @@ export function HabitDetailDrawer({
     </>
   )
 }
-

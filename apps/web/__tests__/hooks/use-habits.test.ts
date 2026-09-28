@@ -5,6 +5,8 @@ import React from 'react'
 import { useHabits, useTotalHabitCount, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { formatAPIDate } from '@orbit/shared/utils'
+import { createApiClientError } from '@orbit/shared'
+import enMessages from '@orbit/shared/i18n/en.json'
 import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -20,7 +22,8 @@ vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+    key === 'errors.api.logNotAllowed' ? enMessages.errors.api.logNotAllowed
+      : params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -339,6 +342,7 @@ describe('useLogHabit', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     captureHabitLogged.mockClear()
+    mockShowError.mockClear()
   })
 
   it('calls logHabit action and invalidates caches on settled', async () => {
@@ -368,18 +372,54 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
     expect(captureHabitLogged).toHaveBeenCalledOnce()
     expect(captureHabitLogged.mock.calls[0]).toEqual([])
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
-  it('does not capture a failed habit log', async () => {
+  it('rolls back a rejected habit log and shows the mapped error once', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
-    vi.mocked(logHabit).mockRejectedValueOnce(new Error('Log failed'))
+    vi.mocked(logHabit).mockRejectedValueOnce(createApiClientError(400, {
+      error: 'Not scheduled on date', errorCode: 'NOT_SCHEDULED_ON_DATE',
+    }, 'Request failed: 400'))
+    const queryClient = createQueryClient()
+    const listKey = habitKeys.list({})
+    queryClient.setQueryData(listKey, [makeScheduleItem({ id: 'h-1', isCompleted: false })])
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toThrow()
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(listKey)?.[0]?.isCompleted).toBe(false)
+    expect(mockShowError).toHaveBeenCalledOnce()
+    expect(mockShowError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed)
+    expect(captureHabitLogged).not.toHaveBeenCalled()
+  })
+
+  it('shows the generic mapped error once for a network failure', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockRejectedValueOnce(new Error('Network failed'))
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toThrow('Log failed')
+      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toThrow('Network failed')
     })
 
-    expect(captureHabitLogged).not.toHaveBeenCalled()
+    expect(mockShowError).toHaveBeenCalledOnce()
+    expect(mockShowError).toHaveBeenCalledWith('errors.logHabit')
+  })
+
+  it('uses account-changed handling without a log error toast', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockRejectedValueOnce(Object.assign(new Error('Account changed'), {
+      code: 'ACCOUNT_CHANGED',
+    }))
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ habitId: 'h-1' })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('refetches lists after a completion without refreshing unrelated families', async () => {
