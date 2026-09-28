@@ -1193,7 +1193,7 @@ describe('ProfileScreen', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('renders only product email consent in Notifications', async () => {
+  it('places usage analytics beside product email consent in Notifications', async () => {
     const tree = await renderProfileScreen()
     const notificationsGroup = tree.root.find(
       (node: { props: { testID?: string } }) =>
@@ -1206,6 +1206,14 @@ describe('ProfileScreen', () => {
           node.props.testID === 'marketing-consent-section',
       ),
     ).toHaveLength(1)
+    expect(nodeText(notificationsGroup)).toContain('profile.analytics.description')
+    expect(
+      notificationsGroup.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'switch' &&
+          node.props.accessibilityLabel === 'profile.analytics.title',
+      ).length,
+    ).toBeGreaterThan(0)
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>

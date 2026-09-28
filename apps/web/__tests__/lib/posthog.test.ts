@@ -21,6 +21,7 @@ describe('web PostHog adapter', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.resetAllMocks()
+    localStorage.clear()
     sdkImports.count = 0
     sdkImports.pending = null
     sdk.init.mockImplementation((_key, options) => { options.loaded?.(sdk) })
@@ -38,6 +39,37 @@ describe('web PostHog adapter', () => {
     await analytics.applyPostHogGate(true)
     expect(sdkImports.count).toBe(1)
     expect(sdk.init).toHaveBeenCalledOnce()
+  })
+
+  it('defaults to capture, persists opt out across reload, and resumes without reload', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    expect(analytics.getAnalyticsOptOut()).toBe(false)
+    expect(localStorage.getItem('analytics-opt-out')).toBeNull()
+    await analytics.applyPostHogGate(true)
+    await analytics.setAnalyticsOptOut(true)
+    expect(localStorage.getItem('analytics-opt-out')).toBe('true')
+    expect(sdk.opt_out_capturing).toHaveBeenCalledOnce()
+    analytics.identifyPostHogUser('user-1')
+    analytics.captureHabitLogged()
+    expect(sdk.identify).not.toHaveBeenCalled()
+    expect(sdk.capture).not.toHaveBeenCalled()
+
+    vi.resetModules()
+    vi.resetAllMocks()
+    sdk.init.mockImplementation((_key, options) => { options.loaded?.(sdk) })
+    const restarted = await import('@/lib/posthog')
+    expect(restarted.getAnalyticsOptOut()).toBe(true)
+    await restarted.applyPostHogGate(true)
+    restarted.identifyPostHogUser('user-1')
+    restarted.captureHabitLogged()
+    expect(sdkImports.count).toBe(0)
+    expect(sdk.init).not.toHaveBeenCalled()
+    expect(sdk.identify).not.toHaveBeenCalled()
+    expect(sdk.capture).not.toHaveBeenCalled()
+    await restarted.setAnalyticsOptOut(false)
+    expect(sdk.opt_in_capturing).toHaveBeenCalled()
+    expect(localStorage.getItem('analytics-opt-out')).toBe('false')
   })
 
   it('resets a persisted account before the first pageview when accounts switch during loading', async () => {

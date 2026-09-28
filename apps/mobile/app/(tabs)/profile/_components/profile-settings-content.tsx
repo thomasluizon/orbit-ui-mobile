@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/utils/profile-navigation'
 import {
   Calendar,
+  BarChart3,
   Clock,
   CreditCard,
   Download,
@@ -38,6 +39,8 @@ import {
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
@@ -56,6 +59,7 @@ import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
 import { useDataExport } from './use-data-export'
 import { isStepUpVerified } from '@/lib/step-up-storage'
+import { getAnalyticsOptOut, setAnalyticsOptOut } from '@/lib/posthog'
 
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
@@ -297,6 +301,24 @@ export function ProfileSettingsContent({
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
+  const [analyticsSaveError, setAnalyticsSaveError] = useState(false)
+  const analyticsChange = useRef(0)
+  useEffect(() => {
+    void getAnalyticsOptOut().then((optedOut) => {
+      if (analyticsChange.current === 0) setAnalyticsEnabled(!optedOut)
+    })
+  }, [])
+  const onToggleAnalytics = (next: boolean) => {
+    const change = ++analyticsChange.current
+    setAnalyticsEnabled(next)
+    setAnalyticsSaveError(false)
+    void setAnalyticsOptOut(!next).catch(() => {
+      if (change !== analyticsChange.current) return
+      void getAnalyticsOptOut().then((optedOut) => setAnalyticsEnabled(!optedOut))
+      setAnalyticsSaveError(true)
+    })
+  }
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -321,6 +343,17 @@ export function ProfileSettingsContent({
     astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
+      <RowList key="analytics">
+        <SettingsRow
+          icon={BarChart3}
+          label={t('profile.analytics.title')}
+          desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+          accessory="none"
+          divider={false}
+        >
+          <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
+        </SettingsRow>
+      </RowList>,
     ],
     more: <MoreRows context={context} openSupport={openSupport} supportFocusRef={supportFocusCallback} />,
     ending: buildEndingRows({

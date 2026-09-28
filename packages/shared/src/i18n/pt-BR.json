@@ -1559,6 +1559,11 @@
     }
   },
   "profile": {
+    "analytics": {
+      "title": "Análise de uso",
+      "description": "Compartilhar dados de uso para ajudar a melhorar o Orbit",
+      "saveError": "Não foi possível salvar a configuração"
+    },
     "groups": {
       "you": "Você",
       "astra": "Astra",

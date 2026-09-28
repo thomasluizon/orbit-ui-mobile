@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -11,6 +12,7 @@ import {
 } from '@orbit/shared/utils/profile-navigation'
 import {
   Calendar,
+  BarChart3,
   Clock,
   CreditCard,
   Download,
@@ -37,6 +39,8 @@ import {
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
@@ -44,6 +48,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
+import { getAnalyticsOptOut, setAnalyticsOptOut } from '@/lib/posthog'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
@@ -254,6 +259,16 @@ export function ProfileSettingsContent({
   const [showDeleteAccount, setShowDeleteAccount] = useAccountScopedState(false)
   const [apiKeysUnlocked] = useAccountScopedState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !getAnalyticsOptOut())
+  const [analyticsSaveError, setAnalyticsSaveError] = useState(false)
+  const onToggleAnalytics = (next: boolean) => {
+    setAnalyticsEnabled(next)
+    setAnalyticsSaveError(false)
+    void setAnalyticsOptOut(!next).catch(() => {
+      setAnalyticsEnabled(!getAnalyticsOptOut())
+      setAnalyticsSaveError(true)
+    })
+  }
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -283,6 +298,17 @@ export function ProfileSettingsContent({
         contained
         acceptVariant="secondary"
       />,
+      <RowList key="analytics">
+        <SettingsRow
+          icon={BarChart3}
+          label={t('profile.analytics.title')}
+          desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+          accessory="none"
+          divider={false}
+        >
+          <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
+        </SettingsRow>
+      </RowList>,
     ],
     more: buildMoreRows(context, () => setAstraConversationOpen(true, 'support')),
     ending: buildEndingRows({

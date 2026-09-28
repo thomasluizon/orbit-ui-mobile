@@ -715,7 +715,7 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders only the unanswered product email consent in Notifications', () => {
+  it('places usage analytics beside product email consent in Notifications', () => {
     render(<ProfilePage />)
 
     const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
@@ -729,6 +729,10 @@ describe('ProfilePage', () => {
         name: 'profile.marketingEmails.decline',
       }),
     ).toBeInTheDocument()
+    expect(within(notificationsGroup).getByText('profile.analytics.description')).toBeInTheDocument()
+    expect(within(notificationsGroup).getByRole('switch', {
+      name: 'profile.analytics.title',
+    })).toHaveAttribute('aria-checked', 'true')
     expect(
       within(notificationsGroup).queryByText('profile.settingsRows.remindersNote'),
     ).not.toBeInTheDocument()

@@ -53,10 +53,21 @@ function beforeSend(event: CaptureResult | null): CaptureResult | null {
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const PREFERENCE_KEY = 'analytics-opt-out'
+function readAnalyticsOptOut(): boolean {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    return localStorage.getItem(PREFERENCE_KEY) === 'true'
+  } catch {
+    return true
+  }
+}
 let posthog: PostHogClient | null = null
 let loading: Promise<PostHogClient> | null = null
 let initialized = false
 let analyticsEnabled = false
+let serverEnabled = false
+let optedOut = readAnalyticsOptOut()
 let accountId: string | null = null
 let pendingHabitEvents = 0
 let pendingReset = false
@@ -74,9 +85,10 @@ function activatePostHog(client: PostHogInterface): void {
 }
 
 export async function applyPostHogGate(enabled: boolean): Promise<void> {
-  analyticsEnabled = enabled
+  serverEnabled = enabled
+  analyticsEnabled = enabled && !optedOut
   if (!key) return
-  if (!enabled) {
+  if (!analyticsEnabled) {
     pendingHabitEvents = 0
     posthog?.opt_out_capturing()
     return
@@ -89,7 +101,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
 
   loading ??= import('posthog-js').then((module) => module.default)
   const client = await loading
-  if (!analyticsEnabled) return
+  if (!serverEnabled || optedOut) return
   if (!initialized) {
     client.init(key, {
       api_host: '/ingest',
@@ -113,6 +125,16 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
   }
 
   activatePostHog(client)
+}
+
+export function getAnalyticsOptOut(): boolean {
+  return optedOut
+}
+
+export async function setAnalyticsOptOut(next: boolean): Promise<void> {
+  localStorage.setItem(PREFERENCE_KEY, String(next))
+  optedOut = next
+  await applyPostHogGate(serverEnabled)
 }
 
 export function identifyPostHogUser(userId: string): void {
