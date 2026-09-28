@@ -13,7 +13,7 @@ import type { HabitDayValue } from '../contracts/dates'
 import type { HabitLog } from '../types/calendar'
 import type { CreateSubHabitRequest, HabitDetail, HabitDetailChild, HabitMetrics, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
 import { canLogHabitOnDate } from './habit-card-helpers'
-import { formatAPIDate, parseAPIDate } from './dates'
+import { formatAPIDate, formatAPIDateInTimeZone, parseAPIDate } from './dates'
 import { normalizeHabitDetailForDrill } from './drill-navigation'
 import { formatHabitReminderLabel } from './habit-form-helpers'
 import { getTodayBoundary } from './today-date'
@@ -258,10 +258,11 @@ export function isHabitSlipping(
   metrics: HabitMetrics | null,
   logs: readonly HabitLog[],
   today: Date,
+  accountTimeZone: string | null | undefined,
 ): boolean {
   if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= 50) return false
   const cutoff = formatAPIDate(addDays(today, -2))
-  if (formatAPIDate(new Date(habit.createdAtUtc)) > cutoff) return false
+  if (formatAPIDateInTimeZone(new Date(habit.createdAtUtc), accountTimeZone) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
   return habit.isBadHabit ? recentlyLogged : !recentlyLogged
 }

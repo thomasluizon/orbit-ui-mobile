@@ -277,6 +277,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     includeOverdue: dateStr === todayStr,
     includeGeneral: true,
   }, { completeDay: true })
+  const todayHabitsQuery = useHabits({
+    dateFrom: todayStr,
+    dateTo: todayStr,
+    includeOverdue: true,
+    includeGeneral: true,
+  }, { completeDay: true })
   const allHabitsQuery = useHabits({})
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
@@ -301,8 +307,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
   const strip = habit ? buildHabitStripModel(habit, logs, today, profile.language ?? i18n.language, profile.weekStartDay) : null
-  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
-  const overdue = habitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
+  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
+  const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasPro = profile.hasProAccess
   const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
   const boundary = getTodayBoundary(dateStr, todayStr)

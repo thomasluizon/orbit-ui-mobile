@@ -34,6 +34,8 @@ const mocks = vi.hoisted(() => ({
   scopedCompleteDay: false,
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
+  scopedHabitsByDate: new Map<string, Map<string, NormalizedHabit>>(),
+  scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
   checklist: vi.fn(),
@@ -85,9 +87,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
-    if (filters.dateFrom) mocks.scopedCompleteDay = options?.completeDay ?? false
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
+    if (filters.dateFrom) {
+      mocks.scopedCompleteDay = options?.completeDay ?? false
+      mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
+    }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 
@@ -242,6 +247,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
     mocks.checklist.mockReset()
@@ -311,6 +318,24 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByRole('button', { name: 'rescheduleAccept' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'retry' }))
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+  })
+
+  it('uses the account today overdue schedule on a historical detail', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
+    expect(screen.getByText('slipping')).toBeVisible()
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
+    mocks.rescheduleOptions = []
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(screen.queryByText('slipping')).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
   })
 
   it('uses a hugging primary action on narrow web and secondary on wide web', () => {

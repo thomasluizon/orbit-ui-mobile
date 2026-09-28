@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => ({
   scopedCompleteDay: false,
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
+  scopedHabitsByDate: new Map<string, Map<string, NormalizedHabit>>(),
+  scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
   checklist: vi.fn(),
@@ -91,9 +93,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }, options?: { completeDay?: boolean }) => {
-    if (filters.dateFrom) mocks.scopedCompleteDay = options?.completeDay ?? false
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean }) => {
+    if (filters.dateFrom) {
+      mocks.scopedCompleteDay = options?.completeDay ?? false
+      mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
+    }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 vi.mock('@/hooks/use-habits', () => ({
@@ -341,6 +346,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
     mocks.checklist.mockReset()
@@ -415,6 +422,25 @@ describe('HabitDetailScreen', () => {
     const retry = tree.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.retry')
     TestRenderer.act(() => { retry!.props.onClick() })
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+  })
+
+  it('uses the account today overdue schedule on a historical detail', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
+    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' }).length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
+    mocks.rescheduleOptions = []
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' })).toHaveLength(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
   })
 
   it('uses the primary accept action only after a suggestion arrives', () => {
