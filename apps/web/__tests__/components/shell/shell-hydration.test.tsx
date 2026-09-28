@@ -68,8 +68,15 @@ describe('app shell hydration', () => {
 
     expect(serverHtml).toContain('data-shell-sidebar=""')
     expect(serverHtml).toContain('data-shell-tab-bar=""')
-    expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('hidden', 'lg:flex')
-    expect(container.querySelector('[data-shell-tab-bar]')).toHaveClass('lg:hidden')
+    const sidebar = container.querySelector('[data-shell-sidebar]')
+    const tabBar = container.querySelector('[data-shell-tab-bar]')
+    if (width >= 1024) {
+      expect(sidebar).toHaveClass('lg:flex')
+      expect(tabBar).toHaveClass('lg:hidden')
+    } else {
+      expect(sidebar).toHaveClass('hidden')
+      expect(tabBar).not.toHaveClass('hidden')
+    }
     expect(container.querySelectorAll('h1')).toHaveLength(1)
     expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(1)
     expect(serverHtml).not.toContain('Voice')

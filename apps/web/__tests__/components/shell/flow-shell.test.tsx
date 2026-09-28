@@ -9,11 +9,6 @@ import {
 const mocks = vi.hoisted(() => ({ wide: false }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
-vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ action, children, nav }: { action?: ReactNode; children: ReactNode; nav: false }) => (
-    <div data-testid="compact-flow" data-nav={String(nav)}>{children}{action}</div>
-  ),
-}))
 vi.mock('@/components/shell/shell-wide', () => ({
   ShellWide: ({ action, children, nav }: { action?: ReactNode; children: ReactNode; nav: false }) => (
     <div data-testid="wide-flow" data-nav={String(nav)}>{children}{action}</div>
@@ -77,7 +72,6 @@ describe('FlowShell', () => {
     render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
 
     expect(screen.getByText('Conversation').parentElement).toHaveAttribute('data-flow-mode', 'full')
-    expect(screen.queryByTestId('compact-flow')).not.toBeInTheDocument()
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 

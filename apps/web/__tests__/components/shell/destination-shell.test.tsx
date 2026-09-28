@@ -54,23 +54,6 @@ vi.mock('@/components/ui/fab', () => ({
     <button type="button" aria-label={label} onClick={onClick} />
   ),
 }))
-vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, header, tabBar, fab, notice, composer }: {
-    children: ReactNode
-    header?: ReactNode
-    tabBar?: ReactNode
-    fab?: ReactNode
-    notice?: ReactNode
-    composer?: ReactNode
-  }) => (
-    <div data-testid="compact-shell">
-      {header ? <div data-shell-header="">{header}</div> : null}
-      <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
-      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
-      {tabBar}{fab}
-    </div>
-  ),
-}))
 vi.mock('@/components/shell/shell-wide', () => ({
   ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
