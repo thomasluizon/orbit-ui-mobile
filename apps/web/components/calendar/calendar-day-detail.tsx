@@ -7,6 +7,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import {
   determineHabitDayStatus,
+  capitalizeFirstLetter,
   filterRecurringEntries,
   parseAPIDate,
   type CalendarEventsDisplayState,
@@ -22,7 +23,6 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
-import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import { EventRow } from '@/components/dates/event-row'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 
@@ -38,13 +38,10 @@ interface CalendarDayDetailProps {
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
-  onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  showRecurringToggle?: boolean
-  /** Desktop side-panel mode: the entries list scrolls within the viewport and
-   * the go-to-day row stays pinned below it. */
-  fitViewport?: boolean
+  proActionVariant?: 'primary' | 'secondary'
+  showTitle?: boolean
 }
 
 function CalendarEventsSection({
@@ -67,7 +64,7 @@ function CalendarEventsSection({
 
   if (state === 'pro-boundary') {
     return (
-      <div data-testid="calendar-pro-boundary" style={{ paddingInline: 16 }}>
+      <div data-testid="calendar-pro-boundary" style={{ paddingInline: 24 }}>
         <CapacityNotice
           message={t('calendar.proBoundary.title')}
           body={t('calendar.proBoundary.body')}
@@ -83,7 +80,7 @@ function CalendarEventsSection({
   }
 
   return (
-    <div className="flex flex-col" style={{ gap: 8, paddingInline: 16 }}>
+    <div className="flex flex-col" style={{ gap: 8, paddingInline: 24 }}>
       <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>
         {t('calendar.dayDetail.eventsTitle')}
       </p>
@@ -288,11 +285,10 @@ export function CalendarDayDetail({
   loggable,
   showRecurring,
   pendingEntryStates,
-  onShowRecurringChange,
   onCalendarAutoSyncChange,
   onEntryChange,
-  showRecurringToggle = true,
-  fitViewport = false,
+  proActionVariant = 'primary',
+  showTitle = true,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -300,7 +296,7 @@ export function CalendarDayDetail({
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
-    return displayWeekdayDate(parseAPIDate(dateStr))
+    return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(dateStr)))
   }, [dateStr, displayWeekdayDate])
 
   const filteredEntries = useMemo(
@@ -318,64 +314,8 @@ export function CalendarDayDetail({
       })
     : t('calendar.dayDetail.nothingDue')
 
-  const recurringToggle = showRecurringToggle && entries.length > 0 ? (
-    <div
-      className="flex shrink-0 justify-end"
-      style={{ marginBottom: 12, paddingInline: 16 }}
-    >
-      <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
-    </div>
-  ) : null
-
-  const body = (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <div className="flex flex-col" style={{ gap: 16, paddingInline: 16 }}>
-        <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0 }}>
-          {summary}
-        </p>
-        {filteredEntries.length === 0 ? (
-          <p
-            className="text-center text-sm text-[var(--fg-3)]"
-            style={{ margin: 0, paddingBlock: 24 }}
-          >
-            {t('calendar.noHabitsScheduled')}
-          </p>
-        ) : null}
-      </div>
-      {filteredEntries.length > 0 ? (
-        <div>
-          <CalendarDayRows
-            dateStr={dateStr}
-            entries={filteredEntries}
-            loggable={loggable}
-            displayTime={displayTime}
-            pendingEntryStates={pendingEntryStates}
-            onEntryChange={onEntryChange}
-            t={t}
-          />
-        </div>
-      ) : null}
-      <CalendarEventsSection
-        calendarEvents={calendarEvents}
-        state={calendarEventsState}
-        onRetry={onRetryCalendarEvents}
-        onReconnect={onReconnectCalendarEvents}
-        onViewPro={onViewPro}
-        proActionVariant={fitViewport ? 'secondary' : 'primary'}
-      />
-      {calendarEventsState !== 'pro-boundary' ? (
-        <div style={{ paddingInline: 16 }}>
-          <CalendarSyncBoundary
-            autoSyncState={autoSyncState}
-            displayTime={displayTime}
-            onAutoSyncChange={onCalendarAutoSyncChange}
-          />
-        </div>
-      ) : null}
-    </div>
-  )
-
   const goToDay = (
+    <div style={{ paddingInline: 8 }}>
     <Link
       href={`/?date=${dateStr}`}
       aria-label={t('calendar.goToDay')}
@@ -389,39 +329,68 @@ export function CalendarDayDetail({
         readOnly
       />
     </Link>
+    </div>
   )
 
-  if (fitViewport) {
-    return (
-      <section
-        aria-label={formattedDate}
-        className="flex min-h-0 flex-1 flex-col rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
-        style={{ paddingBlock: 16 }}
-      >
-        {recurringToggle}
-        <div className="relative min-h-0 flex-1">
-          <div
-            data-calendar-day-scroll
-            className="h-full overflow-y-auto overscroll-contain"
-            style={{ paddingBottom: 8 }}
+  const body = (
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <div className="flex flex-col" style={{ gap: 8, paddingInline: 24 }}>
+        {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
+        <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0 }}>
+          {summary}
+        </p>
+        {filteredEntries.length === 0 ? (
+          <p
+            className="text-center text-sm text-[var(--fg-3)]"
+            style={{ margin: 0, paddingBlock: 24 }}
           >
-            {body}
-          </div>
+            {t('calendar.noHabitsScheduled')}
+          </p>
+        ) : null}
+      </div>
+      {filteredEntries.length > 0 ? (
+        <div style={{ paddingInline: 8 }}>
+          <CalendarDayRows
+            dateStr={dateStr}
+            entries={filteredEntries}
+            loggable={loggable}
+            displayTime={displayTime}
+            pendingEntryStates={pendingEntryStates}
+            onEntryChange={onEntryChange}
+            t={t}
+          />
         </div>
-        {goToDay}
-      </section>
-    )
-  }
+      ) : null}
+      {goToDay}
+      <CalendarEventsSection
+        calendarEvents={calendarEvents}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
+        onViewPro={onViewPro}
+        proActionVariant={proActionVariant}
+      />
+      {calendarEventsState !== 'pro-boundary' ? (
+        <div style={{ paddingInline: 24 }}>
+          <CalendarSyncBoundary
+            autoSyncState={autoSyncState}
+            displayTime={displayTime}
+            onAutoSyncChange={onCalendarAutoSyncChange}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+
+
 
   return (
     <section
       aria-label={formattedDate}
       className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
-      style={{ paddingBlock: 16 }}
+      style={{ paddingBlock: 24 }}
     >
-      {recurringToggle}
       {body}
-      {goToDay}
     </section>
   )
 }

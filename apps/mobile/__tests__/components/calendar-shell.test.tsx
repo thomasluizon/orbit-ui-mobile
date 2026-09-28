@@ -68,6 +68,38 @@ function exercisePressCallbacks(tree: Tree) {
 }
 
 describe("CalendarHeader year navigation (mobile)", () => {
+  it("keeps the selector in the header without month controls in other views", () => {
+    const tokens = createTokensV2("purple", "dark");
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarHeader
+          monthLabel="April"
+          year={2026}
+          previousMonthLabel="Previous month"
+          nextMonthLabel="Next month"
+          currentMonthLabel="Current month"
+          selectYearLabel="Select year"
+          onPreviousMonth={vi.fn()}
+          onNextMonth={vi.fn()}
+          onCurrentMonth={vi.fn()}
+          onSelectYear={vi.fn()}
+          showMonthNavigation={false}
+          viewSelector={React.createElement("View", { testID: "calendar-view-selector" })}
+          tokens={tokens}
+        />,
+      );
+    });
+
+    const header = tree!.root.findAll((node) => node.props.testID === "calendar-header-group")[0] as TestNode & {
+      findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
+    };
+    expect(header.findAll((node) => node.props.testID === "calendar-view-selector")).toHaveLength(1);
+    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Previous month")).toHaveLength(0);
+    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Next month")).toHaveLength(0);
+    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Select year")).toHaveLength(0);
+  });
+
   it("renders the month and year, fires month handlers, and has no year-skip arrows", () => {
     const onPreviousMonth = vi.fn();
     const onNextMonth = vi.fn();

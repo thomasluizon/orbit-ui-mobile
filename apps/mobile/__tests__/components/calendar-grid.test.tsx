@@ -122,6 +122,10 @@ describe('CalendarGrid (mobile)', () => {
       )
     })
 
+    const gridWrapper = StyleSheet.flatten(tree.root.findByProps({ testID: 'calendar-grid-card' }).props.style)
+    expect(gridWrapper).not.toHaveProperty('backgroundColor')
+    expect(gridWrapper).not.toHaveProperty('borderWidth')
+    expect(gridWrapper).not.toHaveProperty('borderRadius')
     const futureNumeral = tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })
     expect(StyleSheet.flatten(futureNumeral.props.style)).toMatchObject({ color: tokens.fg2 })
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)

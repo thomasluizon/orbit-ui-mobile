@@ -8,7 +8,11 @@ import {
   startOfWeek,
 } from 'date-fns'
 import type { CalendarDayEntry } from '../types/calendar'
-import { formatAPIDate } from './dates'
+import { formatAPIDate, parseAPIDate } from './dates'
+
+export function calendarMonthForDay(dayKey: string): Date {
+  return startOfMonth(parseAPIDate(dayKey))
+}
 
 export interface CalendarMonthDay {
   date: Date

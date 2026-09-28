@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
+import { toast } from 'sonner'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -28,6 +29,7 @@ function createWrapper() {
 describe('useProgressRetrospective', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    vi.mocked(toast.error).mockClear()
     vi.stubGlobal('fetch', mockFetch)
   })
 
@@ -65,5 +67,31 @@ describe('useProgressRetrospective', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(locationOnProgress.href).toBe('https://app.useorbit.org/progress')
+  })
+
+  it('does not toast for an empty period', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: 'No habits found for this period.', errorCode: 'NO_HABITS_FOR_PERIOD' }),
+    })
+
+    const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('does not repeat a query failure toast on refetch', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' }),
+    })
+
+    const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    const firstFailureToastCount = vi.mocked(toast.error).mock.calls.length
+    await result.current.refetch()
+    expect(vi.mocked(toast.error).mock.calls.length).toBe(firstFailureToastCount)
   })
 })

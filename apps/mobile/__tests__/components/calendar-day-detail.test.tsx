@@ -168,7 +168,7 @@ function CalendarDayDetailHarness({
     <CalendarDayDetail
       key={selectedDate}
       selectedDate={selectedDate}
-      selectedEntries={entries}
+      title='Sunday, Jun 15'
       filteredEntries={entries}
       calendarEvents={calendarEvents}
       autoSyncState={autoSyncState}
@@ -178,9 +178,7 @@ function CalendarDayDetailHarness({
       onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
-      showRecurring
       pendingEntryStates={pendingEntryStates}
-      onShowRecurringChange={() => {}}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
@@ -222,8 +220,12 @@ describe('CalendarDayDetail (mobile)', () => {
       borderColor: 'rgba(255,255,255,0.10)',
       borderRadius: 20,
       borderWidth: 1,
-      paddingVertical: 16,
+      paddingVertical: 24,
     })
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 24)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 8)).toBe(true)
+    expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
+    expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
   })
 
   it('renders timed and all-day Google events through the read-only event row', () => {

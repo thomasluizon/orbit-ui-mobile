@@ -78,7 +78,6 @@ interface RenderProps {
   entries?: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
   autoSyncState?: CalendarAutoSyncState
-  onShowRecurringChange?: (value: boolean) => void
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
@@ -87,7 +86,7 @@ interface RenderProps {
   loggable?: boolean
   showRecurring?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
-  fitViewport?: boolean
+  proActionVariant?: 'primary' | 'secondary'
 }
 
 function CalendarDayDetailHarness({
@@ -95,7 +94,6 @@ function CalendarDayDetailHarness({
   entries = [],
   calendarEvents = [],
   autoSyncState = proAutoSyncState,
-  onShowRecurringChange = () => {},
   onCalendarAutoSyncChange = async () => {},
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
@@ -104,7 +102,7 @@ function CalendarDayDetailHarness({
   loggable = false,
   showRecurring = true,
   onEntryChange = async () => {},
-  fitViewport = false,
+  proActionVariant = 'primary',
 }: RenderProps) {
   const sourceEntryStates = useMemo(() => {
     const states = new Map<string, boolean>()
@@ -145,10 +143,9 @@ function CalendarDayDetailHarness({
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
-      onShowRecurringChange={onShowRecurringChange}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
       onEntryChange={changeEntry}
-      fitViewport={fitViewport}
+      proActionVariant={proActionVariant}
     />
   )
 }
@@ -334,7 +331,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({
       entries: [makeEntry()],
       calendarEventsState: 'pro-boundary',
-      fitViewport: true,
+      proActionVariant: 'secondary',
     })
 
     expect(
@@ -675,11 +672,16 @@ describe('CalendarDayDetail', () => {
     )
   })
 
-  it('keeps the route row outside the desktop scroll region', () => {
-    const { container } = renderDetail({ entries: [makeEntry()], fitViewport: true })
-    const scroller = container.querySelector('[data-calendar-day-scroll]') as HTMLElement
-    const routeRow = screen.getByRole('link', { name: 'Open day' })
-    expect(scroller).not.toBeNull()
-    expect(scroller).not.toContainElement(routeRow)
+  it('keeps the title, summary and route within a 24px inset card', () => {
+    const { container } = renderDetail({ entries: [makeEntry()] })
+    const card = container.querySelector('section') as HTMLElement
+    expect(card.style.paddingBlock).toBe('24px')
+    expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
+    expect(card).toContainElement(screen.getByText('1 of 1 logged'))
+    expect(card).toContainElement(screen.getByRole('link', { name: 'Open day' }))
+    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '24px' })
+    expect(screen.getByText('Meditate').closest('[style*="padding-inline: 8px"]')).not.toBeNull()
+    expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })
+
 })
