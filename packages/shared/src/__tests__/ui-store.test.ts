@@ -30,6 +30,19 @@ function createStoreHarness() {
 }
 
 describe("shared ui store", () => {
+  it("reserves only one prompt while an overlay or create form is open", () => {
+    const store = createStoreHarness();
+    expect(store.getState().tryReservePromptOverlay("calendar")).toBe(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().unregisterOpenOverlay("calendar");
+    store.getState().setShowCreateModal(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().setShowCreateModal(false);
+    store.getState().setAstraConversationOpen(true);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
+    store.getState().setAstraConversationOpen(false);
+    expect(store.getState().tryReservePromptOverlay("consent")).toBe(true);
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));

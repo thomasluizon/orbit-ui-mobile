@@ -19,6 +19,8 @@ vi.stubGlobal(
 const mockPush = vi.fn()
 const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
+const mockRegisterOpenOverlay = vi.fn()
+const mockUnregisterOpenOverlay = vi.fn()
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -64,8 +66,15 @@ vi.mock('@/hooks/use-is-client', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setActiveView: typeof mockSetActiveView }) => unknown) =>
-    selector({ setActiveView: mockSetActiveView }),
+  useUIStore: (selector: (state: {
+    setActiveView: typeof mockSetActiveView
+    registerOpenOverlay: typeof mockRegisterOpenOverlay
+    unregisterOpenOverlay: typeof mockUnregisterOpenOverlay
+  }) => unknown) => selector({
+    setActiveView: mockSetActiveView,
+    registerOpenOverlay: mockRegisterOpenOverlay,
+    unregisterOpenOverlay: mockUnregisterOpenOverlay,
+  }),
 }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
@@ -114,6 +123,8 @@ beforeEach(() => {
   mockPush.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
+  mockRegisterOpenOverlay.mockClear()
+  mockUnregisterOpenOverlay.mockClear()
 })
 
 describe('CommandPalette', () => {
@@ -122,6 +133,7 @@ describe('CommandPalette', () => {
     expect(
       screen.getByRole('combobox', { name: 'command.title' }),
     ).toHaveAttribute('placeholder', 'command.placeholder')
+    expect(mockRegisterOpenOverlay).toHaveBeenCalledTimes(1)
   })
 
   it('names the dialog after the palette title instead of the input placeholder', () => {

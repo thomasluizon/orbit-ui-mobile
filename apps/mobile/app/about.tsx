@@ -141,9 +141,6 @@ export default function AboutScreen() {
             ) : null}
           </View>
 
-          <Text testID="about-credit" style={[styles.credit, { color: tokens.fg1 }]}>
-            {t('about.credit')}
-          </Text>
         </View>
       </ScrollView>
 
@@ -198,12 +195,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 19.2,
     fontVariant: ['tabular-nums'],
-  },
-  credit: {
-    minWidth: 0,
-    maxWidth: '100%',
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 24.8,
   },
 })

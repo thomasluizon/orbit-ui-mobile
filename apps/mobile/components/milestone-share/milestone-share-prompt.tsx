@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
-import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
+import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -55,6 +55,9 @@ export function MilestoneSharePrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { shareRef, isSharing, hasError, share } = useShareCard()
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
@@ -62,9 +65,18 @@ export function MilestoneSharePrompt() {
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     if (
@@ -80,6 +92,7 @@ export function MilestoneSharePrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -90,6 +103,8 @@ export function MilestoneSharePrompt() {
   }, [
     armedKey,
     celebrationInFlight,
+    anotherOverlayOpen,
+    promptId,
     visibleKey,
     queryClient,
     markEngagementPrompted,

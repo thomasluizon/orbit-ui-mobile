@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * v8 calendar-import prompt: bottom sheet (title supplied by the sheet header)
@@ -26,7 +28,10 @@ export function CalendarImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
-  const [sheetMounted, setSheetMounted] = useState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { sheetRef, closeSheet } = useSheetHost()
 
   const shouldShow = Boolean(
@@ -56,15 +61,22 @@ export function CalendarImportPrompt() {
 
   const handleImport = useCallback(() => {
     closeSheet(() => {
-      setSheetMounted(false)
+      unregisterOpenOverlay(promptId)
       void dismissPrompt()
       router.push('/calendar-sync')
     })
-  }, [closeSheet, dismissPrompt, router])
+  }, [closeSheet, dismissPrompt, promptId, router, unregisterOpenOverlay])
 
-  if (shouldShow && !sheetMounted) {
-    setSheetMounted(true)
-  }
+  useEffect(() => {
+    if (!shouldShow) {
+      if (sheetMounted) unregisterOpenOverlay(promptId)
+      return
+    }
+    if (!sheetMounted && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(promptId)
+  }, [anotherOverlayOpen, promptId, sheetMounted, shouldShow, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(promptId)
+  }, [promptId, unregisterOpenOverlay])
 
   if (!sheetMounted) return null
 
@@ -73,7 +85,7 @@ export function CalendarImportPrompt() {
       ref={sheetRef}
       open
       onClose={() => {
-        setSheetMounted(false)
+        unregisterOpenOverlay(promptId)
         void dismissPrompt()
       }}
       title={t('onboarding.wizard.calendarTitle')}
@@ -90,7 +102,7 @@ export function CalendarImportPrompt() {
           style={styles.quietRow}
           onPress={() =>
             closeSheet(() => {
-              setSheetMounted(false)
+              unregisterOpenOverlay(promptId)
               void dismissPrompt()
             })
           }

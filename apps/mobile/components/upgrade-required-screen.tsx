@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Linking, Modal, ScrollView, Text, View } from 'react-native'
 import appConfig from '@/app.json'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +10,7 @@ import { getAppVersion } from '@/lib/app-version'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { useUIStore } from '@/stores/ui-store'
 
 export function UpgradeRequiredScreen() {
   const { t } = useTranslation()
@@ -18,6 +19,14 @@ export function UpgradeRequiredScreen() {
   const { currentScheme, currentTheme } = useAppTheme()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  useEffect(() => {
+    if (!upgradeRequired) return
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [overlayId, registerOpenOverlay, unregisterOpenOverlay, upgradeRequired])
   if (!upgradeRequired) return null
   const tokens = createTokensV2(currentScheme, currentTheme)
   const currentVersion = getAppVersion()

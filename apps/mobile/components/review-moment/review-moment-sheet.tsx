@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canPromptEngagement,
+  hasOpenPromptBlockingOverlay,
   parseReviewMomentKey,
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
@@ -38,6 +39,9 @@ export function ReviewMomentSheet() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const armedKey = armedPrompt?.kind === 'review' ? armedPrompt.milestoneKey : null
 
@@ -45,9 +49,18 @@ export function ReviewMomentSheet() {
   const { sheetRef, closeSheet } = useSheetHost()
   const [isRequesting, setIsRequesting] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !parseReviewMomentKey(armedKey) ||
@@ -63,6 +76,7 @@ export function ReviewMomentSheet() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -73,6 +87,8 @@ export function ReviewMomentSheet() {
   }, [
     armedKey,
     celebrationInFlight,
+    anotherOverlayOpen,
+    promptId,
     clearArmedMilestone,
     isEligible,
     markEngagementPrompted,

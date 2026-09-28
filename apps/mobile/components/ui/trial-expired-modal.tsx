@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
@@ -48,6 +50,11 @@ export function TrialExpiredModal() {
     : { accountId, dismissed: false, alreadySeen: true }
   if (noticeState.accountId !== accountId) setNoticeState(currentNoticeState)
   const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
+  const promptId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const openOverlayIds = useUIStore((state) => state.openOverlayIds)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const reservationId = `${promptId}:${scopedKey ?? ''}`
 
   /**
    * Moves a notice dismissed before this key carried an account on to the account signed in now,
@@ -76,6 +83,18 @@ export function TrialExpiredModal() {
   const isOpen =
     pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
     !currentNoticeState.alreadySeen
+  const reserved = openOverlayIds.includes(reservationId)
+  const presented = isOpen && reserved
+  useEffect(() => {
+    if (!isOpen) {
+      if (reserved) unregisterOpenOverlay(reservationId)
+      return
+    }
+    if (!reserved && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(reservationId)
+  }, [anotherOverlayOpen, isOpen, reservationId, reserved, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(reservationId)
+  }, [reservationId, unregisterOpenOverlay])
 
   const hide = useCallback(() => {
     if (getAccountGeneration() !== accountGeneration) return
@@ -85,7 +104,7 @@ export function TrialExpiredModal() {
     if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
   }, [accountGeneration, accountId, scopedKey])
 
-  if (!isOpen) return null
+  if (!presented) return null
 
   return (
     <Sheet

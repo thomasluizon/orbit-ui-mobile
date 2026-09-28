@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useHeldAccountId } from '@/stores/auth-store'
@@ -12,6 +13,7 @@ import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useUIStore } from '@/stores/ui-store'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -32,6 +34,11 @@ export function TrialExpiredModal() {
   const mounted = useIsClient()
   const accountId = useHeldAccountId()
   const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
+  const promptId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const openOverlayIds = useUIStore((state) => state.openOverlayIds)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const reservationId = `${promptId}:${scopedKey ?? ''}`
 
   /**
    * Moves a notice dismissed before this key carried an account on to the account signed in now,
@@ -53,8 +60,20 @@ export function TrialExpiredModal() {
     trialExpired &&
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     !readAccountScopedFlag(localStorage.getItem(scopedKey), localStorage.getItem(STORAGE_KEY)).seen
+  const reserved = openOverlayIds.includes(reservationId)
+  const presented = isOpen && reserved
+  useEffect(() => {
+    if (!isOpen) {
+      if (reserved) unregisterOpenOverlay(reservationId)
+      return
+    }
+    if (!reserved && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(reservationId)
+  }, [anotherOverlayOpen, isOpen, reservationId, reserved, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(reservationId)
+  }, [reservationId, unregisterOpenOverlay])
   const { plans } = useSubscriptionPlans({
-    enabled: isOpen,
+    enabled: presented,
     handlesError: true,
   })
 
@@ -63,7 +82,7 @@ export function TrialExpiredModal() {
     if (scopedKey !== null) localStorage.setItem(scopedKey, '1')
   }
 
-  if (!isOpen) return null
+  if (!presented) return null
 
   return (
     <Sheet
