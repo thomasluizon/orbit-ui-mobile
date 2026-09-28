@@ -50,7 +50,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 
 1. The owner instructions above, in their order, then the in-flight rows.
 2. The spec's `## The order`, Batch M, in its dependency order, ending with its operations list.
-3. With staging on the new stack and staging login working: deploy the redesign to staging, ship the closed test build to the internal and closed tracks with the staging API, verify it, and stop at THE REDESIGN GATE for the owner's approval. Production being on the new stack is not a precondition for this build.
+3. With staging on the new stack and staging login working: deploy the redesign to staging, ship the closed test build to the internal track with the staging API, verify it, and stop at THE REDESIGN GATE for the owner's approval. Production being on the new stack is not a precondition for this build.
 4. Everything the gate does not block, in the spec's order: the rest of Batch E, Batch 0b and Batch 0c.
 5. Owner decisions already taken are in the spec's standing rules and constraints; a ticket's acceptance wins over its suggested method; a review finding on a sync pull request that is also a defect on `main` is fixed on `main` first.
 
