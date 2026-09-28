@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/pill-button'
 import { Search } from '@/components/ui/icons'
@@ -50,7 +50,7 @@ export default function SearchScreen() {
     else router.push(`/habits/${id}`)
   }
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
-    <AppBar title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
+    <PageHeader title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
     <View style={styles.field}>
       {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
       <View style={styles.input}><Input label={t('habits.search.title')} placeholder={t('command.placeholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} /></View>

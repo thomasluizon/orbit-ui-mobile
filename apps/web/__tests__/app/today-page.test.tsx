@@ -12,6 +12,8 @@ import { TodayDateControl } from '@/app/(app)/today-shell'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   locale: string
   messages: typeof en
@@ -142,6 +144,8 @@ const baseProps = {
   todayLabel: 'Today',
   nextLabel: 'Next day',
   moreLabel: 'More actions',
+  searchLabel: 'Search',
+  onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
   refreshLabel: 'Refresh',
@@ -224,8 +228,16 @@ describe('Hoje date control', () => {
 
   it('shows the day name over the numeric date', () => {
     render(<TodayDateControl {...baseProps} />)
-    expect(screen.getByText('Wednesday')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday')).not.toHaveClass('truncate')
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
+  })
+
+  it('opens search from the compact date row', () => {
+    const onSearch = vi.fn()
+    render(<TodayDateControl {...baseProps} onSearch={onSearch} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(onSearch).toHaveBeenCalledTimes(1)
   })
 
   it('shows the jump only away from today', () => {

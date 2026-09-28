@@ -1,6 +1,6 @@
 'use client'
 
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 
 export type LegalDocumentSection = Readonly<{
   id: string
@@ -36,8 +36,8 @@ function Section({ section }: Readonly<{ section: LegalDocumentSection }>) {
 
 export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote, backLabel, onBack }: LegalDocumentLayoutProps) {
   return (
-    <div data-legal-document="" data-measure="62ch" data-reflow="wrap" className="mx-auto flex min-h-[100dvh] min-w-0 max-w-[620px] flex-col">
-      <AppBar backLabel={backLabel} onBack={onBack} title={title} />
+    <div data-legal-document="" data-measure="62ch" data-reflow="wrap" className="mx-auto flex min-w-0 max-w-[620px] flex-col">
+      <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
       <div data-legal-document-content="" className="min-h-0 min-w-0 flex-1 px-4 pb-6">
         <div className="flex min-w-0 max-w-[62ch] flex-col gap-6">
           <header className="flex min-w-0 flex-col gap-2 pt-4">

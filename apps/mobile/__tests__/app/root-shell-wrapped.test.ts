@@ -105,6 +105,8 @@ vi.mock('@/stores/ui-store', () => ({
       setAstraConversationOpen: vi.fn(),
       setShowCreateModal: createState.showCreate,
       todayFabHidden: false,
+      lastDestination: 'hoje',
+      setLastDestination: vi.fn(),
     }),
 }))
 vi.mock('@/stores/referral-prompt-store', () => ({
@@ -123,7 +125,8 @@ vi.mock('@orbit/shared/stores', () => ({
   getReferralLevelMilestone: vi.fn(),
   getReviewMomentLevelKey: vi.fn(),
 }))
-vi.mock('@orbit/shared/utils', () => ({
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/utils')>()),
   formatAPIDate: () => '2026-09-14',
   isShareableAchievement: () => false,
 }))
@@ -160,7 +163,6 @@ vi.mock('@/components/navigation/notification-delete-notice', () => ({
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
-vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
 vi.mock('@/components/ui/fab', () => ({ Fab: ({ onClick }: { onClick: () => void }) => React.createElement('Fab', { onClick }) }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
 vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
@@ -170,7 +172,7 @@ vi.mock('@/components/gamification/celebration-panel', () => ({
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => React.createElement('ComposerMarker', { testID: 'composer-marker' }) }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({
   UpgradeRequiredScreen: () => null,
@@ -247,6 +249,18 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
+
+  it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings', '/calendar-sync'])(
+    'shows composer only on destination roots and habit detail at %s', async (pathname) => {
+      routeState.pathname = pathname
+      routeState.segments = pathname === '/' ? ['(tabs)'] : [pathname.slice(1)]
+      const tree = await renderRoot()
+      expect(findByTestId(tree, 'shell-pinned-slot').length > 0).toBe(
+        ['/', '/calendar', '/progress', '/profile', '/habits/h1'].includes(pathname),
+      )
+      expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
+    },
+  )
 
   it.each([
     'login',

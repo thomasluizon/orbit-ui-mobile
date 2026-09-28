@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Smartphone } from '@/components/ui/icons'
@@ -16,13 +16,13 @@ export default function AdvancedPage() {
 
   return (
     <div className="md:mx-auto md:max-w-[760px]">
-      <div className="flex min-h-[100dvh] flex-col">
-        <AppBar
+      <div className="flex flex-col">
+        <PageHeader
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('advancedSettings.title')}
         />
-        <div className="stagger-enter min-h-0 flex-1 overflow-y-auto">
+        <div className="stagger-enter min-h-0 flex-1">
           <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
           <SettingsRow
             label={t('profile.widgetTitle')}

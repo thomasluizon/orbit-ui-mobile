@@ -254,6 +254,10 @@ describe('Hoje date boundaries', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
     expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(0)
+    const headings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'header')
+    const progressbar = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')[0]
+    expect(headings).toHaveLength(1)
+    expect(progressbar?.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
     mocks.profileReady = true
     await TestRenderer.act(() => { tree.update(<TodayScreen />) })
     expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(1)

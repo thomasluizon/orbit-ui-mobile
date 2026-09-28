@@ -9,7 +9,7 @@ import { useAstraSettingsController } from '@/components/profile/astra-settings-
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { createStyles } from './ai-settings-styles'
 import { AiFeatureToggles } from '@/components/profile/ai-settings-sections'
 
@@ -32,7 +32,7 @@ export default function AiSettingsScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('aiSettings.title')}
         backLabel={t('common.backToProfile')}

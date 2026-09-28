@@ -4,7 +4,7 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Smartphone } from '@/components/ui/icons'
@@ -25,7 +25,7 @@ export default function AdvancedScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('advancedSettings.title')}
         backLabel={t('common.backToProfile')}

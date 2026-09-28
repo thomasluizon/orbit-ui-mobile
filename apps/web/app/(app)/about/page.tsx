@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { RowList } from '@/components/ui/row-list'
@@ -72,13 +72,13 @@ export default function AboutPage() {
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
-      <div className="flex min-h-[100dvh] min-w-0 flex-col">
-        <AppBar
+      <div className="flex min-w-0 flex-col">
+        <PageHeader
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('about.title')}
         />
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 min-w-0 flex-1">
           <div
             className="flex min-w-0 flex-col p-4"
             data-testid="about-content"

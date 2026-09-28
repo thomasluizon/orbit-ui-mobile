@@ -91,6 +91,7 @@ describe('AboutScreen', () => {
         typeof node.props.accessibilityLabel === 'string',
     )
     expect(destinations.map((node) => node.props.accessibilityLabel)).toEqual([
+      'common.backToProfile',
       'about.featureGuide',
       'profile.support.title',
       'about.terms',
@@ -98,7 +99,7 @@ describe('AboutScreen', () => {
     ])
 
     TestRenderer.act(() => {
-      destinations.forEach((destination) => {
+      destinations.slice(1).forEach((destination) => {
         const onPress = destination.props.onPress as () => void
         onPress()
       })

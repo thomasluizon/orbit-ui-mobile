@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { View, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -9,7 +9,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ArrowLeft } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { NotificationBellDisplay } from './notification-bell'
@@ -36,22 +36,15 @@ export function NotificationInbox() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: tokens.bg }]}>
-      <View style={[styles.header, { borderBottomColor: tokens.hairline }]}>
-        <View style={styles.topRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => goBack('/')}
-            style={({ pressed }) => [styles.back, pressed && { backgroundColor: tokens.bgHover }]}>
-            <ArrowLeft size={20} color={tokens.fg2} />
-          </Pressable>
-          <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notifications.title')}</Text>
-          <NotificationBellDisplay count={inbox.visibleUnreadCount} />
-        </View>
-        <View style={styles.actions}>
+      <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
+        onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
+        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <View style={styles.actions}>
           {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
             onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </View>
-      </View>
+        </View> : undefined}
+      />
       <ScrollView style={styles.scroller}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
@@ -77,10 +70,6 @@ export function NotificationInbox() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  header: { borderBottomWidth: 1 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 8 },
-  back: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, minWidth: 0, fontFamily: 'Geist_500Medium', fontSize: 20 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingBottom: 8 },
   scroller: { flex: 1 },
 })

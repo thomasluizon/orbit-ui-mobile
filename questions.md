@@ -8,6 +8,9 @@ Ask the owner only when `design/canvas/`, `DESIGN.md` and the current contract l
 
 ## Settled decisions
 
+- **Pushed page header, ticket 856:** Pushed pages use the start-aligned sentence-case page header drawn in Busca, Sobre, Pro, Assinatura and Avisos. Object views keep NavHeader. Undrawn pushed pages follow their neighbouring pushed pages.
+- **Current navigation position, ticket 856:** Busca keeps the destination the person came from; a direct load selects Hoje. Upgrade selects Perfil.
+- **Compact search entry, ticket 856:** Hoje adds an icon-only search button at the end of its date row. Destination roots render no shell title bar. The sidebar search control remains the wide entry.
 - **Progresso gap repair, ticket 329:** Use optional `RepairableGapDates` for one atomic `POST /api/gamification/streak/repair-gap` action. When absent or null, use the server-owned single-day `RepairDate` offer.
 - **Habit form picker motion, ticket 409:** Android keeps native TrueSheet motion. Web uses 220ms scale/fade entrance and 165ms exit. Both platforms keep `Sheet` ownership of dismissal. The installed TrueSheet interface exposes `animated?: boolean` and `initialDetentAnimated?: WithDefault<boolean, true>` but no duration, easing, scale or opacity input. Changing Android motion requires replacing the native sheet library.
 - **Notification text contrast, ticket 459:** Body and metadata use `--fg-2` on both platforms. The target icon may retain `--fg-4` because it repeats the adjacent label. Keep the `primary` focus ring and its `fg1` contour. Android uses a solid 4px `fg1` border because inset shadows require API 29 or later; the app supports API 24. Verify focus, press and blur on API 24 to 28 in both themes.
