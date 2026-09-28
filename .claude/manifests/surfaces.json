@@ -572,7 +572,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
@@ -596,7 +595,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
@@ -620,7 +618,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
@@ -644,7 +641,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
