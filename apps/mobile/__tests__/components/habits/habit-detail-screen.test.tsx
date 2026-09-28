@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => ({
   scopedCompleteDay: false,
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
+  scopedHabitsByDate: new Map<string, Map<string, NormalizedHabit>>(),
+  scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
   checklist: vi.fn(),
@@ -61,6 +63,10 @@ const mocks = vi.hoisted(() => ({
     days: string[]
     rationale: string
   },
+  rescheduleOptions: [] as { enabled: boolean }[],
+  rescheduleError: null as Error | null,
+  rescheduleRefetch: vi.fn(),
+  language: 'en',
 }))
 
 vi.mock('react-i18next', () => ({
@@ -70,9 +76,10 @@ vi.mock('react-i18next', () => ({
       if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
       if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
       if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+      if (key === 'habits.detail.calendarLabel') return `Atividade do hábito em ${values?.month}`
       return key
     },
-    i18n: { language: 'en' },
+    i18n: { language: mocks.language },
   }),
 }))
 vi.mock('expo-router', () => ({
@@ -86,9 +93,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }, options?: { completeDay?: boolean }) => {
-    if (filters.dateFrom) mocks.scopedCompleteDay = options?.completeDay ?? false
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean }) => {
+    if (filters.dateFrom) {
+      mocks.scopedCompleteDay = options?.completeDay ?? false
+      mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
+    }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 vi.mock('@/hooks/use-habits', () => ({
@@ -211,14 +221,17 @@ vi.mock('@/hooks/use-profile', () => ({
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
-      language: 'en',
+      language: mocks.language,
       weekStartDay: 1,
       timeZone: mocks.timeZone,
     } : undefined,
   }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
-  useRescheduleSuggestion: () => ({ suggestion: mocks.suggestion, error: null }),
+  useRescheduleSuggestion: (options: { enabled: boolean }) => {
+    mocks.rescheduleOptions.push(options)
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+  },
 }))
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
@@ -257,10 +270,10 @@ vi.mock('@/components/ui/time-field', () => ({
   }),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, onClick }, trailing),
+  ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, chevron, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, onClick }, children),
+  PillButton: ({ children, disabled, label, variant, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, variant, onClick }, children),
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -274,7 +287,7 @@ vi.mock('@/components/dates/day-cell', () => ({
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
 vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children }: { children: React.ReactNode }) => React.createElement('MonthGrid', null, children),
+  MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('MonthGrid', { label }, children),
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
@@ -333,6 +346,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
     mocks.checklist.mockReset()
@@ -354,6 +369,10 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = true
     mocks.scopedCompleteDay = false
     mocks.suggestion = null
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
   })
 
@@ -365,6 +384,96 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = true
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(mocks.scopedCompleteDay).toBe(true)
+  })
+
+  it('does not offer a rescue for a habit created today', () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-29T12:00:00Z' }
+    mocks.logs = []
+    mocks.metrics = { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' })).toHaveLength(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+    mocks.hasProAccess = false
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ title: 'habits.detail.slipping' })).toHaveLength(0)
+  })
+
+  it('shows a rescue only for an older overdue habit and handles request states', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' }).length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+    expect(tree.root.findAllByType('PillButton').some((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')).toBe(false)
+
+    mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' })).toHaveLength(0)
+
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' }).length).toBeGreaterThan(0)
+    expect(tree.root.findByProps({ children: 'habits.detail.rescheduleError' }).props.accessibilityLiveRegion).toBe('polite')
+    expect(tree.root.findAllByType('PillButton').some((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')).toBe(false)
+    const retry = tree.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.retry')
+    TestRenderer.act(() => { retry!.props.onClick() })
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+  })
+
+  it('uses the account today overdue schedule on a historical detail', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
+    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' }).length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
+    mocks.rescheduleOptions = []
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.slipping' })).toHaveLength(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+  })
+
+  it('uses the primary accept action only after a suggestion arrives', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const accept = tree.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')
+    expect(accept?.props.variant).toBe('primary')
+    expect(accept?.props.disabled).toBeUndefined()
+  })
+
+  it('capitalizes only the first letter of the visible month', () => {
+    vi.setSystemTime(new Date(2026, 8, 28, 12))
+    mocks.language = 'pt-BR'
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ children: 'Setembro de 2026' }).length).toBeGreaterThan(0)
+    expect(tree.root.findByType('MonthGrid').props.label).toBe('Atividade do hábito em setembro de 2026')
+  })
+
+  it('uses the drawn action row endings and a Pro badge on free', () => {
+    mocks.hasProAccess = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const add = tree.root.findByProps({ title: 'habits.detail.addSubHabit' })
+    expect(add.props.chevron).toBe(false)
+    expect(add.findByProps({ testID: 'badge-solid' }).findAllByProps({ children: 'habits.detail.proGate' }).length).toBeGreaterThan(0)
+    TestRenderer.act(() => { add.props.onClick() })
+    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(tree.root.findByProps({ title: 'habits.detail.delete' }).props.chevron).toBe(false)
   })
 
   it('returns a direct detail link to Today while the profile loads', () => {
@@ -1567,10 +1676,11 @@ describe('HabitDetailScreen', () => {
   it('sends free users from the slipping block to upgrade', () => {
     mocks.hasProAccess = false
     mocks.logs = []
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
     mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
     })
 
     TestRenderer.act(() => {
@@ -1601,6 +1711,7 @@ describe('HabitDetailScreen', () => {
 
   it('contains and reports a reschedule failure', async () => {
     mocks.logs = []
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
     mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
     mocks.suggestion = {
       frequencyUnit: 'Day',
@@ -1613,7 +1724,7 @@ describe('HabitDetailScreen', () => {
     mocks.update.mockRejectedValueOnce(new Error('reschedule failed'))
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
     })
     const accept = tree!.root.findAllByType('PillButton')
       .find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')
