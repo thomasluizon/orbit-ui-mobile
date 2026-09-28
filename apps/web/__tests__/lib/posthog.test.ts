@@ -76,6 +76,73 @@ describe('web PostHog adapter', () => {
     expect(captured.map(({ distinctId }) => distinctId)).not.toContain(previousId)
   })
 
+  it('captures one identified initial pageview and another after a path change', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    const originalPushState = window.history.pushState
+    window.history.replaceState({}, '', '/login?source=private#section')
+    const captured: Array<{ event: string; distinctId: string; currentUrl: string }> = []
+    let distinctId = 'anonymous'
+    let ready = false
+    let capturePageview: boolean | string = false
+    let beforeSend: (event: { event: string; properties: { $current_url: string; $pathname: string } }) =>
+      { event: string; properties: { $current_url: string; $pathname: string } } | null
+
+    sdk.get_distinct_id.mockImplementation(() => distinctId)
+    sdk.identify.mockImplementation((userId: string) => { distinctId = userId; ready = true })
+    sdk.reset.mockImplementation(() => {
+      ready = false
+      distinctId = 'anonymous'
+      sdk.capture('$pageview')
+    })
+    sdk.capture.mockImplementation((event: string) => {
+      const result = beforeSend({
+        event,
+        properties: { $current_url: window.location.href, $pathname: window.location.pathname },
+      })
+      if (result) captured.push({ event, distinctId, currentUrl: result.properties.$current_url })
+    })
+    sdk.opt_in_capturing.mockImplementation(() => {
+      expect(ready).toBe(true)
+      if (capturePageview) sdk.capture('$pageview')
+    })
+    sdk.init.mockImplementation((_key, options) => {
+      capturePageview = options.capture_pageview
+      beforeSend = options.before_send
+      sdk.capture('$pageview')
+      if (capturePageview === 'history_change') {
+        window.history.pushState = function pushState(...args) {
+          originalPushState.apply(this, args)
+          sdk.capture('$pageview')
+        }
+      }
+      options.loaded?.(sdk)
+    })
+
+    try {
+      const analytics = await import('@/lib/posthog')
+      analytics.identifyPostHogUser('ACCOUNT-1')
+      await analytics.applyPostHogGate(true)
+      expect(captured).toEqual([{
+        event: '$pageview',
+        distinctId: 'account-1',
+        currentUrl: `${window.location.origin}/login`,
+      }])
+
+      window.history.pushState({}, '', '/today?filter=private')
+      expect(captured).toEqual([
+        { event: '$pageview', distinctId: 'account-1', currentUrl: `${window.location.origin}/login` },
+        { event: '$pageview', distinctId: 'account-1', currentUrl: `${window.location.origin}/today` },
+      ])
+
+      await analytics.applyPostHogGate(false)
+      window.history.pushState({}, '', '/profile')
+      expect(captured).toHaveLength(2)
+    } finally {
+      window.history.pushState = originalPushState
+      window.history.replaceState({}, '', '/')
+    }
+  })
+
   it('flushes events under the current identity after loading and drops pending events when disabled', async () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')
@@ -165,16 +232,18 @@ describe('web PostHog adapter', () => {
     const event = {
       event: '$web_vitals',
       properties: {
-        $current_url: 'https://useorbit.org/today?filter=private#section',
+        $current_url: 'https://app.useorbit.org/today?filter=private#section',
         $pathname: '/today?filter=private#section',
-        navigationURL: 'https://useorbit.org/today?filter=private#section',
+        navigationURL: 'https://app.useorbit.org/today?filter=private#section',
       },
     }
     expect(beforeSend(event)).toMatchObject({ properties: {
-      $current_url: 'https://useorbit.org/today',
+      $current_url: 'https://app.useorbit.org/today',
       $pathname: '/today',
-      navigationURL: 'https://useorbit.org/today',
+      navigationURL: 'https://app.useorbit.org/today',
     } })
+    await analytics.applyPostHogGate(false)
+    expect(beforeSend(event)).toBeNull()
   })
 
   it('disables DOM interaction autocapture while retaining pageview and web vitals', async () => {
@@ -183,7 +252,7 @@ describe('web PostHog adapter', () => {
     await analytics.applyPostHogGate(true)
     expect(sdk.init.mock.calls[0]?.[1]).toMatchObject({
       autocapture: false,
-      capture_pageview: true,
+      capture_pageview: 'history_change',
       capture_performance: { web_vitals: true },
     })
   })
