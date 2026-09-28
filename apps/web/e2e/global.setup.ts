@@ -17,6 +17,11 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
   const importPrompt = await page.request.put('/api/profile/import-prompt/dismiss')
   expect(importPrompt.ok()).toBeTruthy()
 
+  const marketingConsent = await page.request.put('/api/profile/marketing-consent', {
+    data: { enabled: false },
+  })
+  expect(marketingConsent.ok()).toBeTruthy()
+
   await warmBackend(page.request)
 
   const session = await page.request.get('/api/auth/session')
