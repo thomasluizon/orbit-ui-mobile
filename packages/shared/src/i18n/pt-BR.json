@@ -1561,7 +1561,7 @@
   "profile": {
     "analytics": {
       "title": "Análise de uso",
-      "description": "Compartilhar dados de uso para ajudar a melhorar o Orbit",
+      "description": "Permita que o Orbit colete dados de uso deste dispositivo.",
       "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
