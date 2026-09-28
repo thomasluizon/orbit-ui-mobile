@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
+  hasOpenPromptBlockingOverlay,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -38,6 +39,9 @@ export function ReferralPrompt() {
   const celebrationInFlight = useUIStore(
     (state) => state.activeCelebration !== null || state.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const armedMilestoneKey =
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
@@ -45,9 +49,18 @@ export function ReferralPrompt() {
   const { sheetRef, closeSheet } = useSheetHost()
   const [showDrawer, setShowDrawer] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   useEffect(() => {
-    if (visibleKey || !armedMilestoneKey || celebrationInFlight) return
+    if (visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !canPromptReferral(
@@ -61,6 +74,7 @@ export function ReferralPrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedMilestoneKey, new Date().toISOString())
       setVisibleKey(armedMilestoneKey)
     }, SETTLE_DELAY_MS)
@@ -71,6 +85,8 @@ export function ReferralPrompt() {
   }, [
     armedMilestoneKey,
     celebrationInFlight,
+    anotherOverlayOpen,
+    promptId,
     visibleKey,
     markEngagementPrompted,
     clearArmedMilestone,

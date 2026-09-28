@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, Suspense } from 'react'
+import { useEffect, useCallback, useId, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -24,7 +24,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
-import { useTotalHabitCount } from '@/hooks/use-habits'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -32,6 +32,7 @@ import {
   getReferralLevelMilestone,
   getMilestoneShareAchievementKey,
   getMilestoneShareStreakKey,
+  hasOpenPromptBlockingOverlay,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/lib/actions/calendar'
@@ -143,7 +144,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const hasPendingOnboardingAnswers = useOnboardingHasPendingAnswers()
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
-  const totalHabitCount = useTotalHabitCount()
+  const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
 
   useEffect(() => {
     const cleanup = useAuthStore.getState().startExpiryMonitor()
@@ -169,15 +170,31 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   } = useChatComposer()
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useAccountScopedState(false)
+  const [calendarPromptOffered, setCalendarPromptOffered] = useAccountScopedState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const calendarPromptId = useId()
+  const importPromptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
   const [previousCriteriaMet, setPreviousCriteriaMet] = useAccountScopedState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
-    if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+    if (!calendarPromptCriteriaMet) setCalendarPromptOffered(false)
   }
+  useEffect(() => {
+    if (!calendarPromptCriteriaMet || calendarPromptOffered || anotherOverlayOpen) return
+    if (!useUIStore.getState().tryReservePromptOverlay(calendarPromptId)) return
+    setCalendarPromptOffered(true)
+    setShowCalendarPrompt(true)
+  }, [anotherOverlayOpen, calendarPromptCriteriaMet, calendarPromptId, calendarPromptOffered, setCalendarPromptOffered, setShowCalendarPrompt])
+  useEffect(() => {
+    if (!showCalendarPrompt) return
+    return () => unregisterOpenOverlay(calendarPromptId)
+  }, [calendarPromptId, showCalendarPrompt, unregisterOpenOverlay])
 
   const [showImportPrompt, setShowImportPrompt] = useAccountScopedState(false)
+  const [importPromptOffered, setImportPromptOffered] = useAccountScopedState(false)
 
   const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
     calendarPromptCriteriaMet,
@@ -187,18 +204,27 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useAccountScopedState(importPromptCriteriaMet)
   if (importPromptCriteriaMet !== previousImportCriteriaMet) {
     setPreviousImportCriteriaMet(importPromptCriteriaMet)
-    if (importPromptCriteriaMet) setShowImportPrompt(true)
+    if (!importPromptCriteriaMet) setImportPromptOffered(false)
   }
+  useEffect(() => {
+    if (!importPromptCriteriaMet || importPromptOffered || anotherOverlayOpen) return
+    if (!useUIStore.getState().tryReservePromptOverlay(importPromptId)) return
+    setImportPromptOffered(true)
+    setShowImportPrompt(true)
+  }, [anotherOverlayOpen, importPromptCriteriaMet, importPromptId, importPromptOffered, setImportPromptOffered, setShowImportPrompt])
+  useEffect(() => {
+    if (!showImportPrompt) return
+    return () => unregisterOpenOverlay(importPromptId)
+  }, [importPromptId, showImportPrompt, unregisterOpenOverlay])
 
   const handleCreate = useCallback(() => {
-    if (!hasProAccess && totalHabitCount >= 10) {
+    if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
     setShowCreateModal(true)
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [hasProAccess, totalHabitCount, router, setShowCreateModal])
+  }, [profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
@@ -441,12 +467,12 @@ function GlobalOverlays({
   return (
     <div className="contents">
       <ExpiryWarning />
-      <TrialExpiredModal />
+      {!showRetainedOnboarding ? <TrialExpiredModal /> : null}
       {showRetainedOnboarding && <RetainedOnboardingOverlay />}
-      {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
-      {profile?.hasCompletedOnboarding && <ReferralPrompt />}
-      {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
-      {showCalendarPrompt ? (<Sheet
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MarketingConsentPrompt />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <ReferralPrompt />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePrompt />}
+      {showCalendarPrompt && !showRetainedOnboarding ? (<Sheet
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
@@ -469,7 +495,7 @@ function GlobalOverlays({
           </div>
         </div>
       </Sheet>) : null}
-      {showImportPrompt ? (<Sheet
+      {showImportPrompt && !showRetainedOnboarding ? (<Sheet
         open
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}

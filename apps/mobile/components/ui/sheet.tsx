@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -8,6 +8,7 @@ import { X } from '@/components/ui/icons'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 const MAX_HEIGHT_RATIO = 0.85
 const MAX_CONTENT_WIDTH = 640
@@ -70,6 +71,9 @@ export function Sheet({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height } = useWindowDimensions()
   const { t } = useTranslation()
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const sheetRef = useRef<TrueSheet>(null)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
@@ -79,6 +83,7 @@ export function Sheet({
   }, [onClose])
 
   const handleDidDismiss = useCallback(() => {
+    unregisterOpenOverlay(overlayId)
     const exitAction = exitActionRef.current
     exitActionRef.current = null
     if (exitAction) {
@@ -86,7 +91,12 @@ export function Sheet({
       return
     }
     onCloseRef.current?.()
-  }, [])
+  }, [overlayId, unregisterOpenOverlay])
+
+  useEffect(() => {
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [overlayId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
     void sheetRef.current?.present().catch(() => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useEffectEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useEffectEvent, type ReactNode } from 'react'
 import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -9,6 +9,7 @@ import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks
 import { useShareCard } from '@/hooks/use-share-card'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
+import { useUIStore } from '@/stores/ui-store'
 import { WrappedSlide } from './wrapped-slide'
 
 interface WrappedPlayerProps {
@@ -31,6 +32,14 @@ export function WrappedPlayer({
   const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
   const current = slides[index]
   const closeRef = useRef<HTMLButtonElement>(null)
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+
+  useEffect(() => {
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [overlayId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
     closeRef.current?.focus()

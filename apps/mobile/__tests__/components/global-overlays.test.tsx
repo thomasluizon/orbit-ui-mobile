@@ -155,4 +155,15 @@ describe('OverlayLayer mount matrix', () => {
     expect(isMounted(withRetention, 'OnboardingFlow')).toBe(true)
     expect(isMounted(withRetention, 'OnboardingActionsProvider')).toBe(true)
   })
+
+  it('keeps first-run prompts behind retained onboarding', async () => {
+    const instance = await renderLayer({
+      hasCompletedOnboarding: true,
+      showRetainedOnboarding: true,
+    })
+    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
+      expect(isMounted(instance, overlay)).toBe(false)
+    }
+    expect(isMounted(instance, 'OnboardingFlow')).toBe(true)
+  })
 })

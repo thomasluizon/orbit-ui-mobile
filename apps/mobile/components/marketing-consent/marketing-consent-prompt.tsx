@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
@@ -37,11 +37,23 @@ export function MarketingConsentPrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visible) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visible, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
 
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -71,9 +83,10 @@ export function MarketingConsentPrompt() {
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight) return
+    if (visible || !isArmed || celebrationInFlight || anotherOverlayOpen) return
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(
         MARKETING_CONSENT_MILESTONE_KEY,
         new Date().toISOString(),
@@ -84,7 +97,7 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
+  }, [isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted, promptId])
 
   function answer(enabled: boolean) {
     closeSheet(() => {

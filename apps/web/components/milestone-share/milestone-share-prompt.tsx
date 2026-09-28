@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
-import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
+import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -50,12 +50,24 @@ export function MilestoneSharePrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visibleKey) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visibleKey, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
   const retiredPromptRef = useRef<typeof armedPrompt>(null)
   /**
    * The settle timer is the one thing the state reset above cannot reach: with no prompt on
@@ -68,7 +80,7 @@ export function MilestoneSharePrompt() {
   })
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     if (
@@ -84,6 +96,7 @@ export function MilestoneSharePrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -95,6 +108,8 @@ export function MilestoneSharePrompt() {
     armedPrompt,
     armedKey,
     celebrationInFlight,
+    anotherOverlayOpen,
+    promptId,
     visibleKey,
     queryClient,
     markEngagementPrompted,

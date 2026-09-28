@@ -89,7 +89,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 describe('MarketingConsentPrompt (mobile)', () => {
@@ -171,6 +171,21 @@ describe('MarketingConsentPrompt (mobile)', () => {
     })
 
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
+  })
+
+  it('waits for an open sheet before offering consent', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await renderArmed()
+    await settle()
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    await settle()
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('opts in through the offline queue and patches the profile on accept', async () => {

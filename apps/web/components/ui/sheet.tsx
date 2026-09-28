@@ -11,6 +11,7 @@ import {
   unregisterModalFocusOwner,
   unregisterOverlay,
 } from '@/lib/overlay-stack'
+import { useUIStore } from '@/stores/ui-store'
 
 export interface SheetHandle {
   /**
@@ -49,6 +50,8 @@ export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClos
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
 
@@ -74,11 +77,13 @@ export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClos
       },
     })
     registerModalFocusOwner(overlayId)
+    registerOpenOverlay(overlayId)
     return () => {
       unregisterOverlay(overlayId)
       unregisterModalFocusOwner(overlayId)
+      unregisterOpenOverlay(overlayId)
     }
-  }, [modalFocusOwnerActive, overlayId, requestClose])
+  }, [modalFocusOwnerActive, overlayId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
 
   function runExit() {
     const exitAction = exitActionRef.current

@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
+const renderedTrees: any[] = []
 
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
   pathname: '/',
-  conversationOpen: false,
-  setConversationOpen: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -36,16 +36,6 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
   ) => selector({ hasPendingAnswers: () => false }),
 }))
 
-vi.mock('@/stores/ui-store', () => {
-  const state = () => ({
-    astraConversationOpen: mocks.conversationOpen,
-    setAstraConversationOpen: mocks.setConversationOpen,
-  })
-  const useUIStore = (selector: (value: ReturnType<typeof state>) => unknown) => selector(state())
-  useUIStore.getState = state
-  return { useUIStore }
-})
-
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: vi.fn(async () => { await Promise.resolve(); return undefined; }),
 }))
@@ -65,11 +55,13 @@ vi.mock('@/components/ui/pill-button', () => ({
     React.createElement('PillButton', null, children),
 }))
 
-function renderPrompt() {
+async function renderPrompt() {
   let tree: any = null
-  TestRenderer.act(() => {
+  await TestRenderer.act(async () => {
     tree = TestRenderer.create(React.createElement(AstraImportPrompt))
+    await Promise.resolve()
   })
+  renderedTrees.push(tree)
   return tree!
 }
 
@@ -106,35 +98,53 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   mocks.profile = undefined
   mocks.pathname = '/'
-  mocks.conversationOpen = false
-  mocks.setConversationOpen.mockClear()
+  useUIStore.setState({ astraConversationOpen: false, openOverlayIds: [], showCreateModal: false })
+})
+afterEach(async () => {
+  await TestRenderer.act(async () => {
+    for (const tree of renderedTrees.splice(0)) tree.unmount()
+    await Promise.resolve()
+  })
 })
 
 describe('AstraImportPrompt gating', () => {
-  it('shows the sheet once onboarding is complete', () => {
+  it('waits while another sheet is open', async () => {
     mocks.profile = baseProfile()
-    expect(sheetCount(renderPrompt())).toBe(1)
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await renderPrompt()
+    expect(sheetCount(tree)).toBe(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    expect(sheetCount(tree)).toBe(1)
+    await TestRenderer.act(() => tree.unmount())
+  })
+  it('shows the sheet once onboarding is complete', async () => {
+    mocks.profile = baseProfile()
+    expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('does not wait for the retired tour state', () => {
+  it('does not wait for the retired tour state', async () => {
     mocks.profile = baseProfile({ hasCompletedTour: false })
-    expect(sheetCount(renderPrompt())).toBe(1)
+    expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('stays hidden before onboarding completes', () => {
+  it('stays hidden before onboarding completes', async () => {
     mocks.profile = baseProfile({ hasCompletedOnboarding: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden once the import prompt has been seen', () => {
+  it('stays hidden once the import prompt has been seen', async () => {
     mocks.profile = baseProfile({ hasSeenImportPrompt: true })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden while the conversation is open', () => {
+  it('stays hidden while the conversation is open', async () => {
     mocks.profile = baseProfile()
-    mocks.conversationOpen = true
-    expect(sheetCount(renderPrompt())).toBe(0)
+    useUIStore.getState().setAstraConversationOpen(true)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 })
 
@@ -148,9 +158,9 @@ describe('AstraImportPrompt quiet dismissal', () => {
     sheetTestControls.defer(false)
   })
 
-  it('keeps the sheet mounted until the dismissal completes, then marks it seen', () => {
+  it('keeps the sheet mounted until the dismissal completes, then marks it seen', async () => {
     mocks.profile = baseProfile()
-    const tree = renderPrompt()
+    const tree = await renderPrompt()
     expect(sheetCount(tree)).toBe(1)
 
     pressQuietAction(tree)

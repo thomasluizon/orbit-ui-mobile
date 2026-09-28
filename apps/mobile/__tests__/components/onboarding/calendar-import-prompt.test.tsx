@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
+const renderedTrees: any[] = []
 
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
@@ -49,6 +51,7 @@ function renderPrompt() {
   TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(CalendarImportPrompt))
   })
+  renderedTrees.push(tree)
   return tree!
 }
 
@@ -69,6 +72,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.profile = undefined
   mocks.pathname = '/'
+  useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
+})
+afterEach(() => {
+  TestRenderer.act(() => {
+    for (const tree of renderedTrees.splice(0)) tree.unmount()
+  })
 })
 
 describe('CalendarImportPrompt navigation', () => {
@@ -102,6 +111,22 @@ describe('CalendarImportPrompt navigation', () => {
 })
 
 describe('CalendarImportPrompt gating', () => {
+  it('waits until another sheet closes', async () => {
+    mocks.profile = baseProfile()
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    expect(sheetCount(tree)).toBe(1)
+    await TestRenderer.act(async () => {
+      tree.unmount()
+      await Promise.resolve()
+    })
+  })
   it('shows the sheet once onboarding is complete', () => {
     mocks.profile = baseProfile()
     expect(sheetCount(renderPrompt())).toBe(1)

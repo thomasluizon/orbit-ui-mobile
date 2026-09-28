@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { describe, it, expect, vi } from "vitest";
 
 import { createTokensV2 } from "@/lib/theme";
+import { useUIStore } from "@/stores/ui-store";
 import {
   CalendarHeader,
   CalendarLegend,
@@ -137,6 +138,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
     });
 
     pressByAccessibilityLabel(tree!, "Select year");
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
 
     const mock = tree!.root.findAll((node) => node.type === "YearPickerMock");
     expect(mock.length).toBeGreaterThan(0);
@@ -144,6 +146,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
       mock[0]!.props.onPress();
     });
     expect(onSelectYear).toHaveBeenCalledWith(2030);
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
   });
 });
 

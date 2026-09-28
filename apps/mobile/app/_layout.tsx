@@ -21,7 +21,7 @@ import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
-import { useTotalHabitCount } from '@/hooks/use-habits'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion } from '@/lib/motion'
@@ -208,7 +208,7 @@ function RootLayoutNav() {
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
-  const totalHabitCount = useTotalHabitCount()
+  const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
@@ -269,7 +269,7 @@ function RootLayoutNav() {
 
   const handleCreate = useMemo(
     () => () => {
-      if (!hasProAccess && totalHabitCount >= 10) {
+      if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
         router.push(buildUpgradeHref(pathname || '/'))
         return
       }
@@ -278,6 +278,8 @@ function RootLayoutNav() {
     },
     [
       hasProAccess,
+      habitCountLoaded,
+      profile,
       pathname,
       router,
       setShowCreateModal,

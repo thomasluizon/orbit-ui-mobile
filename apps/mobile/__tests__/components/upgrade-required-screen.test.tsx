@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import { useUIStore } from '@/stores/ui-store'
 
 interface TestNode {
   type: unknown
@@ -86,6 +87,7 @@ describe('UpgradeRequiredScreen', () => {
     openUrlMock.mockClear()
     stateRef.upgradeRequired = false
     stateRef.minVersion = null
+    useUIStore.setState({ openOverlayIds: [] })
   })
 
   it('renders nothing when no upgrade is required', async () => {
@@ -112,6 +114,7 @@ describe('UpgradeRequiredScreen', () => {
     const rendered = texts.map((node) => node.props.children as string)
     expect(rendered).toContain('forceUpdate.title')
     expect(rendered).toContain('forceUpdate.cta')
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
   })
 
   it('opens the Play listing when the CTA is pressed', async () => {

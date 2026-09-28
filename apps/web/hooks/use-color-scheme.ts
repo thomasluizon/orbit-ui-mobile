@@ -17,6 +17,7 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { useIsClient } from '@/hooks/use-is-client'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -29,6 +30,7 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 }
 
 export function useColorScheme() {
+  const isClient = useIsClient()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const currentScheme: ColorScheme = 'orange'
@@ -106,7 +108,7 @@ export function useColorScheme() {
 
   return {
     currentScheme,
-    currentTheme,
+    currentTheme: isClient ? currentTheme : 'dark',
     applyTheme,
     toggleTheme,
     syncThemeFromProfile,
