@@ -102,14 +102,16 @@ function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
-function WindowFrame({ children, title, tokens }: Readonly<{
+function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
   children: ReactNode
   title: string
   tokens: AppTokensV2
+  statusText?: string
 }>) {
   return (
     <View style={styles.windowSection}>
       <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.screenReaderTitle} testID="progress-window-status">{statusText}</Text>
       {children}
     </View>
   )
@@ -373,22 +375,31 @@ function GoalSeparator() {
 
 function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const { t, i18n } = useTranslation()
+  const router = useRouter()
+  const { width } = useWindowDimensions()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
-  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
-  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
-  const metrics = retrospective.data?.metrics
-  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
-  const topHabit = metrics?.topHabits[0]
-  const points = metrics?.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
+  if (hasNoHabits) {
+    const emptyAction = (
+      // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
+      <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>
+    )
+    return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={emptyAction} /></WindowFrame>
+  }
+  if (retrospective.isError) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
+  if (!retrospective.data) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
+  const metrics = retrospective.data.metrics
+  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics.weeklyConsistency)
+  const topHabit = metrics.topHabits[0]
+  const points = metrics.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
   return (
     <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}>
       {points.some((point) => point.scheduled > 0) ? <BarChart points={points} label={t('progressScreen.window.chartLabel')} /> : null}
       <WindowFigureGrid>
-        <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
-        <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />
+        <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
+        <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
           ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
@@ -549,7 +560,10 @@ export function ProgressContent() {
       </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
-      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
+      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={
+        // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
+        <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>
+      } /></View> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>

@@ -64,6 +64,20 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it('does not show a throttle toast for an empty retrospective on repeated requests', async () => {
+    getTokenMock.mockResolvedValue('token')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      error: 'No habits found for this period.',
+      errorCode: 'NO_HABITS_FOR_PERIOD',
+    }), { status: 400 }))
+    useThrottleStore.getState().clear()
+
+    await expect(apiClient('/api/habits/retrospective?period=month&language=en')).rejects.toMatchObject({ status: 400 })
+    await expect(apiClient('/api/habits/retrospective?period=month&language=en')).rejects.toMatchObject({ status: 400 })
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('opens the countdown for a refused request without retrying its write', async () => {
     getTokenMock.mockResolvedValue('token')
     const payload = { error: 'Too many requests', requestId: 'real-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }

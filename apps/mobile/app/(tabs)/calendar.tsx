@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
+import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -51,6 +51,7 @@ import {
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
+  calendarMonthForDay,
 } from "@orbit/shared/utils";
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -67,7 +68,7 @@ import { useAppToast } from "@/hooks/use-app-toast";
 import { getAccountGeneration } from "@/lib/session-epoch";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
@@ -92,6 +93,17 @@ import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range" | "agenda";
+
+const calendarLayoutStyles = StyleSheet.create({
+  inlineDay: { paddingHorizontal: 16, paddingTop: 24 },
+  daySkeleton: { borderRadius: radius.xl, borderWidth: 1, paddingVertical: 24 },
+});
+
+function CalendarInlineDaySlot({ loading, selected, label, tokens, children }: Readonly<{ loading: boolean; selected: boolean; label: string; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
+  if (loading) return <View style={calendarLayoutStyles.inlineDay}><View testID="calendar-day-skeleton" style={[calendarLayoutStyles.daySkeleton, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}><Skeleton variant="settings" rows={5} label={label} /></View></View>;
+  if (!selected) return null;
+  return <View style={calendarLayoutStyles.inlineDay}>{children}</View>;
+}
 
 function calendarStatState(
   state: CalendarMonthDisplayState,
@@ -236,13 +248,19 @@ function CalendarAgendaView({
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDay, setSelectedDay] = useState(() => formatAPIDate(new Date()));
+  const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
+  const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);
   if (!profile) {
     return (
       <CalendarProfileState
         failed={Boolean(profileError)}
         onRetry={() => void refetchProfile()}
+        currentMonth={currentMonth}
+        setSelectedDay={setSelectedDay}
+        view={view}
+        setView={setView}
       />
     );
   }
@@ -251,8 +269,11 @@ export default function CalendarScreen() {
     <CalendarScreenContent
       profile={profile}
       currentMonth={currentMonth}
-      setCurrentMonth={setCurrentMonth}
+      selectedDay={selectedDay}
+      setSelectedDay={setSelectedDay}
       monthQuery={monthQuery}
+      view={view}
+      setView={setView}
     />
   );
 }
@@ -260,8 +281,12 @@ export default function CalendarScreen() {
 function CalendarProfileState({
   failed,
   onRetry,
-}: Readonly<{ failed: boolean; onRetry: () => void }>) {
-  const { t } = useTranslation();
+  currentMonth,
+  setSelectedDay,
+  view,
+  setView,
+}: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
+  const { t, i18n } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -272,7 +297,7 @@ function CalendarProfileState({
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <View style={styles.profileStateWrap}>
+      <ScrollView style={styles.profileStateWrap} contentContainerStyle={styles.profileScrollContent}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
@@ -280,16 +305,38 @@ function CalendarProfileState({
           </View>
         ) : (
           <View style={styles.profileLoading}>
-            <Skeleton
-              variant="grid"
-              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
-              cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
-              cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-              gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
-              label={t('calendar.loading')}
+            <CalendarHeader
+              monthLabel={capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: i18n.language === 'pt-BR' ? ptBR : enUS }))}
+              year={currentMonth.getFullYear()}
+              previousMonthLabel={t('common.previousMonth')}
+              nextMonthLabel={t('common.nextMonth')}
+              currentMonthLabel={t('calendar.goToCurrentMonth')}
+              selectYearLabel={t('common.selectYear')}
+              onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
+              onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
+              onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
+              onSelectYear={(year) => setSelectedDay(formatAPIDate(startOfMonth(setYear(currentMonth, year))))}
+              tokens={tokens}
+              showMonthNavigation={view === 'month'}
+              viewSelector={<SegmentedControl<CalendarView> options={[
+                { value: 'month', label: t('calendar.view.month') },
+                { value: 'week', label: t('calendar.view.week') },
+                { value: 'range', label: t('calendar.view.range') },
+                { value: 'agenda', label: t('calendar.view.agenda') },
+              ]} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
             />
-            <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
-            <CalendarStats
+            <View style={styles.profileGrid}>
+              <Skeleton
+                variant="grid"
+                rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+                cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
+                cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
+                gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+                label={t('calendar.loading')}
+              />
+            </View>
+            <CalendarInlineDaySlot loading selected={false} label={t('calendar.loading')} tokens={tokens}>{null}</CalendarInlineDaySlot>
+            <View style={styles.listFooter}><CalendarStats
               stats={[
                 { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
                 { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
@@ -297,10 +344,10 @@ function CalendarProfileState({
               ]}
               state="loading"
               loadingLabel={t('calendar.loading')}
-            />
+            /></View>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -317,16 +364,22 @@ interface CalendarScreenContentProps {
     | 'googleCalendarLastSyncedAt'
   >;
   currentMonth: Date;
-  setCurrentMonth: Dispatch<SetStateAction<Date>>;
+  selectedDay: string;
+  setSelectedDay: Dispatch<SetStateAction<string>>;
   monthQuery: ReturnType<typeof useCalendarData>;
+  view: CalendarView;
+  setView: Dispatch<SetStateAction<CalendarView>>;
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarScreenContent({
   profile,
   currentMonth,
-  setCurrentMonth,
+  selectedDay,
+  setSelectedDay,
   monthQuery,
+  view,
+  setView,
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -361,7 +414,6 @@ function CalendarScreenContent({
     [],
   );
 
-  const [view, setView] = useState<CalendarView>("month");
   const [scrollTopResetView, setScrollTopResetView] = useState(view);
   if (view !== scrollTopResetView) {
     setScrollTopResetView(view);
@@ -371,9 +423,6 @@ function CalendarScreenContent({
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeOffset, setRangeOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
-    formatAPIDate(new Date()),
-  );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
   const {
@@ -508,23 +557,26 @@ function CalendarScreenContent({
 
   const prevMonth = useCallback(() => {
     setMonthSlide("left");
-    setCurrentMonth((m) => subMonths(m, 1));
-  }, [setCurrentMonth]);
+    const month = subMonths(currentMonth, 1);
+    setSelectedDay(formatAPIDate(month));
+  }, [currentMonth, setSelectedDay]);
 
   const nextMonth = useCallback(() => {
     setMonthSlide("right");
-    setCurrentMonth((m) => addMonths(m, 1));
-  }, [setCurrentMonth]);
+    const month = addMonths(currentMonth, 1);
+    setSelectedDay(formatAPIDate(month));
+  }, [currentMonth, setSelectedDay]);
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null);
-    setCurrentMonth((m) => startOfMonth(setYear(m, year)));
-  }, [setCurrentMonth]);
+    const month = startOfMonth(setYear(currentMonth, year));
+    setSelectedDay(formatAPIDate(month));
+  }, [currentMonth, setSelectedDay]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null);
-    setCurrentMonth(startOfMonth(new Date()));
-  }, [setCurrentMonth]);
+    setSelectedDay(todayKey);
+  }, [setSelectedDay, todayKey]);
 
   const prevWeek = useCallback(() => {
     setWeekSlide("left");
@@ -549,7 +601,10 @@ function CalendarScreenContent({
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
     setIsDayDetailOpen(true);
-  }, []);
+  }, [setSelectedDay]);
+  const selectMonthDay = useCallback((dateStr: string) => {
+    setSelectedDay(dateStr);
+  }, [setSelectedDay]);
 
   const closeDayDetail = useCallback(() => {
     setIsDayDetailOpen(false);
@@ -592,12 +647,7 @@ function CalendarScreenContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
     [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
   );
-  const { monthStats: sourceMonthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
-    [currentMonth, dayMap, weekStartsOn, todayKey],
-  );
-  const showMonthRecurringToggle =
-    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries;
+  const showMonthRecurringToggle = !isLoading && [...dayMap.values()].some((entries) => entries.length > 0);
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -663,8 +713,7 @@ function CalendarScreenContent({
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  const selectedDayLoggable = selectedDay !== null
-    && isCalendarDayLoggable(selectedDay, todayKey);
+  const selectedDayLoggable = isCalendarDayLoggable(selectedDay, todayKey);
 
   const selectedEntrySourceStates = useMemo(() => {
     const sourceStates = new Map<string, boolean>();
@@ -760,7 +809,7 @@ function CalendarScreenContent({
         swipeGesture={swipeGesture}
         gridRef={calendarGridRef}
         todayRef={calendarDayRef}
-        onSelectDay={onSelectDay}
+        onSelectDay={selectMonthDay}
         language={i18n.language}
         t={t}
         tokens={tokens}
@@ -777,15 +826,6 @@ function CalendarScreenContent({
         />
       ) : null}
 
-      <CalendarMonthFeedback
-        state={monthDisplayState}
-        emptyText={t('calendar.emptyMonth')}
-        futureText={t('calendar.futureMonth')}
-        createLabel={t('habits.createHabit')}
-        onCreate={openHabitCreation}
-        tokens={tokens}
-      />
-
       {showMonthRecurringToggle ? (
         <View style={styles.monthRecurringToggle}>
           <ShowRecurringToggle
@@ -796,6 +836,37 @@ function CalendarScreenContent({
           />
         </View>
       ) : null}
+      <CalendarMonthFeedback
+        state={monthDisplayState}
+        emptyText={t('calendar.emptyMonth')}
+        futureText={t('calendar.futureMonth')}
+        createLabel={t('habits.createHabit')}
+        onCreate={openHabitCreation}
+        tokens={tokens}
+      />
+
+      <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)} label={t('calendar.loading')} tokens={tokens}>
+          <CalendarDayDetail
+            selectedDate={selectedDay}
+            title={formattedSelectedDate}
+            filteredEntries={filteredEntries}
+            calendarEvents={selectedCalendarEvents}
+            autoSyncState={autoSyncState}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={() => void refetchCalendarEvents()}
+            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+            onViewPro={() => router.push('/upgrade')}
+            completedCount={completedCount}
+            loggable={selectedDayLoggable}
+            pendingEntryStates={pendingEntryStates}
+            onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+            onEntryChange={changeSelectedEntry}
+            onGoToDay={() => router.push(`/?date=${selectedDay}`)}
+            displayTime={displayTime}
+            t={t}
+            tokens={tokens}
+          />
+      </CalendarInlineDaySlot>
     </>
   );
 
@@ -815,29 +886,21 @@ function CalendarScreenContent({
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <View style={styles.viewSwitcher}>
-        <SegmentedControl<CalendarView>
-          options={viewOptions}
-          value={view}
-          onChange={setView}
-          label={t("calendar.view.switchLabel")}
-        />
-      </View>
-      {view === "month" ? (
-        <CalendarHeader
-          monthLabel={monthLabel}
-          year={currentYear}
-          previousMonthLabel={t("common.previousMonth")}
-          nextMonthLabel={t("common.nextMonth")}
-          currentMonthLabel={t("calendar.goToCurrentMonth")}
-          selectYearLabel={t("common.selectYear")}
-          onPreviousMonth={prevMonth}
-          onNextMonth={nextMonth}
-          onCurrentMonth={goToCurrentMonth}
-          onSelectYear={selectYear}
-          tokens={tokens}
-        />
-      ) : null}
+      <CalendarHeader
+        monthLabel={monthLabel}
+        year={currentYear}
+        previousMonthLabel={t('common.previousMonth')}
+        nextMonthLabel={t('common.nextMonth')}
+        currentMonthLabel={t('calendar.goToCurrentMonth')}
+        selectYearLabel={t('common.selectYear')}
+        onPreviousMonth={prevMonth}
+        onNextMonth={nextMonth}
+        onCurrentMonth={goToCurrentMonth}
+        onSelectYear={selectYear}
+        tokens={tokens}
+        showMonthNavigation={view === 'month'}
+        viewSelector={<SegmentedControl<CalendarView> options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
+      />
 
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
@@ -948,7 +1011,7 @@ function CalendarScreenContent({
         </ScrollView>
       )}
 
-      {isDayDetailOpen && selectedDay ? (<Sheet
+      {isDayDetailOpen && view === 'week' && selectedDay ? (<Sheet
         ref={sheetRef}
         open
         onClose={closeDayDetail}
@@ -958,7 +1021,8 @@ function CalendarScreenContent({
         <View style={styles.sheetContent}>
           <CalendarDayDetail
             selectedDate={selectedDay}
-            selectedEntries={selectedEntries}
+            title={formattedSelectedDate}
+            showTitle={false}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
             autoSyncState={autoSyncState}
@@ -971,9 +1035,7 @@ function CalendarScreenContent({
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
-            showRecurring={showRecurring}
             pendingEntryStates={pendingEntryStates}
-            onShowRecurringChange={setShowRecurring}
             onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
@@ -992,11 +1054,6 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
 
-    viewSwitcher: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 16,
-    },
 
     viewScrollContent: {
       paddingBottom: 24,
@@ -1024,7 +1081,7 @@ function createStyles() {
     },
 
     listFooter: {
-      paddingTop: 4,
+      paddingTop: 24,
     },
 
     monthRecurringToggle: {
@@ -1037,11 +1094,18 @@ function createStyles() {
       paddingVertical: 12,
     },
     profileStateWrap: {
-      paddingHorizontal: 4,
+      flex: 1,
+    },
+    profileScrollContent: {
       paddingVertical: 12,
     },
     profileLoading: {
-      gap: 24,
+      gap: 0,
+    },
+    profileGrid: {
+      alignSelf: 'center',
+      paddingTop: 16,
+      paddingBottom: 8,
     },
     emptyMonth: {
       alignItems: 'flex-start',

@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/pill-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 
-const SIDE_PANEL_QUERY = '(min-width: 1416px)'
+const SIDE_PANEL_QUERY = '(min-width: 1024px)'
 
 const ICONS: Record<string, ComponentType<IconProps>> = {
   home: Home,
@@ -168,11 +168,13 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
 function ShellWideBackground({
   props,
   conversationOpen,
+  sidePanel,
   modalOpen,
   registerScroller,
 }: Readonly<{
   props: ShellWideProps
   conversationOpen: boolean
+  sidePanel: boolean
   modalOpen: boolean
   registerScroller?: RefCallback<HTMLElement>
 }>) {
@@ -188,7 +190,7 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} /> : null}
 
-      <div className="relative flex min-w-0 flex-1 justify-center px-8">
+      <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'px-8'}`}>
         <div className="flex h-dvh w-full max-w-[740px] min-w-0 flex-col pt-8">
           {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
           <main
@@ -260,6 +262,7 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
       <ShellWideBackground
         props={props}
         conversationOpen={conversationOpen}
+        sidePanel={sidePanel}
         modalOpen={modalOpen}
         registerScroller={registerScroller}
       />

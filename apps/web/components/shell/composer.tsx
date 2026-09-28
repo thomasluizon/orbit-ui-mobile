@@ -143,7 +143,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onChange={(event) => props.onChangeValue(event.target.value)}
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
-          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         {props.onAttachFile ? (
