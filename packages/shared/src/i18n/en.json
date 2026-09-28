@@ -1381,7 +1381,7 @@
     },
     "dataResidency": {
       "title": "Where Your Data Is Stored",
-      "body": "Render hosts the web application, API, and database in Ohio, United States. Orbit uses Amazon SES for transactional and marketing emails and Amazon S3 for file uploads in us-east-2 (Ohio, United States). PostHog processes product, web traffic, and performance analytics in its US Cloud. Other processors, including OpenAI, Stripe, Google, and Cloudflare Turnstile, may process data outside Brazil. International transfers to these and other processors rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
+      "body": "Render hosts the web application, API, and database in Ohio, United States. Orbit uses Amazon SES for transactional and marketing emails and Amazon S3 for file uploads in us-east-2 (Ohio, United States). PostHog processes product, web traffic, and performance analytics in its US Cloud. Other processors, including OpenAI, Stripe, Google, and Cloudflare Turnstile, may process data outside Brazil. International transfers to these providers rely on the safeguards the LGPD allows for international transfers, including contractual commitments from each provider."
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",

@@ -1381,7 +1381,7 @@
     },
     "dataResidency": {
       "title": "Onde seus dados ficam guardados",
-      "body": "A Render hospeda o aplicativo web, a API e o banco de dados em Ohio, Estados Unidos. O Orbit usa a Amazon SES para e-mails transacionais e de marketing e a Amazon S3 para arquivos enviados na região us-east-2 (Ohio, Estados Unidos). O PostHog processa análises de uso do produto, tráfego web e desempenho em sua nuvem nos Estados Unidos. Outros operadores, incluindo OpenAI, Stripe, Google e Cloudflare Turnstile, podem processar dados fora do Brasil. As transferências internacionais para esses e outros operadores se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
+      "body": "A Render hospeda o aplicativo web, a API e o banco de dados em Ohio, Estados Unidos. O Orbit usa a Amazon SES para e-mails transacionais e de marketing e a Amazon S3 para arquivos enviados na região us-east-2 (Ohio, Estados Unidos). O PostHog processa análises de uso do produto, tráfego web e desempenho em sua nuvem nos Estados Unidos. Outros operadores, incluindo OpenAI, Stripe, Google e Cloudflare Turnstile, podem processar dados fora do Brasil. As transferências internacionais para esses provedores se baseiam nas salvaguardas que a LGPD admite para transferências internacionais, incluindo compromissos contratuais de cada provedor."
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
