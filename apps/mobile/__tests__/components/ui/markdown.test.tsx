@@ -317,12 +317,14 @@ describe('mobile Markdown wrapper', () => {
     const props = renderMarkdown({ children: '# Heading', tone: 'thread' })
     const styles = props.styles as {
       text: { color: string; fontSize: number; lineHeight: number }
+      paragraph: { marginVertical: number; paddingVertical?: number }
       h1: { color: string }
       link: { color: string }
     }
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = createTokensV2(currentScheme, currentTheme)
     expect(styles.text).toMatchObject({ color: tokens.fg1, fontSize: 16, lineHeight: 24 })
+    expect(styles.paragraph).toEqual({ marginVertical: 0, paddingVertical: 0 })
     expect(styles.text.color).toBe(styles.h1.color)
     expect(styles.link.color).toBe(styles.text.color)
   })

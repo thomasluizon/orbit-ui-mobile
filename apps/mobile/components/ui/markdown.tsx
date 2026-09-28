@@ -150,7 +150,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
       lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
-    paragraph: { marginVertical: 4 },
+    paragraph: thread ? { marginVertical: 0, paddingVertical: 0 } : { marginVertical: 4 },
     strong: { color: heading, fontFamily: 'Geist_500Medium' },
     em: { color: body, fontStyle: 'italic' },
     link: { color: link, textDecorationLine: 'underline', flexShrink: 1 },
