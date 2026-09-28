@@ -224,6 +224,20 @@ describe('UpgradePage subscription management', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each(['offline', 'portal-opening'] as const)('exposes %s on the upgrade content measured by the layout guard', async (state) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, hasProAccess: true, subscriptionSource: 'stripe' }
+    mockIsOnline = state !== 'offline'
+    mockOpenCustomerPortal.mockReturnValue(new Promise(() => {}))
+    render(<main data-shell-scroller><UpgradePage /></main>)
+    if (state === 'portal-opening') {
+      fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+    }
+    await waitFor(() => expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', state))
+    expect(document.querySelectorAll('[data-upgrade-screen]')).toHaveLength(1)
+    expect(document.querySelector('[data-upgrade-screen]')?.closest('main')).toHaveAttribute('data-shell-scroller')
+  })
+
   it.each([
     ['stripe', 'stripe'], ['play', 'play'], ['lifetime', 'stripe'],
     ['canceled', 'stripe'], ['past-due', 'stripe'], ['lapsed', 'stripe'],

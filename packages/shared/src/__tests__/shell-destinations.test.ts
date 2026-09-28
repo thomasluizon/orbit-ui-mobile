@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { resolveShellChrome, resolveShellDestination } from '../utils/shell-destinations'
 
 describe('resolveShellDestination', () => {
@@ -24,6 +24,24 @@ describe('resolveShellDestination', () => {
     expect(resolveShellDestination('/unknown')).toBeNull()
     expect(resolveShellDestination('/retrospective')).toBeNull()
     expect(resolveShellDestination('/calendarized')).toBeNull()
+  })
+
+  it('normalizes trailing slashes without a regular expression', () => {
+    const replace = vi.spyOn(String.prototype, 'replace')
+    try {
+      const results = [
+        resolveShellDestination('/'),
+        resolveShellDestination('/calendar/'),
+        resolveShellDestination('//'),
+        resolveShellDestination('/calendar'),
+        resolveShellDestination('/'.repeat(10_000) + 'unknown'),
+      ]
+      const usesRegularExpression = replace.mock.calls.some(([pattern]) => pattern instanceof RegExp)
+      expect(results).toEqual(['hoje', 'calendario', null, 'calendario', null])
+      expect(usesRegularExpression).toBe(false)
+    } finally {
+      replace.mockRestore()
+    }
   })
 })
 

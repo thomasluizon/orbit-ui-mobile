@@ -33,7 +33,11 @@ function matchesRoute(pathname: string, pattern: string): boolean {
 }
 
 export function resolveShellDestination(pathname: string): ShellDestinationId | null {
-  const normalizedPathname = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  let end = pathname.length
+  if (end > 1) {
+    while (end > 0 && pathname[end - 1] === '/') end -= 1
+  }
+  const normalizedPathname = pathname.slice(0, end)
   return SHELL_DESTINATION_ROUTES.find(({ pattern }) =>
     matchesRoute(normalizedPathname, pattern),
   )?.destination ?? null
