@@ -1562,7 +1562,7 @@
     "analytics": {
       "title": "Análise de uso",
       "description": "Compartilhar dados de uso para ajudar a melhorar o Orbit",
-      "saveError": "Não foi possível salvar a configuração. Tente novamente."
+      "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
       "you": "Você",
