@@ -439,7 +439,7 @@ describe('mobile alerts', () => {
     expect(testId(tree, 'notification-unread')).toHaveLength(50)
     press(tree, messages.notifications.deleteNotification.replace('{title}', 'Alert 0'))
     press(tree, messages.notifications.deleteAll)
-    press(tree, messages.notifications.delete)
+    press(tree, messages.notifications.deleteAllAction)
     refresh(tree)
     expect(text(tree, messages.notifications.empty)).toHaveLength(1)
     expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)

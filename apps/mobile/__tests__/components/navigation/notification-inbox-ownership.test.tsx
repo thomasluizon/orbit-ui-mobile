@@ -129,7 +129,7 @@ it.each([
     press(label)
   } else if (label === 'Clear all') {
     press(label)
-    press('Delete')
+    press('Delete notifications')
   } else {
     press(label)
   }

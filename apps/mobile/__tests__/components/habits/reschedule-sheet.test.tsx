@@ -68,6 +68,27 @@ function pressButton(root: TestNode, label: string) {
 }
 
 describe('RescheduleSheet (mobile)', () => {
+  it.each(['free', 'error', 'accept'] as const)('matches action widths in the %s footer', (state) => {
+    if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') mockReschedule.error = new Error('unavailable')
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const buttons = tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && /^button-(primary|ghost)-md$/.test(node.props.testID))
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      const style = button.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
+      expect(Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width).toBe('100%')
+    }
+  })
+  it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
+    if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') mockReschedule.error = new Error('unavailable')
+    const onOpenChange = vi.fn()
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    TestRenderer.act(() => pressButton(tree.root, 'habits.reschedule.dismiss'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }

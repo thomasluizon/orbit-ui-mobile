@@ -8,7 +8,7 @@ import { useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotifica
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
-import { ArrowLeft } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { NotificationBellDisplay } from './notification-bell'
@@ -39,23 +39,16 @@ export function NotificationInbox() {
 
   return (
     <section className="mx-auto flex w-full max-w-[560px] flex-col">
-      <header className="flex flex-col shadow-[inset_0_-1px_0_var(--hairline)]">
-        <div className="flex items-center gap-2 px-3 pt-2">
-          <button type="button" aria-label={t('common.back')} onClick={() => goBack('/')}
-            style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
-            className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-[var(--bg-hover)]">
-            <ArrowLeft size={20} aria-hidden="true" />
-          </button>
-          <h1 className="min-w-0 flex-1 text-xl font-medium">{t('notifications.title')}</h1>
-          <NotificationBellDisplay count={inbox.visibleUnreadCount} />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
+      <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
+        onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
+        refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}`}
+        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
           {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm"
             onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm"
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </div>
-      </header>
+        </div> : undefined}
+      />
       <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
         onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
         onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
@@ -65,7 +58,7 @@ export function NotificationInbox() {
         onDelete={() => requestDeleteNotification(selected)} /> : null}
       <ConfirmSheet open={confirmOpen} title={t('notifications.deleteAllConfirmTitle')}
         message={t('notifications.deleteAllConfirmDescription')}
-        confirmLabel={t('notifications.delete')} destructive
+        confirmLabel={t('notifications.deleteAllAction')} destructive
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
           setConfirmOpen(false)

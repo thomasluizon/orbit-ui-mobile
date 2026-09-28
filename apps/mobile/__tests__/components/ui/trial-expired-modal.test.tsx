@@ -66,6 +66,15 @@ vi.mock('@/components/ui/sheet', async () =>
 )
 
 describe('TrialExpiredModal (mobile)', () => {
+  it('matches the widths of the two trial actions', async () => {
+    const tree = await renderModal()
+    const buttons = tree!.root.findAll((node) => String(node.type) === 'Pressable' && typeof node.props.testID === 'string' && /^button-(primary|ghost)-md$/.test(node.props.testID))
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      const style = button.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
+      expect(Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width).toBe('100%')
+    }
+  })
   beforeEach(() => {
     vi.restoreAllMocks()
     useUIStore.setState({ openOverlayIds: [], showCreateModal: false })

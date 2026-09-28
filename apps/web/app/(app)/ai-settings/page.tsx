@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { useAstraSettingsController } from '@/components/profile/astra-settings-controller'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AiFeatureToggles } from './_components/ai-feature-toggles'
@@ -18,13 +18,13 @@ export default function AiSettingsPage() {
 
   return (
     <div className="md:mx-auto md:max-w-[760px]">
-      <div className="flex flex-col min-h-[100dvh]">
-        <AppBar
+      <div className="flex flex-col">
+        <PageHeader
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('aiSettings.title')}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0">
           <div className="stagger-enter">
             <AiFeatureToggles
               hasProAccess={hasProAccess}

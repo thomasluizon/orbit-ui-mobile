@@ -167,7 +167,7 @@ describe('CreateGoalFromHabitSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(onClose).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.discard' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     expect(onClose).toHaveBeenCalledOnce()
   })
 })

@@ -2,8 +2,9 @@
 
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface ConfirmSheetProps {
   open: boolean
@@ -35,6 +36,7 @@ export function ConfirmSheet({
 }: Readonly<ConfirmSheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
+  const cancelRef = useRef<HTMLButtonElement>(null)
   const [lifecycle, setLifecycle] = useState({
     lastOpen: open, mounted: open, closing: false, generation: 0,
   })
@@ -76,6 +78,7 @@ export function ConfirmSheet({
     <Sheet
       key={lifecycle.generation}
       ref={sheetRef}
+      initialFocus={destructive ? cancelRef : undefined}
       open
       title={title}
       onClose={() => {
@@ -87,18 +90,19 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <>
-          <PillButton variant="ghost" disabled={actionsDisabled} onClick={cancel}>
-            {cancelLabel ?? t('common.cancel')}
-          </PillButton>
+        <DialogActionPair>
           <PillButton
             variant={destructive ? 'destructive' : 'primary'}
+            matchedWidth
             disabled={actionsDisabled}
             onClick={confirm}
           >
             {confirmLabel}
           </PillButton>
-        </>
+          <PillButton variant="ghost" matchedWidth buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
+            {cancelLabel ?? t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       }
     >
       <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>

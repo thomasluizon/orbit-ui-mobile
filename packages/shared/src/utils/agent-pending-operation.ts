@@ -5,6 +5,7 @@ const LOCALIZED_CAPABILITY_IDS = new Set([
   'goals.delete',
   'tags.delete',
   'notifications.delete',
+  'user-facts.delete',
   'calendar.sync.manage',
   'subscriptions.manage',
   'api-keys.manage',

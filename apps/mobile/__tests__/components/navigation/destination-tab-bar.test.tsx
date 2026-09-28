@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { useUIStore } from '@/stores/ui-store'
 import { press, renderNavigation } from '../ui/navigation-render'
 const mocks = vi.hoisted(() => ({ navigate: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate }) }))
@@ -21,5 +22,18 @@ describe('DestinationTabBar', () => {
     for (const tab of tabs) press(tab)
     expect(mocks.navigate.mock.calls).toEqual([['/'], ['/calendar'], ['/progress'], ['/profile']])
     tree.unmount()
+  })
+
+  it('keeps the previous destination on Search and defaults to Today', () => {
+    useUIStore.getState().setLastDestination('calendario')
+    const fromCalendar = renderNavigation(<DestinationTabBar pathname="/search" />)
+    const calendar = fromCalendar.hosts().find((node) => node.props.accessibilityLabel === 'nav.calendar')
+    expect(calendar?.props.accessibilityState?.selected).toBe(true)
+    fromCalendar.unmount()
+    useUIStore.getState().setLastDestination('hoje')
+    const direct = renderNavigation(<DestinationTabBar pathname="/search" />)
+    const today = direct.hosts().find((node) => node.props.accessibilityLabel === 'nav.today')
+    expect(today?.props.accessibilityState?.selected).toBe(true)
+    direct.unmount()
   })
 })

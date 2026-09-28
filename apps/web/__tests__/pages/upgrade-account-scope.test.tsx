@@ -156,7 +156,7 @@ describe('UpgradePage across an account change', () => {
 
     render(<UpgradePage />)
     const stopMonitor = useAuthStore.getState().startExpiryMonitor()
-    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+    expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'loading')
 
     await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
 
@@ -178,8 +178,8 @@ describe('UpgradePage across an account change', () => {
       vi.stubGlobal('location', { href: '' })
       render(<UpgradePage />)
       const manageName = source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
-      expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
-      expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true')
+      expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'loading')
+      expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('aria-busy', 'true')
       expect(screen.queryByRole('button', { name: manageName })).not.toBeInTheDocument()
       expect(mocks.openCustomerPortal).not.toHaveBeenCalled()
       expect(globalThis.location.href).toBe('')
@@ -204,7 +204,7 @@ describe('UpgradePage across an account change', () => {
       finishSession = resolve
     }))
     render(<UpgradePage />)
-    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+    expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'loading')
     expect(screen.queryByRole('button', { name: 'upgrade.billing.lapsed.action' })).not.toBeInTheDocument()
     expect(globalThis.fetch).not.toHaveBeenCalled()
 
@@ -242,7 +242,7 @@ describe('UpgradePage across an account change', () => {
 
     expect(screen.queryByText('upgrade.billing.invoices.title')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^upgrade.billing.invoices.downloadDated/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+    expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'loading')
   })
 
   it('shows the next account their own lapse notice rather than the previous pitch', async () => {
