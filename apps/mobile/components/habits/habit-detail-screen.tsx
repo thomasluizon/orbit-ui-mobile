@@ -22,6 +22,7 @@ import {
   getHabitDetailChildUnavailableReasonKey,
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
+  getFriendlyErrorMessage,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -382,12 +383,14 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     ) return false
 
     pendingToggleKeys.add(toggleKey)
+    let mutationCompleted = false
     try {
       const response = await logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent })
+      mutationCompleted = true
       await waitForQueuedDetailLog(response, toggleKey)
       return true
-    } catch {
-      showError(t('habits.detail.logError'))
+    } catch (error) {
+      if (mutationCompleted) showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
       return false
     } finally {
       pendingToggleKeys.delete(toggleKey)
