@@ -57,27 +57,35 @@ export function useAnchoredMenu(): AnchoredMenuController {
   }, [])
 
   const close = useCallback(() => {
+    setPhase((current) => current === 'open' ? 'closing' : current)
+  }, [])
+
+  const dismissImmediately = useCallback(() => {
     if (ownsActiveMenu.current) {
       ownsActiveMenu.current = false
       activeMenuClose = null
     }
-    setPhase((current) => current === 'open' ? 'closing' : current)
+    setPhase('closed')
   }, [])
 
   const open = useCallback(() => {
     if (!ownsActiveMenu.current) activeMenuClose?.()
     ownsActiveMenu.current = true
-    activeMenuClose = close
+    activeMenuClose = dismissImmediately
     setPhase('open')
     setOpenRevision((revision) => revision + 1)
     measureAnchor()
-  }, [close, measureAnchor])
+  }, [dismissImmediately, measureAnchor])
 
   useEffect(() => () => {
     if (ownsActiveMenu.current) activeMenuClose = null
   }, [])
 
   const finishClose = useCallback(() => {
+    if (ownsActiveMenu.current) {
+      ownsActiveMenu.current = false
+      activeMenuClose = null
+    }
     setPhase((current) => current === 'closing' ? 'closed' : current)
   }, [])
 
