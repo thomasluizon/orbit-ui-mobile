@@ -29,12 +29,10 @@ import {
   useUpdateChecklist,
   useLogHabit,
 } from '@/hooks/use-habits'
-import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   formatHabitDetailSummary,
   formatLocaleDate,
-  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -228,7 +226,6 @@ export function HabitDetailDrawer({
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const { displayTime } = useTimeFormat()
-  const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createDrawerStyles(tokens), [tokens])
@@ -343,24 +340,11 @@ export function HabitDetailDrawer({
         cancelLabel={t('common.cancel')}
         variant="success"
         onConfirm={() => {
-          void (async () => {
           if (!habit) return
-          try {
-            await logHabit.mutateAsync({ habitId: habit.id })
-            onLogged?.(habit.id)
-          } catch (error: unknown) {
-            showError(
-              getFriendlyErrorMessage(
-                error,
-                (key, values) => t(key, values),
-                'errors.logHabit',
-                'habit',
-              ),
-            )
-          } finally {
-            setShowChecklistCompleteConfirm(false)
-          }
-          })()
+          logHabit.mutate({ habitId: habit.id }, {
+            onSuccess: () => onLogged?.(habit.id),
+            onSettled: () => setShowChecklistCompleteConfirm(false),
+          })
         }}
       />
 

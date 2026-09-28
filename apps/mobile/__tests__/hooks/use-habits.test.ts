@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
+import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -28,6 +29,15 @@ import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 
 const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      key === 'errors.api.logNotAllowed' ? enMessages.errors.api.logNotAllowed
+        : params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en' },
+  }),
+}))
 
 const storage = vi.hoisted(() => ({
   getItem: vi.fn(() => Promise.resolve(null as string | null)),
@@ -455,6 +465,47 @@ describe('mobile habit hooks', () => {
     expect(getHabitList()[0]?.isCompleted).toBe(true)
 
     resolveCancel?.()
+  })
+
+  it('rolls back a rejected habit log and shows the mapped error once', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })])
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown, { habitId: string }, HabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1' }
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList()[0]?.isCompleted).toBe(true)
+
+    mutation.onError?.(createApiClientError(400, {
+      error: 'Not scheduled on date', errorCode: 'NOT_SCHEDULED_ON_DATE',
+    }, 'Request failed: 400'), variables, context)
+
+    expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(mocks.showError).toHaveBeenCalledOnce()
+    expect(mocks.showError).toHaveBeenCalledWith(enMessages.errors.api.logNotAllowed)
+  })
+
+  it('shows the generic mapped error once for a network failure', () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown, { habitId: string }, HabitSnapshotContext
+    >
+
+    mutation.onError?.(new Error('Network failed'), { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.showError).toHaveBeenCalledOnce()
+    expect(mocks.showError).toHaveBeenCalledWith('errors.logHabit')
+  })
+
+  it('shows no error toast after a successful habit log', () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      LogHabitResponse, { habitId: string }, HabitSnapshotContext
+    >
+
+    mutation.onSuccess?.({
+      logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1,
+    }, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
