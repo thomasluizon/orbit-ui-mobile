@@ -15,8 +15,8 @@ vi.mock('expo-crypto', () => ({
   CryptoEncoding: { BASE64: 'base64' },
 }))
 
-import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
-import { completeGoogleAuthFromUrl, startMobileGoogleAuth } from '@/lib/google-auth'
+import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
 const callback = 'https://app.useorbit.org/auth-callback'
 const loginResponse = { token: 'jwt', refreshToken: 'refresh', userId: 'user-1', name: 'Alex', email: 'alex@example.com' }
@@ -73,6 +73,17 @@ describe('mobile Google authorization code flow', () => {
     mocks.open.mockResolvedValue({ type: 'success', url: `${callback}?code=google-code&state=wrong` })
     await expect(startMobileGoogleAuth({})).rejects.toThrow('Invalid OAuth state')
     await expect(completeGoogleAuthFromUrl(`${callback}?code=google-code&state=wrong`, 'en')).rejects.toThrow()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('returns the verified App Link and clears credentials when the browser is cancelled', async () => {
+    expect(getGoogleAuthRedirectUrl()).toBe(callback)
+    mocks.open.mockResolvedValue({ type: 'cancel' })
+
+    await expect(startMobileGoogleAuth({})).resolves.toEqual({ type: 'cancel' })
+
+    expect(mocks.open).toHaveBeenCalledWith(expect.any(String), callback)
+    expect(hasPendingGoogleAuthSession()).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
