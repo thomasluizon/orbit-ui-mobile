@@ -380,7 +380,7 @@ function InteractiveChecklistItem({
     <span
       className={`flex-1 min-w-0 transition-colors ${
         item.isChecked
-          ? 'text-[var(--fg-3)] line-through'
+          ? 'text-[var(--fg-3)]'
           : 'text-[var(--fg-1)]'
       }`}
       style={{ fontFamily: 'var(--font-sans)', fontSize: 16 }}
