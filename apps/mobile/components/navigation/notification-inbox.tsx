@@ -38,12 +38,12 @@ export function NotificationInbox() {
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
-        footer={<View style={styles.actions}>
+        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <View style={styles.actions}>
           {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
             onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </View>}
+        </View> : undefined}
       />
       <ScrollView style={styles.scroller}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}

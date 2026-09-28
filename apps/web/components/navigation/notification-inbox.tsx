@@ -42,12 +42,12 @@ export function NotificationInbox() {
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}`}
-        footer={<div className="flex flex-wrap items-center gap-2 px-2 pb-2">
+        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
           {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm"
             onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm"
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </div>}
+        </div> : undefined}
       />
       <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
         onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
