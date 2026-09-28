@@ -458,8 +458,8 @@
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
     "allDoneToday": "Por hoje é isso",
-    "allDoneHint": "Tudo que vencia hoje está feito.",
-    "seeUpcoming": "Ver hábitos de amanhã",
+    "allDoneHint": "Tudo que era para hoje está feito.",
+    "seeUpcoming": "Ver amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "filterEmptySubHabits": "Nenhum sub-hábito corresponde a esta visualização.",
     "moveParent": {
