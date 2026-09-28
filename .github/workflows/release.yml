@@ -140,29 +140,18 @@ jobs:
             exit 1
           fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY" >&2; exit 1; fi
-          known_deploy_ids=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" --data-urlencode 'limit=20' |
-            jq -c '[.[].deploy.id]')
-          triggered_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
+          # body, so no deploy can be proven to be this release's and the step fails closed.
+          response=$(mktemp)
+          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
-            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')" > /dev/null
-          deploy_id=
-          for attempt in $(seq 1 30); do
-            deploys=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" \
-              --data-urlencode 'limit=20' --data-urlencode "createdAfter=${triggered_after}")
-            deploy_ids=$(jq -c --arg image "$image_url" --arg digest "$DIGEST" --argjson known "$known_deploy_ids" \
-              '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id |
-                select(. as $id | $known | index($id) | not)]' <<< "$deploys")
-            if [ "$(jq 'length' <<< "$deploy_ids")" -gt 1 ]; then
-              echo "Multiple new production deploys match ${image_url}" >&2; exit 1
-            fi
-            deploy_id=$(jq -r '.[0] // empty' <<< "$deploy_ids")
-            if [ -n "$deploy_id" ]; then break; fi
-            sleep 2
-          done
-          if [ -z "$deploy_id" ]; then echo "Queued web deploy for ${image_url} was not listed" >&2; exit 1; fi
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
+          if [ "$http_code" != "201" ]; then
+            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
+            exit 1
+          fi
+          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          echo "Requested web deploy ${deploy_id}"
           for attempt in $(seq 1 60); do
             sleep 10
             status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
@@ -250,29 +239,18 @@ jobs:
           image_url="${IMAGE}@${DIGEST}"
           if [ -z "$SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID" >&2; exit 1; fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing staging RENDER_API_KEY" >&2; exit 1; fi
-          known_deploy_ids=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" --data-urlencode 'limit=20' |
-            jq -c '[.[].deploy.id]')
-          triggered_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
+          # body, so no deploy can be proven to be this release's and the step fails closed.
+          response=$(mktemp)
+          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
-            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')" > /dev/null
-          deploy_id=
-          for attempt in $(seq 1 30); do
-            deploys=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" \
-              --data-urlencode 'limit=20' --data-urlencode "createdAfter=${triggered_after}")
-            deploy_ids=$(jq -c --arg image "$image_url" --arg digest "$DIGEST" --argjson known "$known_deploy_ids" \
-              '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id |
-                select(. as $id | $known | index($id) | not)]' <<< "$deploys")
-            if [ "$(jq 'length' <<< "$deploy_ids")" -gt 1 ]; then
-              echo "Multiple new staging deploys match ${image_url}" >&2; exit 1
-            fi
-            deploy_id=$(jq -r '.[0] // empty' <<< "$deploy_ids")
-            if [ -n "$deploy_id" ]; then break; fi
-            sleep 2
-          done
-          if [ -z "$deploy_id" ]; then echo "Queued staging deploy for ${image_url} was not listed" >&2; exit 1; fi
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
+          if [ "$http_code" != "201" ]; then
+            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
+            exit 1
+          fi
+          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          echo "Requested staging deploy ${deploy_id}"
           for attempt in $(seq 1 60); do
             sleep 10
             status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
