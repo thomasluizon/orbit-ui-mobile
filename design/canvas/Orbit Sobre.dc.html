@@ -55,7 +55,6 @@ a:hover{color:var(--fg-1)}
                 </sc-for>
               </div>
 
-              <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty;overflow-wrap:anywhere">{{ credit }}</p>
             </div>
           </sc-if>
 
@@ -115,7 +114,6 @@ a:hover{color:var(--fg-1)}
                   </sc-for>
                 </div>
 
-                <p style="font-size:14px;line-height:1.55;color:var(--fg-4);text-wrap:pretty">{{ credit }}</p>
               </div>
             </sc-if>
 
@@ -220,7 +218,6 @@ const T = {
       { label: 'Versão', value: '2.4.0' },
       { label: 'Conta', value: 'marina@exemplo.com' },
     ],
-    credit: 'Orbit e Astra são nomes próprios e não são traduzidos.',
     updated: (d) => 'Atualizado em ' + d,
     privacyDate: '17 de agosto de 2026',
     termsDate: '17 de agosto de 2026',
@@ -298,7 +295,6 @@ const T = {
       { label: 'Version', value: '2.4.0' },
       { label: 'Account', value: 'marina@exemplo.com' },
     ],
-    credit: 'Orbit and Astra are proper names and are never translated.',
     updated: (d) => 'Updated ' + d,
     privacyDate: '17 August 2026',
     termsDate: '17 August 2026',
@@ -499,7 +495,7 @@ class Component extends DCLogic {
       is412: s.width === '412', isWide: s.width === 'wide',
       n48: 48, noop: () => {},
       showReport: this.props.showReport !== false,
-      tagline: t.tagline, credit: t.credit, proseNote: t.proseNote,
+      tagline: t.tagline, proseNote: t.proseNote,
       account: t.account, createLabel: t.create, navLabelWord: t.navLabel, paletteWord: t.palette,
     };
     if (!D) return base;
