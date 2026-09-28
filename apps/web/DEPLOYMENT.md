@@ -13,7 +13,6 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `RENDER_WEB_STAGING_SERVICE_ID` | Render service ID for `orbit-web-staging` |
 | `RENDER_WEB_SERVICE_ID` | Render service ID for `orbit-web` |
 | `PRODUCTION_WEB_HOST` | Production hostname, without `https://` or a path |
-| `PRODUCTION_WEB_CUTOVER` | Set to `true` when `PRODUCTION_WEB_HOST` moves to Render; leave unset before the cutover |
 | `STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Public Google OAuth web client ID |
 | `STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public push key |
 | `STAGING_NEXT_PUBLIC_EVENT_API_BASE`, `PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE` | Browser reachable API origin for event streaming |
@@ -35,6 +34,6 @@ If `RENDER_WEB_SERVICE_ID` is absent during the first production release, the wo
 
 Before the DNS cutover, an unreachable public host or one without a health route does not block a production release, but a different reported SHA does. The GitHub Deployment URL is the Render service URL until the public host reports the same SHA.
 
-At the DNS cutover, set the repository variable `PRODUCTION_WEB_CUTOVER` to `true` in **Settings > Secrets and variables > Actions > Variables**. The release then requires `https://<PRODUCTION_WEB_HOST>/api/health` to return the deployed SHA and healthy status. An unreachable host, missing health route, or different SHA fails the deploy job. The smoke job runs against the public host, and the GitHub Deployment URL points there. A successful release with a public host verification in its job summary and a smoke job targeting that host proves the setting took effect.
+Production releases require `https://<PRODUCTION_WEB_HOST>/api/health` to return the deployed SHA and healthy status. An unreachable host, missing health route, or different SHA fails the deploy job. The smoke job runs against the public host, and the GitHub Deployment URL points there. The web proxy redirects the Render service host to the public site, so a release never smoke-tests a different host than the one people use.
 
 The Render API request uses `POST /v1/services/{serviceId}/deploys` with `imageUrl` set to `ghcr.io/thomasluizon/orbit-web@sha256:...`. A created response supplies the deploy ID. A bodyless queued response makes the workflow list recent deploys and find the matching image reference before polling. The workflow accepts Render's `live` status and fails on terminal failure statuses.
