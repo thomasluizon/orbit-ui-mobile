@@ -139,7 +139,6 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
-  useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
 

@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
       "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
@@ -2044,12 +2045,6 @@
   },
   "trial": {
     "proBadge": "Período de teste",
-    "banner": {
-      "freeLine": "Plano gratuito",
-      "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje",
-      "upgrade": "Assinar"
-    },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",

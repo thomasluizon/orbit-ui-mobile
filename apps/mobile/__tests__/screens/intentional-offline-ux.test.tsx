@@ -61,7 +61,6 @@ const mocks = vi.hoisted(() => {
     useGamificationProfile: vi.fn(() => ({ profile: null })),
     useHasProAccess: vi.fn(() => true),
     useIsYearlyPro: vi.fn(() => true),
-    useTrialDaysLeft: vi.fn(() => 0),
     useTrialExpired: vi.fn(() => false),
     useTrialUrgent: vi.fn(() => false),
     useSubscriptionPlans: vi.fn(() => ({
@@ -212,7 +211,6 @@ vi.mock('@/hooks/use-offline', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: mocks.useProfile,
   useHasProAccess: mocks.useHasProAccess,
-  useTrialDaysLeft: mocks.useTrialDaysLeft,
   useTrialExpired: mocks.useTrialExpired,
   useTrialUrgent: mocks.useTrialUrgent,
   useIsYearlyPro: mocks.useIsYearlyPro,
@@ -338,7 +336,6 @@ describe('intentional offline UX screens', () => {
     mocks.useGamificationProfile.mockReturnValue({ profile: null })
     mocks.useHasProAccess.mockReturnValue(true)
     mocks.useIsYearlyPro.mockReturnValue(true)
-    mocks.useTrialDaysLeft.mockReturnValue(0)
     mocks.useTrialExpired.mockReturnValue(false)
     mocks.useTrialUrgent.mockReturnValue(false)
     mocks.useSubscriptionPlans.mockReturnValue({

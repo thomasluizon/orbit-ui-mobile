@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { AdjustmentsHorizontal } from '@/components/ui/icons'
+import { Menu } from '@/components/ui/menu'
 import { TodayDateControl } from '@/components/today/today-date-control'
 
 const TestRenderer = require('react-test-renderer')
@@ -21,8 +23,9 @@ const props = {
   nextDisabled: false,
   previousLabel: 'Previous day',
   todayLabel: 'Today',
+  goToTodayLabel: 'Go to today',
   nextLabel: 'Next day',
-  moreLabel: 'More actions',
+  moreLabel: 'List options',
   searchLabel: 'Search',
   onSearch: vi.fn(),
   selectLabel: 'Select',
@@ -67,7 +70,7 @@ describe('Today date control feedback (mobile)', () => {
   it('gives the arrows, jump action, and menu control pressed feedback', () => {
     const renderer = renderControl()
 
-    for (const label of ['Previous day', 'Next day', 'More actions']) {
+    for (const label of ['Previous day', 'Next day', 'List options']) {
       const control = button(renderer, label)
       if (!control) throw new Error(`${label} control did not render`)
       const idle = StyleSheet.flatten(control.props.style({ pressed: false })) as Record<string, unknown>
@@ -76,12 +79,32 @@ describe('Today date control feedback (mobile)', () => {
       expect(pressed.backgroundColor).toBe('rgba(250,250,250,0.13)')
     }
 
-    const today = renderer.root.findAllByType(Pressable)[1]
+    const today = button(renderer, 'Go to today')
     if (!today) throw new Error('Today control did not render')
-    const pressedToday = StyleSheet.flatten(today.props.style({ pressed: true })) as Record<string, unknown>
-    expect(pressedToday.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(today.props.testID).toBe('button-ghost-sm')
+    const next = button(renderer, 'Next day')
+    expect(today.parent.children.indexOf(today)).toBe(today.parent.children.indexOf(next) + 1)
     TestRenderer.act(() => today.props.onPress())
     expect(callbacks.onGoToToday).toHaveBeenCalledOnce()
+  })
+
+  it('uses the list options glyph and title', () => {
+    const renderer = renderControl()
+    const control = button(renderer, 'List options')
+    if (!control) throw new Error('List options control did not render')
+    expect(control.findAllByType(AdjustmentsHorizontal)).toHaveLength(1)
+    TestRenderer.act(() => control.props.onPress())
+    const menu = renderer.root.findByType(Menu)
+    expect(menu.props.title).toBe('List options')
+    expect(menu.props.open).toBe(true)
+  })
+
+  it('uses display type and leading alignment for the date', () => {
+    const renderer = renderControl()
+    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
+    expect(StyleSheet.flatten(date.props.style)).not.toHaveProperty('alignItems', 'center')
+    const day = date.findAllByType(Text)[0]
+    expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
   })
 
   it('does not paint or invoke the disabled forward control', () => {

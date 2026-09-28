@@ -63,7 +63,6 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
   useHasProAccess: () => mockHasProAccess,
   useTrialExpired: () => mockTrialExpired,
-  useTrialDaysLeft: () => mockTrialDaysLeft,
   useTrialUrgent: () => mockTrialUrgent,
 }))
 
