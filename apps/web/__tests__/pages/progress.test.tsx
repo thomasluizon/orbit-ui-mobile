@@ -13,6 +13,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
@@ -151,7 +152,10 @@ vi.mock('@/hooks/use-gamification', () => ({
   },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
-  useProgressRetrospective: () => mocks.retrospective,
+  useProgressRetrospective: () => {
+    mocks.retrospectiveHook()
+    return mocks.retrospective
+  },
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
 
@@ -1081,19 +1085,42 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('keeps the page open when the Pro figures report no habits', () => {
-    const retrospectiveData = mocks.retrospective.data
-    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
+  it('shows the page invitation without requesting a window for a new account', () => {
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0, achievementsEarned: 0 })
     mocks.retrospective.isError = true
     mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
 
     render(<ProgressContent />)
 
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-    expect(screen.getByText('0%')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('href', '/')
+    expect(screen.queryByText('progressScreen.window.empty')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mocks.retrospectiveHook).not.toHaveBeenCalled()
+    expect(mocks.retrospective.refetch).not.toHaveBeenCalled()
+    expect(ptBR.progressScreen.emptyAction).toBe('Começar um hábito')
+    expect(en.progressScreen.emptyAction).toBe('Start a habit')
+  })
 
-    mocks.retrospective.data = retrospectiveData
+  it('shows the window empty state when an account with progress has no habits in the period', () => {
+    const retrospectiveData = mocks.retrospective.data
+    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
+
+    try {
+      render(<ProgressContent />)
+
+      expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+      expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
+      expect(screen.queryByText('0%')).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
+    } finally {
+      mocks.retrospective.data = retrospectiveData
+    }
   })
 
   it('shows streak loading and failure without a false upgrade boundary', () => {

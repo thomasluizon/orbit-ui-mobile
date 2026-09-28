@@ -53,6 +53,31 @@ describe('Calendar shell helpers', () => {
     expect(onSelectYear).toHaveBeenCalledWith(2030)
   })
 
+  it('keeps the selector in the header without month controls in other views', () => {
+    render(
+      <CalendarHeader
+        monthLabel="April"
+        year={2026}
+        previousMonthLabel="Previous month"
+        nextMonthLabel="Next month"
+        currentMonthLabel="Current month"
+        selectYearLabel="Select year"
+        onPreviousMonth={vi.fn()}
+        onNextMonth={vi.fn()}
+        onCurrentMonth={vi.fn()}
+        onSelectYear={vi.fn()}
+        showMonthNavigation={false}
+        viewSelector={<div role="group" aria-label="Calendar views" />}
+      />,
+    )
+
+    const header = screen.getByTestId('calendar-header-group')
+    expect(header).toContainElement(screen.getByRole('group', { name: 'Calendar views' }))
+    expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Select year' })).not.toBeInTheDocument()
+  })
+
   it('renders the week nav and fires week handlers', () => {
     const onPreviousWeek = vi.fn()
     const onNextWeek = vi.fn()

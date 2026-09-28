@@ -78,6 +78,7 @@ const calendarDataCalls = vi.fn()
 const logHabitMutateAsync = vi.fn(async () => {})
 const routerPush = vi.fn()
 const calendarDayDetailProps: {
+  dateStr?: string | null
   calendarEvents?: CalendarSyncEvent[]
   autoSyncState?: CalendarAutoSyncState
   calendarEventsState?: string
@@ -89,7 +90,6 @@ const calendarDayDetailProps: {
   onCalendarAutoSyncChange?: (enabled: boolean) => Promise<void>
   onShowRecurringChange?: (value: boolean) => void
   showRecurring?: boolean
-  showRecurringToggle?: boolean
 } = {}
 const calendarEventsQueryState: {
   data: { status: 'connected'; events: CalendarSyncEvent[] } | { status: 'not-connected' }
@@ -209,16 +209,16 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 
 vi.mock('./_components/calendar-shell', () => ({
-  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
-    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  CalendarHeader: ({ onNextMonth, viewSelector, showMonthNavigation }: { onNextMonth: () => void; viewSelector: React.ReactNode; showMonthNavigation: boolean }) => (
+    <div data-testid="calendar-header-group">{showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={onNextMonth} /> : null}{viewSelector}</div>
   ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
 vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
-  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
-    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  CalendarHeader: ({ onNextMonth, viewSelector, showMonthNavigation }: { onNextMonth: () => void; viewSelector: React.ReactNode; showMonthNavigation: boolean }) => (
+    <div data-testid="calendar-header-group">{showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={onNextMonth} /> : null}{viewSelector}</div>
   ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
@@ -266,15 +266,6 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
     const displayedAutoSyncState = props.autoSyncState
     return (
       <div data-testid="day-detail">
-        {props.showRecurringToggle !== false && (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={props.showRecurring}
-          aria-label="calendar.showRecurring"
-          onClick={() => props.onShowRecurringChange?.(!props.showRecurring)}
-        />
-        )}
         {displayedAutoSyncState?.hasGoogleConnection ? (
           <button
             type="button"
@@ -292,14 +283,21 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
 vi.mock('@/components/calendar/calendar-week-view', () => ({
   CalendarWeekView: ({
     onShowRecurringChange,
+    onSelectDay,
+    onNextWeek,
+    columns,
   }: {
     onShowRecurringChange: (value: boolean) => void
+    onSelectDay: (date: string) => void
+    onNextWeek: () => void
+    columns: { dateStr: string }[]
   }) => (
-    <button
-      type="button"
-      data-testid="week-view"
-      onClick={() => onShowRecurringChange(false)}
-    />
+    <>
+      <button type="button" data-testid="week-view" onClick={() => onShowRecurringChange(false)} />
+      <button type="button" data-testid="week-day" onClick={() => onSelectDay('2026-09-12')} />
+      <button type="button" data-testid="next-week" onClick={onNextWeek} />
+      <button type="button" data-testid="visible-week-day" onClick={() => onSelectDay(columns[3]!.dateStr)} />
+    </>
   ),
 }))
 
@@ -652,6 +650,75 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 
+  it('keeps the selector in the header and the selected day below the grid at wide width', () => {
+    isWideDesktopValue = true
+    render(<CalendarPage />)
+
+    const header = screen.getByTestId('calendar-header-group')
+    const selector = screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })
+    const grid = screen.getByTestId('calendar-grid')
+    const detail = screen.getByTestId('day-detail')
+    expect(header).toContainElement(selector)
+    expect(grid.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps the grid and day detail inside a 412px wide shell column', () => {
+    isWideDesktopValue = true
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+    const { container } = render(<div style={{ width: 412 }}><CalendarPage /></div>)
+    const gridTrack = screen.getByTestId('calendar-grid-card') as HTMLElement
+    expect(Number.parseInt(gridTrack.style.width, 10)).toBeLessThanOrEqual(412)
+    fireEvent.click(screen.getByTestId('month-view'))
+    expect(container.querySelector('[data-testid="day-detail"]')).not.toBeNull()
+    expect(calendarDayDetailProps.dateStr).toBe(calendarGridSelectionDate)
+  })
+
+  it.each([false, true])('keeps the loading column independent of wide desktop: %s', (wide) => {
+    isWideDesktopValue = wide
+    monthQueryState.isLoading = true
+    const page = render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-header-group')).toContainElement(
+      screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' }),
+    )
+    expect(screen.getByTestId('calendar-grid')).toBeInTheDocument()
+    expect(screen.getByTestId('calendar-day-skeleton')).toBeInTheDocument()
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('month-stats')).toHaveAttribute('data-state', 'loading')
+    monthQueryState.isLoading = false
+    page.rerender(<CalendarPage />)
+    expect(screen.queryByTestId('calendar-day-skeleton')).toBeNull()
+    expect(screen.getByTestId('day-detail')).toBeInTheDocument()
+    expect(screen.getByTestId('month-stats')).not.toHaveAttribute('data-state', 'loading')
+  })
+
+  it('keeps the day sheet for a selected week day', () => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-day'))
+    expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
+    expect(calendarDayDetailProps.dateStr).toBe('2026-09-12')
+  })
+
+  it('returns from a later week to the month containing the selected day', () => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    for (let week = 0; week < 4; week += 1) fireEvent.click(screen.getByTestId('next-week'))
+    fireEvent.click(screen.getByTestId('visible-week-day'))
+    expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 9, 1))
+    expect(calendarGridProps.selectedDateStr).toBe('2026-10-08')
+    expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
+  })
+
+  it('shows only the range navigation in range view', () => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(screen.queryByTestId('calendar-header')).toBeNull()
+    expect(screen.getByTestId('range-view')).toBeInTheDocument()
+  })
+
   it('passes the pending range state through the owning composition', () => {
     rangeLoading = true
     const view = render(<CalendarPage />)
@@ -677,7 +744,6 @@ describe('CalendarPage view switcher', () => {
     ])
     render(<CalendarPage />)
 
-    expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
 
@@ -789,14 +855,15 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
-  it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
+  it('updates the inline day detail below the wide-desktop breakpoint', () => {
     render(<CalendarPage />)
 
-    expect(screen.queryByTestId('calendar-day-panel')).toBeNull()
-    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('day-detail')).toBeDefined()
 
     fireEvent.click(screen.getByTestId('month-view'))
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
+    expect(screen.queryByRole('button', { name: 'close-day-detail' })).toBeNull()
   })
 
   it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
@@ -809,7 +876,7 @@ describe('CalendarPage view switcher', () => {
       googleCalendarAutoSyncStatus: 'Idle',
       googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
     }
-    render(<CalendarPage />)
+    const page = render(<CalendarPage />)
 
     expect(autoSyncQueryOptions).toEqual({
       enabled: true,
@@ -824,9 +891,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('month-view'))
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
     await waitFor(() => expect(setAutoSync).toHaveBeenCalledWith({ enabled: false }))
-    fireEvent.click(screen.getByRole('button', { name: 'close-day-detail' }))
-    fireEvent.click(screen.getByTestId('month-view'))
-
+    page.rerender(<CalendarPage />)
     expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
       .toHaveAttribute('aria-checked', 'false')
   })
@@ -917,7 +982,7 @@ describe('CalendarPage view switcher', () => {
     }]]])
     render(<CalendarPage />)
 
-    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(screen.getByTestId('month-stats')).toBeDefined()
     expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
@@ -992,7 +1057,7 @@ describe('CalendarPage view switcher', () => {
 
       await replaceAccountWith('user-2')
 
-      expect(screen.queryByTestId('day-detail')).not.toBeInTheDocument()
+      expect(screen.getByTestId('day-detail')).toBeInTheDocument()
       expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
     })
 
