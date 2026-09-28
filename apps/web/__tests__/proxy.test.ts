@@ -112,6 +112,7 @@ describe('proxy', () => {
     ['staging', 'https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com', 'https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com'],
   ])('allows the %s upload bucket without broadening the CSP', async (_, bucketOrigin, otherBucketOrigin) => {
     vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', bucketOrigin)
+    vi.stubEnv('API_BASE', 'https://api.example.test')
 
     const response = await proxy(createRequest('/terms'))
     const directives = response.headers.get('Content-Security-Policy')!.split('; ')
@@ -123,6 +124,7 @@ describe('proxy', () => {
       expect(sources).toContain('https://test.supabase.co')
       expect(sources).not.toContain(otherBucketOrigin)
     }
+    expect(imageSources).toContain('https://api.example.test')
     expect(directives.join('; ')).not.toContain('*.amazonaws.com')
   })
 
