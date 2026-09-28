@@ -193,6 +193,8 @@ describe('web PostHog adapter', () => {
     expect(sdk.opt_out_capturing).toHaveBeenCalledOnce()
     await analytics.applyPostHogGate(true)
     expect(sdk.opt_in_capturing).toHaveBeenCalledTimes(2)
+    expect(sdk.opt_in_capturing).toHaveBeenNthCalledWith(1, { captureEventName: false })
+    expect(sdk.opt_in_capturing).toHaveBeenNthCalledWith(2, { captureEventName: false })
   })
 
   it('drops callback and credential URLs and removes query and fragment from URL metadata', async () => {

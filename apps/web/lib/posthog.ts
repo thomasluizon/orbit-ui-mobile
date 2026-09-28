@@ -1,6 +1,6 @@
 'use client'
 
-import type { CaptureResult, PostHogInterface } from 'posthog-js'
+import type { CaptureResult } from 'posthog-js'
 
 type PostHogClient = typeof import('posthog-js')['default']
 
@@ -74,7 +74,7 @@ let pendingHabitEvents = 0
 let pendingReset = false
 let identityReady = false
 
-function activatePostHog(client: PostHogInterface): void {
+function activatePostHog(client: PostHogClient): void {
   if (!analyticsEnabled) {
     client.opt_out_capturing()
     return
@@ -86,7 +86,7 @@ function activatePostHog(client: PostHogInterface): void {
   pendingReset = false
   if (accountId) client.identify(accountId)
   identityReady = true
-  client.opt_in_capturing()
+  client.opt_in_capturing({ captureEventName: false })
 }
 
 export async function applyPostHogGate(enabled: boolean): Promise<void> {
@@ -118,7 +118,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
       disable_session_recording: true,
       opt_out_capturing_by_default: true,
       before_send: beforeSend,
-      loaded: activatePostHog,
+      loaded: () => activatePostHog(client),
     })
     posthog = client
     initialized = true
@@ -170,7 +170,7 @@ export function resetPostHogUser(): void {
   posthog.reset()
   pendingReset = false
   identityReady = true
-  if (analyticsEnabled) posthog.opt_in_capturing()
+  if (analyticsEnabled) posthog.opt_in_capturing({ captureEventName: false })
   else posthog.opt_out_capturing()
 }
 
