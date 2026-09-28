@@ -95,7 +95,7 @@ export async function applyPostHogGate(enabled: boolean): Promise<void> {
       api_host: '/ingest',
       ui_host: 'https://us.posthog.com',
       autocapture: false,
-      capture_pageview: true,
+      capture_pageview: 'history_change',
       capture_performance: { web_vitals: true },
       cross_subdomain_cookie: true,
       disable_session_recording: true,
