@@ -136,7 +136,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         removeScopedTrialExpiredFlag(accountId),
       ])
       if (!isCurrentAccount()) return
-      await resetAccountQueries(queryClient, 'signed-in')
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentAccount()) return
       closeSheet(() => {

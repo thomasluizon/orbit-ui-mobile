@@ -20,12 +20,14 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
-const mockQueryClientClear = vi.fn()
+const mockResetAccountQueries = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: mockResetAccountQueries,
+}))
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQueryClient: () => ({
-    clear: mockQueryClientClear,
-  }),
+  useQueryClient: () => ({}),
 }))
 
 const mockResetAccount = vi.fn()
@@ -198,7 +200,7 @@ describe('FreshStartModal', () => {
     })
 
     await waitFor(() => {
-      expect(mockQueryClientClear).toHaveBeenCalledTimes(1)
+      expect(mockResetAccountQueries).toHaveBeenCalledTimes(1)
       expect(mockRouterPush).toHaveBeenCalledWith('/')
       expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
     })
@@ -221,7 +223,7 @@ describe('FreshStartModal', () => {
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(onOpenChange).not.toHaveBeenCalled()
-    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
@@ -242,7 +244,7 @@ describe('FreshStartModal', () => {
     })
     expect(screen.queryByText('Server error')).not.toBeInTheDocument()
     expect(mockRouterPush).not.toHaveBeenCalled()
-    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
   })
 
   it('submits the reset on Enter once ORBIT is typed', async () => {
@@ -352,10 +354,11 @@ describe('FreshStartModal across an account change', () => {
     fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
 
     await replaceAccountWith('user-2')
+    const resetsAfterAccountChange = mockResetAccountQueries.mock.calls.length
     await act(async () => { releaseReset(); await Promise.resolve() })
 
     expect(localStorage.getItem(nextNoticeKey)).toBe('1')
-    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockResetAccountQueries).toHaveBeenCalledTimes(resetsAfterAccountChange)
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 })

@@ -95,6 +95,11 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: vi.fn(async () => {}),
+}))
+
 vi.mock('@/lib/query-client', () => ({
   getQueryClient: () => mocks.queryClient,
 }))

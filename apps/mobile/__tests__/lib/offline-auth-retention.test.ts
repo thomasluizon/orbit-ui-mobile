@@ -52,6 +52,10 @@ vi.mock('@/lib/auth-flow', () => ({
   getAuthReturnUrlAttempt: () => 0,
 }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: vi.fn(async () => {}),
+}))
 vi.mock('@/lib/query-client', () => ({
   queryClient: { clear: vi.fn(), setQueryData: vi.fn(), invalidateQueries: vi.fn(), getQueriesData: () => [] },
   clearPersistedQueryCache: async () => {}, setQueryCacheScope: async () => {}, persistQueryCache: async () => {},
