@@ -35,7 +35,6 @@ export interface PendingOperationCardLabels {
   reminderSameDay: string
   reminderDayBefore: string
   reminderTime: string
-  confirm: string
   confirmBody: string
   confirmNote: string
   confirmTitle: string
@@ -92,7 +91,6 @@ export function buildPendingOperationCardLabels(
     reminderSameDay: translate('chat.operation.list.sameDay'),
     reminderDayBefore: translate('chat.operation.list.dayBefore'),
     reminderTime: translate('chat.operation.list.time'),
-    confirm: translate('chat.operation.confirm'),
     confirmBody: translate('chat.operation.confirmBody'),
     confirmNote: translate('chat.operation.confirmNote'),
     confirmTitle: translate('chat.operation.confirmTitle'),

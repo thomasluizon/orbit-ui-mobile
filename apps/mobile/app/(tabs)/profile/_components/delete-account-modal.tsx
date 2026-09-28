@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
 import { TriangleAlert } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
 
@@ -131,13 +132,14 @@ export function DeleteAccountModal({
           <View style={styles.actions}>
             <PillButton
               variant="destructive"
+              matchedWidth
               onClick={() => void handleRequestDeletion()}
               disabled={loading}
               loading={loading}
             >
               {t('profile.deleteAccount.sendCode')}
             </PillButton>
-            <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
+            <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
               {t('common.cancel')}
             </PillButton>
           </View>
@@ -184,7 +186,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   actions: {
+    alignSelf: 'center',
     gap: 12,
+    maxWidth: MATCHED_PILL_MAX_WIDTH,
     paddingTop: 8,
+    width: '100%',
   },
 })

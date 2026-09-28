@@ -11,6 +11,15 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'pu
 afterEach(() => sheetTestControls.defer(false))
 
 describe('ConfirmSheet controlled close', () => {
+  it('keeps both confirmation pills matched when stacked', () => {
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
+    const buttons = tree.root.findAll((node: any) => node.type === 'Pressable' && /^button-(ghost|primary)-md$/.test(node.props.testID ?? ''))
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      expect(Object.assign({}, ...button.props.style({ pressed: false }).filter(Boolean)).width).toBe('100%')
+    }
+  })
   it('finishes native dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)
     const props = {

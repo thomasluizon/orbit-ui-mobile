@@ -161,7 +161,7 @@ describe('FreshStartModal', () => {
       const node = label === 'common.cancel'
         ? tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-md')[0]!
         : buttonWithLabel(tree, label)!
-      const style = node.props.style as (state: { pressed: boolean }) => Array<Record<string, unknown> | null>
+      const style = node.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
     }
     expect(width('profile.freshStart.reviewDeletion')).toBe('100%')

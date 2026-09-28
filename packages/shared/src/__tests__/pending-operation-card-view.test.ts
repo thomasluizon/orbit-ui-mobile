@@ -12,7 +12,7 @@ import {
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 
 const labels: PendingOperationCardLabels = {
-  approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Confirm',
+  approve: 'Approve', acting: 'Working', cancel: 'Cancel',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
@@ -73,6 +73,14 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it('names the affected resource on the irreversible confirmation', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation(),
+    })
+    expect(record.confirm?.confirmLabel).toBe('Delete habit')
+  })
   it('shows an action target without inventing a value transition', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
