@@ -56,6 +56,7 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 describe('proxy', () => {
   beforeEach(() => {
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
     vi.mocked(NextResponse.next).mockClear()
@@ -238,12 +239,14 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('/profile'))
+    await proxy(createRequest('http://0.0.0.0:10000/profile?source=notification'))
 
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.origin).toBe('https://app.useorbit.org')
     expect(redirectUrl.pathname).toBe('/login')
     expect(redirectUrl.searchParams.get('returnUrl')).toBe('/profile')
+    expect(redirectUrl.searchParams.get('source')).toBe('notification')
   })
 
   it('restores a missing access cookie from a valid refresh-backed session', async () => {
@@ -333,12 +336,13 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('/login', {
+    await proxy(createRequest('http://0.0.0.0:10000/login', {
       cookies: { auth_token: 'valid-token' },
     }))
 
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.origin).toBe('https://app.useorbit.org')
     expect(redirectUrl.pathname).toBe('/')
   })
 

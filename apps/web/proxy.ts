@@ -123,8 +123,8 @@ export async function proxy(request: NextRequest) {
     : { token: null, refreshedTokens: null }
 
   if (!session.token && !isPublic) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
+    url.search = request.nextUrl.search
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
       url.searchParams.set('returnUrl', pathname)
     }
@@ -132,9 +132,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (session.token && pathname === '/login' && request.nextUrl.searchParams.get('googleError') !== '1') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    url.search = ''
+    const url = new URL('/', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
     return secureResponse(
       await applyRefreshedSession(
         NextResponse.redirect(url),
