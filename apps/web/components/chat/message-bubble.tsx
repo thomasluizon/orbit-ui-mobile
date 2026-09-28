@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -10,7 +10,6 @@ import {
   partitionMessageActions,
   stripChatDirectives,
 } from '@orbit/shared/chat'
-import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
@@ -59,6 +58,11 @@ export function MessageBubble({
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
+  }, [])
 
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
@@ -79,38 +83,25 @@ export function MessageBubble({
   }
 
   const isUser = message.role === 'user'
-  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false)
+  const sourceText = stripChatDirectives(message.content, false)
 
   async function copySourceText() {
     await globalThis.navigator.clipboard.writeText(sourceText)
     setCopied(true)
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
+    copyResetTimer.current = setTimeout(() => setCopied(false), 1600)
   }
 
   return (
     <div
       className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
-      style={{ gap: 8, padding: '0 16px', marginBottom: 16 }}
+      style={{ gap: 8 }}
     >
-      {!isUser && (
-        <div
-          data-slot="ai-avatar"
-          className="shrink-0 rounded-full flex items-center justify-center self-start"
-          style={{
-            width: 30,
-            height: 30,
-            background: 'rgba(var(--primary-rgb), 0.18)',
-          }}
-          aria-hidden="true"
-        >
-          <AstraMark size={16} />
-        </div>
-      )}
-
       <div
         className={
           isUser
-            ? 'max-w-[82%] flex flex-col items-end'
-            : 'flex-1 min-w-0 flex flex-col items-start'
+            ? 'max-w-[80%] flex flex-col items-end'
+            : 'flex-1 min-w-0 flex flex-col items-start gap-2'
         }
       >
         <span className="sr-only">
@@ -121,12 +112,12 @@ export function MessageBubble({
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={
             isUser
-              ? 'inline-block max-w-full md:max-w-[65ch] bg-[var(--primary)] text-[var(--fg-on-primary)]'
-              : 'inline-block max-w-full md:max-w-[65ch] bg-[var(--bg-elev)] text-[var(--fg-1)]'
+              ? 'inline-block max-w-full bg-[var(--bg-well)] text-[var(--fg-1)]'
+              : 'inline-block max-w-full md:max-w-[65ch] text-[var(--fg-1)]'
           }
           style={{
-            padding: '12px 16px',
-            borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+            padding: isUser ? '12px 16px' : 0,
+            borderRadius: isUser ? 16 : 0,
           }}
         >
           {message.imageUrl && (
@@ -139,14 +130,15 @@ export function MessageBubble({
             />
           )}
           <Markdown
+            className="thread-prose"
             content={isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
           />
         </div>
 
-        <button
+        {!isUser && sourceText.trim() && <button
           type="button"
           onClick={() => void copySourceText()}
-          className="mt-1 flex min-h-11 items-center gap-2 border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-3)] transition-colors hover:text-[var(--fg-1)]"
+          className="flex min-h-11 items-center gap-2 border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-3)] transition-colors hover:text-[var(--fg-1)]"
         >
           {copied ? (
             <Check size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -154,7 +146,7 @@ export function MessageBubble({
             <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
           )}
           {copied ? t('chat.copied') : t('chat.copy')}
-        </button>
+        </button>}
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />

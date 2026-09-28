@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import * as Clipboard from 'expo-clipboard'
+import { createTokensV2 } from '@/lib/theme'
 
 import { MessageBubble } from '@/components/message-bubble'
 
@@ -42,21 +43,6 @@ vi.mock('react-i18next', () => ({
       values ? `${key}:${JSON.stringify(values)}` : key,
     i18n: { language: 'en-US' },
   }),
-}))
-
-vi.mock('@/lib/theme', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/lib/theme')>(),
-  createTokensV2: () =>
-    new Proxy(
-      {},
-      {
-        get: (_target, prop) => {
-          if (prop === 'fgOnPrimary') return '#ffffff'
-          return '#111111'
-        },
-      },
-    ),
-  tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
 }))
 
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
@@ -199,7 +185,7 @@ describe('MessageBubble copy control (mobile)', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('copies sent source text', async () => {
+  it('does not offer copying a sent message', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -207,12 +193,47 @@ describe('MessageBubble copy control (mobile)', () => {
       )
     })
 
-    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
-    await TestRenderer.act(async () => {
-      await copy?.props.onPress?.()
-    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
+  })
+})
 
-    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('**Walk**\n- Water')
+describe('MessageBubble thread treatment (mobile)', () => {
+  it('uses a neutral 16-radius well with an 80% cap for sent messages', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    })
+    const tokens = createTokensV2('purple', 'dark')
+    const bubble = tree.root.findAll((node) =>
+      Array.isArray(node.props.style) && node.props.style[0]?.maxWidth === '100%',
+    )[0]
+    expect(bubble).toBeDefined()
+    const bubbleStyle = Object.assign({}, ...((bubble?.props.style ?? []) as object[]))
+    expect(bubbleStyle).toMatchObject({
+      backgroundColor: tokens.bgWell,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    })
+    expect(tree.root.findAll((node) =>
+      typeof node.type === 'string' && (node.props.style as { maxWidth?: string } | undefined)?.maxWidth === '80%',
+    )).toHaveLength(1)
+  })
+
+  it('renders AI prose without an avatar or filled surface', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ role: 'ai' })} />)
+    })
+    const tokens = createTokensV2('purple', 'dark')
+    expect(tree.root.findAll((node) => {
+      const style = node.props.style as { width?: number; height?: number } | undefined
+      return typeof node.type === 'string' && style != null && style.width === 30 && style.height === 30
+    })).toHaveLength(0)
+    expect(tree.root.findAll((node) =>
+      Array.isArray(node.props.style) && node.props.style.some((style: { backgroundColor?: string }) => style.backgroundColor === tokens.bgElev),
+    )).toHaveLength(0)
   })
 })
 

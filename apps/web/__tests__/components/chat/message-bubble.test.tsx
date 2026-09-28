@@ -119,14 +119,9 @@ describe('MessageBubble', () => {
     expect(screen.getByRole('button', { name: 'chat.copied' })).toBeInTheDocument()
   })
 
-  it('copies sent source text', async () => {
+  it('does not offer copying a sent message', () => {
     render(<MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
-
-    await waitFor(() => {
-      expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('**Walk**\n- Water')
-    })
+    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
   })
 
   it('renders message content', () => {
@@ -141,13 +136,15 @@ describe('MessageBubble', () => {
     expect(container.querySelector('[data-slot="ai-avatar"]')).not.toBeInTheDocument()
   })
 
-  it('renders AI avatar for AI messages', () => {
+  it('renders AI prose without an avatar or bubble fill', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'ai' })} />,
     )
     const avatar = container.querySelector('[data-slot="ai-avatar"]')
-    expect(avatar).toBeInTheDocument()
-    expect(avatar?.className).toContain('rounded-full')
+    expect(avatar).not.toBeInTheDocument()
+    const prose = container.querySelector('[data-bubble-role="ai"]') as HTMLElement
+    expect(prose.className).not.toContain('bg-[')
+    expect(prose).toHaveStyle({ padding: '0' })
   })
 
   it('aligns user messages to the right', () => {
@@ -191,6 +188,10 @@ describe('MessageBubble', () => {
     )
     const bubble = container.querySelector('[data-bubble-role="user"]')
     expect(bubble).toBeInTheDocument()
+    expect(bubble).toHaveClass('bg-[var(--bg-well)]', 'text-[var(--fg-1)]')
+    expect(bubble).toHaveStyle({ borderRadius: '16px' })
+    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
+    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('')
   })
 
   it('caps a user bubble while preserving a long unbroken message', () => {
@@ -199,7 +200,7 @@ describe('MessageBubble', () => {
       <MessageBubble message={makeMessage({ role: 'user', content: longMessage })} />,
     )
     const bubble = container.querySelector('[data-bubble-role="user"]')
-    expect(bubble?.className).toContain('md:max-w-[65ch]')
+    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
     expect(screen.getByTestId('markdown')).toHaveTextContent(longMessage)
   })
 

@@ -279,7 +279,7 @@ describe('mobile Markdown wrapper', () => {
     }
   })
 
-  it.each(['default', 'muted', 'onPrimary'] as const)('restores the link after pressing in %s prose, including nested text', (tone) => {
+  it.each(['default', 'muted', 'thread'] as const)('restores the link after pressing in %s prose, including nested text', (tone) => {
     const props = renderMarkdown({ children: 'x', tone })
     const renderer = props.renderer as CapturedRenderer
     const { currentScheme, currentTheme } = useAppTheme()
@@ -289,9 +289,7 @@ describe('mobile Markdown wrapper', () => {
     const resting = link.props.style.at(-1)
     TestRenderer.act(() => { link.props.onPressIn?.() })
     expect(link.props.style.at(-1)).not.toEqual(resting)
-    expect(link.props.style.at(-1)).toMatchObject(tone === 'onPrimary'
-      ? { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed }
-      : { color: tokens.fg2 })
+    expect(link.props.style.at(-1)).toMatchObject({ color: tokens.fg2 })
     expect(link.nestedProps.style.at(-1)).toEqual(link.props.style.at(-1))
     TestRenderer.act(() => { link.props.onPressOut?.() })
     expect(link.props.style.at(-1)).toEqual(resting)
@@ -315,13 +313,16 @@ describe('mobile Markdown wrapper', () => {
     expect(defaultStyles.text.color).not.toBe(mutedStyles.text.color)
   })
 
-  it('paints every prose role on the primary fill with the on-primary foreground', () => {
-    const props = renderMarkdown({ children: '# Heading', tone: 'onPrimary' })
+  it('paints thread prose at 16/24 in the first foreground tone', () => {
+    const props = renderMarkdown({ children: '# Heading', tone: 'thread' })
     const styles = props.styles as {
-      text: { color: string }
+      text: { color: string; fontSize: number; lineHeight: number }
       h1: { color: string }
       link: { color: string }
     }
+    const { currentScheme, currentTheme } = useAppTheme()
+    const tokens = createTokensV2(currentScheme, currentTheme)
+    expect(styles.text).toMatchObject({ color: tokens.fg1, fontSize: 16, lineHeight: 24 })
     expect(styles.text.color).toBe(styles.h1.color)
     expect(styles.link.color).toBe(styles.text.color)
   })

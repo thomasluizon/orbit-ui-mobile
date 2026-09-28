@@ -12,7 +12,7 @@ import { getMarkdownImageLabel } from '@orbit/shared/utils'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type MarkdownTone = "default" | "muted" | "onPrimary"
+type MarkdownTone = "default" | "muted" | "thread"
 
 interface MarkdownProps {
   children: string
@@ -29,13 +29,8 @@ interface ProseColors {
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
     return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
-  if (tone === "onPrimary")
-    return {
-      body: tokens.fgOnPrimary,
-      heading: tokens.fgOnPrimary,
-      link: tokens.fgOnPrimary,
-      activeLink: { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed },
-    }
+  if (tone === "thread")
+    return { body: tokens.fg1, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
   return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
 }
 
@@ -144,14 +139,15 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 }
 
-function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyles {
+function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: MarkdownTone): MarkedStyles {
   const { body, heading, link } = colors
+  const thread = tone === 'thread'
   return {
     text: {
       color: body,
       fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
     paragraph: { marginVertical: 4 },
@@ -180,8 +176,8 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyle
     li: {
       color: body,
       fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
     codespan: {
@@ -216,8 +212,8 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
   )
   const colors = useMemo(() => resolveProseColors(tokens, tone), [tokens, tone])
   const styles = useMemo(
-    () => createMarkedStyles(tokens, colors),
-    [tokens, colors],
+    () => createMarkedStyles(tokens, colors, tone),
+    [tokens, colors, tone],
   )
   const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
   const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])

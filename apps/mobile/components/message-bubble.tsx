@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
@@ -27,8 +27,7 @@ import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
-import { AstraMark } from "@/components/ui/astra-avatar";
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
 function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
@@ -38,10 +37,17 @@ function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
 }>) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+  }, []);
 
   async function copySourceText() {
     await Clipboard.setStringAsync(sourceText);
     setCopied(true);
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
   }
 
   return (
@@ -118,7 +124,7 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
-  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false);
+  const sourceText = stripChatDirectives(message.content, false);
 
   const {
     clarificationActions,
@@ -145,12 +151,6 @@ export function MessageBubble({
 
   const bubbleContent = (
     <>
-      {!isUser && (
-        <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <AstraMark size={16} />
-        </View>
-      )}
-
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
@@ -167,12 +167,12 @@ export function MessageBubble({
             />
           )}
 
-          <Markdown tone={isUser ? "onPrimary" : "default"}>
+          <Markdown tone="thread">
             {isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
           </Markdown>
         </View>
 
-        <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} />
+        {!isUser && sourceText.trim() ? <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} /> : null}
 
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
@@ -299,9 +299,6 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flexDirection: "row",
-      marginBottom: 16,
-      paddingHorizontal: 16,
-      gap: 8,
     },
     userContainer: {
       justifyContent: "flex-end",
@@ -310,18 +307,8 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "flex-start",
     },
 
-    aiAvatar: {
-      width: 30,
-      height: 30,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.18),
-      alignItems: "center",
-      justifyContent: "center",
-      alignSelf: "flex-start",
-    },
-
     bubbleColumnUser: {
-      maxWidth: "82%",
+      maxWidth: "80%",
       minWidth: 0,
       flexDirection: "column",
       alignItems: "flex-end",
@@ -331,29 +318,25 @@ function createStyles(tokens: AppTokens) {
       minWidth: 0,
       flexDirection: "column",
       alignItems: "flex-start",
+      gap: 8,
     },
 
     bubble: {
       maxWidth: "100%",
       minWidth: 0,
       flexShrink: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
     },
     userBubble: {
-      backgroundColor: tokens.primary,
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 4,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
+      backgroundColor: tokens.bgWell,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     aiBubble: {
-      backgroundColor: tokens.bgElev,
       maxWidth: "100%",
-      borderTopLeftRadius: 4,
-      borderTopRightRadius: 18,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
     },
 
     imageAttachment: {

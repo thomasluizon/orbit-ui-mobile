@@ -137,7 +137,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       <div
         ref={registerChatContainer}
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
-        style={{ paddingTop: 8 }}
+        style={{ padding: 16 }}
         role="log"
         aria-live="polite"
         aria-relevant="additions text"
@@ -147,6 +147,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       >
         {showSuggestions && <ChatEmptyState onSelectSuggestion={(s) => void sendMessage(s)} />}
 
+        <div className="flex flex-col gap-4">
         {messages.map((msg) => (
           <div key={msg.id}>
           <MessageBubble
@@ -166,6 +167,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           </div>
         ))}
         {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
+        </div>
 
       </div>
 
