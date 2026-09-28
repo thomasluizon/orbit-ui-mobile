@@ -743,6 +743,21 @@ describe('ProfilePage', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('restores the analytics switch and explains a failed local save', async () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage failed')
+    })
+    try {
+      render(<ProfilePage />)
+      const control = screen.getByRole('switch', { name: 'profile.analytics.title' })
+      fireEvent.click(control)
+      await waitFor(() => expect(control).toHaveAttribute('aria-checked', 'true'))
+      expect(screen.getByRole('status')).toHaveTextContent('profile.analytics.saveError')
+    } finally {
+      write.mockRestore()
+    }
+  })
+
   it('shows one eight-row settings skeleton before the groups arrive', () => {
     mockProfileState.current = {
       profile: createMockProfile({ hasProAccess: false }),

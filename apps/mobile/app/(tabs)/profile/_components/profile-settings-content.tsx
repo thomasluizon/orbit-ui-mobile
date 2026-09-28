@@ -317,6 +317,7 @@ export function ProfileSettingsContent({
       if (change !== analyticsChange.current) return
       void getAnalyticsOptOut().then((optedOut) => setAnalyticsEnabled(!optedOut))
       setAnalyticsSaveError(true)
+      AccessibilityInfo.announceForAccessibility(t('profile.analytics.saveError'))
     })
   }
   useShellNoticeSlot(

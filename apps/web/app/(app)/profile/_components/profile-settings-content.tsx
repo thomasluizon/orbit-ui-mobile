@@ -307,6 +307,9 @@ export function ProfileSettingsContent({
           divider={false}
         >
           <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
+          <span role="status" className="sr-only">
+            {analyticsSaveError ? t('profile.analytics.saveError') : ''}
+          </span>
         </SettingsRow>
       </RowList>,
     ],
