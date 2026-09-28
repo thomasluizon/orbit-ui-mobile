@@ -105,6 +105,26 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+    : null
+  const requestHost = request.headers.get('host')
+  if (
+    pathname !== '/api/health' &&
+    siteUrl &&
+    siteUrl.hostname !== 'localhost' &&
+    requestHost &&
+    requestHost.toLowerCase() !== siteUrl.host
+  ) {
+    const redirectUrl = new URL(siteUrl.origin)
+    redirectUrl.pathname = pathname
+    redirectUrl.search = request.nextUrl.search
+    return secureResponse(
+      NextResponse.redirect(redirectUrl, 308),
+      contentSecurityPolicy,
+    )
+  }
+
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
@@ -123,8 +143,8 @@ export async function proxy(request: NextRequest) {
     : { token: null, refreshedTokens: null }
 
   if (!session.token && !isPublic) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
+    url.search = request.nextUrl.search
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
       url.searchParams.set('returnUrl', pathname)
     }
@@ -132,9 +152,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (session.token && pathname === '/login' && request.nextUrl.searchParams.get('googleError') !== '1') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    url.search = ''
+    const url = new URL('/', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
     return secureResponse(
       await applyRefreshedSession(
         NextResponse.redirect(url),
