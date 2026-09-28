@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
 import { Check, RotateCcw, X } from 'lucide-react'
 import {
@@ -128,7 +129,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   function handleAnimationComplete() {
     setShowAnimation(false)
-    queryClient.clear()
+    void resetAccountQueries(queryClient, 'signed-in')
     globalThis.location.href = '/'
   }
 

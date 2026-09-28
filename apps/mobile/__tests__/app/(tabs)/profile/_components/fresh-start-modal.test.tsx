@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
 
 const replace = vi.fn()
-const queryClientClear = vi.fn()
+const resetAccountQueriesMock = vi.hoisted(() => vi.fn())
 const clearDrops = vi.fn(() => Promise.resolve())
 
 vi.mock('lucide-react-native', () => {
@@ -24,7 +24,12 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ clear: queryClientClear }),
+  useQueryClient: () => ({}),
+}))
+
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: resetAccountQueriesMock,
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -127,7 +132,7 @@ async function confirmReset(tree: TestTree) {
 describe('FreshStartModal', () => {
   beforeEach(() => {
     replace.mockClear()
-    queryClientClear.mockClear()
+    resetAccountQueriesMock.mockClear()
     clearDrops.mockClear()
   })
   afterEach(() => {
@@ -168,7 +173,7 @@ describe('FreshStartModal', () => {
     expect(vi.mocked(offlineQueue.clear)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(offlineQueue.enqueue)).not.toHaveBeenCalled()
     expect(clearDrops).toHaveBeenCalledTimes(1)
-    expect(queryClientClear).toHaveBeenCalled()
+    expect(resetAccountQueriesMock).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const animation = tree.root.findAll((node) => node.type === 'FreshStartAnimation')[0]!
