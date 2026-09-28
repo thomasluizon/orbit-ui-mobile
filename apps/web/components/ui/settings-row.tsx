@@ -96,7 +96,7 @@ export function SettingsRow({
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 400,
-              lineHeight: 1.35,
+              lineHeight: 1.4,
               color: 'var(--fg-3)',
             }}
           >

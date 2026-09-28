@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   desc: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    lineHeight: 18.9,
+    lineHeight: 19.6,
   },
   trailingBlock: {
     flexDirection: 'row',
