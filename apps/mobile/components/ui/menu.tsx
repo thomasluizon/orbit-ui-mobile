@@ -22,6 +22,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const DEFAULT_WIDE_FROM = 900
 const PANEL_WIDTH = 280
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
+let activeMenuClose: (() => void) | null = null
 
 export interface AnchoredMenuController {
   anchorRef: RefObject<NativeView | null>
@@ -33,13 +34,28 @@ export interface AnchoredMenuController {
 
 export function useAnchoredMenu(): AnchoredMenuController {
   const anchorRef = useRef<NativeView>(null)
+  const ownsActiveMenu = useRef(false)
   const [visible, setVisible] = useState(false)
-  const open = useCallback(() => setVisible(true), [])
-  const close = useCallback(() => setVisible(false), [])
+  const close = useCallback(() => {
+    if (ownsActiveMenu.current) {
+      ownsActiveMenu.current = false
+      activeMenuClose = null
+    }
+    setVisible(false)
+  }, [])
+  const open = useCallback(() => {
+    if (!ownsActiveMenu.current) activeMenuClose?.()
+    ownsActiveMenu.current = true
+    activeMenuClose = close
+    setVisible(true)
+  }, [close])
   const toggle = useCallback(() => {
     if (visible) close()
     else open()
   }, [close, open, visible])
+  useEffect(() => () => {
+    if (ownsActiveMenu.current) activeMenuClose = null
+  }, [])
   return { anchorRef, visible, open, close, toggle }
 }
 

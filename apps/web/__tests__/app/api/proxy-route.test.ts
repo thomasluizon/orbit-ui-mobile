@@ -215,6 +215,7 @@ describe('catch-all API proxy route', () => {
         'x-forwarded-for': '203.0.113.10, 10.0.0.1',
         'x-real-ip': '198.51.100.7',
         'cf-ipcountry': 'BR',
+        'cdn-loop': 'cloudflare; loops=1',
         'cloudfront-viewer-country': 'BR',
         'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'x-orbit-time-zone': 'America/Sao_Paulo',
@@ -240,16 +241,21 @@ describe('catch-all API proxy route', () => {
         headers: {
           Authorization: 'Bearer initial-token',
           'X-Orbit-Country-Code': 'BR',
-          'CF-Connecting-IP': '177.55.44.33',
           'X-Forwarded-For': '177.55.44.33',
           'X-Real-IP': '198.51.100.7',
-          'CF-IPCountry': 'BR',
           'CloudFront-Viewer-Country': 'BR',
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),
     )
+    for (const [, requestInit] of mockFetch.mock.calls) {
+      const upstreamHeaders = new Headers(requestInit.headers)
+      expect([...upstreamHeaders.keys()].filter((name) => name.startsWith('cf-') || name === 'cdn-loop'))
+        .toEqual([])
+      expect(upstreamHeaders.get('x-forwarded-for')).toBe('177.55.44.33')
+      expect(upstreamHeaders.get('x-orbit-country-code')).toBe('BR')
+    }
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
       'http://localhost:5000/api/profile/me?include=details',

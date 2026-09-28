@@ -179,11 +179,6 @@
       }
     ]
   },
-  "eslint-rules/mobile-supabase-lazy.cjs": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
   "eslint-rules/no-arbitrary-zindex.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

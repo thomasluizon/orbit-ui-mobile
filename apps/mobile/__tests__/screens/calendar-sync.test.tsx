@@ -39,6 +39,8 @@ const colorProxy: any = new Proxy(
 
 const mocks = vi.hoisted(() => {
   const events: CalendarSyncEvent[] = [];
+  const initialEventsQueryData = (): { status: "connected"; events: CalendarSyncEvent[] } | { status: "not-connected" } =>
+    ({ status: "connected", events });
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
   };
@@ -47,7 +49,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     queryClient,
     eventsQuery: {
-      data: { status: "connected", events },
+      data: initialEventsQueryData(),
       isLoading: false,
       isError: false,
       error: null as Error | null,
@@ -68,6 +70,8 @@ const mocks = vi.hoisted(() => {
     isSetPending: false,
     isRunPending: false,
     showError: vi.fn(),
+    startGoogleAuth: vi.fn(),
+    autoSyncStatus: "Idle",
   };
 });
 
@@ -111,7 +115,7 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
   useCalendarAutoSyncState: () => ({
     data: {
       enabled: false,
-      status: "Idle",
+      status: mocks.autoSyncStatus,
       lastSyncedAt: null,
       hasGoogleConnection: true,
     },
@@ -151,7 +155,11 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/google-auth", () => ({
-  startMobileGoogleAuth: vi.fn(),
+  startMobileGoogleAuth: mocks.startGoogleAuth,
+}));
+
+vi.mock("expo-web-browser", () => ({
+  WebBrowserResultType: { CANCEL: "cancel", DISMISS: "dismiss" },
 }));
 
 const tokensV2Proxy: any = new Proxy(
@@ -254,6 +262,8 @@ describe("CalendarSyncScreen", () => {
     mocks.dismissMutateAsync.mockReset();
     mocks.setAutoSyncMutate.mockReset();
     mocks.runSyncNowMutate.mockReset();
+    mocks.startGoogleAuth.mockReset();
+    mocks.autoSyncStatus = "Idle";
     mocks.isSetPending = false;
     mocks.isRunPending = false;
   });
@@ -266,6 +276,78 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.eventsQuery.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  async function pressConnect() {
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    const connect = tree!.root.find((node: TestNode) =>
+      node.props.children === "auth.signInWithGoogle" && typeof node.props.onClick === "function");
+    await TestRenderer.act(async () => {
+      (connect.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    return tree!;
+  }
+
+  it("starts calendar consent from the disconnected screen and opens the callback on success", async () => {
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.startGoogleAuth.mockResolvedValue({ type: "success", url: "https://app.useorbit.org/auth-callback?code=google-code" });
+
+    await pressConnect();
+
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync", forceConsent: true });
+    expect(mocks.router.replace).toHaveBeenCalledWith("/auth-callback");
+    expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
+  });
+
+  it.each(["cancel", "dismiss"])("keeps the calendar open when consent returns %s", async (type) => {
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.startGoogleAuth.mockResolvedValue({ type });
+
+    await pressConnect();
+
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it("keeps the calendar open when Google declines consent in the redirect URL", async () => {
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.startGoogleAuth.mockResolvedValue({
+      type: "denied",
+      url: "https://app.useorbit.org/auth-callback?error=access_denied&state=oauth-state",
+    });
+
+    await pressConnect();
+
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it("keeps the review return path and sends failed authorization to login", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.autoSyncStatus = "ReconnectRequired";
+    mocks.startGoogleAuth.mockRejectedValue(new Error("Google denied access"));
+
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    const reconnect = tree!.root.find((node: TestNode) =>
+      typeof node.props.onPress === "function" && node.findAll((child: TestNode) =>
+        child.props.children === "calendar.autoSync.reconnectCta").length > 0);
+    await TestRenderer.act(async () => {
+      (reconnect.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync?mode=review", forceConsent: true });
+    expect(mocks.router.replace).toHaveBeenCalledWith("/login?googleError=1");
+    expect(mocks.router.replace).not.toHaveBeenCalledWith("/auth-callback");
   });
 
   it("replaces to upgrade instead of pushing when a free user opens the screen", async () => {

@@ -177,6 +177,12 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers() })
 
+it('shows the localized Google callback error after a failed calendar connection', async () => {
+  mocks.params = { googleError: '1' }
+  const harness = await renderLoginFlow()
+  expect(harness.current.errorMessage).toBe('auth.errors.googleError')
+})
+
 it('uses a fresh bridge token for each mobile auth request', async () => {
   vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
   vi.useFakeTimers()

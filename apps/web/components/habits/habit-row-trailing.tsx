@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -10,6 +10,8 @@ import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
+
+let activeHabitMenuClose: (() => void) | null = null
 
 function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDone: boolean): boolean {
   return completionReadOnly || (!canLog && !isDone)
@@ -136,7 +138,24 @@ export function HabitRowTrailing({
   } = actions
   const statusDotLabelKey = `habits.statusDot.${state}`
   const [menuOpen, setMenuOpen] = useState(false)
+  const ownsActiveMenu = useRef(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
+  const closeMenu = useCallback(() => {
+    if (ownsActiveMenu.current) {
+      ownsActiveMenu.current = false
+      activeHabitMenuClose = null
+    }
+    setMenuOpen(false)
+  }, [])
+  const openMenu = useCallback(() => {
+    if (!ownsActiveMenu.current) activeHabitMenuClose?.()
+    ownsActiveMenu.current = true
+    activeHabitMenuClose = closeMenu
+    setMenuOpen(true)
+  }, [closeMenu])
+  useEffect(() => () => {
+    if (ownsActiveMenu.current) activeHabitMenuClose = null
+  }, [])
   const reasonId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
   const statusLabel = availableStatusLabel(completionStatusUnavailable, t(statusDotLabelKey))
@@ -189,7 +208,8 @@ export function HabitRowTrailing({
             aria-expanded={menuOpen}
             onClick={(event) => {
               event.stopPropagation()
-              setMenuOpen((current) => !current)
+              if (menuOpen) closeMenu()
+              else openMenu()
             }}
             className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
             style={{ width: 44, height: 44 }}
@@ -201,7 +221,7 @@ export function HabitRowTrailing({
             anchorRef={menuAnchorRef}
             title={t('habits.actions.more')}
             items={menuItems}
-            onClose={() => setMenuOpen(false)}
+            onClose={closeMenu}
             onSelect={(id) => {
               const handlers: Record<string, (() => void) | undefined> = {
                 add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,

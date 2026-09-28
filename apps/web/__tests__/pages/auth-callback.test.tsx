@@ -1,181 +1,108 @@
-import { act, render, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  callback: null as ((event: AuthChangeEvent, session: Session | null) => void) | null,
-  exchange: vi.fn(),
-  verify: vi.fn(),
-  setAuth: vi.fn(),
-  push: vi.fn(),
-  replace: vi.fn(),
-  unsubscribe: vi.fn(),
-}))
-
-vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
-  useSearchParams: () => new URLSearchParams(),
-}))
+const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
+  continueAccount: null as null | (() => void) }))
+vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }) }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({ setAuth: mocks.setAuth }),
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({
-    auth: {
-      onAuthStateChange: (callback: typeof mocks.callback) => {
-        mocks.callback = callback
-        return { data: { subscription: { unsubscribe: mocks.unsubscribe } } }
-      },
-    },
-  }),
+vi.mock('@/app/(auth)/login/login-content', () => ({
+  LoginContent: ({ callback }: { callback: { state: string; onContinue: () => void } }) => {
+    mocks.continueAccount = callback.onContinue
+    return <div data-testid="callback-state">{callback.state}</div>
+  },
 }))
-vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: mocks.exchange }))
-vi.mock('@/app/(auth)/login/login-form-helpers', () => ({
-  getCookieValue: () => undefined,
-  handleVerifySuccess: mocks.verify,
-}))
-vi.mock('@/app/(auth)/login/login-content', () => ({ LoginContent: () => null }))
-
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation }))
+vi.mock('@/lib/profile-presentation', () => ({ hydrateProfilePresentation: () => Promise.resolve() }))
 import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
-import { markGoogleAuthStarted } from '@/lib/google-auth-session'
 
-const restoredSession = { access_token: 'account-a-access', provider_token: 'google-token' } as Session
+const fetchMock = vi.fn()
 
-describe('Google auth callback', () => {
+describe('Google code callback', () => {
+  afterEach(() => vi.unstubAllGlobals())
   beforeEach(() => {
-    mocks.callback = null
-    mocks.exchange.mockReset().mockResolvedValue({
-      ok: true,
-      json: async () => ({ userId: 'account-a', name: 'A', email: 'a@example.com' }),
-    })
-    mocks.verify.mockReset().mockResolvedValue(undefined)
+    mocks.setAuth.mockReset()
     mocks.push.mockReset()
     mocks.replace.mockReset()
-    mocks.setAuth.mockReset()
-    mocks.unsubscribe.mockReset()
+    fetchMock.mockReset()
+    mocks.generation = 0
+    mocks.continueAccount = null
+    vi.stubGlobal('fetch', fetchMock)
     sessionStorage.clear()
     window.history.replaceState(null, '', '/auth-callback')
   })
 
-  it.each(['INITIAL_SESSION', 'SIGNED_IN'] as const)(
-    'refuses a %s event restored without an OAuth redirect', async (event) => {
-      render(<AuthCallbackPage />)
-      await act(async () => { mocks.callback?.(event, restoredSession) })
-
-      expect(mocks.exchange).not.toHaveBeenCalled()
-      expect(mocks.verify).not.toHaveBeenCalled()
-      expect(mocks.replace).toHaveBeenCalledWith('/login')
-    },
-  )
-
-  it('refuses a saved OAuth link without an auth attempt in this tab', async () => {
-    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=old-refresh')
+  it('leaves a replacement session untouched when the response body arrives late', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    let releaseBody!: (value: unknown) => void
+    fetchMock.mockResolvedValue({ ok: true, json: () => new Promise((resolve) => { releaseBody = resolve }) })
     render(<AuthCallbackPage />)
-
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-
-    expect(mocks.exchange).not.toHaveBeenCalled()
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
-  })
-
-  it('refuses a restored session that differs from the redirect token', async () => {
-    const attemptId = markGoogleAuthStarted()
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${attemptId}#access_token=another-account&refresh_token=fresh-refresh`)
-    render(<AuthCallbackPage />)
-
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-
-    expect(mocks.exchange).not.toHaveBeenCalled()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    mocks.generation += 1
+    await act(async () => {
+      releaseBody({ userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    })
     expect(mocks.replace).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
-  it('refuses an old callback while a different Google attempt is active', async () => {
-    const oldAttemptId = markGoogleAuthStarted()
-    markGoogleAuthStarted()
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${oldAttemptId}#access_token=account-a-access&refresh_token=old-refresh`)
+  it.each(['logout', 'replacement login'])('does not continue a reactivated callback after %s', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'old-user', name: 'Old',
+      email: 'old@example.com', wasReactivated: true }), { status: 200 }))
     render(<AuthCallbackPage />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
 
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+    mocks.generation += 1
+    await act(async () => { mocks.continueAccount?.() })
 
-    expect(mocks.exchange).not.toHaveBeenCalled()
-    expect(mocks.verify).not.toHaveBeenCalled()
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
-  it('keeps the newer attempt valid after an old OAuth link is rejected', async () => {
-    const oldAttemptId = markGoogleAuthStarted()
-    const newerAttemptId = markGoogleAuthStarted()
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${oldAttemptId}#access_token=account-a-access&refresh_token=old-refresh`)
-    const oldCallback = render(<AuthCallbackPage />)
-
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-
-    expect(mocks.exchange).not.toHaveBeenCalled()
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
-    oldCallback.unmount()
-
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${newerAttemptId}#access_token=account-a-access&refresh_token=fresh-refresh`)
+  it.each(['access_denied', 'cancel', 'dismiss'])('returns to calendar after consent %s', async (error) => {
+    window.history.replaceState(null, '', `/auth-callback?error=${error}&state=oauth-state`)
+    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+    fetchMock.mockResolvedValue({ ok: true })
     render(<AuthCallbackPage />)
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar-sync'))
+    expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
+  })
 
-    await waitFor(() => expect(mocks.verify).toHaveBeenCalledOnce())
-    expect(mocks.exchange).toHaveBeenCalledWith('/api/auth/google', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('account-a-access'),
+  it('posts the code and state then navigates to the saved destination', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' }), { status: 200 }))
+    render(<AuthCallbackPage />)
+    await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledOnce())
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
+      body: JSON.stringify({ code: 'google-code', state: 'oauth-state', language: 'pt-BR' }),
     }))
-    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/calendar-sync'))
   })
 
-  it.each([
-    ['an empty attempt id', () => `${Date.now()}:`, 'unmatched'],
-    ['a non-numeric start', () => 'not-a-time:attempt-1', 'attempt-1'],
-  ])('clears a malformed marker with %s', async (_shape, malformedMarker, callbackAttemptId) => {
-    markGoogleAuthStarted()
-    const markerKey = sessionStorage.key(0)
-    expect(markerKey).not.toBeNull()
-    sessionStorage.setItem(markerKey!, malformedMarker())
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${callbackAttemptId}#access_token=account-a-access&refresh_token=old-refresh`)
+  it.each(['?error=access_denied&state=oauth-state', '?code=google-code'])('shows a visible error for invalid callback %s', async (query) => {
+    window.history.replaceState(null, '', `/auth-callback${query}`)
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
     render(<AuthCallbackPage />)
-
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-
-    expect(mocks.exchange).not.toHaveBeenCalled()
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
-    expect(sessionStorage.getItem(markerKey!)).toBeNull()
-  })
-
-  it.each([
-    ['Google sign in', null, '/'],
-    ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
-  ])('accepts a fresh %s redirect', async (_flow, returnUrl, expectedReturnUrl) => {
-    const attemptId = markGoogleAuthStarted()
-    window.history.replaceState(null, '', `/auth-callback?authAttempt=${attemptId}#access_token=account-a-access&refresh_token=fresh-refresh`)
-    if (returnUrl) sessionStorage.setItem('auth_return_url', returnUrl)
-    render(<AuthCallbackPage />)
-
-    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-
-    await waitFor(() => expect(mocks.verify).toHaveBeenCalledOnce())
-    expect(mocks.exchange).toHaveBeenCalledWith('/api/auth/google', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('account-a-access'),
-    }))
-    expect(mocks.verify.mock.calls[0]?.[4]()).toBe(expectedReturnUrl)
-    expect(mocks.replace).not.toHaveBeenCalled()
-  })
-
-  it('refuses a redirect after the pending auth window expires', async () => {
-    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=old-refresh')
-    markGoogleAuthStarted()
-    vi.setSystemTime(Date.now() + 11 * 60 * 1000)
-    try {
-      render(<AuthCallbackPage />)
-      await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
-      expect(mocks.exchange).not.toHaveBeenCalled()
-    } finally {
-      vi.useRealTimers()
+    if (query.includes('state=')) {
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE' })
+    } else {
+      expect(fetchMock).not.toHaveBeenCalled()
     }
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('shows a visible error when the API rejects the code', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=bad&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))
+    render(<AuthCallbackPage />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(mocks.setAuth).not.toHaveBeenCalled()
   })
 })

@@ -8,6 +8,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   login: vi.fn(),
+  getSessionGeneration: vi.fn(),
   completeGoogleAuthFromUrl: vi.fn(),
   clearStoredReferralCode: vi.fn(),
   getStoredReferralCode: vi.fn(),
@@ -57,6 +58,7 @@ vi.mock('@/lib/google-auth-callback', () => ({
 }))
 vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl }))
 vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: mocks.getSessionGeneration,
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
 }))
 vi.mock('@/lib/capture-mode', () => ({
@@ -75,6 +77,7 @@ beforeEach(() => {
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
   mocks.createAuthReturnUrlAttempt.mockReturnValue('attempt-1')
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
+  mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.rawCallbackUrl = 'https://app.useorbit.org/auth-callback?code=old'
   mocks.pendingGoogleSession = { callbackUrl: mocks.rawCallbackUrl, isPending: false,
     returnUrlAttemptId: 'attempt-1' }
@@ -94,6 +97,23 @@ async function mountCallback() {
     await Promise.resolve()
   })
 }
+
+it.each(['logout', 'replacement login'])('does not install an exchanged account after %s', async () => {
+  let releaseExchange!: (value: unknown) => void
+  mocks.completeGoogleAuthFromUrl.mockReturnValue(new Promise((resolve) => { releaseExchange = resolve }))
+
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledOnce())
+  mocks.getSessionGeneration.mockReturnValue({ epoch: 1, credentialVersion: 1 })
+  await TestRenderer.act(async () => {
+    releaseExchange({ token: 'old-access', refreshToken: 'old-refresh', userId: 'old-user',
+      name: 'Old', email: 'old@example.com' })
+    await Promise.resolve()
+  })
+
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
 
 it('stops Google callback effects when a replacement login lands during referral storage', async () => {
   trackLoginEpoch()

@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
 import { notificationKeys, profileKeys } from '@orbit/shared/query'
-import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { hasPendingGoogleAuthSession, markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
@@ -76,7 +76,6 @@ const {
   clearAllTokensMock,
   getRefreshTokenMock,
   clearWidgetTokenMock,
-  clearSupabaseSessionMock,
   saveWidgetTokenMock,
   apiClientMock,
   clearPersistedQueryCacheMock,
@@ -109,7 +108,6 @@ const {
   clearAllTokensMock: vi.fn(),
   getRefreshTokenMock: vi.fn(),
   clearWidgetTokenMock: vi.fn(),
-  clearSupabaseSessionMock: vi.fn(async () => {}),
   saveWidgetTokenMock: vi.fn(),
   apiClientMock: vi.fn(),
   clearPersistedQueryCacheMock: vi.fn(),
@@ -173,10 +171,6 @@ vi.mock('@/lib/secure-store', () => ({
 vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: clearWidgetTokenMock,
   saveWidgetToken: saveWidgetTokenMock,
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  clearSupabaseSession: clearSupabaseSessionMock,
 }))
 
 vi.mock('@/lib/persistent-reminder', () => ({
@@ -291,6 +285,21 @@ function renderHookValue<T>(hook: () => T): T {
 }
 
 describe('mobile auth store security paths', () => {
+  it('refuses credentials from a callback owned by a replaced session', async () => {
+    const oldEpoch = getSessionGeneration().epoch
+    const replacement = { userId: 'replacement', email: 'new@example.com', name: 'New' }
+    await useAuthStore.getState().login('replacement-token', null, replacement)
+    setTokenMock.mockClear()
+
+    const result = await useAuthStore.getState().login('old-google-token', 'old-refresh', {
+      userId: 'old-google', email: 'old@example.com', name: 'Old',
+    }, oldEpoch)
+
+    expect(result).toBeNull()
+    expect(setTokenMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().user?.userId).toBe(replacement.userId)
+  })
+
   beforeEach(() => {
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
@@ -317,8 +326,6 @@ describe('mobile auth store security paths', () => {
     clearAllTokensMock.mockReset()
     getRefreshTokenMock.mockReset()
     clearWidgetTokenMock.mockReset()
-    clearSupabaseSessionMock.mockReset()
-    clearSupabaseSessionMock.mockResolvedValue(undefined)
     saveWidgetTokenMock.mockReset()
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
@@ -459,15 +466,14 @@ describe('mobile auth store security paths', () => {
   })
 
   it('deletes the pending OAuth attempt when another account signs in', async () => {
-    await markPendingGoogleAuthSession('attempt-1')
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+    await markPendingGoogleAuthSession('attempt-1', 'verifier', 'state')
+    expect(hasPendingGoogleAuthSession()).toBe(true)
 
     await useAuthStore.getState().login('replacement-token', null, {
       userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
     })
 
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-    expect(clearSupabaseSessionMock).toHaveBeenCalledOnce()
+    expect(hasPendingGoogleAuthSession()).toBe(false)
   })
 
   it('revokes a completed login owner when a replacement login publishes', async () => {
@@ -1154,14 +1160,13 @@ describe('mobile auth store security paths', () => {
   })
 
   it('deletes the pending OAuth attempt on logout', async () => {
-    await markPendingGoogleAuthSession('attempt-1')
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+    await markPendingGoogleAuthSession('attempt-1', 'verifier', 'state')
+    expect(hasPendingGoogleAuthSession()).toBe(true)
     getRefreshTokenMock.mockResolvedValue(null)
 
     await useAuthStore.getState().logout()
 
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-    expect(clearSupabaseSessionMock).toHaveBeenCalledOnce()
+    expect(hasPendingGoogleAuthSession()).toBe(false)
   })
 
   it('keeps onboarding hidden after a returning person signs out', async () => {

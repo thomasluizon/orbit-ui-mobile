@@ -42,7 +42,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 
 let mockProfile: Record<string, unknown> | null = null
 let mockHasProAccess = true
-const mockSignInWithOAuth = vi.fn().mockResolvedValue({})
+const mockGoogleAssign = vi.fn()
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
@@ -54,15 +54,6 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({
     mutate: mockBulkMutate,
     isPending: false,
-  }),
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  clearSupabaseSession: vi.fn(),
-  getSupabaseClient: () => ({
-    auth: {
-      signInWithOAuth: mockSignInWithOAuth,
-    },
   }),
 }))
 
@@ -272,7 +263,7 @@ describe('CalendarSyncPage', () => {
     mockSetAutoSync.mockClear()
     mockRunSyncNow.mockClear()
     mockDismissSuggestion.mockClear()
-    mockSignInWithOAuth.mockClear()
+    mockGoogleAssign.mockClear()
     vi.mocked(toast.error).mockClear()
     setNavigatorOnline(true)
 
@@ -337,6 +328,7 @@ describe('CalendarSyncPage', () => {
   })
 
   it('requests renewed Google calendar consent from the not-connected state', async () => {
+    vi.stubGlobal('location', { assign: mockGoogleAssign })
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -348,20 +340,9 @@ describe('CalendarSyncPage', () => {
     const connectButton = await screen.findByText('auth.signInWithGoogle')
     fireEvent.click(connectButton)
 
-    expect(sessionStorage.getItem('orbit_google_auth_started_at')).not.toBeNull()
-
-    expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-      provider: 'google',
-      options: {
-        redirectTo: expect.stringMatching(/^http:\/\/localhost:3000\/auth-callback\?authAttempt=[a-f0-9-]{36}$/),
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-          include_granted_scopes: 'true',
-        },
-      },
-    })
+    expect(mockGoogleAssign).toHaveBeenCalledWith('/api/auth/google/start?purpose=calendar')
+    expect(sessionStorage.getItem('auth_return_url')).toBe('/calendar-sync')
+    vi.unstubAllGlobals()
   })
 
 

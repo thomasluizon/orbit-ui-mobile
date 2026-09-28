@@ -44,9 +44,9 @@ vi.mock('next/server', async () => {
   }
 })
 
-function createRequest(path: string, options: { cookies?: Record<string, string> } = {}) {
+function createRequest(path: string, options: { cookies?: Record<string, string>; method?: string } = {}) {
   const url = new URL(path, 'http://localhost:3000')
-  const request = new NextRequest(url)
+  const request = new NextRequest(url, { method: options.method })
 
   if (options.cookies) {
     for (const [name, value] of Object.entries(options.cookies)) {
@@ -59,9 +59,9 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 
 describe('proxy', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
+    vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
@@ -80,6 +80,36 @@ describe('proxy', () => {
       expect(response).toMatchObject({ type: 'next' })
     }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('passes signed-out PostHog assets and capture requests through the proxy', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const assetUrl = 'http://localhost:3000/ingest/static/array.js'
+    const captureUrl = 'http://localhost:3000/ingest/e/'
+    const flagsUrl = 'http://localhost:3000/ingest/flags/?v=2'
+
+    for (const url of [assetUrl, captureUrl, flagsUrl]) {
+      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
+    }
+
+    const assetResponse = await proxy(createRequest('/ingest/static/array.js'))
+    const captureResponse = await proxy(createRequest('/ingest/e/', { method: 'POST' }))
+    const flagsResponse = await proxy(createRequest('/ingest/flags/?v=2', { method: 'POST' }))
+
+    expect(assetResponse).toMatchObject({ type: 'next' })
+    expect(captureResponse).toMatchObject({ type: 'next' })
+    expect(flagsResponse).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it('keeps trailing slashes on PostHog requests for the rewrite', () => {
+    expect(nextConfig.skipTrailingSlashRedirect).toBe(true)
   })
 
   it('adds an enforcing nonce-based content security policy to rendered pages', async () => {
@@ -108,6 +138,27 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(forwardedHeaders.get('Content-Security-Policy')).toBe(contentSecurityPolicy)
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
+  })
+
+  it.each([
+    ['production', 'https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com', 'https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com'],
+    ['staging', 'https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com', 'https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com'],
+  ])('allows the %s upload bucket without broadening the CSP', async (_, bucketOrigin, otherBucketOrigin) => {
+    vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', bucketOrigin)
+    vi.stubEnv('API_BASE', 'https://api.example.test')
+
+    const response = await proxy(createRequest('/terms'))
+    const directives = response.headers.get('Content-Security-Policy')!.split('; ')
+    const imageSources = directives.find((directive) => directive.startsWith('img-src '))!.split(' ')
+    const connectionSources = directives.find((directive) => directive.startsWith('connect-src '))!.split(' ')
+
+    for (const sources of [imageSources, connectionSources]) {
+      expect(sources).toContain(bucketOrigin)
+      expect(sources.some((source) => source.includes('supabase'))).toBe(false)
+      expect(sources).not.toContain(otherBucketOrigin)
+    }
+    expect(imageSources).toContain('https://api.example.test')
+    expect(directives.join('; ')).not.toContain('*.amazonaws.com')
   })
 
   it('returns the ticket API origin for the stream and allows it in connect-src', async () => {
@@ -143,8 +194,7 @@ describe('proxy', () => {
     expect(await ticketResponse.json()).toMatchObject({ apiBase: 'https://api.useorbit.org' })
   })
 
-  it('allows local Supabase connections and development scripts in development', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321')
+  it('allows development scripts without an external auth origin', async () => {
     vi.stubEnv('NODE_ENV', 'development')
 
     const response = await proxy(createRequest('/api/profile'))
@@ -153,7 +203,7 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).toContain("script-src 'self'")
     expect(contentSecurityPolicy).toContain("'unsafe-eval'")
     expect(contentSecurityPolicy).toContain(
-      "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://api.useorbit.org",
+      "connect-src 'self' https://api.useorbit.org",
     )
   })
 
@@ -192,12 +242,12 @@ describe('proxy', () => {
       refreshFailed: false,
     })
 
-    await proxy(createRequest('/habits'))
+    await proxy(createRequest('/profile'))
 
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/login')
-    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/habits')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/profile')
   })
 
   it('restores a missing access cookie from a valid refresh-backed session', async () => {
@@ -294,5 +344,19 @@ describe('proxy', () => {
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/')
+  })
+
+  it('shows a Google callback error on login while an existing session remains active', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: 'valid-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const response = await proxy(createRequest('/login?googleError=1', {
+      cookies: { auth_token: 'valid-token' },
+    }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 })

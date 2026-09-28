@@ -322,6 +322,26 @@ describe('HabitRow menu (mobile)', () => {
     __resetTestHostConfig()
   })
 
+  it('keeps only the second row menu open when another row opens', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<>
+        <HabitRow habit={createMockHabit({ id: 'first', title: 'Meditate' })} actions={{ onEdit: vi.fn() }} />
+        <HabitRow habit={createMockHabit({ id: 'second', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
+      </>)
+    })
+
+    const triggers = renderer!.root.findAllByType('Pressable').filter(
+      (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.actions.more',
+    )
+    TestRenderer.act(() => (triggers[0]!.props.onPress as () => void)())
+    expect(collectStrings(renderer!.toJSON())).toContain('common.edit')
+
+    TestRenderer.act(() => (triggers[1]!.props.onPress as () => void)())
+    expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
+    expect(collectStrings(renderer!.toJSON())).not.toContain('common.edit')
+  })
+
   it('opens the menu even when measureInWindow never invokes its callback', () => {
     __setMeasureInWindowImpl(() => {})
     const renderer = renderRowWithMenu()

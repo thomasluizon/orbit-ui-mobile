@@ -1,240 +1,147 @@
+import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as SecureStore from 'expo-secure-store'
-import { ApiClientError } from '@orbit/shared/utils'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 
-const {
-  apiClientMock,
-  setSessionMock,
-  signOutMock,
-  signInWithOAuthMock,
-  openAuthSessionAsyncMock,
-} = vi.hoisted(() => ({
-  apiClientMock: vi.fn(),
-  setSessionMock: vi.fn(),
-  signOutMock: vi.fn(),
-  signInWithOAuthMock: vi.fn(),
-  openAuthSessionAsyncMock: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn(),
+  saveAttempt: vi.fn(), deleteAttempt: vi.fn(), readAttempt: vi.fn(),
 }))
-
-vi.mock('@/lib/api-client', () => ({
-  apiClient: apiClientMock,
+vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('expo-secure-store', () => ({
+  setItemAsync: mocks.saveAttempt,
+  deleteItemAsync: mocks.deleteAttempt,
+  getItemAsync: mocks.readAttempt,
 }))
-
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({
-    auth: {
-      setSession: setSessionMock,
-      signOut: signOutMock,
-      signInWithOAuth: signInWithOAuthMock,
-    },
-  }),
-}))
-
 vi.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: openAuthSessionAsyncMock,
+  openAuthSessionAsync: mocks.open,
   WebBrowserResultType: { DISMISS: 'dismiss', CANCEL: 'cancel' },
 }))
+vi.mock('expo-crypto', () => ({
+  getRandomBytesAsync: mocks.random,
+  digestStringAsync: mocks.digest,
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  CryptoEncoding: { BASE64: 'base64' },
+}))
 
-const { completeGoogleAuthFromUrl, startMobileGoogleAuth } = await import('@/lib/google-auth')
+import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
-const CALLBACK = 'https://app.useorbit.org/auth-callback'
+const callback = 'https://app.useorbit.org/auth-callback'
+const loginResponse = { token: 'jwt', refreshToken: 'refresh', userId: 'user-1', name: 'Alex', email: 'alex@example.com' }
 
-const loginResponse = {
-  token: 'jwt-token',
-  refreshToken: 'refresh-token',
-  userId: 'user-1',
-  name: 'Alex',
-  email: 'alex@example.com',
+function authorizeUrl() {
+  return new URL(mocks.open.mock.calls.at(-1)![0] as string)
 }
 
-describe('completeGoogleAuthFromUrl', () => {
-  beforeEach(() => {
-    apiClientMock.mockReset()
-    setSessionMock.mockReset()
-    signOutMock.mockReset().mockResolvedValue(undefined)
-  })
-
-  it('returns the direct backend token payload without exchanging a session', async () => {
-    const url = `${CALLBACK}?token=jwt-token&refreshToken=refresh-token&userId=user-1&name=Alex&email=alex%40example.com`
-
-    const result = await completeGoogleAuthFromUrl(url, 'en')
-
-    expect(result).toEqual(loginResponse)
-    expect(setSessionMock).not.toHaveBeenCalled()
-    expect(apiClientMock).not.toHaveBeenCalled()
-  })
-
-  it('throws the backend error description when the callback carries an error', async () => {
-    const url = `${CALLBACK}?error=access_denied&error_description=User%20cancelled`
-
-    await expect(completeGoogleAuthFromUrl(url, 'en')).rejects.toThrow('User cancelled')
-    expect(apiClientMock).not.toHaveBeenCalled()
-  })
-
-  it('throws when neither tokens nor a backend payload are present', async () => {
-    await expect(completeGoogleAuthFromUrl(CALLBACK, 'en')).rejects.toThrow('Authentication failed')
-  })
-
-  it('exchanges a supabase session via apiClient and forwards the language + referral', async () => {
-    const url = `${CALLBACK}#access_token=supa-access&refresh_token=supa-refresh&provider_token=g-access&provider_refresh_token=g-refresh`
-    setSessionMock.mockResolvedValue({
-      data: {
-        session: {
-          access_token: 'supa-access',
-          provider_token: null,
-          provider_refresh_token: null,
-        },
-      },
-      error: null,
-    })
-    apiClientMock.mockResolvedValue(loginResponse)
-
-    const result = await completeGoogleAuthFromUrl(url, 'pt-BR', 'REF123')
-
-    expect(result).toEqual(loginResponse)
-    expect(apiClientMock).toHaveBeenCalledWith(
-      '/api/auth/google',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          accessToken: 'supa-access',
-          language: 'pt-BR',
-          googleAccessToken: 'g-access',
-          googleRefreshToken: 'g-refresh',
-          referralCode: 'REF123',
-        }),
-      }),
-    )
-    expect(signOutMock).toHaveBeenCalled()
-  })
-
-  it('signs out of supabase even when the backend exchange fails', async () => {
-    const url = `${CALLBACK}#access_token=supa-access&refresh_token=supa-refresh`
-    setSessionMock.mockResolvedValue({
-      data: { session: { access_token: 'supa-access' } },
-      error: null,
-    })
-    apiClientMock.mockRejectedValue(
-      new ApiClientError(400, 'Invalid Google token', { code: 'INVALID_VERIFICATION_CODE' }),
-    )
-
-    await expect(completeGoogleAuthFromUrl(url, 'en')).rejects.toBeInstanceOf(ApiClientError)
-    expect(signOutMock).toHaveBeenCalled()
-  })
-
-  it('throws when supabase rejects the session', async () => {
-    const url = `${CALLBACK}#access_token=supa-access&refresh_token=supa-refresh`
-    setSessionMock.mockResolvedValue({
-      data: { session: null },
-      error: { message: 'session expired' },
-    })
-
-    await expect(completeGoogleAuthFromUrl(url, 'en')).rejects.toThrow('session expired')
-    expect(apiClientMock).not.toHaveBeenCalled()
-  })
-})
-
-describe('startMobileGoogleAuth', () => {
+describe('mobile Google authorization code flow', () => {
   beforeEach(async () => {
+    mocks.saveAttempt.mockReset().mockResolvedValue(undefined)
+    mocks.deleteAttempt.mockReset().mockResolvedValue(undefined)
+    mocks.readAttempt.mockReset().mockResolvedValue(null)
     await clearPendingGoogleAuthSession()
-    signInWithOAuthMock.mockReset()
-    openAuthSessionAsyncMock.mockReset()
-  })
-
-  it('rejects an old callback promoted by Expo during a new browser attempt', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockResolvedValueOnce({ type: 'cancel' })
-    await startMobileGoogleAuth({})
-    const oldRedirectTo = openAuthSessionAsyncMock.mock.calls[0]?.[1] as string
-    openAuthSessionAsyncMock.mockResolvedValueOnce({ type: 'success',
-      url: `${oldRedirectTo}#access_token=account-a&refresh_token=old-refresh` })
-
-    const result = await startMobileGoogleAuth({})
-
-    expect(result).toEqual({ type: 'dismiss' })
-    expect(openAuthSessionAsyncMock).toHaveBeenCalledTimes(2)
-    expect(openAuthSessionAsyncMock.mock.calls[1]?.[1]).not.toBe(oldRedirectTo)
-  })
-
-  it.each([false, true])('accepts a fresh OAuth callback with forceConsent=%s', async (forceConsent) => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockImplementation((_url: string, redirectTo: string) => ({
-      type: 'success', url: `${redirectTo}#access_token=a&refresh_token=b`,
-    }))
-
-    const result = await startMobileGoogleAuth({ forceConsent })
-
-    const callbackUrl = result.type === 'success' ? result.url : ''
-    expect(result).toEqual({ type: 'success', url: callbackUrl })
-    expect(callbackUrl).toMatch(/^https:\/\/app\.useorbit\.org\/auth-callback\?authAttempt=[a-f0-9-]{36}#access_token=a&refresh_token=b$/)
-    const oauthArgs = signInWithOAuthMock.mock.calls[0]?.[0] as {
-      provider: string
-      options: { redirectTo: string; skipBrowserRedirect: boolean }
-    }
-    expect(oauthArgs.provider).toBe('google')
-    expect(oauthArgs.options.redirectTo).toBe(callbackUrl.split('#')[0])
-    expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
-    if (forceConsent) {
-      expect(signInWithOAuthMock.mock.calls[0]?.[0].options.queryParams.prompt).toBe('consent')
-    }
-    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', oauthArgs.options.redirectTo)
-  })
-
-  it('clears an older return URL before a Google flow without one starts', async () => {
-    const removal = vi.spyOn(AsyncStorage, 'removeItem')
-    try {
-      signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-      openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
-      await startMobileGoogleAuth({})
-      expect(removal).toHaveBeenCalledWith('auth_return_url')
-    } finally { removal.mockRestore() }
-  })
-
-  it('returns the browser result type when the session is dismissed', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
-
-    const result = await startMobileGoogleAuth({})
-
-    expect(result).toEqual({ type: 'dismiss' })
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-  })
-
-  it('reports a dismiss when the browser succeeds without a callback url', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockResolvedValue({ type: 'success' })
-
-    const result = await startMobileGoogleAuth({})
-
-    expect(result).toEqual({ type: 'dismiss' })
-  })
-
-  it('maps an access_denied callback to a cancel result', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockResolvedValue({
-      type: 'success',
-      url: `${CALLBACK}?error=access_denied`,
+    vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
+    mocks.random.mockReset()
+      .mockResolvedValueOnce(new Uint8Array(32).fill(1))
+      .mockResolvedValueOnce(new Uint8Array(32).fill(2))
+    mocks.digest.mockReset().mockImplementation((_algorithm: string, input: string) =>
+      Promise.resolve(createHash('sha256').update(input).digest('base64')))
+    mocks.open.mockReset().mockImplementation((_url: string, redirect: string) => {
+      const state = authorizeUrl().searchParams.get('state')
+      return Promise.resolve({ type: 'success', url: `${redirect}?code=google-code&state=${state}` })
     })
+    mocks.apiClient.mockReset().mockResolvedValue(loginResponse)
+  })
 
+  it.each([false, true])('builds a %s authorize URL and exchanges the code', async (forceConsent) => {
+    const result = await startMobileGoogleAuth({ forceConsent, returnUrl: forceConsent ? '/calendar-sync' : undefined })
+    const url = authorizeUrl()
+    expect(url.origin).toBe('https://accounts.google.com')
+    expect(url.pathname).toBe('/o/oauth2/v2/auth')
+    expect(url.searchParams.get('client_id')).toBe('web-client-id')
+    expect(url.searchParams.get('redirect_uri')).toBe(callback)
+    expect(url.searchParams.get('response_type')).toBe('code')
+    expect(url.searchParams.get('scope')).toBe(forceConsent
+      ? 'openid email profile https://www.googleapis.com/auth/calendar.readonly'
+      : 'openid email profile')
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+    expect(url.searchParams.get('code_challenge')).toBe(createHash('sha256').update('01'.repeat(32)).digest('base64url'))
+    expect(url.searchParams.get('state')).toBe('02'.repeat(32))
+    expect(url.searchParams.get('access_type')).toBe(forceConsent ? 'offline' : null)
+    expect(url.searchParams.get('include_granted_scopes')).toBe(forceConsent ? 'true' : null)
+    expect(url.searchParams.get('prompt')).toBe(forceConsent ? 'consent' : null)
+    expect(mocks.open).toHaveBeenCalledWith(url.toString(), callback)
+    expect(result.type).toBe('success')
+    if (result.type !== 'success') return
+    expect(await completeGoogleAuthFromUrl(result.url, 'pt-BR', 'REF123')).toEqual(loginResponse)
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/auth/google/code', {
+      method: 'POST',
+      body: JSON.stringify({ code: 'google-code', codeVerifier: '01'.repeat(32), redirectUri: callback,
+        language: 'pt-BR', referralCode: 'REF123' }),
+    }, googleCodeAuthResponseSchema)
+  })
+
+  it('rejects a mismatched state without calling the API', async () => {
+    mocks.open.mockResolvedValue({ type: 'success', url: `${callback}?code=google-code&state=wrong` })
+    await expect(startMobileGoogleAuth({})).rejects.toThrow('Invalid OAuth state')
+    await expect(completeGoogleAuthFromUrl(`${callback}?code=google-code&state=wrong`, 'en')).rejects.toThrow()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('returns the verified App Link and clears credentials when the browser is cancelled', async () => {
+    expect(getGoogleAuthRedirectUrl()).toBe(callback)
+    mocks.open.mockResolvedValue({ type: 'cancel' })
+
+    await expect(startMobileGoogleAuth({})).resolves.toEqual({ type: 'cancel' })
+
+    expect(mocks.open).toHaveBeenCalledWith(expect.any(String), callback)
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('clears an attempt when saving its verifier fails so sign in can retry', async () => {
+    mocks.saveAttempt.mockRejectedValueOnce(new Error('storage unavailable'))
+
+    await expect(startMobileGoogleAuth({})).rejects.toThrow('storage unavailable')
+    expect(mocks.open).not.toHaveBeenCalled()
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+
+    mocks.random.mockResolvedValue(new Uint8Array(32).fill(3))
+    await expect(startMobileGoogleAuth({})).resolves.toMatchObject({ type: 'success' })
+  })
+
+  it('returns a declined Google redirect without calling the API', async () => {
+    mocks.open.mockImplementation((url: string) => Promise.resolve({
+      type: 'success', url: `${callback}?error=access_denied&state=${new URL(url).searchParams.get('state')}`,
+    }))
+    await expect(startMobileGoogleAuth({})).resolves.toEqual({
+      type: 'denied',
+      url: `${callback}?error=access_denied&state=${'02'.repeat(32)}`,
+    })
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('does not create a session when the API rejects the code', async () => {
     const result = await startMobileGoogleAuth({})
-
-    expect(result).toEqual({ type: 'cancel' })
+    if (result.type !== 'success') throw new Error('Expected callback')
+    mocks.apiClient.mockRejectedValue(new Error('API rejected'))
+    await expect(completeGoogleAuthFromUrl(result.url, 'en')).rejects.toThrow('API rejected')
   })
 
-  it('throws when supabase fails to produce an OAuth url', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: null }, error: { message: 'provider down' } })
-
-    await expect(startMobileGoogleAuth({})).rejects.toThrow('provider down')
-    expect(openAuthSessionAsyncMock).not.toHaveBeenCalled()
-    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
-  })
-
-  it('rethrows and clears the pending session when the browser throws', async () => {
-    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    openAuthSessionAsyncMock.mockRejectedValue(new Error('browser crashed'))
-
-    await expect(startMobileGoogleAuth({})).rejects.toThrow('browser crashed')
+  it('keeps the first browser attempt usable when a second start overlaps it', async () => {
+    let resolveFirst: ((value: { type: string; url: string }) => void) | undefined
+    mocks.random.mockResolvedValue(new Uint8Array(32).fill(3))
+    mocks.open.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+      .mockRejectedValueOnce(new Error('browser already open'))
+    const first = startMobileGoogleAuth({ returnUrl: '/calendar-sync' })
+    await vi.waitFor(() => expect(mocks.open).toHaveBeenCalledTimes(1))
+    const firstState = new URL(mocks.open.mock.calls[0]![0] as string).searchParams.get('state')
+    await expect(startMobileGoogleAuth({})).rejects.toThrow()
+    expect(mocks.open).toHaveBeenCalledTimes(1)
+    resolveFirst?.({ type: 'success', url: `${callback}?code=first-code&state=${firstState}` })
+    const result = await first
+    expect(result.type).toBe('success')
+    if (result.type !== 'success') return
+    await expect(completeGoogleAuthFromUrl(result.url, 'en')).resolves.toEqual(loginResponse)
   })
 })

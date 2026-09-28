@@ -5,8 +5,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl, getAuthReturnUrlAttempt } from '@/lib/auth-flow'
-import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
-import { clearSupabaseSession } from '@/lib/supabase'
+import { clearGoogleErrorLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
   getToken,
   setToken,
@@ -97,7 +96,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<(() => boolean) | null>
+  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
   logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -140,6 +139,10 @@ function isTokenExpired(token: string): boolean {
 
 function isCurrentSessionEpoch(epoch: number): boolean {
   return getSessionEpoch() === epoch
+}
+
+function matchesExpectedSessionEpoch(expectedEpoch?: number): boolean {
+  return expectedEpoch === undefined || isCurrentSessionEpoch(expectedEpoch)
 }
 
 function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
@@ -201,7 +204,7 @@ async function clearSessionCredentials(
     })
     await clearAllTokens()
     await clearPendingGoogleAuthSession()
-    await clearSupabaseSession()
+    clearGoogleErrorLogin()
     await clearWidgetToken().catch(() => {})
     return { epoch: getSessionEpoch(), refreshToken }
   })
@@ -457,14 +460,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   expiresAt: null,
 
-  login: async (token, refreshToken, user) => {
+  login: async (token, refreshToken, user, expectedEpoch) => {
+    if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
+        if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
         await clearPendingGoogleAuthSession()
-        await clearSupabaseSession()
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -484,6 +488,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         })
         return getSessionGeneration()
       })
+      if (!loginSession) return null
       ownership = loginSession
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       queryClient.clear()
@@ -509,17 +514,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!isCurrentSessionEpoch(ownership.epoch)) return null
         queryClient.setQueryData(profileKeys.detail(), profile)
 
-        if (profile.language && i18n.language !== profile.language) {
-          void i18n.changeLanguage(profile.language)
-        }
-
-        setRuntimeTheme({
-          scheme: 'orange',
-          themeMode:
-            profile.themePreference === 'light' || profile.themePreference === 'dark'
-              ? profile.themePreference
-              : undefined,
-        })
+        applyProfilePresentation(profile)
 
         hydratedUser = {
           ...user,
@@ -537,6 +532,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      clearGoogleErrorLogin()
       identifyPostHogUser(user.userId, previousAccountId)
       return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {

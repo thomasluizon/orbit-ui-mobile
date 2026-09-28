@@ -53,7 +53,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
             isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
             canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
             onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
-              onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
+              onSignInWithGoogle={() => { setCallbackDismissed(true); flow.signInWithGoogle() }}
             sendCodeLabel={flow.fromOnboarding ? t('auth.onboarding.continue') : undefined} />
             : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting} isResending={flow.isResending}
               canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}

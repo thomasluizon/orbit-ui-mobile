@@ -58,8 +58,6 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
-vi.mock('@/lib/supabase', () => ({ getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }) }))
-
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'

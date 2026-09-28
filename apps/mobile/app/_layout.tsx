@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar'
 import * as Linking from 'expo-linking'
 import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
+import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -101,6 +102,7 @@ function RootStackScreens({
   screenBackgroundColor,
 }: Readonly<{ screenBackgroundColor: string }>) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const allowErrorLogin = useGoogleErrorLogin()
   const onboardingLocallyDone = useOnboardingDraftStore(
     (s) => s.onboardingLocallyDone,
   )
@@ -128,7 +130,7 @@ function RootStackScreens({
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isAuthenticated}>
+      <Stack.Protected guard={!isAuthenticated || allowErrorLogin}>
         <Stack.Screen
           name="login"
           options={{
