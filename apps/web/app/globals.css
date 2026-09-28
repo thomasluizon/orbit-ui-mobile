@@ -701,6 +701,11 @@
     }
   }
 
+  /* Global focus-visible indicator; component utilities can replace it. */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 html {
@@ -1313,12 +1318,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .collapsible {
     transition: none !important;
   }
-}
-
-/* Global focus-visible indicator */
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
 }
 
 @media (forced-colors: active) {
