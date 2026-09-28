@@ -38,7 +38,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
     outputs:
       smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
       source_sha: ${{ steps.source.outputs.sha }}
