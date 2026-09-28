@@ -67,7 +67,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 describe('MilestoneSharePrompt (mobile)', () => {
@@ -145,6 +145,21 @@ describe('MilestoneSharePrompt (mobile)', () => {
     })
 
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
+  })
+
+  it('waits for another sheet to close before offering a milestone', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {

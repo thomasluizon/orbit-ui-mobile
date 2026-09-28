@@ -69,7 +69,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 async function armConsent() {
@@ -95,12 +95,12 @@ describe('MarketingConsentPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn())
-    resetStores()
     patchProfile.mockClear()
     invalidate.mockClear()
     updateMarketingConsent.mockClear()
     profileValue = { marketingEmailConsent: null }
     holdAccount('user-1')
+    resetStores()
   })
 
   afterEach(() => {
@@ -148,6 +148,21 @@ describe('MarketingConsentPrompt', () => {
     })
 
     expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('waits for an open sheet before offering consent', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    renderPrompt()
+    await armConsent()
+    expect(useUIStore.getState().openOverlayIds).toContain('already-open')
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
+    await settle()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(MARKETING_CONSENT_MILESTONE_KEY)
+
+    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
   })
 
   it('opts in and optimistically patches the profile on accept', async () => {

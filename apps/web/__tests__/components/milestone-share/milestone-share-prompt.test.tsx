@@ -48,7 +48,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 async function armMilestoneShare(milestoneKey: string) {
@@ -75,8 +75,8 @@ describe('MilestoneSharePrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn())
-    resetStores()
     holdAccount('user-1')
+    resetStores()
   })
 
   afterEach(() => {
@@ -125,6 +125,18 @@ describe('MilestoneSharePrompt', () => {
     })
 
     expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('waits for another sheet to close before offering a milestone', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+
+    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {

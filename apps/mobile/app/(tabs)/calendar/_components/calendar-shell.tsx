@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,6 +13,7 @@ import {
 import Svg, { Circle } from "react-native-svg";
 import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
 import { YearPicker } from "@/components/ui/year-picker";
+import { useUIStore } from "@/stores/ui-store";
 
 interface CalendarHeaderProps {
   monthLabel: string;
@@ -188,6 +189,15 @@ export function CalendarHeader({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   const [isYearOpen, setIsYearOpen] = useState(false);
+  const yearOverlayId = useId();
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay);
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay);
+
+  useEffect(() => {
+    if (!isYearOpen) return;
+    registerOpenOverlay(yearOverlayId);
+    return () => unregisterOpenOverlay(yearOverlayId);
+  }, [isYearOpen, registerOpenOverlay, unregisterOpenOverlay, yearOverlayId]);
 
   const handleSelectYear = (nextYear: number) => {
     onSelectYear(nextYear);

@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -31,12 +32,15 @@ export function AstraImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
-  const [sheetMounted, setSheetMounted] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
   const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -75,15 +79,22 @@ export function AstraImportPrompt() {
       t('onboarding.flow.meetAstra.importPrompt'),
     )
     closeSheet(() => {
-      setSheetMounted(false)
+      unregisterOpenOverlay(promptId)
       void markSeen()
       useUIStore.getState().setAstraConversationOpen(true)
     })
-  }, [closeSheet, markSeen, t])
+  }, [closeSheet, markSeen, promptId, t, unregisterOpenOverlay])
 
-  if (shouldShow && !sheetMounted) {
-    setSheetMounted(true)
-  }
+  useEffect(() => {
+    if (!shouldShow) {
+      if (sheetMounted) unregisterOpenOverlay(promptId)
+      return
+    }
+    if (!sheetMounted && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(promptId)
+  }, [anotherOverlayOpen, promptId, sheetMounted, shouldShow, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(promptId)
+  }, [promptId, unregisterOpenOverlay])
 
   if (!sheetMounted) return null
 
@@ -92,7 +103,7 @@ export function AstraImportPrompt() {
       ref={sheetRef}
       open
       onClose={() => {
-        setSheetMounted(false)
+        unregisterOpenOverlay(promptId)
         void markSeen()
       }}
       title={t('onboarding.wizard.importTitle')}
@@ -110,7 +121,7 @@ export function AstraImportPrompt() {
           style={styles.quietRow}
           onPress={() =>
             closeSheet(() => {
-              setSheetMounted(false)
+              unregisterOpenOverlay(promptId)
               void markSeen()
             })
           }

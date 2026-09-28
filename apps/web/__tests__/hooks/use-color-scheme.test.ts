@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import React from 'react'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
 
 const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
 const accountGeneration = vi.hoisted(() => ({ current: 0 }))
@@ -68,8 +71,26 @@ Object.defineProperty(document, 'documentElement', {
 vi.spyOn(document, 'querySelector').mockImplementation(() => null)
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 describe('useColorScheme', () => {
+  it('hydrates the dark toggle before revealing a stored light theme', async () => {
+    mockCookies['orbit_theme_mode'] = 'light'
+    const html = renderToString(React.createElement(ThemeToggle))
+    expect(html).toContain('settings.theme.switchToLight')
+    const container = document.createElement('div')
+    container.innerHTML = html
+    document.body.append(container)
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, React.createElement(ThemeToggle), { onRecoverableError: recoverableError })
+    })
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container.querySelector('button')).toHaveAttribute('aria-label', 'settings.theme.switchToDark')
+    await act(async () => root?.unmount())
+    container.remove()
+  })
   beforeEach(() => {
     mockCookies = {}
     heldAccount.id = null

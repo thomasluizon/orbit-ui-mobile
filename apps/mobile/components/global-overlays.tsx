@@ -33,7 +33,7 @@ export function OverlayLayer({
   return (
     <>
       <ExpiryWarning />
-      <TrialExpiredModal />
+      {!showRetainedOnboarding ? <TrialExpiredModal /> : null}
       {showRetainedOnboarding ? (
         <OnboardingActionsProvider
           actions={onboardingActions}
@@ -42,7 +42,7 @@ export function OverlayLayer({
           <OnboardingFlow />
         </OnboardingActionsProvider>
       ) : null}
-      {hasCompletedOnboarding ? (
+      {hasCompletedOnboarding && !showRetainedOnboarding ? (
         <>
           <MarketingConsentPrompt />
           <ReferralPrompt />
@@ -50,7 +50,7 @@ export function OverlayLayer({
           <ReviewMomentSheet />
         </>
       ) : null}
-      {hasCompletedOnboarding ? (
+      {hasCompletedOnboarding && !showRetainedOnboarding ? (
         <>
           <CalendarImportPrompt />
           <AstraImportPrompt />

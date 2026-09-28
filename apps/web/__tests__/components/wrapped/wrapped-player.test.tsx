@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -32,7 +33,7 @@ import { WrappedPlayer } from '@/app/(app)/wrapped/_components/wrapped-player'
 function renderPlayer(onClose = vi.fn()) {
   const recap = createMockRecap()
   const slides = buildWrappedSlides(recap)
-  render(
+  const view = render(
     <WrappedPlayer
       slides={slides}
       recap={recap}
@@ -40,7 +41,7 @@ function renderPlayer(onClose = vi.fn()) {
       onClose={onClose}
     />,
   )
-  return { onClose, slides }
+  return { onClose, slides, unmount: view.unmount }
 }
 
 function advanceToLastSlide() {
@@ -57,6 +58,13 @@ describe('WrappedPlayer', () => {
     shareCardMock.canShareFiles = true
     shareCardMock.share.mockReset()
     shareCardMock.download.mockReset()
+  })
+
+  it('blocks first-run prompts while the player is open', () => {
+    const { unmount } = renderPlayer()
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+    unmount()
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
 
   it('opens on the intro slide and puts one segment per slide in the foot pager', () => {

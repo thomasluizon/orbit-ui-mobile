@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import {
   Modal,
@@ -18,6 +18,7 @@ import {
 } from '@/lib/popover-positioner'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 const DEFAULT_WIDE_FROM = 900
 const PANEL_WIDTH = 280
@@ -87,8 +88,16 @@ export function Menu({
   )
   const { width, height } = useWindowDimensions()
   const [anchorRect, setAnchorRect] = useState<PopoverAnchorRect | null>(null)
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const sheetPresentation =
     presentation === 'sheet' || (presentation === 'auto' && width < (wideFrom ?? DEFAULT_WIDE_FROM))
+  useEffect(() => {
+    if (!open || sheetPresentation) return
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [open, overlayId, registerOpenOverlay, sheetPresentation, unregisterOpenOverlay])
   const orderedItems = useMemo(() => orderMenuItems(items), [items])
 
   useEffect(() => {

@@ -14,6 +14,13 @@ const routeState = vi.hoisted(() => ({
   segments: ['wrapped'],
 }))
 const authState = vi.hoisted(() => ({ isAuthenticated: true }))
+const createState = vi.hoisted(() => ({
+  profile: undefined as { hasProAccess: boolean } | undefined,
+  count: 0,
+  countLoaded: false,
+  push: vi.fn(),
+  showCreate: vi.fn(),
+}))
 
 vi.mock('expo-router', () => {
   const Stack = Object.assign(
@@ -31,7 +38,7 @@ vi.mock('expo-router', () => {
     ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) => children,
     useGlobalSearchParams: () => ({}),
     usePathname: () => routeState.pathname,
-    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+    useRouter: () => ({ push: createState.push, replace: vi.fn() }),
     useSegments: () => routeState.segments,
   }
 })
@@ -61,11 +68,12 @@ vi.mock('@/hooks/use-gamification', () => ({
   }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => false,
-  useProfile: () => ({ profile: null }),
+  useHasProAccess: () => createState.profile?.hasProAccess ?? false,
+  useProfile: () => ({ profile: createState.profile }),
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
-vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
+vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => createState.count }))
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', hairline: '#222222', primary: '#c4530f' }),
 }))
@@ -95,7 +103,7 @@ vi.mock('@/stores/ui-store', () => ({
       astraConversationOpen: false,
       enqueueCelebration: vi.fn(),
       setAstraConversationOpen: vi.fn(),
-      setShowCreateModal: vi.fn(),
+      setShowCreateModal: createState.showCreate,
       todayFabHidden: false,
     }),
 }))
@@ -153,7 +161,7 @@ vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
 vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
-vi.mock('@/components/ui/fab', () => ({ Fab: () => null }))
+vi.mock('@/components/ui/fab', () => ({ Fab: ({ onClick }: { onClick: () => void }) => React.createElement('Fab', { onClick }) }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
 vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
@@ -204,12 +212,33 @@ describe('Wrapped root shell', () => {
     authState.isAuthenticated = true
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
+    createState.profile = undefined
+    createState.count = 0
+    createState.countLoaded = false
+    createState.push.mockClear()
+    createState.showCreate.mockClear()
     resetPendingNotificationDeletesForTests()
   })
 
   afterEach(() => {
     resetPendingNotificationDeletesForTests()
     vi.useRealTimers()
+  })
+
+  it('opens create while profile access is unresolved, even after the habit count loads', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    createState.count = 10
+    createState.countLoaded = true
+    const tree = await renderRoot()
+    const [createFab] = tree.root.findAll((node) => (node.type as unknown) === 'Fab')
+    await TestRenderer.act(() => (createFab?.props.onClick as () => void)())
+    expect(createState.showCreate).toHaveBeenCalledWith(true)
+    expect(createState.push).not.toHaveBeenCalledWith('/upgrade')
+
+    createState.profile = { hasProAccess: true }
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(createState.showCreate).not.toHaveBeenCalledWith(false)
   })
 
   it('renders Wrapped without bottom chrome or notices', async () => {
