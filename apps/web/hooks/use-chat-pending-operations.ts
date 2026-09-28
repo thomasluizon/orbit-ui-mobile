@@ -10,7 +10,7 @@ import {
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
-import { accountIntentWithOrigin, applyServerActionFailure } from '@/lib/client-action'
+import { accountIntentWithOrigin, runServerActionResult } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
 
@@ -37,18 +37,16 @@ export function useChatPendingOperations(
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     try {
     const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-    const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
-    await applyServerActionFailure(confirmation)
+    const confirmation = await runServerActionResult(confirmPendingOperation(pendingOperationId, intendedAccountId))
     if (!confirmation.ok) {
       return { ok: false, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
     }
 
-    const execution = await executePendingOperation(
+    const execution = await runServerActionResult(executePendingOperation(
       pendingOperationId,
       confirmation.data.confirmationToken,
       intendedAccountId,
-    )
-    await applyServerActionFailure(execution)
+    ))
 
     if (!execution.ok) {
       return { ok: false, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
@@ -65,14 +63,12 @@ export function useChatPendingOperations(
     async (pendingOperationId: string) => {
       try {
       const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-      const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
-      await applyServerActionFailure(confirmation)
+      const confirmation = await runServerActionResult(confirmPendingOperation(pendingOperationId, intendedAccountId))
       if (!confirmation.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
       }
 
-      const challenge = await issuePendingOperationStepUp(pendingOperationId, locale, intendedAccountId)
-      await applyServerActionFailure(challenge)
+      const challenge = await runServerActionResult(issuePendingOperationStepUp(pendingOperationId, locale, intendedAccountId))
       if (!challenge.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(challenge.error, t, 'chat.sendError', 'generic') }
       }
@@ -98,20 +94,18 @@ export function useChatPendingOperations(
     ) => {
       try {
       const intendedAccountId = accountIntentWithOrigin(getHeldAccountId())
-      const verification = await verifyPendingOperationStepUp(
+      const verification = await runServerActionResult(verifyPendingOperationStepUp(
         pendingOperationId,
         challengeId,
         code,
         intendedAccountId,
-      )
-      await applyServerActionFailure(verification)
+      ))
 
       if (!verification.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(verification.error, t, 'chat.sendError', 'generic') }
       }
 
-      const execution = await executePendingOperation(pendingOperationId, confirmationToken, intendedAccountId)
-      await applyServerActionFailure(execution)
+      const execution = await runServerActionResult(executePendingOperation(pendingOperationId, confirmationToken, intendedAccountId))
       if (!execution.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
       }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import en from '@orbit/shared/i18n/en.json'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import {
@@ -8,6 +9,7 @@ import {
   reportAccountChanged,
   reportAccountChangedIfNeeded,
   applyServerActionFailure,
+  runServerAction,
 } from '@/lib/client-action'
 import { setAccountEventOrigin } from '@/lib/account-event-origin'
 
@@ -29,6 +31,7 @@ describe('client account intent', () => {
     vi.mocked(toast.error).mockClear()
     setApiFetchTranslate((key) => {
       if (key === 'errors.api.accountChanged') return en.errors.api.accountChanged
+      if (key === 'errors.api.appUpdated') return en.errors.api.appUpdated
       if (key === 'errors.api.reload') return en.errors.api.reload
       return key
     })
@@ -76,5 +79,26 @@ describe('client account intent', () => {
       code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false,
     })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
     expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+  })
+
+  it('offers a reload when the current server does not recognize the action', async () => {
+    const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
+    const onUnexpectedRejection = vi.fn()
+    void action.catch(onUnexpectedRejection)
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(toast.error).toHaveBeenCalledWith(en.errors.api.appUpdated, expect.objectContaining({
+      id: 'app-updated',
+      duration: Infinity,
+      action: expect.objectContaining({ label: en.errors.api.reload, onClick: expect.any(Function) }),
+    }))
+    expect(onUnexpectedRejection).not.toHaveBeenCalled()
+  })
+
+  it('leaves network failures for the existing connection error path', async () => {
+    const networkError = new TypeError('Failed to fetch')
+    await expect(runServerAction(Promise.reject(networkError))).rejects.toBe(networkError)
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })
