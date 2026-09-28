@@ -2,7 +2,7 @@ import { useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
-const media = vi.hoisted(() => ({ matches: false }))
+const media = vi.hoisted(() => ({ width: 1023 }))
 
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 vi.mock('@/components/ui/pill-button', () => ({
@@ -29,9 +29,9 @@ function BlurFocusedElement() {
 
 describe('ShellWide', () => {
   beforeEach(() => {
-    media.matches = false
-    vi.stubGlobal('matchMedia', vi.fn(() => ({
-      matches: media.matches,
+    media.width = 1023
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: media.width >= Number(query.match(/min-width: (\d+)px/)?.[1]),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })))
@@ -131,8 +131,8 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('uses the 380px side panel at 1416px and above', () => {
-    media.matches = true
+  it('keeps the sidebar and current screen beside the conversation from the wide breakpoint', () => {
+    media.width = 1024
     const { container } = render(
       <ShellWide
         items={items}
@@ -148,10 +148,14 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-conversation="panel"]')).toHaveClass('w-[380px]')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
+    expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement?.parentElement).not.toHaveClass('px-8')
   })
 
   it('moves focus into the Support conversation panel and returns it on close', () => {
-    media.matches = true
+    media.width = 1024
     const props = {
       items,
       activeId: 'perfil',
@@ -183,7 +187,7 @@ describe('ShellWide', () => {
   })
 
   it.each([true, false])('returns conversation focus to the composer trigger with side panel=%s', (sidePanel) => {
-    media.matches = sidePanel
+    media.width = sidePanel ? 1024 : 1023
     const props = {
       items,
       activeId: 'hoje',
