@@ -112,11 +112,13 @@ describe('MessageBubble', () => {
       />,
     )
 
+    expect(screen.getByRole('button', { name: 'chat.copy' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
 
     await act(async () => { await Promise.resolve() })
     expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Your habits')
     expect(screen.getByRole('button', { name: 'chat.copied' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.copied' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     await act(async () => { vi.advanceTimersByTime(1600) })
     expect(screen.getByRole('button', { name: 'chat.copy' })).toBeInTheDocument()
   })

@@ -4,7 +4,8 @@ import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { ArrowUpRight } from "@/components/ui/icons";
+import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
+import { BUTTON_SIZES } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
@@ -36,6 +37,8 @@ function MessageCopyControl({ sourceText }: Readonly<{
   sourceText: string;
 }>) {
   const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme]);
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -56,6 +59,9 @@ function MessageCopyControl({ sourceText }: Readonly<{
       size="sm"
       accessibleName={copied ? t("chat.copied") : t("chat.copy")}
       onClick={() => void copySourceText()}
+      leadingIcon={copied
+        ? <Check size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />
+        : <Copy size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />}
     >
       {copied ? t("chat.copied") : t("chat.copy")}
     </PillButton>

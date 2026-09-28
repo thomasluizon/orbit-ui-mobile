@@ -5,6 +5,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
+import { Copy } from '@/components/ui/icons'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import {
@@ -88,6 +90,14 @@ describe('PillButton', () => {
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')
+  })
+
+  it('keeps a leading glyph decorative and tightens its side of the pill', () => {
+    render(<PillButton size="sm" leadingIcon={<Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />}>Copy</PillButton>)
+    const button = screen.getByRole('button', { name: 'Copy' })
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(button.querySelector('svg')).toHaveAttribute('width', '16')
+    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInline: '18px' })
   })
 
   it('gives pill links the interactive states their button variants expose', () => {

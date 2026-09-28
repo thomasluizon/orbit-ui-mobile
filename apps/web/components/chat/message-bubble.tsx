@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { ArrowUpRight } from '@/components/ui/icons'
+import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
@@ -14,6 +14,7 @@ import {
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { PillButton } from '@/components/ui/pill-button'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
@@ -139,7 +140,14 @@ export function MessageBubble({
         </div>
 
         {!isUser && hasChatProse(sourceText) && (
-          <PillButton variant="ghost" size="sm" onClick={() => void copySourceText()}>
+          <PillButton
+            variant="ghost"
+            size="sm"
+            onClick={() => void copySourceText()}
+            leadingIcon={copied
+              ? <Check size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />
+              : <Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden="true" />}
+          >
             {copied ? t('chat.copied') : t('chat.copy')}
           </PillButton>
         )}

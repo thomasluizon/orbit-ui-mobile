@@ -21,6 +21,7 @@ export function Button({
   accessibleName,
   iconOnly,
   label,
+  leadingIcon,
   hint,
   accessibilityRole = 'button',
 }: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link' }>) {
@@ -80,7 +81,7 @@ export function Button({
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
         disabled && !loading ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
@@ -89,7 +90,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator size="small" color={textColorByVariant[variant]} />
-      ) : iconOnly ? children : null}
+      ) : iconOnly ? children : leadingIcon}
       {iconOnly ? null : (
         <Text
           numberOfLines={1}

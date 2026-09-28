@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import * as Clipboard from 'expo-clipboard'
 import { createTokensV2 } from '@/lib/theme'
+import { Check, Copy } from '@/components/ui/icons'
 
 import { MessageBubble } from '@/components/message-bubble'
 
@@ -175,6 +176,7 @@ describe('MessageBubble copy control (mobile)', () => {
     })
 
     const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
+    expect(tree.root.findAll((node) => node.type === Copy)).toHaveLength(1)
     vi.useFakeTimers()
     await TestRenderer.act(async () => {
       await copy?.props.onPress?.()
@@ -184,6 +186,7 @@ describe('MessageBubble copy control (mobile)', () => {
     expect(
       tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copied').length,
     ).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === Check)).toHaveLength(1)
     await TestRenderer.act(() => { vi.advanceTimersByTime(1600) })
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy').length).toBeGreaterThan(0)
   })
