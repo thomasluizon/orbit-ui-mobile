@@ -39,7 +39,9 @@ describe('getRelatedSurfaces', () => {
   it('maps every surface ID the feature bundle can emit', () => {
     for (const id of FEATURE_FILE_SURFACE_IDS) {
       expect(RELATED_SURFACE_ROUTES[id]).toBeDefined()
-      expect(RELATED_SURFACE_ROUTES[id]?.labelKey).toMatch(/^chat\.related\.surface\./)
+      expect(RELATED_SURFACE_ROUTES[id]?.labelKey).toBe(
+        id === 'ai-settings' ? 'nav.profile' : `chat.related.surface.${id}`,
+      )
     }
   })
 
@@ -51,5 +53,13 @@ describe('getRelatedSurfaces', () => {
     expect(Object.values(RELATED_SURFACE_ROUTES).some((surface) =>
       surface.webRoute === '/upgrade' || surface.mobileRoute === '/upgrade'
     )).toBe(false)
+  })
+
+  it('opens Astra settings guidance on Profile where both controls live', () => {
+    expect(RELATED_SURFACE_ROUTES['ai-settings']).toMatchObject({
+      labelKey: 'nav.profile',
+      webRoute: '/profile',
+      mobileRoute: '/profile',
+    })
   })
 })

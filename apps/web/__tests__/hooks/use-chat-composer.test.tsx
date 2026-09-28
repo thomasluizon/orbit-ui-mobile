@@ -131,7 +131,6 @@ import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
 import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
-import ProfilePage from '@/app/(app)/profile/page'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -307,22 +306,6 @@ describe('web useChatComposer streaming send', () => {
       const context = JSON.parse((request.body as FormData).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
     }
-  })
-
-  it('sends Support row intent with the first problem description', async () => {
-    mocks.pathname = '/profile'
-    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
-    render(<ProfilePage />)
-    const { result } = renderHook(() => useChatComposer())
-
-    fireEvent.click(screen.getByRole('button', { name: /profile\.support\.title/i }))
-    await act(async () => { await result.current.sendMessage('my streak reset after I travelled') })
-
-    const [, request] = mocks.fetch.mock.calls[0]!
-    const formData = request.body as FormData
-    expect(formData.get('message')).toBe('my streak reset after I travelled')
-    const context = JSON.parse(formData.get('clientContext') as string)
-    expect(context.entryPointIntent).toBe('support')
   })
 
   it.each([

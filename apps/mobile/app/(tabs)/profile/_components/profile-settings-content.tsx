@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
-import { AccessibilityInfo, Platform, type View } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AccessibilityInfo, AppState, Linking, Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
-import { buildWeekStartOptions } from '@orbit/shared/utils'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
+import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
+import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -18,7 +21,6 @@ import {
   Languages,
   Lock,
   LogOut,
-  Moon,
   RotateCcw,
   User,
   UserX,
@@ -44,14 +46,14 @@ import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
-import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import {
   PreferencePickerSheet,
-  type PreferencePicker,
+  PushNotificationSection,
+  PersistentReminderRow,
 } from '@/components/profile/preferences-sections'
 import { useSheetHost } from '@/components/ui/sheet'
 import { DeleteAccountModal } from './delete-account-modal'
@@ -89,23 +91,50 @@ function buildYouRows(
   onEditName: () => void,
   onExport: () => void,
   onOpenTimeZone: () => void,
+  controls: ReturnType<typeof usePreferenceControls>,
 ) {
-  const planLabel = profile?.isTrialActive
-    ? t('profile.subscription.trial')
-    : profile?.hasProAccess
-      ? t('profile.subscription.pro')
-      : t('profile.subscription.free')
-  const timeZoneLabel = profile?.timeZone
-    ? t('profile.settingsRows.timezoneValue', { timeZone: profile.timeZone })
+  const { planLabelKey, timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
+    profile,
+    selectedLanguage: controls.selectedLanguage,
+    weekStartOptions: buildWeekStartOptions(t),
+  })
+  const timeZoneLabel = timeZone
+    ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
+  const themeChoice = (
+    <View accessibilityRole="radiogroup" accessibilityLabel={t('preferences.themeMode')} style={{ flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', gap: 4 }}>
+      {(['dark', 'light'] as const).map((mode) => {
+        const selected = controls.currentTheme === mode
+        return (
+          <Pressable
+            key={mode}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
+            onPress={() => controls.handleThemeModeChange(mode)}
+            style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline }}
+          >
+            <Text style={{ color: selected ? tokens.fg1 : tokens.fg2 }}>{t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}</Text>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
 
   return [
     <ListRow key="account" icon={icon(User, tokens.fg1)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
-    <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
+    <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} value={languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
-    <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="theme" icon={icon(Moon, tokens.fg1)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="plan" icon={icon(CreditCard, tokens.fg1)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
+    <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('settings.weekStartDay.title')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ProfileValueRow key="theme" label={t('preferences.themeMode')} control={themeChoice} />,
+    <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Text style={{ flex: 1, minWidth: 0, color: tokens.fg1, fontSize: 17 }}>{t('settings.homeScreen.showGeneral')}</Text>
+        <Switch checked={controls.showGeneralOnToday} onChange={(next) => void controls.handleShowGeneralToggle(next)} label={t('settings.homeScreen.showGeneral')} />
+      </View>
+      <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('settings.homeScreen.showGeneralDesc')}</Text>
+    </View>,
+    <ListRow key="plan" icon={icon(CreditCard, tokens.fg1)} title={t('profile.subscription.plan')} value={t(planLabelKey)} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
     <ListRow key="export" icon={icon(Download, tokens.fg1)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError || undefined} chevron={false} onClick={onExport} />,
   ]
 }
@@ -116,8 +145,10 @@ function buildAstraRows(
   apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
+  const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
-    <>
+    <View style={{ gap: 32 }}>
+      <View style={{ gap: 12 }}>
       {profile ? (
         <AstraAllowancePanel
           profile={profile}
@@ -126,31 +157,20 @@ function buildAstraRows(
       ) : null}
       {profile ? (
         <RowList>
-          {profile.hasProAccess ? (
-            <>
-              <ProfileValueRow
-                label={t('profile.proactiveAstra.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
-                )}
-              />
-              <ProfileValueRow
-                label={t('profile.aiSummary.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
-                )}
-              />
-            </>
+          {astraFeatures.map((feature) => !feature.locked ? (
+            <ProfileValueRow
+              key={feature.key}
+              label={t(feature.labelKey)}
+              control={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
+            />
           ) : (
-            <>
-              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-            </>
-          )}
+            <ListRow key={feature.key} icon={icon(Lock, tokens.fg1)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+          ))}
         </RowList>
       ) : null}
+      </View>
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
-    </>
+    </View>
   )
 }
 
@@ -163,36 +183,17 @@ interface TimeZonePickerProps {
 
 function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePickerProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
-  const weekStartOptions = buildWeekStartOptions(t)
-  const themeModeOptions = [
-    { value: 'dark' as const, label: t('preferences.themeModeDark') },
-    { value: 'light' as const, label: t('preferences.themeModeLight') },
-  ]
-  const pickerTitles: Record<PreferencePicker, string> = {
-    language: t('profile.language.title'),
-    theme: t('preferences.themeMode'),
-    timeZone: t('profile.settingsRows.timezone'),
-    weekStart: t('settings.weekStartDay.title'),
-  }
+  const pickerLabels = buildProfilePickerLabels(t)
 
   return (
     <PreferencePickerSheet
       tokens={tokens}
       activePicker={controls.activePicker}
-      pickerTitles={pickerTitles}
-      pickerDescriptions={{
-        language: t('profile.language.description'),
-        weekStart: t('settings.weekStartDay.description'),
-      }}
-      timeZoneSearchLabel={t('profile.timezonePicker.search')}
-      timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
-      timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
+      {...pickerLabels}
       selectedLanguage={controls.selectedLanguage}
       currentTheme={controls.currentTheme}
       timeZone={profile?.timeZone}
       weekStartDay={profile?.weekStartDay}
-      themeModeOptions={themeModeOptions}
-      weekStartOptions={weekStartOptions}
       sheetRef={sheetRef}
       closePicker={closeSheet}
       onHidden={() => controls.setActivePicker(null)}
@@ -204,25 +205,23 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
   )
 }
 
-function MoreRows({ context: { profile, router, t, tokens }, openSupport, supportFocusRef }: Readonly<{
+function buildMoreRows({ context: { profile, router, t, tokens }, openWidget }: Readonly<{
   context: RowContext
-  openSupport: () => void
-  supportFocusRef: Ref<View>
+  openWidget: () => void
 }>) {
   const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     return (
       <ListRow
         key={item.id}
-        ref={item.action === 'openSupport' ? supportFocusRef : undefined}
         icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
         title={t(item.titleKey)}
         description={item.hintKey ? t(item.hintKey) : undefined}
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
         onClick={() => {
-          if (item.action === 'openSupport') {
-            openSupport()
+          if (item.action === 'openWidget') {
+            openWidget()
             return
           }
           if (redirectsToUpgrade) {
@@ -235,7 +234,7 @@ function MoreRows({ context: { profile, router, t, tokens }, openSupport, suppor
     )
   })
 
-  return <>{navigationRows}<ShareCardEntryButton /></>
+  return [...navigationRows, <ShareCardEntryButton key="share" />]
 }
 
 interface EndingRowsOptions {
@@ -266,25 +265,27 @@ export function ProfileSettingsContent({
   const { t } = useTranslation()
   const router = useRouter()
   const logout = useLogout()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
-  const supportFocusRef = useRef<View>(null)
-  const returnFocusToSupport = useRef(false)
-  const supportFocusCallback = useCallback((node: View | null) => {
-    supportFocusRef.current = node
-  }, [])
-  const openSupport = useCallback(() => {
-    returnFocusToSupport.current = true
-    setAstraConversationOpen(true, 'support')
-  }, [setAstraConversationOpen])
-  useEffect(() => {
-    if (astraConversationOpen || !returnFocusToSupport.current) return
-    returnFocusToSupport.current = false
-    if (Platform.OS === 'android' && supportFocusRef.current) {
-      AccessibilityInfo.sendAccessibilityEvent(supportFocusRef.current, 'focus')
-    }
-  }, [astraConversationOpen])
+  const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const preferenceControls = usePreferenceControls()
+  const pushPreferences = usePushNotifications()
+  const { isSupported: pushSupported, refreshPermissionStatus } = pushPreferences
+  const persistentReminder = usePersistentReminder()
+  useEffect(() => {
+    if (!pushSupported) return
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshPermissionStatus()
+    })
+    return () => subscription.remove()
+  }, [pushSupported, refreshPermissionStatus])
+  async function handlePushToggle() {
+    if (pushPreferences.isEnabled) {
+      await pushPreferences.disablePushNotifications()
+    } else if (pushPreferences.permissionStatus === 'denied') {
+      await Linking.openSettings()
+    } else {
+      await pushPreferences.requestPermission()
+    }
+  }
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
     [preferenceControls.currentScheme, preferenceControls.currentTheme],
@@ -340,11 +341,11 @@ export function ProfileSettingsContent({
       () => setShowEditName(true),
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
+      preferenceControls,
     ),
     astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
-    notifications: [
+    notifications: <View style={{ gap: 12 }}>
       <MarketingConsentSection
-        key="product-email"
         showSectionLabel={false}
         contained
         trailingRow={analyticsEnabled === null ? null : (
@@ -358,9 +359,33 @@ export function ProfileSettingsContent({
             <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
           </SettingsRow>
         )}
-      />,
-    ],
-    more: <MoreRows context={context} openSupport={openSupport} supportFocusRef={supportFocusCallback} />,
+      />
+      <PushNotificationSection
+        tokens={tokens}
+        t={t}
+        pushSupported={pushPreferences.isSupported}
+        pushEnabled={pushPreferences.isEnabled}
+        pushRegistered={pushPreferences.isRegistered}
+        pushLoading={pushPreferences.isLoading}
+        permissionStatus={pushPreferences.permissionStatus}
+        registrationStatus={pushPreferences.registrationStatus}
+        onToggle={() => void handlePushToggle()}
+        onOpenSettings={() => void Linking.openSettings()}
+        showSectionLabel={false}
+        contained
+      />
+      {persistentReminder.isSupported ? (
+        <RowList>
+          <PersistentReminderRow
+            t={t}
+            enabled={persistentReminder.enabled}
+            isLoading={persistentReminder.isLoading}
+            onToggle={() => void persistentReminder.toggle()}
+          />
+        </RowList>
+      ) : null}
+    </View>,
+    more: buildMoreRows({ context, openWidget: () => setShowWidgetInfo(true) }),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
@@ -387,6 +412,7 @@ export function ProfileSettingsContent({
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />
       <DeleteAccountModal open={showDeleteAccount} onClose={() => setShowDeleteAccount(false)} profile={profile} />
+      <WidgetInfoSheet open={showWidgetInfo} onClose={() => setShowWidgetInfo(false)} t={t} tokens={tokens} />
       <TimeZonePicker
         controls={preferenceControls}
         profile={profile}

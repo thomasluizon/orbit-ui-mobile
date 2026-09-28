@@ -398,8 +398,6 @@ describe('DestinationShell', () => {
   })
 
   it.each([
-    '/preferences',
-    '/advanced',
     '/profile/security',
     '/account/billing',
   ])('selects Profile for its secondary route %s', (pathname) => {
@@ -435,13 +433,10 @@ describe('DestinationShell', () => {
   it.each([
     '/',
     '/about',
-    '/advanced',
-    '/ai-settings',
     '/calendar-sync',
     '/calendar',
     '/chat',
     '/onboarding',
-    '/preferences',
     '/profile',
     '/progress',
     '/retrospective',

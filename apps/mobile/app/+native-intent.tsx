@@ -9,12 +9,19 @@ function getSystemPathname(path: string): string {
   }
 }
 
+const RETIRED_ROUTE_DESTINATIONS: Readonly<Record<string, string>> = {
+  '/streak': '/progress',
+  '/preferences': '/profile',
+  '/advanced': '/profile',
+  '/ai-settings': '/profile',
+}
+
 export function redirectSystemPath({ path }: Readonly<{
   path: string
   initial: boolean
 }>): string {
   const pathname = getSystemPathname(path).replace(/\/+$/, '')
-  return pathname === '/streak' || pathname.startsWith('/streak/')
-    ? '/progress'
-    : path
+  const retired = Object.entries(RETIRED_ROUTE_DESTINATIONS).find(([route]) =>
+    pathname === route || pathname.startsWith(`${route}/`))
+  return retired ? retired[1] : path
 }
