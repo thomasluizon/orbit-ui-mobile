@@ -1628,6 +1628,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+.prose-orbit.thread-prose :is(pre, table):focus-visible {
+  outline-color: var(--fg-1);
+}
+
 .prose-orbit th,
 .prose-orbit td {
   border: 1px solid var(--hairline);

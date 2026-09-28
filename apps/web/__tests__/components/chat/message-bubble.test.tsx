@@ -128,6 +128,16 @@ describe('MessageBubble', () => {
     expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
   })
 
+  it('does not copy a hidden partial directive while streaming', async () => {
+    const { rerender } = render(<MessageBubble message={makeMessage({ role: 'ai', content: '[[orbit:habits:' })} isStreaming />)
+    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
+
+    rerender(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hello [[orbit:habits:' })} isStreaming />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
+    await act(async () => { await Promise.resolve() })
+    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Hello')
+  })
+
   it('omits the copy control for a separator-only reply', () => {
     render(<MessageBubble message={makeMessage({ role: 'ai', content: '---' })} />)
     expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()

@@ -86,7 +86,7 @@ export function MessageBubble({
   }
 
   const isUser = message.role === 'user'
-  const sourceText = stripChatDirectives(message.content, false)
+  const sourceText = stripChatDirectives(message.content, isStreaming)
 
   async function copySourceText() {
     await globalThis.navigator.clipboard.writeText(sourceText)
@@ -135,7 +135,7 @@ export function MessageBubble({
           )}
           <Markdown
             className="thread-prose"
-            content={isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
+            content={isUser ? message.content : sourceText}
           />
         </div>
 

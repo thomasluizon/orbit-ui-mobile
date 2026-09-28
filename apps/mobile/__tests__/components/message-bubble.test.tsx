@@ -199,6 +199,21 @@ describe('MessageBubble copy control (mobile)', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
   })
 
+  it('does not copy a hidden partial directive while streaming', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '[[orbit:habits:' })} isStreaming />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
+
+    await TestRenderer.act(() => {
+      tree.update(<MessageBubble message={makeMessage({ content: 'Hello [[orbit:habits:' })} isStreaming />)
+    })
+    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
+    await TestRenderer.act(async () => { await copy?.props.onPress?.() })
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Hello')
+  })
+
   it('omits the copy control for a separator-only reply', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {

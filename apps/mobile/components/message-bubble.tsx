@@ -125,7 +125,7 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
-  const sourceText = stripChatDirectives(message.content, false);
+  const sourceText = stripChatDirectives(message.content, isStreaming);
 
   const {
     clarificationActions,
@@ -170,7 +170,7 @@ export function MessageBubble({
           )}
 
           <Markdown tone="thread">
-            {isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
+            {isUser ? message.content : sourceText}
           </Markdown>
         </View>
 
