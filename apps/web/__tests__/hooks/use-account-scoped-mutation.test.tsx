@@ -14,7 +14,10 @@ const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => account.id,
   getAccountGeneration: () => account.generation,
-  useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: async () => {} }) },
+  useAuthStore: { getState: () => ({
+    isAuthenticated: account.id !== null,
+    recoverSessionRefreshFailure: async () => {},
+  }) },
 }))
 
 function deferred() {
@@ -78,6 +81,25 @@ describe('useAccountScopedMutation', () => {
 
     act(() => { result.current.mutate() })
     await entered.promise
+    account.generation = 2
+    await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
+  })
+
+  it('reconciles a write that started before the first session check adopted the account', async () => {
+    account.id = null
+    const gate = deferred()
+    const entered = deferred()
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => { entered.release(); await gate.promise },
+    }), { wrapper })
+
+    act(() => { result.current.mutate() })
+    await entered.promise
+    account.id = 'account-a'
     account.generation = 2
     await act(async () => { gate.release(); await waitFor(() => expect(invalidate).toHaveBeenCalled()) })
   })

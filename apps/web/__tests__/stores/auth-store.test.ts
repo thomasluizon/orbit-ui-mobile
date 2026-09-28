@@ -11,6 +11,10 @@ import { useChatStore } from '@/stores/chat-store'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
 import { accountStorageKey } from '@/lib/account-storage-key'
+import { QueryObserver } from '@tanstack/query-core'
+import { profileKeys } from '@orbit/shared/query'
+import { getQueryClient } from '@/lib/query-client'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
@@ -22,6 +26,38 @@ vi.mock('@/lib/posthog', () => posthogMocks)
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
+
+describe('the first session check under a query in flight', () => {
+  it('settles the mounted observer after the account boundary', async () => {
+    const queryClient = getQueryClient()
+    useAuthStore.setState({ heldAccountId: null })
+    let answer: (profile: { name: string }) => void = () => {}
+    const serverAnswer = new Promise<{ name: string }>((resolve) => { answer = resolve })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: profileKeys.detail(),
+      queryFn: () => serverAnswer,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('fetching'))
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-a' }),
+      })
+
+      await useAuthStore.getState().checkSession()
+      answer({ name: 'answered' })
+
+      await vi.waitFor(() => expect(observer.getCurrentResult()).toMatchObject({
+        status: 'success', fetchStatus: 'idle', data: { name: 'answered' },
+      }))
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+})
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -195,6 +231,32 @@ describe('auth store', () => {
       expiresAt: null,
       sessionRefreshFailed: false,
     })
+  })
+
+  it('does not start a mounted API query after logout removes the session cookie', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') return Promise.resolve({ ok: true })
+      return Promise.resolve(new Response(null, { status: 401 }))
+    })
+    const queryClient = getQueryClient()
+    let releaseInitial: (value: string) => void = () => {}
+    const initialRequest = new Promise<string>((resolve) => { releaseInitial = resolve })
+    const queryFn = vi.fn()
+      .mockImplementationOnce(() => initialRequest)
+      .mockImplementation(() => sessionAwareFetch('/api/profile'))
+    const observer = new QueryObserver(queryClient, { queryKey: ['logout-401'], queryFn })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await useAuthStore.getState().logout()
+      releaseInitial('previous account')
+      expect(queryFn).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+      expect(mockFetch).not.toHaveBeenCalledWith('/api/profile')
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
   })
 
   it('keeps the session when browser cookie locking is unavailable', async () => {

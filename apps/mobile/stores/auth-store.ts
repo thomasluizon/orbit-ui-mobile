@@ -3,7 +3,7 @@ import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
-import { profileKeys } from '@orbit/shared/query'
+import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
 import { clearGoogleErrorLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
@@ -243,7 +243,7 @@ async function runSessionTeardown(
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
 
-  queryClient.clear()
+  void resetAccountQueries(queryClient, 'signed-out')
   if (!(await runSessionTeardownStep(epoch, clearPersistedQueryCache))) return null
   if (!(await runSessionTeardownStep(epoch, () => setQueryCacheScope(null)))) return null
 
@@ -474,7 +474,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!loginSession) return null
       ownership = loginSession
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
-      queryClient.clear()
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await setQueryCacheScope(user.userId)

@@ -65,7 +65,7 @@ const {
   saveWidgetTokenMock,
   apiClientMock,
   clearPersistedQueryCacheMock,
-  queryClientClearMock,
+  resetAccountQueriesMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
   clearMessagesMock,
@@ -90,7 +90,7 @@ const {
   saveWidgetTokenMock: vi.fn(),
   apiClientMock: vi.fn(),
   clearPersistedQueryCacheMock: vi.fn(),
-  queryClientClearMock: vi.fn(),
+  resetAccountQueriesMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
   clearMessagesMock: vi.fn(),
@@ -152,9 +152,13 @@ vi.mock('@/hooks/use-push-notifications', () => ({
   unsubscribePushToken: unsubscribePushTokenMock,
 }))
 
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: resetAccountQueriesMock,
+}))
+
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
-    clear: queryClientClearMock,
     setQueryData: setQueryDataMock,
   },
   clearPersistedQueryCache: clearPersistedQueryCacheMock,
@@ -346,7 +350,7 @@ describe('mobile auth store security paths', () => {
     saveWidgetTokenMock.mockReset()
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
-    queryClientClearMock.mockReset()
+    resetAccountQueriesMock.mockReset()
     setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     clearMessagesMock.mockReset()
@@ -419,8 +423,8 @@ describe('mobile auth store security paths', () => {
       callOrder.push('setRefreshToken')
       return Promise.resolve()
     })
-    queryClientClearMock.mockImplementation(() => {
-      callOrder.push('queryClient.clear')
+    resetAccountQueriesMock.mockImplementation(() => {
+      callOrder.push('resetAccountQueries')
     })
 
     await useAuthStore.getState().login('access-token', 'refresh-token', {
@@ -430,8 +434,8 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(callOrder.indexOf('setToken')).toBeGreaterThanOrEqual(0)
-    expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
-    expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
+    expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
+    expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
   })
 
   it('keeps the protected tree unavailable until account cleanup completes', async () => {
@@ -920,7 +924,7 @@ describe('mobile auth store security paths', () => {
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(clearMessagesMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -971,7 +975,7 @@ describe('mobile auth store security paths', () => {
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(clearMessagesMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -994,7 +998,7 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
-    expect(queryClientClearMock).not.toHaveBeenCalled()
+    expect(resetAccountQueriesMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       user: { userId: 'user-1' },
@@ -1057,7 +1061,7 @@ describe('mobile auth store security paths', () => {
         resetCountsAtSignedOut.push(posthogMocks.resetPostHogUser.mock.calls.length)
       }
     })
-    queryClientClearMock.mockImplementation(() => {
+    resetAccountQueriesMock.mockImplementation(() => {
       order.push('clearCache')
     })
 
@@ -1068,7 +1072,7 @@ describe('mobile auth store security paths', () => {
 
     expect(replaceMock).not.toHaveBeenCalled()
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(order.indexOf('unauthenticated')).toBeGreaterThanOrEqual(0)
@@ -1797,7 +1801,7 @@ describe('mobile auth store security paths', () => {
     await expect(useAuthStore.getState().logout()).resolves.toBe(true)
 
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       sessionPhase: 'signed-out',
       isAuthenticated: false,
