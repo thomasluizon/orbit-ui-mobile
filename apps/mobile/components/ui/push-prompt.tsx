@@ -77,17 +77,20 @@ export function PushPrompt() {
       registrationStatus,
     })
 
-  if (shouldShow && !anotherOverlayOpen && !promptVisible) {
-    setPromptVisible(true)
-  }
-
   const show = (promptVisible && shouldShow) || isExiting
 
   useEffect(() => {
-    if (!show) return
+    if (!shouldShow || promptVisible || hasOpenPromptBlockingOverlay(useUIStore.getState())) return
     registerOpenOverlay(overlayId)
+    void Promise.resolve().then(() => setPromptVisible(true))
+  }, [shouldShow, promptVisible, anotherOverlayOpen, overlayId, registerOpenOverlay])
+
+  useEffect(() => {
+    if (!show) return
     return () => unregisterOpenOverlay(overlayId)
-  }, [show, overlayId, registerOpenOverlay, unregisterOpenOverlay])
+  }, [show, overlayId, unregisterOpenOverlay])
+
+  useEffect(() => () => unregisterOpenOverlay(overlayId), [overlayId, unregisterOpenOverlay])
 
   useEffect(() => {
     if (!shouldShow) return

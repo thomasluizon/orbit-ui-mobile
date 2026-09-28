@@ -46,10 +46,11 @@ vi.mock('@/components/ui/pill-button', () => ({
     React.createElement('PillButton', null, children),
 }))
 
-function renderPrompt() {
+async function renderPrompt() {
   let tree: { root: { findAllByType: (type: string) => unknown[] } } | null = null
-  TestRenderer.act(() => {
+  await TestRenderer.act(async () => {
     tree = TestRenderer.create(React.createElement(CalendarImportPrompt))
+    await Promise.resolve()
   })
   return tree!
 }
@@ -77,7 +78,7 @@ describe('CalendarImportPrompt gating', () => {
   it('waits for the create modal to close', async () => {
     mocks.profile = baseProfile()
     useUIStore.getState().setShowCreateModal(true)
-    const tree = renderPrompt()
+    const tree = await renderPrompt()
     expect(sheetCount(tree)).toBe(0)
 
     await TestRenderer.act(async () => {
@@ -87,29 +88,29 @@ describe('CalendarImportPrompt gating', () => {
     expect(sheetCount(tree)).toBe(1)
   })
 
-  it('shows the sheet once onboarding and the tour are both complete', () => {
+  it('shows the sheet once onboarding and the tour are both complete', async () => {
     mocks.profile = baseProfile()
-    expect(sheetCount(renderPrompt())).toBe(1)
+    expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('stays hidden while the tour is still running (hasCompletedTour false)', () => {
+  it('stays hidden while the tour is still running (hasCompletedTour false)', async () => {
     mocks.profile = baseProfile({ hasCompletedTour: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden before onboarding completes', () => {
+  it('stays hidden before onboarding completes', async () => {
     mocks.profile = baseProfile({ hasCompletedOnboarding: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden once the calendar has been imported', () => {
+  it('stays hidden once the calendar has been imported', async () => {
     mocks.profile = baseProfile({ hasImportedCalendar: true })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 
-  it('stays hidden on the calendar-sync route', () => {
+  it('stays hidden on the calendar-sync route', async () => {
     mocks.profile = baseProfile()
     mocks.pathname = '/calendar-sync'
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(await renderPrompt())).toBe(0)
   })
 })

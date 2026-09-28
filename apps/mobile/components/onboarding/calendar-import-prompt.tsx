@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -31,7 +31,10 @@ export function CalendarImportPrompt() {
   const [dismissed, setDismissed] = useState(false)
   const [sheetMounted, setSheetMounted] = useState(false)
   const [promptVisible, setPromptVisible] = useState(false)
+  const overlayId = useId()
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const shouldShow = Boolean(
@@ -65,10 +68,16 @@ export function CalendarImportPrompt() {
     void dismissPrompt()
   }, [dismissPrompt, router, scheduleExitAction])
 
-  if (shouldShow && !sheetMounted && !anotherOverlayOpen) {
-    setSheetMounted(true)
-    setPromptVisible(true)
-  }
+  useEffect(() => {
+    if (!shouldShow || sheetMounted || hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+    registerOpenOverlay(overlayId)
+    void Promise.resolve().then(() => {
+      setSheetMounted(true)
+      setPromptVisible(true)
+    })
+  }, [shouldShow, sheetMounted, anotherOverlayOpen, overlayId, registerOpenOverlay])
+
+  useEffect(() => () => unregisterOpenOverlay(overlayId), [overlayId, unregisterOpenOverlay])
 
   if (!sheetMounted) return null
 
@@ -82,6 +91,7 @@ export function CalendarImportPrompt() {
         runExitAction()
         setSheetMounted(false)
         setPromptVisible(false)
+        unregisterOpenOverlay(overlayId)
       }}
       title={t('onboarding.wizard.calendarTitle')}
       snapPoints={['50%']}

@@ -84,6 +84,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   return {
     ...query,
     profile,
+    isLoading: !isClient || query.isLoading,
     invalidate,
     patchProfile,
   }
