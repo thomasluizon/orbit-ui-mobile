@@ -29,7 +29,7 @@ import {
   usePendingGoogleAuthSession,
 } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
-import { useAuthStore } from '@/stores/auth-store'
+import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
@@ -144,6 +144,7 @@ export default function AuthCallbackScreen() {
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
     processedRef.current = true
     const resolvedCallbackUrl = sessionCallbackUrl
+    const sessionEpoch = getSessionGeneration().epoch
 
     async function handleCallback() {
       try {
@@ -151,18 +152,20 @@ export default function AuthCallbackScreen() {
         if (callbackParams.error) throw new Error('Authentication failed')
 
         const referralCode = await getStoredReferralCode()
+        if (sessionEpoch !== getSessionGeneration().epoch) return
         const response = await completeGoogleAuthFromUrl(
           resolvedCallbackUrl,
           i18n.language,
           referralCode ?? undefined,
         )
         clearPendingGoogleAuthSession(returnUrlAttemptId)
+        if (sessionEpoch !== getSessionGeneration().epoch) return
 
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId,
           name: response.name,
           email: response.email,
-        })
+        }, sessionEpoch)
         if (!isCurrentLoginSession?.()) return
 
         if (referralCode) {
@@ -180,6 +183,7 @@ export default function AuthCallbackScreen() {
         const returnUrl = getSafeReturnUrl(storedReturnUrl)
         router.replace(returnUrl)
       } catch {
+        if (sessionEpoch !== getSessionGeneration().epoch) return
         clearPendingGoogleAuthSession(returnUrlAttemptId)
         allowGoogleErrorLogin()
         router.replace('/login?googleError=1')

@@ -26,11 +26,15 @@ function AuthCallbackContent() {
     const code = params.get('code')
     const state = params.get('state')
     if (params.has('error') || !code || !state) {
+      const storedReturn = sessionStorage.getItem('auth_return_url')
+      const calendarReturn = storedReturn === '/calendar-sync' || storedReturn === '/calendar-sync?mode=review'
+      const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
+      const destination = calendarReturn && cancelled ? storedReturn : '/login?googleError=1'
       if (state) {
         void fetch(`/api/auth/google/code?state=${encodeURIComponent(state)}`, { method: 'DELETE' })
-          .then(() => router.replace('/login?googleError=1'), () => router.replace('/login?googleError=1'))
+          .then(() => router.replace(destination), () => router.replace(destination))
       } else {
-        router.replace('/login?googleError=1')
+        router.replace(destination)
       }
       return
     }
@@ -46,9 +50,13 @@ function AuthCallbackContent() {
           body: JSON.stringify({ code, state, language: locale, ...(referralCode ? { referralCode } : {}) }),
         })
         if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
-        setAuth((await response.json()) as LoginResponse)
+        const loginResponse = (await response.json()) as LoginResponse
+        if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
+        setAuth(loginResponse)
       })
+      const completedGeneration = getAccountGeneration()
       await hydrateProfilePresentation()
+      if (completedGeneration !== getAccountGeneration()) return
       if (referralCode) {
         localStorage.setItem('orbit_referral_applied', '1')
         document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'

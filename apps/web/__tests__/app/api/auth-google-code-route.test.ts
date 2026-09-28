@@ -17,6 +17,14 @@ const loginResponse = {
   userId: 'user-1', name: 'Alex', email: 'alex@example.com', wasReactivated: false,
 }
 
+function accountToken(accountId: string, marker: string) {
+  const payload = Buffer.from(JSON.stringify({
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': accountId,
+    marker,
+  })).toString('base64url')
+  return `header.${payload}.signature`
+}
+
 function requestWithCookie(cookie: string, body: unknown, authToken?: string) {
   const request = new NextRequest(`${origin}/api/auth/google/code`, {
     method: 'POST',
@@ -116,16 +124,28 @@ describe('Google OAuth BFF', () => {
   })
 
   it('rejects a callback after another login replaces the owning session', async () => {
-    const { session, cookie } = await start('signin', 'account-a-token')
+    const { session, cookie } = await start('signin', accountToken('account-a', 'initial'))
     const api = vi.fn()
     vi.stubGlobal('fetch', api)
     const response = await POST(requestWithCookie(cookie.value, {
       code: 'google-code', state: session.state, language: 'en',
-    }, 'account-b-token'))
+    }, accountToken('account-b', 'replacement')))
     expect(response.status).toBe(400)
     expect(api).not.toHaveBeenCalled()
     expect(setSessionCookies).not.toHaveBeenCalled()
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)?.value).toBe('')
+  })
+
+  it('accepts a callback after the same account rotates its access token', async () => {
+    const { session, cookie } = await start('calendar', accountToken('account-a', 'initial'))
+    const api = vi.fn().mockResolvedValue(new Response(JSON.stringify(loginResponse)))
+    vi.stubGlobal('fetch', api)
+    const response = await POST(requestWithCookie(cookie.value, {
+      code: 'google-code', state: session.state, language: 'en',
+    }, accountToken('account-a', 'rotated')))
+    expect(response.status).toBe(200)
+    expect(api).toHaveBeenCalledOnce()
+    expect(setSessionCookies).toHaveBeenCalledWith('orbit-token', 'refresh-token')
   })
 
   it('leaves the session unset when the API rejects the code', async () => {

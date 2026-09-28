@@ -207,6 +207,21 @@ function renderHookValue<T>(hook: () => T): T {
 }
 
 describe('mobile auth store security paths', () => {
+  it('refuses credentials from a callback owned by a replaced session', async () => {
+    const oldEpoch = getSessionGeneration().epoch
+    const replacement = { userId: 'replacement', email: 'new@example.com', name: 'New' }
+    await useAuthStore.getState().login('replacement-token', null, replacement)
+    setTokenMock.mockClear()
+
+    const result = await useAuthStore.getState().login('old-google-token', 'old-refresh', {
+      userId: 'old-google', email: 'old@example.com', name: 'Old',
+    }, oldEpoch)
+
+    expect(result).toBeNull()
+    expect(setTokenMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().user?.userId).toBe(replacement.userId)
+  })
+
   it('asks the replacement account for marketing consent', async () => {
     await useAuthStore.getState().login('first-token', null, {
       userId: 'account-a', email: 'a@example.com', name: 'A',

@@ -113,7 +113,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<(() => boolean) | null>
+  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
   logout: () => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -156,6 +156,10 @@ function isTokenExpired(token: string): boolean {
 
 function isCurrentSessionEpoch(epoch: number): boolean {
   return sessionEpoch === epoch
+}
+
+function matchesExpectedSessionEpoch(expectedEpoch?: number): boolean {
+  return expectedEpoch === undefined || isCurrentSessionEpoch(expectedEpoch)
 }
 
 function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
@@ -441,12 +445,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   expiresAt: null,
 
-  login: async (token, refreshToken, user) => {
+  login: async (token, refreshToken, user, expectedEpoch) => {
+    if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
+        if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
         clearPendingGoogleAuthSession()
         await setToken(token)
         if (refreshToken) {
@@ -465,6 +471,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         })
         return getSessionGeneration()
       })
+      if (!loginSession) return null
       ownership = loginSession
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       queryClient.clear()
@@ -489,17 +496,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!isCurrentSessionEpoch(ownership.epoch)) return null
         queryClient.setQueryData(profileKeys.detail(), profile)
 
-        if (profile.language && i18n.language !== profile.language) {
-          void i18n.changeLanguage(profile.language)
-        }
-
-        setRuntimeTheme({
-          scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
-          themeMode:
-            profile.themePreference === 'light' || profile.themePreference === 'dark'
-              ? profile.themePreference
-              : undefined,
-        })
+        applyProfilePresentation(profile)
 
         hydratedUser = {
           ...user,
