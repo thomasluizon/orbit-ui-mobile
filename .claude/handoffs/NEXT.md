@@ -37,7 +37,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 ## Then, in order
 
 1. The in-flight rows above, credential isolation first, because the landing sync and every later release depend on it.
-2. The spec's `## The order`, Batch M, in its dependency order, ending with its operations line (the SES switch, then Resend, then `#805`).
+2. The spec's `## The order`, Batch M (it now includes renaming the staging web host to `app-staging.useorbit.org`, an owner decision), in its dependency order, ending with its operations line (the SES switch, then Resend, then `#805`).
 3. THE REDESIGN GATE stays open for the owner: staging runs `redesign/main` and the internal 1.3.39 (98) build is out. Keep staging current with `/release` for staging whenever `redesign/main` moves, and do not merge `redesign/main` to `main`.
 4. Everything the gate does not block, in the spec's order: the rest of Batch E, Batch 0b and Batch 0c.
 5. Owner decisions already taken are in the spec's standing rules and constraints; a ticket's acceptance wins over its suggested method; a review finding on a sync pull request that is also a defect on `main` is fixed on `main` first.
