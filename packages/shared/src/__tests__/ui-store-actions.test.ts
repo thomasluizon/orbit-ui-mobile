@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createMockHabit } from './factories'
 import {
   createUIStoreState,
   migratePersistedUIState,
@@ -89,12 +90,11 @@ describe('ui store toggles and setters', () => {
     expect(store.getState().allDoneCelebration).toBe(false)
   })
 
-  it('skips the all-done celebration when the active filters are not today', () => {
+  it('skips the all-done celebration when the checked date is not today', () => {
     const store = createStoreHarness()
-    store.setState({ activeFilters: { dateFrom: '2000-01-01', dateTo: '2000-01-02' } })
-
+    const habit = createMockHabit({ id: 'h-1', isCompleted: true, scheduledDates: ['2000-01-01'] })
     store.getState().checkAllDoneCelebration(
-      new Map([['h-1', { parentId: null, isCompleted: true }]]),
+      new Map([['h-1', habit]]), new Map(), '2000-01-01',
     )
 
     expect(store.getState().allDoneCelebration).toBe(false)

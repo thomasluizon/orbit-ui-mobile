@@ -8,7 +8,7 @@ export type CelebrationKind =
 export interface CelebrationPayloadMap {
   streak: { streak: number };
   achievement: { achievementId: string; xpReward: number };
-  "all-done": Record<string, never>;
+  "all-done": { count: number };
   "goal-completed": { name: string };
   "level-up": { level: number };
 }

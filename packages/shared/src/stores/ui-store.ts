@@ -1,5 +1,6 @@
-import type { HabitsFilter } from "../types/habit";
+import type { NormalizedHabit } from "../types/habit";
 import { formatAPIDate } from "../utils/dates";
+import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
 import {
   activateNextCelebration,
@@ -56,7 +57,6 @@ function isActiveView(value: unknown): value is ActiveView {
 }
 
 export interface PersistedUIState {
-  activeFilters: HabitsFilter;
   activeView: ActiveView;
   selectedFrequency: HabitFrequencyFilter | null;
   selectedTagIds: string[];
@@ -72,13 +72,7 @@ export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
   const state = isRecord(persistedState) ? persistedState : {};
-  const activeFilters = isRecord(state.activeFilters)
-    ? { ...state.activeFilters }
-    : {};
-  delete activeFilters.search;
-
   return {
-    activeFilters,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
       ? state.selectedFrequency
@@ -98,9 +92,6 @@ export function migratePersistedUIState(
 }
 
 export interface UIStoreState {
-  activeFilters: HabitsFilter;
-  setFilters: (filters: Partial<HabitsFilter>) => void;
-
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
 
@@ -121,7 +112,9 @@ export interface UIStoreState {
   setAllDoneCelebration: (value: boolean) => void;
   setGoalCompletedCelebration: (data: { name: string } | null) => void;
   checkAllDoneCelebration: (
-    habitsById: Map<string, { parentId: string | null; isCompleted: boolean }>,
+    habitsById: Map<string, NormalizedHabit>,
+    childrenByParent: Map<string, string[]>,
+    date: string,
   ) => void;
 
   isSelectMode: boolean;
@@ -167,11 +160,7 @@ export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
-  const activeFilters = { ...state.activeFilters };
-  delete activeFilters.search;
-
   return {
-    activeFilters,
     activeView: state.activeView,
     selectedFrequency: state.selectedFrequency,
     selectedTagIds: [...state.selectedTagIds],
@@ -189,7 +178,6 @@ export function getTourSessionUIState(state: UIStoreState): TourUIState {
 
 export function createTourUIState(): TourUIState {
   return {
-    activeFilters: {},
     activeView: "today",
     searchQuery: "",
     selectedFrequency: null,
@@ -230,12 +218,6 @@ export function createUIStoreState(
   }
 
   return {
-    activeFilters: {},
-    setFilters: (filters) =>
-      set((state) => ({
-        activeFilters: { ...state.activeFilters, ...filters },
-      })),
-
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
 
@@ -277,7 +259,7 @@ export function createUIStoreState(
         if (value) {
           return enqueueCelebrationItem(
             state,
-            createCelebrationItem("all-done", {}, nextCelebrationSequence()),
+            createCelebrationItem("all-done", { count: 0 }, nextCelebrationSequence()),
           );
         }
 
@@ -290,25 +272,16 @@ export function createUIStoreState(
       goalCompletedCelebration: null,
     }),
 
-    checkAllDoneCelebration: (habitsById) => {
-      const { activeFilters, allDoneCelebratedDate, enqueueCelebration } =
-        get();
+    checkAllDoneCelebration: (habitsById, childrenByParent, date) => {
+      const { allDoneCelebratedDate, enqueueCelebration } = get();
       const today = formatAPIDate(new Date());
 
-      if (activeFilters.dateFrom !== today || activeFilters.dateTo !== today)
-        return;
+      if (date !== today) return;
       if (allDoneCelebratedDate === today) return;
-      if (habitsById.size === 0) return;
-
-      const topLevel = Array.from(habitsById.values()).filter(
-        (h) => h.parentId === null,
-      );
-      const allDone = topLevel.every((h) => h.isCompleted);
-      const hasCompletion = topLevel.some((h) => h.isCompleted);
-
-      if (allDone && hasCompletion) {
+      const { allDone, count } = getAllDoneOnDate(habitsById, childrenByParent, today);
+      if (allDone) {
         set({ allDoneCelebratedDate: today });
-        enqueueCelebration("all-done", {});
+        enqueueCelebration("all-done", { count });
       }
     },
 

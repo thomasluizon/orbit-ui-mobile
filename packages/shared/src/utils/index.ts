@@ -1,6 +1,7 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
 export { parseAPIDate, formatAPIDate } from './dates'
+export { getAllDoneOnDate, isHabitLoggedOnDate } from './all-done'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
 export { isRecord } from './is-record'

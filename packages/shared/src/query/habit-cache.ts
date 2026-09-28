@@ -18,6 +18,15 @@ export function updateHabitListsForDate(
   }
 }
 
+export function getTodayHabitList(queryClient: QueryClient, date: string): HabitScheduleItem[] | undefined {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    const filters = key[2] as HabitsFilter
+    if (filters.dateFrom === date && filters.dateTo === date && filters.includeOverdue === true &&
+      !filters.search && !filters.frequencyUnit && !filters.tagIds?.length && items) return items
+  }
+  return undefined
+}
+
 export function invalidateHabitDependents(queryClient: QueryClient, habitId: string): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
