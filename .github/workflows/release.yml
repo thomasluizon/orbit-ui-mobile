@@ -1,6 +1,6 @@
 # Repository secrets: RENDER_API_KEY, SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
 # Repository variables: RENDER_WEB_SERVICE_ID,
-# PRODUCTION_WEB_HOST, PRODUCTION_WEB_CUTOVER (set to true when the public host moves to Render),
+# PRODUCTION_WEB_HOST,
 # PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID, PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 # PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE, PRODUCTION_NEXT_PUBLIC_SITE_URL,
 # PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY, PRODUCTION_NEXT_PUBLIC_SENTRY_DSN,
@@ -173,7 +173,6 @@ jobs:
           PRODUCTION_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
           STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
           PRODUCTION_WEB_HOST: ${{ vars.PRODUCTION_WEB_HOST }}
-          PRODUCTION_WEB_CUTOVER: ${{ vars.PRODUCTION_WEB_CUTOVER }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           RELEASE_ENVIRONMENT: ${{ inputs.environment }}
         run: |
@@ -205,22 +204,11 @@ jobs:
             echo "Verified staging ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ "$PRODUCTION_WEB_CUTOVER" = true ]; then
-            public_url="https://${PRODUCTION_WEB_HOST}"
-            check_health "$public_url"
-            deployment_url="$public_url"
-            smoke_base_url="$public_url"
-            echo "Verified public host ${public_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
-          else
-            public_commit=$(curl -fsS "https://${PRODUCTION_WEB_HOST}/api/health" 2>/dev/null |
-              jq -r '.commit // empty' 2>/dev/null || true)
-            if [ -n "$public_commit" ] && [ "$public_commit" != "$SOURCE_SHA" ]; then
-              echo "Public host reports ${public_commit}, expected ${SOURCE_SHA}" >&2
-              exit 1
-            fi
-            if [ "$public_commit" = "$SOURCE_SHA" ]; then deployment_url="https://${PRODUCTION_WEB_HOST}"; fi
-            echo "Public host was not verified because the cutover has not happened." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          public_url="https://${PRODUCTION_WEB_HOST}"
+          check_health "$public_url"
+          deployment_url="$public_url"
+          smoke_base_url="$public_url"
+          echo "Verified public host ${public_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
           echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
           echo "smoke_base_url=${smoke_base_url}" >> "$GITHUB_OUTPUT"
           echo "Verified production ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"

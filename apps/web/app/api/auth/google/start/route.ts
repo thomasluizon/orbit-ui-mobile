@@ -13,7 +13,7 @@ export function GET(request: NextRequest) {
 
   const verifier = randomBytes(32).toString('hex')
   const state = randomBytes(32).toString('hex')
-  const redirectUri = `${new URL(request.url).origin}/auth-callback`
+  const redirectUri = new URL('/auth-callback', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000').toString()
   const codeChallenge = createHash('sha256').update(verifier).digest('base64url')
   const authorizeUrl = buildGoogleAuthorizeUrl({
     clientId, redirectUri, state, codeChallenge, purpose,
