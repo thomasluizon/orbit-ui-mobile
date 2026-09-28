@@ -1,6 +1,7 @@
 'use client'
 
 import { createApiClientError } from '@orbit/shared'
+import { unstable_isUnrecognizedActionError } from 'next/navigation'
 import { toast } from 'sonner'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
 import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
@@ -64,7 +65,24 @@ export async function applyServerActionFailure<T>(result: ServerActionResult<T>)
 export async function runServerAction<T>(
   action: Promise<ServerActionResult<T>>,
 ): Promise<T> {
-  const result = await action
+  let result: ServerActionResult<T>
+  try {
+    result = await action
+  } catch (error: unknown) {
+    if (unstable_isUnrecognizedActionError(error)) {
+      const message = translateApiFetchMessage('errors.api.appUpdated')
+      const reloadLabel = translateApiFetchMessage('errors.api.reload')
+      if (message && reloadLabel) {
+        toast.error(message, {
+          id: 'app-updated',
+          duration: Infinity,
+          action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
+        })
+        return new Promise<T>(() => {})
+      }
+    }
+    throw error
+  }
   await applyServerActionFailure(result)
   if (result.ok) return result.data
 
