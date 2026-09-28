@@ -193,6 +193,8 @@ describe('Today server preload', () => {
       children: [], linkedGoals: [],
     })
     let answerLog: ((value: { logId: string; isFirstCompletionToday: boolean; currentStreak: number }) => void) | undefined
+    let logSettled = false
+    let habitListFetches = 0
     logHabitAction.mockImplementation(() => new Promise((resolve) => { answerLog = resolve }))
     const serverClient = createTestQueryClient()
     const container = document.createElement('div')
@@ -211,10 +213,28 @@ describe('Today server preload', () => {
       expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
 
       respondWithAccount('user-1')
+      const fetchSession = vi.mocked(globalThis.fetch).getMockImplementation()!
+      vi.mocked(globalThis.fetch).mockImplementation((input, init) => {
+        if (input === '/api/auth/session') return fetchSession(input, init)
+        if (typeof input === 'string' && input.startsWith('/api/habits')) {
+          habitListFetches += 1
+          return Promise.resolve({
+            ok: true, status: 200,
+            json: async () => ({
+              items: [logSettled ? { ...habit, isCompleted: true } : habit],
+              page: 1, pageSize: 50, totalCount: 1, totalPages: 1,
+            }),
+          } as Response)
+        }
+        return new Promise<Response>(() => undefined)
+      })
       await act(async () => { await useAuthStore.getState().checkSession() })
       expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
+      expect(habitListFetches).toBe(0)
 
+      logSettled = true
       await act(async () => { answerLog?.({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }) })
+      await vi.waitFor(() => expect(habitListFetches).toBeGreaterThan(0))
       expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
     } finally {
       await act(async () => root?.unmount())
