@@ -74,13 +74,18 @@
   outline: none;
 }
 
-.orbit-list-row-shell:has(:focus-visible) {
+.orbit-list-row-shell:has(.orbit-list-row-body:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.orbit-list-row-action:focus-visible > span {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
 
 .orbit-list-row-shell {
-  transition: background-color 150ms var(--ease-standard);
+  transition: background-color 380ms var(--ease-standard);
 }
 
 .habit-form-disclosure {
@@ -111,7 +116,7 @@
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
-  .orbit-list-row-interactive:hover {
+  .orbit-list-row-interactive:hover:not(:has(.orbit-list-row-action:hover)) {
     background: var(--bg-hover);
   }
 }
