@@ -2,6 +2,8 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react'
 
+let activeMenuClose: (() => void) | null = null
+
 export interface PopoverPosition {
   top: number
   left: number
@@ -38,6 +40,7 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
 
   const triggerRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  const ownsActiveMenu = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0 })
 
@@ -101,23 +104,33 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     })
   }, [placement, offset, margin])
 
-  const open = useCallback(() => {
-    computePosition()
-    setIsOpen(true)
-  }, [computePosition])
-
   const close = useCallback(() => {
+    if (ownsActiveMenu.current) {
+      ownsActiveMenu.current = false
+      activeMenuClose = null
+    }
     setIsOpen(false)
   }, [])
 
+  const open = useCallback(() => {
+    if (!ownsActiveMenu.current) activeMenuClose?.()
+    ownsActiveMenu.current = true
+    activeMenuClose = close
+    computePosition()
+    setIsOpen(true)
+  }, [close, computePosition])
+
   const toggle = useCallback(() => {
     if (isOpen) {
-      setIsOpen(false)
+      close()
     } else {
-      computePosition()
-      setIsOpen(true)
+      open()
     }
-  }, [isOpen, computePosition])
+  }, [isOpen, close, open])
+
+  useEffect(() => () => {
+    if (ownsActiveMenu.current) activeMenuClose = null
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -127,36 +140,36 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
       if (!(target instanceof Node)) return
       if (triggerRef.current?.contains(target)) return
       if (panelRef.current?.contains(target)) return
-      setIsOpen(false)
+      close()
     }
 
     function handleKeydown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       event.preventDefault()
       event.stopPropagation()
-      setIsOpen(false)
+      close()
     }
 
     function handleScroll() {
-      setIsOpen(false)
+      close()
     }
 
     function handleResize() {
-      setIsOpen(false)
+      close()
     }
 
-    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('pointerdown', handlePointerDown, true)
     document.addEventListener('keydown', handleKeydown)
     window.addEventListener('scroll', handleScroll, { capture: true })
     window.addEventListener('resize', handleResize)
 
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('pointerdown', handlePointerDown, true)
       document.removeEventListener('keydown', handleKeydown)
       window.removeEventListener('scroll', handleScroll, { capture: true })
       window.removeEventListener('resize', handleResize)
     }
-  }, [isOpen])
+  }, [isOpen, close])
 
   return { isOpen, open, close, toggle, triggerRef, panelRef, position }
 }
