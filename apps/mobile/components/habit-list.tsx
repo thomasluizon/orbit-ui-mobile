@@ -31,6 +31,7 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
+  getAllDoneOnDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -1588,7 +1589,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       flatItems.length === 0 &&
       totalCount > 0 &&
       !showCompleted &&
-      view === 'today'
+      view === 'today' &&
+      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     ) {
       return (
         <>

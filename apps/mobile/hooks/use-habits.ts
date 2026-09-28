@@ -8,6 +8,7 @@ import {
   gamificationKeys,
   profileKeys,
   updateHabitListsForDate,
+  getTodayHabitList,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
@@ -17,6 +18,7 @@ import {
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  buildChildrenIndex,
   plural,
 } from '@orbit/shared/utils'
 import type {
@@ -155,7 +157,7 @@ export { useSummary } from './use-summary'
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
-  const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
+  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     LogHabitResponse | QueuedMarker,
@@ -260,12 +262,11 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
-        habitKeys.list(activeFilters),
-      )
-      if (habitsData) {
+      const today = formatAPIDate(new Date())
+      const habitsData = getTodayHabitList(queryClient, today)
+      if (habitsData && (!variables.date || variables.date === today)) {
         const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
       }
 
     },
@@ -952,6 +953,7 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
+  const { checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     BulkLogResult,
@@ -1011,6 +1013,17 @@ export function useBulkLogHabits() {
 
     onSuccess: (result, items, context) => {
       reconcileBulkCompletion(queryClient, result, items, context.previousLists)
+      if (isQueuedResult(result) || !result.results.some((entry) => {
+        const item = items[entry.index]
+        return entry.status === 'Success' && item?.habitId === entry.habitId &&
+          (!item.date || item.date === formatAPIDate(new Date()))
+      })) return
+      const today = formatAPIDate(new Date())
+      const habitsData = getTodayHabitList(queryClient, today)
+      if (habitsData) {
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+      }
     },
 
     onSettled: (data, error) =>

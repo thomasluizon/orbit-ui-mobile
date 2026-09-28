@@ -97,7 +97,7 @@ describe('auth store', () => {
   it('resets account state and restores each account prompt record', () => {
     useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
     useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
-    useUIStore.getState().setFilters({ search: 'previous' })
+    useUIStore.getState().setSearchQuery('previous')
     useUIStore.getState().selectAllHabits(['habit-a'])
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     useOnboardingDraftStore.getState().bufferColorScheme('purple')
@@ -109,7 +109,7 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
 
     expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-    expect(useUIStore.getState().activeFilters).toEqual({})
+    expect(useUIStore.getState().searchQuery).toBe('')
     expect(useUIStore.getState().activeCelebration).toBeNull()
     expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
     expect(useTourStore.getState().isActive).toBe(false)
