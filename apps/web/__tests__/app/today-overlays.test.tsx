@@ -40,7 +40,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useRouter: () => ({ push: vi.fn() }),
 }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
+vi.mock('@/hooks/use-is-desktop', () => ({
+  useIsDesktop: () => false,
+  useIsWideDesktop: () => false,
+}))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Test', email: 'test@example.com' } }),
