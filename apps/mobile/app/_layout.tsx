@@ -19,7 +19,7 @@ import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { useProfile } from '@/hooks/use-profile'
+import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { createTokensV2 } from '@/lib/theme'
@@ -141,6 +141,7 @@ function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
+  const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const activeView = useUIStore((s) => s.activeView)
@@ -171,7 +172,7 @@ function RootLayoutNav() {
   const handleCreate = useMemo(
     () => () => {
       if (activeView === 'goals') {
-        if (profile?.hasProAccess === false) {
+        if (profile !== undefined && !hasProAccess) {
           router.push(buildUpgradeHref(pathname || '/'))
           return
         }
@@ -179,7 +180,7 @@ function RootLayoutNav() {
         return
       }
 
-      if (profile?.hasProAccess === false && habitCountLoaded && totalHabitCount >= 10) {
+      if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
         router.push(buildUpgradeHref(pathname || '/'))
         return
       }
@@ -188,7 +189,8 @@ function RootLayoutNav() {
     },
     [
       activeView,
-      profile?.hasProAccess,
+      profile,
+      hasProAccess,
       habitCountLoaded,
       pathname,
       router,

@@ -154,7 +154,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
-      if (profile?.hasProAccess === false) {
+      if (profile !== undefined && !hasProAccess) {
         setRouteTransitionIntent('forward')
         router.push('/upgrade')
         return
@@ -162,13 +162,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       setShowCreateGoalModal(true)
       return
     }
-    if (profile?.hasProAccess === false && habitCountLoaded && totalHabitCount >= 10) {
+    if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
     setShowCreateModal(true)
-  }, [activeView, profile?.hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
+  }, [activeView, profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
