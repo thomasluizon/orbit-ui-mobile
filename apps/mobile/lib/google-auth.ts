@@ -23,6 +23,7 @@ import {
 
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
+  | { type: 'denied'; url: string }
   | { type: WebBrowser.WebBrowserResultType }
 
 let googleAuthStartInProgress = false
@@ -104,6 +105,10 @@ export async function startMobileGoogleAuth({
         throw new Error('Invalid OAuth state')
       }
       const params = extractGoogleAuthParams(result.url)
+      if (params.error === 'access_denied') {
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        return { type: 'denied', url: result.url }
+      }
       if (params.error || !params.code) {
         clearPendingGoogleAuthSession(returnUrlAttemptId)
         throw new Error('Authentication failed')
