@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useId, useRef } from 'react'
 import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/lib/actions/notifications'
@@ -8,6 +8,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChangedIfNeeded } from '@/lib/client-action'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -34,6 +36,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export function PushPrompt() {
   const t = useTranslations()
+  const overlayId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const [eligible, setEligible] = useState(false)
   const [show, setShow] = useState(false)
   const [visible, setVisible] = useState(false)
   const [showRetryHint, setShowRetryHint] = useState(false)
@@ -57,17 +64,32 @@ export function PushPrompt() {
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => {
         if (sub && Notification.permission === 'granted') return
-        setShow(true)
-        requestAnimationFrame(() => setVisible(true))
+        setEligible(true)
       })
       .catch(() => {
-        setShow(true)
-        requestAnimationFrame(() => setVisible(true))
+        setEligible(true)
       })
   }, [])
 
+  useEffect(() => {
+    if (!eligible || anotherOverlayOpen || show) return
+    const timer = setTimeout(() => {
+      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
+      setShow(true)
+      requestAnimationFrame(() => setVisible(true))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [eligible, anotherOverlayOpen, show])
+
+  useEffect(() => {
+    if (!show) return
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [show, overlayId, registerOpenOverlay, unregisterOpenOverlay])
+
   const dismiss = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current)
+    setEligible(false)
     setVisible(false)
     setCookie(STORAGE_KEY, '1', 60 * 60 * 24 * 365)
     dismissTimer.current = setTimeout(() => {

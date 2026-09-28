@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
@@ -13,6 +14,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * One-time-per-account post-login "Import from another app?" sheet. Gated on the
@@ -33,6 +35,8 @@ export function AstraImportPrompt() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
   const [sheetMounted, setSheetMounted] = useState(false)
+  const [promptVisible, setPromptVisible] = useState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const { scheduleExitAction, runExitAction } = useSheetExitAction()
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
@@ -80,21 +84,23 @@ export function AstraImportPrompt() {
     await markSeen()
   }, [markSeen, router, scheduleExitAction, t])
 
-  if (shouldShow && !sheetMounted) {
+  if (shouldShow && !sheetMounted && !anotherOverlayOpen) {
     setSheetMounted(true)
+    setPromptVisible(true)
   }
 
   if (!sheetMounted) return null
 
   return (
     <BottomSheetModal
-      open={shouldShow}
+      open={shouldShow && promptVisible}
       onClose={() => {
         void markSeen()
       }}
       onDidDismiss={() => {
         runExitAction()
         setSheetMounted(false)
+        setPromptVisible(false)
       }}
       title={t('onboarding.wizard.importTitle')}
       snapPoints={['50%']}

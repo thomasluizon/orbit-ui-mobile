@@ -9,7 +9,7 @@ import {
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { useTourStore } from "@/stores/tour-store";
-import { useUIStore } from "@/stores/ui-store";
+import { setUIAccountScope, useUIStore } from "@/stores/ui-store";
 import { Animated } from "@/test-mocks/react-native";
 
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
@@ -360,6 +360,15 @@ describe("mobile ui store", () => {
     const persisted = asyncStorageState.data.get("orbit-ui-store");
     expect(persisted).not.toContain("selectedDate");
     expect(persisted).not.toContain("followToday");
+  });
+
+  it("keeps a create tap during first account hydration and clears it on account switch", async () => {
+    useUIStore.getState().setShowCreateModal(true);
+    await setUIAccountScope("account-a");
+    expect(useUIStore.getState().showCreateModal).toBe(true);
+
+    await setUIAccountScope("account-b");
+    expect(useUIStore.getState().showCreateModal).toBe(false);
   });
 
   it("creates the canonical tour ui state for a fresh session", () => {
