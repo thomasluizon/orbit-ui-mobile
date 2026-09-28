@@ -13,7 +13,7 @@ Only dispatch after the owner invokes a release. Planning is read-only. Never di
 
 Production uses `node tools/release-plan.mjs`, with `--track production` when requested. Staging requires a branch argument: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`. Show each service's branch, deployed SHA or absent baseline, head SHA, and unreleased commits. Show the Android track and its baseline. An empty plan ends without dispatch.
 
-The staging API baseline is its current live Render deploy. The web baseline is `/api/health` at the URL in its Render service record. The landing baseline is its current live Render deploy. The UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID` locate the API and web services. The planner locates Render landing services by their `orbit-landing` and `orbit-landing-staging` names. A missing baseline is a first deploy. Stop on a divergent comparison or remote read failure.
+The staging API baseline is its current live Render deploy. The web baseline is `/api/health` at the URL in its Render service record. The landing baseline is its current live Render deploy. The UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID` locate the API and web services. The planner locates Render landing services by their `orbit-landing` and `orbit-landing-staging` names. A missing baseline is a first deploy. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch and list the selected branch's commits from the comparison. Stop on a divergent production comparison or remote read failure.
 
 ## Dispatch in plan order
 

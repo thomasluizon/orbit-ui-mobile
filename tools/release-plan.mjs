@@ -155,7 +155,8 @@ async function planService(client, service, environment, branch, serviceIds, tra
       !Number.isInteger(comparison.total_commits) || !Array.isArray(comparison.commits)) {
     throw new Error(`GitHub comparison at ${path} has an unexpected shape`)
   }
-  if (comparison.behind_by !== 0 || comparison.commits.length !== comparison.total_commits) {
+  if (comparison.commits.length !== comparison.total_commits ||
+      environment === "production" && comparison.behind_by !== 0) {
     throw new Error(`GitHub comparison at ${path} diverged or omitted commits`)
   }
   const commits = comparison.commits.map((commit) => {
@@ -164,7 +165,9 @@ async function planService(client, service, environment, branch, serviceIds, tra
     }
     return { sha: commit.sha, message: commit.commit.message.split("\n")[0] }
   })
-  return { ...plannedService, branch, headSha: head.sha, deployedSha, commits, needsRelease: commits.length > 0 }
+  return { ...plannedService, branch, headSha: head.sha, deployedSha, commits,
+    needsRelease: commits.length > 0 || comparison.behind_by > 0,
+    ...(comparison.behind_by > 0 ? { deployedFromOtherBranch: true } : {}) }
 }
 
 export async function planRelease(client = githubClient, environment = "production", serviceIds = {},

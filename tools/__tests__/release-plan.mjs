@@ -7,10 +7,11 @@ const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release
 const FIRST = "a".repeat(40)
 const SECOND = "b".repeat(40)
 const IDS = { api: "srv-aaaaaaaaaaaaaaaaaaaa", web: "srv-bbbbbbbbbbbbbbbbbbbb" }
-const LANDING = "srv-cccccccccccccccccccc"
+const LANDING = "srv-ffffffffffffffffffff"
+const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi = false, androidRuns = null } = {}) {
+function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], noLiveApi = false, androidRuns = null } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -60,9 +61,9 @@ function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi
     if (path.includes("/compare/")) {
       const comparison = clone(fixture.compare)
       comparison.ahead_by = 1
-      comparison.behind_by = 0
+      comparison.behind_by = diverged.includes(service) ? 1 : 0
       comparison.total_commits = 1
-      comparison.commits[0].sha = SECOND
+      comparison.commits[0].sha = ahead.includes(service) || repository === "orbit-ui-mobile" && ahead.includes("android") ? SECOND : FIRST
       comparison.commits[0].commit.message = "Undeployed change\nBody"
       return comparison
     }
@@ -70,11 +71,12 @@ function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi
   }
   const readRender = (path) => {
     calls.push(path)
-    if (path === "services?limit=100") return [{ service: { name: "orbit-landing", id: LANDING }, cursor: "cursor" }]
+    if (path === "services?limit=100") return clone(renderFixture.serviceList)
     if (path.includes("/deploys?")) {
-      if (noLiveApi) return []
+      if (noLiveApi && path === `services/${IDS.api}/deploys?status=live&limit=1`) return []
       const records = clone(renderFixture.deploys)
-      records[0].deploy.commit.id = FIRST
+      records[0].deploy.commit.id = path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`
+        ? renderFixture.stagingLandingCommit : FIRST
       return records
     }
     if (path === `services/${IDS.web}`) return clone(renderFixture.service)
@@ -101,6 +103,7 @@ export async function cases() {
   const idlePlan = await planRelease(idle, "production", IDS)
   T("release plan does nothing when every service is current", idlePlan.services.every((service) => !service.needsRelease))
   T("release plan preserves dispatch order", idlePlan.services.map((service) => service.name).join(",") === "api,web,landing,android")
+  T("production landing uses the discovered service", idle.calls.includes(`services/${LANDING}/deploys?status=live&limit=1`))
 
   const apiOnly = await planRelease(clientFor({ ahead: ["api"] }), "production", IDS)
   T("release plan selects only an API change", apiOnly.services.filter((service) => service.needsRelease).map((service) => service.name).join(",") === "api")
@@ -123,6 +126,15 @@ export async function cases() {
   T("production API uses the live Render commit", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
   T("production API reads Render live deploys", failed.calls.some((path) => path === `services/${IDS.api}/deploys?status=live&limit=1`))
 
+  const divergentStaging = await planRelease(clientFor({ ahead: ["api"], diverged: ["api"] }),
+    "staging", IDS, "internal", "feature/release")
+  T("staging plans a release from another deployed branch", divergentStaging.services[0].needsRelease &&
+    divergentStaging.services[0].deployedFromOtherBranch && divergentStaging.services[0].commits[0].sha === SECOND)
+  let divergentProduction = ""
+  try { await planRelease(clientFor({ ahead: ["api"], diverged: ["api"] }), "production", IDS) }
+  catch (error) { divergentProduction = error.message }
+  T("production rejects a deployed commit outside main", divergentProduction.includes("diverged or omitted commits"))
+
   const staging = clientFor({ ahead: ["api", "web", "android"] })
   const stagingPlan = await planRelease(staging, "staging", IDS, "internal", "feature/release")
   T("staging includes landing and compares selected branch", stagingPlan.services.length === 4 && stagingPlan.branch === "feature/release" && stagingPlan.services.every((service) => service.branch === "feature/release"))
@@ -133,8 +145,9 @@ export async function cases() {
       return actual.origin === expectedHealth.origin && actual.pathname === expectedHealth.pathname
     } catch { return false }
   }))
-  T("staging landing has no live baseline before its service exists", stagingPlan.services[2].noBaseline &&
-    !staging.calls.some((path) => path === `services/${LANDING}/deploys?status=live&limit=1`))
+  T("staging landing uses its existing live deployment", stagingPlan.services[2].deployedSha ===
+    renderFixture.stagingLandingCommit && stagingPlan.services[2].needsRelease &&
+    staging.calls.some((path) => path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`))
 
 
   const noApi = await planRelease(clientFor({ noLiveApi: true }), "staging", IDS, "internal", "feature/release")
