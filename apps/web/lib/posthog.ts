@@ -68,12 +68,17 @@ let initialized = false
 let analyticsEnabled = false
 let serverEnabled = false
 let optedOut = readAnalyticsOptOut()
+const preferenceListeners = new Set<() => void>()
 let accountId: string | null = null
 let pendingHabitEvents = 0
 let pendingReset = false
 let identityReady = false
 
 function activatePostHog(client: PostHogInterface): void {
+  if (!analyticsEnabled) {
+    client.opt_out_capturing()
+    return
+  }
   const shouldReset = pendingReset || (!identityReady && !accountId)
     || (accountId !== null && client.get_distinct_id() !== accountId)
   identityReady = false
@@ -131,9 +136,15 @@ export function getAnalyticsOptOut(): boolean {
   return optedOut
 }
 
+export function subscribeAnalyticsOptOut(listener: () => void): () => void {
+  preferenceListeners.add(listener)
+  return () => { preferenceListeners.delete(listener) }
+}
+
 export async function setAnalyticsOptOut(next: boolean): Promise<void> {
   localStorage.setItem(PREFERENCE_KEY, String(next))
   optedOut = next
+  preferenceListeners.forEach((listener) => listener())
   await applyPostHogGate(serverEnabled)
 }
 

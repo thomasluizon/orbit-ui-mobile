@@ -1562,7 +1562,7 @@
     "analytics": {
       "title": "Usage analytics",
       "description": "Share usage data to help improve Orbit",
-      "saveError": "Setting did not save"
+      "saveError": "Setting did not save. Try again."
     },
     "groups": {
       "you": "You",

@@ -301,7 +301,7 @@ export function ProfileSettingsContent({
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
-  const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
+  const [analyticsEnabled, setAnalyticsEnabled] = useState<boolean | null>(null)
   const [analyticsSaveError, setAnalyticsSaveError] = useState(false)
   const analyticsChange = useRef(0)
   useEffect(() => {
@@ -343,18 +343,22 @@ export function ProfileSettingsContent({
     ),
     astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
     notifications: [
-      <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
-      <RowList key="analytics">
-        <SettingsRow
-          icon={BarChart3}
-          label={t('profile.analytics.title')}
-          desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
-          accessory="none"
-          divider={false}
-        >
-          <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
-        </SettingsRow>
-      </RowList>,
+      <MarketingConsentSection
+        key="product-email"
+        showSectionLabel={false}
+        contained
+        trailingRow={analyticsEnabled === null ? null : (
+          <SettingsRow
+            icon={BarChart3}
+            label={t('profile.analytics.title')}
+            desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+            accessory="none"
+            divider={false}
+          >
+            <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
+          </SettingsRow>
+        )}
+      />,
     ],
     more: <MoreRows context={context} openSupport={openSupport} supportFocusRef={supportFocusCallback} />,
     ending: buildEndingRows({

@@ -134,6 +134,24 @@ describe('web PostHog adapter', () => {
     expect(sdk.capture).not.toHaveBeenCalled()
   })
 
+  it('keeps a late SDK loaded callback opted out', async () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'project-key')
+    let loaded: (() => void) | undefined
+    sdk.init.mockImplementation((_key, options) => {
+      loaded = () => options.loaded?.(sdk)
+    })
+    const analytics = await import('@/lib/posthog')
+    analytics.identifyPostHogUser('user-1')
+    await analytics.applyPostHogGate(true)
+    await analytics.setAnalyticsOptOut(true)
+    sdk.identify.mockClear()
+    sdk.opt_in_capturing.mockClear()
+    loaded?.()
+    expect(sdk.identify).not.toHaveBeenCalled()
+    expect(sdk.opt_in_capturing).not.toHaveBeenCalled()
+    expect(sdk.opt_out_capturing).toHaveBeenCalled()
+  })
+
   it('does not initialize or capture without a key', async () => {
     const analytics = await import('@/lib/posthog')
     await analytics.applyPostHogGate(true)

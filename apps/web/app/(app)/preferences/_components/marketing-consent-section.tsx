@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -16,10 +17,12 @@ export function MarketingConsentSection({
   showSectionLabel = true,
   contained = false,
   acceptVariant = 'primary',
+  trailingRow,
 }: Readonly<{
   showSectionLabel?: boolean
   contained?: boolean
   acceptVariant?: 'primary' | 'secondary'
+  trailingRow?: ReactNode
 }>) {
   const t = useTranslations()
   const { profile, patchProfile } = useProfile()
@@ -85,8 +88,13 @@ export function MarketingConsentSection({
         <SectionLabel>{t('profile.sections.communication')}</SectionLabel>
       ) : null}
       {contained && profile?.marketingEmailConsent != null ? (
-        <RowList>{content}</RowList>
-      ) : content}
+        <RowList>{content}{trailingRow}</RowList>
+      ) : (
+        <>
+          {content}
+          {trailingRow ? <RowList>{trailingRow}</RowList> : null}
+        </>
+      )}
     </>
   )
 }

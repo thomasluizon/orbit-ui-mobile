@@ -265,10 +265,10 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 }))
 
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
-  MarketingConsentSection: () =>
+  MarketingConsentSection: ({ trailingRow }: { trailingRow?: React.ReactNode }) =>
     React.createElement('MarketingConsentSectionStub', {
       testID: 'marketing-consent-section',
-    }),
+    }, trailingRow),
 }))
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
@@ -427,7 +427,7 @@ async function renderProfileScreen(createNodeMock?: (element: { props: { label?:
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<ProfileScreen />, { createNodeMock })
-    await Promise.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return tree!
 }

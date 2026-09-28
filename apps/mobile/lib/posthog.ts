@@ -18,23 +18,22 @@ let analyticsEnabled = false
 let serverEnabled = false
 let optedOut = false
 let preferenceReady = false
-let preferenceLoad: Promise<boolean> | null = null
+let preferenceLoad: Promise<void> | null = null
 let preferenceVersion = 0
 let storageQueue = Promise.resolve()
 let accountId: string | null = null
 let gateQueue = Promise.resolve()
 
-export function getAnalyticsOptOut(): Promise<boolean> {
+export async function getAnalyticsOptOut(): Promise<boolean> {
   preferenceLoad ??= AsyncStorage.getItem(PREFERENCE_KEY).then((value) => {
     optedOut = value === 'true'
     preferenceReady = true
-    return optedOut
   }).catch(() => {
     optedOut = true
     preferenceReady = true
-    return true
   })
-  return preferenceLoad
+  await preferenceLoad
+  return optedOut
 }
 
 export function applyPostHogGate(enabled: boolean): Promise<void> {
@@ -85,7 +84,7 @@ export function resetPostHogUser(): void {
   accountId = null
   if (!posthog) return
   posthog.reset()
-  void applyPostHogGate(analyticsEnabled)
+  void applyPostHogGate(serverEnabled)
 }
 
 export function captureHabitLogged(): void {
