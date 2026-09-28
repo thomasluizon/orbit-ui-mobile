@@ -174,7 +174,9 @@ describe('CalendarGrid', () => {
     render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
 
     expect(screen.getByTestId('calendar-grid')).toHaveStyle({ paddingLeft: '4px', paddingRight: '4px' })
-    expect(screen.getByTestId('calendar-grid-card')).toHaveStyle({ padding: '0px' })
+    expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ background: 'var(--bg-card)' })
+    expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
+    expect((screen.getByTestId('calendar-grid-card') as HTMLElement).style.borderRadius).toBe('')
     expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
     expect(screen.getByTestId('calendar-grid')).toHaveStyle({ overflowX: 'auto' })
     const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)

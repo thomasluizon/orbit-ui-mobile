@@ -269,7 +269,7 @@ export function CalendarGrid({
         key={monthKey}
         entering={monthEntering}
         testID="calendar-grid-card"
-        style={[styles.gridCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+        style={styles.gridCard}
       >
         <MonthGrid
           weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
@@ -317,9 +317,6 @@ const styles = StyleSheet.create({
     width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
       + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
     alignSelf: 'center',
-    borderRadius: 20,
-    padding: 0,
-    borderWidth: 1,
   },
   loadingGrid: {
     width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
