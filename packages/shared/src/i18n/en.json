@@ -2695,7 +2695,7 @@
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
     "empty": "Nothing to measure yet",
-    "emptyAction": "Add habit",
+    "emptyAction": "Start a habit",
     "startHabit": "View habits",
     "sections": {
       "streak": "Streak",
@@ -2767,6 +2767,8 @@
       "reorderHint": "Hold and drag to reorder, or use the move actions"
     },
     "window": {
+      "empty": "Nothing to measure yet",
+      "emptyAction": "Start a habit",
       "chartLabel": "Last 30 days",
       "completionRate": "Completion rate",
       "activeDays": "Days logged",
@@ -3099,8 +3101,7 @@
     "version": "Version {version}",
     "tagline": "An AI that tracks habits, for people who cannot keep a routine.",
     "versionLabel": "Version",
-    "accountLabel": "Account",
-    "credit": "Orbit and Astra are proper names and are never translated."
+    "accountLabel": "Account"
   },
   "advancedSettings": {
     "title": "Advanced",

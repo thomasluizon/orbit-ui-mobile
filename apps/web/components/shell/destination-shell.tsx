@@ -8,6 +8,7 @@ import {
   useEffectEvent,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
@@ -92,6 +93,29 @@ function getAccountLabel(profile: { name: string; email: string } | null | undef
   return profile.name.trim() || profile.email.split('@').at(0)?.trim() || undefined
 }
 
+function subscribeToPlatform() {
+  return () => {}
+}
+
+function getApplePlatform() {
+  const platform = (navigator as Navigator & { userAgentData?: { platform: string } })
+    .userAgentData?.platform || navigator.platform
+  return /Mac|iPhone|iPad|iPod/i.test(platform)
+}
+
+function getServerApplePlatform() {
+  return false
+}
+
+function usePaletteHint() {
+  const applePlatform = useSyncExternalStore(
+    subscribeToPlatform,
+    getApplePlatform,
+    getServerApplePlatform,
+  )
+  return applePlatform ? '⌘K' : 'Ctrl K'
+}
+
 export function DestinationShell({
   children,
   notice,
@@ -142,6 +166,7 @@ function DestinationShellContent({
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
   const conversationSlot = conversation !== undefined && conversationLabel
@@ -246,7 +271,7 @@ function DestinationShellContent({
           account={getAccountLabel(profile)}
           onPalette={() => setPaletteOpen(true)}
           paletteLabel={t('command.title')}
-          paletteHint="Ctrl K"
+          paletteHint={paletteHint}
           notice={notice}
           composer={pathname === '/notifications' ? undefined : composer}
         >

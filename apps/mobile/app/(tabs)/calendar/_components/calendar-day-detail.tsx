@@ -19,14 +19,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
 import { createTokensV2, radius } from '@/lib/theme'
-import { ShowRecurringToggle } from './show-recurring-toggle'
 import { CalendarSyncBoundary } from './calendar-sync-boundary'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarDayDetailProps {
   selectedDate: string
-  selectedEntries: CalendarDayEntry[]
+  title: string
+  showTitle?: boolean
   filteredEntries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
   autoSyncState: CalendarAutoSyncState | undefined
@@ -36,9 +36,7 @@ interface CalendarDayDetailProps {
   onViewPro: () => void
   completedCount: number
   loggable: boolean
-  showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
-  onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
@@ -226,7 +224,8 @@ function CalendarDayCheckRow({
 
 export function CalendarDayDetail({
   selectedDate,
-  selectedEntries,
+  title,
+  showTitle = true,
   filteredEntries,
   calendarEvents,
   autoSyncState,
@@ -236,9 +235,7 @@ export function CalendarDayDetail({
   onViewPro,
   completedCount,
   loggable,
-  showRecurring,
   pendingEntryStates,
-  onShowRecurringChange,
   onCalendarAutoSyncChange,
   onEntryChange,
   onGoToDay,
@@ -257,17 +254,7 @@ export function CalendarDayDetail({
   return (
     <View style={styles.container}>
       <View style={styles.copyBlock}>
-        {selectedEntries.length > 0 ? (
-          <View style={styles.recurringToggleRow}>
-            <ShowRecurringToggle
-              checked={showRecurring}
-              onChange={onShowRecurringChange}
-              label={t('calendar.showRecurring')}
-              tokens={tokens}
-            />
-          </View>
-        ) : null}
-
+        {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
         <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
 
         {filteredEntries.length === 0 ? (
@@ -278,7 +265,7 @@ export function CalendarDayDetail({
       </View>
 
       {filteredEntries.length > 0 ? (
-        <View>
+        <View style={styles.rowList}>
           {filteredEntries.map((entry) => {
             const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
             const outcome = getEntryOutcome(entry, t)
@@ -317,6 +304,13 @@ export function CalendarDayDetail({
         </View>
       ) : null}
 
+      <View style={styles.rowList}><ListRow
+        icon="external-link"
+        title={t('calendar.goToDay')}
+        accessibilityLabel={t('calendar.goToDay')}
+        chevron={false}
+        onClick={onGoToDay}
+      /></View>
       <CalendarEventsSection
         calendarEvents={calendarEvents}
         state={calendarEventsState}
@@ -340,13 +334,7 @@ export function CalendarDayDetail({
           />
         </View>
       ) : null}
-      <ListRow
-        icon="external-link"
-        title={t('calendar.goToDay')}
-        accessibilityLabel={t('calendar.goToDay')}
-        chevron={false}
-        onClick={onGoToDay}
-      />
+
     </View>
   )
 }
@@ -359,15 +347,18 @@ function createStyles(tokens: Tokens) {
       borderRadius: radius.xl,
       borderWidth: 1,
       gap: 16,
-      paddingVertical: 16,
+      paddingVertical: 24,
     },
     copyBlock: {
       gap: 16,
-      paddingHorizontal: 16,
+      paddingHorizontal: 24,
     },
-    recurringToggleRow: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
+    rowList: {
+      paddingHorizontal: 8,
+    },
+    dayTitle: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 20,
     },
     summaryText: {
       color: tokens.fg3,
@@ -384,7 +375,7 @@ function createStyles(tokens: Tokens) {
     },
     eventSection: {
       gap: 8,
-      paddingHorizontal: 16,
+      paddingHorizontal: 24,
     },
     eventTitle: {
       fontFamily: 'Geist_500Medium',
@@ -400,7 +391,7 @@ function createStyles(tokens: Tokens) {
       paddingVertical: 24,
     },
     proBoundary: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 24,
     },
     reconnectTitle: {
       fontFamily: 'Geist_500Medium',
@@ -421,7 +412,7 @@ function createStyles(tokens: Tokens) {
       textAlign: 'center',
     },
     syncBoundary: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 24,
     },
   })
 }
