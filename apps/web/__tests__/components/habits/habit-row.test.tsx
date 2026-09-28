@@ -102,6 +102,27 @@ describe('HabitRow canonical content', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
     expect(screen.getByTestId('habit-row')).toHaveAttribute('data-depth', '1')
   })
+
+  it.each([
+    { child: false, depth: 0, color: 'var(--fg-1)' },
+    { child: true, depth: 1, color: 'var(--fg-2)' },
+  ] as const)('keeps done and pending titles alike at depth $depth', ({ child, depth, color }) => {
+    render(
+      <div>
+        <HabitRow habit={createMockHabit({ title: 'Pending' })} child={child} depth={depth} />
+        <HabitRow habit={createMockHabit({ title: 'Done' })} child={child} depth={depth} state="done" />
+      </div>,
+    )
+    const pending = screen.getByText('Pending')
+    const done = screen.getByText('Done')
+    expect(pending).toHaveStyle({ color })
+    expect(done).toHaveStyle({ color })
+    expect(pending.style.textDecorationLine).toBe('')
+    expect(done.style.textDecorationLine).toBe('')
+    expect(screen.getAllByTestId('habit-status-toggle')[1]).toHaveAttribute(
+      'aria-label', 'habits.statusDot.done, habits.actions.unlog: Done',
+    )
+  })
 })
 
 describe('HabitRow check circle accessible name', () => {

@@ -127,11 +127,12 @@ describe('HabitChecklist', () => {
       expect(screen.queryByLabelText('habits.form.resetChecklist')).toBeNull()
     })
 
-    it('shows line-through for checked items', () => {
+    it('dims checked items without striking their labels', () => {
       const items = [{ text: 'Done task', isChecked: true }]
       render(<HabitChecklist items={items} interactive />)
       const span = screen.getByText('Done task')
-      expect(span.className).toContain('line-through')
+      expect(span.className).toContain('text-[var(--fg-3)]')
+      expect(span.className).not.toContain('line-through')
     })
 
     it('shows complete progress when all items are checked', () => {

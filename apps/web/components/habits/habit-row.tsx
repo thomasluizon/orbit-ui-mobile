@@ -193,7 +193,6 @@ export function HabitRow({
   }
 
   function getTitleColor(): string {
-    if (isDone) return 'var(--fg-3)'
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
@@ -241,7 +240,6 @@ export function HabitRow({
           habit={habit}
           titleSize={titleSize}
           titleColor={getTitleColor()}
-          isDone={isDone}
           meta={meta}
         />
       </button>

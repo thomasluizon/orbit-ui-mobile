@@ -166,11 +166,9 @@ function HabitRowStructuralColumn({
 }
 
 function resolveTitleColor(
-  done: boolean,
   child: boolean,
   tokens: ReturnType<typeof createTokensV2>,
 ): string {
-  if (done) return tokens.fg3
   return child ? tokens.fg2 : tokens.fg1
 }
 
@@ -328,7 +326,7 @@ export const HabitRow = memo(function HabitRow({
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12
 
-  const titleColor = resolveTitleColor(isDoneForRange, isChild, tokens)
+  const titleColor = resolveTitleColor(isChild, tokens)
   const rowStyle = buildRowStyle({
     child: isChild,
     selected: isSelected,
@@ -402,7 +400,6 @@ export const HabitRow = memo(function HabitRow({
             habit={habit}
             titleSize={titleSize}
             titleColor={titleColor}
-            isDoneForRange={isDoneForRange}
             metaParts={metaParts}
             tokens={tokens}
           />
