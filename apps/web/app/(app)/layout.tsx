@@ -31,7 +31,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
-import { useTotalHabitCount } from '@/hooks/use-habits'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -109,7 +109,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const hasPendingOnboardingAnswers = useOnboardingHasPendingAnswers()
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
-  const totalHabitCount = useTotalHabitCount()
+  const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
 
   useEffect(() => {
     const cleanup = useAuthStore.getState().startExpiryMonitor()
@@ -154,7 +154,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
-      if (!hasProAccess) {
+      if (profile?.hasProAccess === false) {
         setRouteTransitionIntent('forward')
         router.push('/upgrade')
         return
@@ -162,14 +162,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       setShowCreateGoalModal(true)
       return
     }
-    if (!hasProAccess && totalHabitCount >= 10) {
+    if (profile?.hasProAccess === false && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
     setShowCreateModal(true)
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [activeView, hasProAccess, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
+  }, [activeView, profile?.hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)

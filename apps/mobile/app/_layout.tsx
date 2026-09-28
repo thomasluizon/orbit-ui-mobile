@@ -19,9 +19,9 @@ import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { useHasProAccess, useProfile } from '@/hooks/use-profile'
+import { useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
-import { useTotalHabitCount } from '@/hooks/use-habits'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion } from '@/lib/motion'
@@ -141,8 +141,7 @@ function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
-  const hasProAccess = useHasProAccess()
-  const totalHabitCount = useTotalHabitCount()
+  const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
@@ -172,7 +171,7 @@ function RootLayoutNav() {
   const handleCreate = useMemo(
     () => () => {
       if (activeView === 'goals') {
-        if (!hasProAccess) {
+        if (profile?.hasProAccess === false) {
           router.push(buildUpgradeHref(pathname || '/'))
           return
         }
@@ -180,7 +179,7 @@ function RootLayoutNav() {
         return
       }
 
-      if (!hasProAccess && totalHabitCount >= 10) {
+      if (profile?.hasProAccess === false && habitCountLoaded && totalHabitCount >= 10) {
         router.push(buildUpgradeHref(pathname || '/'))
         return
       }
@@ -189,7 +188,8 @@ function RootLayoutNav() {
     },
     [
       activeView,
-      hasProAccess,
+      profile?.hasProAccess,
+      habitCountLoaded,
       pathname,
       router,
       setShowCreateGoalModal,
