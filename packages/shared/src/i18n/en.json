@@ -3101,8 +3101,7 @@
     "version": "Version {version}",
     "tagline": "An AI that tracks habits, for people who cannot keep a routine.",
     "versionLabel": "Version",
-    "accountLabel": "Account",
-    "credit": "Orbit and Astra are proper names and are never translated."
+    "accountLabel": "Account"
   },
   "advancedSettings": {
     "title": "Advanced",

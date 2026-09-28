@@ -49,11 +49,7 @@ describe('AboutPage', () => {
     expect(screen.getByText('about.tagline')).toBeInTheDocument()
     expect(screen.getByText('0.0.1')).toBeInTheDocument()
     expect(screen.getByText(mocks.email)).toBeInTheDocument()
-    expect(screen.getByTestId('about-credit')).toHaveStyle({
-      color: 'var(--fg-1)',
-      fontSize: '16px',
-      lineHeight: '1.55',
-    })
+    expect(screen.queryByTestId('about-credit')).not.toBeInTheDocument()
 
     const destinations = within(screen.getByTestId('about-destinations'))
     const destinationLabels = destinations
