@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { setAccountId } from '@/lib/account-scope'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 const { openCustomerPortal } = vi.hoisted(() => ({ openCustomerPortal: vi.fn() }))
@@ -49,9 +51,12 @@ vi.mock('@/hooks/use-profile', () => ({
 let mockPlans: Record<string, unknown> | null = null
 let mockIsLoadingPlans = false
 let mockIsPlansError = false
+let useRealPlansHook = false
 
-vi.mock('@/hooks/use-subscription-plans', () => ({
-  useSubscriptionPlans: () => ({
+vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-subscription-plans')>()
+  return {
+  useSubscriptionPlans: () => useRealPlansHook ? actual.useSubscriptionPlans() : ({
     plans: mockPlans,
     isLoading: mockIsLoadingPlans,
     isError: mockIsPlansError,
@@ -60,7 +65,8 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
   }),
   formatPrice: (amount: number, currency: string) => `${currency} ${(amount / 100).toFixed(2)}`,
   monthlyEquivalent: (amount: number) => Math.round(amount / 12),
-}))
+  }
+})
 
 let mockBilling: Record<string, unknown> | null = null
 let mockIsBillingLoading = false
@@ -115,6 +121,7 @@ describe('UpgradePage', () => {
     mockPlans = null
     mockIsLoadingPlans = false
     mockIsPlansError = false
+    useRealPlansHook = false
     mockBilling = null
     mockIsBillingLoading = false
     mockIsBillingError = false
@@ -124,6 +131,7 @@ describe('UpgradePage', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    setAccountId(null)
   })
 
   it('renders without crashing', () => {
@@ -182,6 +190,39 @@ describe('UpgradePage', () => {
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
     expect(document.body.textContent).toContain('upgrade.convert.trustLine')
+  })
+
+  it('shows checkout after plans respond while the account session initializes', async () => {
+    useRealPlansHook = true
+    mockTrialExpired = true
+    setAccountId(null)
+    let answerPlans: ((response: Response) => void) | undefined
+    const plansRequest = new Promise<Response>((resolve) => { answerPlans = resolve })
+    vi.stubGlobal('fetch', vi.fn(() => plansRequest))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UpgradePage />
+      </QueryClientProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    act(() => {
+      queryClient.clear()
+      setAccountId('smoke-account')
+    })
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    answerPlans!(new Response(JSON.stringify({
+      monthly: { unitAmount: 999, currency: 'usd' },
+      yearly: { unitAmount: 6999, currency: 'usd' },
+      savingsPercent: 42,
+      couponPercentOff: null,
+      currency: 'usd',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    expect(await screen.findByTestId('paywall-checkout')).toBeVisible()
+    expect(screen.getByText('usd 9.99')).toBeInTheDocument()
+    expect(document.querySelectorAll('.skeleton-pulse')).toHaveLength(0)
   })
 
   it('shows the trial-keeping heading when trial is active', () => {
