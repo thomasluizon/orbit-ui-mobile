@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | date | what changed | why |
 |---|---|---|
+| 2026-09-28 | Calendário uses one centred column at both widths, with the view selector in the header and a 24px day-card inset | The owner's layout decision replaces the split and sheet composition. |
 | 2026-09-28 | Removed the naming note from both locales of `Orbit Sobre` | The note describes an internal writing rule rather than information a person needs on Sobre. |
 | 2026-09-11 | Added dark `--primary-text` at `#E16D33` and light at `#B64900`, then moved the Android widget streak figure to it | The widget streak is rationed accent text on a raised surface. `--primary` measured 4.057:1 on the dark card and 3.680:1 on its well, below the 4.5 text floor. The raised-surface pair measures 4.510:1 dark and 4.509:1 light on its worst surface. |
 | 2026-09-10 | Corrected dark `--track-empty` to `#7A7A7D` and light to `#7F7F83`, then kept `--status-empty` bound to it | The first values measured only canvas and replacement hover. These clear the reachable selection and card-child hover stacks after range endpoints were reduced to one tint, while preserving the neutral ramp. |

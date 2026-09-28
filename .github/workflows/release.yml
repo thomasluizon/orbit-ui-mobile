@@ -1,4 +1,5 @@
-# Repository secrets: RENDER_API_KEY, SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
+# Production and staging environment secrets: RENDER_API_KEY.
+# Repository secrets: SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
 # Repository variables: RENDER_WEB_SERVICE_ID,
 # PRODUCTION_WEB_HOST,
 # PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID, PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
@@ -36,14 +37,11 @@ env:
   IMAGE: ghcr.io/thomasluizon/orbit-web
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ inputs.environment }}
-      deployment: false
     outputs:
-      smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
       source_sha: ${{ steps.source.outputs.sha }}
+      digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Validate release selection
         env:
@@ -112,46 +110,48 @@ jobs:
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com
       - name: Record digest
-        run: echo "Pushed ${IMAGE}@${{ inputs.environment == 'production' && steps.build_production.outputs.digest || steps.build_staging.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+        id: image
+        env:
+          DIGEST: ${{ inputs.environment == 'production' && steps.build_production.outputs.digest || steps.build_staging.outputs.digest }}
+        run: |
+          echo "Pushed ${IMAGE}@${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+  production:
+    if: inputs.environment == 'production'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      deployment: false
+    outputs:
+      smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
+    steps:
       - name: Deploy web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          PRODUCTION_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
-          STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
-          DIGEST: ${{ inputs.environment == 'production' && steps.build_production.outputs.digest || steps.build_staging.outputs.digest }}
-          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
+          DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
           image_url="${IMAGE}@${DIGEST}"
-          if [ "$RELEASE_ENVIRONMENT" = production ]; then
-            SERVICE_ID="$PRODUCTION_SERVICE_ID"
-            SERVICE_KEY=RENDER_WEB_SERVICE_ID
-          else
-            SERVICE_ID="$STAGING_SERVICE_ID"
-            SERVICE_KEY=RENDER_WEB_STAGING_SERVICE_ID
-          fi
           if [ -z "$SERVICE_ID" ]; then
-            echo "::error::Missing ${SERVICE_KEY} for ${image_url}" >&2
+            echo "::error::Missing RENDER_WEB_SERVICE_ID for ${image_url}" >&2
             exit 1
           fi
-          triggered_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          response=$(curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY" >&2; exit 1; fi
+          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
+          # body, so no deploy can be proven to be this release's and the step fails closed.
+          response=$(mktemp)
+          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
             -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
-          deploy_id=
-          if [ -n "$response" ]; then deploy_id=$(jq -er '.id' <<< "$response"); fi
-          if [ -z "$deploy_id" ]; then
-            for attempt in $(seq 1 30); do
-              deploys=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
-                -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                --data-urlencode 'limit=20' --data-urlencode "createdAfter=${triggered_after}")
-              deploy_id=$(jq -r --arg image "$image_url" --arg digest "$DIGEST" \
-                '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id][0] // empty' <<< "$deploys")
-              if [ -n "$deploy_id" ]; then break; fi
-              sleep 2
-            done
+          if [ "$http_code" != "201" ]; then
+            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
+            exit 1
           fi
-          if [ -z "$deploy_id" ]; then echo "Queued web deploy for ${image_url} was not listed" >&2; exit 1; fi
+          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          echo "Requested web deploy ${deploy_id}"
           for attempt in $(seq 1 60); do
             sleep 10
             status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
@@ -170,14 +170,11 @@ jobs:
         id: health
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          PRODUCTION_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
-          STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
           PRODUCTION_WEB_HOST: ${{ vars.PRODUCTION_WEB_HOST }}
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
-          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
         run: |
           set -euo pipefail
-          if [ "$RELEASE_ENVIRONMENT" = production ]; then SERVICE_ID="$PRODUCTION_SERVICE_ID"; else SERVICE_ID="$STAGING_SERVICE_ID"; fi
           origin=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.serviceDetails.url')
           origin="${origin%/}"
@@ -196,28 +193,108 @@ jobs:
             return 1
           }
           check_health "$origin"
-          deployment_url="$origin"
-          smoke_base_url="$origin"
-          if [ "$RELEASE_ENVIRONMENT" = staging ]; then
-            echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
-            echo "smoke_base_url=${smoke_base_url}" >> "$GITHUB_OUTPUT"
-            echo "Verified staging ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           public_url="https://${PRODUCTION_WEB_HOST}"
           check_health "$public_url"
-          deployment_url="$public_url"
-          smoke_base_url="$public_url"
           echo "Verified public host ${public_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
-          echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
-          echo "smoke_base_url=${smoke_base_url}" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=${public_url}" >> "$GITHUB_OUTPUT"
+          echo "smoke_base_url=${public_url}" >> "$GITHUB_OUTPUT"
           echo "Verified production ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
       - name: Record GitHub deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
-          DIGEST: ${{ inputs.environment == 'production' && steps.build_production.outputs.digest || steps.build_staging.outputs.digest }}
-          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          RELEASE_ENVIRONMENT: production
+          DEPLOYMENT_URL: ${{ steps.health.outputs.deployment_url }}
+          SOURCE_REF: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+          jq -nc --arg ref "$SOURCE_REF" --arg sha "$SOURCE_SHA" --arg digest "$DIGEST" --arg url "$DEPLOYMENT_URL" --arg environment "$RELEASE_ENVIRONMENT" \
+            '{ref:$sha,environment:$environment,auto_merge:false,required_contexts:[],production_environment:($environment == "production"),description:("Web image " + $digest),payload:{source_ref:$ref,sha:$sha,digest:$digest,url:$url}}' |
+            curl -fsS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments" \
+              -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+              -H 'Content-Type: application/json' --data-binary @- > deployment.json
+          deployment_id=$(jq -er '.id' deployment.json)
+          jq -nc --arg url "$DEPLOYMENT_URL" --arg environment "$RELEASE_ENVIRONMENT" \
+            '{state:"success",environment:$environment,environment_url:$url}' |
+            curl -fsS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
+              -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+              -H 'Content-Type: application/json' --data-binary @- > /dev/null
+
+  staging:
+    if: inputs.environment == 'staging'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      deployment: false
+    steps:
+      - name: Deploy staging web digest
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image_url="${IMAGE}@${DIGEST}"
+          if [ -z "$SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID" >&2; exit 1; fi
+          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing staging RENDER_API_KEY" >&2; exit 1; fi
+          # Follow the deploy this request created. Render answers 201 with its id; a 202 (queued) has no
+          # body, so no deploy can be proven to be this release's and the step fails closed.
+          response=$(mktemp)
+          http_code=$(curl -sS -o "$response" -w '%{http_code}' -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')")
+          if [ "$http_code" != "201" ]; then
+            echo "Render answered HTTP ${http_code} to the deploy request for ${image_url}; only a 201 names the deploy to follow" >&2
+            exit 1
+          fi
+          deploy_id=$(jq -er --arg image "$image_url" 'select(.image.ref == $image) | .id' "$response")
+          echo "Requested staging deploy ${deploy_id}"
+          for attempt in $(seq 1 60); do
+            sleep 10
+            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            echo "Deploy poll ${attempt}: ${status}"
+            case "$status" in
+              live) echo "Staging deploy ${deploy_id} is live"; exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|deactivated|canceled) echo "Deploy failed: ${status}" >&2; exit 1 ;;
+              created|queued|build_in_progress|pre_deploy_in_progress|update_in_progress) ;;
+              *) echo "Unknown deploy status: ${status}" >&2; exit 1 ;;
+            esac
+          done
+          echo "Timed out waiting for staging deploy ${deploy_id}" >&2
+          exit 1
+      - name: Check staging web health
+        id: health
+        env:
+          STAGING_WEB_ORIGIN: ${{ vars.STAGING_NEXT_PUBLIC_SITE_URL }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$STAGING_WEB_ORIGIN" ]; then echo "::error::Missing STAGING_NEXT_PUBLIC_SITE_URL" >&2; exit 1; fi
+          origin="${STAGING_WEB_ORIGIN%/}"
+          deadline=$((SECONDS + 900))
+          last_body='<no response>'
+          while (( SECONDS <= deadline )); do
+            body=$(curl -sS --fail-with-body --max-time 5 "${origin}/api/health") &&
+              jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$body" >/dev/null 2>&1 && break
+            if [ -n "${body:-}" ]; then last_body="$body"; fi
+            remaining=$((deadline - SECONDS))
+            if (( remaining <= 0 )); then
+              echo "Health at ${origin} did not report status ok and commit ${SOURCE_SHA}. Last observed body: ${last_body}" >&2
+              exit 1
+            fi
+            if (( remaining > 10 )); then sleep 10; else sleep "$remaining"; fi
+          done
+          echo "deployment_url=${origin}" >> "$GITHUB_OUTPUT"
+          echo "Verified staging ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Record GitHub deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          RELEASE_ENVIRONMENT: staging
           DEPLOYMENT_URL: ${{ steps.health.outputs.deployment_url }}
           SOURCE_REF: ${{ inputs.branch }}
         run: |
@@ -236,17 +313,17 @@ jobs:
 
   smoke:
     name: Post-deploy smoke
-    needs: deploy
+    needs: [build, production]
     if: inputs.environment == 'production'
     runs-on: ubuntu-latest
     env:
-      SMOKE_BASE_URL: ${{ needs.deploy.outputs.smoke_base_url }}
+      SMOKE_BASE_URL: ${{ needs.production.outputs.smoke_base_url }}
       SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
       SMOKE_TEST_CODE: ${{ secrets.SMOKE_TEST_CODE }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.deploy.outputs.source_sha }}
+          ref: ${{ needs.build.outputs.source_sha }}
       - name: Validate smoke settings
         run: |
           set -euo pipefail
