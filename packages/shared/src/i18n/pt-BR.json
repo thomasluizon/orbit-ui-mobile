@@ -2695,7 +2695,7 @@
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
     "empty": "Nada para medir ainda",
-    "emptyAction": "Criar hábito",
+    "emptyAction": "Começar um hábito",
     "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
@@ -2767,6 +2767,8 @@
       "reorderHint": "Segure e arraste para reordenar, ou use as ações de mover"
     },
     "window": {
+      "empty": "Nada para medir ainda",
+      "emptyAction": "Começar um hábito",
       "chartLabel": "Últimos 30 dias",
       "completionRate": "Taxa de conclusão",
       "activeDays": "Dias com registro",

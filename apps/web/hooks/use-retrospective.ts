@@ -15,7 +15,7 @@ export function useProgressRetrospective() {
       fetchJson(
         buildRetrospectiveRequestUrl('month', locale),
         retrospectiveResponseSchema,
-        { handlesPayGate: true },
+        { handlesPayGate: true, handlesError: true },
       ),
     staleTime: QUERY_STALE_TIMES.gamification,
   })
