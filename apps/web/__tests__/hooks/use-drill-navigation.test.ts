@@ -140,7 +140,7 @@ describe('useDrillNavigation', () => {
       ['one-time', makeHabit({ id: 'one-time', parentId: 'parent1', isCompleted: true,
         scheduledDates: [date], isLoggedInRange: true })],
       ['recurring', makeHabit({ id: 'recurring', parentId: 'parent1', frequencyUnit: 'Day',
-        scheduledDates: [date], isLoggedInRange: false,
+        scheduledDates: [date], isLoggedInRange: true,
         instances: [{ date, status: 'Completed', logId: 'log-1' }] })],
     ])
     const options = {

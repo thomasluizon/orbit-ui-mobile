@@ -84,7 +84,7 @@ function TodayScreenContent() {
     includeOverdue: date.dateStr === date.today,
     includeGeneral: showGeneralOnToday || undefined,
   }), [date.dateStr, date.today, showGeneralOnToday])
-  const habitsQuery = useHabits(filters)
+  const habitsQuery = useHabits(filters, { completeDay: true })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,

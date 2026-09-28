@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HabitScheduleChild, HabitScheduleItem } from '../types/habit'
-import { optimisticPatchHabit, withChildren } from '../utils/habit-optimistic'
+import { buildSuccessfulLogPatch, optimisticPatchHabit, withChildren } from '../utils/habit-optimistic'
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
@@ -141,5 +141,16 @@ describe('optimisticPatchHabit', () => {
     const result = optimisticPatchHabit(items, 'missing', { isCompleted: true })
 
     expect(result[0]?.isCompleted).toBe(false)
+  })
+})
+
+describe('buildSuccessfulLogPatch', () => {
+  it('marks a habit logged without touching a count it does not keep', () => {
+    expect(buildSuccessfulLogPatch(makeChild())).toEqual({ isCompleted: true, isLoggedInRange: true })
+  })
+
+  it('adds one completion to a flexible habit, starting from zero', () => {
+    expect(buildSuccessfulLogPatch(makeChild({ isFlexible: true, flexibleCompleted: 2 })).flexibleCompleted).toBe(3)
+    expect(buildSuccessfulLogPatch(makeChild({ isFlexible: true, flexibleCompleted: null })).flexibleCompleted).toBe(1)
   })
 })

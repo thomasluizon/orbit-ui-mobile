@@ -23,7 +23,7 @@ export {
 
 export type { HabitListKey, HabitListSnapshots } from './keys'
 export { attachNotificationPolling } from './notification-polling'
-export { updateHabitListsForDate, invalidateHabitDependents } from './habit-cache'
+export { updateHabitListsForDate, getTodayHabitList, deduplicateHabitList, invalidateHabitDependents } from './habit-cache'
 export { accountChangeQueryKeys, invalidateAccountEvent, invalidateAccountQueriesBefore } from './account-events'
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'

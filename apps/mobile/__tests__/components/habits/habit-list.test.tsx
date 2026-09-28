@@ -7,6 +7,7 @@ import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { HabitListEmptyState } from '@/components/habit-list/empty-state'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -407,6 +408,7 @@ vi.mock('@/components/ui/anchored-menu', () => ({
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
   Circle: (props: any) => React.createElement('Circle', props),
+  Path: (props: any) => React.createElement('Path', props),
 }))
 
 function flattenRenderedText(node: unknown): string {
@@ -870,7 +872,8 @@ describe('HabitList', () => {
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {
-    seedHabits([])
+    useActualHabitVisibility = true
+    seedHabits([createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })])
     mockHabitsData.totalCount = 1
     const onSeeUpcoming = vi.fn()
     let tree: import('react-test-renderer').ReactTestRenderer
@@ -917,6 +920,27 @@ describe('HabitList', () => {
     TestRenderer.act(onAction)
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
+  })
+
+  it('shows all-done above an unfinished anytime habit', () => {
+    useActualHabitVisibility = true
+    const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
+    const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
+    seedHabits([due, anytime])
+    mockHabitsData.totalCount = 2
+    let tree: import('react-test-renderer').ReactTestRenderer
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }}
+          showCompleted={false} onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree!.root.findAll((node) => node.type === HabitListEmptyState).map((node) => node.props.title))
+      .toContain('habits.allDoneToday')
+    expect(tree!.root.findAll((node) => node.type === HabitRow)
+      .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
   })
 
   it('skips a recurring habit directly', async () => {

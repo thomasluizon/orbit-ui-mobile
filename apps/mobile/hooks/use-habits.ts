@@ -8,6 +8,7 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
+  getTodayHabitList,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
@@ -15,10 +16,12 @@ import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
   getFriendlyErrorMessage,
   normalizeHabits,
+  buildChildrenIndex,
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
@@ -188,6 +191,33 @@ function shouldCelebrateStreak(startsStreak: boolean, streak: number): boolean {
   return startsStreak && isStreakCelebrationMilestone(streak)
 }
 
+function checkTodayCompletionAfterLogs(
+  queryClient: ReturnType<typeof useQueryClient>,
+  habitIds: string[],
+  today: string,
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
+): void {
+  updateHabitListsForDate(queryClient, today, (habits) =>
+    habitIds.reduce((current, id) => {
+      const habit = findHabitInList(current, id)
+      return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+    }, habits))
+  const habitsData = getTodayHabitList(queryClient, today)
+  if (!habitsData) return
+  const normalized = normalizeHabits(habitsData)
+  checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+}
+
+function checkTodayCompletionAfterLog(
+  queryClient: ReturnType<typeof useQueryClient>,
+  variables: LogHabitMutationInput,
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
+): void {
+  const today = formatAPIDate(new Date())
+  if (variables.intent === 'unlog' || (variables.date && variables.date !== today)) return
+  checkTodayCompletionAfterLogs(queryClient, [variables.habitId], today, checkAllDoneCelebration)
+}
+
 function rollbackDatedHabitLists(
   queryClient: ReturnType<typeof useQueryClient>,
   previousLists: HabitListSnapshots,
@@ -230,7 +260,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const { showInfo, showError } = useAppToast()
-  const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
+  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     LogHabitResponse | QueuedMarker,
@@ -439,13 +469,7 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
-        habitKeys.list(activeFilters),
-      )
-      if (habitsData) {
-        const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized)
-      }
+      checkTodayCompletionAfterLog(queryClient, variables, checkAllDoneCelebration)
 
     },
 
@@ -1229,6 +1253,7 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
+  const { checkAllDoneCelebration } = useUIStore.getState()
 
   return useMutation<
     BulkLogMutationOutcome,
@@ -1323,6 +1348,15 @@ export function useBulkLogHabits() {
           .getState()
           .trackCompletion(item.date ?? formatAPIDate(new Date()))
       }
+      const today = formatAPIDate(new Date())
+      const successfulIds = data.results.flatMap((entry) => {
+        const item = variables[entry.index]
+        return entry.status === 'Success' && !data.queuedIds.includes(entry.habitId) &&
+          item?.habitId === entry.habitId && (!item.date || item.date === today)
+          ? [item.habitId] : []
+      })
+      if (successfulIds.length === 0) return
+      checkTodayCompletionAfterLogs(queryClient, successfulIds, today, checkAllDoneCelebration)
     },
 
     onSettled: (data, error) =>

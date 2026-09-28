@@ -2,6 +2,7 @@ export { achievementEmoji } from './achievement-emoji'
 export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
+export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 export {
   buildAccountScopedStorageKey,
   readAccountScopedFlag,
@@ -526,6 +527,7 @@ export {
 export type { NormalizedDrillDetail } from './drill-navigation'
 export {
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,

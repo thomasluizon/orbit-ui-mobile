@@ -33,6 +33,7 @@ import {
   collectVisibleHabitTreeIds,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAllDoneOnDate,
   getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
@@ -365,6 +366,43 @@ function resolveParentSettlement(
   return mode ? { parentId: prompt.habit.id, mode, date: prompt.date } : null
 }
 
+function shouldShowAllDoneWithAnytime(
+  items: { habit: NormalizedHabit }[],
+  showCompleted: boolean | undefined,
+  habitsById: Map<string, NormalizedHabit>,
+  childrenByParent: Map<string, string[]>,
+  date: string,
+): boolean {
+  return !showCompleted && items.length > 0 && items.every((item) => item.habit.isGeneral) &&
+    getAllDoneOnDate(habitsById, childrenByParent, date).allDone
+}
+
+function renderAllDoneListHeader(
+  showAllDone: boolean,
+  header: ReactElement | null,
+  sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+  title: string,
+  description: string,
+  upcomingLabel: string,
+  onAction: (() => void) | undefined,
+): ReactElement | null {
+  if (!showAllDone) return header
+  return (
+    <View>
+      {header}
+      <View style={sectionInsetStyle}>
+        <HabitListEmptyState
+          title={title}
+          description={description}
+          actionLabel={onAction ? upcomingLabel : undefined}
+          onAction={onAction}
+          variant="secondary"
+        />
+      </View>
+    </View>
+  )
+}
+
 // react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
@@ -423,7 +461,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
-    const habitsQuery = useHabits(filters)
+    const habitsQuery = useHabits(filters, { completeDay: true })
     const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
@@ -1740,7 +1778,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (
       flatItems.length === 0 &&
       totalCount > 0 &&
-      !showCompleted
+      !showCompleted &&
+      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     ) {
       return (
         <>
@@ -1774,6 +1813,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
+    const showAllDoneWithAnytime = shouldShowAllDoneWithAnytime(
+      flatItems, showCompleted, habitsById, childrenByParent, selectedDateStr,
+    )
+    const activeListHeader = renderAllDoneListHeader(
+      showAllDoneWithAnytime,
+      listHeaderComponent,
+      styles.sectionInset,
+      t('habits.allDoneToday'),
+      t('habits.allDoneHint'),
+      t('habits.seeUpcoming'),
+      onSeeUpcoming,
+    )
+
     return (
       <>
         <DraggableFlatList
@@ -1790,7 +1842,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           ]}
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
-          ListHeaderComponent={listHeaderComponent}
+          ListHeaderComponent={activeListHeader}
           ListEmptyComponent={renderEmptyState()}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}

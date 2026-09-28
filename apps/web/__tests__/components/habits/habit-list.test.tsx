@@ -456,6 +456,10 @@ describe('HabitList', () => {
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {
+    useActualHabitVisibility = true
+    const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById.set(due.id, due)
+    mockHabitsData.topLevelHabits = [due]
     mockHabitsData.totalCount = 1
     const onSeeUpcoming = vi.fn()
     const result = renderWithProviders(
@@ -475,6 +479,20 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.seeUpcoming' }))
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
+  })
+
+  it('shows all-done above an unfinished anytime habit', () => {
+    useActualHabitVisibility = true
+    const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
+    const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
+    mockHabitsData.habitsById = new Map([[due.id, due], [anytime.id, anytime]])
+    mockHabitsData.topLevelHabits = [due, anytime]
+    mockHabitsData.totalCount = 2
+
+    renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
+
+    expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
+    expect(screen.getByText('Anytime habit')).toBeInTheDocument()
   })
 
   it('keeps a completed row in place for 1400 ms', () => {

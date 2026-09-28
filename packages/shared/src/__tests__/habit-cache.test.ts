@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
 import { createMockHabit } from './factories'
 import { habitKeys } from '../query/keys'
-import { invalidateHabitDependents, updateHabitListsForDate } from '../query/habit-cache'
+import {
+  deduplicateHabitList,
+  getTodayHabitList,
+  invalidateHabitDependents,
+  updateHabitListsForDate,
+} from '../query/habit-cache'
 import { optimisticRemoveHabits } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
 
@@ -84,5 +89,80 @@ describe('optimisticRemoveHabits', () => {
     expect(result.map((item) => item.id)).toEqual(['parent'])
     expect(result[0]?.children.map((item) => item.id)).toEqual(['child'])
     expect(result[0]?.children[0]?.children).toEqual([])
+  })
+})
+
+describe('getTodayHabitList', () => {
+  const today = '2025-01-02'
+  const todayFilters = { dateFrom: today, dateTo: today, includeOverdue: true, pageSize: 2 }
+  const completeFilters = { ...todayFilters, completeDay: true }
+  const scheduled = (id: string): HabitScheduleItem => ({ ...createMockHabit({ id }), children: [], linkedGoals: [] })
+
+  it('returns the Today list once every scheduled habit is loaded', () => {
+    const queryClient = new QueryClient()
+    const items = [scheduled('a'), { ...scheduled('general'), isGeneral: true }, scheduled('b')]
+    queryClient.setQueryData(habitKeys.list(completeFilters), items)
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 2)
+
+    expect(getTodayHabitList(queryClient, today)).toBe(items)
+  })
+
+  it('uses the base count for a complete-day query key', () => {
+    const queryClient = new QueryClient()
+    const items = [scheduled('a'), scheduled('b'), scheduled('c')]
+    queryClient.setQueryData(habitKeys.list(completeFilters), items)
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 3)
+
+    expect(getTodayHabitList(queryClient, today)).toBe(items)
+  })
+
+  it('refuses a Today list that holds only the first page', () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(habitKeys.list(completeFilters), [scheduled('a'), scheduled('b')])
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 5)
+
+    expect(getTodayHabitList(queryClient, today)).toBeUndefined()
+  })
+
+  it('treats a list without a total count as complete only below the page size', () => {
+    const shortClient = new QueryClient()
+    shortClient.setQueryData(habitKeys.list(completeFilters), [scheduled('a')])
+    const fullPageClient = new QueryClient()
+    fullPageClient.setQueryData(habitKeys.list(completeFilters), [scheduled('a'), scheduled('b')])
+
+    expect(getTodayHabitList(shortClient, today)?.map((item) => item.id)).toEqual(['a'])
+    expect(getTodayHabitList(fullPageClient, today)).toBeUndefined()
+  })
+
+  it('rejects an ordinary short day list because only complete-day queries load every page', () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(habitKeys.list(todayFilters), [scheduled('a')])
+
+    expect(getTodayHabitList(queryClient, today)).toBeUndefined()
+  })
+
+  it('ignores filtered, other-day and overdue-free lists', () => {
+    const queryClient = new QueryClient()
+    for (const filters of [
+      { ...completeFilters, search: 'run' },
+      { ...completeFilters, tagIds: ['tag-1'] },
+      { ...completeFilters, dateFrom: '2025-01-01', dateTo: '2025-01-01' },
+      { ...completeFilters, includeOverdue: false },
+      { ...completeFilters, isCompleted: false },
+    ]) queryClient.setQueryData(habitKeys.list(filters), [scheduled('a')])
+
+    expect(getTodayHabitList(queryClient, today)).toBeUndefined()
+  })
+})
+
+describe('deduplicateHabitList', () => {
+  it('keeps one row per habit, at its first position, with the latest page data', () => {
+    const first = { ...createMockHabit({ id: 'a', title: 'Old' }), children: [], linkedGoals: [] }
+    const other = { ...createMockHabit({ id: 'b' }), children: [], linkedGoals: [] }
+    const latest = { ...first, title: 'New' }
+
+    const result = deduplicateHabitList([first, other, latest])
+
+    expect(result.map((item) => [item.id, item.title])).toEqual([['a', 'New'], ['b', 'Exercise']])
   })
 })

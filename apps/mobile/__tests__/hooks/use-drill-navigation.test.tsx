@@ -140,7 +140,7 @@ describe('mobile useDrillNavigation', () => {
       child.id,
       createMockHabit({
         id: child.id, parentId: 'p1', frequencyUnit: child.frequencyUnit,
-        isCompleted: child.isCompleted, isLoggedInRange: child.id === 'one-time',
+        isCompleted: child.isCompleted, isLoggedInRange: true,
         scheduledDates: [date],
         instances: child.id === 'recurring'
           ? [{ date, status: 'Completed', logId: 'log-1' }]
