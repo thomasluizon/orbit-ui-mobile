@@ -2695,7 +2695,7 @@
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
     "empty": "Nada para medir ainda",
-    "emptyAction": "Criar hábito",
+    "emptyAction": "Começar um hábito",
     "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",

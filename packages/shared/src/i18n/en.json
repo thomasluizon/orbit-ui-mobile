@@ -2695,7 +2695,7 @@
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
     "empty": "Nothing to measure yet",
-    "emptyAction": "Add habit",
+    "emptyAction": "Start a habit",
     "startHabit": "View habits",
     "sections": {
       "streak": "Streak",

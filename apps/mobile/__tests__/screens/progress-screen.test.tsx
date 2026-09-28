@@ -5,6 +5,8 @@ import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -42,6 +44,7 @@ type TestTree = {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  retrospectiveHook: vi.fn(),
   gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
@@ -187,7 +190,10 @@ vi.mock('@/hooks/use-gamification', () => ({
   },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
-  useProgressRetrospective: () => mocks.retrospective,
+  useProgressRetrospective: () => {
+    mocks.retrospectiveHook()
+    return mocks.retrospective
+  },
 }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
@@ -1168,7 +1174,30 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
   })
 
-  it('shows the window empty state when the Pro figures report no habits', async () => {
+  it('shows the page invitation without requesting a window for a new account', async () => {
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0, achievementsEarned: 0 })
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.empty')
+    expect(text).not.toContain('progressScreen.window.empty')
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
+    expect(mocks.retrospectiveHook).not.toHaveBeenCalled()
+    expect(mocks.retrospective.refetch).not.toHaveBeenCalled()
+    expect(findPill(tree.root, 'progressScreen.emptyAction').props.accessibilityRole).toBe('link')
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onPress as () => void)()
+    })
+    expect(mocks.router.push).toHaveBeenCalledWith('/')
+    expect(ptBR.progressScreen.emptyAction).toBe('Começar um hábito')
+    expect(en.progressScreen.emptyAction).toBe('Start a habit')
+  })
+
+  it('shows the window empty state when an account with progress has no habits in the period', async () => {
     const retrospectiveData = mocks.retrospective.data
     mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
     mocks.retrospective.isError = true
@@ -1182,6 +1211,8 @@ describe('mobile ProgressContent', () => {
         'progressScreen.sections.goals',
       ]))
       expect(text).toContain('progressScreen.window.empty')
+      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
+      expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
       const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
       expect(figures).not.toContain('0%')
     } finally {
