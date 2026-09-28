@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import type { ReactNode } from 'react'
 
 interface CalendarHeaderProps {
   monthLabel: string
@@ -16,6 +17,8 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onCurrentMonth: () => void
   onSelectYear: (year: number) => void
+  viewSelector?: ReactNode
+  showMonthNavigation?: boolean
 }
 
 /** Agenda header mirroring the Today date-nav: single month chevrons flanking a
@@ -32,6 +35,8 @@ export function CalendarHeader({
   onNextMonth,
   onCurrentMonth,
   onSelectYear,
+  viewSelector,
+  showMonthNavigation = true,
 }: Readonly<CalendarHeaderProps>) {
   const [isYearOpen, setIsYearOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
@@ -44,19 +49,8 @@ export function CalendarHeader({
   }
 
   return (
-    <div className="shrink-0" style={{ padding: '12px 16px 16px' }}>
-      <div
-        className="flex items-center justify-between w-full"
-        style={{ padding: '0 4px' }}
-      >
-        <button
-          type="button"
-          aria-label={previousMonthLabel}
-          onClick={onPreviousMonth}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
+    <div data-testid="calendar-header-group" className="shrink-0 flex flex-wrap items-center gap-4" style={{ padding: '12px 16px 16px' }}>
+      {showMonthNavigation ? <div className="flex min-w-0 items-center gap-2">
         <div className="flex items-center" style={{ gap: 0 }}>
           <button
             type="button"
@@ -66,8 +60,8 @@ export function CalendarHeader({
             style={{
               height: 36,
               padding: '0 8px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 17,
+              fontFamily: 'var(--font-display)',
+              fontSize: 'var(--fs-2xl)',
               fontWeight: 500,
               letterSpacing: '-0.01em',
               color: 'var(--fg-1)',
@@ -86,7 +80,7 @@ export function CalendarHeader({
               height: 36,
               padding: '0 8px',
               fontFamily: 'var(--font-mono)',
-              fontSize: 17,
+              fontSize: 'var(--fs-sm)',
               fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
               color: 'var(--fg-1)',
@@ -97,13 +91,29 @@ export function CalendarHeader({
         </div>
         <button
           type="button"
+          aria-label={previousMonthLabel}
+          onClick={onPreviousMonth}
+          className="icon-btn touch-target shrink-0"
+        >
+          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           aria-label={nextMonthLabel}
           onClick={onNextMonth}
           className="icon-btn touch-target shrink-0"
         >
           <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
-      </div>
+      </div> : <div className="flex min-w-0 items-center gap-2" aria-hidden="true" style={{ visibility: 'hidden' }}>
+        <div className="flex items-center">
+          <span style={{ padding: '0 8px', fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', fontWeight: 500 }}>{monthLabel}</span>
+          <span style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{year}</span>
+        </div>
+        <span style={{ width: 44, height: 44 }} />
+        <span style={{ width: 44, height: 44 }} />
+      </div>}
+      {viewSelector}
 
       {isYearOpen ? <Sheet ref={sheetRef} open title={selectYearLabel} onClose={() => setIsYearOpen(false)}>
         <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />

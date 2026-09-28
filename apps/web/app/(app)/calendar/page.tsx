@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
+import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction, type ReactNode } from 'react'
 import {
   addMonths,
   addDays,
@@ -31,12 +31,10 @@ import {
   filterRecurringDayMap,
   MAX_RANGE_DAYS,
   resolveCalendarRangeEnd,
-  CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
-  type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -53,9 +51,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
-import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { CalendarSyncEvent } from '@orbit/shared'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
@@ -142,97 +139,16 @@ function CalendarMonthLegend({
   )
 }
 
-interface CalendarInlineDayPanelProps {
-  show: boolean
-  state: CalendarMonthDisplayState
-  loadingLabel: string
-  title: string
-  selectedDay: string | null
-  entries: CalendarDayEntry[]
-  calendarEvents: CalendarSyncEvent[]
-  autoSyncState: CalendarAutoSyncState | undefined
-  calendarEventsState: CalendarEventsDisplayState
-  onRetryCalendarEvents: () => void
-  onReconnectCalendarEvents: () => void
-  onViewPro: () => void
-  loggable: boolean
-  showRecurring: boolean
-  pendingEntryStates: ReadonlyMap<string, boolean>
-  showRecurringToggle: boolean
-  onShowRecurringChange: (value: boolean) => void
-  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+function CalendarDayCardSlot({ loading, label, children }: Readonly<{ loading: boolean; label: string; children: ReactNode }>) {
+  return <div style={{ paddingInline: 16, paddingBlockStart: 24 }}>{loading ? (
+    <div data-testid="calendar-day-skeleton" className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ paddingBlock: 24 }}>
+      <Skeleton variant="settings" rows={5} label={label} />
+    </div>
+  ) : children}</div>
 }
 
-function CalendarInlineDayPanel({
-  show,
-  state,
-  loadingLabel,
-  title,
-  selectedDay,
-  entries,
-  calendarEvents,
-  autoSyncState,
-  calendarEventsState,
-  onRetryCalendarEvents,
-  onReconnectCalendarEvents,
-  onViewPro,
-  loggable,
-  showRecurring,
-  pendingEntryStates,
-  showRecurringToggle,
-  onShowRecurringChange,
-  onCalendarAutoSyncChange,
-  onEntryChange,
-}: Readonly<CalendarInlineDayPanelProps>) {
-  if (!show) return null
-  const loading = state === 'loading'
-  return (
-    <section
-      data-testid="calendar-day-panel"
-      aria-label={loading ? loadingLabel : title}
-      className="sticky top-16 flex h-[calc(100dvh-84px)] flex-col"
-      style={{ padding: '16px 0 8px 4px' }}
-    >
-      {loading ? (
-        <Skeleton variant="settings" rows={5} label={loadingLabel} />
-      ) : (
-        <>
-          <h2
-            className="min-w-0 shrink-0 truncate"
-            style={{
-              margin: 0,
-              padding: '0 0 12px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 20,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {title}
-          </h2>
-          <CalendarDayDetail
-            dateStr={selectedDay}
-            entries={entries}
-            calendarEvents={calendarEvents}
-            autoSyncState={autoSyncState}
-            calendarEventsState={calendarEventsState}
-            onRetryCalendarEvents={onRetryCalendarEvents}
-            onReconnectCalendarEvents={onReconnectCalendarEvents}
-            onViewPro={onViewPro}
-            loggable={loggable}
-            showRecurring={showRecurring}
-            pendingEntryStates={pendingEntryStates}
-            onShowRecurringChange={onShowRecurringChange}
-            onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-            onEntryChange={onEntryChange}
-            showRecurringToggle={showRecurringToggle}
-            fitViewport
-          />
-        </>
-      )}
-    </section>
-  )
+function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
+  return wide ? 'secondary' : 'primary'
 }
 
 function resolveMonthSlideClass(monthSlide: MonthSlide): string {
@@ -242,40 +158,20 @@ function resolveMonthSlideClass(monthSlide: MonthSlide): string {
 }
 
 export default function CalendarPage() {
-  const t = useTranslations()
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
+  const [view, setView] = useState<CalendarView>('month')
   const monthQuery = useCalendarData(currentMonth)
-  if (!profile) {
-    return (
-      <div style={{ padding: '16px 4px' }}>
-        {profileError ? (
-          <CalendarLoadError onRetry={() => void refetchProfile()} />
-        ) : (
-          <div className="flex flex-col gap-6">
-            <Skeleton
-              variant="grid"
-              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
-              cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
-              cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-              gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
-              label={t('calendar.loading')}
-            />
-            <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
-            <CalendarStats
-              stats={[
-                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
-                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
-                { key: 'missed', value: 0, label: t('calendar.missedCount') },
-              ]}
-              state="loading"
-              loadingLabel={t('calendar.loading')}
-            />
-          </div>
-        )}
-      </div>
-    )
-  }
+  if (!profile) return (
+    <CalendarProfileState
+      currentMonth={currentMonth}
+      setCurrentMonth={setCurrentMonth}
+      view={view}
+      setView={setView}
+      error={profileError}
+      onRetry={() => void refetchProfile()}
+    />
+  )
 
   return (
     <CalendarPageContent
@@ -283,8 +179,70 @@ export default function CalendarPage() {
       currentMonth={currentMonth}
       setCurrentMonth={setCurrentMonth}
       monthQuery={monthQuery}
+      view={view}
+      setView={setView}
     />
   )
+}
+
+function CalendarProfileState({
+  currentMonth,
+  setCurrentMonth,
+  view,
+  setView,
+  error,
+  onRetry,
+}: Readonly<{
+  currentMonth: Date
+  setCurrentMonth: Dispatch<SetStateAction<Date>>
+  view: CalendarView
+  setView: Dispatch<SetStateAction<CalendarView>>
+  error: Error | null
+  onRetry: () => void
+}>) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  return (
+      <div className="flex min-w-0 flex-col">
+        {error ? (
+          <CalendarLoadError onRetry={onRetry} />
+        ) : (
+          <>
+            <CalendarHeader
+              monthLabel={capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale }))}
+              year={currentMonth.getFullYear()}
+              previousMonthLabel={t('common.previousMonth')}
+              nextMonthLabel={t('common.nextMonth')}
+              currentMonthLabel={t('calendar.goToCurrentMonth')}
+              selectYearLabel={t('common.selectYear')}
+              onPreviousMonth={() => setCurrentMonth((month) => subMonths(month, 1))}
+              onNextMonth={() => setCurrentMonth((month) => addMonths(month, 1))}
+              onCurrentMonth={() => setCurrentMonth(startOfMonth(new Date()))}
+              onSelectYear={(year) => setCurrentMonth((month) => startOfMonth(setYear(month, year)))}
+              showMonthNavigation={view === 'month'}
+              viewSelector={<SegmentedControl<CalendarView> options={[
+                { value: 'month', label: t('calendar.view.month') },
+                { value: 'week', label: t('calendar.view.week') },
+                { value: 'range', label: t('calendar.view.range') },
+                { value: 'agenda', label: t('calendar.view.agenda') },
+              ]} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
+            />
+            <CalendarGrid currentMonth={currentMonth} dayMap={new Map()} onSelectDay={() => undefined} selectedDateStr={null} isLoading weekStartsOn={1} todayKey={formatAPIDate(new Date())} />
+            <CalendarDayCardSlot loading label={t('calendar.loading')}>{null}</CalendarDayCardSlot>
+            <div style={{ paddingBlockStart: 24 }}><CalendarStats
+              stats={[
+                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
+                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
+                { key: 'missed', value: 0, label: t('calendar.missedCount') },
+              ]}
+              state="loading"
+              loadingLabel={t('calendar.loading')}
+            /></div>
+          </>
+        )}
+      </div>
+    )
 }
 
 interface CalendarPageContentProps {
@@ -301,6 +259,8 @@ interface CalendarPageContentProps {
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
+  view: CalendarView
+  setView: Dispatch<SetStateAction<CalendarView>>
 }
 
 function MonthRecurringFilter({
@@ -327,6 +287,8 @@ function CalendarPageContent({
   currentMonth,
   setCurrentMonth,
   monthQuery,
+  view,
+  setView,
 }: Readonly<CalendarPageContentProps>) {
   const router = useRouter()
   const t = useTranslations()
@@ -341,19 +303,12 @@ function CalendarPageContent({
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const logHabit = useLogHabit()
 
-  const [view, setView] = useState<CalendarView>('month')
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeOffset, setRangeOffset] = useState(0)
-  /**
-   * The day panel is the one thing on this route that an account replacement has to drop. Its
-   * entries re-derive from the month query, which the replacement empties, so they are the next
-   * account's already. The open flag and the chosen day are copies: left alone, the next account
-   * arrives with a sheet the previous one opened, over a day the previous one picked.
-   */
   const [selectedDay, setSelectedDay] = useAccountScopedState<string | null>(() =>
-    formatAPIDate(new Date()),
+    formatAPIDate(isSameMonth(currentMonth, new Date()) ? new Date() : currentMonth),
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [showRecurring, setShowRecurring] = useState(true)
@@ -500,23 +455,30 @@ function CalendarPageContent({
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
-    setCurrentMonth((m) => subMonths(m, 1))
-  }, [setCurrentMonth])
+    const month = subMonths(currentMonth, 1)
+    setCurrentMonth(month)
+    setSelectedDay(formatAPIDate(month))
+  }, [currentMonth, setCurrentMonth, setSelectedDay])
 
   const nextMonth = useCallback(() => {
     setMonthSlide('right')
-    setCurrentMonth((m) => addMonths(m, 1))
-  }, [setCurrentMonth])
+    const month = addMonths(currentMonth, 1)
+    setCurrentMonth(month)
+    setSelectedDay(formatAPIDate(month))
+  }, [currentMonth, setCurrentMonth, setSelectedDay])
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null)
-    setCurrentMonth((m) => startOfMonth(setYear(m, year)))
-  }, [setCurrentMonth])
+    const month = startOfMonth(setYear(currentMonth, year))
+    setCurrentMonth(month)
+    setSelectedDay(formatAPIDate(month))
+  }, [currentMonth, setCurrentMonth, setSelectedDay])
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null)
     setCurrentMonth(startOfMonth(new Date()))
-  }, [setCurrentMonth])
+    setSelectedDay(todayKey)
+  }, [setCurrentMonth, setSelectedDay, todayKey])
 
   const prevWeek = useCallback(() => {
     setWeekSlide('left')
@@ -531,14 +493,12 @@ function CalendarPageContent({
     setWeekAnchor(new Date())
   }, [])
 
-  const showInlineDayPanel = isWideDesktop && view === 'month'
-
   const openDay = useCallback(
     (dateStr: string) => {
       setSelectedDay(dateStr)
-      if (!showInlineDayPanel) setIsDayDetailOpen(true)
+      if (view === 'week') setIsDayDetailOpen(true)
     },
-    [setIsDayDetailOpen, setSelectedDay, showInlineDayPanel],
+    [setIsDayDetailOpen, setSelectedDay, view],
   )
 
   const previousRange = useCallback(() => {
@@ -605,12 +565,7 @@ function CalendarPageContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
     [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
   )
-  const { monthStats: sourceMonthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
-    [currentMonth, dayMap, weekStartsOn, todayKey],
-  )
-  const showMonthRecurringToggle =
-    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries
+  const showMonthRecurringToggle = !isLoading && [...dayMap.values()].some((entries) => entries.length > 0)
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -690,13 +645,11 @@ function CalendarPageContent({
     if (Math.abs(deltaX) <= CALENDAR_MONTH_SWIPE_THRESHOLD) return
     if (Math.abs(deltaX) <= Math.abs(deltaY) * CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO) return
     if (deltaX < 0) {
-      setMonthSlide('right')
-      setCurrentMonth((m) => addMonths(m, 1))
+      nextMonth()
     } else {
-      setMonthSlide('left')
-      setCurrentMonth((m) => subMonths(m, 1))
+      prevMonth()
     }
-  }, [setCurrentMonth])
+  }, [nextMonth, prevMonth])
 
   const monthSlideClass = resolveMonthSlideClass(monthSlide)
 
@@ -704,6 +657,14 @@ function CalendarPageContent({
     setShowCreateModal(true)
   }, [setShowCreateModal])
 
+  const viewSelector = (
+    <SegmentedControl<CalendarView>
+      options={viewOptions}
+      value={view}
+      onChange={setView}
+      label={t('calendar.view.switchLabel')}
+    />
+  )
   const calendarHeader = (
     <CalendarHeader
       monthLabel={monthLabel}
@@ -716,28 +677,21 @@ function CalendarPageContent({
       onNextMonth={nextMonth}
       onCurrentMonth={goToCurrentMonth}
       onSelectYear={selectYear}
+      viewSelector={viewSelector}
+      showMonthNavigation={view === 'month'}
     />
   )
 
   return (
     <div className="relative">
       <div className="relative z-[1]">
-        <div style={{ padding: '12px 16px 16px' }}>
-          <SegmentedControl<CalendarView>
-            options={viewOptions}
-            value={view}
-            onChange={setView}
-            label={t('calendar.view.switchLabel')}
-          />
-        </div>
+        {calendarHeader}
 
         <div
           className={`loading-bar w-full transition-opacity duration-[var(--dur-slow)] ${
             activeFetching ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         />
-
-        {view === 'range' && calendarHeader}
 
         {activeError ? (
           <div style={{ padding: '12px 16px 16px' }}>
@@ -746,9 +700,7 @@ function CalendarPageContent({
         ) : (
           <>
             {view === 'month' && (
-              <div className="lg:grid lg:grid-cols-[minmax(440px,55%)_minmax(0,1fr)] lg:items-start">
-                <div>
-                  {calendarHeader}
+              <div className="flex min-w-0 flex-col">
                   <div
                     key={format(currentMonth, 'yyyy-MM')}
                     className={monthSlideClass}
@@ -786,39 +738,34 @@ function CalendarPageContent({
                     emptyText={t('calendar.emptyMonth')}
                     futureText={t('calendar.futureMonth')}
                     createLabel={t('habits.createHabit')}
-                    createVariant={isWideDesktop ? 'secondary' : 'primary'}
+                    createVariant={calendarActionVariant(isWideDesktop)}
                     onCreate={openHabitCreation}
                   />
 
-                  <CalendarStats
+                  <CalendarDayCardSlot loading={monthDisplayState === 'loading'} label={t('calendar.loading')}>
+                    <CalendarDayDetail
+                        dateStr={selectedDay}
+                        entries={selectedEntries}
+                        calendarEvents={selectedCalendarEvents}
+                        autoSyncState={autoSyncState}
+                        calendarEventsState={calendarEventsState}
+                        onRetryCalendarEvents={() => void refetchCalendarEvents()}
+                        onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+                        onViewPro={openOrbitPro}
+                        loggable={selectedDayLoggable}
+                        showRecurring={showRecurring}
+                        pendingEntryStates={pendingEntryStates}
+                        onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+                        onEntryChange={changeSelectedEntry}
+                        proActionVariant={calendarActionVariant(isWideDesktop)}
+                      />
+                  </CalendarDayCardSlot>
+                  <div style={{ paddingBlockStart: 24 }}><CalendarStats
                     stats={monthStatTiles}
                     state={calendarStatState(monthDisplayState)}
                     loadingLabel={t('calendar.loading')}
                     emptyLabel={t('calendar.emptyStat')}
-                  />
-                </div>
-
-                <CalendarInlineDayPanel
-                  show={showInlineDayPanel}
-                  state={monthDisplayState}
-                  loadingLabel={t('calendar.loading')}
-                  title={dayDetailTitle}
-                  selectedDay={selectedDay}
-                  entries={selectedEntries}
-                  calendarEvents={selectedCalendarEvents}
-                  autoSyncState={autoSyncState}
-                  calendarEventsState={calendarEventsState}
-                  onRetryCalendarEvents={() => void refetchCalendarEvents()}
-                  onReconnectCalendarEvents={() => router.push('/calendar-sync')}
-                  onViewPro={openOrbitPro}
-                  loggable={selectedDayLoggable}
-                  showRecurring={showRecurring}
-                  pendingEntryStates={pendingEntryStates}
-                  showRecurringToggle={!showMonthRecurringToggle}
-                  onShowRecurringChange={setShowRecurring}
-                  onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-                  onEntryChange={changeSelectedEntry}
-                />
+                  /></div>
               </div>
             )}
 
@@ -879,7 +826,7 @@ function CalendarPageContent({
         )}
       </div>
 
-      {isDayDetailOpen && !showInlineDayPanel ? (<Sheet
+      {isDayDetailOpen && view === 'week' ? (<Sheet
         ref={sheetRef}
         open
         onClose={() => (setIsDayDetailOpen)(false)}
@@ -887,6 +834,7 @@ function CalendarPageContent({
       >
         <CalendarDayDetail
           dateStr={selectedDay}
+          showTitle={false}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}
           autoSyncState={autoSyncState}
@@ -897,7 +845,6 @@ function CalendarPageContent({
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           pendingEntryStates={pendingEntryStates}
-          onShowRecurringChange={setShowRecurring}
           onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
           onEntryChange={changeSelectedEntry}
         />

@@ -203,7 +203,7 @@ vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
   CalendarHeader: (props: Record<string, any>) => {
     calendarGridProps.header = props;
-    return <View testID="calendar-header" />;
+    return <View testID="calendar-header-group">{props.viewSelector}</View>;
   },
   CalendarWeekNav: () => null,
   CalendarLegend: () => <View testID="calendar-legend" />,
@@ -236,12 +236,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
   CalendarDayDetail: (props: Record<string, any>) => {
     calendarDayDetailProps.current = props;
-    return React.createElement("Pressable", {
-      accessibilityRole: "switch",
-      accessibilityLabel: "calendar.showRecurring",
-      accessibilityState: { checked: props.showRecurring },
-      onPress: () => props.onShowRecurringChange(!props.showRecurring),
-    });
+    return <View testID="calendar-day-detail" />;
   },
 }));
 
@@ -581,11 +576,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => {
       calendarDayDetailProps.current?.onReconnectCalendarEvents();
     });
-    expect(state.routerPush).not.toHaveBeenCalled();
-    expect(sheetTestControls.isDismissPending).toBe(true);
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal();
-    });
+    expect(sheetTestControls.isDismissPending).toBe(false);
     expect(state.routerPush).toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
@@ -632,11 +623,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => {
       calendarDayDetailProps.current?.onViewPro();
     });
-    expect(state.routerPush).not.toHaveBeenCalled();
-    expect(sheetTestControls.isDismissPending).toBe(true);
-    TestRenderer.act(() => {
-      sheetTestControls.completeDismissal();
-    });
+    expect(sheetTestControls.isDismissPending).toBe(false);
     expect(state.routerPush).toHaveBeenCalledWith("/upgrade");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
@@ -1013,7 +1000,10 @@ describe("CalendarScreen views (mobile)", () => {
     expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe((initialMonth.getMonth() + 1) % 12);
 
-    TestRenderer.act(() => swipeGesture.fire(61, 45));
+    TestRenderer.act(() => {
+      headerTree.update(flatList.props.ListHeaderComponent);
+    });
+    TestRenderer.act(() => calendarGridProps.current?.swipeGesture.fire(61, 45));
     expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe(initialMonth.getMonth());
   });
@@ -1180,10 +1170,63 @@ describe("CalendarScreen views (mobile)", () => {
     });
 
     expect(calendarGridProps.current?.isLoading).toBe(true);
+    expect(headerTree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-skeleton')).toHaveLength(1);
     expect(calendarGridProps.stats?.state).toBe("loading");
     expect(headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.testID === "calendar-day-loading",
     )).toHaveLength(0);
+  });
+
+  it('keeps a selected month day inline below the grid without a sheet', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const header = renderMonthHeader(tree);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-header-group')).toHaveLength(1);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-detail')).toHaveLength(1);
+
+    const selected = '2026-09-10';
+    TestRenderer.act(() => { calendarGridProps.current!.onSelectDay(selected); });
+    const flatList = tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'FlatList')[0]!;
+    TestRenderer.act(() => { header.update(flatList.props.ListHeaderComponent); });
+    expect(calendarDayDetailProps.current?.selectedDate).toBe(selected);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'Sheet')).toHaveLength(0);
+    TestRenderer.act(() => header.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it('opens a sheet for a selected week day', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'week');
+    const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0];
+    expect(week).toBeDefined();
+    TestRenderer.act(() => { week!.props.onSelectDay('2026-09-10'); });
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'Sheet')).toHaveLength(1);
+    expect(calendarDayDetailProps.current?.selectedDate).toBe('2026-09-10');
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it('keeps the month skeleton and tiles in one list while loading', () => {
+    state.monthLoading = true;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const header = renderMonthHeader(tree);
+    const footer = renderMonthFooter(tree);
+    expect(calendarGridProps.current?.isLoading).toBe(true);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-skeleton')).toHaveLength(1);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-detail')).toHaveLength(0);
+    expect(calendarStatsProps.current?.state).toBe('loading');
+    state.monthLoading = false;
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    const flatList = tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'FlatList')[0]!;
+    TestRenderer.act(() => { header.update(flatList.props.ListHeaderComponent); });
+    TestRenderer.act(() => { footer.update(flatList.props.ListFooterComponent); });
+    expect(calendarGridProps.current?.isLoading).toBe(false);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-skeleton')).toHaveLength(0);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-detail')).toHaveLength(1);
+    TestRenderer.act(() => header.update(<></>));
+    TestRenderer.act(() => footer.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   it("shows the legend once the month has a scheduled entry", () => {

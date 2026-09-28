@@ -268,10 +268,6 @@ export function CalendarGrid({
           width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
             + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
           marginInline: 'auto',
-          borderRadius: 20,
-          padding: 0,
-          background: 'var(--bg-card)',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
         <MonthGrid
