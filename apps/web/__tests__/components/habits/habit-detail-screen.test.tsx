@@ -307,6 +307,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.getByText('rescheduleError')).toBeVisible()
+    expect(screen.getByText('rescheduleError')).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('button', { name: 'rescheduleAccept' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'retry' }))
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()

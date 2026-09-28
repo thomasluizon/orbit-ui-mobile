@@ -246,7 +246,7 @@ function RescheduleBlock({ habit, slipping, overdue, hasProAccess, locale }: Rea
   return (
     <Proposed proposed scope="block" label={t('proposed')}>
       <div className="flex flex-col gap-4 p-4">
-        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p className="mt-1 text-sm text-[var(--fg-3)]">{query.error ? t('rescheduleError') : query.suggestion?.rationale ?? t('rescheduleLoading')}</p></div>
+        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p role="status" className="mt-1 text-sm text-[var(--fg-3)]">{query.error ? t('rescheduleError') : query.suggestion?.rationale ?? t('rescheduleLoading')}</p></div>
         {query.error ? <div className="self-start"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('retry')}</PillButton></div> : null}
         {query.suggestion && !query.error ? <div className="self-start"><PillButton variant={isWideDesktop ? 'secondary' : 'primary'} size="sm" loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton></div> : null}
       </div>

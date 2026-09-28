@@ -202,7 +202,7 @@ function RescheduleBlock({ habit, slipping, overdue, hasPro, locale, tokens }: R
       <View style={styles.proposedBlock}>
         <View style={styles.sectionHeading}>
           <Text style={[styles.proposedTitle, { color: tokens.fg1 }]}>{t('habits.detail.slipping')}</Text>
-          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : query.suggestion?.rationale ?? t('habits.detail.rescheduleLoading')}</Text>
+          <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : query.suggestion?.rationale ?? t('habits.detail.rescheduleLoading')}</Text>
         </View>
         {query.error ? <View style={styles.proposedAction}><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton></View> : null}
         {query.suggestion && !query.error ? <View style={styles.proposedAction}><PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View> : null}

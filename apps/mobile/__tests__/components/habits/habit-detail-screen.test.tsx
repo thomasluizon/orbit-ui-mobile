@@ -410,6 +410,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' }).length).toBeGreaterThan(0)
+    expect(tree.root.findByProps({ children: 'habits.detail.rescheduleError' }).props.accessibilityLiveRegion).toBe('polite')
     expect(tree.root.findAllByType('PillButton').some((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')).toBe(false)
     const retry = tree.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.retry')
     TestRenderer.act(() => { retry!.props.onClick() })
