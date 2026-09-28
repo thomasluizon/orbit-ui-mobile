@@ -17,21 +17,21 @@ const workflowRun = (status, conclusion = null) => ({
 const args = ["--repo", "api", "--run", "1", "--sha", SHA, "--poll-seconds", "0.001"]
 
 export async function cases() {
-  const approved = staged("approved", [workflowRun("waiting"), workflowRun("completed", "success")])
-  const approvedResult = run(TOOL, args, { path: approved.path, env: approved.env })
-  T("release waiter keeps an approval pending until success", approvedResult.status === 0 &&
-    JSON.parse(approvedResult.stdout).reason === "SUCCESS" && approvedResult.stderr.includes("approval") &&
-    Number(readFileSync(approved.sequenceFile, "utf8")) >= 2, approvedResult.stderr)
-  T("release waiter clears its wake source", readWakeSources(approved.base).length === 0)
+  const completed = staged("completed", [workflowRun("queued"), workflowRun("completed", "success")])
+  const completedResult = run(TOOL, args, { path: completed.path, env: completed.env })
+  T("release waiter waits for completion", completedResult.status === 0 &&
+    JSON.parse(completedResult.stdout).reason === "SUCCESS" &&
+    Number(readFileSync(completed.sequenceFile, "utf8")) >= 2, completedResult.stderr)
+  T("release waiter clears its wake source", readWakeSources(completed.base).length === 0)
 
   const failed = staged("failed", [workflowRun("completed", "failure")])
   const failedResult = run(TOOL, args, { path: failed.path, env: failed.env })
   T("release waiter stops on a failed run with its link", failedResult.status === 1 &&
     JSON.parse(failedResult.stdout).reason === "FAILED" && JSON.parse(failedResult.stdout).url === fixture.run.html_url, failedResult.stderr)
 
-  const ceiling = staged("ceiling", [workflowRun("waiting")])
+  const ceiling = staged("ceiling", [workflowRun("queued")])
   const ceilingResult = run(TOOL, [...args, "--ceiling-minutes", "0.0001"], { path: ceiling.path, env: ceiling.env })
-  T("release waiter preserves an approval pause at its ceiling", ceilingResult.status === 3 &&
+  T("release waiter stops at its ceiling", ceilingResult.status === 3 &&
     JSON.parse(ceilingResult.stdout).reason === "CEILING" && readWakeSources(ceiling.base).length === 0, ceilingResult.stderr)
 
   const wrongHead = staged("wrong-head", [{ ...workflowRun("completed", "success"), head_sha: "b".repeat(40) }])

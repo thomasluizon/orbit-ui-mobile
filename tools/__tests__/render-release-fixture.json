@@ -3,7 +3,9 @@
     "deploys": "GET https://api.render.com/v1/services/{staging-api-service-id}/deploys?status=live&limit=1",
     "service": "GET https://api.render.com/v1/services/{staging-api-service-id}",
     "health": "apps/web/app/api/health/route.ts",
-    "variable": "gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID"
+    "variable": "gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID",
+    "serviceList": "GET https://api.render.com/v1/services?limit=100 with Authorization: Bearer <RENDER_MCP_TOKEN>",
+    "stagingLandingDeploy": "GET https://api.render.com/v1/services/{staging-landing-service-id}/deploys?status=live&limit=1"
   },
   "variable": {
     "created_at": "<ISO-8601 timestamp>",
@@ -87,5 +89,262 @@
   "health": {
     "status": "ok",
     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  }
+  },
+  "serviceList": [
+    {
+      "cursor": "<value>",
+      "service": {
+        "autoDeploy": "<value>",
+        "autoDeployTrigger": "<value>",
+        "branch": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "dashboardUrl": "https://example.invalid",
+        "environmentId": "<value>",
+        "id": "srv-dddddddddddddddddddd",
+        "name": "orbit-landing-staging",
+        "notifyOnFail": "<value>",
+        "ownerId": "<value>",
+        "repo": "<value>",
+        "rootDir": "<value>",
+        "serviceDetails": {
+          "buildCommand": "<value>",
+          "buildPlan": "<value>",
+          "ipAllowList": [
+            {
+              "cidrBlock": "<value>",
+              "description": "<value>"
+            }
+          ],
+          "previews": {
+            "generation": "<value>"
+          },
+          "publishPath": "<value>",
+          "pullRequestPreviewsEnabled": "<value>",
+          "renderSubdomainPolicy": "<value>",
+          "url": "https://example.invalid"
+        },
+        "slug": "<value>",
+        "suspended": "<value>",
+        "suspenders": [],
+        "type": "<value>",
+        "updatedAt": "<ISO-8601 timestamp>"
+      }
+    },
+    {
+      "cursor": "<value>",
+      "service": {
+        "autoDeploy": "<value>",
+        "autoDeployTrigger": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "dashboardUrl": "https://example.invalid",
+        "environmentId": "<value>",
+        "id": "srv-eeeeeeeeeeeeeeeeeeee",
+        "imagePath": "<value>",
+        "name": "orbit-web-staging",
+        "notifyOnFail": "<value>",
+        "ownerId": "<value>",
+        "rootDir": "<value>",
+        "serviceDetails": {
+          "buildPlan": "<value>",
+          "cache": {
+            "profile": "<value>"
+          },
+          "env": "<value>",
+          "envSpecificDetails": {
+            "dockerCommand": "<value>",
+            "dockerContext": "<value>",
+            "dockerfilePath": "<value>"
+          },
+          "healthCheckPath": "<value>",
+          "ipAllowList": [
+            {
+              "cidrBlock": "<value>",
+              "description": "<value>"
+            }
+          ],
+          "maintenanceMode": {
+            "enabled": false,
+            "uri": "<value>"
+          },
+          "numInstances": 1,
+          "openPorts": [],
+          "plan": "<value>",
+          "previews": {
+            "generation": "<value>"
+          },
+          "pullRequestPreviewsEnabled": "<value>",
+          "region": "<value>",
+          "renderSubdomainPolicy": "<value>",
+          "runtime": "<value>",
+          "sshAddress": "<value>",
+          "url": "https://example.invalid"
+        },
+        "slug": "<value>",
+        "suspended": "<value>",
+        "suspenders": [],
+        "type": "<value>",
+        "updatedAt": "<ISO-8601 timestamp>"
+      }
+    },
+    {
+      "cursor": "<value>",
+      "service": {
+        "autoDeploy": "<value>",
+        "autoDeployTrigger": "<value>",
+        "branch": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "dashboardUrl": "https://example.invalid",
+        "environmentId": "<value>",
+        "id": "srv-ffffffffffffffffffff",
+        "name": "orbit-landing",
+        "notifyOnFail": "<value>",
+        "ownerId": "<value>",
+        "repo": "<value>",
+        "rootDir": "<value>",
+        "serviceDetails": {
+          "buildCommand": "<value>",
+          "buildPlan": "<value>",
+          "ipAllowList": [
+            {
+              "cidrBlock": "<value>",
+              "description": "<value>"
+            }
+          ],
+          "previews": {
+            "generation": "<value>"
+          },
+          "publishPath": "<value>",
+          "pullRequestPreviewsEnabled": "<value>",
+          "renderSubdomainPolicy": "<value>",
+          "url": "https://example.invalid"
+        },
+        "slug": "<value>",
+        "suspended": "<value>",
+        "suspenders": [],
+        "type": "<value>",
+        "updatedAt": "<ISO-8601 timestamp>"
+      }
+    },
+    {
+      "cursor": "<value>",
+      "service": {
+        "autoDeploy": "<value>",
+        "autoDeployTrigger": "<value>",
+        "branch": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "dashboardUrl": "https://example.invalid",
+        "environmentId": "<value>",
+        "id": "srv-gggggggggggggggggggg",
+        "name": "orbit-api-staging",
+        "notifyOnFail": "<value>",
+        "ownerId": "<value>",
+        "repo": "<value>",
+        "rootDir": "<value>",
+        "serviceDetails": {
+          "buildPlan": "<value>",
+          "cache": {
+            "profile": "<value>"
+          },
+          "env": "<value>",
+          "envSpecificDetails": {
+            "dockerCommand": "<value>",
+            "dockerContext": "<value>",
+            "dockerfilePath": "<value>"
+          },
+          "healthCheckPath": "<value>",
+          "ipAllowList": [
+            {
+              "cidrBlock": "<value>",
+              "description": "<value>"
+            }
+          ],
+          "maintenanceMode": {
+            "enabled": false,
+            "uri": "<value>"
+          },
+          "numInstances": 1,
+          "openPorts": [],
+          "plan": "<value>",
+          "previews": {
+            "generation": "<value>"
+          },
+          "pullRequestPreviewsEnabled": "<value>",
+          "region": "<value>",
+          "renderSubdomainPolicy": "<value>",
+          "runtime": "<value>",
+          "sshAddress": "<value>",
+          "url": "https://example.invalid"
+        },
+        "slug": "<value>",
+        "suspended": "<value>",
+        "suspenders": [],
+        "type": "<value>",
+        "updatedAt": "<ISO-8601 timestamp>"
+      }
+    },
+    {
+      "cursor": "<value>",
+      "service": {
+        "autoDeploy": "<value>",
+        "autoDeployTrigger": "<value>",
+        "branch": "<value>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "dashboardUrl": "https://example.invalid",
+        "environmentId": "<value>",
+        "id": "srv-hhhhhhhhhhhhhhhhhhhh",
+        "name": "orbit-api",
+        "notifyOnFail": "<value>",
+        "ownerId": "<value>",
+        "repo": "<value>",
+        "rootDir": "<value>",
+        "serviceDetails": {
+          "buildPlan": "<value>",
+          "cache": {
+            "profile": "<value>"
+          },
+          "env": "<value>",
+          "envSpecificDetails": {
+            "dockerCommand": "<value>",
+            "dockerContext": "<value>",
+            "dockerfilePath": "<value>",
+            "preDeployCommand": "<value>"
+          },
+          "healthCheckPath": "<value>",
+          "ipAllowList": [
+            {
+              "cidrBlock": "<value>",
+              "description": "<value>"
+            }
+          ],
+          "maintenanceMode": {
+            "enabled": false,
+            "uri": "<value>"
+          },
+          "numInstances": 1,
+          "openPorts": [
+            {
+              "port": 8080,
+              "protocol": "<value>"
+            }
+          ],
+          "plan": "<value>",
+          "previews": {
+            "generation": "<value>"
+          },
+          "pullRequestPreviewsEnabled": "<value>",
+          "region": "<value>",
+          "renderSubdomainPolicy": "<value>",
+          "runtime": "<value>",
+          "sshAddress": "<value>",
+          "url": "https://example.invalid"
+        },
+        "slug": "<value>",
+        "suspended": "<value>",
+        "suspenders": [],
+        "type": "<value>",
+        "updatedAt": "<ISO-8601 timestamp>"
+      }
+    }
+  ],
+  "stagingLandingCommit": "e778ecac8a916d5960b4fa3469117539ce73f2d7"
 }
