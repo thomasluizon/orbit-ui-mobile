@@ -33,7 +33,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | item | disposition |
 |---|---|
 | Worker `#556` carry, `orbit-ui-mobile` worktree `ticket-556-carry-google-release`, branch `fix/ticket-556-carry-google-release` | cherry-picking `main`'s seven newest commits (`#1222`, `#1220`, `#1224`, `#1221`, `#1225`, `#1223`, `#1219`) onto `redesign/main`; last seen with 5 commits and a dirty tree mid-pick; outcome unknown. Read the worktree and the worker log under `$TMPDIR/orbit-workers/`; finish or relaunch, open the PR, merge, then verify staging Google sign-in |
-| Worker `#84` opt-out, worktree `ticket-84-analytics-opt-out`, branch `feature/orb-78-analytics-opt-out` (base `redesign/main`) | 3 commits, clean when last seen; outcome unknown; open or find its PR and drive it |
+| `ui#1226` analytics opt-out (`#84`), branch `feature/orb-78-analytics-opt-out`, base `redesign/main` | the worker finished and opened it; CI and Pullfrog not yet read; drive it to merge (its toggle copy changed during the worker's run: approve the final strings with /second-opinion) |
 | `api#628` SES | approved; SonarCloud red on new-code findings; fix them, re-review, merge, then apply its Terraform, request SES production access, and switch the email provider variables |
 | `api#631` web plan guard (`#814`) | first review round; drive it to merge |
 | `api#626` staging lifecycle | approved; GitGuardian false positive the owner clears; after merge run the staging database state move in its manual steps |
