@@ -29,10 +29,10 @@ export function ProfileValueRow({ label, value, control }: Readonly<ProfileValue
   return (
     <div
       data-testid="profile-value-row"
-      className="flex items-center"
+      className="flex flex-wrap items-center"
       style={{ minHeight: 44, padding: '12px 16px', gap: 12 }}
     >
-      <span className="min-w-0 flex-1 font-sans text-[17px] text-[var(--fg-1)]">
+      <span className="min-w-0 font-sans text-[17px] text-[var(--fg-1)]" style={{ flex: '1 1 120px' }}>
         {label}
       </span>
       {value ? (
@@ -40,7 +40,7 @@ export function ProfileValueRow({ label, value, control }: Readonly<ProfileValue
           {value}
         </span>
       ) : null}
-      <span className="flex shrink-0 items-center">{control}</span>
+      <span className="flex max-w-full shrink items-center">{control}</span>
     </div>
   )
 }

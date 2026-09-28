@@ -431,7 +431,6 @@ describe('DestinationShell', () => {
   it.each([
     '/',
     '/about',
-    '/ai-settings',
     '/calendar-sync',
     '/calendar',
     '/chat',

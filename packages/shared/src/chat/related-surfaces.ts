@@ -43,9 +43,9 @@ export const RELATED_SURFACE_ROUTES: Readonly<Record<string, RelatedSurface>> = 
   },
   'ai-settings': {
     id: 'ai-settings',
-    labelKey: 'chat.related.surface.aiSettings',
-    webRoute: '/ai-settings',
-    mobileRoute: '/ai-settings',
+    labelKey: 'nav.profile',
+    webRoute: '/profile',
+    mobileRoute: '/profile',
   },
 }
 

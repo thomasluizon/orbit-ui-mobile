@@ -111,7 +111,7 @@ function buildYouRows(
     weekStartOptions: buildWeekStartOptions(t),
   })
   const themeChoice = (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t('preferences.themeMode')} style={{ flexDirection: 'row', gap: 4 }}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={t('preferences.themeMode')} style={{ flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', gap: 4 }}>
       {(['dark', 'light'] as const).map((mode) => {
         const selected = controls.currentTheme === mode
         return (

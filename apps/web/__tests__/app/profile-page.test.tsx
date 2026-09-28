@@ -277,7 +277,10 @@ describe('ProfilePage', () => {
       view.unmount()
     }
     render(<ProfilePage />)
-    expect(screen.getByRole('group', { name: 'preferences.themeMode' })).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
+    const themeChoices = screen.getByRole('group', { name: 'preferences.themeMode' })
+    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
+    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
+    expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
     expect(screen.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
   })
 

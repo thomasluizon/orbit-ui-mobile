@@ -1197,8 +1197,7 @@
         "today": "Today",
         "gamification": "Achievements",
         "notifications": "Notifications",
-        "subscriptions": "Upgrade",
-        "aiSettings": "AI settings"
+        "subscriptions": "Upgrade"
       }
     },
     "conflict": {
@@ -1620,12 +1619,10 @@
       "account": "Account",
       "preferences": "Preferences",
       "communication": "Communication",
-      "aiFeatures": "AI Features",
       "aboutHelp": "About & Help",
       "advanced": "Advanced",
       "accountActions": "Account actions",
       "subscription": "Subscription",
-      "aiFeaturesHint": "Daily summary, proactive check-ins",
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
@@ -1999,7 +1996,7 @@
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
-      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
+      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in Profile, and you may object to automated processing by contacting us."
     },
     "minors": {
       "title": "Age Requirement",
@@ -2378,7 +2375,7 @@
       "trialEyebrow": "Your Pro trial is active",
       "trialDaysLeft": "{days} trial day left | {days} trial days left",
       "trialLastDay": "Last day of the trial",
-      "trialHeading": "Keep 50 Astra messages a day with Pro. Without Pro, you get 5 a day.",
+      "trialHeading": "Pro: 50 Astra messages a day.",
       "trialCta": "Keep Pro",
       "freeEyebrow": "You are on the free plan",
       "freeHeading": "Ten times more Astra.",
@@ -3087,9 +3084,6 @@
     "themeMode": "Appearance",
     "themeModeLight": "Light",
     "themeModeDark": "Dark"
-  },
-  "aiSettings": {
-    "title": "AI Features"
   },
   "about": {
     "title": "About & Help",

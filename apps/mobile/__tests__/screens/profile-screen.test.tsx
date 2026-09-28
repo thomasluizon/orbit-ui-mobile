@@ -609,8 +609,10 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
-    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode').length).toBeGreaterThan(0)
+    const themeChoices = tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode')
+    expect(themeChoices.some((choice: { props: { style: { flexWrap?: string; maxWidth?: string } } }) =>
+      choice.props.style.flexWrap === 'wrap' && choice.props.style.maxWidth === '100%')).toBe(true)
   })
 
   it('keeps the share card reachable outside Ending things', async () => {

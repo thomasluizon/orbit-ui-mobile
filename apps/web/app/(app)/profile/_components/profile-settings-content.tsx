@@ -105,7 +105,7 @@ function buildYouRows(
     weekStartOptions: buildWeekStartOptions(t),
   })
   const themeChoice = (
-    <div role="group" aria-label={t('preferences.themeMode')} className="flex gap-1">
+    <div role="group" aria-label={t('preferences.themeMode')} className="flex max-w-full flex-wrap gap-1">
       {(['dark', 'light'] as const).map((mode) => (
         <button
           key={mode}
