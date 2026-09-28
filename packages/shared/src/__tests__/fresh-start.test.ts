@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
@@ -7,6 +9,12 @@ import {
 } from '../utils/fresh-start'
 
 describe('fresh-start utils', () => {
+  it('names review and permanent data deletion in both locales', () => {
+    expect(en.profile.freshStart.reviewDeletion).toBe('Review deletion')
+    expect(ptBR.profile.freshStart.reviewDeletion).toBe('Revisar exclusão')
+    expect(en.profile.freshStart.deleteData).toBe('Delete data')
+    expect(ptBR.profile.freshStart.deleteData).toBe('Excluir dados')
+  })
   it('keeps the deleted and preserved key lists stable', () => {
     expect(FRESH_START_DELETED_ITEM_KEYS).toHaveLength(7)
     expect(FRESH_START_PRESERVED_ITEM_KEYS).toEqual([

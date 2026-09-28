@@ -14,6 +14,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
@@ -128,8 +129,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   function renderActions() {
     if (!hasProAccess) {
       return (
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton
+            matchedWidth
 
             onClick={() => {
               closeSheet(() => {
@@ -140,27 +142,28 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
+          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </View>
+        </DialogActionPair>
       )
     }
     if (error) {
       return (
-        <View style={styles.actions}>
-          <PillButton  onClick={() => void refetch()}>
+        <DialogActionPair>
+          <PillButton matchedWidth onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
+          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </View>
+        </DialogActionPair>
       )
     }
     return (
-      <View style={styles.actions}>
+      <DialogActionPair>
         <PillButton
+          matchedWidth
 
           disabled={!suggestion || updateHabit.isPending}
           loading={updateHabit.isPending}
@@ -170,12 +173,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         </PillButton>
         <PillButton
           variant="ghost"
+          matchedWidth
           disabled={updateHabit.isPending}
           onClick={() => closeSheet()}
         >
           {t('habits.reschedule.dismiss')}
         </PillButton>
-      </View>
+      </DialogActionPair>
     )
   }
 
@@ -294,9 +298,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 11,
       lineHeight: 15,
       color: tokens.fg3,
-    },
-    actions: {
-      gap: 8,
     },
     actionsFooter: {
       paddingHorizontal: 24,

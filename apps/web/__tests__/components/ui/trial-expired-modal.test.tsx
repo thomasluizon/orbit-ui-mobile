@@ -103,6 +103,13 @@ describe('TrialExpiredModal', () => {
     })
   })
 
+  it('matches the widths of the two trial actions', () => {
+    mockTrialExpired = true
+    render(<TrialExpiredModal />)
+    expect(screen.getByRole('button', { name: 'trial.expired.subscribe' })).toHaveStyle({ width: '100%' })
+    expect(screen.getByRole('button', { name: 'trial.expired.continueFree' })).toHaveStyle({ width: '100%' })
+  })
+
   it('waits for an open sheet before presenting the trial notice', async () => {
     mockTrialExpired = true
     useUIStore.getState().registerOpenOverlay('existing-sheet')

@@ -377,7 +377,7 @@ describe('alerts', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(50)
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.delete }))
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAllAction }))
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
     expect(screen.getByText(messages.notifications.empty)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: messages.notifications.deleteUndo })).toBeNull()

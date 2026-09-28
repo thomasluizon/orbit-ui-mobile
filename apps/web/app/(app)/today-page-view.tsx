@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -91,13 +92,17 @@ function useTodayRefetchMotion(isRefetching: boolean) {
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
+  const router = useRouter()
   const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
 
   return (
     <div className="flex flex-col gap-6 pb-6">
+      <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
         {...view.nav.dateNav}
         moreLabel={t('habits.actions.more')}
+        searchLabel={t('habits.search.title')}
+        onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         refreshLabel={t('habits.refresh')}

@@ -157,7 +157,9 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
             </span>
             <span className="min-w-0 truncate">{props.account}</span>
           </Link>
-        ) : null}
+        ) : (
+          <div data-shell-account="" data-loading="true" aria-hidden="true" className="h-11" />
+        )}
       </div>
     </aside>
   )

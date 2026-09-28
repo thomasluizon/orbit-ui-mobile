@@ -749,7 +749,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 | Primitive | Key specs | Web | Mobile |
 |---|---|---|---|
-| NavHeader | 56px, centred UPPERCASE Geist Mono 13/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
+| NavHeader | Object views: 56px, centred uppercase Geist Mono 13/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
+| PageHeader | Pushed pages: 8px row gap, 8px top and bottom padding, 8px start and 16px end padding, hairline below; ghost back button 44px with arrow-left 20; start-aligned sentence-case title at `--fs-lg`/500 on one truncated line. Avisos adds a bell and a second action row. Drawn in Orbit Busca, Sobre, Pro, Assinatura and Avisos. | `ui/page-header.tsx` | `ui/page-header.tsx` |
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
 | SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |

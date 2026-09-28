@@ -14,6 +14,7 @@ import {
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -250,18 +251,15 @@ function FreshStartInfoStep({
           itemIcon="keep"
         />
       </div>
-      <div
-        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <div className="flex flex-col sm:items-center">
-          <PillButton variant="caution" onClick={onContinue}>
-            {t('common.continue')}
+      <div style={{ paddingTop: 8 }}>
+        <DialogActionPair>
+          <PillButton variant="caution" matchedWidth onClick={onContinue}>
+            {t('profile.freshStart.reviewDeletion')}
           </PillButton>
-        </div>
-        <PillButton variant="ghost" onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+          <PillButton variant="ghost" matchedWidth onClick={onCancel}>
+            {t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       </div>
     </div>
   )
@@ -321,18 +319,15 @@ function FreshStartConfirmStep({
           {error}
         </p>
       )}
-      <div
-        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <div className="flex flex-col sm:items-center">
-          <PillButton variant="caution" disabled={!isConfirmed || loading} onClick={onReset}>
-            {loading ? t('profile.freshStart.processing') : t('profile.freshStart.button')}
+      <div style={{ paddingTop: 8 }}>
+        <DialogActionPair>
+          <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
+            {t('profile.freshStart.deleteData')}
           </PillButton>
-        </div>
-        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
+            {t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       </div>
     </div>
   )
