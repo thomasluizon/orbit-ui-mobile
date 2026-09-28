@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { resolveClarification } from '@/app/actions/chat'
 import { habitKeys } from '@orbit/shared/query'
-import { accountIntentWithOrigin, applyServerActionFailure } from '@/lib/client-action'
+import { accountIntentWithOrigin, runServerActionResult } from '@/lib/client-action'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 export function useResolveClarification() {
@@ -14,9 +14,7 @@ export function useResolveClarification() {
       { operationId, value }: { operationId: string; value: string },
       intendedAccountId,
     ) => {
-      const result = await resolveClarification(operationId, value, accountIntentWithOrigin(intendedAccountId))
-      await applyServerActionFailure(result)
-      return result
+      return runServerActionResult(resolveClarification(operationId, value, accountIntentWithOrigin(intendedAccountId)))
     },
 
     onSuccess: (result) => {

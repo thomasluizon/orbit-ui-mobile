@@ -2538,6 +2538,7 @@
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
       "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
+      "appUpdated": "O Orbit foi atualizado. Recarregue a página e tente de novo. O texto não salvo será perdido.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Exclua um hábito para adicionar outro.",
