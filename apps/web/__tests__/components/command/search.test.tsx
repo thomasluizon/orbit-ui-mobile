@@ -169,17 +169,30 @@ describe('habit search', () => {
     expect(screen.queryByText('Actions')).toBeNull()
   })
 
-  it.each(['log', 'skip'] as const)('reports a rejected %s and lets the person retry', async (page) => {
+  it('leaves a rejected log to the mutation error toast and lets the person retry', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
-    mocks[page].mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    mocks.log.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
     mount()
-    fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Log a habit' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit', intent: 'log' }, { onSuccess: expect.any(Function) })
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(screen.getByRole('option', { name: 'Walk' })).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
+    expect(mocks.log).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports a rejected skip and lets the person retry', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
+    mocks.skip.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    mount()
+    fireEvent.click(screen.getByRole('option', { name: 'Skip a habit' }))
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
     expect(mocks.showError).toHaveBeenCalledWith(en.errors.updateHabit)
     expect(screen.queryByText('Create habit')).toBeNull()
     expect(screen.getByRole('option', { name: 'Walk' })).not.toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
-    expect(mocks[page]).toHaveBeenCalledTimes(2)
+    expect(mocks.skip).toHaveBeenCalledTimes(2)
   })
 
   it.each(['log', 'skip'] as const)('selects a habit only after opening the %s page', async (page) => {
