@@ -47,6 +47,7 @@ export {
 } from './onboarding-draft'
 export {
   createUIStoreState,
+  hasOpenPromptBlockingOverlay,
   getPersistedUIState,
   migratePersistedUIState,
   type ActiveView,

@@ -110,6 +110,10 @@ export interface UIStoreState {
 
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
+  openOverlayIds: string[];
+  registerOpenOverlay: (id: string) => void;
+  unregisterOpenOverlay: (id: string) => void;
+  tryReservePromptOverlay: (id: string) => boolean;
 
   /** Transient shell state. These values are deliberately excluded from persistence. */
   todayFabHidden: boolean;
@@ -121,6 +125,10 @@ export interface UIStoreState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
+}
+
+export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
+  return state.showCreateModal || state.astraConversationOpen || state.openOverlayIds.length > 0;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -337,6 +345,20 @@ export function createUIStoreState(
 
     showCreateModal: false,
     setShowCreateModal: (show) => set({ showCreateModal: show }),
+    openOverlayIds: [],
+    registerOpenOverlay: (id) => set((state) => ({
+      openOverlayIds: state.openOverlayIds.includes(id)
+        ? state.openOverlayIds
+        : [...state.openOverlayIds, id],
+    })),
+    unregisterOpenOverlay: (id) => set((state) => ({
+      openOverlayIds: state.openOverlayIds.filter((openId) => openId !== id),
+    })),
+    tryReservePromptOverlay: (id) => {
+      if (hasOpenPromptBlockingOverlay(get())) return false;
+      get().registerOpenOverlay(id);
+      return true;
+    },
     todayFabHidden: false,
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     astraConversationOpen: false,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useUIStore } from '@/stores/ui-store'
+import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 import { collectSelectableDescendantIds, formatAPIDate } from '@orbit/shared/utils'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -40,6 +40,18 @@ describe('ui store', () => {
 
   afterEach(() => {
     globalThis.localStorage.clear()
+  })
+
+  it('keeps an opened create form through first account rehydration and clears it on account replacement', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    setUIAccountScope('first-account')
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().showCreateModal).toBe(true)
+
+    setUIAccountScope('replacement-account')
+    await useUIStore.persist.rehydrate()
+    expect(useUIStore.getState().showCreateModal).toBe(false)
+    useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
   })
 
 

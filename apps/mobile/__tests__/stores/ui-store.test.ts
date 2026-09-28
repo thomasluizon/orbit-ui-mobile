@@ -3,7 +3,7 @@ import {
   getPersistedUIState,
 } from "@orbit/shared/stores";
 
-import { useUIStore } from "@/stores/ui-store";
+import { setUIAccountScope, useUIStore } from "@/stores/ui-store";
 
 
 vi.mock("expo-router", () => ({
@@ -62,6 +62,16 @@ describe("mobile ui store", () => {
   afterEach(() => {
     vi.useRealTimers();
     asyncStorageState.data.clear();
+  });
+
+  it("keeps an opened create form through first account rehydration and clears it on account replacement", async () => {
+    useUIStore.getState().setShowCreateModal(true);
+    await setUIAccountScope("first-account");
+    expect(useUIStore.getState().showCreateModal).toBe(true);
+
+    await setUIAccountScope("replacement-account");
+    expect(useUIStore.getState().showCreateModal).toBe(false);
+    useUIStore.persist.setOptions({ name: "orbit-ui-store" });
   });
 
   it("merges filters and updates search state", () => {

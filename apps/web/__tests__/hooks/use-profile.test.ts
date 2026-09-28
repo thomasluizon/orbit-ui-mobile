@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
+import { profileKeys } from '@orbit/shared/query'
 import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
 import { ApiError } from '@/lib/api-fetch'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -106,6 +109,34 @@ function apiErrorFrom(error: unknown): ApiError {
 }
 
 describe('useProfile', () => {
+  it('keeps the first client profile and loading state equal to the server render', async () => {
+    function ProfileStatus() {
+      const { profile, isLoading } = useProfile({ enabled: false })
+      return React.createElement('span', null, isLoading ? 'loading' : profile?.name)
+    }
+    const serverClient = new QueryClient()
+    const html = renderToString(React.createElement(QueryClientProvider, { client: serverClient }, React.createElement(ProfileStatus)))
+    expect(html).toContain('loading')
+    const container = document.createElement('div')
+    container.innerHTML = html
+    document.body.append(container)
+
+    const client = new QueryClient()
+    client.setQueryData(profileKeys.detail(), createMockProfile({ name: 'Alex' }))
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, React.createElement(QueryClientProvider, { client }, React.createElement(ProfileStatus)), {
+        onRecoverableError: recoverableError,
+      })
+    })
+    expect(recoverableError).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('Alex')
+    await act(async () => root?.unmount())
+    container.remove()
+    client.clear()
+    serverClient.clear()
+  })
   beforeEach(() => {
     mockFetch.mockReset()
     boundaryMocks.toastError.mockClear()

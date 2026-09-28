@@ -39,7 +39,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 async function arm(milestoneKey: string) {
@@ -64,8 +64,8 @@ describe('ReferralPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn())
-    resetStores()
     holdAccount('user-1')
+    resetStores()
   })
 
   afterEach(() => {
@@ -104,6 +104,18 @@ describe('ReferralPrompt', () => {
     })
 
     expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('waits for another sheet to close before offering a referral', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.queryByTestId('sheet')).toBeNull()
+
+    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {

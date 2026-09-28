@@ -45,6 +45,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
+import { useUIStore } from '@/stores/ui-store'
 import { holdAccount } from '@/__tests__/support/account-change'
 
 /** The notice is owed to one account, so the key it is written under names that account. */
@@ -59,6 +60,7 @@ describe('TrialExpiredModal', () => {
     localStorage.clear()
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
+    useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
   })
 
   afterEach(() => {
@@ -99,6 +101,16 @@ describe('TrialExpiredModal', () => {
       enabled: true,
       handlesError: true,
     })
+  })
+
+  it('waits for an open sheet before presenting the trial notice', async () => {
+    mockTrialExpired = true
+    useUIStore.getState().registerOpenOverlay('existing-sheet')
+    render(<TrialExpiredModal />)
+    expect(screen.queryByText('trial.expired.heading')).toBeNull()
+
+    act(() => useUIStore.getState().unregisterOpenOverlay('existing-sheet'))
+    expect(await screen.findByText('trial.expired.heading')).toBeInTheDocument()
   })
 
   it('renders the paused feature rows', () => {

@@ -15,6 +15,7 @@ import {
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useIsClient } from '@/hooks/use-is-client'
 
 function writeLocaleCookie(value: string) {
   if (typeof document !== 'undefined') {
@@ -25,6 +26,7 @@ function writeLocaleCookie(value: string) {
 export function useProfile(options?: { enabled?: boolean; initialData?: Profile }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
+  const isClient = useIsClient()
   const {
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,
@@ -40,7 +42,7 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
     enabled: options?.enabled ?? true,
   })
 
-  const profile = query.data
+  const profile = isClient ? query.data : undefined
   const profileLanguage = profile?.language
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   return {
     ...query,
     profile,
+    isLoading: !isClient || query.isLoading,
     invalidate,
     patchProfile,
   }
