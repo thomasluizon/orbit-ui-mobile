@@ -50,6 +50,7 @@ import {
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
+  calendarMonthForDay,
 } from "@orbit/shared/utils";
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -246,7 +247,8 @@ function CalendarAgendaView({
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDay, setSelectedDay] = useState(() => formatAPIDate(new Date()));
+  const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
   const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);
   if (!profile) {
@@ -255,7 +257,7 @@ export default function CalendarScreen() {
         failed={Boolean(profileError)}
         onRetry={() => void refetchProfile()}
         currentMonth={currentMonth}
-        setCurrentMonth={setCurrentMonth}
+        setSelectedDay={setSelectedDay}
         view={view}
         setView={setView}
       />
@@ -266,7 +268,8 @@ export default function CalendarScreen() {
     <CalendarScreenContent
       profile={profile}
       currentMonth={currentMonth}
-      setCurrentMonth={setCurrentMonth}
+      selectedDay={selectedDay}
+      setSelectedDay={setSelectedDay}
       monthQuery={monthQuery}
       view={view}
       setView={setView}
@@ -278,10 +281,10 @@ function CalendarProfileState({
   failed,
   onRetry,
   currentMonth,
-  setCurrentMonth,
+  setSelectedDay,
   view,
   setView,
-}: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setCurrentMonth: Dispatch<SetStateAction<Date>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
+}: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
   const { t, i18n } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -307,10 +310,10 @@ function CalendarProfileState({
               nextMonthLabel={t('common.nextMonth')}
               currentMonthLabel={t('calendar.goToCurrentMonth')}
               selectYearLabel={t('common.selectYear')}
-              onPreviousMonth={() => setCurrentMonth((month) => subMonths(month, 1))}
-              onNextMonth={() => setCurrentMonth((month) => addMonths(month, 1))}
-              onCurrentMonth={() => setCurrentMonth(startOfMonth(new Date()))}
-              onSelectYear={(year) => setCurrentMonth((month) => startOfMonth(setYear(month, year)))}
+              onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
+              onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
+              onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
+              onSelectYear={(year) => setSelectedDay(formatAPIDate(startOfMonth(setYear(currentMonth, year))))}
               tokens={tokens}
               showMonthNavigation={view === 'month'}
               viewSelector={<SegmentedControl<CalendarView> options={[
@@ -359,7 +362,8 @@ interface CalendarScreenContentProps {
     | 'googleCalendarLastSyncedAt'
   >;
   currentMonth: Date;
-  setCurrentMonth: Dispatch<SetStateAction<Date>>;
+  selectedDay: string;
+  setSelectedDay: Dispatch<SetStateAction<string>>;
   monthQuery: ReturnType<typeof useCalendarData>;
   view: CalendarView;
   setView: Dispatch<SetStateAction<CalendarView>>;
@@ -369,7 +373,8 @@ interface CalendarScreenContentProps {
 function CalendarScreenContent({
   profile,
   currentMonth,
-  setCurrentMonth,
+  selectedDay,
+  setSelectedDay,
   monthQuery,
   view,
   setView,
@@ -416,9 +421,6 @@ function CalendarScreenContent({
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeOffset, setRangeOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
-    formatAPIDate(isSameMonth(currentMonth, new Date()) ? new Date() : currentMonth),
-  );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
   const {
@@ -554,29 +556,25 @@ function CalendarScreenContent({
   const prevMonth = useCallback(() => {
     setMonthSlide("left");
     const month = subMonths(currentMonth, 1);
-    setCurrentMonth(month);
     setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setCurrentMonth]);
+  }, [currentMonth, setSelectedDay]);
 
   const nextMonth = useCallback(() => {
     setMonthSlide("right");
     const month = addMonths(currentMonth, 1);
-    setCurrentMonth(month);
     setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setCurrentMonth]);
+  }, [currentMonth, setSelectedDay]);
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null);
     const month = startOfMonth(setYear(currentMonth, year));
-    setCurrentMonth(month);
     setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setCurrentMonth]);
+  }, [currentMonth, setSelectedDay]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null);
-    setCurrentMonth(startOfMonth(new Date()));
     setSelectedDay(todayKey);
-  }, [setCurrentMonth, todayKey]);
+  }, [setSelectedDay, todayKey]);
 
   const prevWeek = useCallback(() => {
     setWeekSlide("left");
@@ -601,10 +599,10 @@ function CalendarScreenContent({
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
     setIsDayDetailOpen(true);
-  }, []);
+  }, [setSelectedDay]);
   const selectMonthDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
-  }, []);
+  }, [setSelectedDay]);
 
   const closeDayDetail = useCallback(() => {
     setIsDayDetailOpen(false);
@@ -713,8 +711,7 @@ function CalendarScreenContent({
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  const selectedDayLoggable = selectedDay !== null
-    && isCalendarDayLoggable(selectedDay, todayKey);
+  const selectedDayLoggable = isCalendarDayLoggable(selectedDay, todayKey);
 
   const selectedEntrySourceStates = useMemo(() => {
     const sourceStates = new Map<string, boolean>();
@@ -848,7 +845,7 @@ function CalendarScreenContent({
 
       <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)} label={t('calendar.loading')} tokens={tokens}>
           <CalendarDayDetail
-            selectedDate={selectedDay!}
+            selectedDate={selectedDay}
             title={formattedSelectedDate}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}

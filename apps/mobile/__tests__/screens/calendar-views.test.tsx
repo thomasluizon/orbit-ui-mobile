@@ -1206,6 +1206,30 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
+  it('returns from a later week to the month containing the selected day', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'week');
+    for (let week = 0; week < 4; week += 1) {
+      const weekView = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+      TestRenderer.act(() => { weekView.props.onNextWeek(); });
+    }
+    const weekView = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+    const selected = weekView.props.columns[3].dateStr as string;
+    expect(selected).toBe('2026-10-08');
+    TestRenderer.act(() => { weekView.props.onSelectDay(selected); });
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'Sheet')).toHaveLength(1);
+
+    pressView(tree, 'month');
+    const header = renderMonthHeader(tree);
+    expect(formatAPIDate(state.calendarDataCalls.mock.lastCall![0])).toBe('2026-10-01');
+    expect(calendarGridProps.current!.gridDays.find((day: { dateStr: string }) => day.dateStr === selected)?.isCurrentMonth).toBe(true);
+    expect(calendarGridProps.current!.selectedDay).toBe(selected);
+    expect(calendarDayDetailProps.current?.selectedDate).toBe(selected);
+    TestRenderer.act(() => header.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it('keeps the month skeleton and tiles in one list while loading', () => {
     state.monthLoading = true;
     let tree!: Tree;

@@ -35,6 +35,7 @@ import {
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
+  calendarMonthForDay,
 } from '@orbit/shared/utils'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -159,13 +160,14 @@ function resolveMonthSlideClass(monthSlide: MonthSlide): string {
 
 export default function CalendarPage() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
+  const [selectedDay, setSelectedDay] = useAccountScopedState(() => formatAPIDate(new Date()))
+  const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay])
   const [view, setView] = useState<CalendarView>('month')
   const monthQuery = useCalendarData(currentMonth)
   if (!profile) return (
     <CalendarProfileState
       currentMonth={currentMonth}
-      setCurrentMonth={setCurrentMonth}
+      setSelectedDay={setSelectedDay}
       view={view}
       setView={setView}
       error={profileError}
@@ -177,7 +179,8 @@ export default function CalendarPage() {
     <CalendarPageContent
       profile={profile}
       currentMonth={currentMonth}
-      setCurrentMonth={setCurrentMonth}
+      selectedDay={selectedDay}
+      setSelectedDay={setSelectedDay}
       monthQuery={monthQuery}
       view={view}
       setView={setView}
@@ -187,14 +190,14 @@ export default function CalendarPage() {
 
 function CalendarProfileState({
   currentMonth,
-  setCurrentMonth,
+  setSelectedDay,
   view,
   setView,
   error,
   onRetry,
 }: Readonly<{
   currentMonth: Date
-  setCurrentMonth: Dispatch<SetStateAction<Date>>
+  setSelectedDay: Dispatch<SetStateAction<string>>
   view: CalendarView
   setView: Dispatch<SetStateAction<CalendarView>>
   error: Error | null
@@ -216,10 +219,10 @@ function CalendarProfileState({
               nextMonthLabel={t('common.nextMonth')}
               currentMonthLabel={t('calendar.goToCurrentMonth')}
               selectYearLabel={t('common.selectYear')}
-              onPreviousMonth={() => setCurrentMonth((month) => subMonths(month, 1))}
-              onNextMonth={() => setCurrentMonth((month) => addMonths(month, 1))}
-              onCurrentMonth={() => setCurrentMonth(startOfMonth(new Date()))}
-              onSelectYear={(year) => setCurrentMonth((month) => startOfMonth(setYear(month, year)))}
+              onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
+              onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
+              onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
+              onSelectYear={(year) => setSelectedDay(formatAPIDate(startOfMonth(setYear(currentMonth, year))))}
               showMonthNavigation={view === 'month'}
               viewSelector={<SegmentedControl<CalendarView> options={[
                 { value: 'month', label: t('calendar.view.month') },
@@ -257,7 +260,8 @@ interface CalendarPageContentProps {
     | 'googleCalendarLastSyncedAt'
   >
   currentMonth: Date
-  setCurrentMonth: Dispatch<SetStateAction<Date>>
+  selectedDay: string
+  setSelectedDay: Dispatch<SetStateAction<string>>
   monthQuery: ReturnType<typeof useCalendarData>
   view: CalendarView
   setView: Dispatch<SetStateAction<CalendarView>>
@@ -285,7 +289,8 @@ function MonthRecurringFilter({
 function CalendarPageContent({
   profile,
   currentMonth,
-  setCurrentMonth,
+  selectedDay,
+  setSelectedDay,
   monthQuery,
   view,
   setView,
@@ -307,9 +312,6 @@ function CalendarPageContent({
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeOffset, setRangeOffset] = useState(0)
-  const [selectedDay, setSelectedDay] = useAccountScopedState<string | null>(() =>
-    formatAPIDate(isSameMonth(currentMonth, new Date()) ? new Date() : currentMonth),
-  )
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [showRecurring, setShowRecurring] = useState(true)
   const {
@@ -456,29 +458,25 @@ function CalendarPageContent({
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
     const month = subMonths(currentMonth, 1)
-    setCurrentMonth(month)
     setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setCurrentMonth, setSelectedDay])
+  }, [currentMonth, setSelectedDay])
 
   const nextMonth = useCallback(() => {
     setMonthSlide('right')
     const month = addMonths(currentMonth, 1)
-    setCurrentMonth(month)
     setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setCurrentMonth, setSelectedDay])
+  }, [currentMonth, setSelectedDay])
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null)
     const month = startOfMonth(setYear(currentMonth, year))
-    setCurrentMonth(month)
     setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setCurrentMonth, setSelectedDay])
+  }, [currentMonth, setSelectedDay])
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null)
-    setCurrentMonth(startOfMonth(new Date()))
     setSelectedDay(todayKey)
-  }, [setCurrentMonth, setSelectedDay, todayKey])
+  }, [setSelectedDay, todayKey])
 
   const prevWeek = useCallback(() => {
     setWeekSlide('left')
@@ -521,8 +519,7 @@ function CalendarPageContent({
     [calendarEventsResult, profile.hasProAccess, selectedDay],
   )
 
-  const selectedDayLoggable = selectedDay !== null
-    && isCalendarDayLoggable(selectedDay, todayKey)
+  const selectedDayLoggable = isCalendarDayLoggable(selectedDay, todayKey)
 
   const selectedEntrySourceStates = useMemo(() => {
     const sourceStates = new Map<string, boolean>()

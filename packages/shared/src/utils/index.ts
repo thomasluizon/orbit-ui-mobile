@@ -50,7 +50,7 @@ export {
   type HabitDetailChildDateModel,
   type HabitStripModel,
 } from './habit-detail-flow'
-export { buildCalendarMonthModel, deriveCalendarStats } from './calendar-month'
+export { buildCalendarMonthModel, deriveCalendarStats, calendarMonthForDay } from './calendar-month'
 export {
   CALENDAR_MONTH_GRID_GEOMETRY,
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,

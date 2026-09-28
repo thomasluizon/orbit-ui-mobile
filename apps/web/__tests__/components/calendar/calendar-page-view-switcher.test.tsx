@@ -284,13 +284,19 @@ vi.mock('@/components/calendar/calendar-week-view', () => ({
   CalendarWeekView: ({
     onShowRecurringChange,
     onSelectDay,
+    onNextWeek,
+    columns,
   }: {
     onShowRecurringChange: (value: boolean) => void
     onSelectDay: (date: string) => void
+    onNextWeek: () => void
+    columns: { dateStr: string }[]
   }) => (
     <>
       <button type="button" data-testid="week-view" onClick={() => onShowRecurringChange(false)} />
       <button type="button" data-testid="week-day" onClick={() => onSelectDay('2026-09-12')} />
+      <button type="button" data-testid="next-week" onClick={onNextWeek} />
+      <button type="button" data-testid="visible-week-day" onClick={() => onSelectDay(columns[3]!.dateStr)} />
     </>
   ),
 }))
@@ -691,6 +697,19 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('week-day'))
     expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
     expect(calendarDayDetailProps.dateStr).toBe('2026-09-12')
+  })
+
+  it('returns from a later week to the month containing the selected day', () => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    for (let week = 0; week < 4; week += 1) fireEvent.click(screen.getByTestId('next-week'))
+    fireEvent.click(screen.getByTestId('visible-week-day'))
+    expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 9, 1))
+    expect(calendarGridProps.selectedDateStr).toBe('2026-10-08')
+    expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
   })
 
   it('shows only the range navigation in range view', () => {
