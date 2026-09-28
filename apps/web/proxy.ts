@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
   '/delete-account',
   '/turnstile-bridge',
   '/.well-known',
+  '/ingest',
 ]
 
 function isPublicPath(pathname: string): boolean {
@@ -68,6 +69,10 @@ async function applyRefreshedSession(
 }
 
 function createContentSecurityPolicy(nonce: string): string {
+  const uploadBucketOrigin = process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN
+    ? new URL(process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN).origin
+    : null
+  const apiOrigin = new URL(accountEventApiBase()).origin
   const developmentScriptSource =
     process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
@@ -76,9 +81,9 @@ function createContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
     "frame-src https://challenges.cloudflare.com",
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data: ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${new URL(accountEventApiBase()).origin}`,
+    `connect-src 'self' ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

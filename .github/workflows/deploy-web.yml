@@ -1,8 +1,8 @@
 # The production GitHub Environment must require the owner's review.
 # Repository secrets: RENDER_API_KEY, SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
 # Repository variables: RENDER_WEB_SERVICE_ID,
-# PRODUCTION_WEB_HOST, PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-# PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+# PRODUCTION_WEB_HOST, PRODUCTION_WEB_CUTOVER (set to true when the public host moves to Render),
+# PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID, PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 # PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE, PRODUCTION_NEXT_PUBLIC_SITE_URL,
 # PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY, PRODUCTION_NEXT_PUBLIC_SENTRY_DSN,
 # PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY.
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     outputs:
-      origin: ${{ steps.health.outputs.origin }}
+      smoke_base_url: ${{ steps.health.outputs.smoke_base_url }}
       source_sha: ${{ steps.source.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
@@ -74,6 +74,7 @@ jobs:
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com
       - name: Record digest
         run: echo "Pushed ${IMAGE}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy production digest
@@ -122,6 +123,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
           PRODUCTION_WEB_HOST: ${{ vars.PRODUCTION_WEB_HOST }}
+          PRODUCTION_WEB_CUTOVER: ${{ vars.PRODUCTION_WEB_CUTOVER }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           set -euo pipefail
@@ -130,16 +132,27 @@ jobs:
           origin="${origin%/}"
           curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${origin}/api/health" |
             jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha'
-          echo "origin=${origin}" >> "$GITHUB_OUTPUT"
-          public_commit=$(curl -fsS "https://${PRODUCTION_WEB_HOST}/api/health" 2>/dev/null |
-            jq -r '.commit // empty' 2>/dev/null || true)
-          if [ -n "$public_commit" ] && [ "$public_commit" != "$SOURCE_SHA" ]; then
-            echo "Public host reports ${public_commit}, expected ${SOURCE_SHA}" >&2
-            exit 1
-          fi
           deployment_url="$origin"
-          if [ "$public_commit" = "$SOURCE_SHA" ]; then deployment_url="https://${PRODUCTION_WEB_HOST}"; fi
+          smoke_base_url="$origin"
+          if [ "$PRODUCTION_WEB_CUTOVER" = true ]; then
+            public_url="https://${PRODUCTION_WEB_HOST}"
+            curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${public_url}/api/health" |
+              jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha'
+            deployment_url="$public_url"
+            smoke_base_url="$public_url"
+            echo "Verified public host ${public_url} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            public_commit=$(curl -fsS "https://${PRODUCTION_WEB_HOST}/api/health" 2>/dev/null |
+              jq -r '.commit // empty' 2>/dev/null || true)
+            if [ -n "$public_commit" ] && [ "$public_commit" != "$SOURCE_SHA" ]; then
+              echo "Public host reports ${public_commit}, expected ${SOURCE_SHA}" >&2
+              exit 1
+            fi
+            if [ "$public_commit" = "$SOURCE_SHA" ]; then deployment_url="https://${PRODUCTION_WEB_HOST}"; fi
+            echo "Public host was not verified because the cutover has not happened." >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
+          echo "smoke_base_url=${smoke_base_url}" >> "$GITHUB_OUTPUT"
           echo "Verified production ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
       - name: Record GitHub deployment
         env:
@@ -161,7 +174,7 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     env:
-      SMOKE_BASE_URL: ${{ needs.deploy.outputs.origin }}
+      SMOKE_BASE_URL: ${{ needs.deploy.outputs.smoke_base_url }}
       SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
       SMOKE_TEST_CODE: ${{ secrets.SMOKE_TEST_CODE }}
     steps:

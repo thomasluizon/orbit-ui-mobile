@@ -80,6 +80,7 @@ jobs:
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com
       - name: Smoke test container
         if: github.event_name == 'pull_request'
         run: |

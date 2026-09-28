@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   productionBrowserSourceMaps: false,
+  skipTrailingSlashRedirect: true,
   transpilePackages: ['@orbit/shared'],
   async rewrites() {
     return [
