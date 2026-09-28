@@ -1327,6 +1327,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+@media (forced-colors: active) {
+  [data-composer-input-row]:has(textarea:focus-visible) {
+    outline: none;
+  }
+}
+
 .orbit-notification-row:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -3px;
