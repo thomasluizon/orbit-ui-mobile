@@ -5,15 +5,17 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 
 const mocks = vi.hoisted(() => ({ serverAuthFetch: vi.fn() }))
 
+vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-account-id': 'account-a' }) }))
 vi.mock('@/lib/server-fetch', () => ({ serverAuthFetch: mocks.serverAuthFetch }))
 vi.mock('@/app/(app)/today-page-client', () => ({
-  TodayPageClient: ({ initialToday, initialHabits, initialProfile }: {
+  TodayPageClient: ({ initialToday, initialHabits, initialProfile, serverAccountId }: {
     initialToday: string
     initialHabits: { items: unknown[] } | null
     initialProfile: { name: string } | null
+    serverAccountId: string | null
   }) => (
     <div data-testid="today-server-result">
-      {`${initialToday}:${initialHabits?.items.length ?? 'missing'}:${initialProfile?.name ?? 'missing'}`}
+      {`${initialToday}:${initialHabits?.items.length ?? 'missing'}:${initialProfile?.name ?? 'missing'}:${serverAccountId ?? 'missing'}`}
     </div>
   ),
 }))
@@ -37,7 +39,7 @@ describe('Today server page', () => {
 
     const page = await TodayPage({ searchParams: Promise.resolve({ date: ['2026-08-20', '2026-08-21'] }) })
 
-    expect(renderToString(page)).toContain(`2026-08-29:0:${profileFixture.name}`)
+    expect(renderToString(page)).toContain(`2026-08-29:0:${profileFixture.name}:account-a`)
     expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
       '/api/habits?dateFrom=2026-08-20&dateTo=2026-08-20',
       { cache: 'no-store' },
@@ -54,6 +56,6 @@ describe('Today server page', () => {
 
     const page = await TodayPage({ searchParams: Promise.resolve({}) })
 
-    expect(renderToString(page)).toContain('2026-08-29:0:missing')
+    expect(renderToString(page)).toContain('2026-08-29:0:missing:account-a')
   })
 })

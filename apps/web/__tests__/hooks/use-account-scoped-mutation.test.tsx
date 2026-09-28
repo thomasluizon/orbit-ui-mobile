@@ -12,6 +12,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentEr
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => heldAccount.id,
+  useAuthStore: { getState: () => ({ isAuthenticated: heldAccount.id !== null }) },
 }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 

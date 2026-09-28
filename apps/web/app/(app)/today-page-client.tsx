@@ -18,11 +18,13 @@ import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { seedRenderedAccount } from '@/stores/auth-store'
 
 interface TodayPageClientProps {
   initialToday: string
   initialHabits: TodayInitialHabits | null
   initialProfile?: Profile | null
+  serverAccountId?: string | null
 }
 
 function TodayDayTransition({
@@ -79,7 +81,11 @@ export function TodayPageClient({
   initialToday,
   initialHabits,
   initialProfile,
+  serverAccountId,
 }: Readonly<TodayPageClientProps>) {
+  useEffect(() => {
+    if (serverAccountId !== null && serverAccountId !== undefined) seedRenderedAccount(serverAccountId)
+  }, [serverAccountId])
   const t = useTranslations()
   const accountGeneration = useAccountGeneration()
   const [seedAccountGeneration] = useState(accountGeneration)

@@ -13,7 +13,7 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const replace = vi.fn()
-const queryClientClear = vi.fn()
+const resetAccountQueries = vi.hoisted(() => vi.fn(async () => {}))
 const storage = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('react-i18next', async (importOriginal) => ({
@@ -29,7 +29,12 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ clear: queryClientClear }),
+  useQueryClient: () => ({}),
+}))
+
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries,
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -134,7 +139,7 @@ describe('FreshStartModal', () => {
       user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' },
     })
     replace.mockClear()
-    queryClientClear.mockClear()
+    resetAccountQueries.mockClear()
   })
   afterEach(() => {
     sheetTestControls.defer(false)
@@ -177,7 +182,7 @@ describe('FreshStartModal', () => {
     if (step === 'confirm') await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     await press(tree.root.findAll((node) => node.props.testID === 'button-ghost-md')[0]!)
     expect(onClose).toHaveBeenCalledTimes(1)
-    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(resetAccountQueries).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -212,7 +217,7 @@ await Promise.resolve()
     )
     expect(vi.mocked(offlineQueue.clear)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(offlineQueue.enqueue)).not.toHaveBeenCalled()
-    expect(queryClientClear).toHaveBeenCalled()
+    expect(resetAccountQueries).toHaveBeenCalled()
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
@@ -260,7 +265,7 @@ await Promise.resolve()
     })
 
     expect(storage.get(nextAccountKey)).toBe('1')
-    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(resetAccountQueries).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -292,7 +297,7 @@ await Promise.resolve()
 
       expect(getAccountGeneration()).toBe(startingGeneration)
       expect(storage.get(nextAccountKey)).toBe('1')
-      expect(queryClientClear).not.toHaveBeenCalled()
+      expect(resetAccountQueries).not.toHaveBeenCalled()
       expect(replace).not.toHaveBeenCalled()
       const offlineMutations = await import('@/lib/offline-mutations')
       const request = vi.mocked(offlineMutations.queueOrExecute).mock.calls[0]![0]

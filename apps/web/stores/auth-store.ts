@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
+import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import {
@@ -57,8 +58,8 @@ function startAccountScopedSession(nextAccountId: string | null, preserveAnonymo
  * key with no account in it, so one of them left behind is the next person reading, and
  * sending, text that is not theirs.
  */
-function forgetPreviousAccountContent(): void {
-  getQueryClient().clear()
+function forgetPreviousAccountContent(mode: 'signed-in' | 'signed-out' = 'signed-in'): void {
+  void resetAccountQueries(getQueryClient(), mode)
   useChatStore.getState().resetAccountScopedChat()
   forgetStoredSupportDraft()
   advanceAccountGeneration()
@@ -80,8 +81,7 @@ function endSessionLocally(): void {
   sessionReadVersion += 1
   clearAccountScopedSessionState()
   resetAccountScopedState(lastObservedAccountId, null)
-  forgetPreviousAccountContent()
-  getQueryClient().clear()
+  forgetPreviousAccountContent('signed-out')
   lastObservedAccountId = null
   sessionRecoveryUser = null
   useOnboardingDraftStore.getState().reset()
@@ -113,6 +113,12 @@ function adoptSessionAccount(userId: string | null): boolean {
  */
 export function getHeldAccountId(): string | null {
   return lastObservedAccountId
+}
+
+export function seedRenderedAccount(accountId: string): void {
+  if (lastObservedAccountId !== null) return
+  bindStepUpStateToAccount(accountId)
+  lastObservedAccountId = accountId
 }
 
 /**
