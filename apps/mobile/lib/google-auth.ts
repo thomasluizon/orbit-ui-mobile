@@ -1,42 +1,31 @@
 import * as WebBrowser from 'expo-web-browser'
-import type { Session } from '@supabase/supabase-js'
+import * as Crypto from 'expo-crypto'
 import { API } from '@orbit/shared/api'
-import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
+import { googleCodeAuthResponseSchema, type GoogleCodeAuthResponse } from '@orbit/shared/types/auth'
+import { buildGoogleAuthorizeUrl, bytesToHex } from '@orbit/shared/utils'
 import { apiClient } from './api-client'
-import { clearStoredAuthReturnUrl, createAuthReturnUrlAttempt,
-  isAuthReturnUrlAttemptCurrent, isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
+import {
+  createAuthReturnUrlAttempt,
+  clearStoredAuthReturnUrl,
+  isAuthReturnUrlAttemptCurrent,
+  isSafeReturnUrl,
+  storeAuthReturnUrl,
+} from './auth-flow'
 import {
   AUTH_CALLBACK_URL,
   extractGoogleAuthParams,
   clearPendingGoogleAuthSession,
+  hasPendingGoogleAuthSession,
+  getPendingGoogleAuthVerifier,
   markPendingGoogleAuthSession,
   setPendingGoogleAuthCallbackUrl,
 } from './google-auth-callback'
-import { getSupabaseClient } from './supabase'
 
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
   | { type: WebBrowser.WebBrowserResultType }
 
-async function exchangeGoogleSession(
-  session: Session,
-  language: string,
-  referralCode?: string,
-  providerToken?: string,
-  providerRefreshToken?: string,
-): Promise<BackendLoginResponse> {
-  return apiClient<BackendLoginResponse>(API.auth.google, {
-    method: 'POST',
-    body: JSON.stringify({
-      accessToken: session.access_token,
-      language,
-      googleAccessToken: providerToken ?? session.provider_token ?? undefined,
-      googleRefreshToken: providerRefreshToken ?? session.provider_refresh_token ?? undefined,
-      ...(referralCode ? { referralCode } : {}),
-    }),
-  })
-}
+let googleAuthStartInProgress = false
 
 export function getGoogleAuthRedirectUrl(): string {
   return AUTH_CALLBACK_URL
@@ -46,47 +35,21 @@ export async function completeGoogleAuthFromUrl(
   rawUrl: string,
   language: string,
   referralCode?: string,
-): Promise<BackendLoginResponse> {
+): Promise<GoogleCodeAuthResponse> {
   const params = extractGoogleAuthParams(rawUrl)
-
-  if (params.error_description || params.error) {
-    throw new Error(params.error_description ?? params.error ?? 'Authentication failed')
-  }
-
-  if (params.token && params.userId && params.name && params.email) {
-    return {
-      token: params.token,
-      refreshToken: params.refreshToken ?? null,
-      userId: params.userId,
-      name: params.name,
-      email: params.email,
-    }
-  }
-
-  if (!params.access_token || !params.refresh_token) {
-    throw new Error('Authentication failed')
-  }
-
-  const { data, error } = await getSupabaseClient().auth.setSession({
-    access_token: params.access_token,
-    refresh_token: params.refresh_token,
-  })
-
-  if (error || !data.session) {
-    throw new Error(error?.message ?? 'Authentication failed')
-  }
-
-  try {
-    return await exchangeGoogleSession(
-      data.session,
+  if (params.error || !params.code || !params.state) throw new Error('Authentication failed')
+  const verifier = getPendingGoogleAuthVerifier(params.state)
+  if (!verifier) throw new Error('Invalid OAuth state')
+  return apiClient<GoogleCodeAuthResponse>(API.auth.googleCode, {
+    method: 'POST',
+    body: JSON.stringify({
+      code: params.code,
+      codeVerifier: verifier,
+      redirectUri: AUTH_CALLBACK_URL,
       language,
-      referralCode,
-      params.provider_token,
-      params.provider_refresh_token,
-    )
-  } finally {
-    await getSupabaseClient().auth.signOut().catch(() => {})
-  }
+      ...(referralCode ? { referralCode } : {}),
+    }),
+  }, googleCodeAuthResponseSchema)
 }
 
 export async function startMobileGoogleAuth({
@@ -96,60 +59,62 @@ export async function startMobileGoogleAuth({
   returnUrl?: string
   forceConsent?: boolean
 }>): Promise<MobileGoogleAuthResult> {
-  const attemptId = createAuthReturnUrlAttempt()
-  if (returnUrl && isSafeReturnUrl(returnUrl)) {
-    await storeAuthReturnUrl(returnUrl, attemptId)
-  } else {
-    await clearStoredAuthReturnUrl(attemptId)
+  if (googleAuthStartInProgress || hasPendingGoogleAuthSession()) {
+    throw new Error('Authentication in progress')
   }
-  if (!isAuthReturnUrlAttemptCurrent(attemptId)) return { type: WebBrowser.WebBrowserResultType.CANCEL }
-
-  await markPendingGoogleAuthSession(attemptId)
-
+  googleAuthStartInProgress = true
   try {
-    const redirectTo = `${getGoogleAuthRedirectUrl()}?authAttempt=${attemptId}`
-    const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
-      provider: 'google',
-      options: buildGoogleCalendarOAuthOptions({
-        redirectTo,
-        skipBrowserRedirect: true,
-        forceConsent,
-      }),
-    })
-
-    if (error || !data.url) {
-      throw new Error(error?.message ?? 'Authentication failed')
+    const returnUrlAttemptId = createAuthReturnUrlAttempt()
+    if (returnUrl && isSafeReturnUrl(returnUrl)) {
+      await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
+    } else {
+      await clearStoredAuthReturnUrl(returnUrlAttemptId)
     }
-
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return { type: WebBrowser.WebBrowserResultType.CANCEL }
-
-    if (result.type !== 'success') {
-      await clearPendingGoogleAuthSession(attemptId)
-      return { type: result.type }
-    }
-
-    if (!result.url) {
-      await clearPendingGoogleAuthSession(attemptId)
-      return { type: WebBrowser.WebBrowserResultType.DISMISS }
-    }
-
-    const params = extractGoogleAuthParams(result.url)
-    if (params.error === 'access_denied') {
-      await clearPendingGoogleAuthSession(attemptId)
+    if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
 
-    if (!await setPendingGoogleAuthCallbackUrl(result.url, attemptId)) {
-      await clearPendingGoogleAuthSession(attemptId)
-      return { type: WebBrowser.WebBrowserResultType.DISMISS }
+    const configuredClientId: unknown = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID
+    const clientId = typeof configuredClientId === 'string' ? configuredClientId : undefined
+    if (!clientId) throw new Error('Google sign-in unavailable')
+    const verifier = bytesToHex(await Crypto.getRandomBytesAsync(32))
+    const state = bytesToHex(await Crypto.getRandomBytesAsync(32))
+    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
+      encoding: Crypto.CryptoEncoding.BASE64,
+    })
+    let paddingStart = digest.length
+    while (paddingStart > 0 && digest[paddingStart - 1] === '=') paddingStart -= 1
+    const codeChallenge = digest.slice(0, paddingStart).replaceAll('+', '-').replaceAll('/', '_')
+    await markPendingGoogleAuthSession(returnUrlAttemptId, verifier, state)
+    const authorizeUrl = buildGoogleAuthorizeUrl({
+      clientId, redirectUri: AUTH_CALLBACK_URL, state, codeChallenge,
+      purpose: forceConsent ? 'calendar' : 'signin',
+    })
+
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, AUTH_CALLBACK_URL)
+      if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+        return { type: WebBrowser.WebBrowserResultType.CANCEL }
+      }
+      if (result.type !== 'success') {
+        await clearPendingGoogleAuthSession(returnUrlAttemptId)
+        return { type: result.type }
+      }
+      if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+        await clearPendingGoogleAuthSession(returnUrlAttemptId)
+        throw new Error('Invalid OAuth state')
+      }
+      const params = extractGoogleAuthParams(result.url)
+      if (params.error || !params.code) {
+        await clearPendingGoogleAuthSession(returnUrlAttemptId)
+        throw new Error('Authentication failed')
+      }
+      return { type: 'success', url: result.url }
+    } catch (error: unknown) {
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
+      throw error
     }
-    return {
-      type: 'success',
-      url: result.url,
-    }
-  } catch (error: unknown) {
-    await clearPendingGoogleAuthSession(attemptId)
-    throw error
+  } finally {
+    googleAuthStartInProgress = false
   }
 }

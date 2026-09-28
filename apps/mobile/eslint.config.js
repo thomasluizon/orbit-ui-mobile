@@ -30,7 +30,6 @@ const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-mo
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
-const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs")
 
 const maxButtonWordControls = [
   { name: "button", labelProps: ["children"] },
@@ -128,7 +127,6 @@ module.exports = defineConfig([
           "icon-size-grid": iconSizeGrid,
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "no-oklch-outside-web-tokens": noOklch,
-          "mobile-supabase-lazy": mobileSupabaseLazy,
           "max-button-words": maxButtonWords,
         },
       },
@@ -223,10 +221,6 @@ module.exports = defineConfig([
       "**/*-no-data-state.tsx",
     ],
     rules: { "local/no-fullbleed-button": "off" },
-  },
-  {
-    files: ["**/supabase.ts"],
-    rules: { "local/mobile-supabase-lazy": "error" },
   },
   {
     plugins: { "react-hooks": reactHooks },

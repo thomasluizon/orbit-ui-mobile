@@ -2,15 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
-import { buildGoogleCalendarOAuthOptions, isValidEmail, isValidReferralCode, isValidVerificationCode,
+import { isValidEmail, isValidReferralCode, isValidVerificationCode,
   deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { getSupabaseClient } from '@/lib/supabase'
-import { clearGoogleAuthStarted, markGoogleAuthStarted } from '@/lib/google-auth-session'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import { fetchAuthEndpoint, getCookieValue, handleVerifySuccess, isOfflinePreflight, resolveLoginErrorState } from './login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -36,7 +34,9 @@ export function useLoginFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorKey, setErrorKey] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<string | null>(
+    searchParams.get('googleError') === '1' ? 'auth.errors.googleError' : null,
+  )
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
   const [lockCountdown, setLockCountdown] = useState(0)
@@ -206,23 +206,19 @@ export function useLoginFlow() {
     entry.resetCodeDigits()
   }
 
-  async function signInWithGoogle() {
+  function signInWithGoogle() {
     if (!available()) return
     busy.current = true
     setIsGoogleLoading(true)
     setErrorKey(null)
     try {
-      const attemptId = markGoogleAuthStarted()
-      const { error } = await getSupabaseClient().auth.signInWithOAuth({
-        provider: 'google',
-        options: buildGoogleCalendarOAuthOptions({ redirectTo: `${globalThis.location.origin}/auth-callback?authAttempt=${attemptId}` }),
-      })
-      if (!error) return
-      clearGoogleAuthStarted()
+      sessionStorage.setItem('auth_return_url', getReturnUrl())
+      globalThis.location.assign('/api/auth/google/start?purpose=signin')
+    } catch {
       setErrorKey('auth.errors.googleError')
-    } catch { clearGoogleAuthStarted(); setErrorKey('auth.errors.googleError') }
-    busy.current = false
-    setIsGoogleLoading(false)
+      busy.current = false
+      setIsGoogleLoading(false)
+    }
   }
 
   async function continueAccount() {

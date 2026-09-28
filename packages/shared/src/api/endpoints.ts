@@ -7,6 +7,7 @@ export const API = {
     sendCode: '/api/auth/send-code',
     verifyCode: '/api/auth/verify-code',
     google: '/api/auth/google',
+    googleCode: '/api/auth/google/code',
     refresh: '/api/auth/refresh',
     logout: '/api/auth/logout',
     requestDeletion: '/api/auth/request-deletion',

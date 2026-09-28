@@ -54,8 +54,8 @@ describe('upload contract', () => {
     it('parses a well-formed response', () => {
       const parsed = SignUploadResponseSchema.parse({
         key: 'user/file.png',
-        signedUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/uploads/user/file.png?token=jwt',
-        publicUrl: 'https://project.supabase.co/storage/v1/object/public/uploads/user/file.png',
+        signedUrl: 'https://uploads.example.com/storage/v1/object/upload/sign/uploads/user/file.png?token=jwt',
+        publicUrl: 'https://uploads.example.com/storage/v1/object/public/uploads/user/file.png',
       })
       expect(parsed.key).toBe('user/file.png')
     })
@@ -64,7 +64,7 @@ describe('upload contract', () => {
       const parsed = SignUploadResponseSchema.safeParse({
         key: 'user/file.png',
         signedUrl: 'not-a-url',
-        publicUrl: 'https://project.supabase.co/x',
+        publicUrl: 'https://uploads.example.com/x',
       })
       expect(parsed.success).toBe(false)
     })

@@ -59,7 +59,6 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 
 describe('proxy', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
     vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
@@ -155,7 +154,7 @@ describe('proxy', () => {
 
     for (const sources of [imageSources, connectionSources]) {
       expect(sources).toContain(bucketOrigin)
-      expect(sources).toContain('https://test.supabase.co')
+      expect(sources.some((source) => source.includes('supabase'))).toBe(false)
       expect(sources).not.toContain(otherBucketOrigin)
     }
     expect(imageSources).toContain('https://api.example.test')
@@ -195,8 +194,7 @@ describe('proxy', () => {
     expect(await ticketResponse.json()).toMatchObject({ apiBase: 'https://api.useorbit.org' })
   })
 
-  it('allows local Supabase connections and development scripts in development', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321')
+  it('allows development scripts without an external auth origin', async () => {
     vi.stubEnv('NODE_ENV', 'development')
 
     const response = await proxy(createRequest('/api/profile'))
@@ -205,7 +203,7 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).toContain("script-src 'self'")
     expect(contentSecurityPolicy).toContain("'unsafe-eval'")
     expect(contentSecurityPolicy).toContain(
-      "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://api.useorbit.org",
+      "connect-src 'self' https://api.useorbit.org",
     )
   })
 
@@ -346,5 +344,19 @@ describe('proxy', () => {
     expect(NextResponse.redirect).toHaveBeenCalled()
     const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
     expect(redirectUrl.pathname).toBe('/')
+  })
+
+  it('shows a Google callback error on login while an existing session remains active', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: 'valid-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const response = await proxy(createRequest('/login?googleError=1', {
+      cookies: { auth_token: 'valid-token' },
+    }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 })

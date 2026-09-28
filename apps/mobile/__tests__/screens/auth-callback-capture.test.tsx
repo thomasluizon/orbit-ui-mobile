@@ -25,8 +25,8 @@ const mocks = vi.hoisted(() => ({
   coldStart: false,
   storedReturnUrl: null as string | null,
   complete: vi.fn(),
-  signInWithOAuth: vi.fn(),
   openAuthSessionAsync: vi.fn(),
+  secureStore: new Map<string, string>(),
 }))
 
 vi.mock('@/components/auth/login-content', () => ({
@@ -87,8 +87,17 @@ vi.mock('@/lib/google-auth', async (importActual) => ({
   completeGoogleAuthFromUrl: mocks.complete,
 }))
 
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: (key: string) => Promise.resolve(mocks.secureStore.get(key) ?? null),
+  setItemAsync: (key: string, value: string) => { mocks.secureStore.set(key, value); return Promise.resolve() },
+  deleteItemAsync: (key: string) => { mocks.secureStore.delete(key); return Promise.resolve() },
+}))
+
+vi.mock('expo-crypto', () => ({
+  getRandomBytesAsync: () => Promise.resolve(new Uint8Array(32).fill(1)),
+  digestStringAsync: () => Promise.resolve('challenge='),
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  CryptoEncoding: { BASE64: 'base64' },
 }))
 
 vi.mock('expo-web-browser', () => ({
@@ -129,8 +138,9 @@ describe('AuthCallbackScreen capture retention', () => {
     mocks.login.mockReset().mockResolvedValue(() => true)
     mocks.complete.mockReset().mockResolvedValue({ token: 'orbit-token', refreshToken: 'orbit-refresh',
       userId: 'account-a', name: 'A', email: 'a@example.com' })
-    mocks.signInWithOAuth.mockReset().mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
     mocks.openAuthSessionAsync.mockReset()
+    mocks.secureStore.clear()
+    vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'client-id')
     mocks.rawUrl = null
     mocks.sessionCallbackUrl = null
     mocks.sessionReturnUrlAttemptId = null
@@ -145,6 +155,7 @@ describe('AuthCallbackScreen capture retention', () => {
       for (const tree of renderedTrees.splice(0)) tree.unmount()
     })
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   it('keeps the payload-free callback active through the capture window', async () => {
@@ -176,23 +187,38 @@ describe('AuthCallbackScreen capture retention', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/login')
   })
 
-  it('refuses a token-bearing deep link without a pending Google auth attempt', async () => {
+  it('refuses a code-bearing deep link without a pending Google auth attempt', async () => {
     mocks.retainEmptyCallback = false
-    mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=account-a&refresh_token=old-refresh'
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback?code=account-a&state=unknown'
+    let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      renderScreen(<AuthCallbackScreen />)
+      tree = renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
     expect(mocks.complete).not.toHaveBeenCalled()
-    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(251) })
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
+    expect(JSON.stringify(tree!.toJSON())).toContain('failed')
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('shows the callback error without storing a session when code exchange fails', async () => {
+    const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
+    mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
+    mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    mocks.complete.mockRejectedValue(new Error('API rejected the code'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = renderScreen(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+    expect(mocks.login).not.toHaveBeenCalled()
+    expect(JSON.stringify(tree!.toJSON())).toContain('failed')
   })
 
   it('accepts the callback returned by the pending Google auth session', async () => {
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
-    mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
+    mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
     await TestRenderer.act(async () => {
       renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
@@ -204,7 +230,7 @@ describe('AuthCallbackScreen capture retention', () => {
 
   it('refuses an unrelated deep link while this process has a pending Google auth attempt', async () => {
     mocks.isPending = true
-    mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
     await TestRenderer.act(async () => {
       renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
@@ -221,8 +247,8 @@ describe('AuthCallbackScreen capture retention', () => {
     const { markPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     const attemptId = createAuthReturnUrlAttempt()
-    await markPendingGoogleAuthSession(attemptId)
-    mocks.rawUrl = `https://app.useorbit.org/auth-callback?authAttempt=${attemptId}#access_token=fresh&refresh_token=fresh-refresh`
+    await markPendingGoogleAuthSession(attemptId, 'verifier', 'expected')
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
     mocks.useActualSession = true
     mocks.coldStart = true
     mocks.storedReturnUrl = returnUrl
@@ -251,7 +277,8 @@ describe('AuthCallbackScreen capture retention', () => {
     const authResult = startMobileGoogleAuth({ returnUrl })
     await vi.waitFor(() => expect(mocks.openAuthSessionAsync).toHaveBeenCalledOnce())
     const redirectTo = mocks.openAuthSessionAsync.mock.calls[0]?.[1] as string
-    const callbackUrl = `${redirectTo}#access_token=fresh&refresh_token=fresh-refresh`
+    const authorizeUrl = mocks.openAuthSessionAsync.mock.calls[0]?.[0] as string
+    const callbackUrl = `${redirectTo}?code=fresh&state=${new URL(authorizeUrl).searchParams.get('state')}`
     mocks.rawUrl = callbackUrl
 
     await TestRenderer.act(async () => {

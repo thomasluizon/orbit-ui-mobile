@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   confirmSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
   recoverSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
-  signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
+  assign: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -43,10 +43,6 @@ vi.mock('@/stores/auth-store', () => ({
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
-}))
-
 vi.mock('@/lib/profile-presentation', () => ({
   hydrateProfilePresentation: vi.fn().mockResolvedValue(null),
 }))
@@ -69,7 +65,6 @@ const loginResponse = {
 }
 
 const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
-vi.stubGlobal('fetch', fetchMock)
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -125,6 +120,7 @@ function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: st
 }
 
 beforeEach(() => {
+  vi.stubGlobal('fetch', fetchMock)
   vi.clearAllMocks()
   mocks.search = ''
   mocks.isOnline = true
@@ -136,24 +132,21 @@ beforeEach(() => {
 })
 
 describe('Google sign in', () => {
-  it('binds the OAuth redirect to the attempt marked in this tab', async () => {
+  it('starts through the BFF and preserves the destination', () => {
+    vi.stubGlobal('location', { assign: mocks.assign })
     const { result } = renderHook(() => useLoginFlow())
 
-    await act(async () => { await result.current.signInWithGoogle() })
+    act(() => { result.current.signInWithGoogle() })
 
-    const marker = sessionStorage.getItem('orbit_google_auth_started_at')
-    expect(marker).not.toBeNull()
-    const attemptId = marker?.split(':')[1]
-    const oauthArgs = mocks.signInWithOAuth.mock.calls[0]?.[0] as { options: { redirectTo: string } }
-    const redirect = new URL(oauthArgs.options.redirectTo)
-    expect(`${redirect.origin}${redirect.pathname}`).toBe(`${globalThis.location.origin}/auth-callback`)
-    expect(redirect.searchParams.get('authAttempt')).toBe(attemptId)
+    expect(mocks.assign).toHaveBeenCalledWith('/api/auth/google/start?purpose=signin')
+    expect(sessionStorage.getItem('auth_return_url')).toBe('/')
   })
 })
 
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 
 it('uses a fresh token for web send, resend, and verify requests', async () => {

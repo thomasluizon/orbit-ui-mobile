@@ -1,13 +1,10 @@
 'use client'
 
-import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useEffect, useState, useRef, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import type { Session } from '@supabase/supabase-js'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
-import { getSupabaseClient } from '@/lib/supabase'
-import { consumeRecentGoogleAuthStart } from '@/lib/google-auth-session'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { LoginContent } from '../login/login-content'
 import { getCookieValue, handleVerifySuccess } from '../login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -19,62 +16,48 @@ export default function AuthCallbackPage() {
 function AuthCallbackContent() {
   const locale = useLocale()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const processing = useRef(false)
-  const completed = useRef(false)
-  const failed = useRef(false)
-  const recentGoogleAuthStart = useRef<boolean | null>(null)
+  const processed = useRef(false)
 
   useEffect(() => {
-    const query = new URLSearchParams(globalThis.location.search)
-    const hash = new URLSearchParams(globalThis.location.hash.substring(1))
-    const redirectAccessToken = hash.get('access_token')
-    recentGoogleAuthStart.current ??= consumeRecentGoogleAuthStart(query.get('authAttempt'))
-    if (!recentGoogleAuthStart.current || !redirectAccessToken) {
-      router.replace('/login')
+    if (processed.current) return
+    processed.current = true
+    const params = new URLSearchParams(globalThis.location.search)
+    const code = params.get('code')
+    const oauthState = params.get('state')
+    if (params.has('error') || !code || !oauthState) {
+      if (oauthState) {
+        void fetch(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
+          .then(() => setState('failed'), () => setState('failed'))
+      } else queueMicrotask(() => setState('failed'))
       return
     }
-    const supabase = getSupabaseClient()
-    async function exchange(session: Session) {
-      try {
-        const referralCode = getCookieValue('referral_code')
-        const response = await withCookieSettingLogin(() => fetchWithThrottle('/api/auth/google', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accessToken: session.access_token, language: locale,
-            googleAccessToken: hash.get('provider_token') ?? query.get('provider_token') ?? session.provider_token ?? undefined,
-            googleRefreshToken: hash.get('provider_refresh_token') ?? query.get('provider_refresh_token') ?? session.provider_refresh_token ?? undefined,
-            ...(referralCode ? { referralCode } : {}),
-          }),
-        }))
-        if (!response.ok) { failed.current = true; setState('failed'); return }
-        const loginResponse = await response.json() as LoginResponse
-        completed.current = true
-        if (loginResponse.wasReactivated) { setAccountBack(loginResponse); setState('account'); return }
-        const storedReturn = sessionStorage.getItem('auth_return_url')
-        sessionStorage.removeItem('auth_return_url')
-        const url = searchParams.get('returnUrl') ?? storedReturn
-        const safeUrl = url && url.startsWith('/') && !url.startsWith('//') ? url : '/'
-        await handleVerifySuccess(loginResponse, referralCode, setAuth, router, () => safeUrl)
-      } catch { failed.current = true; setState('failed') }
+
+    async function complete() {
+      const generation = getAccountGeneration()
+      const referralCode = getCookieValue('referral_code')
+      const response = await withCookieSettingLogin(() => fetch('/api/auth/google/code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, state: oauthState, language: locale,
+          ...(referralCode ? { referralCode } : {}) }),
+      }))
+      if (!response.ok || generation !== getAccountGeneration()) throw new Error('Google sign-in failed')
+      const loginResponse = await response.json() as LoginResponse
+      if (loginResponse.wasReactivated) {
+        setAccountBack(loginResponse)
+        setState('account')
+        return
+      }
+      const storedReturn = sessionStorage.getItem('auth_return_url')
+      sessionStorage.removeItem('auth_return_url')
+      const safeUrl = storedReturn?.startsWith('/') && !storedReturn.startsWith('//') ? storedReturn : '/'
+      await handleVerifySuccess(loginResponse, referralCode, setAuth, router, () => safeUrl)
     }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION')
-        || !recentGoogleAuthStart.current || !redirectAccessToken
-        || session?.access_token !== redirectAccessToken || processing.current) return
-      processing.current = true
-      void exchange(session)
-    })
-    const timeout = setTimeout(() => {
-      if (!completed.current && !failed.current) { failed.current = true; setState('failed') }
-      subscription.unsubscribe()
-    }, 15_000)
-    return () => { clearTimeout(timeout); subscription.unsubscribe() }
-  }, [locale, router, searchParams, setAuth])
+    void complete().catch(() => setState('failed'))
+  }, [locale, router, setAuth])
 
   async function continueAccount() {
     if (!accountBack || loading) return

@@ -40,7 +40,7 @@ function getOrCreateReturnUrlAttempt(
 
 export function useLoginFlow(isAuthCallback = false) {
   const { t, i18n } = useTranslation()
-  const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string }>()
+  const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string; googleError?: string }>()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
@@ -62,7 +62,9 @@ export function useLoginFlow(isAuthCallback = false) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorKey, setErrorKey] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<string | null>(
+    params.googleError === '1' ? 'auth.errors.googleError' : null,
+  )
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
@@ -259,6 +261,7 @@ export function useLoginFlow(isAuthCallback = false) {
     try {
       const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
       if (result.type === 'success') router.replace('/auth-callback')
+      else setErrorKey('auth.errors.googleError')
     } catch { setErrorKey('auth.errors.googleError') }
     finally { busy.current = false; setIsGoogleLoading(false) }
   }
