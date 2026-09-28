@@ -109,6 +109,13 @@ describe('DeleteAccountModal', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('cancels before requesting an account deletion code', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+    expect(mocks.requestDeletion).not.toHaveBeenCalled()
+  })
+
   it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
     render(
       <DeleteAccountModal

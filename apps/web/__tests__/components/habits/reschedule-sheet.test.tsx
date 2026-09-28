@@ -41,6 +41,16 @@ describe('RescheduleSheet', () => {
     expect(screen.getByRole('button', { name: primary })).toHaveStyle({ width: '100%' })
     expect(screen.getByRole('button', { name: 'habits.reschedule.dismiss' })).toHaveStyle({ width: '100%' })
   })
+  it.each(['free', 'error', 'accept'] as const)('dismisses the %s footer without applying or navigating', (state) => {
+    if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') h.reschedule.error = new Error('unavailable')
+    const onOpenChange = vi.fn()
+    render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(h.mutateAsync).not.toHaveBeenCalled()
+    expect(h.push).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     h.push.mockReset()
     h.mutateAsync.mockReset().mockResolvedValue(undefined)

@@ -116,6 +116,15 @@ describe('DeleteAccountModal', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
+  it('cancels before requesting an account deletion code', async () => {
+    const tree = await renderModal()
+    TestRenderer.act(() => {
+      button(tree, 'common.cancel').props.onPress()
+    })
+    expect(mocks.onClose).toHaveBeenCalledTimes(1)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
   it('shows the Pro deletion upper bound without tying it to the plan ending', async () => {
     const tree = await renderModal(createMockProfile({
       hasProAccess: true,

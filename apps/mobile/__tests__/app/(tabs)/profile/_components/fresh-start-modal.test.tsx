@@ -171,6 +171,16 @@ describe('FreshStartModal', () => {
     expect(width('common.cancel')).toBe('100%')
   })
 
+  it.each(['choose', 'confirm'] as const)('cancels from the %s step without resetting data', async (step) => {
+    const onClose = vi.fn()
+    const tree = await render(<FreshStartModal open onClose={onClose} />)
+    if (step === 'confirm') await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    await press(tree.root.findAll((node) => node.props.testID === 'button-ghost-md')[0]!)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+  })
+
   it('keeps the confirm button disabled until ORBIT is typed', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)

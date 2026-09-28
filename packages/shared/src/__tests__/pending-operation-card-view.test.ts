@@ -42,7 +42,7 @@ it('labels the pending operation from its capability and risk', () => {
 })
 
 it('uses verb-first consequence labels for known confirmation capabilities in both locales', () => {
-  const capabilities = ['habits.delete', 'habits.bulk.write', 'habits.bulk.delete', 'goals.delete', 'tags.delete', 'notifications.delete', 'calendar.sync.manage', 'subscriptions.manage', 'api-keys.manage', 'sync.write', 'account.manage']
+  const capabilities = ['habits.delete', 'habits.bulk.write', 'habits.bulk.delete', 'goals.delete', 'tags.delete', 'notifications.delete', 'user-facts.delete', 'calendar.sync.manage', 'subscriptions.manage', 'api-keys.manage', 'sync.write', 'account.manage']
   for (const messages of [en, ptBR]) {
     for (const capabilityId of capabilities) {
       const actionKey = capabilityId.replaceAll('.', '-') as keyof typeof messages.chat.pendingOp.action
@@ -53,6 +53,29 @@ it('uses verb-first consequence labels for known confirmation capabilities in bo
         .toBe(`chat.pendingOp.action.${actionKey}`)
     }
   }
+})
+
+it('names deletion of saved AI memory on the confirmation in both locales', () => {
+  for (const [messages, expected] of [[en, 'Delete memory'], [ptBR, 'Excluir memória']] as const) {
+    const pendingOperation = makePendingAgentOperation({ capabilityId: 'user-facts.delete' })
+    const translate = (key: string) => key.startsWith('chat.pendingOp.action.')
+      ? (messages.chat.pendingOp.action as Record<string, string>)[key.slice('chat.pendingOp.action.'.length)] ?? key
+      : key
+    const localized = buildPendingOperationCardLabels(pendingOperation, translate)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation,
+    })
+    expect(record.confirm?.confirmLabel).toBe(expected)
+  }
+})
+
+it('keeps generic confirmation copy for an unknown capability', () => {
+  const localized = buildPendingOperationCardLabels(
+    makePendingAgentOperation({ capabilityId: 'unknown.capability' }),
+    (key) => key,
+  )
+  expect(localized.confirm).toBe('chat.pendingOp.action.applyChanges')
 })
 
 function createCard(): PendingOperationCardActions {

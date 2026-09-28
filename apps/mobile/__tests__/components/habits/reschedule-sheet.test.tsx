@@ -79,6 +79,16 @@ describe('RescheduleSheet (mobile)', () => {
       expect(Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width).toBe('100%')
     }
   })
+  it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
+    if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') mockReschedule.error = new Error('unavailable')
+    const onOpenChange = vi.fn()
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    TestRenderer.act(() => pressButton(tree.root, 'habits.reschedule.dismiss'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }
