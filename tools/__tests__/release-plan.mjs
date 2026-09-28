@@ -9,7 +9,7 @@ const SECOND = "b".repeat(40)
 const IDS = { api: "srv-aaaaaaaaaaaaaaaaaaaa", web: "srv-bbbbbbbbbbbbbbbbbbbb" }
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi = false } = {}) {
+function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi = false, androidRuns = null } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -28,12 +28,17 @@ function clientFor({ ahead = [], noDeployment = [], failedNewest = [], noLiveApi
       return commit
     }
     if (path.includes("/actions/workflows/android-release.yml/runs")) {
-      const run = clone(fixture.run)
-      run.head_sha = FIRST
-      run.head_branch = "main"
-      run.status = "completed"
-      run.conclusion = "success"
-      return { total_count: 1, workflow_runs: [run] }
+      const branch = path.includes("branch=redesign%2Fmain") ? "redesign/main" : "main"
+      const records = androidRuns ?? [{ track: branch === "main" ? "open" : "internal", sha: FIRST }]
+      return { total_count: records.length, workflow_runs: records.map(({ track, sha }) => {
+        const run = clone(fixture.run)
+        run.display_title = `Android Release 1.0.0 (1) to ${track} on ${branch}`
+        run.head_sha = sha
+        run.head_branch = branch
+        run.status = "completed"
+        run.conclusion = "success"
+        return run
+      }) }
     }
     if (path.includes("/deployments/") && path.includes("/statuses")) {
       const status = clone(fixture.status)
@@ -90,6 +95,12 @@ export async function cases() {
   const all = await planRelease(clientFor({ ahead: ["api", "web", "landing", "android"] }))
   T("release plan selects all changed services", all.services.every((service) => service.needsRelease && service.commits.length === 1))
 
+  const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidRuns: [
+    { track: "open", sha: SECOND }, { track: "production", sha: FIRST },
+  ] }), "production", {}, "production")
+  T("an open upload does not mark production current", productionTrack.services[3].needsRelease &&
+    productionTrack.services[3].deployedSha === FIRST)
+
   const first = await planRelease(clientFor({ ahead: ["api"], noDeployment: ["api"] }))
   T("first production deployment has no baseline", first.services[0].needsRelease && first.services[0].noBaseline && first.services[0].deployedSha === null)
 
@@ -101,8 +112,20 @@ export async function cases() {
   const staging = clientFor({ ahead: ["api", "web", "android"] })
   const stagingPlan = await planRelease(staging, "staging", IDS)
   T("staging compares live Render API and web baselines", stagingPlan.services.every((service) => service.needsRelease))
-  T("staging reads the Render service URL and web health", staging.calls.includes(`https://example.invalid/api/health`))
+  const expectedHealth = new URL("https://example.invalid/api/health")
+  T("staging reads the Render service URL and web health", staging.calls.some((value) => {
+    try {
+      const actual = new URL(value)
+      return actual.origin === expectedHealth.origin && actual.pathname === expectedHealth.pathname
+    } catch { return false }
+  }))
   T("staging never reads GitHub deployments for API or web", !staging.calls.some((path) => path.includes("/deployments?")))
+
+  const closedTrack = await planRelease(clientFor({ ahead: ["android"], androidRuns: [
+    { track: "internal", sha: SECOND }, { track: "closed", sha: FIRST },
+  ] }), "staging", IDS, "closed")
+  T("an internal upload does not mark closed current", closedTrack.services[2].needsRelease &&
+    closedTrack.services[2].deployedSha === FIRST)
 
   const noApi = await planRelease(clientFor({ noLiveApi: true }), "staging", IDS)
   T("staging without a live API deploy reports first deploy", noApi.services[0].noBaseline && noApi.services[0].deployedSha === null)

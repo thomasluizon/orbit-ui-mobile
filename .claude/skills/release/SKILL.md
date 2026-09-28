@@ -11,7 +11,7 @@ Only run a release when invoked. The plan is read-only. Never dispatch a workflo
 
 ## Plan
 
-Run `node tools/release-plan.mjs` for production, or `node tools/release-plan.mjs --environment staging`. Read the JSON and show each service's branch, deployed SHA or `no staging baseline` / `first production deploy`, head SHA, and every listed commit. Preserve the tool's API, web, landing, Android order. An empty plan ends here with no workflow dispatch.
+Run `node tools/release-plan.mjs` for production on the default `open` Android track, or `node tools/release-plan.mjs --environment staging` for staging on the default `internal` track. For an explicit `production` or `closed` Android track, add `--track production` or `--track closed` respectively. Read the JSON and show each service's branch, deployed SHA or `no staging baseline` / `first production deploy`, head SHA, and every listed commit. Show Android's selected track and its own baseline. Preserve the tool's API, web, landing, Android order. An empty plan ends here with no workflow dispatch.
 
 The staging API baseline comes from the current live Render deploy. The staging web baseline comes from `/api/health` on the URL returned by its Render service record. Their service IDs are the UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID`. A missing web service or live deploy is a first deploy, not proof that staging is current. Do not use a custom staging hostname for these checks. If a comparison diverges or a remote read fails, stop and report the error; do not guess a baseline.
 
@@ -19,7 +19,7 @@ The staging API baseline comes from the current live Render deploy. The staging 
 
 For each changed service, in plan order:
 
-1. Re-run the production plan just before dispatch and use its current head SHA. If an earlier release failed, stop; do not dispatch later services. Confirm the selected SHA still equals `main` in that repository. For API, web, and landing, dispatch the selected commit through their `ref` input while the workflow itself runs from `main`:
+1. Re-run the production plan with the same Android track just before dispatch and use its current head SHA. If an earlier release failed, stop; do not dispatch later services. Confirm the selected SHA still equals `main` in that repository. For API, web, and landing, dispatch the selected commit through their `ref` input while the workflow itself runs from `main`:
 
    ```text
    gh workflow run <workflow> --repo thomasluizon/<repo> --ref main -f ref=<planned SHA>
@@ -36,6 +36,6 @@ Production deploys pause for the owner's `production` environment approval. Tell
 
 Staging API and web deploy automatically from `redesign/main`. Report their gaps from the plan and let those deployments finish through their existing paths. There is no staging deploy workflow to dispatch. A missing web baseline does not block an Android build, but an API gap does: wait until the staging API's live Render commit matches the planned branch head, then re-run the staging plan.
 
-If Android needs a release, follow `.claude/skills/android-release/SKILL.md` for version and versionCode, choose `internal` by default or an explicitly requested `closed` track, and confirm the exact inputs with the owner. The workflow builds those tracks against the staging API. Before dispatch, verify the staging API's Render service URL returns a healthy `/health` response and that the Android workflow's configured staging API hostname resolves and serves that API. Stop if the hostname is not ready; a successful Play upload with an unreachable API would be unusable. Dispatch from `redesign/main`, resolve the unique new run, and use `wait-release.mjs` with `--repo ui` and the selected SHA. Verify the Play upload step and read staging API health again. Report the run link and track.
+If Android needs a release, re-run the staging plan with the same Android track, follow `.claude/skills/android-release/SKILL.md` for version and versionCode, choose `internal` by default or an explicitly requested `closed` track, and confirm the exact inputs with the owner. The workflow builds those tracks against the staging API. Before dispatch, verify the staging API's Render service URL returns a healthy `/health` response and that the Android workflow's configured staging API hostname resolves and serves that API. Stop if the hostname is not ready; a successful Play upload with an unreachable API would be unusable. Dispatch from `redesign/main`, resolve the unique new run, and use `wait-release.mjs` with `--repo ui` and the selected SHA. Verify the Play upload step and read staging API health again. Report the run link and track.
 
 Do not infer Play availability from a green workflow: Play controls when a published build appears to testers.
