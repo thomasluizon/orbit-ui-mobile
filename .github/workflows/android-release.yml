@@ -51,7 +51,7 @@ jobs:
     name: Build and publish Android app
     runs-on: ubuntu-latest
     environment:
-      name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'staging' }}
+      name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
       deployment: false
     env:
       EAS_BUILD_PROFILE: production

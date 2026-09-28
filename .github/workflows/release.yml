@@ -1,5 +1,4 @@
-# Production environment secret: RENDER_API_KEY.
-# Staging environment secret: RENDER_WEB_STAGING_DEPLOY_HOOK_URL.
+# Production and staging environment secrets: RENDER_API_KEY.
 # Repository secrets: SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
 # Repository variables: RENDER_WEB_SERVICE_ID,
 # PRODUCTION_WEB_HOST,
@@ -235,13 +234,51 @@ jobs:
     steps:
       - name: Deploy staging web digest
         env:
-          STAGING_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_STAGING_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
-          if [ -z "$STAGING_DEPLOY_HOOK_URL" ]; then echo "::error::Missing RENDER_WEB_STAGING_DEPLOY_HOOK_URL" >&2; exit 1; fi
-          curl -fsS -G --data-urlencode "imgURL=${IMAGE}@${DIGEST}" "$STAGING_DEPLOY_HOOK_URL" > /dev/null
-          echo "Triggered staging deploy for ${IMAGE}@${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          image_url="${IMAGE}@${DIGEST}"
+          if [ -z "$SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID" >&2; exit 1; fi
+          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing staging RENDER_API_KEY" >&2; exit 1; fi
+          known_deploy_ids=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" --data-urlencode 'limit=20' |
+            jq -c '[.[].deploy.id]')
+          triggered_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
+            -d "$(jq -nc --arg image "$image_url" '{imageUrl:$image}')" > /dev/null
+          deploy_id=
+          for attempt in $(seq 1 30); do
+            deploys=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" \
+              --data-urlencode 'limit=20' --data-urlencode "createdAfter=${triggered_after}")
+            deploy_ids=$(jq -c --arg image "$image_url" --arg digest "$DIGEST" --argjson known "$known_deploy_ids" \
+              '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id |
+                select(. as $id | $known | index($id) | not)]' <<< "$deploys")
+            if [ "$(jq 'length' <<< "$deploy_ids")" -gt 1 ]; then
+              echo "Multiple new staging deploys match ${image_url}" >&2; exit 1
+            fi
+            deploy_id=$(jq -r '.[0] // empty' <<< "$deploy_ids")
+            if [ -n "$deploy_id" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "$deploy_id" ]; then echo "Queued staging deploy for ${image_url} was not listed" >&2; exit 1; fi
+          for attempt in $(seq 1 60); do
+            sleep 10
+            status=$(curl -fsS "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${deploy_id}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -er '.status')
+            echo "Deploy poll ${attempt}: ${status}"
+            case "$status" in
+              live) echo "Staging deploy ${deploy_id} is live"; exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|deactivated|canceled) echo "Deploy failed: ${status}" >&2; exit 1 ;;
+              created|queued|build_in_progress|pre_deploy_in_progress|update_in_progress) ;;
+              *) echo "Unknown deploy status: ${status}" >&2; exit 1 ;;
+            esac
+          done
+          echo "Timed out waiting for staging deploy ${deploy_id}" >&2
+          exit 1
       - name: Check staging web health
         id: health
         env:
