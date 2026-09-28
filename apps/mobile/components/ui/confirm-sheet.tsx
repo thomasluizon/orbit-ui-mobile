@@ -21,10 +21,7 @@ interface ConfirmSheetProps {
   onConfirm: () => void
 }
 
-/**
- * The one confirmation surface. A confirmation belongs to an irreversible act
- * only, so a reversible one acts at once and never renders this (#42).
- */
+/** The confirmation surface for actions that cannot currently be undone. */
 export function ConfirmSheet({
   open,
   title,

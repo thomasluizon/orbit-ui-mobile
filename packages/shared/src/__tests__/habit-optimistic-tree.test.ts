@@ -110,8 +110,22 @@ describe('buildOptimisticSkipPatch', () => {
     vi.useRealTimers()
   })
 
-  it('marks recurring habits completed', () => {
-    expect(buildOptimisticSkipPatch(makeItem({ frequencyUnit: 'Day' }))).toEqual({ isCompleted: true })
+  it('removes recurring habits from today without marking them completed', () => {
+    const patch = buildOptimisticSkipPatch(makeItem({
+      frequencyUnit: 'Day',
+      dueDate: '2026-04-06',
+      scheduledDates: ['2026-04-06', '2026-04-08'],
+      instances: [
+        { date: '2026-04-06', status: 'Pending', logId: null },
+        { date: '2026-04-08', status: 'Pending', logId: null },
+      ],
+    }))
+    expect(patch).toEqual({
+      dueDate: '2026-04-07',
+      scheduledDates: ['2026-04-08'],
+      instances: [{ date: '2026-04-08', status: 'Pending', logId: null }],
+      isOverdue: false,
+    })
   })
 
   it('postpones one-time habits to tomorrow', () => {

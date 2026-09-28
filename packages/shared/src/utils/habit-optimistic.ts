@@ -44,13 +44,21 @@ export function findHabitInList(
 }
 
 /**
- * Optimistic patch for skipping a habit: recurring habits leave the current view
- * (marked completed); one-time habits are postponed to tomorrow.
+ * Optimistic patch for skipping a habit: the current occurrence leaves the day
+ * without becoming completed; one-time habits are postponed to tomorrow.
  */
 export function buildOptimisticSkipPatch(
   habit: HabitTreeNode,
+  skippedDate = formatAPIDate(new Date()),
 ): Partial<HabitScheduleItem> {
-  if (habit.frequencyUnit !== null) return { isCompleted: true }
+  if (habit.frequencyUnit !== null) {
+    return {
+      dueDate: habit.dueDate === skippedDate ? getTomorrowDateString() : habit.dueDate,
+      scheduledDates: habit.scheduledDates?.filter((date) => date !== skippedDate),
+      instances: habit.instances.filter((instance) => instance.date !== skippedDate),
+      isOverdue: false,
+    }
+  }
 
   const dueDate = getTomorrowDateString()
   return {

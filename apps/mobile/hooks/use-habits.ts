@@ -478,14 +478,12 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
-      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
-      if (!date) {
-        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
-          const habit = findHabitInList(items, habitId)
-          if (!habit) return items
-          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
-        })
-      }
+      const skippedDate = date ?? formatAPIDate(new Date())
+      updateHabitListsForDate(queryClient, skippedDate, (items) => {
+        const habit = findHabitInList(items, habitId)
+        if (!habit) return items
+        return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate))
+      })
 
       return { previousLists }
     },

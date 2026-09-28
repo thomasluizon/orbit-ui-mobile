@@ -53,7 +53,7 @@ function source(relativePath: string) {
 }
 
 describe('habit list overlay caller guards', () => {
-  it.each(overlays)('$name mounts at its title without a nested scroller or skip confirmation', (overlay) => {
+  it.each(overlays)('$name mounts at its title without a nested scroller', (overlay) => {
     const caller = source(overlay.sourcePath)
     const sheet = source('components/ui/sheet.tsx')
     const habitList = source('components/habit-list.tsx')
@@ -61,7 +61,7 @@ describe('habit list overlay caller guards', () => {
     expect(caller).toContain(overlay.firstLine)
     expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
-    expect(habitList).not.toContain('skipConfirmTitle')
+    expect(habitList).toContain('onConfirmSkip=')
     expect(habitList).toContain('await skipMutation.mutateAsync({ habitId, date })')
   })
 })
