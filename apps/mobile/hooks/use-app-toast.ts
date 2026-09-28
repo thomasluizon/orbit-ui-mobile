@@ -3,7 +3,7 @@ import { useAppToastStore, type StoredToast } from '@/stores/app-toast-store'
 
 interface UseAppToastResult {
   showToast: (toast: StoredToast) => void
-  showError: (message: string) => void
+  showError: (message: string, dismissLabel?: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
   showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => void
@@ -16,8 +16,8 @@ export function useAppToast(): UseAppToastResult {
   const showInfoFromStore = useAppToastStore((state) => state.showInfo)
   const showQueuedFromStore = useAppToastStore((state) => state.showQueued)
 
-  const showError = useCallback((message: string) => {
-    showErrorFromStore(message)
+  const showError = useCallback((message: string, dismissLabel?: string) => {
+    showErrorFromStore(message, dismissLabel)
   }, [showErrorFromStore])
 
   const showSuccess = useCallback((message: string) => {

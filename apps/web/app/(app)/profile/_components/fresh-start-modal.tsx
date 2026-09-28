@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
@@ -107,7 +108,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
 
         handleOpenChange(false)
-        queryClient.clear()
+        void resetAccountQueries(queryClient, 'signed-in')
         router.push('/')
         router.refresh()
       })

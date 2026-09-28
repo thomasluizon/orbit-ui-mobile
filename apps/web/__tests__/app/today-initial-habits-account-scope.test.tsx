@@ -11,6 +11,7 @@ import {
 import { getQueryClient } from '@/lib/query-client'
 import { useTodayHabitsData } from '@/app/(app)/use-today-habits-data'
 import { buildTodayFilters } from '@/app/(app)/today-model'
+import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 import { holdAccount, recoverSameAccount, replaceAccountWith, respondWithAccount, retireHeldAccount } from '@/__tests__/support/account-change'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -21,11 +22,13 @@ vi.mock('@/lib/api-fetch', () => ({
 }))
 
 /**
- * The real query client, the one `startAccountScopedSession` clears. The leak this covers is the
- * rebuild that follows the clear, so a mocked `useQuery` would hide the whole mechanism.
+ * The real query client observes account transitions, so a mocked `useQuery` would hide
+ * a previous account's preload surviving the reset.
  */
 function wrapper({ children }: Readonly<{ children: ReactNode }>) {
-  return <QueryClientProvider client={getQueryClient()}>{children}</QueryClientProvider>
+  return <QueryClientProvider client={getQueryClient()}>
+    <RenderedAccountSeed accountId="user-1">{children}</RenderedAccountSeed>
+  </QueryClientProvider>
 }
 
 const DATE = '2025-01-01'
@@ -116,6 +119,18 @@ it('discards server habits when the first client session check finds another acc
   await act(async () => { await useAuthStore.getState().checkSession() })
 
   await waitFor(() => expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Walk the dog']))
+})
+
+it('keeps preloaded Today data through the first check for the rendered account', async () => {
+  await retireHeldAccount()
+  const rendered = renderToday()
+  expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
+
+  respondWithAccount('user-1')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+
+  expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
+  expect(mocks.fetchJson).not.toHaveBeenCalled()
 })
 
 it('keeps the rendered habits when the same account recovers from a rejected refresh', async () => {

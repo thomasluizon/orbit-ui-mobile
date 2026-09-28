@@ -364,13 +364,13 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     else if (fromToday) router.back()
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
-  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string, reportError = true): Promise<boolean> => {
     const accountGeneration = getAccountGeneration()
     try {
       await write()
       return getAccountGeneration() === accountGeneration
     } catch {
-      if (getAccountGeneration() === accountGeneration) showError(errorMessage)
+      if (reportError && getAccountGeneration() === accountGeneration) showError(errorMessage)
       return false
     }
   }, [showError])
@@ -406,6 +406,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       return await runWrite(
         () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
         t('habits.detail.logError'),
+        false,
       )
     } finally {
       pendingToggleKeys.delete(toggleKey)

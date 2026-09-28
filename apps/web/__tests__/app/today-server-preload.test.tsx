@@ -1,5 +1,5 @@
 import React from 'react'
-import { act } from '@testing-library/react'
+import { act, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NextIntlClientProvider } from 'next-intl'
 import { hydrateRoot } from 'react-dom/client'
@@ -7,15 +7,30 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { habitKeys } from '@orbit/shared/query'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { habitScheduleItemSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
+import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
+import { getQueryClient } from '@/lib/query-client'
+import { respondWithAccount, retireHeldAccount } from '@/__tests__/support/account-change'
+import { useAuthStore } from '@/stores/auth-store'
+
+const logHabitAction = vi.hoisted(() => vi.fn())
+const routerPush = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/actions/habits', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/actions/habits')>(),
+  logHabit: logHabitAction,
+}))
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { buildTodayFilters } from '@/app/(app)/today-model'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: routerPush, replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('@/hooks/use-color-scheme', () => ({
@@ -28,6 +43,7 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: DEFAULT_CONFIG }) }))
 vi.mock('@/components/shell/destination-shell', () => ({
   useShellComposerSlot: () => undefined,
 }))
@@ -38,7 +54,7 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   children?: React.ReactNode
 }>
 
-function createTodayTree(client: QueryClient) {
+function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], accountId: string | null = null) {
   const initialToday = formatAPIDate(new Date())
   const filters = buildTodayFilters({
     dateStr: initialToday,
@@ -52,13 +68,15 @@ function createTodayTree(client: QueryClient) {
   return (
     <QueryClientProvider client={client}>
       <TestIntlProvider locale="en" messages={en}>
+        <RenderedAccountSeed accountId={accountId}>
         <TodayProvider>
           <TodayPageClient
             initialToday={initialToday}
-            initialHabits={{ queryKey: habitKeys.list(filters), items: [] }}
+            initialHabits={{ queryKey: habitKeys.list(filters), items }}
             initialProfile={profileFixture}
           />
         </TodayProvider>
+        </RenderedAccountSeed>
       </TestIntlProvider>
     </QueryClientProvider>
   )
@@ -77,6 +95,8 @@ describe('Today server preload', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-08-29T12:00:00.000Z'))
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)))
+    logHabitAction.mockReset()
+    routerPush.mockReset()
   })
 
   afterEach(() => {
@@ -120,6 +140,141 @@ describe('Today server preload', () => {
       await act(async () => root?.unmount())
       container.remove()
       browserClient.clear()
+      serverClient.clear()
+    }
+  })
+
+  it('keeps the first opened row menu and preloaded queries after confirming the rendered account', async () => {
+    await retireHeldAccount()
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    const date = formatAPIDate(new Date())
+    const habit = habitScheduleItemSchema.parse({
+      ...createMockHabit({ id: 'habit-a', title: 'Read', dueDate: date, scheduledDates: [date] }),
+      children: [], linkedGoals: [],
+    })
+    const serverClient = createTestQueryClient()
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(createTodayTree(serverClient, [habit], 'user-1'))
+    document.body.append(container)
+    let root: ReturnType<typeof hydrateRoot> | undefined
+
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(queryClient, [habit], 'user-1'))
+      })
+      const menu = container.querySelector<HTMLButtonElement>('button[data-habit-row-control="menu"]')
+      expect(menu).not.toBeNull()
+      fireEvent.click(menu!)
+      expect(menu).toHaveAttribute('aria-expanded', 'true')
+
+      respondWithAccount('user-1')
+      await act(async () => { await useAuthStore.getState().checkSession() })
+
+      expect(menu).toHaveAttribute('aria-expanded', 'true')
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull()
+      expect(vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+        typeof url === 'string' && (url.startsWith('/api/habits') || url === '/api/profile'))).toEqual([])
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      queryClient.clear()
+      serverClient.clear()
+    }
+  })
+
+  it('keeps an optimistic log through the first check for the rendered account', async () => {
+    await retireHeldAccount()
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    const date = formatAPIDate(new Date())
+    const habit = habitScheduleItemSchema.parse({
+      ...createMockHabit({ id: 'habit-a', title: 'Read', dueDate: date, scheduledDates: [date] }),
+      children: [], linkedGoals: [],
+    })
+    let answerLog: ((value: { logId: string; isFirstCompletionToday: boolean; currentStreak: number }) => void) | undefined
+    let logSettled = false
+    let habitListFetches = 0
+    logHabitAction.mockImplementation(() => new Promise((resolve) => { answerLog = resolve }))
+    const serverClient = createTestQueryClient()
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(createTodayTree(serverClient, [habit], 'user-1'))
+    document.body.append(container)
+    let root: ReturnType<typeof hydrateRoot> | undefined
+
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(queryClient, [habit], 'user-1'))
+      })
+      const ring = container.querySelector<HTMLButtonElement>('[data-testid="habit-status-toggle"]')
+      expect(ring).not.toBeNull()
+      fireEvent.click(ring!)
+      await vi.waitFor(() => expect(logHabitAction).toHaveBeenCalledOnce())
+      expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
+
+      respondWithAccount('user-1')
+      const fetchSession = vi.mocked(globalThis.fetch).getMockImplementation()!
+      vi.mocked(globalThis.fetch).mockImplementation((input, init) => {
+        if (input === '/api/auth/session') return fetchSession(input, init)
+        if (typeof input === 'string' && input.startsWith('/api/habits')) {
+          habitListFetches += 1
+          return Promise.resolve({
+            ok: true, status: 200,
+            json: async () => ({
+              items: [logSettled ? { ...habit, isCompleted: true } : habit],
+              page: 1, pageSize: 50, totalCount: 1, totalPages: 1,
+            }),
+          } as Response)
+        }
+        return new Promise<Response>(() => undefined)
+      })
+      await act(async () => { await useAuthStore.getState().checkSession() })
+      expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
+      expect(habitListFetches).toBe(0)
+
+      logSettled = true
+      await act(async () => { answerLog?.({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }) })
+      await vi.waitFor(() => expect(habitListFetches).toBeGreaterThan(0))
+      expect(ring?.getAttribute('aria-label')).toContain(en.habits.statusDot.done)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      queryClient.clear()
+      serverClient.clear()
+    }
+  })
+
+  it('keeps the first habit row tap after the rendered account is confirmed', async () => {
+    await retireHeldAccount()
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    const date = formatAPIDate(new Date())
+    const habit = habitScheduleItemSchema.parse({
+      ...createMockHabit({ id: 'habit-a', title: 'Read', dueDate: date, scheduledDates: [date] }),
+      children: [], linkedGoals: [],
+    })
+    const serverClient = createTestQueryClient()
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(createTodayTree(serverClient, [habit], 'user-1'))
+    document.body.append(container)
+    let root: ReturnType<typeof hydrateRoot> | undefined
+
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(queryClient, [habit], 'user-1'))
+      })
+      const row = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')
+      expect(row).not.toBeNull()
+      fireEvent.pointerDown(row!)
+      respondWithAccount('user-1')
+      await act(async () => { await useAuthStore.getState().checkSession() })
+      fireEvent.click(row!)
+
+      expect(routerPush).toHaveBeenCalledWith(`/habits/habit-a?date=${date}&from=today`)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      queryClient.clear()
       serverClient.clear()
     }
   })

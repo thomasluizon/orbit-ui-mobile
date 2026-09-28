@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
+import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import {
@@ -14,6 +15,7 @@ import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
+import { setAccountId } from '@/lib/account-scope'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
@@ -35,8 +37,8 @@ let lastObservedAccountId: string | null = null
 
 /**
  * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account
- * under a tab that keeps running. Two resets run on EVERY transition, a teardown included,
- * because both are cheap to redo and unsafe to keep.
+ * under a tab that keeps running. Account-scoped state and queries reset on transitions,
+ * including teardown, so a replacement account cannot inherit the previous one.
  */
 function startAccountScopedSession(nextAccountId: string | null, preserveAnonymousDraft = false): void {
   const accountChanged = nextAccountId !== null && nextAccountId !== lastObservedAccountId
@@ -57,8 +59,8 @@ function startAccountScopedSession(nextAccountId: string | null, preserveAnonymo
  * key with no account in it, so one of them left behind is the next person reading, and
  * sending, text that is not theirs.
  */
-function forgetPreviousAccountContent(): void {
-  getQueryClient().clear()
+function forgetPreviousAccountContent(mode: 'signed-in' | 'signed-out' = 'signed-in'): void {
+  void resetAccountQueries(getQueryClient(), mode)
   useChatStore.getState().resetAccountScopedChat()
   forgetStoredSupportDraft()
   advanceAccountGeneration()
@@ -80,17 +82,16 @@ function endSessionLocally(): void {
   sessionReadVersion += 1
   clearAccountScopedSessionState()
   resetAccountScopedState(lastObservedAccountId, null)
-  forgetPreviousAccountContent()
-  getQueryClient().clear()
+  forgetPreviousAccountContent('signed-out')
   lastObservedAccountId = null
   sessionRecoveryUser = null
   useOnboardingDraftStore.getState().reset()
 }
 
 /**
- * Reads the account the cookie now names. A tab that has not yet learned an account starts a
- * new boundary even on its first check: server-rendered data may belong to a different
- * account if the shared cookie changed between the server render and this check.
+ * Reads the account the cookie now names. A first check resets only if the cookie differs
+ * from the account named by the server render; that render's data already belongs to the
+ * matching account.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
@@ -113,6 +114,13 @@ function adoptSessionAccount(userId: string | null): boolean {
  */
 export function getHeldAccountId(): string | null {
   return lastObservedAccountId
+}
+
+export function seedRenderedAccount(accountId: string): void {
+  if (lastObservedAccountId !== null) return
+  bindStepUpStateToAccount(accountId)
+  lastObservedAccountId = accountId
+  setAccountId(accountId)
 }
 
 /**

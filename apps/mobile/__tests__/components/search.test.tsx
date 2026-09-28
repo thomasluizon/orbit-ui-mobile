@@ -156,17 +156,30 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Nothing by that name.')
   })
 
-  it.each(['log', 'skip'] as const)('reports a rejected %s and lets the person retry', async (page) => {
+  it('leaves a rejected log to the mutation error toast and lets the person retry', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
-    mocks[page].mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    mocks.log.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
     await mount()
-    await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    await pressText('Log a habit')
+    await pressLabel('Walk')
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit', intent: 'log' }, { onSuccess: expect.any(Function) })
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.back).not.toHaveBeenCalled()
+    await pressLabel('Walk')
+    expect(mocks.log).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports a rejected skip and lets the person retry', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
+    mocks.skip.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    await mount()
+    await pressText('Skip a habit')
     await pressLabel('Walk')
     expect(mocks.showError).toHaveBeenCalledWith(en.errors.updateHabit)
     expect(mocks.back).not.toHaveBeenCalled()
     expect(text()).not.toContain('Create habit')
     await pressLabel('Walk')
-    expect(mocks[page]).toHaveBeenCalledTimes(2)
+    expect(mocks.skip).toHaveBeenCalledTimes(2)
   })
 
   it.each(['log', 'skip'] as const)('opens the %s page, performs the selected action, and backs out first', async (page) => {

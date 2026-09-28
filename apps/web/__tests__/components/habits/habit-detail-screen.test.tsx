@@ -1004,14 +1004,14 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('textbox', { name: 'rename' })).toHaveValue('Read daily')
   })
 
-  it('contains and reports a log failure', async () => {
+  it('contains a log failure without showing a second error', async () => {
     mocks.log.mockRejectedValueOnce(new Error('log failed'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'log' }))
 
     await act(async () => { await Promise.resolve() })
-    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('asks before logging a date before the habit existed', async () => {
