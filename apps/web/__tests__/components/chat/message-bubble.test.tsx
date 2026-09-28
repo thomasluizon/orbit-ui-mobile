@@ -126,6 +126,11 @@ describe('MessageBubble', () => {
     expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
   })
 
+  it('omits the copy control for a separator-only reply', () => {
+    render(<MessageBubble message={makeMessage({ role: 'ai', content: '---' })} />)
+    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
+  })
+
   it('does not offer copying a sent message', () => {
     render(<MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />)
     expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
@@ -197,7 +202,7 @@ describe('MessageBubble', () => {
     expect(bubble).toBeInTheDocument()
     expect(bubble).toHaveClass('bg-[var(--bg-well)]', 'text-[var(--fg-1)]')
     expect(bubble).toHaveStyle({ borderRadius: '16px' })
-    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
+    expect((bubble?.parentElement?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
     expect((container.firstChild as HTMLElement).style.marginBottom).toBe('')
   })
 
@@ -207,7 +212,7 @@ describe('MessageBubble', () => {
       <MessageBubble message={makeMessage({ role: 'user', content: longMessage })} />,
     )
     const bubble = container.querySelector('[data-bubble-role="user"]')
-    expect((bubble?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
+    expect((bubble?.parentElement?.parentElement as HTMLElement).className).toContain('max-w-[80%]')
     expect(screen.getByTestId('markdown')).toHaveTextContent(longMessage)
   })
 

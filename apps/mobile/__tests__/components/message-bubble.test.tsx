@@ -196,6 +196,14 @@ describe('MessageBubble copy control (mobile)', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
   })
 
+  it('omits the copy control for a separator-only reply', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '---' })} />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
+  })
+
   it('does not offer copying a sent message', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {
@@ -216,7 +224,7 @@ describe('MessageBubble thread treatment (mobile)', () => {
     })
     const tokens = createTokensV2('purple', 'dark')
     const bubble = tree.root.findAll((node) =>
-      Array.isArray(node.props.style) && node.props.style[0]?.maxWidth === '100%',
+      Array.isArray(node.props.style) && node.props.style[0]?.flexShrink === 1,
     )[0]
     expect(bubble).toBeDefined()
     const bubbleStyle = Object.assign({}, ...((bubble?.props.style ?? []) as object[]))
@@ -243,7 +251,7 @@ describe('MessageBubble thread treatment (mobile)', () => {
       return typeof node.type === 'string' && style != null && style.width === 30 && style.height === 30
     })).toHaveLength(0)
     expect(tree.root.findAll((node) =>
-      Array.isArray(node.props.style) && node.props.style.some((style: { backgroundColor?: string }) => style.backgroundColor === tokens.bgElev),
+      Array.isArray(node.props.style) && node.props.style.some((style: { backgroundColor?: string } | null) => style != null && style.backgroundColor === tokens.bgElev),
     )).toHaveLength(0)
   })
 })

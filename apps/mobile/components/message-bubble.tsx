@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
   getRelatedSurfaces,
+  hasChatProse,
   partitionMessageActions,
   stripChatDirectives,
 } from "@orbit/shared/chat";
@@ -148,6 +149,7 @@ export function MessageBubble({
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
+        <View style={[styles.proseStack, isUser ? styles.userProseStack : null]}>
         <View
           style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
         >
@@ -166,7 +168,8 @@ export function MessageBubble({
           </Markdown>
         </View>
 
-        {!isUser && sourceText.trim() ? <MessageCopyControl sourceText={sourceText} /> : null}
+        {!isUser && hasChatProse(sourceText) ? <MessageCopyControl sourceText={sourceText} /> : null}
+        </View>
 
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
@@ -312,7 +315,16 @@ function createStyles(tokens: AppTokens) {
       minWidth: 0,
       flexDirection: "column",
       alignItems: "flex-start",
+    },
+
+    proseStack: {
+      maxWidth: "100%",
+      flexDirection: "column",
+      alignItems: "flex-start",
       gap: 8,
+    },
+    userProseStack: {
+      alignItems: "flex-end",
     },
 
     bubble: {
@@ -335,6 +347,7 @@ function createStyles(tokens: AppTokens) {
 
     imageAttachment: {
       width: 200,
+      maxWidth: "100%",
       height: 192,
       borderRadius: 12,
       borderWidth: 1,

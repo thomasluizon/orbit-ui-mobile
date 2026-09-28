@@ -325,6 +325,8 @@ describe('mobile Markdown wrapper', () => {
     const tokens = createTokensV2(currentScheme, currentTheme)
     expect(styles.text).toMatchObject({ color: tokens.fg1, fontSize: 16, lineHeight: 24 })
     expect(styles.paragraph).toEqual({ marginVertical: 0, paddingVertical: 0 })
+    const flatListProps = props.flatListProps as { ItemSeparatorComponent?: () => ReactElement }
+    expect(flatListProps.ItemSeparatorComponent).toBeDefined()
     expect(styles.text.color).toBe(styles.h1.color)
     expect(styles.link.color).toBe(styles.text.color)
   })

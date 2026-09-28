@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import {
   getRelatedSurfaces,
+  hasChatProse,
   partitionMessageActions,
   stripChatDirectives,
 } from '@orbit/shared/chat'
@@ -102,13 +103,14 @@ export function MessageBubble({
         className={
           isUser
             ? 'max-w-[80%] flex flex-col items-end'
-            : 'flex-1 min-w-0 flex flex-col items-start gap-2'
+            : 'flex-1 min-w-0 flex flex-col items-start'
         }
       >
         <span className="sr-only">
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
+        <div className={`flex max-w-full flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
         <div
           data-bubble-role={isUser ? 'user' : 'ai'}
           className={
@@ -126,7 +128,7 @@ export function MessageBubble({
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
               loading="lazy"
-              className="rounded-[12px] w-[200px] h-48 object-cover mb-2"
+              className="rounded-[12px] w-[200px] max-w-full h-48 object-cover mb-2"
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
@@ -136,11 +138,12 @@ export function MessageBubble({
           />
         </div>
 
-        {!isUser && sourceText.trim() && (
+        {!isUser && hasChatProse(sourceText) && (
           <PillButton variant="ghost" size="sm" onClick={() => void copySourceText()}>
             {copied ? t('chat.copied') : t('chat.copy')}
           </PillButton>
         )}
+        </div>
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />

@@ -174,6 +174,13 @@ export function stripChatDirectives(content: string, isStreaming = false): strin
     ? stripTrailingChatDirectivePrefix(withoutCompleteDirectives)
     : withoutCompleteDirectives.trimEnd()
 }
+
+export function hasChatProse(content: string): boolean {
+  return content.split(/\r?\n/).some((line) => {
+    const compact = line.replace(/[ \t]/g, '')
+    return compact !== '' && !/^(?:-{3,}|\*{3,}|_{3,})$/.test(compact)
+  })
+}
 export { getMetricsRows } from './metrics-card-core'
 export type { MetricsRow } from './metrics-card-core'
 export { getInsightPages } from './period-insight-core'

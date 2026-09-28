@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
-import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { Linking, Text, View, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
   MarkedTokenizer,
   Renderer,
@@ -235,6 +235,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,
+        ItemSeparatorComponent: tone === 'thread' ? () => <View style={{ height: 12 }} /> : undefined,
         style: { backgroundColor: 'transparent', minWidth: 0 },
       }}
     />
