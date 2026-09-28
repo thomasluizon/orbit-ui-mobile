@@ -14,6 +14,7 @@ import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
@@ -113,8 +114,9 @@ export function TrialExpiredModal() {
       onClose={hide}
       title={t('trial.expired.heading')}
       actions={
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton
+            matchedWidth
             onClick={() =>
               closeSheet(() => {
                 if (getAccountGeneration() !== accountGeneration) return
@@ -125,10 +127,10 @@ export function TrialExpiredModal() {
           >
             {t('trial.expired.subscribe')}
           </PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
+          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
             {t('trial.expired.continueFree')}
           </PillButton>
-        </View>
+        </DialogActionPair>
       }
     >
       <View style={styles.content}>
@@ -182,10 +184,6 @@ function createStyles() {
     paused: {
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
-    },
-    actions: {
-      flex: 1,
-      gap: 8,
     },
   })
 }

@@ -14,7 +14,7 @@ import {
   refreshPendingOperation,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
-import { accountIntentWithOrigin, applyServerActionFailure } from '@/lib/client-action'
+import { accountIntentWithOrigin, runServerActionResult } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -44,13 +44,12 @@ function accountChangedResult(t: ReturnType<typeof useTranslations>) {
   return { ok: false as const, error: t('errors.api.accountChanged') }
 }
 
-async function applyChatActionFailure<T>(result: ServerActionResult<T>): Promise<boolean> {
+async function runChatAction<T>(action: Promise<ServerActionResult<T>>): Promise<ServerActionResult<T> | null> {
   try {
-    await applyServerActionFailure(result)
-    return false
+    return await runServerActionResult(action)
   } catch (error) {
     if (!reportsAccountChanged(error)) throw error
-    return true
+    return null
   }
 }
 
@@ -68,9 +67,9 @@ export function useChatPendingOperations(
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const response = await revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId))
+    const response = await runChatAction(revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId)))
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
-    if (await applyChatActionFailure(response)) return accountChangedResult(t)
+    if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
     return response.ok
       ? { ok: true as const, result: response.data }
@@ -80,9 +79,9 @@ export function useChatPendingOperations(
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const response = await refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId))
+    const response = await runChatAction(refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId)))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (await applyChatActionFailure(response)) return accountChangedResult(t)
+    if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     return response.ok
       ? { ok: true as const, result: response.data }
@@ -92,21 +91,21 @@ export function useChatPendingOperations(
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const confirmation = await confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId))
+    const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (await applyChatActionFailure(confirmation)) return accountChangedResult(t)
+    if (!confirmation) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!confirmation.ok) {
       return { ok: false, error: pendingOperationError(confirmation, t), ...(isStalePreviewFailure(confirmation) ? { stale: true } : {}) }
     }
 
-    const execution = await executePendingOperation(
+    const execution = await runChatAction(executePendingOperation(
       pendingOperationId,
       confirmation.data.confirmationToken,
       accountIntentWithOrigin(intendedAccountId),
-    )
+    ))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (await applyChatActionFailure(execution)) return accountChangedResult(t)
+    if (!execution) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
 
     if (!execution.ok) {
@@ -121,17 +120,17 @@ export function useChatPendingOperations(
     async (pendingOperationId: string) => {
       const intendedAccountId = getHeldAccountId()
       const accountGeneration = getAccountGeneration()
-      const confirmation = await confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId))
+      const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (await applyChatActionFailure(confirmation)) return accountChangedResult(t)
+      if (!confirmation) return accountChangedResult(t)
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!confirmation.ok) {
         return { ok: false as const, error: pendingOperationError(confirmation, t), stale: isStalePreviewFailure(confirmation) }
       }
 
-      const challenge = await issuePendingOperationStepUp(pendingOperationId, locale, accountIntentWithOrigin(intendedAccountId))
+      const challenge = await runChatAction(issuePendingOperationStepUp(pendingOperationId, locale, accountIntentWithOrigin(intendedAccountId)))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (await applyChatActionFailure(challenge)) return accountChangedResult(t)
+      if (!challenge) return accountChangedResult(t)
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!challenge.ok) {
         return { ok: false as const, error: pendingOperationError(challenge, t), stale: isStalePreviewFailure(challenge) }
@@ -155,27 +154,27 @@ export function useChatPendingOperations(
     ) => {
       const intendedAccountId = getHeldAccountId()
       const accountGeneration = getAccountGeneration()
-      const verification = await verifyPendingOperationStepUp(
+      const verification = await runChatAction(verifyPendingOperationStepUp(
         pendingOperationId,
         challengeId,
         code,
         accountIntentWithOrigin(intendedAccountId),
-      )
+      ))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (await applyChatActionFailure(verification)) return accountChangedResult(t)
+      if (!verification) return accountChangedResult(t)
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
 
       if (!verification.ok) {
         return { ok: false as const, error: pendingOperationError(verification, t), stale: isStalePreviewFailure(verification) }
       }
 
-      const execution = await executePendingOperation(
+      const execution = await runChatAction(executePendingOperation(
         pendingOperationId,
         confirmationToken,
         accountIntentWithOrigin(intendedAccountId),
-      )
+      ))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (await applyChatActionFailure(execution)) return accountChangedResult(t)
+      if (!execution) return accountChangedResult(t)
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!execution.ok) {
         return { ok: false as const, error: pendingOperationError(execution, t), stale: isStalePreviewFailure(execution) }

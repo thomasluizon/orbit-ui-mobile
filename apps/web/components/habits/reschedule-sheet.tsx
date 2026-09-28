@@ -15,6 +15,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
@@ -90,8 +91,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   function renderFooter() {
     if (!hasProAccess) {
       return (
-        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
+        <DialogActionPair>
           <PillButton
+            matchedWidth
             onClick={() =>
               closeSheet(() => {
                 onOpenChange(false)
@@ -101,27 +103,28 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
+          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </div>
+        </DialogActionPair>
       )
     }
     if (error) {
       return (
-        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
-          <PillButton  onClick={() => void refetch()}>
+        <DialogActionPair>
+          <PillButton matchedWidth onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-          <PillButton variant="ghost"  onClick={() => onOpenChange(false)}>
+          <PillButton variant="ghost" matchedWidth onClick={() => onOpenChange(false)}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </div>
+        </DialogActionPair>
       )
     }
     return (
-      <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
+      <DialogActionPair>
         <PillButton
+          matchedWidth
 
           disabled={!suggestion || updateHabit.isPending}
 
@@ -130,10 +133,10 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-        <PillButton variant="ghost"  disabled={updateHabit.isPending} onClick={() => onOpenChange(false)}>
+        <PillButton variant="ghost" matchedWidth disabled={updateHabit.isPending} onClick={() => onOpenChange(false)}>
           {t('habits.reschedule.dismiss')}
         </PillButton>
-      </div>
+      </DialogActionPair>
     )
   }
 

@@ -81,6 +81,11 @@ describe('Sheet', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
     expect(onConfirm).not.toHaveBeenCalled()
   })
+
+  it('starts a destructive confirmation on its safe cancel action', async () => {
+    render(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" destructive onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveFocus())
+  })
 })
 
 /**

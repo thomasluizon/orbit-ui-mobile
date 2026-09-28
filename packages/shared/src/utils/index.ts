@@ -502,11 +502,6 @@ export {
   hasHabitScheduleOnDate,
   isWithinOverdueWindow,
 } from './habits'
-export {
-  buildHabitCalendarDayCells,
-  buildHabitCalendarWeekdayKeys,
-  buildHabitLogDateSet,
-} from './habit-calendar'
 export { buildStreakWeekDays } from './streak-week'
 export {
   canNavigateToNextDay,
@@ -520,10 +515,6 @@ export type {
   HabitReorderPosition,
   ReorderableHabitItem,
 } from './habits'
-export type {
-  HabitCalendarDayCell,
-  HabitCalendarWeekdayKey,
-} from './habit-calendar'
 export {
   loadDrillChildren,
   mergeDrillChildrenMap,

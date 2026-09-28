@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { TriangleAlert } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
 
@@ -129,17 +130,20 @@ export function DeleteAccountModal({
             </Text>
           ) : null}
           <View style={styles.actions}>
-            <PillButton
-              variant="destructive"
-              onClick={() => void handleRequestDeletion()}
-              disabled={loading}
-              loading={loading}
-            >
-              {t('profile.deleteAccount.sendCode')}
-            </PillButton>
-            <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
+            <DialogActionPair>
+              <PillButton
+                variant="destructive"
+                matchedWidth
+                onClick={() => void handleRequestDeletion()}
+                disabled={loading}
+                loading={loading}
+              >
+                {t('profile.deleteAccount.sendCode')}
+              </PillButton>
+              <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
+                {t('common.cancel')}
+              </PillButton>
+            </DialogActionPair>
           </View>
         </View>
       )}
@@ -184,7 +188,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   actions: {
-    gap: 12,
     paddingTop: 8,
   },
 })

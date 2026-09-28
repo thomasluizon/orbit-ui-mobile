@@ -23,7 +23,7 @@ export function DiscardChangesSheet({
       title={t('common.discardChangesTitle')}
       message={t('common.discardChangesDescription')}
       cancelLabel={t('common.keepEditing')}
-      confirmLabel={t('common.discard')}
+      confirmLabel={t('common.discardChangesAction')}
       onCancel={onKeepEditing}
       onConfirm={onDiscard}
     />

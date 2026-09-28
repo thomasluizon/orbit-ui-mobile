@@ -989,7 +989,7 @@ describe('HabitList', () => {
     )
 
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'common.delete')
+      pressConfirm(tree, 'habits.deleteHabit')
       await Promise.resolve()
     })
 

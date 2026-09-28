@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
+import { extractBackendErrorCode } from '@orbit/shared/utils'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -59,11 +60,11 @@ describe('useRescheduleSuggestion', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('surfaces fetch errors', async () => {
+  it('preserves a deterministic error code and does not retry a 400', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'AI reschedule temporarily unavailable' }),
+      status: 400,
+      json: () => Promise.resolve({ error: 'This is not overdue.', errorCode: 'HABIT_NOT_OVERDUE' }),
     })
 
     const { result } = renderHook(
@@ -73,6 +74,19 @@ describe('useRescheduleSuggestion', () => {
 
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.suggestion).toBeNull()
+    expect(extractBackendErrorCode(result.current.error)).toBe('HABIT_NOT_OVERDUE')
+    expect(mockFetch).toHaveBeenCalledOnce()
+  })
+
+  it('retries a transient server error', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({ error: 'Unavailable' }) })
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ suggestion: createMockRescheduleSuggestion() }) })
+    const { result } = renderHook(
+      () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }),
+      { wrapper: createWrapper() },
+    )
+    await waitFor(() => expect(result.current.suggestion).toBeTruthy(), { timeout: 3000 })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
   it('passes the habit id and language to the URL', async () => {

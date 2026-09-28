@@ -10,12 +10,14 @@ import {
   buildHabitHistoryMonth,
   buildHabitStripModel,
   buildRescheduleUpdateRequest,
+  capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatAPIDateInTimeZone,
+  extractBackendErrorCode,
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
@@ -56,6 +58,7 @@ import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from 
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
@@ -173,7 +176,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
   return (
     <Surface>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <div><SectionTitle>{t('history')}</SectionTitle><p className="mt-1 text-sm capitalize text-[var(--fg-3)]">{monthLabel}</p></div>
+        <div><SectionTitle>{t('history')}</SectionTitle><p className="mt-1 text-sm text-[var(--fg-3)]">{capitalizeFirstLetter(monthLabel)}</p></div>
         <div className="flex items-center gap-2">
           <PillButton variant="ghost" size="sm" iconOnly label={t('previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} /></PillButton>
           <PillButton variant="ghost" size="sm" iconOnly label={t('nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} /></PillButton>
@@ -223,13 +226,14 @@ function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ vi
   return <div className="grid grid-cols-3 gap-4">{values.map((item) => <div key={item.label} className="min-w-0 text-center"><p className="font-[var(--font-display)] text-2xl font-semibold tabular-nums text-[var(--fg-1)]">{item.value}</p><p className="truncate text-sm text-[var(--fg-2)]">{item.label}</p></div>)}</div>
 }
 
-function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasProAccess: boolean; locale: string }>) {
+function RescheduleBlock({ habit, slipping, overdue, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {
   const t = useTranslations('habits.detail')
   const router = useRouter()
   const { showError } = useAppToast()
   const updateHabit = useUpdateHabit()
-  const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && hasProAccess })
-  if (!slipping) return null
+  const isWideDesktop = useIsWideDesktop()
+  const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && overdue && hasProAccess })
+  if (!slipping || !overdue || extractBackendErrorCode(query.error) === 'HABIT_NOT_OVERDUE') return null
   if (!hasProAccess) return <Surface><ListRow title={t('slipping')} value={t('proGate')} onClick={() => router.push('/upgrade')} /></Surface>
   const accept = async () => {
     if (!query.suggestion) return
@@ -242,8 +246,9 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ h
   return (
     <Proposed proposed scope="block" label={t('proposed')}>
       <div className="flex flex-col gap-4 p-4">
-        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p className="mt-1 text-sm text-[var(--fg-3)]">{query.suggestion?.rationale ?? (query.error ? t('rescheduleError') : t('rescheduleLoading'))}</p></div>
-        <PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton>
+        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p role="status" className="mt-1 text-sm text-[var(--fg-3)]">{query.error ? t('rescheduleError') : query.suggestion?.rationale ?? t('rescheduleLoading')}</p></div>
+        {query.error ? <div className="self-start"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('retry')}</PillButton></div> : null}
+        {query.suggestion && !query.error ? <div className="self-start"><PillButton variant={isWideDesktop ? 'secondary' : 'primary'} size="sm" loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton></div> : null}
       </div>
     </Proposed>
   )
@@ -292,6 +297,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     includeOverdue: dateStr === todayStr,
     includeGeneral: true,
   }, undefined, { completeDay: true })
+  const todayHabitsQuery = useHabits({
+    dateFrom: todayStr,
+    dateTo: todayStr,
+    includeOverdue: true,
+    includeGeneral: true,
+  }, undefined, { completeDay: true })
   const allHabitsQuery = useHabits({})
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
@@ -318,7 +329,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
   const summary = habit ? computeHabitFrequencyLabel(habit, t) : ''
   const strip = habit ? buildHabitStripModel(habit, logs, today, locale, profile.weekStartDay) : null
-  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
+  const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
+  const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasProAccess = profile.hasProAccess
   const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
   const boundary = getTodayBoundary(dateStr, todayStr)
@@ -446,12 +458,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
-      <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile.language ?? locale} />
+      <RescheduleBlock habit={habit} slipping={slipping} overdue={overdue} hasProAccess={hasProAccess} locale={profile.language ?? locale} />
       {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div><div className="mt-4"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></Surface> : null}
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? locale} weekStartsOn={profile.weekStartDay} />
-      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
+      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
       <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={profile.language ?? locale} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
-      <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
+      <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />

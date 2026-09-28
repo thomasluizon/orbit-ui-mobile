@@ -64,7 +64,7 @@ export function HabitListConfirmDialogs({
           }),
           deleteDescendantCount,
         )}
-        confirmLabel={t('common.delete')}
+        confirmLabel={t('habits.deleteHabit')}
         destructive
         onCancel={onCancelDelete}
         onConfirm={onConfirmDelete}

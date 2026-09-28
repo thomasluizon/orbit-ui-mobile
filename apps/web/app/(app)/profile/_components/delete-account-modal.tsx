@@ -11,6 +11,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { TriangleAlert } from '@/components/ui/icons'
 
 interface DeleteAccountModalProps {
@@ -124,18 +125,21 @@ export function DeleteAccountModal({
             {error}
           </p>
         ) : null}
-        <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
-          <PillButton
-            variant="destructive"
-            disabled={loading || accountId === null}
-            loading={loading}
-            onClick={() => void handleRequestDeletion()}
-          >
-            {t('profile.deleteAccount.sendCode')}
-          </PillButton>
-          <PillButton variant="ghost" disabled={loading} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
+        <div style={{ paddingTop: 8 }}>
+          <DialogActionPair>
+            <PillButton
+              variant="destructive"
+              matchedWidth
+              disabled={loading || accountId === null}
+              loading={loading}
+              onClick={() => void handleRequestDeletion()}
+            >
+              {t('profile.deleteAccount.sendCode')}
+            </PillButton>
+            <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
+              {t('common.cancel')}
+            </PillButton>
+          </DialogActionPair>
         </div>
       </div>
     </Sheet>

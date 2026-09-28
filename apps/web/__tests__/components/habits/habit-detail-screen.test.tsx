@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -34,6 +34,8 @@ const mocks = vi.hoisted(() => ({
   scopedCompleteDay: false,
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
+  scopedHabitsByDate: new Map<string, Map<string, NormalizedHabit>>(),
+  scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
   checklist: vi.fn(),
@@ -54,15 +56,20 @@ const mocks = vi.hoisted(() => ({
     days: string[]
     rationale: string
   },
+  rescheduleOptions: [] as { enabled: boolean }[],
+  rescheduleError: null as Error | null,
+  rescheduleRefetch: vi.fn(),
+  language: 'en',
 }))
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
+  useLocale: () => mocks.language,
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
     if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+    if (key === 'calendarLabel') return `Atividade do hábito em ${values?.month}`
     return key
   },
 }))
@@ -80,9 +87,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
-    if (filters.dateFrom) mocks.scopedCompleteDay = options?.completeDay ?? false
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
+    if (filters.dateFrom) {
+      mocks.scopedCompleteDay = options?.completeDay ?? false
+      mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
+    }
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
   },
 }))
 
@@ -103,7 +113,7 @@ vi.mock('@/hooks/use-profile', () => ({
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
-      language: 'en',
+      language: mocks.language,
       weekStartDay: 1,
       timeZone: mocks.timeZone,
     } : undefined,
@@ -111,7 +121,10 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
-  useRescheduleSuggestion: () => ({ suggestion: mocks.suggestion, error: null }),
+  useRescheduleSuggestion: (options: { enabled: boolean }) => {
+    mocks.rescheduleOptions.push(options)
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+  },
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
@@ -121,7 +134,7 @@ vi.mock('@/components/ui/app-bar', () => ({
   AppBar: ({ onBack }: { onBack: () => void }) => <button type="button" aria-label="screen-back" onClick={onBack} />,
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
-vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span> }))
+vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
     ? <><button type="button" data-testid={`confirm-${title}`} data-message={message} data-confirm-label={confirmLabel} onClick={onConfirm}>{title}</button><button type="button" data-testid={`cancel-${title}`} onClick={onCancel}>Cancel</button></>
@@ -138,12 +151,12 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
-    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} onClick={onClick}>{title}{trailing}</button>
-    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value}>{title}{trailing}</div>,
+  ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => onClick
+    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={onClick}>{title}{trailing}</button>
+    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
+  PillButton: ({ children, disabled, label, variant, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} data-variant={variant} onClick={onClick}>{children}</button>,
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -157,7 +170,7 @@ vi.mock('@/components/dates/day-cell', () => ({
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
 vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => <div aria-label={label}>{children}</div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
@@ -234,6 +247,8 @@ describe('HabitDetailScreen', () => {
     }
     mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
+    mocks.scopedHabitsByDate = new Map()
+    mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
     mocks.checklist.mockReset()
@@ -252,6 +267,10 @@ describe('HabitDetailScreen', () => {
     mocks.timeZone = 'UTC'
     mocks.profileReady = true
     mocks.scopedCompleteDay = false
+    mocks.rescheduleOptions = []
+    mocks.rescheduleError = null
+    mocks.rescheduleRefetch.mockReset()
+    mocks.language = 'en'
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
@@ -264,6 +283,93 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = true
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(mocks.scopedCompleteDay).toBe(true)
+  })
+
+  it('does not offer a rescue for a habit created today', () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-29T12:00:00Z' }
+    mocks.logs = []
+    mocks.metrics = { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+    mocks.hasProAccess = false
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByTestId('list-row-slipping')).not.toBeInTheDocument()
+  })
+
+  it('shows a rescue only for an older overdue habit and handles request states', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('slipping')).toBeVisible()
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+    expect(screen.queryByRole('button', { name: 'rescheduleAccept' })).not.toBeInTheDocument()
+
+    mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByText('slipping')).not.toBeInTheDocument()
+
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('rescheduleError')).toBeVisible()
+    expect(screen.getByText('rescheduleError')).toHaveAttribute('role', 'status')
+    expect(screen.queryByRole('button', { name: 'rescheduleAccept' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+  })
+
+  it('uses the account today overdue schedule on a historical detail', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
+    expect(screen.getByText('slipping')).toBeVisible()
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
+    mocks.rescheduleOptions = []
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(screen.queryByText('slipping')).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+  })
+
+  it('uses a hugging primary action on narrow web and secondary on wide web', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, monthlyCompletionRate: 40 }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    const narrow = render(<HabitDetailScreen habitId="habit-1" />)
+    const narrowButton = screen.getByRole('button', { name: 'rescheduleAccept' })
+    expect(narrowButton).toHaveAttribute('data-variant', 'primary')
+    expect(narrowButton.parentElement).toHaveClass('self-start')
+    narrow.unmount()
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(min-width: 1024px)', addEventListener: () => {}, removeEventListener: () => {} }))
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('button', { name: 'rescheduleAccept' })).toHaveAttribute('data-variant', 'secondary')
+  })
+
+  it('capitalizes only the first letter of the visible month', () => {
+    vi.setSystemTime(new Date(2026, 8, 28, 12))
+    mocks.language = 'pt-BR'
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('Setembro de 2026')).toBeVisible()
+    expect(screen.getByLabelText('Atividade do hábito em setembro de 2026')).toBeInTheDocument()
+  })
+
+  it('uses the drawn action row endings and a Pro badge on free', () => {
+    mocks.hasProAccess = false
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const add = screen.getByTestId('list-row-habits.detail.addSubHabit')
+    expect(add).toHaveAttribute('data-chevron', 'false')
+    expect(add.querySelector('[data-testid="badge"]')).toHaveTextContent('habits.detail.proGate')
+    fireEvent.click(add)
+    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByTestId('list-row-habits.detail.delete')).toHaveAttribute('data-chevron', 'false')
   })
 
   it('returns a direct detail link to Today while the profile loads', () => {
@@ -1176,6 +1282,7 @@ describe('HabitDetailScreen', () => {
 
   it('contains and reports a reschedule failure', async () => {
     mocks.logs = []
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
     mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
     mocks.suggestion = {
       frequencyUnit: 'Day',
@@ -1186,7 +1293,7 @@ describe('HabitDetailScreen', () => {
       rationale: 'Try tomorrow',
     }
     mocks.update.mockRejectedValueOnce(new Error('reschedule failed'))
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    render(<HabitDetailScreen habitId="habit-1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'rescheduleAccept' }))
 
