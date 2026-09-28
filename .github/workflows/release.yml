@@ -140,6 +140,9 @@ jobs:
             exit 1
           fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY" >&2; exit 1; fi
+          known_deploy_ids=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" --data-urlencode 'limit=20' |
+            jq -c '[.[].deploy.id]')
           triggered_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           curl -fsS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" -H 'Content-Type: application/json' \
@@ -149,8 +152,13 @@ jobs:
             deploys=$(curl -fsS -G "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
               -H "Authorization: Bearer ${RENDER_API_KEY}" \
               --data-urlencode 'limit=20' --data-urlencode "createdAfter=${triggered_after}")
-            deploy_id=$(jq -r --arg image "$image_url" --arg digest "$DIGEST" \
-              '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id][0] // empty' <<< "$deploys")
+            deploy_ids=$(jq -c --arg image "$image_url" --arg digest "$DIGEST" --argjson known "$known_deploy_ids" \
+              '[.[] | select(.deploy.image.ref == $image or .deploy.image.sha == $digest) | .deploy.id |
+                select(. as $id | $known | index($id) | not)]' <<< "$deploys")
+            if [ "$(jq 'length' <<< "$deploy_ids")" -gt 1 ]; then
+              echo "Multiple new production deploys match ${image_url}" >&2; exit 1
+            fi
+            deploy_id=$(jq -r '.[0] // empty' <<< "$deploy_ids")
             if [ -n "$deploy_id" ]; then break; fi
             sleep 2
           done
