@@ -84,8 +84,8 @@ Owner rules for Batch M: the production copy loses zero rows (writes frozen duri
 Tickets, in dependency order (`#793`, `#795`, `#796`, `#798`, `#799`, `#794`, `#804`, `#800`, `#802`, `#83`, `#803`, `#807` to `#813` are done):
 
 - `#814` Reject Terraform plans that update a web service in place (api, `api#631` open); Render provider v1.9.1 turns a digest image path into a tag on any service update, so a checked-in guard runs on every saved plan before apply, locally and as tests in `terraform.yml`
-- `#801` Staging keep-alive and 4-weekly database recreate and reseed (api, `api#626`: approved, blocked only on the GitGuardian false positive the owner clears); after merge, move `render_postgres.staging` into the separate `infra/staging-database` state with the documented `state rm` and `import`
-- `#806` File uploads from Supabase Storage to S3, with a stable API read route that redirects to a fresh presigned GET (api, `api#625`: blocked only on accepting SonarCloud `terraform:S6258` for the access-log bucket); `Storage:Provider` switches to S3 only after the web CSP (`#807`, merged) is live on the serving web host; Supabase Storage already answers HTTP 402
+- `#801` Staging keep-alive and 4-weekly database recreate and reseed (api, `api#626`: approved; the run resolves GitGuardian incident 37676070 as a test credential, then merges); after merge, move `render_postgres.staging` into the separate `infra/staging-database` state with the documented `state rm` and `import`
+- `#806` File uploads from Supabase Storage to S3, with a stable API read route that redirects to a fresh presigned GET (api, `api#625`: the run accepts SonarCloud `terraform:S6258` for the access-log bucket, then merges); `Storage:Provider` switches to S3 only after the web CSP (`#807`, merged) is live on the serving web host; Supabase Storage already answers HTTP 402
 - `#797` Email through Amazon SES with bounce and complaint handling (api, `api#628`: approved, SonarCloud still red on new-code findings); then apply its Terraform (SES identities and DKIM records in Cloudflare), request SES production access, and switch `production_email_provider` and `staging_email_provider` in `local.tfvars`
 - `#84` The analytics opt-out toggle on web and mobile (ui, targets `redesign/main`, placed in the marketing-consent section of the Perfil settings surface)
 - `#815` Capture the first web pageview after PostHog opts in (ui, `main`): app.useorbit.org sends `$opt_in` and `$pageleave` but no `$pageview`, so the dashboard's app pageview, sign-in funnel and Web Vitals tiles stay empty until it lands
@@ -412,11 +412,10 @@ Staging login is broken: the email code is never sent (staging email configurati
 
 Open pull requests:
 
-- `api#628` SES (approved; SonarCloud red on new-code findings), `api#631` web plan guard (first review round), `api#626` staging lifecycle (approved; GitGuardian false positive), `api#625` S3 uploads (SonarCloud `terraform:S6258` on the access-log bucket), `ui#1217` privacy processors (held until cutover).
+- `api#628` SES (approved; SonarCloud red on new-code findings), `api#631` web plan guard (first review round), `api#626` staging lifecycle (approved; GitGuardian false positive the run resolves), `api#625` S3 uploads (SonarCloud `terraform:S6258` on the access-log bucket, which the run accepts), `ui#1217` privacy processors (held until cutover).
 
 Waiting on the owner:
 
-- Accept SonarCloud `terraform:S6258` on `api#625` and resolve GitGuardian incident 37676070 on `api#626` as a test credential; both are false positives only a signed-in human can clear.
 - The redesign approval at THE REDESIGN GATE, on staging.
 - A device test of `#390` (bulk log replay) and `#134` (three-dot menu) on the current open-track build.
 - After the migration is verified: the final delete click on the Supabase project, the Vercel projects and Resend.
