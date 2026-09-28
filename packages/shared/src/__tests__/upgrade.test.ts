@@ -67,7 +67,7 @@ describe('upgrade utils', () => {
     expect(en.upgrade.convert).toMatchObject({
       promise: 'The plan changes Astra, never your habits and logs.',
       freeHeading: 'Ten times more Astra.',
-      trialHeading: 'The 50 a day stay, or go back to 5.',
+      trialHeading: 'Keep 50 Astra messages a day with Pro. Without Pro, you get 5 a day.',
       freeAllowance: '5',
       proAllowance: '50',
       perDay: 'messages a day',
@@ -75,7 +75,7 @@ describe('upgrade utils', () => {
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
       freeHeading: 'Dez vezes mais Astra.',
-      trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.',
+      trialHeading: 'Com o Pro, você mantém 50 mensagens da Astra por dia. Sem o Pro, são 5 por dia.',
       freeAllowance: '5',
       proAllowance: '50',
       perDay: 'mensagens por dia',
