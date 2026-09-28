@@ -7,6 +7,7 @@ import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/ac
 import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 let activeAccountIntent: string | null | undefined
 
@@ -35,6 +36,7 @@ export function reportAccountChanged(): void {
   const message = translateApiFetchMessage('errors.api.accountChanged')
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
+  useVersionGateStore.getState().requireReload('accountChanged')
   toast.error(message, {
     id: 'account-changed',
     duration: Infinity,
@@ -73,6 +75,7 @@ export async function runServerActionResult<T>(
       const message = translateApiFetchMessage('errors.api.appUpdated')
       const reloadLabel = translateApiFetchMessage('errors.api.reload')
       if (message && reloadLabel) {
+        useVersionGateStore.getState().requireReload('appUpdated')
         toast.error(message, {
           id: 'app-updated',
           duration: Infinity,
