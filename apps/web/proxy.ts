@@ -70,7 +70,11 @@ async function applyRefreshedSession(
 
 function createContentSecurityPolicy(nonce: string): string {
   const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
+  const uploadBucketOrigin = process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN
+    ? new URL(process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN).origin
+    : null
 
+  const apiOrigin = new URL(accountEventApiBase()).origin
   const websocketUrl = new URL(supabaseUrl.origin)
   websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
   const developmentScriptSource =
@@ -81,9 +85,9 @@ function createContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
     "frame-src https://challenges.cloudflare.com",
-    `img-src 'self' blob: data: ${supabaseUrl.origin}`,
+    `img-src 'self' blob: data: ${supabaseUrl.origin} ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${new URL(accountEventApiBase()).origin}`,
+    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

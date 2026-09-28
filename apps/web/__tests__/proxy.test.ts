@@ -58,6 +58,7 @@ describe('proxy', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.stubEnv('API_BASE', 'https://api.useorbit.org')
     vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', undefined)
+    vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', undefined)
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
@@ -134,6 +135,27 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(forwardedHeaders.get('Content-Security-Policy')).toBe(contentSecurityPolicy)
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
+  })
+
+  it.each([
+    ['production', 'https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com', 'https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com'],
+    ['staging', 'https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com', 'https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com'],
+  ])('allows the %s upload bucket without broadening the CSP', async (_, bucketOrigin, otherBucketOrigin) => {
+    vi.stubEnv('NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN', bucketOrigin)
+    vi.stubEnv('API_BASE', 'https://api.example.test')
+
+    const response = await proxy(createRequest('/terms'))
+    const directives = response.headers.get('Content-Security-Policy')!.split('; ')
+    const imageSources = directives.find((directive) => directive.startsWith('img-src '))!.split(' ')
+    const connectionSources = directives.find((directive) => directive.startsWith('connect-src '))!.split(' ')
+
+    for (const sources of [imageSources, connectionSources]) {
+      expect(sources).toContain(bucketOrigin)
+      expect(sources).toContain('https://test.supabase.co')
+      expect(sources).not.toContain(otherBucketOrigin)
+    }
+    expect(imageSources).toContain('https://api.example.test')
+    expect(directives.join('; ')).not.toContain('*.amazonaws.com')
   })
 
   it('returns the ticket API origin for the stream and allows it in connect-src', async () => {
