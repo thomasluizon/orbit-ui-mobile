@@ -29,7 +29,6 @@ import { useUIStore } from '@/stores/ui-store'
 import {
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
-import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
 
 interface DestinationShellProps {
@@ -271,57 +270,30 @@ function DestinationShellContent({
     return children
   }
 
-  if (!navigationEnabled) {
-    const flow = wide ? (
-      <ShellWide nav={false} header={header} notice={notice}>
-        {children}
-      </ShellWide>
-    ) : (
-      <Shell412 nav={false} header={header} notice={notice}>
-        {children}
-      </Shell412>
-    )
-    return flow
-  }
-
-  if (wide) {
-    return (
-      <>
-        <a
-          href="#orbit-main"
-          className="z-tooltip fixed left-4 top-4 -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
-        >
-          {t('common.skipToContent')}
-        </a>
-        <ShellWide
-          {...conversationSlot}
-          items={wideItems}
-          activeId={chrome.activeId}
-          navLabel={t('nav.mainNavigation')}
-          onSelect={(id) => navigate(id as BottomTab)}
-          {...wideCreate}
-          account={getAccountLabel(profile)}
-          onPalette={() => setPaletteOpen(true)}
-          paletteLabel={t('command.title')}
-          paletteHint={paletteHint}
-          notice={notice}
-          header={header}
-          composer={chrome.composer ? composer : undefined}
-        >
-          <div id="orbit-main">{children}</div>
-        </ShellWide>
-        {palette}
-      </>
-    )
-  }
-
   return (
     <>
-      <Shell412
-        header={header}
+      <a
+        href="#orbit-main"
+        className="z-tooltip fixed left-4 top-4 -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
+      >
+        {t('common.skipToContent')}
+      </a>
+      <ShellWide
         {...conversationSlot}
+        items={wideItems}
+        activeId={chrome.activeId}
+        navLabel={t('nav.mainNavigation')}
+        onSelect={(id) => navigate(id as BottomTab)}
+        {...wideCreate}
+        account={getAccountLabel(profile)}
+        onPalette={() => setPaletteOpen(true)}
+        paletteLabel={t('command.title')}
+        paletteHint={paletteHint}
+        notice={notice}
+        header={header}
+        composer={chrome.composer ? composer : undefined}
         tabBar={
-          <BottomTabBar
+          !chrome.flow ? <BottomTabBar
             activeId={chrome.activeId}
             items={[
               { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
@@ -331,7 +303,7 @@ function DestinationShellContent({
             ]}
             label={t('nav.mainNavigation')}
             onSelect={(id) => navigate(id as BottomTab)}
-          />
+          /> : undefined
         }
         fab={
           pathname === '/' && !todayFabHidden && !conversationOpen ? (
@@ -340,12 +312,10 @@ function DestinationShellContent({
             </Fab>
           ) : undefined
         }
-        notice={notice}
-        composer={chrome.composer ? composer : undefined}
       >
-        {children}
-      </Shell412>
-      {palette}
+        <div id="orbit-main">{children}</div>
+      </ShellWide>
+      {!chrome.flow || wide ? palette : null}
     </>
   )
 }
