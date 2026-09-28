@@ -59,7 +59,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { days: number }) =>
     values ? `${key}:${values.days}` : key,
 }))
-vi.mock('@/hooks/use-profile', () => ({
+vi.mock('@/hooks/use-profile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-profile')>()),
   useProfile: (options?: { initialData?: Profile }) => ({
     profile: options?.initialData ?? (mocks.profileReady ? { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } : undefined),
   }),

@@ -54,6 +54,7 @@ vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {}
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
 vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
 vi.mock('@/stores/onboarding-draft-store', () => ({

@@ -1,15 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, create } from 'react-test-renderer'
+import { act, create as createRenderer } from 'react-test-renderer'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 
 const LEGACY_TRIAL_KEY = 'orbit_trial_expired_seen'
 const ACCOUNT_A_TRIAL_KEY = buildAccountScopedStorageKey(LEGACY_TRIAL_KEY, 'user-1')
 const ACCOUNT_B_TRIAL_KEY = buildAccountScopedStorageKey(LEGACY_TRIAL_KEY, 'user-2')
+const renderedTrees: { unmount: () => void }[] = []
+function create(element: React.ReactElement) {
+  const tree = createRenderer(element)
+  renderedTrees.push(tree as unknown as { unmount: () => void })
+  return tree
+}
 
 /** Signs the device in, because the notice is owed to one account and its key names that account. */
 function holdAccount(userId: string): void {
@@ -61,12 +68,28 @@ vi.mock('@/components/ui/sheet', async () =>
 describe('TrialExpiredModal (mobile)', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
     storedFlags({})
     holdAccount('user-1')
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(() => {
+      for (const tree of renderedTrees.splice(0)) tree.unmount()
+    })
     sheetTestControls.defer(false)
+  })
+
+  it('waits for an open sheet before presenting the trial notice', async () => {
+    useUIStore.getState().registerOpenOverlay('existing-sheet')
+    const tree = await renderModal()
+    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+
+    await act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('existing-sheet')
+      await Promise.resolve()
+    })
+    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
   })
 
   it('renders only the current paused Pro features', async () => {

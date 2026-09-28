@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
@@ -31,12 +31,24 @@ export function MarketingConsentPrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const retiredPromptRef = useRef<typeof armedPrompt>(null)
+  const wasVisibleRef = useRef(false)
+  useEffect(() => {
+    if (visible) wasVisibleRef.current = true
+    else if (wasVisibleRef.current) {
+      wasVisibleRef.current = false
+      unregisterOpenOverlay(promptId)
+    }
+  }, [visible, promptId, unregisterOpenOverlay])
+  useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
   /**
    * The settle timer is the one thing the state reset above cannot reach: with no prompt on
    * screen its effect never re-runs, so a timer armed for the previous account would open this
@@ -67,9 +79,10 @@ export function MarketingConsentPrompt() {
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
+    if (visible || !isArmed || celebrationInFlight || anotherOverlayOpen || armedPrompt === retiredPromptRef.current) return
 
     settleTimerRef.current = setTimeout(() => {
+      if (!useUIStore.getState().tryReservePromptOverlay(promptId)) return
       markEngagementPrompted(
         MARKETING_CONSENT_MILESTONE_KEY,
         new Date().toISOString(),
@@ -80,7 +93,7 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [armedPrompt, celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
+  }, [armedPrompt, celebrationInFlight, anotherOverlayOpen, isArmed, markEngagementPrompted, promptId, setVisible, visible])
 
   function answer(enabled: boolean) {
     const accountGeneration = getAccountGeneration()

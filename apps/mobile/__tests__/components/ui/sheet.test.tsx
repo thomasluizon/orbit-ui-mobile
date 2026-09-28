@@ -10,6 +10,7 @@ import {
 } from '../../../test-mocks/react-native'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Sheet, useSheetHost, type SheetHandle } from '@/components/ui/sheet'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.unmock('@/components/ui/sheet')
 
@@ -51,12 +52,25 @@ const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
   beforeEach(() => {
+    useUIStore.setState({ openOverlayIds: [] })
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
     dismiss.mockResolvedValue(undefined)
     didDismiss.reset()
     __resetTestHostConfig()
+  })
+
+  it('registers its overlay slot until native dismissal completes', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+    TestRenderer.act(() => didDismiss.complete())
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
+    TestRenderer.act(() => tree!.unmount())
   })
 
   afterEach(() => {

@@ -72,7 +72,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], openOverlayIds: [] })
 }
 
 describe('ReviewMomentSheet (mobile)', () => {
@@ -162,6 +162,21 @@ describe('ReviewMomentSheet (mobile)', () => {
     await settle(1000)
 
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
+  })
+
+  it('waits for an open sheet before offering a review moment', async () => {
+    useUIStore.getState().registerOpenOverlay('already-open')
+    const tree = await render()
+    await armReview('review-streak-7')
+    await settle()
+    expect(findByType(tree, 'Sheet')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().unregisterOpenOverlay('already-open')
+      await Promise.resolve()
+    })
+    await settle()
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('stays hidden and clears the arm when the key was already prompted', async () => {

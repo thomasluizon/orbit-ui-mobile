@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useCallback, useMemo } from 'react'
 import { useLocale } from 'next-intl'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -15,6 +15,9 @@ import {
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useIsClient } from '@/hooks/use-is-client'
+
+export const PreloadedProfileContext = createContext<Profile | undefined>(undefined)
 
 function writeLocaleCookie(value: string) {
   if (typeof document !== 'undefined') {
@@ -25,6 +28,9 @@ function writeLocaleCookie(value: string) {
 export function useProfile(options?: { enabled?: boolean; initialData?: Profile }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
+  const isClient = useIsClient()
+  const contextProfile = useContext(PreloadedProfileContext)
+  const initialData = options?.initialData ?? contextProfile
   const {
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,
@@ -33,21 +39,21 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: () => fetchJson<Profile>(API.profile.get),
-    initialData: options?.initialData,
+    initialData,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: true,
     enabled: options?.enabled ?? true,
   })
 
-  const profile = query.data
+  const profile = isClient ? query.data : initialData
   const profileLanguage = profile?.language
 
   useEffect(() => {
     if (!profile) return
     syncThemeFromProfile(profile.themePreference)
     detectAndSaveThemeIfNeeded(profile.themePreference)
-    // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    // react-doctor-disable-next-line exhaustive-deps -- profile selects query.data or initialData and is already in deps; react-doctor does not resolve the derived value; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
     profile,
     syncThemeFromProfile,
@@ -77,6 +83,7 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   return {
     ...query,
     profile,
+    isLoading: (!isClient && !initialData) || query.isLoading,
     invalidate,
     patchProfile,
   }

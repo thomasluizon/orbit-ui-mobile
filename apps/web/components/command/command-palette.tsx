@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type ComponentType,
@@ -17,6 +18,7 @@ import type { IconProps } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
 import { CommandMenu } from './command-menu'
 
@@ -77,11 +79,19 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
   const panelRef = useRef<HTMLDivElement>(null)
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const registerPortal = useContext(CommandPalettePortalContext)
 
   const close = useCallback(() => setPaletteOpen(false), [setPaletteOpen])
 
   useEffect(() => () => setPaletteOpen(false), [setPaletteOpen])
+  useEffect(() => {
+    if (!paletteOpen) return
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [overlayId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
 
   useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
   useModalFocusTrap(paletteOpen, panelRef)

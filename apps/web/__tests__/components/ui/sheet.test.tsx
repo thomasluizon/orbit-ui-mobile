@@ -5,10 +5,18 @@ import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Sheet', () => {
+  it('registers while open and releases its overlay slot on unmount', () => {
+    useUIStore.setState({ openOverlayIds: [] })
+    const { unmount } = render(<Sheet open title="Options" />)
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+    unmount()
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
+  })
   it('leaves a 24 pixel content peek on a long sheet', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
       .replaceAll('\r\n', '\n')

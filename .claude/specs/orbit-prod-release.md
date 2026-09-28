@@ -62,6 +62,12 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - The beta fleet permits a simpler deploy order while the owner is the only user, including relaxing deploy-API-first. Keep the full code contract.
 - `#74` owns existing copy. Never revisit the redesign gate's timing because of how many screens remain.
 
+- Redesign fixes merge once the exact head has green checks, a Pullfrog approval of that head and zero unresolved threads, and then `redesign/main` is released to staging. No screenshot gate sits in front of a merge.
+- Redesign quality is judged on the rendered app: sweep staging screen by screen, at desktop and phone width, against the `DESIGN.md` rules, the screen's drawing in `design/canvas/`, `BRAND.md` and the brain decisions, and file what is wrong. A code-only audit never counts as a sweep. Sweeps repeat after every batch of merged fixes until a full pass finds nothing.
+- A sweep may create, log and delete test habits and send Astra messages in the owner's staging account. Never in production.
+- Owner overrides of the drawings: Calendário is one centred column (month grid on top, the selected day below it, the view selector folded into the month header, 24px card padding), and the Calendário drawing is amended to match; the Perfil Suporte row opens the support form, not Astra; Perfil keeps its settings inline as drawn, and the duplicate Preferências and Avançado pages go; Sobre carries no internal naming note.
+- A web release strands every open tab's next Server Action until `#834` ships; until then, release staging web while nobody is testing on it.
+
 ## The order
 
 Reconcile the open board with these batches before each handoff. Place each new ticket exactly once. A batch completes before the next begins. Within a batch, use dependency order; drive already open pull requests first.
@@ -83,16 +89,42 @@ The decision and its research: brain ADR `Move Orbit to Render with Amazon SES, 
 
 Owner rules for Batch M: the production copy loses zero rows (writes frozen during the dump, every table verified by row count and checksum, Supabase paused until sign-off); staging seeds sample data for the owner's account only; PostHog replaces Vercel Analytics and Speed Insights; both databases stay reachable through the Render MCP and `psql`; MCPs, CLIs and APIs come before the browser.
 
-Tickets, in dependency order (`#793`, `#795`, `#796`, `#798`, `#799`, `#794`, `#804`, `#800`, `#802`, `#83`, `#803`, `#807` to `#814`, `#797`, `#801`, `#806`, `#84`, `#825` and `#826` are done):
+Tickets, in dependency order (`#793`, `#795`, `#796`, `#798`, `#799`, `#794`, `#804`, `#800`, `#802`, `#83`, `#803`, `#807` to `#814`, `#797`, `#801`, `#806`, `#84`, `#825`, `#826`, `#818`, `#828`, `#829` and `#832` are done):
 
-- `#829` (landing, `landing#95`), `#830` (api, `api#639`) and `#831` (ui, `ui#1237`) Isolate the production Render credential in each release workflow. The design is an environment-scoped key, not a deploy hook: the production job and the staging job each read `RENDER_API_KEY` from their own GitHub environment, and every environment that holds the key allows deployments only from `main`. The environment secrets and the `main`-only rules already exist (orbit-landing-page `production` and `staging`; orbit-api `production`, `staging` and `render-operations`; orbit-ui-mobile `Production`). In orbit-ui-mobile, `android-release.yml` builds the internal track from a selected branch inside the `staging` environment, so that job moves to its own environment first, and only then does `staging` get its `main`-only rule. After each pull request merges and a production and a staging release both pass, delete that repository's repository-level `RENDER_API_KEY`.
-- `#828` Sync `orbit-landing-page` `main` into `redesign/main` (`landing#94`): the carry branch holds an unpushed review fix that removes the pre-cutover release tolerance; after `#829` merges, carry `#829`'s squash as well, answer the review, merge, and run the staging landing release, which must then find the `orbit-build` marker.
-- `#827` The Today first-tap and hydration fixes: merged on `main`; `ui#1238` carries them to `redesign/main`; close the ticket after that merge.
-- `#818` The landing manual `release.yml`: shipped in `landing#93`; check its acceptance criteria against `main` and close it.
-- Rename the staging web host from `staging.useorbit.org` to `app-staging.useorbit.org`, matching `app.useorbit.org` (owner decision): the Cloudflare record and the Render custom domain through Terraform, the staging `NEXT_PUBLIC_SITE_URL` build variable, the staging API allowed origins and `Google__AllowedRedirectUris`, and the redirect URI on the Google OAuth client (console through `claude-in-chrome`); keep `staging.useorbit.org` redirecting to the new host, release staging web, and verify email and Google sign-in on the new host.
-- `#815` Capture the first web pageview after PostHog opts in (ui, `main`): app.useorbit.org sends `$opt_in` and `$pageleave` but no `$pageview`, so the dashboard's app pageview, sign-in funnel and Web Vitals tiles stay empty until it lands.
-- `#805` Web privacy disclosures for the Render, SES, S3 and PostHog processors (ui, `ui#1217`): push the branch's unpushed commit (the LGPD safeguards transfers sentence), answer its three threads, approve the wording with `/second-opinion`, and merge only after email runs on SES, because it names SES and no longer names Resend.
-- Operations still open, in order: when AWS grants SES production access (support case `179056896000159`), set `production_email_provider` and `staging_email_provider` to `Ses` and the two dead-letter alert email variables in `infra/local.tfvars`, apply the targeted plan, release the API in both environments, and prove one real sign-in code arrives through SES; then cancel Resend Pro, merge `#805`, and list the retired projects for the owner's delete click (the two Vercel Orbit projects, the paused Supabase project, Resend).
+- `#830` API release credentials: merged on `main` (`api#639`); the production API release passed on its environment key. The staging release of `redesign/main` deploys but fails its check, because `redesign/main`'s `/health` has no `commit` field yet: merge the carry `api#641` (approved), release staging API from `redesign/main`, run `Staging Postgres access reconciliation` once, then delete the `orbit-api` repository-level `RENDER_API_KEY` and close the ticket.
+- `#831` Web release credentials: merged on `main` (`ui#1237`); production and staging web releases passed on environment keys, `android-internal` exists, `staging` allows only `main`, and the repository key is deleted. Left: `ui#1243` (the production job must ignore deploys that existed before its request, the same defect Pullfrog found on the carry) merges on `main`, then `ui#1240` (the carry into `redesign/main`, which internal Android builds from `redesign/main` need because `staging` is now `main`-only) takes `ui#1243`'s squash as well, answers its thread and merges; release production web once and close the ticket.
+- `#827` The Today first-tap and hydration fixes: `ui#1238` carries them to `redesign/main` (approved at its head; a body wording fix and a re-run of one infrastructure test failure are in flight). Until it merges every first click after a page load is dropped on staging. Close the ticket after the merge.
+- `#833` Staging web host to `app-staging.useorbit.org`: the Terraform code merged (`api#640`) and GitHub closed the ticket on that merge, but none of the cutover has run: reopen it. Then add the `app-staging.useorbit.org` custom domain to `orbit-web-staging` through the Render API, apply the targeted plan (the DNS record, the Turnstile widget, the staging environment groups, the staging upload bucket CORS) and confirm no web service change, set `STAGING_NEXT_PUBLIC_SITE_URL` to `https://app-staging.useorbit.org`, add `https://app-staging.useorbit.org/auth-callback` to the Google OAuth web client, release staging API and web from `redesign/main`, verify `/api/health`, the 308 from `staging.useorbit.org`, email sign-in and the Google authorize request, then close it. The old host stays allowed in CORS and redirect lists by design.
+- `#815` The first web pageview after PostHog opts in (`ui#1239`, approved; its checks were cancelled and re-run): merge, release production web, and confirm a `$pageview` with host `app.useorbit.org` through the PostHog MCP.
+- `#805` Web privacy disclosures (`ui#1217`): push the branch's unpushed commit (the LGPD safeguards sentence), answer its three threads, approve the wording with `/second-opinion`, and merge only after email runs on SES.
+- Operations still open, in order: when AWS grants SES production access (support case `179056896000159`; reading it needs the owner's AWS console sign-in), set `production_email_provider` and `staging_email_provider` to `Ses` and the two dead-letter alert email variables in `infra/local.tfvars`, apply the targeted plan, release the API in both environments, and prove one real sign-in code arrives through SES; then cancel Resend Pro, merge `#805`, and list the retired projects for the owner's delete click (the two Vercel Orbit projects, the paused Supabase project, Resend).
+
+### Batch R: the owner's redesign review, and sweeps until nothing is wrong
+
+The owner reviewed staging (`redesign/main`) and found the redesign far from the drawings and `DESIGN.md`: the rules are written but only the mechanical ones are gated, and the per-screen visual review had been switched off. Everything he reported gets fixed, and the rendered sweeps (standing rule above) continue until a full pass finds nothing. This batch runs beside Batch M, because Batch M's remaining items wait on AWS or on merges; it outranks every later batch.
+
+Filed, in this order (`#834` and the web push item are shipped defects on `main`, so they land on `main` first and are carried):
+
+- `#834` A stale Server Action after a web release shows "check the connection" and never recovers (`ui#1241`, approved; approve its copy with `/second-opinion`, then merge on `main` and carry through `#556`).
+- `#840` Progresso: `GET /api/habits/retrospective` answers `400 NO_HABITS_FOR_PERIOD` for a new account, which the app shows as a repeating form-error toast while "Últimos 30 dias" never loads; the column is not centred.
+- `#835` Astra on desktop is a full-window page; it must be the shell's side panel (`ShellWide.d.ts:1`), with one composer focus ring (`ui#1242`: its worker committed the side panel locally as `228bd140`, not pushed; merge its report into the body, push, clear review).
+- `#836` The palette hint shows `Ctrl K` on a Mac (`ui#1244`, open).
+- `#837` Perfil and Preferências: full-row hover and focus in the row shape, the group-gap spacing rule, settings inline with the duplicate pages removed, Suporte opening the form, clearer copy for `Abrir as chaves` and `As 50 por dia ficam, ou voltam a ser 5.`.
+- `#838` Remove the internal naming note from Sobre (and from its drawing).
+- `#839` Dialog action pills of different widths and confirmation labels that do not name the consequence (Recomeçar and every other dialog).
+
+Found by the sweep and NOT yet filed; file each as its own ticket first:
+
+- Calendário, rebuilt as the owner decided: one centred column, month grid on top, the selected day below, the view selector folded into the month header, 24px card padding, less bloat; amend `design/canvas/Orbit Calendario.dc.html` to match. At a mid-size desktop window it also stayed on its skeleton for more than 8 seconds.
+- The create habit dialog: while typing, the understood sentence and the "not found" line render on top of each other for about 3 seconds; the title field shows two focus rings; the device's own reading wears the Astra glyph (the drawing reserves it for Astra's proposals); `Mais detalhes` sits indented off the content edge with about 70px gaps around it; Escape does not close the dialog; the close X disappears once the body scrolls; `Descartar` clears the form but leaves the dialog open; the discard prompt's `Continuar` is ambiguous and `Descartar` wears the brand fill.
+- Habit detail: a habit created today shows an `Escapando` rescue card stuck on `Buscando um plano realista...` with a disabled full-width `Usar plano`; `Setembro De 2026` capitalises `De`; two scroll containers side by side; `+ Sub-hábito` carries both a plus and a chevron.
+- Hoje: every habit row reserves an empty leading column of about 50px before the emoji tile.
+- Wrapped: the cover aligns to the start instead of centring on desktop (`wrapped-cover.tsx:38`, `items-start`), and the player caps at 480px where the drawing uses the wide frame.
+- Web push never worked on either branch: there is no service worker file and no `navigator.serviceWorker.register` call, and `/sw.js` redirects to `/login` through the auth proxy, so Preferências says the browser has no push support. A shipped defect: fix on `main` first.
+- The desktop Astra dock (chips and composer) spans wider than the content column on every screen; follow the side panel fix in `#835`.
+- Staging live sync: `GET https://api-staging.useorbit.org/api/events` (SSE) answered 503 once during a session; parallel route prefetches answered 503 from the free staging web service; the web server logs `MaxListenersExceededWarning` (11 close listeners on `ServerResponse`) every half minute; one Progresso visit fetched `/api/profile`, `/api/habits/count`, `/api/gamification/profile` and `/api/auth/session` five or six times each. Investigate each before filing.
+
+Sweep coverage so far: Hoje, Progresso, the create dialog, Astra, habit detail, Calendário and Perfil at desktop width. Still to sweep: Busca, Avisos, Sobre, Assinatura, Pro, Wrapped, Onboarding, Entrar, Verificação, Estados, Offline, the overlays, Celebração, and every screen at phone width.
 
 ### Batch 0a: DONE
 
@@ -407,24 +439,30 @@ Current operational rules above take precedence when a record conflicts.
 - A leftover local `next-server` on port 3000 serves a stale build to a local smoke run. Check `lsof -nP -iTCP:3000 -sTCP:LISTEN` before starting one.
 - Before a staging database replacement, the reseed workflow opens the Render Postgres allow list to the runner's own address only, restores the operator list after each step, and a separate reconciliation workflow repairs a run that timed out.
 
+- Render's Hobby workspace keeps no HTTP request logs, so an empty request-log query proves nothing about whether a request arrived; use app logs, the browser's network panel or the API's own logging.
+- The canvas drawings cannot render from a checkout (`support.js` and the design-system bundle are not committed), so compare against the drawing's markup, data block and report text, and against the design-system contracts in `design/canvas/_ds/<uuid>/components/*.d.ts`.
+- A GitHub `Closes thomasluizon/orbit-tickets#N` line in an `orbit-api` or `orbit-landing-page` pull request closes the ticket on merge to `main`; use `Refs` when the ticket still has operations after the merge.
+- A body edit on a pull request re-runs Guards, and the Review harness motion line must read exactly `not applicable: no changed animation`.
+
 ## Current state
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Batch M is nearly done. Production runs entirely on the new stack: the API (release `3dbfb434`), web (`60cd93ad`) and landing (`e778ecac`) on Render, all from `main`; the production database on Render Postgres (copied from Supabase with zero rows lost); uploads on S3 (proven by a real upload round trip); `useorbit.org`, `www` and `app` served by Render through Cloudflare, with DNSSEC signed and the DS record live. The production release smoke suite passes on Render for the first time, after the Today first-tap and hydration fixes. Google sign-in uses the public site URL for its callback on both environments. Android 1.3.38 (97) from `main` is on the open track, against the production API.
+Batch M is nearly done. Production runs entirely on the new stack (API, web and landing on Render, Postgres on Render, uploads on S3, DNS and DNSSEC on Cloudflare). Releases read `RENDER_API_KEY` only from `main`-only GitHub environments: landing is finished (repository key deleted), web is finished apart from the production deploy correlation fix (repository key deleted), and the API waits on its `redesign/main` carry before its staging release can pass. The landing production release now requires `useorbit.org` to serve the released build marker. Staging runs `redesign/main` for API, web and landing; the staging host rename's code is merged and its cutover has not run.
 
-Staging runs `redesign/main`: API `bc8a566c` and web `de00fc9f` on Render, landing deployed at `fb5c47d0` but failing its build-marker check until `#828` lands. Staging sign-in works by email code and by Google. Staging uploads use S3, and both SES event subscriptions are confirmed with dead-letter queues and alarms. THE REDESIGN GATE build is out: Android 1.3.39 (98) from `redesign/main`, against the staging API, is on the internal track.
+Email still goes through Resend: AWS has not granted SES production access.
 
-Email still goes through Resend: AWS has not granted SES production access yet. Vercel is retired: its Orbit domains are removed, both Orbit projects are disconnected from Git, and the team is on the free plan (the Pro refund is confirmed). The Supabase project is paused, and the leftover `orbit_staging` database is dropped.
+THE REDESIGN GATE is open and failing: the owner reviewed staging and found the redesign far from the drawings and the written rules (Batch R). The internal Android build 1.3.39 (98) from `redesign/main` is on the internal track.
 
-Open pull requests: `ui#1238` hydration carry to `redesign/main` (CI not read yet); `ui#1237`, `api#639` and `landing#95` credential isolation (being reworked to the environment-scoped design in `#829` to `#831`); `landing#94` landing sync (Pullfrog commented, waits on `#829`); `ui#1217` privacy (held until the SES switch).
+Open pull requests: `ui#1238` (Today first-tap carry, approved), `ui#1239` (PostHog pageview, approved), `ui#1240` (web credential carry, one Pullfrog thread), `ui#1241` (stale Server Action recovery, approved, copy approval pending), `ui#1242` (Astra, side panel commit unpushed), `ui#1243` (production deploy correlation, new), `ui#1244` (palette hint, new), `ui#1217` (privacy, held for SES), `api#641` (API credential carry, approved).
 
 Waiting on the owner:
 
-- The redesign approval at THE REDESIGN GATE: the staging web app and the internal 1.3.39 (98) build.
+- Reading AWS support case `179056896000159` in the AWS console, which needs his sign-in.
+- The redesign approval at THE REDESIGN GATE, after Batch R.
 - A device test of `#390` (bulk log replay) and `#134` (three-dot menu) on the current open-track build.
 - The delete click on the retired projects once he is satisfied: the two Vercel Orbit projects, the paused Supabase project, and Resend after its cancellation.
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Stale worktrees: every worktree of a merged branch is clean and removable with `node tools/teardown-worktree.mjs`; list them with `git worktree list` in each repository and verify each before removing it. Two detached `orbit-api` scratch worktrees (`merge-api-583`, `merge-api-584`) hold uncommitted files from an older run; read them before removing them.
+Stale worktrees: about 145 in `orbit-ui-mobile`, 100 in `orbit-api` and 17 in `orbit-landing-page`; every worktree of a merged branch is removable with `node tools/teardown-worktree.mjs` (one ticket at a time; it refuses anything unmerged). The detached `orbit-ui-mobile` worktree `ticket-822-web-health-retry` sits on a merged `main` commit and is removable. The GitHub environments `Preview` and `Production – orbit-landing-page` style entries left by Vercel in `orbit-ui-mobile` and `orbit-landing-page` are stale.
