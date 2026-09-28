@@ -1,41 +1,36 @@
 ---
 name: release
-description: Plan and run Orbit's manual production release in API, web, landing, Android order, or inspect staging and publish an internal or closed Android build. Use when the owner says /release or asks what has not shipped.
-argument-hint: "[staging] [--track internal|closed|open|production]"
+description: Plan and run Orbit's manual production or branch-selected staging release in API, web, landing, Android order.
+argument-hint: "[staging <branch>] [--track open|production]"
 effort: high
 ---
 
 # Release
 
-Only run a release when invoked. The plan is read-only. Never dispatch a workflow for a service whose plan says `needsRelease: false`.
+Only dispatch after the owner invokes a release. Planning is read-only. Never dispatch a service whose plan says `needsRelease: false`. Keep API, web, landing, Android order and stop after any failed release or verification.
 
 ## Plan
 
-Run `node tools/release-plan.mjs` for production on the default `open` Android track, or `node tools/release-plan.mjs --environment staging` for staging on the default `internal` track. For an explicit `production` or `closed` Android track, add `--track production` or `--track closed` respectively. Read the JSON and show each service's branch, deployed SHA or `no staging baseline` / `first production deploy`, head SHA, and every listed commit. Show Android's selected track and its own baseline. Preserve the tool's API, web, landing, Android order. An empty plan ends here with no workflow dispatch.
+Production uses `node tools/release-plan.mjs`, with `--track production` when requested. Staging requires a branch argument: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`. Show each service's branch, deployed SHA or absent baseline, head SHA, and unreleased commits. Show the Android track and its baseline. An empty plan ends without dispatch.
 
-The staging API baseline comes from the current live Render deploy. The staging web baseline comes from `/api/health` on the URL returned by its Render service record. Their service IDs are the UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID`. A missing web service or live deploy is a first deploy, not proof that staging is current. Do not use a custom staging hostname for these checks. If a comparison diverges or a remote read fails, stop and report the error; do not guess a baseline.
+The staging API baseline is its current live Render deploy. The web baseline is `/api/health` at the URL in its Render service record. The landing baseline is its current live Render deploy. The UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID` locate the API and web services. The planner locates Render landing services by their `orbit-landing` and `orbit-landing-staging` names. A missing baseline is a first deploy. Stop on a divergent comparison or remote read failure.
 
-## Production dispatch
+## Dispatch in plan order
 
-For each changed service, in plan order:
+Re-run the same plan immediately before each dispatch. Confirm the selected branch head still equals the planned SHA. Production always selects `main`; staging uses the required branch. For API, web, and landing, run each repository's manual `release.yml` from `main`:
 
-1. Re-run the production plan with the same Android track just before dispatch and use its current head SHA. If an earlier release failed, stop; do not dispatch later services. Confirm the selected SHA still equals `main` in that repository. For API, web, and landing, dispatch the selected commit through their `ref` input while the workflow itself runs from `main`:
+```text
+gh workflow run release.yml --repo thomasluizon/<repo> --ref main -f environment=<production|staging> -f branch=<selected branch>
+```
 
-   ```text
-   gh workflow run <workflow> --repo thomasluizon/<repo> --ref main -f ref=<planned SHA>
-   ```
+For a staging Git-backed Render service (API or landing), its workflow first updates the service's tracked branch with `PATCH /v1/services/{serviceId}` and `{"branch":"<selected branch>"}`, then triggers `POST /v1/services/{serviceId}/deploys` with `{"commitId":"<planned SHA>"}`. The update does not itself deploy. Both calls belong to that repository's workflow. The web workflow instead builds the selected branch into an image and deploys its digest. Do not change Render service settings manually while planning.
 
-2. For Android, follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode from the latest run across all tracks. Use `open` by default or the explicitly requested `production` track. Show the exact version, code, track, branch, and SHA and get the owner's confirmation required by that skill before dispatch. The Android workflow has no `ref` input; its `--ref main` selects the source. Stop if the remote SHA changed.
-3. Record the time before dispatch. `gh workflow run` does not return a run ID. Use `gh run list --repo thomasluizon/<repo> --workflow <workflow> --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch` and identify exactly one new `workflow_dispatch` run on the selected SHA after the dispatch. If none or several match, stop and report the ambiguity. Do not watch an older run.
-4. Run `node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <planned SHA>`. This waiter registers the harness wake source. It prints the run URL while a `production` environment approval is pending and continues waiting. A ceiling result while approval is pending is a pending approval, not a failed deployment. Do not replace the waiter with a background shell, `gh run watch`, or a detached poll.
-5. A successful workflow run is necessary but not sufficient. Verify the workflow's own health step succeeded, then read the live endpoint yourself. API: read `https://api.useorbit.org/health` and require `status: Healthy`; also confirm the Render production service's latest live deploy has the planned commit. Web: get `RENDER_WEB_SERVICE_ID` from the UI repository variables, get `.serviceDetails.url` from Render, and require that URL's `/api/health` reports `status: ok` and the planned `commit`. Landing: get the successful GitHub Deployment status for the planned SHA, read its `environment_url`, and require the page's `orbit-build` meta tag to equal the planned SHA. Android: require the Play upload step's success in the workflow and read the production API health endpoint. If any check fails, stop with the run link and the observed result.
+`gh workflow run` returns no run ID. Record the dispatch time and the repository's `main` SHA, then list recent `workflow_dispatch` runs on `main` with `gh run list --repo thomasluizon/<repo> --workflow release.yml --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch`, and select the unique new run with that `main` SHA. If no unique run matches, stop. Use `node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <main workflow SHA>`. The workflow run head is `main` even when its checkout deploys a staging branch. A ceiling result leaves the release unresolved; do not dispatch the next service.
 
-Production deploys pause for the owner's `production` environment approval. Tell the owner which run is waiting, then keep the registered waiter active. Never treat `waiting` as failure or dispatch the next service before the current run succeeds and verification finishes.
+After success, verify the live service. API: require `https://api.useorbit.org/health` to report `status: Healthy` for production, or the staging service URL's `/health` to be healthy for staging; confirm the Render live deploy commit equals the planned SHA. Web: require the selected Render service URL's `/api/health` to report `status: ok` and the planned `commit`. Landing: require a successful GitHub Deployment for the planned SHA and its URL's `orbit-build` meta tag to equal the SHA. Stop with the run URL and observed value on a mismatch.
 
-## Staging
+## Android
 
-Staging API and web deploy automatically from `redesign/main`. Report their gaps from the plan and let those deployments finish through their existing paths. There is no staging deploy workflow to dispatch. A missing web baseline does not block an Android build, but an API gap does: wait until the staging API's live Render commit matches the planned branch head, then re-run the staging plan.
+Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks.
 
-If Android needs a release, re-run the staging plan with the same Android track, follow `.claude/skills/android-release/SKILL.md` for version and versionCode, choose `internal` by default or an explicitly requested `closed` track, and confirm the exact inputs with the owner. The workflow builds those tracks against the staging API. Before dispatch, verify the staging API's Render service URL returns a healthy `/health` response and that the Android workflow's configured staging API hostname resolves and serves that API. Stop if the hostname is not ready; a successful Play upload with an unreachable API would be unusable. Dispatch from `redesign/main`, resolve the unique new run, and use `wait-release.mjs` with `--repo ui` and the selected SHA. Verify the Play upload step and read staging API health again. Report the run link and track.
-
-Do not infer Play availability from a green workflow: Play controls when a published build appears to testers.
+Before staging Android dispatch, require the staging API Render service and `https://api-staging.useorbit.org/health` to be healthy at the planned API commit. Dispatch `android-release.yml` with `--ref <selected branch>` and the confirmed inputs. Resolve the unique new run on that branch and SHA, then use `wait-release.mjs --repo ui`. Verify the Play upload step and API health again. A successful upload does not establish when Play makes the build available to testers.

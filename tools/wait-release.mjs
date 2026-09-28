@@ -3,10 +3,10 @@ import { execFileSync } from "node:child_process"
 import { setTimeout as wait } from "node:timers/promises"
 import { REPO_ROOT, clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
-const USAGE = `usage: wait-release.mjs --repo api|ui|landing --run <id> --sha <commit> [--ceiling-minutes <n>] [--poll-seconds <n>]
+const USAGE = `usage: wait-release.mjs --repo api|ui|landing --run <id> --sha <workflow-ref-commit> [--ceiling-minutes <n>] [--poll-seconds <n>]
 
 Watch one dispatched GitHub Actions release run through completion. Registers a harness wake source.
-An environment approval remains pending, with its run link printed while waiting.
+The SHA identifies the workflow dispatch ref, usually main. The run link is included in every result.
 --help, -h  print this usage and exit 0
 exit codes: 0 successful run; 1 failed run or GitHub read; 2 invalid arguments;
             3 ceiling reached; 130 SIGINT; 143 SIGTERM`
@@ -60,7 +60,6 @@ if (!registerWakeSource({ pid: process.pid, what: `Release ${values["--repo"]} r
 }
 
 const deadline = Date.now() + ceilingMinutes * 60_000
-let announcedApproval = false
 try {
   while (!finished) {
     const path = `repos/thomasluizon/${repo}/actions/runs/${runId}`
@@ -73,10 +72,6 @@ try {
     result.status = run.status
     result.conclusion = run.conclusion
     if (run.status === "completed") finish(run.conclusion === "success" ? "SUCCESS" : "FAILED", run.conclusion === "success" ? 0 : 1)
-    if (run.status === "waiting" && !announcedApproval) {
-      console.error(`Run awaits environment approval: ${run.html_url}`)
-      announcedApproval = true
-    }
     if (Date.now() >= deadline) finish("CEILING", 3)
     await wait(Math.min(pollSeconds * 1000, Math.max(1, deadline - Date.now())))
   }

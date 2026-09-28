@@ -25,7 +25,6 @@ on:
         type: choice
         options:
           - internal
-          - closed
           - open
           - production
       clear_cache:
@@ -62,6 +61,15 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      - name: Validate track branch
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_TRACK" != internal ] && [ "$GITHUB_REF_NAME" != main ]; then
+            echo "::error::Open and production Android releases must run from main" >&2
+            exit 1
+          fi
       # First step on purpose: every later step can fail, and when one does the
       # log must still say what was being shipped and how to reproduce it. Run
       # 29512207801 failed in an early guard and recorded nothing about the
@@ -192,8 +200,8 @@ jobs:
           done
 
       # Google Play's API track names differ from this workflow's user-facing track
-      # input: "closed" testing is the alpha track and "open" testing is the beta
-      # track. eas.json's submit profiles held that mapping; keep it in one explicit
+      # input: "open" testing is the beta track. eas.json's submit profiles
+      # held that mapping; keep it in one explicit
       # place now that the upload talks to the Play Developer API directly. Resolved
       # here rather than next to the upload so an unmappable track fails in seconds
       # instead of after the ~15 minute Gradle build.
@@ -206,7 +214,6 @@ jobs:
 
           case "${RELEASE_TRACK}" in
             internal) play_track="internal" ;;
-            closed) play_track="alpha" ;;
             open) play_track="beta" ;;
             production) play_track="production" ;;
             *)
@@ -271,7 +278,7 @@ jobs:
           set -euo pipefail
 
           case "${RELEASE_TRACK}" in
-            internal|closed)
+            internal)
               build_api_base="https://api-staging.useorbit.org"
               deployment_environment="staging"
               build_posthog_key="${STAGING_POSTHOG_KEY}"
