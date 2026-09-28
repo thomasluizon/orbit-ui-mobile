@@ -331,7 +331,7 @@ describe('mobile Markdown wrapper', () => {
     expect(styles.link.color).toBe(styles.text.color)
   })
 
-  it.each(['default', 'muted', 'thread'] as const)('paints quoted %s prose in the third foreground tone, as web does', (tone) => {
+  it.each(['default', 'muted', 'thread'] as const)('paints quoted %s prose in the third foreground tone and keeps bold in its own tone, as web does', (tone) => {
     const tree = renderParsedMarkdown('> quoted **words**\n\nplain', tone)
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = createTokensV2(currentScheme, currentTheme)
@@ -346,7 +346,8 @@ describe('mobile Markdown wrapper', () => {
       return colorOf(node)
     }
     expect(leafColor('quoted ')).toBe(tokens.fg3)
-    expect(leafColor('words')).toBe(tokens.fg3)
+    const strongColor = { default: tokens.fg1, muted: tokens.fg2, thread: tokens.fg1 }[tone]
+    expect(leafColor('words')).toBe(strongColor)
     const bodyColor = { default: tokens.fg2, muted: tokens.fg3, thread: tokens.fg1 }[tone]
     expect(leafColor('plain')).toBe(bodyColor)
   })

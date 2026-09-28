@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useMemo, useState, type ElementType, type ReactNode } from 'react'
 import { Linking, Text, View, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
   MarkedTokenizer,
@@ -37,14 +37,19 @@ function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors 
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
-function styleTextDescendants(children: ReactNode, style: TextStyle): ReactNode {
+function styleTextDescendants(children: ReactNode, style: TextStyle, preserved?: ElementType): ReactNode {
   return Children.map(children, (child) => {
     if (!isValidElement<{ style?: StyleProp<TextStyle>; children?: ReactNode }>(child)) return child
+    if (preserved && child.type === preserved) return child
     return cloneElement(child, {
       ...(child.type === Text ? { style: [child.props.style, style] } : {}),
-      children: styleTextDescendants(child.props.children, style),
+      children: styleTextDescendants(child.props.children, style, preserved),
     })
   })
+}
+
+function StrongText({ children, style }: Readonly<{ children: ReactNode; style?: TextStyle }>) {
+  return <Text selectable style={style}>{children}</Text>
 }
 
 function ProseLink({ children, href, styles, colors }: Readonly<{
@@ -96,7 +101,11 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 
   override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
-    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote })], styles)
+    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+  }
+
+  override strong(children: string | ReactNode[], styles?: TextStyle): ReactNode {
+    return <StrongText key={this.getKey()} style={styles}>{children}</StrongText>
   }
 
   override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {
