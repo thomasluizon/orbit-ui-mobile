@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react'
+import { act, render, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0 }))
@@ -33,8 +33,10 @@ describe('Google code callback', () => {
     render(<AuthCallbackPage />)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
     mocks.generation += 1
-    releaseBody({ userId: 'old-user', name: 'Old', email: 'old@example.com' })
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1'))
+    await act(async () => {
+      releaseBody({ userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    })
+    expect(mocks.replace).not.toHaveBeenCalled()
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
   })

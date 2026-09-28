@@ -306,6 +306,19 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.showError).not.toHaveBeenCalled();
   });
 
+  it("keeps the calendar open when Google declines consent in the redirect URL", async () => {
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.startGoogleAuth.mockResolvedValue({
+      type: "denied",
+      url: "https://app.useorbit.org/auth-callback?error=access_denied&state=oauth-state",
+    });
+
+    await pressConnect();
+
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
   it("keeps the review return path and sends failed authorization to login", async () => {
     mocks.searchParams = { mode: "review" };
     mocks.autoSyncStatus = "ReconnectRequired";

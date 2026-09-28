@@ -250,7 +250,7 @@ export default function CalendarSyncScreen() {
           : '/calendar-sync',
         forceConsent: true,
       })
-      if (result.type === WebBrowserResultType.CANCEL || result.type === WebBrowserResultType.DISMISS) return
+      if (result.type === WebBrowserResultType.CANCEL || result.type === WebBrowserResultType.DISMISS || result.type === 'denied') return
       if (result.type !== 'success') {
         allowGoogleErrorLogin()
         router.replace('/login?googleError=1')

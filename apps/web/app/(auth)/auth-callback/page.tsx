@@ -39,9 +39,10 @@ function AuthCallbackContent() {
       return
     }
 
+    let ownedGeneration = getAccountGeneration()
     async function complete() {
       const referralCode = getCookieValue('referral_code')
-      const generation = getAccountGeneration()
+      const generation = ownedGeneration
       await withCookieSettingLogin(async () => {
         if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
         const response = await fetch('/api/auth/google/code', {
@@ -53,6 +54,7 @@ function AuthCallbackContent() {
         const loginResponse = (await response.json()) as LoginResponse
         if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
         setAuth(loginResponse)
+        ownedGeneration = getAccountGeneration()
       })
       const completedGeneration = getAccountGeneration()
       await hydrateProfilePresentation()
@@ -67,7 +69,9 @@ function AuthCallbackContent() {
         ? storedReturn : '/'
       router.push(safeReturn)
     }
-    void complete().catch(() => router.replace('/login?googleError=1'))
+    void complete().catch(() => {
+      if (ownedGeneration === getAccountGeneration()) router.replace('/login?googleError=1')
+    })
   }, [locale, router, setAuth])
 
   return (
