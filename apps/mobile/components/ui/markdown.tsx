@@ -23,25 +23,26 @@ interface ProseColors {
   body: string
   heading: string
   link: string
+  quote: string
   activeLink: TextStyle
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
-    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
   if (tone === "thread")
-    return { body: tokens.fg1, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
-  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
+    return { body: tokens.fg1, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
-function styleLinkChildren(children: ReactNode, style: TextStyle): ReactNode {
+function styleTextDescendants(children: ReactNode, style: TextStyle): ReactNode {
   return Children.map(children, (child) => {
     if (!isValidElement<{ style?: StyleProp<TextStyle>; children?: ReactNode }>(child)) return child
     return cloneElement(child, {
       ...(child.type === Text ? { style: [child.props.style, style] } : {}),
-      children: styleLinkChildren(child.props.children, style),
+      children: styleTextDescendants(child.props.children, style),
     })
   })
 }
@@ -66,7 +67,7 @@ function ProseLink({ children, href, styles, colors }: Readonly<{
       onPressIn={safe ? () => setPressed(true) : undefined}
       onPressOut={safe ? () => setPressed(false) : undefined}
     >
-      {styleLinkChildren(children, style)}
+      {styleTextDescendants(children, style)}
     </Text>
   )
 }
@@ -92,6 +93,10 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
 
   override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
     return super.paragraph([this.text(children, this.textStyles)], styles)
+  }
+
+  override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote })], styles)
   }
 
   override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {

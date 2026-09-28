@@ -83,8 +83,8 @@ function ParsedMarkdown({ content, options }: { content: string; options: useMar
   return <>{useMarkdown(content, options)}</>
 }
 
-function renderParsedMarkdown(content: string) {
-  const props = renderMarkdown({ children: content })
+function renderParsedMarkdown(content: string, tone?: Parameters<typeof Markdown>[0]['tone']) {
+  const props = renderMarkdown({ children: content, tone })
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ParsedMarkdown content={content} options={props} />) })
   return tree
@@ -329,6 +329,26 @@ describe('mobile Markdown wrapper', () => {
     expect(flatListProps.ItemSeparatorComponent).toBeDefined()
     expect(styles.text.color).toBe(styles.h1.color)
     expect(styles.link.color).toBe(styles.text.color)
+  })
+
+  it.each(['default', 'muted', 'thread'] as const)('paints quoted %s prose in the third foreground tone, as web does', (tone) => {
+    const tree = renderParsedMarkdown('> quoted **words**\n\nplain', tone)
+    const { currentScheme, currentTheme } = useAppTheme()
+    const tokens = createTokensV2(currentScheme, currentTheme)
+    const colorOf = (node: { props: { style?: unknown } }) =>
+      [node.props.style].flat(Infinity).reduce<string | undefined>(
+        (color, style) => (style && typeof style === 'object' && 'color' in style ? String(style.color) : color),
+        undefined,
+      )
+    const leafColor = (text: string) => {
+      const node = tree.root.findAllByType('Text').find((candidate: { children: unknown[] }) => candidate.children.includes(text))
+      if (!node) throw new Error(`no text node for ${text}`)
+      return colorOf(node)
+    }
+    expect(leafColor('quoted ')).toBe(tokens.fg3)
+    expect(leafColor('words')).toBe(tokens.fg3)
+    const bodyColor = { default: tokens.fg2, muted: tokens.fg3, thread: tokens.fg1 }[tone]
+    expect(leafColor('plain')).toBe(bodyColor)
   })
 
   it('keeps prose shrinkable and maps headings to the shared type roles', () => {
