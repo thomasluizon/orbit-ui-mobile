@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
+import { ArrowUpRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
@@ -12,6 +12,7 @@ import {
 } from '@orbit/shared/chat'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
+import { PillButton } from '@/components/ui/pill-button'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
@@ -135,18 +136,11 @@ export function MessageBubble({
           />
         </div>
 
-        {!isUser && sourceText.trim() && <button
-          type="button"
-          onClick={() => void copySourceText()}
-          className="flex min-h-11 items-center gap-2 border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-3)] transition-colors hover:text-[var(--fg-1)]"
-        >
-          {copied ? (
-            <Check size={16} strokeWidth={1.8} aria-hidden="true" />
-          ) : (
-            <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
-          )}
-          {copied ? t('chat.copied') : t('chat.copy')}
-        </button>}
+        {!isUser && sourceText.trim() && (
+          <PillButton variant="ghost" size="sm" onClick={() => void copySourceText()}>
+            {copied ? t('chat.copied') : t('chat.copy')}
+          </PillButton>
+        )}
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />

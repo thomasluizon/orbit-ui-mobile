@@ -4,7 +4,7 @@ import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
+import { ArrowUpRight } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
@@ -27,13 +27,12 @@ import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
+import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
-function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
+function MessageCopyControl({ sourceText }: Readonly<{
   sourceText: string;
-  tokens: ReturnType<typeof createTokensV2>;
-  styles: ReturnType<typeof createStyles>;
 }>) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -51,19 +50,14 @@ function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copied ? t("chat.copied") : t("chat.copy")}
-      onPress={() => void copySourceText()}
-      style={styles.copyControl}
+    <PillButton
+      variant="ghost"
+      size="sm"
+      accessibleName={copied ? t("chat.copied") : t("chat.copy")}
+      onClick={() => void copySourceText()}
     >
-      {copied ? (
-        <Check size={16} strokeWidth={1.8} color={tokens.fg3} />
-      ) : (
-        <Copy size={16} strokeWidth={1.8} color={tokens.fg3} />
-      )}
-      <Text style={styles.copyText}>{copied ? t("chat.copied") : t("chat.copy")}</Text>
-    </Pressable>
+      {copied ? t("chat.copied") : t("chat.copy")}
+    </PillButton>
   );
 }
 
@@ -172,7 +166,7 @@ export function MessageBubble({
           </Markdown>
         </View>
 
-        {!isUser && sourceText.trim() ? <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} /> : null}
+        {!isUser && sourceText.trim() ? <MessageCopyControl sourceText={sourceText} /> : null}
 
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
@@ -347,19 +341,6 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       marginBottom: 8,
     },
-    copyControl: {
-      minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 8,
-    },
-    copyText: {
-      color: tokens.fg3,
-      fontFamily: "Geist_500Medium",
-      fontSize: 14,
-    },
-
     relatedContainer: {
       marginTop: 8,
       width: "100%",

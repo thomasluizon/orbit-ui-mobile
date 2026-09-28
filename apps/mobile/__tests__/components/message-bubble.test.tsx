@@ -175,6 +175,7 @@ describe('MessageBubble copy control (mobile)', () => {
     })
 
     const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
+    vi.useFakeTimers()
     await TestRenderer.act(async () => {
       await copy?.props.onPress?.()
     })
@@ -183,6 +184,16 @@ describe('MessageBubble copy control (mobile)', () => {
     expect(
       tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copied').length,
     ).toBeGreaterThan(0)
+    await TestRenderer.act(() => { vi.advanceTimersByTime(1600) })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy').length).toBeGreaterThan(0)
+  })
+
+  it('omits the copy control when an AI turn has no prose', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={makeMessage({ content: '[[orbit:habits:today]]' })} />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')).toHaveLength(0)
   })
 
   it('does not offer copying a sent message', async () => {

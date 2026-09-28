@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -105,6 +105,7 @@ describe('MessageBubble', () => {
   })
 
   it('copies directive-free AI source text and confirms the action', async () => {
+    vi.useFakeTimers()
     render(
       <MessageBubble
         message={makeMessage({ role: 'ai', content: 'Your habits\n[[orbit:habits:today]]' })}
@@ -113,10 +114,16 @@ describe('MessageBubble', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
 
-    await waitFor(() => {
-      expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Your habits')
-    })
+    await act(async () => { await Promise.resolve() })
+    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Your habits')
     expect(screen.getByRole('button', { name: 'chat.copied' })).toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(1600) })
+    expect(screen.getByRole('button', { name: 'chat.copy' })).toBeInTheDocument()
+  })
+
+  it('omits the copy control when an AI turn has no prose', () => {
+    render(<MessageBubble message={makeMessage({ role: 'ai', content: '[[orbit:habits:today]]' })} />)
+    expect(screen.queryByRole('button', { name: 'chat.copy' })).not.toBeInTheDocument()
   })
 
   it('does not offer copying a sent message', () => {
