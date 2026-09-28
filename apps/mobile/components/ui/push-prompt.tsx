@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useState, useEffect, useCallback, useId, useRef } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the prompt fade/slide on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,6 +10,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { createTokensV2, shadowsV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
+import { useUIStore } from '@/stores/ui-store'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -21,6 +23,11 @@ const STORAGE_KEY = 'orbit_push_prompted'
  */
 export function PushPrompt() {
   const { t } = useTranslation()
+  const overlayId = useId()
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const [promptVisible, setPromptVisible] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const insets = useSafeAreaInsets()
   const tokens = useMemo(
@@ -70,7 +77,17 @@ export function PushPrompt() {
       registrationStatus,
     })
 
-  const show = shouldShow || isExiting
+  if (shouldShow && !anotherOverlayOpen && !promptVisible) {
+    setPromptVisible(true)
+  }
+
+  const show = (promptVisible && shouldShow) || isExiting
+
+  useEffect(() => {
+    if (!show) return
+    registerOpenOverlay(overlayId)
+    return () => unregisterOpenOverlay(overlayId)
+  }, [show, overlayId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
     if (!shouldShow) return
@@ -92,6 +109,7 @@ export function PushPrompt() {
   const dismiss = useCallback(() => {
     exitAnimation.current?.stop()
     setIsExiting(true)
+    setPromptVisible(false)
     exitAnimation.current = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,

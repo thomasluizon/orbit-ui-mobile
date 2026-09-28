@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { useUIStore } from '@/stores/ui-store'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 vi.unmock('@/components/bottom-sheet-modal')
@@ -93,6 +94,7 @@ async function fireNativeDidDismiss(tree: TestTree) {
 
 describe('BottomSheetModal', () => {
   beforeEach(() => {
+    useUIStore.setState({ openOverlayIds: [] })
     present.mockReset()
     dismiss.mockReset()
     present.mockImplementation(() => Promise.resolve())
@@ -112,6 +114,22 @@ describe('BottomSheetModal', () => {
 
     expect(present).toHaveBeenCalledTimes(1)
     expect(dismiss).not.toHaveBeenCalled()
+  })
+
+  it('keeps the sheet occupied until native dismissal completes', async () => {
+    const tree = await renderModal(true)
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+
+    await TestRenderer.act(() => {
+      tree.update(<BottomSheetModal open={false} onClose={() => {}}><></></BottomSheetModal>)
+    })
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+
+    const [sheet] = tree.root.findAll((node) => node.type === TrueSheet)
+    await TestRenderer.act(() => {
+      (sheet!.props.onDidDismiss as () => void)()
+    })
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
 
   it('dismisses the native sheet when closed after being presented', async () => {

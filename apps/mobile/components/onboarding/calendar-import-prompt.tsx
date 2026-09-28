@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -10,6 +11,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * v8 calendar-import prompt: bottom sheet (title supplied by the sheet header)
@@ -28,6 +30,8 @@ export function CalendarImportPrompt() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
   const [sheetMounted, setSheetMounted] = useState(false)
+  const [promptVisible, setPromptVisible] = useState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const shouldShow = Boolean(
@@ -61,21 +65,23 @@ export function CalendarImportPrompt() {
     void dismissPrompt()
   }, [dismissPrompt, router, scheduleExitAction])
 
-  if (shouldShow && !sheetMounted) {
+  if (shouldShow && !sheetMounted && !anotherOverlayOpen) {
     setSheetMounted(true)
+    setPromptVisible(true)
   }
 
   if (!sheetMounted) return null
 
   return (
     <BottomSheetModal
-      open={shouldShow}
+      open={shouldShow && promptVisible}
       onClose={() => {
         void dismissPrompt()
       }}
       onDidDismiss={() => {
         runExitAction()
         setSheetMounted(false)
+        setPromptVisible(false)
       }}
       title={t('onboarding.wizard.calendarTitle')}
       snapPoints={['50%']}

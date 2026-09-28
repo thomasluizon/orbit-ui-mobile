@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -21,6 +21,7 @@ vi.mock('@/lib/actions/notifications', () => ({
 
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { subscribePush } from '@/lib/actions/notifications'
+import { useUIStore } from '@/stores/ui-store'
 
 let mockNotificationPermission = 'default' as NotificationPermission
 
@@ -41,6 +42,7 @@ Object.defineProperty(globalThis, 'Notification', {
 
 describe('PushPrompt', () => {
   beforeEach(() => {
+    useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
     vi.clearAllMocks()
     mockNotificationPermission = 'default'
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -122,6 +124,27 @@ describe('PushPrompt', () => {
       expect(screen.getByText('pushPrompt.enable')).toBeInTheDocument()
       expect(screen.getByText('pushPrompt.later')).toBeInTheDocument()
     })
+  })
+
+  it('waits for the create modal to close before showing', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { ready: Promise.resolve({ pushManager: { getSubscription: () => Promise.resolve(null) } }) },
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(globalThis, 'PushManager', {
+      value: class {},
+      writable: true,
+      configurable: true,
+    })
+
+    render(<PushPrompt />)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByText('pushPrompt.title')).toBeNull()
+
+    await act(async () => { useUIStore.getState().setShowCreateModal(false) })
+    await waitFor(() => expect(screen.getByText('pushPrompt.title')).toBeInTheDocument())
   })
 
   it('hides the prompt when dismiss (later) button is clicked', async () => {

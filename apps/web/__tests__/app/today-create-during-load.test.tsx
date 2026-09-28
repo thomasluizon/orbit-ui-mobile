@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 
 const state = vi.hoisted(() => ({
-  profile: undefined as { hasProAccess: boolean } | undefined,
+  profile: undefined as {
+    hasProAccess: boolean
+    hasCompletedOnboarding?: boolean
+    hasCompletedTour?: boolean
+    hasImportedCalendar?: boolean
+  } | undefined,
   count: 0,
   countLoaded: false,
   push: vi.fn(),
@@ -47,7 +52,10 @@ vi.mock('@/stores/referral-prompt-store', () => ({
     armReferralPrompt: vi.fn(), armMilestoneSharePrompt: vi.fn(), armConsentPrompt: vi.fn(),
   }),
 }))
-vi.mock('@/components/ui/app-overlay', () => ({ AppOverlay: () => null }))
+vi.mock('@/components/ui/app-overlay', () => ({
+  AppOverlay: ({ open, title }: { open: boolean; title?: string }) =>
+    open ? <div role="dialog">{title}</div> : null,
+}))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
@@ -84,6 +92,23 @@ describe('Today create during first load', () => {
   })
 
   afterEach(() => localStorage.clear())
+
+  it('waits to show the calendar import prompt until creation closes', async () => {
+    state.profile = {
+      hasProAccess: true,
+      hasCompletedOnboarding: true,
+      hasCompletedTour: true,
+      hasImportedCalendar: false,
+    }
+    useUIStore.getState().setShowCreateModal(true)
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+    expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
+
+    await act(async () => useUIStore.getState().setShowCreateModal(false))
+    expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
+  })
 
   it('keeps the form open when session, profile and habit count resolve', async () => {
     const view = render(<AppLayout><div>Today loading</div></AppLayout>)

@@ -7,7 +7,7 @@ import { Download, Share2 } from 'lucide-react'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
-import { canPromptEngagement, parseMilestoneShareKey } from '@orbit/shared/stores'
+import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
@@ -49,6 +49,7 @@ export function MilestoneSharePrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
@@ -57,7 +58,7 @@ export function MilestoneSharePrompt() {
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight) return
+    if (visibleKey || !armedKey || celebrationInFlight || anotherOverlayOpen) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     if (
@@ -73,6 +74,7 @@ export function MilestoneSharePrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
       markEngagementPrompted(armedKey, new Date().toISOString())
       setVisibleKey(armedKey)
     }, SETTLE_DELAY_MS)
@@ -83,6 +85,7 @@ export function MilestoneSharePrompt() {
   }, [
     armedKey,
     celebrationInFlight,
+    anotherOverlayOpen,
     visibleKey,
     queryClient,
     markEngagementPrompted,

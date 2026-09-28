@@ -142,6 +142,9 @@ export interface UIStoreState {
   setShowCreateModal: (show: boolean) => void;
   showCreateGoalModal: boolean;
   setShowCreateGoalModal: (show: boolean) => void;
+  openOverlayIds: string[];
+  registerOpenOverlay: (id: string) => void;
+  unregisterOpenOverlay: (id: string) => void;
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -157,6 +160,10 @@ export interface UIStoreState {
 
   setupChecklistDismissed: boolean;
   setSetupChecklistDismissed: (dismissed: boolean) => void;
+}
+
+export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
+  return state.showCreateModal || state.showCreateGoalModal || state.openOverlayIds.length > 0;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -381,6 +388,17 @@ export function createUIStoreState(
     setShowCreateModal: (show) => set({ showCreateModal: show }),
     showCreateGoalModal: false,
     setShowCreateGoalModal: (show) => set({ showCreateGoalModal: show }),
+    openOverlayIds: [],
+    registerOpenOverlay: (id) =>
+      set((state) => ({
+        openOverlayIds: state.openOverlayIds.includes(id)
+          ? state.openOverlayIds
+          : [...state.openOverlayIds, id],
+      })),
+    unregisterOpenOverlay: (id) =>
+      set((state) => ({
+        openOverlayIds: state.openOverlayIds.filter((openId) => openId !== id),
+      })),
 
     searchQuery: "",
     setSearchQuery: (query) => set({ searchQuery: query }),

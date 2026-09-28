@@ -84,7 +84,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], showCreateModal: false, openOverlayIds: [] })
 }
 
 async function armConsent() {
@@ -155,6 +155,25 @@ describe('MarketingConsentPrompt', () => {
     })
 
     expect(screen.queryByTestId('consent-prompt')).toBeNull()
+  })
+
+  it('waits for the create modal to close before showing the armed prompt', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(screen.queryByTestId('consent-prompt')).toBeNull()
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(
+      MARKETING_CONSENT_MILESTONE_KEY,
+    )
+
+    await act(async () => {
+      useUIStore.getState().setShowCreateModal(false)
+    })
+    await settle()
+
+    expect(screen.getByTestId('consent-prompt')).toBeInTheDocument()
   })
 
   it('opts in and optimistically patches the profile on accept', async () => {

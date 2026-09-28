@@ -10,6 +10,7 @@ import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
+  hasOpenPromptBlockingOverlay,
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -44,6 +45,7 @@ export function ReferralPrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
 
   const armedMilestoneKey =
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
@@ -53,7 +55,7 @@ export function ReferralPrompt() {
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    if (visibleKey || !armedMilestoneKey || celebrationInFlight) return
+    if (visibleKey || !armedMilestoneKey || celebrationInFlight || anotherOverlayOpen) return
 
     if (
       !canPromptReferral(
@@ -67,6 +69,7 @@ export function ReferralPrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
+      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
       markEngagementPrompted(armedMilestoneKey, new Date().toISOString())
       setVisibleKey(armedMilestoneKey)
     }, SETTLE_DELAY_MS)
@@ -77,6 +80,7 @@ export function ReferralPrompt() {
   }, [
     armedMilestoneKey,
     celebrationInFlight,
+    anotherOverlayOpen,
     visibleKey,
     markEngagementPrompted,
     clearArmedMilestone,

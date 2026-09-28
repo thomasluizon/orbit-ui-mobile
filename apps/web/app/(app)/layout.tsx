@@ -39,6 +39,7 @@ import {
   getReferralLevelMilestone,
   getMilestoneShareAchievementKey,
   getMilestoneShareStreakKey,
+  hasOpenPromptBlockingOverlay,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/lib/actions/calendar'
@@ -131,15 +132,22 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
+  const [calendarPromptOffered, setCalendarPromptOffered] = useState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
 
   const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
   const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
-    if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+    if (!calendarPromptCriteriaMet) setCalendarPromptOffered(false)
+  }
+  if (calendarPromptCriteriaMet && !calendarPromptOffered && !anotherOverlayOpen) {
+    setCalendarPromptOffered(true)
+    setShowCalendarPrompt(true)
   }
 
   const [showImportPrompt, setShowImportPrompt] = useState(false)
+  const [importPromptOffered, setImportPromptOffered] = useState(false)
 
   const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
     calendarPromptCriteriaMet,
@@ -149,7 +157,11 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useState(importPromptCriteriaMet)
   if (importPromptCriteriaMet !== previousImportCriteriaMet) {
     setPreviousImportCriteriaMet(importPromptCriteriaMet)
-    if (importPromptCriteriaMet) setShowImportPrompt(true)
+    if (!importPromptCriteriaMet) setImportPromptOffered(false)
+  }
+  if (importPromptCriteriaMet && !importPromptOffered && !anotherOverlayOpen) {
+    setImportPromptOffered(true)
+    setShowImportPrompt(true)
   }
 
   const handleCreate = useCallback(() => {

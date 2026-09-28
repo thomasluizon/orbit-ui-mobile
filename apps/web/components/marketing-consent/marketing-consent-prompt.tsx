@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Mail } from 'lucide-react'
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
-import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
@@ -36,6 +36,7 @@ export function MarketingConsentPrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
 
   const isArmed = armedPrompt?.kind === 'consent'
   const [visible, setVisible] = useState(false)
@@ -57,9 +58,10 @@ export function MarketingConsentPrompt() {
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight) return
+    if (visible || !isArmed || celebrationInFlight || anotherOverlayOpen) return
 
     settleTimerRef.current = setTimeout(() => {
+      if (hasOpenPromptBlockingOverlay(useUIStore.getState())) return
       markEngagementPrompted(
         MARKETING_CONSENT_MILESTONE_KEY,
         new Date().toISOString(),
@@ -70,7 +72,7 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
+  }, [isArmed, celebrationInFlight, anotherOverlayOpen, visible, markEngagementPrompted])
 
   function answer(enabled: boolean) {
     setVisible(false)

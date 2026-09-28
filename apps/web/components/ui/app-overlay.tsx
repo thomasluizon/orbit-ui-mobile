@@ -9,6 +9,7 @@ import DOMPurify from 'dompurify'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useUIStore } from '@/stores/ui-store'
 import {
   isTopOverlay,
   registerOverlay,
@@ -79,6 +80,8 @@ export function AppOverlay({
 }: Readonly<AppOverlayProps>) {
   const t = useTranslations()
   const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const titleId = useId()
   const descriptionId = useId()
   const panelRef = useRef<HTMLDialogElement>(null)
@@ -141,6 +144,7 @@ export function AppOverlay({
         requestCloseRef.current(reason)
       },
     })
+    registerOpenOverlay(overlayId)
 
     const FOCUSABLE_SELECTORS = [
       'button:not([disabled])',
@@ -199,6 +203,7 @@ export function AppOverlay({
     return () => {
       unlockBodyScroll()
       unregisterOverlay(overlayId)
+      unregisterOpenOverlay(overlayId)
       document.removeEventListener('keydown', trapFocus)
       document.removeEventListener('keydown', handleEscape)
       if (previouslyFocusedElement.current) {
@@ -206,7 +211,7 @@ export function AppOverlay({
         previouslyFocusedElement.current = null
       }
     }
-  }, [open, initialFocusRef, lockBodyScroll, overlayId, unlockBodyScroll])
+  }, [open, initialFocusRef, lockBodyScroll, overlayId, registerOpenOverlay, unlockBodyScroll, unregisterOpenOverlay])
 
   function handlePointerDown(e: React.PointerEvent) {
     const target = e.target as HTMLElement

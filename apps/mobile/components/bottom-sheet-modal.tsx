@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 type DismissReason = 'backdrop' | 'close-button' | 'navigation' | 'system-back'
@@ -52,6 +53,9 @@ export function BottomSheetModal({
   const { currentScheme, currentTheme } = useAppTheme()
   const { height: windowHeight } = useWindowDimensions()
   const { t } = useTranslation()
+  const overlayId = useId()
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -64,6 +68,12 @@ export function BottomSheetModal({
     openRef.current = open
   }, [open])
   const presentedRef = useRef(false)
+
+  useEffect(() => {
+    if (open) registerOpenOverlay(overlayId)
+  }, [open, overlayId, registerOpenOverlay])
+
+  useEffect(() => () => unregisterOpenOverlay(overlayId), [overlayId, unregisterOpenOverlay])
 
   const detents = useMemo(
     () => (snapPointsProp ?? DEFAULT_SNAP_POINTS).map((point) => toDetent(point, windowHeight)),
@@ -83,14 +93,17 @@ export function BottomSheetModal({
           await target.present()
         } else if (presentedRef.current) {
           await target.dismiss()
+        } else {
+          unregisterOpenOverlay(overlayId)
         }
       } catch {
         presentedRef.current = false
+        unregisterOpenOverlay(overlayId)
       }
     }
 
     void syncSheet(sheet)
-  }, [open])
+  }, [open, overlayId, unregisterOpenOverlay])
 
   function requestDismiss(reason: DismissReason) {
     if (dismissible) {
@@ -102,6 +115,7 @@ export function BottomSheetModal({
 
   function handleDidDismiss() {
     presentedRef.current = false
+    unregisterOpenOverlay(overlayId)
     if (openRef.current) onClose()
     onDidDismiss?.()
   }

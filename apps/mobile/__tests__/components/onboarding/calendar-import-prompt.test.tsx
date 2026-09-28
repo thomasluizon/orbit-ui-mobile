@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -24,7 +25,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -67,11 +68,25 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
   mocks.profile = undefined
   mocks.pathname = '/'
 })
 
 describe('CalendarImportPrompt gating', () => {
+  it('waits for the create modal to close', async () => {
+    mocks.profile = baseProfile()
+    useUIStore.getState().setShowCreateModal(true)
+    const tree = renderPrompt()
+    expect(sheetCount(tree)).toBe(0)
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().setShowCreateModal(false)
+      await Promise.resolve()
+    })
+    expect(sheetCount(tree)).toBe(1)
+  })
+
   it('shows the sheet once onboarding and the tour are both complete', () => {
     mocks.profile = baseProfile()
     expect(sheetCount(renderPrompt())).toBe(1)

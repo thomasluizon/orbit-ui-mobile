@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PushPrompt } from '@/components/ui/push-prompt'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -116,6 +117,7 @@ function findPressableByText(root: any, label: string) {
 
 describe('PushPrompt (mobile)', () => {
   beforeEach(() => {
+    useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
     storage.clear()
     requestPermission.mockClear()
     stopExitAnimation.mockClear()
@@ -131,6 +133,20 @@ describe('PushPrompt (mobile)', () => {
     })
 
     expect(requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('waits until the create modal closes before showing', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<PushPrompt />)
+    })
+    expect(() => tree.root.findByProps({ children: 'pushPrompt.title' })).toThrow()
+
+    await TestRenderer.act(() => {
+      useUIStore.getState().setShowCreateModal(false)
+    })
+    expect(tree.root.findByProps({ children: 'pushPrompt.title' })).toBeDefined()
   })
 
   it('requests permission only after tapping Enable', async () => {
