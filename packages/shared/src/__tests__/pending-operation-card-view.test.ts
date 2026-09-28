@@ -10,9 +10,11 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 const labels: PendingOperationCardLabels = {
-  approve: 'Approve', acting: 'Working', cancel: 'Cancel',
+  approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
@@ -31,11 +33,26 @@ it('labels the pending operation from its capability and risk', () => {
   )
   expect(translated.risk).toBe('chat.operation.risk.destructive')
   expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
+  expect(translated.confirm).toBe('chat.pendingOp.action.habits-delete')
   expect(translated.fieldLabels).toMatchObject({
     delete: 'chat.operation.field.delete',
     dismiss_import: 'chat.operation.field.dismiss_import',
     run_sync: 'chat.operation.field.run_sync',
   })
+})
+
+it('uses verb-first consequence labels for known confirmation capabilities in both locales', () => {
+  const capabilities = ['habits.delete', 'habits.bulk.write', 'habits.bulk.delete', 'goals.delete', 'tags.delete', 'notifications.delete', 'calendar.sync.manage', 'subscriptions.manage', 'api-keys.manage', 'sync.write', 'account.manage']
+  for (const messages of [en, ptBR]) {
+    for (const capabilityId of capabilities) {
+      const actionKey = capabilityId.replaceAll('.', '-') as keyof typeof messages.chat.pendingOp.action
+      const label = messages.chat.pendingOp.action[actionKey]
+      expect(label.split(' '), capabilityId).toHaveLength(2)
+      expect(label.split(' ')[0], capabilityId).toMatch(/^(Delete|Change|Sync|Excluir|Alterar|Sincronizar)$/)
+      expect(buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (key) => key).confirm)
+        .toBe(`chat.pendingOp.action.${actionKey}`)
+    }
+  }
 })
 
 function createCard(): PendingOperationCardActions {

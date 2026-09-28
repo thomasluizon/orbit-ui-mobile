@@ -28,7 +28,7 @@ import { clearPersistedQueryCache } from '@/lib/query-client'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -230,7 +230,8 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               </View>
             </View>
 
-            <View style={styles.modalActions}>
+            <View style={styles.actionInset}>
+              <DialogActionPair>
               <PillButton
                 variant="caution"
                 matchedWidth
@@ -242,6 +243,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
+              </DialogActionPair>
             </View>
           </View>
         ) : (
@@ -279,7 +281,8 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 {resetError}
               </Text>
             ) : null}
-            <View style={styles.modalActions}>
+            <View style={styles.actionInset}>
+              <DialogActionPair>
               <PillButton
                 variant="caution"
                 matchedWidth
@@ -295,6 +298,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
+              </DialogActionPair>
             </View>
           </View>
         )}
@@ -314,13 +318,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  modalActions: {
-    alignSelf: 'center',
-    gap: 12,
-    maxWidth: MATCHED_PILL_MAX_WIDTH,
-    paddingTop: 8,
-    width: '100%',
-  },
+  actionInset: { paddingTop: 8 },
 
   listRow: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import {
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -251,16 +251,15 @@ function FreshStartInfoStep({
           itemIcon="keep"
         />
       </div>
-      <div
-        className="flex w-full flex-col self-center"
-        style={{ gap: 12, paddingTop: 8, maxWidth: MATCHED_PILL_MAX_WIDTH }}
-      >
+      <div style={{ paddingTop: 8 }}>
+        <DialogActionPair>
         <PillButton variant="caution" matchedWidth onClick={onContinue}>
           {t('profile.freshStart.reviewDeletion')}
         </PillButton>
         <PillButton variant="ghost" matchedWidth onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
+        </DialogActionPair>
       </div>
     </div>
   )
@@ -320,16 +319,15 @@ function FreshStartConfirmStep({
           {error}
         </p>
       )}
-      <div
-        className="flex w-full flex-col self-center"
-        style={{ gap: 12, paddingTop: 8, maxWidth: MATCHED_PILL_MAX_WIDTH }}
-      >
+      <div style={{ paddingTop: 8 }}>
+        <DialogActionPair>
         <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
           {t('profile.freshStart.deleteData')}
         </PillButton>
         <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
+        </DialogActionPair>
       </div>
     </div>
   )

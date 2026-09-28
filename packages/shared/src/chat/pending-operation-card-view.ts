@@ -363,7 +363,7 @@ export function renderPendingOperationCard<Node>({
     open: card.confirmOpen,
     title: labels.confirmTitle,
     message: labels.confirmBody,
-    confirmLabel: labels.name,
+    confirmLabel: labels.confirm,
     destructive: true,
     onCancel: () => card.setConfirmOpen(false),
     onConfirm: () => {

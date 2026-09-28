@@ -1102,6 +1102,20 @@
         "sync-write": "Gravar dados de sincronização",
         "account-manage": "Gerenciar conta"
       },
+      "action": {
+        "habits-delete": "Excluir hábitos",
+        "habits-bulk-write": "Alterar hábitos",
+        "habits-bulk-delete": "Excluir hábitos",
+        "goals-delete": "Excluir metas",
+        "tags-delete": "Excluir tags",
+        "notifications-delete": "Excluir notificações",
+        "calendar-sync-manage": "Alterar sincronização",
+        "subscriptions-manage": "Alterar assinatura",
+        "api-keys-manage": "Alterar chaves",
+        "sync-write": "Sincronizar dados",
+        "account-manage": "Alterar conta",
+        "applyChanges": "Aplicar alterações"
+      },
       "summary": "{name} solicitado via chat",
       "confirmed": "Confirmado. Concluído.",
       "errors": {

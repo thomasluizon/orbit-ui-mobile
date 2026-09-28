@@ -68,6 +68,17 @@ function pressButton(root: TestNode, label: string) {
 }
 
 describe('RescheduleSheet (mobile)', () => {
+  it.each(['free', 'error', 'accept'] as const)('matches action widths in the %s footer', (state) => {
+    if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') mockReschedule.error = new Error('unavailable')
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const buttons = tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && /^button-(primary|ghost)-md$/.test(node.props.testID))
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      const style = button.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
+      expect(Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width).toBe('100%')
+    }
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }

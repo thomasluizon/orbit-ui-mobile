@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -88,10 +88,7 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <div className="mx-auto flex w-full flex-col" style={{ gap: 12, maxWidth: MATCHED_PILL_MAX_WIDTH }}>
-          <PillButton variant="ghost" matchedWidth disabled={actionsDisabled} onClick={cancel}>
-            {cancelLabel ?? t('common.cancel')}
-          </PillButton>
+        <DialogActionPair>
           <PillButton
             variant={destructive ? 'destructive' : 'primary'}
             matchedWidth
@@ -100,7 +97,10 @@ export function ConfirmSheet({
           >
             {confirmLabel}
           </PillButton>
-        </div>
+          <PillButton variant="ghost" matchedWidth disabled={actionsDisabled} onClick={cancel}>
+            {cancelLabel ?? t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       }
     >
       <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>

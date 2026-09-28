@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
@@ -92,10 +92,7 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <View style={styles.actions}>
-          <PillButton variant="ghost" matchedWidth disabled={actionsDisabled} onClick={cancel}>
-            {cancelLabel ?? t('common.cancel')}
-          </PillButton>
+        <DialogActionPair>
           <PillButton
             variant={destructive ? 'destructive' : 'primary'}
             matchedWidth
@@ -104,7 +101,10 @@ export function ConfirmSheet({
           >
             {confirmLabel}
           </PillButton>
-        </View>
+          <PillButton variant="ghost" matchedWidth disabled={actionsDisabled} onClick={cancel}>
+            {cancelLabel ?? t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
       }
     >
       <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>
@@ -113,6 +113,5 @@ export function ConfirmSheet({
 }
 
 const styles = StyleSheet.create({
-  actions: { alignSelf: 'center', gap: 12, maxWidth: MATCHED_PILL_MAX_WIDTH, width: '100%' },
   message: { fontFamily: 'Geist_400Regular', fontSize: 15, lineHeight: 22 },
 })

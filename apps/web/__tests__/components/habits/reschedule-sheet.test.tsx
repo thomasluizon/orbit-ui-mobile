@@ -33,6 +33,14 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 const overdueHabit = createMockHabit({ id: 'habit-1', title: 'Run', isOverdue: true, dueDate: '2025-01-01' })
 
 describe('RescheduleSheet', () => {
+  it.each(['free', 'error', 'accept'] as const)('matches action widths in the %s footer', (state) => {
+    if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }
+    if (state === 'error') h.reschedule.error = new Error('unavailable')
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.reschedule.retry' : 'habits.reschedule.accept'
+    expect(screen.getByRole('button', { name: primary })).toHaveStyle({ width: '100%' })
+    expect(screen.getByRole('button', { name: 'habits.reschedule.dismiss' })).toHaveStyle({ width: '100%' })
+  })
   beforeEach(() => {
     h.push.mockReset()
     h.mutateAsync.mockReset().mockResolvedValue(undefined)

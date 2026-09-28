@@ -11,7 +11,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { TriangleAlert } from '@/components/ui/icons'
 
 interface DeleteAccountModalProps {
@@ -125,7 +125,8 @@ export function DeleteAccountModal({
             {error}
           </p>
         ) : null}
-        <div className="mx-auto flex w-full flex-col" style={{ gap: 12, paddingTop: 8, maxWidth: MATCHED_PILL_MAX_WIDTH }}>
+        <div style={{ paddingTop: 8 }}>
+          <DialogActionPair>
           <PillButton
             variant="destructive"
             matchedWidth
@@ -138,6 +139,7 @@ export function DeleteAccountModal({
           <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
+          </DialogActionPair>
         </div>
       </div>
     </Sheet>
