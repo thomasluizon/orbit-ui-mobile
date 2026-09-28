@@ -14,6 +14,9 @@ export function resetAccountQueries(
 
       void query.cancel({ silent: true })
       query.setOptions({ ...query.options, initialData: undefined })
+      for (const observer of query.observers) {
+        observer.setOptions({ ...observer.options, initialData: undefined })
+      }
       query.setState({
         ...query.resetState,
         data: undefined,

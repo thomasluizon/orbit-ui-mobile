@@ -24,6 +24,47 @@ describe('account boundary reset', () => {
     }
   })
 
+  it.each([true, false])('does not restore initial data when a %s observer updates options after reset', async (enabled) => {
+    const queryClient = new QueryClient()
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['profile'],
+      queryFn: async () => 'account-b',
+      enabled,
+      initialData: 'account-a',
+      staleTime: 300000,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await resetAccountQueries(queryClient, 'signed-out')
+      observer.setOptions({ ...observer.options })
+      expect(observer.getCurrentResult().data).toBeUndefined()
+      expect(queryClient.getQueryData(['profile'])).toBeUndefined()
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it.each([true, false])('does not restore another account to a %s observer during signed-in refetch', (enabled) => {
+    const queryClient = new QueryClient()
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['profile'],
+      queryFn: () => new Promise<string>(() => {}),
+      enabled,
+      initialData: 'account-a',
+      staleTime: 300000,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      void resetAccountQueries(queryClient, 'signed-in')
+      observer.setOptions({ ...observer.options })
+      expect(observer.getCurrentResult().data).toBeUndefined()
+      expect(queryClient.getQueryData(['profile'])).toBeUndefined()
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+
   it('settles a mounted observer whose first fetch was cancelled', async () => {
     const queryClient = new QueryClient()
     let answer: (value: string) => void = () => {}

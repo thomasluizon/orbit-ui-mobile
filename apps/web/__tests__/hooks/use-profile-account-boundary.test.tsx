@@ -7,7 +7,7 @@ import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { getQueryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth-store'
-import { retireHeldAccount } from '@/__tests__/support/account-change'
+import { holdAccount, replaceAccountWith, retireHeldAccount } from '@/__tests__/support/account-change'
 
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
@@ -58,5 +58,23 @@ describe('profile fetch across the first session check', () => {
     await waitFor(() => expect(result.current.profile?.name).toBe('Answered'))
     expect(result.current.isLoading).toBe(false)
     expect(fetchMock).toHaveBeenCalledWith(API.profile.get, expect.anything())
+  })
+
+  it('drops the server profile when the mounted hook moves to another account', async () => {
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('account-a')
+    const previousProfile = createMockProfile({ name: 'Previous account' })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+
+    const { result } = renderHook(() => useProfile({ enabled: false, initialData: previousProfile }), { wrapper })
+    expect(result.current.profile?.name).toBe('Previous account')
+
+    await replaceAccountWith('account-b')
+
+    await waitFor(() => expect(result.current.profile).toBeUndefined())
+    expect(queryClient.getQueryData(['profile', 'detail'])).toBeUndefined()
   })
 })

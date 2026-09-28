@@ -15,6 +15,7 @@ import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
+import { setAccountId } from '@/lib/account-scope'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
@@ -119,6 +120,7 @@ export function seedRenderedAccount(accountId: string): void {
   if (lastObservedAccountId !== null) return
   bindStepUpStateToAccount(accountId)
   lastObservedAccountId = accountId
+  setAccountId(accountId)
 }
 
 /**
