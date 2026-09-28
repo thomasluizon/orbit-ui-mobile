@@ -131,18 +131,18 @@ export function DeleteAccountModal({
           ) : null}
           <View style={styles.actions}>
             <DialogActionPair>
-            <PillButton
-              variant="destructive"
-              matchedWidth
-              onClick={() => void handleRequestDeletion()}
-              disabled={loading}
-              loading={loading}
-            >
-              {t('profile.deleteAccount.sendCode')}
-            </PillButton>
-            <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
+              <PillButton
+                variant="destructive"
+                matchedWidth
+                onClick={() => void handleRequestDeletion()}
+                disabled={loading}
+                loading={loading}
+              >
+                {t('profile.deleteAccount.sendCode')}
+              </PillButton>
+              <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
+                {t('common.cancel')}
+              </PillButton>
             </DialogActionPair>
           </View>
         </View>

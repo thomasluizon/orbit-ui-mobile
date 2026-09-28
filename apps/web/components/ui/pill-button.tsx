@@ -1,7 +1,7 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, Ref } from 'react'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
 import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
@@ -69,11 +69,13 @@ export function Button({
   label,
   formId,
   descriptionId,
-}: Readonly<ButtonProps>) {
+  buttonRef,
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement> }>) {
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
     <button
+      ref={buttonRef}
       type={onClick ? 'button' : 'submit'}
       form={formId}
       onClick={loading ? undefined : onClick}

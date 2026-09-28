@@ -232,17 +232,17 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
             <View style={styles.actionInset}>
               <DialogActionPair>
-              <PillButton
-                variant="caution"
-                matchedWidth
-                accessibleName={t('profile.freshStart.reviewDeletion')}
-                onClick={() => setResetStep('confirm')}
-              >
-                {t('profile.freshStart.reviewDeletion')}
-              </PillButton>
-              <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-                {t('common.cancel')}
-              </PillButton>
+                <PillButton
+                  variant="caution"
+                  matchedWidth
+                  accessibleName={t('profile.freshStart.reviewDeletion')}
+                  onClick={() => setResetStep('confirm')}
+                >
+                  {t('profile.freshStart.reviewDeletion')}
+                </PillButton>
+                <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
               </DialogActionPair>
             </View>
           </View>
@@ -283,21 +283,21 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             ) : null}
             <View style={styles.actionInset}>
               <DialogActionPair>
-              <PillButton
-                variant="caution"
-                matchedWidth
-                accessibleName={confirmButtonLabel}
-                disabled={!isResetConfirmed || resetLoading}
-                loading={resetLoading}
-                onClick={() => {
-                  void handleResetAccount()
-                }}
-              >
-                {confirmButtonLabel}
-              </PillButton>
-              <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
-                {t('common.cancel')}
-              </PillButton>
+                <PillButton
+                  variant="caution"
+                  matchedWidth
+                  accessibleName={confirmButtonLabel}
+                  disabled={!isResetConfirmed || resetLoading}
+                  loading={resetLoading}
+                  onClick={() => {
+                    void handleResetAccount()
+                  }}
+                >
+                  {confirmButtonLabel}
+                </PillButton>
+                <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
               </DialogActionPair>
             </View>
           </View>

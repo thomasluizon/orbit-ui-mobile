@@ -253,12 +253,12 @@ function FreshStartInfoStep({
       </div>
       <div style={{ paddingTop: 8 }}>
         <DialogActionPair>
-        <PillButton variant="caution" matchedWidth onClick={onContinue}>
-          {t('profile.freshStart.reviewDeletion')}
-        </PillButton>
-        <PillButton variant="ghost" matchedWidth onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+          <PillButton variant="caution" matchedWidth onClick={onContinue}>
+            {t('profile.freshStart.reviewDeletion')}
+          </PillButton>
+          <PillButton variant="ghost" matchedWidth onClick={onCancel}>
+            {t('common.cancel')}
+          </PillButton>
         </DialogActionPair>
       </div>
     </div>
@@ -321,12 +321,12 @@ function FreshStartConfirmStep({
       )}
       <div style={{ paddingTop: 8 }}>
         <DialogActionPair>
-        <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
-          {t('profile.freshStart.deleteData')}
-        </PillButton>
-        <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
-          {t('common.cancel')}
-        </PillButton>
+          <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
+            {t('profile.freshStart.deleteData')}
+          </PillButton>
+          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
+            {t('common.cancel')}
+          </PillButton>
         </DialogActionPair>
       </div>
     </div>

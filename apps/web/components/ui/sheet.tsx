@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
@@ -40,12 +40,13 @@ export function useSheetHost() {
 
 interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
+  initialFocus?: RefObject<HTMLElement | null>
   /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
   ref?: Ref<SheetHandle>
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClose, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -113,7 +114,7 @@ export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClos
       <Dialog.Portal className="orbit-sheet-portal">
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
-          <Dialog.Popup className="orbit-sheet-panel">
+          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
               <Dialog.Title className={title ? 'orbit-sheet-title' : 'sr-only'}>
