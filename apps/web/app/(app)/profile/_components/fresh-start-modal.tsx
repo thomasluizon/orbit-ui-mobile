@@ -129,7 +129,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   function handleAnimationComplete() {
     setShowAnimation(false)
-    void resetAccountQueries(queryClient)
+    void resetAccountQueries(queryClient, 'signed-in')
     globalThis.location.href = '/'
   }
 

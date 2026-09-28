@@ -10,7 +10,7 @@ import {
 import { resetAccountQueries } from '@orbit/shared/query'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChanged, withAccountIntent } from '@/lib/client-action'
-import { getAccountGeneration, getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 
 interface ScopedVariables<TVariables> {
   input: TVariables
@@ -81,7 +81,10 @@ export function useAccountScopedMutation<
     } finally {
       if (variables.generation !== getAccountGeneration()
         || variables.intendedAccountId !== getHeldAccountId()) {
-        void resetAccountQueries(queryClient)
+        void resetAccountQueries(
+          queryClient,
+          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
+        )
       }
     }
   }
@@ -89,7 +92,12 @@ export function useAccountScopedMutation<
     stillHeld(variables) ? onSuccess(data, variables.input, result, context) : undefined
   scopedOptions.onError = (error, variables, result, context) => {
     if (reportsAccountChanged(error)) {
-      if (sameGeneration(variables)) void resetAccountQueries(queryClient)
+      if (sameGeneration(variables)) {
+        void resetAccountQueries(
+          queryClient,
+          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
+        )
+      }
       reportAccountChanged()
       return
     }

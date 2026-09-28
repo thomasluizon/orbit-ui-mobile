@@ -101,7 +101,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         try { await restoreQueryCache() } catch {}
         syncWidgetDataSafely()
       } else {
-        void resetAccountQueries(queryClient)
+        void resetAccountQueries(queryClient, 'signed-out')
         try { await clearPersistedQueryCache() } catch {}
       }
 

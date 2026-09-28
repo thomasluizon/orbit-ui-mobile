@@ -26,7 +26,7 @@ function reloadWhenCookieReplacesAccount(
   if (!accountSwitchPending) {
     accountSwitchPending = true
     accountGeneration += 1
-    void resetAccountQueries(getQueryClient())
+    void resetAccountQueries(getQueryClient(), 'signed-in')
     startAccountScopedSession(heldAccountId, cookieAccountId)
     if ('location' in globalThis) globalThis.location.reload()
   }
@@ -106,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
-    void resetAccountQueries(getQueryClient())
+    void resetAccountQueries(getQueryClient(), 'signed-in')
     startAccountScopedSession(get().heldAccountId, loginResponse.userId, true)
     sessionRecoveryUser = null
     set({
@@ -131,7 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        void resetAccountQueries(getQueryClient())
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -152,7 +152,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      void resetAccountQueries(getQueryClient())
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -186,7 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        void resetAccountQueries(getQueryClient())
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -205,7 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      void resetAccountQueries(getQueryClient())
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -230,7 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        void resetAccountQueries(getQueryClient())
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -249,7 +249,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      void resetAccountQueries(getQueryClient())
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -295,7 +295,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
-    void resetAccountQueries(getQueryClient())
+    void resetAccountQueries(getQueryClient(), 'signed-out')
     startAccountScopedSession(get().heldAccountId, null)
     sessionRecoveryUser = null
     resetPostHogUser()

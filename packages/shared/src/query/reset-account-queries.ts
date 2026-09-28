@@ -1,6 +1,9 @@
 import { notifyManager, type QueryClient } from '@tanstack/query-core'
 
-export function resetAccountQueries(queryClient: QueryClient): Promise<void> {
+export function resetAccountQueries(
+  queryClient: QueryClient,
+  mode: 'signed-in' | 'signed-out',
+): Promise<void> {
   notifyManager.batch(() => {
     const queryCache = queryClient.getQueryCache()
     for (const query of queryCache.getAll()) {
@@ -22,5 +25,7 @@ export function resetAccountQueries(queryClient: QueryClient): Promise<void> {
     queryClient.getMutationCache().clear()
   })
 
-  return Promise.resolve().then(() => queryClient.refetchQueries({ type: 'active' }))
+  return mode === 'signed-in'
+    ? Promise.resolve().then(() => queryClient.refetchQueries({ type: 'active' }))
+    : Promise.resolve()
 }

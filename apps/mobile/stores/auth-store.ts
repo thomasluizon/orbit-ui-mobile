@@ -243,7 +243,7 @@ async function runSessionTeardown(
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
 
-  void resetAccountQueries(queryClient)
+  void resetAccountQueries(queryClient, 'signed-out')
   if (!(await runSessionTeardownStep(epoch, clearPersistedQueryCache))) return null
   if (!(await runSessionTeardownStep(epoch, () => setQueryCacheScope(null)))) return null
 
@@ -474,7 +474,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!loginSession) return null
       ownership = loginSession
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
-      void resetAccountQueries(queryClient)
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await setQueryCacheScope(user.userId)

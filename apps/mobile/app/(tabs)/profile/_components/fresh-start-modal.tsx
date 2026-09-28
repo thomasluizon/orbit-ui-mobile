@@ -158,7 +158,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         clearChecklistTemplates(),
         AsyncStorage.removeItem(accountStorageKey('orbit_trial_expired_seen')),
       ])
-      void resetAccountQueries(queryClient)
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       onClose()
       setShowFreshStartAnim(true)
@@ -172,7 +172,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   function handleFreshStartComplete() {
     setShowFreshStartAnim(false)
-    void resetAccountQueries(queryClient)
+    void resetAccountQueries(queryClient, 'signed-in')
     router.replace('/')
   }
 

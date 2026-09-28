@@ -15,7 +15,7 @@ describe('account boundary reset', () => {
     const seen: Array<string | undefined> = []
     const unsubscribe = observer.subscribe((result) => seen.push(result.data))
     try {
-      await resetAccountQueries(queryClient)
+      await resetAccountQueries(queryClient, 'signed-in')
       expect(queryClient.getQueryData(['unobserved'])).toBeUndefined()
       expect(observer.getCurrentResult().data).toBeUndefined()
       expect(seen).toContain(undefined)
@@ -35,13 +35,33 @@ describe('account boundary reset', () => {
     const unsubscribe = observer.subscribe(() => {})
     try {
       expect(observer.getCurrentResult().fetchStatus).toBe('fetching')
-      const reset = resetAccountQueries(queryClient)
+      const reset = resetAccountQueries(queryClient, 'signed-in')
       answer('account-a')
       await reset
       expect(observer.getCurrentResult()).toMatchObject({
         status: 'success', fetchStatus: 'idle', data: 'account-b',
       })
       expect(queryFn).toHaveBeenCalledTimes(2)
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it('empties signed-out observers without starting another request', async () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(['inactive'], 'account-a')
+    const queryFn = vi.fn(async () => 'account-a')
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['profile'], queryFn, initialData: 'account-a', staleTime: 300000,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await resetAccountQueries(queryClient, 'signed-out')
+      expect(queryClient.getQueryData(['inactive'])).toBeUndefined()
+      expect(observer.getCurrentResult()).toMatchObject({
+        status: 'pending', fetchStatus: 'idle', data: undefined,
+      })
+      expect(queryFn).not.toHaveBeenCalled()
     } finally {
       unsubscribe()
     }
@@ -61,7 +81,7 @@ describe('account boundary reset', () => {
     const seen: Array<string | undefined> = []
     const unsubscribe = observer.subscribe((result) => seen.push(result.data))
     try {
-      const reset = resetAccountQueries(queryClient)
+      const reset = resetAccountQueries(queryClient, 'signed-in')
       expect(observer.getCurrentResult().data).toBeUndefined()
       answer('account-b')
       await reset

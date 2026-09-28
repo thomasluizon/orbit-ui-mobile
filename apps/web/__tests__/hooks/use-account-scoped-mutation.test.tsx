@@ -14,7 +14,10 @@ const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => account.id,
   getAccountGeneration: () => account.generation,
-  useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: async () => {} }) },
+  useAuthStore: { getState: () => ({
+    isAuthenticated: account.id !== null,
+    recoverSessionRefreshFailure: async () => {},
+  }) },
 }))
 
 function deferred() {
