@@ -28,6 +28,7 @@ import { clearPersistedQueryCache } from '@/lib/query-client'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -154,9 +155,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
-  const confirmButtonLabel = resetLoading
-    ? t('profile.freshStart.processing')
-    : t('profile.freshStart.button')
+  const confirmButtonLabel = t('profile.freshStart.deleteData')
 
   return (
     <>
@@ -234,12 +233,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             <View style={styles.modalActions}>
               <PillButton
                 variant="caution"
-                accessibleName={t('common.continue')}
+                matchedWidth
+                accessibleName={t('profile.freshStart.reviewDeletion')}
                 onClick={() => setResetStep('confirm')}
               >
-                {t('common.continue')}
+                {t('profile.freshStart.reviewDeletion')}
               </PillButton>
-              <PillButton variant="ghost" onClick={() => closeSheet()}>
+              <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
             </View>
@@ -282,15 +282,17 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             <View style={styles.modalActions}>
               <PillButton
                 variant="caution"
+                matchedWidth
                 accessibleName={confirmButtonLabel}
                 disabled={!isResetConfirmed || resetLoading}
+                loading={resetLoading}
                 onClick={() => {
                   void handleResetAccount()
                 }}
               >
                 {confirmButtonLabel}
               </PillButton>
-              <PillButton variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>
+              <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
             </View>
@@ -313,8 +315,11 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   modalActions: {
+    alignSelf: 'center',
     gap: 12,
+    maxWidth: MATCHED_PILL_MAX_WIDTH,
     paddingTop: 8,
+    width: '100%',
   },
 
   listRow: {

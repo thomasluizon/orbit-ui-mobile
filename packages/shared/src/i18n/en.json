@@ -1737,6 +1737,8 @@
     },
     "freshStart": {
       "button": "Fresh Start",
+      "reviewDeletion": "Review deletion",
+      "deleteData": "Delete data",
       "heading": "Fresh Start",
       "confirmHeading": "This erases everything",
       "willDelete": "What will be deleted",

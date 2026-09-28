@@ -116,12 +116,12 @@ async function press(node: TestNode) {
 }
 
 async function confirmReset(tree: TestTree) {
-  await press(buttonWithLabel(tree, 'common.continue')!)
+  await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
   await TestRenderer.act(async () => {
 await Promise.resolve()
     ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
   })
-  await press(buttonWithLabel(tree, 'profile.freshStart.button')!)
+  await press(buttonWithLabel(tree, 'profile.freshStart.deleteData')!)
 }
 
 describe('FreshStartModal', () => {
@@ -149,22 +149,38 @@ describe('FreshStartModal', () => {
 
   it('advances from info to the confirm step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
-    expect(buttonWithLabel(tree, 'common.continue')!.props.testID).toBe('button-caution-md')
-    await press(buttonWithLabel(tree, 'common.continue')!)
+    expect(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!.props.testID).toBe('button-caution-md')
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
   })
 
+  it('names the deletion review and gives both actions one width in each step', async () => {
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    const width = (label: string) => {
+      const node = label === 'common.cancel'
+        ? tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-md')[0]!
+        : buttonWithLabel(tree, label)!
+      const style = node.props.style as (state: { pressed: boolean }) => Array<Record<string, unknown> | null>
+      return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
+    }
+    expect(width('profile.freshStart.reviewDeletion')).toBe('100%')
+    expect(width('common.cancel')).toBe('100%')
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(width('profile.freshStart.deleteData')).toBe('100%')
+    expect(width('common.cancel')).toBe('100%')
+  })
+
   it('keeps the confirm button disabled until ORBIT is typed', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
-    await press(buttonWithLabel(tree, 'common.continue')!)
-    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.testID).toBe('button-caution-md')
-    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.disabled).toBe(true)
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.testID).toBe('button-caution-md')
+    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.disabled).toBe(true)
     await TestRenderer.act(async () => {
 await Promise.resolve()
       ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
     })
-    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.disabled).toBe(false)
+    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.disabled).toBe(false)
   })
 
   it('resets the account online, clears caches and navigates after sheet dismissal', async () => {

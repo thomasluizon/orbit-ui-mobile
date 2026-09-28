@@ -1737,6 +1737,8 @@
     },
     "freshStart": {
       "button": "Recomeçar",
+      "reviewDeletion": "Revisar exclusão",
+      "deleteData": "Excluir dados",
       "heading": "Recomeçar",
       "confirmHeading": "Isso apaga tudo",
       "willDelete": "O que será excluído",

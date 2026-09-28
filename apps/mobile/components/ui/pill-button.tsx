@@ -6,7 +6,7 @@ import {
   Text,
   type ViewStyle,
 } from 'react-native'
-import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
+import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -20,6 +20,7 @@ export function Button({
   children,
   accessibleName,
   iconOnly,
+  matchedWidth = false,
   label,
   hint,
   accessibilityRole = 'button',
@@ -80,7 +81,7 @@ export function Button({
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: sizeSpec.height, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
         disabled && !loading ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
