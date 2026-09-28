@@ -51,12 +51,8 @@ export type {
   CalendarSyncParsedRecurrence,
   CalendarSyncTranslationAdapter,
 } from './calendar-sync'
-export {
-  buildGoogleCalendarOAuthOptions,
-  GOOGLE_CALENDAR_CONSENT_QUERY_PARAMS,
-  GOOGLE_CALENDAR_OAUTH_QUERY_PARAMS,
-  GOOGLE_CALENDAR_READONLY_SCOPE,
-} from './google-calendar-auth'
+export { buildGoogleAuthorizeUrl, bytesToHex, GOOGLE_CALENDAR_READONLY_SCOPE } from './google-oauth'
+export type { GoogleAuthPurpose } from './google-oauth'
 export {
   applyChecklistTemplate,
   CHECKLIST_TEMPLATE_STORAGE_KEY,

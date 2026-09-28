@@ -145,9 +145,11 @@ describe('privacy policy disclosures', () => {
     expect(ptBR.privacy.dataResidency.body).toContain(
       'A Vercel hospeda o aplicativo web em sua rede global',
     )
-    expect(en.privacy.dataResidency.body).toContain('International transfers to Vercel')
+    expect(en.privacy.dataResidency.body).toContain('hosted with Supabase on Amazon Web Services')
+    expect(ptBR.privacy.dataResidency.body).toContain('fica na Supabase, na Amazon Web Services')
+    expect(en.privacy.dataResidency.body).toContain('International transfers to Supabase, Render, Vercel')
     expect(ptBR.privacy.dataResidency.body).toContain(
-      'As transferências internacionais para a Vercel',
+      'As transferências internacionais para a Supabase, a Render, a Vercel',
     )
     expect(en.privacy.lastUpdated).toBe('Last updated: August 2026')
     expect(ptBR.privacy.lastUpdated).toBe('Última atualização: agosto de 2026')

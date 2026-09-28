@@ -3,7 +3,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
-  buildGoogleCalendarOAuthOptions,
   isValidEmail,
   isValidReferralCode,
   isValidVerificationCode,
@@ -14,8 +13,6 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { getSupabaseClient } from '@/lib/supabase'
-import { clearGoogleAuthStarted, markGoogleAuthStarted } from '@/lib/google-auth-session'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import {
   fetchAuthEndpoint,
@@ -40,7 +37,9 @@ export function useLoginFlow() {
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    searchParams.get('googleError') === '1' ? t('auth.errors.googleError') : null,
+  )
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -203,7 +202,7 @@ export function useLoginFlow() {
     resetCodeDigits()
   }
 
-  async function signInWithGoogle() {
+  function signInWithGoogle() {
     if (isOfflinePreflight()) {
       reportError(t('auth.errors.offline'))
       return
@@ -212,22 +211,9 @@ export function useLoginFlow() {
     setErrorMessage(null)
 
     try {
-      const supabase = getSupabaseClient()
-      const attemptId = markGoogleAuthStarted()
-      const redirectTo = `${globalThis.location.origin}/auth-callback?authAttempt=${attemptId}`
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: buildGoogleCalendarOAuthOptions({ redirectTo }),
-      })
-
-      if (error) {
-        clearGoogleAuthStarted()
-        reportError(t('auth.errors.googleError'))
-        setIsGoogleLoading(false)
-      }
+      sessionStorage.setItem('auth_return_url', getReturnUrl())
+      globalThis.location.assign('/api/auth/google/start?purpose=signin')
     } catch (err: unknown) {
-      clearGoogleAuthStarted()
       reportError(resolveLoginErrorState(err, t, 'google').message)
       setIsGoogleLoading(false)
     }

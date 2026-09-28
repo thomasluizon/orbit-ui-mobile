@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
-  signInWithOAuth: vi.fn(),
+  assign: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -34,10 +34,6 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({ setAuth: mocks.setAuth }),
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
 }))
 
 vi.mock('@/lib/profile-presentation', () => ({
@@ -118,6 +114,7 @@ function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: st
 }
 
 beforeEach(() => {
+  vi.stubGlobal('fetch', fetchMock)
   vi.clearAllMocks()
   mocks.search = ''
   mocks.isOnline = true
@@ -128,21 +125,20 @@ beforeEach(() => {
   wireAuthNetwork()
 })
 
-it('binds Google sign in to an attempt in this tab', async () => {
-  mocks.signInWithOAuth.mockResolvedValue({ error: null })
+it('starts Google sign in through the BFF and preserves the destination', async () => {
+  vi.stubGlobal('location', { assign: mocks.assign })
   const { result } = renderHook(() => useLoginFlow())
 
-  await act(async () => { await result.current.signInWithGoogle() })
+  act(() => { result.current.signInWithGoogle() })
 
-  const redirectTo = mocks.signInWithOAuth.mock.calls[0]?.[0]?.options?.redirectTo as string
-  const attemptId = new URL(redirectTo).searchParams.get('authAttempt')
-  expect(attemptId).toBeTruthy()
-  expect(sessionStorage.getItem('orbit_google_auth_started_at')).toContain(attemptId)
+  expect(mocks.assign).toHaveBeenCalledWith('/api/auth/google/start?purpose=signin')
+  expect(sessionStorage.getItem('auth_return_url')).toBe('/')
 })
 
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 
 it('requires a new Turnstile token for send, resend, and verify', async () => {

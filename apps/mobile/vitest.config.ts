@@ -142,7 +142,6 @@ export default defineConfig({
         'lib/plural.ts',
         'lib/providers.tsx',
         'lib/sentry-init.ts',
-        'lib/supabase.ts',
         'lib/theme-provider.tsx',
         'lib/use-app-theme.ts',
         'modules/orbit-widget/src/OrbitWidgetModule.ts',

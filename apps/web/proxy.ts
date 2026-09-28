@@ -69,14 +69,10 @@ async function applyRefreshedSession(
 }
 
 function createContentSecurityPolicy(nonce: string): string {
-  const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
   const uploadBucketOrigin = process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN
     ? new URL(process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN).origin
     : null
-
   const apiOrigin = new URL(accountEventApiBase()).origin
-  const websocketUrl = new URL(supabaseUrl.origin)
-  websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
   const developmentScriptSource =
     process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
@@ -85,9 +81,9 @@ function createContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
     "frame-src https://challenges.cloudflare.com",
-    `img-src 'self' blob: data: ${supabaseUrl.origin} ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
+    `img-src 'self' blob: data: ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
+    `connect-src 'self' ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -135,7 +131,7 @@ export async function proxy(request: NextRequest) {
     return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }
 
-  if (session.token && pathname === '/login') {
+  if (session.token && pathname === '/login' && request.nextUrl.searchParams.get('googleError') !== '1') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     url.search = ''

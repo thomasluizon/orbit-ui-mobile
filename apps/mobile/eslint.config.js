@@ -21,7 +21,6 @@ const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-mo
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
-const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs")
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -91,7 +90,6 @@ module.exports = defineConfig([
           "no-side-stripe-border": noSideStripeBorder,
           "spacing-scale": spacingScale,
           "no-unjustified-disable": noUnjustifiedDisable,
-          "mobile-supabase-lazy": mobileSupabaseLazy,
         },
       },
     },
@@ -148,10 +146,6 @@ module.exports = defineConfig([
       "**/*-no-data-state.tsx",
     ],
     rules: { "local/no-fullbleed-button": "off" },
-  },
-  {
-    files: ["**/supabase.ts"],
-    rules: { "local/mobile-supabase-lazy": "error" },
   },
   {
     files: ["app/(tabs)/calendar/_components/calendar-loading-bar.tsx"],

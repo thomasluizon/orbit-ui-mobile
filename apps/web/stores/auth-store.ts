@@ -3,7 +3,6 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { getQueryClient } from '@/lib/query-client'
-import { clearSupabaseSession } from '@/lib/supabase'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
@@ -103,7 +102,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     if (get().heldAccountId && get().heldAccountId !== loginResponse.userId) resetPostHogUser()
-    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
@@ -154,7 +152,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -166,7 +163,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
-      clearSupabaseSession()
       sessionRecoveryUser ??= get().user
       resetPostHogUser()
       set({
@@ -209,7 +205,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -254,7 +249,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
-      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -297,7 +291,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
-    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1

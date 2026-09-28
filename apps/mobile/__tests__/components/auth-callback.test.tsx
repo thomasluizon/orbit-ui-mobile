@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   clearStoredAuthReturnUrl: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   clearPendingGoogleAuthSession: vi.fn(),
+  allowGoogleErrorLogin: vi.fn(),
   setPendingGoogleAuthCallbackUrl: vi.fn(),
   pendingGoogleSession: {
     callbackUrl: null as string | null,
@@ -42,6 +43,7 @@ vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'orbit://auth-callback',
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
+  allowGoogleErrorLogin: mocks.allowGoogleErrorLogin,
   setPendingGoogleAuthCallbackUrl: mocks.setPendingGoogleAuthCallbackUrl,
   extractGoogleAuthParams: () => ({}),
   resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
@@ -101,6 +103,17 @@ it('ignores a saved callback without a pending Google attempt', async () => {
 
   expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
   expect(mocks.login).not.toHaveBeenCalled()
+})
+
+it('opens the login error screen without storing a session when the code exchange fails', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValue(new Error('API rejected the code'))
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.allowGoogleErrorLogin).toHaveBeenCalledOnce()
+  expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1')
 })
 
 it('leaves referral and navigation untouched when callback login loses ownership', async () => {

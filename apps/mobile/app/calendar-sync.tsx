@@ -36,6 +36,7 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
+import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
@@ -248,15 +249,19 @@ export default function CalendarSyncScreen() {
           : '/calendar-sync',
         forceConsent: true,
       })
-      if (result.type !== 'success') return
+      if (result.type !== 'success') {
+        allowGoogleErrorLogin()
+        router.replace('/login?googleError=1')
+        return
+      }
       router.replace('/auth-callback')
     } catch {
-      setErrorMessage(t('auth.googleError'))
-      setWizardStage('error')
+      allowGoogleErrorLogin()
+      router.replace('/login?googleError=1')
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router, t])
+  }, [isConnecting, isOnline, isReviewMode, router])
 
   const handleToggleAutoSync = useCallback(
     (enabled: boolean) => {

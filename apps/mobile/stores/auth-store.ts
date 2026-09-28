@@ -5,8 +5,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
-import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
-import { clearSupabaseSession } from '@/lib/supabase'
+import { clearGoogleErrorLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
   getToken,
   setToken,
@@ -215,8 +214,8 @@ async function clearSessionCredentials(
       expiresAt: null,
     })
     await clearAllTokens()
-    await clearPendingGoogleAuthSession()
-    await clearSupabaseSession()
+    clearPendingGoogleAuthSession()
+    clearGoogleErrorLogin()
     await clearWidgetToken().catch(() => {})
     return { epoch: sessionEpoch, refreshToken }
   })
@@ -448,8 +447,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
-        await clearPendingGoogleAuthSession()
-        await clearSupabaseSession()
+        clearPendingGoogleAuthSession()
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -518,6 +516,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      clearGoogleErrorLogin()
       identifyPostHogUser(user.userId, previousAccountId)
       return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {
