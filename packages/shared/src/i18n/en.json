@@ -912,22 +912,21 @@
       "empty": "Nothing scheduled"
     },
     "legend": {
-      "today": "Today",
-      "loggable": "Can log",
-      "done": "Done",
-      "partial": "Partial",
-      "missed": "Missed"
+      "loggable": "can log",
+      "full": "all logged",
+      "partial": "part done",
+      "none": "nothing logged"
     },
     "dayCell": {
-      "none": "None logged",
-      "partial": "Partially done",
-      "full": "Done",
-      "notScheduled": "Not scheduled",
-      "future": "Upcoming",
+      "none": "nothing logged",
+      "partial": "part done",
+      "full": "all logged",
+      "notScheduled": "nothing due",
+      "future": "not yet",
       "of": "of",
-      "today": "Today",
-      "selected": "Selected",
-      "readOnly": "Read only"
+      "today": "today",
+      "selected": "selected",
+      "readOnly": "read only"
     },
     "bestStreak": "Best streak",
     "totalLogs": "Logs",
@@ -954,7 +953,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open day",
+    "goToDay": "Open this day on Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -982,7 +981,6 @@
     "status": {
       "completed": "done",
       "missed": "not logged",
-      "upcoming": "Upcoming",
       "indulged": "indulged",
       "resisted": "resisted"
     },

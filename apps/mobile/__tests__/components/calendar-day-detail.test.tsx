@@ -75,11 +75,10 @@ const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
   'calendar.goToDay': en.calendar.goToDay,
-  'calendar.status.completed': 'done',
-  'calendar.status.missed': 'not logged',
-  'calendar.status.indulged': 'indulged',
-  'calendar.status.resisted': 'resisted',
-  'calendar.status.upcoming': 'Upcoming',
+  'calendar.status.completed': en.calendar.status.completed,
+  'calendar.status.missed': en.calendar.status.missed,
+  'calendar.status.indulged': en.calendar.status.indulged,
+  'calendar.status.resisted': en.calendar.status.resisted,
   'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
   'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
@@ -366,7 +365,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(errors).toHaveLength(0)
   })
 
-  it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {
+  it('labels an unlogged ordinary row like a missed row', () => {
     const tree = renderDetail({
       entries: [
         makeEntry({ title: 'Read' }),
@@ -383,11 +382,11 @@ describe('CalendarDayDetail (mobile)', () => {
     }))).toEqual([
       { title: 'Read', value: '08:00 · done', readOnly: true, ringStatus: 'done' },
       { title: 'Walk', value: '08:00 · not logged', readOnly: true, ringStatus: 'empty' },
-      { title: 'Swim', value: '08:00 · Upcoming', readOnly: true, ringStatus: 'empty' },
+      { title: 'Swim', value: '08:00 · not logged', readOnly: true, ringStatus: 'empty' },
     ])
   })
 
-  it('keeps avoid-habit upcoming rows distinct from indulged and resisted outcomes', () => {
+  it('labels an unlogged avoid-habit row like a resisted row', () => {
     const tree = renderDetail({
       entries: [
         makeEntry({ title: 'Sweets', isBadHabit: true }),
@@ -402,7 +401,7 @@ describe('CalendarDayDetail (mobile)', () => {
     }))).toEqual([
       { value: '08:00 · indulged', ringStatus: 'bad' },
       { value: '08:00 · resisted', ringStatus: 'done' },
-      { value: '08:00 · Upcoming', ringStatus: 'empty' },
+      { value: '08:00 · resisted', ringStatus: 'done' },
     ])
   })
 
@@ -438,9 +437,7 @@ describe('CalendarDayDetail (mobile)', () => {
       })
 
       const values = nodes(tree, 'CheckRowMock').map((row) => row.props.value)
-      expect(values).toEqual(['08:00 · Upcoming', '08:00 · Upcoming'])
-      expect(values).not.toContain('08:00 · not logged')
-      expect(values).not.toContain('08:00 · resisted')
+      expect(values).toEqual(['08:00 · not logged', '08:00 · resisted'])
     } finally {
       vi.useRealTimers()
     }
@@ -689,7 +686,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ onGoToDay })
     const routeRow = nodes(tree, 'ListRowMock').at(-1)
     expect(routeRow?.props).toMatchObject({
-      title: 'Open day',
+      title: 'Open this day on Today',
       icon: 'external-link',
       chevron: false,
       onClick: onGoToDay,

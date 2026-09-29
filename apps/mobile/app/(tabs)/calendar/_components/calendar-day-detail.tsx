@@ -148,13 +148,6 @@ type EntryOutcome = {
 }
 
 function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
-  if (entry.status === 'upcoming') {
-    return {
-      label: t('calendar.status.upcoming'),
-      status: 'empty',
-    }
-  }
-
   const completed = entry.status === 'completed'
 
   if (entry.isBadHabit) {
@@ -304,13 +297,16 @@ export function CalendarDayDetail({
         </View>
       ) : null}
 
-      <View style={styles.rowList}><ListRow
+      <View style={styles.rowList}>
+        {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
+        <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
         accessibilityLabel={t('calendar.goToDay')}
         chevron={false}
         onClick={onGoToDay}
-      /></View>
+        />
+      </View>
       <CalendarEventsSection
         calendarEvents={calendarEvents}
         state={calendarEventsState}
