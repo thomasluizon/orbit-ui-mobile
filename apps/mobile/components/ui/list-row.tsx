@@ -1,6 +1,6 @@
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
-import { useState } from 'react'
+import { cloneElement, isValidElement, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
@@ -21,6 +21,12 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
   return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
+function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
+  if (typeof icon === 'string') return <Icon name={icon} size={24} color={color} />
+  if (isValidElement<{ color?: string }>(icon)) return cloneElement(icon, { color })
+  return icon
+}
+
 export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
@@ -33,7 +39,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
-          {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
+          {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
       <View style={styles.textBlock}>

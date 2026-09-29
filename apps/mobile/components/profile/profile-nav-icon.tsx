@@ -21,7 +21,7 @@ export function ProfileNavIcon({
   color,
 }: Readonly<{
   iconKey: ProfileNavIconKey
-  color: string
+  color?: string
 }>) {
   const IconComponent = ICON_BY_KEY[iconKey]
   return <IconComponent size={24} color={color} strokeWidth={1.5} />
