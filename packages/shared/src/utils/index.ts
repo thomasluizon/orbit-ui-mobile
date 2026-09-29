@@ -316,7 +316,7 @@ export {
   formatPrice,
   monthlyEquivalent,
 } from './subscription-pricing'
-export { resolveSubscriptionScreen } from './subscription-screen'
+export { resolveSubscriptionScreen, resolveUpgradeHeader } from './subscription-screen'
 export { subscriptionSummary } from './subscription-summary'
 export type {
   ResolveSubscriptionScreenInput,

@@ -2387,6 +2387,7 @@
   },
   "upgrade": {
     "title": "Assinatura",
+    "pitchTitle": "Orbit Pro",
     "alreadyPro": "Você está no plano Pro",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
