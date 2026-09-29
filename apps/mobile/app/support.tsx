@@ -18,7 +18,6 @@ import {
   getSupportMessageFit,
   getSupportMessageMaxLength,
   getSupportSendReasonKey,
-  isValidEmail,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
@@ -79,7 +78,6 @@ interface SupportFormProps {
   tokens: Tokens
   isOnline: boolean
   sending: boolean
-  name: string
   email: string
   subject: SupportSubjectId | null
   message: string
@@ -87,18 +85,11 @@ interface SupportFormProps {
   messageMaxLength: number
   messageOverLimitHint: string | null
   error: string | null
-  nameError: string | null
-  emailError: string | null
   subjectError: string | null
   messageError: string | null
   canSend: boolean
   disabledReason: string | null
-  emailDisabled: boolean
-  nameFocusRequest: number
-  emailFocusRequest: number
   messageFocusRequest: number
-  onChangeName: (value: string) => void
-  onChangeEmail: (value: string) => void
   onChangeSubject: (value: SupportSubjectId) => void
   onChangeMessage: (value: string) => void
   onSubjectBlur: () => void
@@ -110,7 +101,6 @@ function SupportForm({
   tokens,
   isOnline,
   sending,
-  name,
   email,
   subject,
   message,
@@ -118,18 +108,11 @@ function SupportForm({
   messageMaxLength,
   messageOverLimitHint,
   error,
-  nameError,
-  emailError,
   subjectError,
   messageError,
   canSend,
   disabledReason,
-  emailDisabled,
-  nameFocusRequest,
-  emailFocusRequest,
   messageFocusRequest,
-  onChangeName,
-  onChangeEmail,
   onChangeSubject,
   onChangeMessage,
   onSubjectBlur,
@@ -155,29 +138,6 @@ function SupportForm({
           </Text>
         </View>
       ) : null}
-      <Input
-        label={t('profile.support.name')}
-        value={name}
-        onChange={onChangeName}
-        placeholder={t('profile.support.namePlaceholder')}
-        disabled={sending}
-        error={nameError ?? undefined}
-        autoComplete="name"
-        focusRequest={nameFocusRequest}
-      />
-      <Input
-        label={t('profile.support.email')}
-        value={email}
-        onChange={onChangeEmail}
-        placeholder={t('profile.support.emailPlaceholder')}
-        disabled={sending || emailDisabled}
-        error={emailError ?? undefined}
-        hint={emailDisabled ? t('profile.support.emailLockedReason') : undefined}
-        kind="email"
-        inputMode="email"
-        autoComplete="email"
-        focusRequest={emailFocusRequest}
-      />
       <View style={styles.subjectField}>
         <Text style={[styles.subjectLabel, { color: tokens.fg2 }]}>
           {t('profile.support.subject')}
@@ -225,8 +185,19 @@ function SupportForm({
         maxLength={messageMaxLength}
         multiline
         rows={6}
+        autoComplete="off"
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
+      />
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={() => {}}
+        disabled
+        hint={t('profile.support.emailLockedReason')}
+        kind="email"
+        inputMode="email"
+        autoComplete="off"
       />
       {appVersion ? (
         <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
@@ -272,8 +243,6 @@ export default function SupportScreen() {
   const { isOnline } = useOffline()
   const { profile } = useProfile()
   const appVersion = Constants.expoConfig?.version?.trim() || undefined
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
   const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState<SupportSubjectId | null>(null)
@@ -281,19 +250,10 @@ export default function SupportScreen() {
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [nameError, setNameError] = useState<string | null>(null)
-  const [emailError, setEmailError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
-  const [nameFocusRequest, setNameFocusRequest] = useState(0)
-  const [emailFocusRequest, setEmailFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
-  const resolvedEmail = profile?.email || email
-  const displayedName = name || profile?.name || ''
-  const displayedNameError = displayedName.trim() ? null : nameError
-  const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
-    ? null
-    : emailError
+  const resolvedEmail = profile?.email || ''
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
   const messageFit = getSupportMessageFit(message, appVersion)
@@ -304,6 +264,7 @@ export default function SupportScreen() {
   const isIncomplete = !hasSubject || !hasMessage
   const disabledReasonKey = getSupportSendReasonKey({
     hasMessage,
+    hasProfile: Boolean(profile),
     hasSubject,
     isOnline,
     isSending: sending,
@@ -342,26 +303,16 @@ export default function SupportScreen() {
   }, [])
 
   const validateFields = () => {
-    const effectiveName = name.trim() || profile?.name || ''
-    const effectiveEmail = resolvedEmail.trim()
-    const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
-    const nextEmailError = !effectiveEmail
-      ? t('profile.support.emailRequired')
-      : isValidEmail(effectiveEmail) ? null : t('profile.support.emailInvalid')
     const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
     const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
-    setNameError(nextNameError)
-    setEmailError(nextEmailError)
     setSubjectError(nextSubjectError)
     setMessageError(nextMessageError)
-    if (nextNameError) setNameFocusRequest((request) => request + 1)
-    else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
-    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
-    return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
+    if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextSubjectError && !nextMessageError
   }
 
   const handleSend = async () => {
-    if (!isOnline || !messageFit.fits) return
+    if (!profile || !isOnline || !messageFit.fits) return
     if (!validateFields()) return
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
@@ -375,8 +326,6 @@ export default function SupportScreen() {
         method: 'POST',
         body: JSON.stringify(
           buildSupportRequestBody(profile, {
-            name,
-            email: resolvedEmail,
             subject: t(selectedSubject.labelKey),
             message: attachSupportVersion(message, appVersion),
           }),
@@ -398,7 +347,7 @@ export default function SupportScreen() {
     }
   }
 
-  const canSend = isOnline && !sending && !isIncomplete && messageFit.fits
+  const canSend = isOnline && !sending && Boolean(profile) && !isIncomplete && messageFit.fits
 
   return (
     <SafeAreaView
@@ -429,7 +378,6 @@ export default function SupportScreen() {
             tokens={tokens}
             isOnline={isOnline}
             sending={sending}
-            name={displayedName}
             email={resolvedEmail}
             subject={subject}
             message={message}
@@ -437,24 +385,11 @@ export default function SupportScreen() {
             messageMaxLength={messageMaxLength}
             messageOverLimitHint={messageOverLimitHint}
             error={error}
-            nameError={displayedNameError}
-            emailError={displayedEmailError}
             subjectError={subjectError}
             messageError={messageError}
             canSend={canSend}
             disabledReason={disabledReason}
-            emailDisabled={Boolean(profile?.email)}
-            nameFocusRequest={nameFocusRequest}
-            emailFocusRequest={emailFocusRequest}
             messageFocusRequest={messageFocusRequest}
-            onChangeName={(next) => {
-              setName(next)
-              setNameError(null)
-            }}
-            onChangeEmail={(next) => {
-              setEmail(next)
-              setEmailError(null)
-            }}
             onChangeSubject={(next) => {
               setSubject(next)
               setSubjectError(null)

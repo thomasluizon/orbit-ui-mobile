@@ -8,6 +8,7 @@ import {
   getTrialDaysLeft,
   playManageSubscriptionUrl,
   resolveSubscriptionScreen,
+  resolveUpgradeHeader,
 } from '@orbit/shared/utils'
 import type {
   SubscriptionPortalState,
@@ -81,6 +82,7 @@ function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
   const labels: Record<string, string> = {
     '/': 'nav.today', '/(tabs)': 'nav.today', '/calendar': 'nav.calendar',
     '/progress': 'nav.progress', '/profile': 'nav.profile',
+    '/calendar-sync': 'calendar.title',
     '/about': 'about.title', '/wrapped': 'wrapped.title',
   }
   if (route?.startsWith('/habits/')) return 'habits.detail.screenTitle'
@@ -162,6 +164,7 @@ export default function UpgradeScreen() {
     isOnline,
     portalState,
   })
+  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -243,8 +246,8 @@ export default function UpgradeScreen() {
     />
   )
 
-  const pitchContent = !status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch ? (
-    <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
+  const pitchContent = lapsedNoticeStatus ? (
+    <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
     <>
       <PricingSection
@@ -283,7 +286,7 @@ export default function UpgradeScreen() {
     >
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
-        title={t('upgrade.title')}
+        title={titleKey ? t(titleKey) : ''}
         backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })}
       />
 

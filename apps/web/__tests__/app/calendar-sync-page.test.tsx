@@ -141,7 +141,7 @@ describe('CalendarSyncPage pagination', () => {
 
   it('does not show the pager when events fit on one page', () => {
     const events = buildEvents(8)
-    events[0] = { ...events[0], isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }
+    events[0] = { ...events[0]!, isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }
     useCalendarEventsMock.mockReturnValue({
       data: { status: 'connected', events },
       isLoading: false,

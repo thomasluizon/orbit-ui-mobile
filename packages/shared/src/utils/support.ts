@@ -1,18 +1,16 @@
 export interface SupportProfileFields {
-  name?: string | null
-  email?: string | null
+  name: string
+  email: string
 }
 
 export interface SupportFormFields {
-  name: string
-  email: string
   subject: string
   message: string
 }
 
 export interface SupportRequestBody {
-  name?: string
-  email?: string
+  name: string
+  email: string
   subject: string
   message: string
 }
@@ -45,6 +43,7 @@ export function getSupportMessageFit(
 }
 
 interface SupportSendState {
+  hasProfile: boolean
   hasMessage: boolean
   hasSubject: boolean
   isOnline: boolean
@@ -53,6 +52,7 @@ interface SupportSendState {
 }
 
 export function getSupportSendReasonKey({
+  hasProfile,
   hasMessage,
   hasSubject,
   isOnline,
@@ -60,6 +60,7 @@ export function getSupportSendReasonKey({
   messageFits,
 }: SupportSendState): string | null {
   if (!isOnline || isSending) return null
+  if (!hasProfile) return 'profile.support.sendNeedsProfile'
   if (!messageFits) return 'profile.support.sendNeedsShorterMessage'
   if (!hasSubject && !hasMessage) return 'profile.support.sendIncomplete'
   if (!hasSubject) return 'profile.support.sendNeedsSubject'
@@ -99,15 +100,12 @@ export function normalizeSupportSubjectId(value: unknown): SupportSubjectId | nu
 }
 
 export function buildSupportRequestBody(
-  profile: SupportProfileFields | null | undefined,
+  profile: SupportProfileFields,
   fields: SupportFormFields,
 ): SupportRequestBody {
-  const name = fields.name.trim()
-  const email = fields.email.trim()
-
   return {
-    name: name || profile?.name || undefined,
-    email: email || profile?.email || undefined,
+    name: profile.name.trim(),
+    email: profile.email.trim(),
     subject: fields.subject.trim(),
     message: fields.message.trim(),
   }

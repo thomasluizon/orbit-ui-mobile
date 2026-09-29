@@ -10,6 +10,7 @@ import {
   getFriendlyErrorMessage,
   getTrialDaysLeft,
   resolveSubscriptionScreen,
+  resolveUpgradeHeader,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
@@ -88,6 +89,7 @@ export default function UpgradePage() {
     portalState,
   })
   const screenState = heldAccountId === null ? 'loading' : model.state
+  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch, heldAccountId !== null)
 
   const usagePercent = useMemo(() => {
     if (!status || status.aiMessagesLimit === 0) return 0
@@ -227,8 +229,8 @@ export default function UpgradePage() {
         }
       />
     )
-  } else if (!status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch) {
-    content = <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
+  } else if (lapsedNoticeStatus) {
+    content = <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
@@ -288,7 +290,8 @@ export default function UpgradePage() {
       <PageHeader
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
-        title={t('upgrade.title')}
+        title={titleKey ? t(titleKey) : ''}
+        titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
       <div data-upgrade-screen="" className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
