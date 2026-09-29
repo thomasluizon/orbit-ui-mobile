@@ -96,7 +96,7 @@ describe('notification-actions', () => {
 
   it('resolves legacy conversation and calendar links into the four destinations', () => {
     expect(resolveNotificationUrl('/chat')).toBe('/')
-    expect(resolveNotificationUrl('/calendar-sync?mode=review')).toBe('/calendar')
+    expect(resolveNotificationUrl('/calendar-sync?mode=review')).toBe('/calendar?mode=review')
   })
 
   it('routes a closed-month notification to the Wrapped cover with its carried month', () => {

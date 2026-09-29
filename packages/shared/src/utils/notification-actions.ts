@@ -57,7 +57,10 @@ const ABSORBED_PROGRESS_ROUTES = [
 export function resolveNotificationUrl(url: string): string | null {
   const pathname = url.split(/[?#]/, 1)[0] ?? url
   if (pathname === '/chat') return '/'
-  if (pathname === '/calendar-sync') return '/calendar'
+  if (pathname === '/calendar-sync') {
+    const params = new URLSearchParams(url.split('?', 2)[1]?.split('#', 1)[0] ?? '')
+    return params.get('mode') === 'review' ? '/calendar?mode=review' : '/calendar'
+  }
   if (pathname === '/progress' && url.includes('?')) {
     const params = new URLSearchParams(url.slice(url.indexOf('?') + 1).split('#', 1)[0])
     if (params.has('wrapped')) {
