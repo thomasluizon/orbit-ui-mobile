@@ -263,6 +263,7 @@ export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,
   resolveHourCycle,
+  createTimeDisplay,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -329,7 +330,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { formatTimeFieldInput } from './time-field'
+export { formatTimeFieldInput, presentTimeFieldValue, parseTypedTimeFieldValue } from './time-field'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,

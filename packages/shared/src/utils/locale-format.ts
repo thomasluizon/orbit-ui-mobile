@@ -226,3 +226,22 @@ export function formatLocaleTime(
     DEFAULT_TIME_OPTIONS,
   )
 }
+
+interface TimeDisplay {
+  hourCycle: 'h23' | 'h12'
+  locale: string
+  displayTime: (time: string | null | undefined) => string
+  displayClock: (value: Date | string) => string
+}
+
+export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
+  const hourCycle = resolveHourCycle(uses24HourClock, locale)
+  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hourCycle }
+
+  return {
+    hourCycle,
+    locale,
+    displayTime: (time: string | null | undefined): string => time ? formatLocaleTime(time, locale, options) : '',
+    displayClock: (value: Date | string): string => formatLocaleDateTime(value, locale, options),
+  }
+}

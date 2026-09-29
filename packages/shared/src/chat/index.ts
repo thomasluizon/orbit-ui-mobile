@@ -1,4 +1,5 @@
 export * from './action-chips'
+export * from './client-context'
 export * from './message-actions'
 export * from './message-bubble'
 export * from './pending-operation-card'

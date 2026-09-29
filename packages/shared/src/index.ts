@@ -54,6 +54,7 @@ export {
   fetchAllPaginatedItems,
   capitalizeFirstLetter,
   resolveHourCycle,
+  createTimeDisplay,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,

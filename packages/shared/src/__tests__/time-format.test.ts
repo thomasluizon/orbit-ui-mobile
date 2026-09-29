@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   capitalizeFirstLetter,
   resolveHourCycle,
+  createTimeDisplay,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -24,6 +25,24 @@ describe('locale-format utils', () => {
     expect(resolveHourCycle(undefined, 'pt-BR')).toBe('h23')
     expect(resolveHourCycle(true, 'en')).toBe('h23')
     expect(resolveHourCycle(false, 'pt-BR')).toBe('h12')
+  })
+
+  it('builds one clock display for wire times and timestamps', () => {
+    const twelveHour = createTimeDisplay('pt-BR', false)
+    const twentyFourHour = createTimeDisplay('en', true)
+    const localeDefault = createTimeDisplay('en', undefined)
+
+    expect(twelveHour.hourCycle).toBe('h12')
+    expect(twelveHour.displayTime('19:30')).toBe(formatLocaleTime('19:30', 'pt-BR', {
+      hour: 'numeric', minute: '2-digit', hourCycle: 'h12',
+    }))
+    expect(twelveHour.displayClock('2026-04-06T19:30:00')).toBe(formatLocaleDateTime('2026-04-06T19:30:00', 'pt-BR', {
+      hour: 'numeric', minute: '2-digit', hourCycle: 'h12',
+    }))
+    expect(twentyFourHour.hourCycle).toBe('h23')
+    expect(twentyFourHour.displayTime('19:30')).toBe('19:30')
+    expect(localeDefault.hourCycle).toBe('h12')
+    expect(twelveHour.displayTime(null)).toBe('')
   })
 
   it('maps Portuguese system locales to pt-BR', () => {

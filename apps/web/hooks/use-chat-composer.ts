@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ChatClientContext, ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
@@ -25,6 +25,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import {
   buildChatMessageWithFileContent,
+  buildChatClientContext,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
@@ -39,7 +40,6 @@ import {
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import {
   buildRecentChatHistory,
-  resolveHourCycle,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
@@ -446,27 +446,13 @@ export function useChatComposer() {
     const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
     formData.append('history', JSON.stringify(recentHistory))
     const entryPointIntent = useUIStore.getState().astraEntryPointIntent
-    const clientContext = {
+    const clientContext = buildChatClientContext({
       platform: 'web',
       locale,
-      timeFormat: resolveHourCycle(profile?.uses24HourClock, locale) === 'h23' ? '24h' : '12h',
-      currentAppArea: 'chat',
-      supportsHabitListCard: true,
-      supportsHabitListDoneStatus: true,
-      supportsGoalListCard: true,
-      supportsMetricsCard: true,
-      supportsPeriodInsightCard: true,
-      supportsDaySummaryCard: true,
-      supportsStreakCard: true,
-      supportsCalendarCard: true,
-      supportsRecordListCard: true,
-      supportsAccountRowsCard: true,
-      supportsPendingOperationChanges: true,
-      supportsToolSteps: true,
-      supportsFollowUps: true,
-      ...(attempted.messageOrigin ? { messageOrigin: attempted.messageOrigin } : {}),
-      ...(entryPointIntent ? { entryPointIntent } : {}),
-    } satisfies ChatClientContext
+      uses24HourClock: profile?.uses24HourClock,
+      messageOrigin: attempted.messageOrigin,
+      entryPointIntent,
+    })
     formData.append('clientContext', JSON.stringify(clientContext))
     return formData
   }, [locale, profile?.uses24HourClock])

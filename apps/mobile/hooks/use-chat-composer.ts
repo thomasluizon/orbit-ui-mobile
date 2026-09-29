@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   buildChatMessageWithFileContent,
+  buildChatClientContext,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   CHAT_TEXT_FILE_PICKER_MIME_TYPES,
@@ -24,7 +25,6 @@ import {
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
-  ChatClientContext,
   ChatMessage,
   ChatResponse,
 } from "@orbit/shared/types";
@@ -38,7 +38,6 @@ import {
 } from "@orbit/shared/hooks";
 import {
   buildRecentChatHistory,
-  resolveHourCycle,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
 import { openChatStream } from "@/lib/chat-stream";
@@ -556,27 +555,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const recentHistory = buildRecentChatHistory(useChatStore.getState().messages);
       formData.append("history", JSON.stringify(recentHistory));
       const entryPointIntent = useUIStore.getState().astraEntryPointIntent;
-      const clientContext = {
+      const clientContext = buildChatClientContext({
         platform: "mobile",
         locale: i18n.language,
-        timeFormat: resolveHourCycle(profile?.uses24HourClock, i18n.language) === 'h23' ? '24h' : '12h',
-        currentAppArea: "chat",
-        supportsHabitListCard: true,
-        supportsHabitListDoneStatus: true,
-        supportsGoalListCard: true,
-        supportsMetricsCard: true,
-        supportsPeriodInsightCard: true,
-        supportsDaySummaryCard: true,
-        supportsStreakCard: true,
-        supportsCalendarCard: true,
-        supportsRecordListCard: true,
-        supportsAccountRowsCard: true,
-        supportsPendingOperationChanges: true,
-        supportsToolSteps: true,
-        supportsFollowUps: true,
-        ...(attempted.messageOrigin ? { messageOrigin: attempted.messageOrigin } : {}),
-        ...(entryPointIntent ? { entryPointIntent } : {}),
-      } satisfies ChatClientContext;
+        uses24HourClock: profile?.uses24HourClock,
+        messageOrigin: attempted.messageOrigin,
+        entryPointIntent,
+      });
       formData.append("clientContext", JSON.stringify(clientContext));
       return formData;
     },

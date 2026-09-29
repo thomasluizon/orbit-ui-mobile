@@ -16,6 +16,8 @@ import {
   resolveHourCycle,
   formatTimeParts,
   formatTimeFieldInput,
+  presentTimeFieldValue,
+  parseTypedTimeFieldValue,
   from12Hour,
   HOURS_12,
   HOURS_24,
@@ -50,9 +52,6 @@ interface TimeColumnProps {
   tokens: Tokens
   onSelect: (value: number | string) => void
 }
-
-const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
-const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
 
 function TimeOption({
   formattedValue,
@@ -93,22 +92,6 @@ function TimeOption({
       </Text>
     </Pressable>
   )
-}
-
-function presentTime(value: Time24 | '', hourCycle: 'h23' | 'h12'): string {
-  if (!value || hourCycle === 'h23') return value
-  const [hourText, minute] = value.split(':')
-  const hour = Number(hourText)
-  return `${hour % 12 || 12}:${minute} ${hour < 12 ? 'am' : 'pm'}`
-}
-
-function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null {
-  if (hourCycle === 'h23') return TIME_24_PATTERN.test(value) ? value as Time24 : null
-  const match = TIME_12_PATTERN.exec(value.trim())
-  if (!match) return null
-  const hour12 = Number(match[1])
-  const hour24 = (hour12 % 12) + (match[3]!.toLowerCase() === 'pm' ? 12 : 0)
-  return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
 function TimeColumn({
@@ -272,7 +255,7 @@ export function TimeField({
   const resolvedProfileHourCycle = resolveHourCycle(profile?.uses24HourClock, i18n.language)
   const resolvedHourCycle = hourCycle ?? resolvedProfileHourCycle
   const resolvedLabel = label ?? accessibilityLabel ?? placeholder ?? t('common.selectTime')
-  const presentedValue = presentTime(value, resolvedHourCycle)
+  const presentedValue = presentTimeFieldValue(value, resolvedHourCycle)
   const [focused, setFocused] = useState(false)
   const [inputDraft, setInputDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -291,7 +274,7 @@ export function TimeField({
       onClear?.()
       return
     }
-    const parsed = parseTypedTime(nextValue, resolvedHourCycle)
+    const parsed = parseTypedTimeFieldValue(nextValue, resolvedHourCycle)
     if (parsed) onChange(parsed)
   }
 
