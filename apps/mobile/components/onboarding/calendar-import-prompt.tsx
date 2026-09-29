@@ -37,7 +37,7 @@ export function CalendarImportPrompt() {
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
       !profile.hasImportedCalendar &&
-      pathname !== '/calendar-sync' &&
+      pathname !== '/calendar' &&
       !dismissed,
   )
 
@@ -63,7 +63,7 @@ export function CalendarImportPrompt() {
     closeSheet(() => {
       unregisterOpenOverlay(promptId)
       void dismissPrompt()
-      router.push('/calendar-sync')
+      router.push('/calendar?import=1')
     })
   }, [closeSheet, dismissPrompt, promptId, router, unregisterOpenOverlay])
 

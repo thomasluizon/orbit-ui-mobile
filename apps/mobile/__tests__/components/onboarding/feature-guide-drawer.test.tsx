@@ -61,6 +61,12 @@ function getTabLabels(tree: RenderedTree) {
 }
 
 describe('FeatureGuideDrawer (mobile)', () => {
+  it('omits internal habit type entries from the habits guide', () => {
+    let tree: RenderedTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />) })
+    expect(JSON.stringify(tree!.toJSON())).not.toMatch(/habitsSection\.(oneTimeTasks|flexible|general)(Title|Desc)/)
+  })
+
   it('renders the eight guide subjects in their product order', () => {
     let tree: RenderedTree
     TestRenderer.act(() => {

@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | date | what changed | why |
 |---|---|---|
+| 2026-09-29 | `Orbit Wrapped`: period line and weekday note from `fg-4` to `fg-3` | Both lines are text, and `fg-4` only clears the non-text floor on the canvas. `fg-3` clears the text floor. |
 | 2026-09-28 | Calendário uses one centred column at both widths, with the view selector in the header and a 24px day-card inset | The owner's layout decision replaces the split and sheet composition. |
 | 2026-09-28 | Removed the naming note from both locales of `Orbit Sobre` | The note describes an internal writing rule rather than information a person needs on Sobre. |
 | 2026-09-11 | Added dark `--primary-text` at `#E16D33` and light at `#B64900`, then moved the Android widget streak figure to it | The widget streak is rationed accent text on a raised surface. `--primary` measured 4.057:1 on the dark card and 3.680:1 on its well, below the 4.5 text floor. The raised-surface pair measures 4.510:1 dark and 4.509:1 light on its worst surface. |

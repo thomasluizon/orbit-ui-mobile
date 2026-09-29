@@ -20,6 +20,7 @@ import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import { CommandMenu } from './command-menu'
 
 export interface CommandNavigationItem {
@@ -79,7 +80,7 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const mounted = useIsClient()
   const panelRef = useRef<HTMLDivElement>(null)
-  const overlayId = useId()
+  const modalId = `modal:${useId()}`
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const registerPortal = useContext(CommandPalettePortalContext)
@@ -89,9 +90,9 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   useEffect(() => () => setPaletteOpen(false), [setPaletteOpen])
   useEffect(() => {
     if (!paletteOpen) return
-    registerOpenOverlay(overlayId)
-    return () => unregisterOpenOverlay(overlayId)
-  }, [overlayId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
+    registerOpenOverlay(modalId)
+    return () => unregisterOpenOverlay(modalId)
+  }, [modalId, paletteOpen, registerOpenOverlay, unregisterOpenOverlay])
 
   useOverlayEscape({ open: paletteOpen, onDismiss: close, restoreFocus: false })
   useModalFocusTrap(paletteOpen, panelRef)
@@ -101,7 +102,7 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const overlay = paletteOpen ? (
     <div
       ref={registerPortal}
-      className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-24"
+      className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-4 sm:pt-24"
     >
       <button
         type="button"
@@ -115,13 +116,16 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
         role="dialog"
         aria-modal="true"
         aria-label={t('command.title')}
-        className="relative w-full max-w-[560px] overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)]"
+        className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-7rem)]"
       >
         <CommandMenu
           navItems={navItems}
           onCreateHabit={onCreateHabit}
           onClose={close}
         />
+        <div className="empty:hidden shrink-0 px-4 pb-4" data-shell-notice="">
+          <AppToastHost placement="modal" modalId={modalId} />
+        </div>
       </div>
     </div>
   ) : null

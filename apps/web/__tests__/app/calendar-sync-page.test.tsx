@@ -1,11 +1,13 @@
-import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React, { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
-import { toast } from 'sonner'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+const toastError = vi.hoisted(() => vi.fn())
 
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
@@ -42,7 +44,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: false }, isLoading: false }),
+  useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: true }, isLoading: false }),
   useCalendarSyncSuggestions: () => ({ data: pageState.suggestions, isLoading: false, isError: false }),
   useDismissCalendarSuggestion: () => ({ mutateAsync: dismissMutateMock, isPending: false }),
   useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -60,15 +62,25 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: vi.fn() }) }))
 
-import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+
+function CalendarSyncScreen() {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  return <>
+    <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} /></div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+}
 
 function renderPage() {
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncPage />
+      <CalendarSyncScreen />
     </QueryClientProvider>,
   )
 }
@@ -93,15 +105,38 @@ function countEventRows(): number {
 }
 
 describe('CalendarSyncPage pagination', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
   beforeEach(() => {
     useCalendarEventsMock.mockReset()
     bulkMutateMock.mockReset()
     dismissMutateMock.mockReset()
-    vi.mocked(toast.error).mockReset()
+    vi.mocked(toastError).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
     clockState.language = 'en'
     clockState.uses24HourClock = true
+  })
+
+  it('replaces visible event details when accounts share an event id', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('calendar-account-a')
+    let currentEvents = [{ ...buildEvents(1)[0]!, id: 'shared-event', title: 'Account A event' }]
+    useCalendarEventsMock.mockImplementation(() => ({
+      data: { status: 'connected', events: currentEvents },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }))
+
+    renderPage()
+    expect(screen.getByText('Account A event')).toBeInTheDocument()
+
+    currentEvents = [{ ...currentEvents[0]!, title: 'Account B event' }]
+    await replaceAccountWith('calendar-account-b')
+
+    expect(screen.queryByText('Account A event')).not.toBeInTheDocument()
+    expect(screen.getByText('Account B event')).toBeInTheDocument()
   })
 
   it('renders only the first page of events and reveals more on demand', () => {
@@ -133,8 +168,10 @@ describe('CalendarSyncPage pagination', () => {
   })
 
   it('does not show the pager when events fit on one page', () => {
+    const events = buildEvents(8)
+    events[0] = { ...events[0]!, isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }
     useCalendarEventsMock.mockReturnValue({
-      data: { status: 'connected', events: buildEvents(8) },
+      data: { status: 'connected', events },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -142,7 +179,8 @@ describe('CalendarSyncPage pagination', () => {
 
     renderPage()
 
-    expect(countEventRows()).toBe(8)
+    expect(countEventRows()).toBe(7)
+    expect(screen.queryByText('Event 0')).not.toBeInTheDocument()
     expect(screen.queryByText('calendar.showMore')).not.toBeInTheDocument()
   })
 
@@ -258,7 +296,7 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
     expect(dismissMutateMock).toHaveBeenCalledWith({ id: 'suggestion-1' })
   })
 })

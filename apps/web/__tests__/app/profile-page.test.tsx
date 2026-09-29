@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
 
 interface MockDeviceState {
@@ -510,6 +511,20 @@ describe('ProfilePage', () => {
     ])
   })
 
+  it('lets Perfil rows set the stroke color of ordinary and danger icons', () => {
+    render(<ProfilePage />)
+    const ending = within(screen.getByTestId('profile-settings-group-ending'))
+    for (const [label, color] of [
+      ['profile.settingsRows.signOut', 'var(--fg-1)'],
+      ['profile.settingsRows.deleteAccount', 'var(--status-bad)'],
+    ]) {
+      const row = ending.getByRole('button', { name: label })
+      const icon = row.querySelector('svg')
+      expect(icon).toHaveAttribute('stroke', 'currentColor')
+      expect(icon?.parentElement).toHaveStyle({ color })
+    }
+  })
+
   it('routes every More of Orbit row', () => {
     const view = render(<ProfilePage />)
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
@@ -532,7 +547,7 @@ describe('ProfilePage', () => {
     }
     render(<ProfilePage />)
     const proMore = within(screen.getByTestId('profile-settings-group-more'))
-    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar-sync')
+    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar')
     expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 
@@ -565,6 +580,44 @@ describe('ProfilePage', () => {
     fireEvent.click(summaryGate)
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
     expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+  })
+
+  it.each([
+    ['pt-BR', false, 'Astra avisa quando algo escapa', 'Resumo do dia pela Astra'],
+    ['pt-BR', true, 'Astra avisa quando algo escapa', 'Resumo do dia pela Astra'],
+    ['en', false, 'Astra tells you when something slips', 'Daily summary from Astra'],
+    ['en', true, 'Astra tells you when something slips', 'Daily summary from Astra'],
+  ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
+    mockLocale.current = locale
+    const messages = locale === 'pt-BR' ? ptBR : en
+    mockTranslate.current = (key) => {
+      let message: unknown = messages
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string' ? message : key
+    }
+    mockProfileState.current.profile = createMockProfile({
+      plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
+    })
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    if (hasProAccess) {
+      expect(astra.getByRole('switch', { name: proactive })).toBeInTheDocument()
+      expect(astra.getByRole('switch', { name: summary })).toBeInTheDocument()
+    } else {
+      for (const label of [proactive, summary]) {
+        const row = astra.getByRole('button', { name: new RegExp(label) })
+        expect(within(row).getByText('Pro')).toBeInTheDocument()
+        expect(row).toBeEnabled()
+        fireEvent.click(row)
+      }
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+    }
   })
 
   it('shows only the API key description and upgrade row to free accounts', () => {

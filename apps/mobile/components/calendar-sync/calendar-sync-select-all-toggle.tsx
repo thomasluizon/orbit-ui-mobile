@@ -1,7 +1,7 @@
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
 import { CheckCheck, SquareX } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
-import { createStyles } from '@/app/calendar-sync-styles'
+import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
 
 interface SelectAllToggleProps {
   allSelected: boolean

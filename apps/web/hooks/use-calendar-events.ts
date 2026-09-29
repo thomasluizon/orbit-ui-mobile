@@ -31,7 +31,7 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
   return useQuery<CalendarEventsResult>({
     queryKey: [...calendarKeys.all, 'manual-fetch', options.timeZone],
     queryFn: async () => {
-      const res = await fetchWithThrottle(API.calendar.events)
+      const res = await fetchWithThrottle(`${API.calendar.events}?includeImported=true`)
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
           | { error?: string; errorCode?: string; message?: string }

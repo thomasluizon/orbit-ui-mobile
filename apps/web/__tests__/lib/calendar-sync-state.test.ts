@@ -3,7 +3,6 @@ import { ApiClientError } from '@orbit/shared'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
-  resolveSyncedSelection,
 } from '@/lib/calendar-sync-state'
 
 const baseStep = {
@@ -95,37 +94,5 @@ describe('resolveDisplayedErrorMessage (web)', () => {
         translate,
       }),
     ).toBe('')
-  })
-})
-
-describe('resolveSyncedSelection (web)', () => {
-  const events = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
-
-  it('selects every incoming event outside review mode', () => {
-    expect([...resolveSyncedSelection(new Set(['a']), events, false, 'prev')].sort(
-      (left, right) => left.localeCompare(right),
-    )).toEqual([
-      'a',
-      'b',
-      'c',
-    ])
-  })
-
-  it('selects every incoming event on the first review load', () => {
-    expect([...resolveSyncedSelection(new Set(['a']), events, true, null)].sort(
-      (left, right) => left.localeCompare(right),
-    )).toEqual([
-      'a',
-      'b',
-      'c',
-    ])
-  })
-
-  it('keeps only still-present prior selections on later review loads', () => {
-    expect([...resolveSyncedSelection(new Set(['a', 'z']), events, true, 'prev')].sort(
-      (left, right) => left.localeCompare(right),
-    )).toEqual([
-      'a',
-    ])
   })
 })

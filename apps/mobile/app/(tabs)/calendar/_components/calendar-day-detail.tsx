@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -7,6 +7,7 @@ import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import {
   determineHabitDayStatus,
+  isCalendarSyncConnectionActive,
   parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
@@ -18,6 +19,9 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
+import { Input } from '@/components/ui/input'
+import { useOffline } from '@/hooks/use-offline'
+import { plural } from '@/lib/plural'
 import { createTokensV2, radius } from '@/lib/theme'
 import { CalendarSyncBoundary } from './calendar-sync-boundary'
 
@@ -33,11 +37,13 @@ interface CalendarDayDetailProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
   completedCount: number
   loggable: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
+  onCalendarSyncNow: () => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
   displayTime: (time: string) => string
@@ -45,11 +51,58 @@ interface CalendarDayDetailProps {
   tokens: Tokens
 }
 
+function CalendarReadyEvents({ calendarEvents, onOpenImport, displayTime, t, tokens, styles }: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  onOpenImport: (eventId: string | null) => void
+  displayTime: (time: string) => string
+  t: TFunction
+  tokens: Tokens
+  styles: ReturnType<typeof createStyles>
+}>) {
+  const [eventQuery, setEventQuery] = useState('')
+  const [eventPage, setEventPage] = useState(0)
+  const matchingEvents = useMemo(() => calendarEvents.filter((event) =>
+    event.title.toLocaleLowerCase().includes(eventQuery.trim().toLocaleLowerCase()),
+  ), [calendarEvents, eventQuery])
+  const currentPage = Math.min(eventPage, Math.max(0, Math.ceil(matchingEvents.length / 20) - 1))
+  const visibleEvents = matchingEvents.slice(currentPage * 20, (currentPage + 1) * 20)
+
+  return <View style={styles.eventList}>
+    {calendarEvents.length > 20 ? (
+      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" />
+    ) : null}
+    {visibleEvents.map((event) => (
+      <View key={event.id} style={styles.eventList}>
+        {event.startTime ? (
+          <EventRow time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
+        ) : (
+          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
+        )}
+        {!event.isImported ? <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
+          {plural(t('calendar.importButton', { count: 1 }), 1)}
+        </PillButton> : null}
+      </View>
+    ))}
+    {matchingEvents.length === 0 ? <View style={styles.eventList}><Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}
+    {calendarEvents.length >= 8 ? (
+      <View style={styles.eventPager}>
+        <Text style={[styles.eventCount, { color: tokens.fg3 }]}>{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</Text>
+        {matchingEvents.length > 20 ? <View style={styles.eventPageActions}>
+          <PillButton variant="ghost" size="sm" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
+          <PillButton variant="ghost" size="sm" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
+        </View> : null}
+      </View>
+    ) : null}
+    <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+  </View>
+}
+
 function CalendarEventsSection({
   calendarEvents,
   state,
   onRetry,
   onReconnect,
+  onOpenImport,
   onViewPro,
   displayTime,
   t,
@@ -60,12 +113,14 @@ function CalendarEventsSection({
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
+  onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
   displayTime: (time: string) => string
   t: TFunction
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
+  const { isOnline } = useOffline()
   if (state === 'pro-boundary') {
     return (
       <View testID="calendar-pro-boundary" style={styles.proBoundary}>
@@ -102,41 +157,24 @@ function CalendarEventsSection({
       {state === 'not-connected' ? (
         <View style={styles.reconnectState}>
           <Text style={[styles.reconnectTitle, { color: tokens.fg1 }]}>
-            {t('calendar.dayDetail.disconnectedTitle')}
+            {t(isOnline ? 'calendar.dayDetail.disconnectedTitle' : 'offline.calendar.title')}
           </Text>
           <Text style={[styles.reconnectBody, { color: tokens.fg3 }]}>
-          {t('calendar.dayDetail.disconnectedBody')}
+            {t(isOnline ? 'calendar.dayDetail.disconnectedBody' : 'offline.calendar.reason')}
           </Text>
-          <PillButton variant="ghost" onClick={onReconnect}>
+          {isOnline ? <PillButton variant="ghost" onClick={onReconnect}>
             {t('calendar.autoSync.reconnectCta')}
-          </PillButton>
+          </PillButton> : null}
         </View>
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
-        <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>
-          {t('calendar.dayDetail.noEventsToImport')}
-        </Text>
+        <View style={styles.reconnectState}>
+          <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text>
+          <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+        </View>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (
-        <View style={styles.eventList}>
-          {calendarEvents.map((event) =>
-            event.startTime ? (
-              <EventRow
-                key={event.id}
-                time={displayTime(event.startTime)}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ) : (
-              <EventRow
-                key={event.id}
-                allDayLabel={t('calendar.timeGrid.allDay')}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ),
-          )}
-        </View>
+        <CalendarReadyEvents calendarEvents={calendarEvents} onOpenImport={onOpenImport} displayTime={displayTime} t={t} tokens={tokens} styles={styles} />
       ) : null}
     </View>
   )
@@ -230,11 +268,13 @@ export function CalendarDayDetail({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onOpenCalendarImport,
   onViewPro,
   completedCount,
   loggable,
   pendingEntryStates,
   onCalendarAutoSyncChange,
+  onCalendarSyncNow,
   onEntryChange,
   onGoToDay,
   displayTime,
@@ -314,10 +354,12 @@ export function CalendarDayDetail({
         />
       </View>
       <CalendarEventsSection
+        key={selectedDate}
         calendarEvents={calendarEvents}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
+        onOpenImport={onOpenCalendarImport}
         onViewPro={onViewPro}
         displayTime={displayTime}
         t={t}
@@ -325,12 +367,14 @@ export function CalendarDayDetail({
         styles={styles}
       />
 
-      {calendarEventsState !== 'pro-boundary' ? (
+      {calendarEventsState !== 'pro-boundary' && calendarEventsState !== 'not-connected' &&
+        isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle') ? (
         <View style={styles.syncBoundary}>
           <CalendarSyncBoundary
             autoSyncState={autoSyncState}
             displayTime={displayTime}
             onAutoSyncChange={onCalendarAutoSyncChange}
+            onSyncNow={onCalendarSyncNow}
             t={t}
             tokens={tokens}
           />
@@ -387,6 +431,15 @@ function createStyles(tokens: Tokens) {
     eventList: {
       gap: 4,
     },
+    eventPager: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      justifyContent: 'space-between',
+    },
+    eventPageActions: { flexDirection: 'row', gap: 8 },
+    eventCount: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
     reconnectState: {
       alignItems: 'center',
       gap: 12,

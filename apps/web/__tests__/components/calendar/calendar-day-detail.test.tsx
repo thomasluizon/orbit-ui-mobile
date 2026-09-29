@@ -24,7 +24,7 @@ const translations: Record<string, string> = {
   'calendar.status.resisted': en.calendar.status.resisted,
   'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
-  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
+  'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
   'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
   'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
@@ -84,6 +84,7 @@ interface RenderProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onOpenCalendarImport?: (eventId: string | null) => void
   onViewPro?: () => void
   loggable?: boolean
   showRecurring?: boolean
@@ -100,6 +101,7 @@ function CalendarDayDetailHarness({
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onOpenCalendarImport = () => {},
   onViewPro = () => {},
   loggable = false,
   showRecurring = true,
@@ -140,12 +142,14 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onOpenCalendarImport={onOpenCalendarImport}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
       proActionVariant={proActionVariant}
     />
@@ -179,8 +183,10 @@ describe('CalendarDayDetail', () => {
   })
 
   it('renders timed and all-day Google events as read-only context', () => {
+    const onOpenCalendarImport = vi.fn()
     renderDetail({
       entries: [makeEntry({ title: 'Read' })],
+      onOpenCalendarImport,
       calendarEventsState: 'ready',
       calendarEvents: [
         {
@@ -193,6 +199,8 @@ describe('CalendarDayDetail', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Work',
+          isImported: false,
         },
         {
           id: 'event-2',
@@ -204,19 +212,48 @@ describe('CalendarDayDetail', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Personal',
+          isImported: true,
+          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
         },
       ],
     })
 
     expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
     const timedEvent = screen.getByRole('img', {
-      name: '09:00, Team meeting, calendar.title',
+      name: '09:00, Team meeting, Work',
     })
     const allDayEvent = screen.getByRole('img', {
-      name: 'calendar.timeGrid.allDay, Company holiday, calendar.title',
+      name: 'calendar.timeGrid.allDay, Company holiday, Personal',
     })
     expect(within(timedEvent).queryByRole('button')).toBeNull()
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Team meeting/ }))
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    expect(screen.queryByRole('button', { name: /Company holiday/ })).toBeNull()
+  })
+
+  it('searches and pages a busy day without growing the event list past twenty rows', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
+      id: `event-${index}`, title: `Event ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    }))
+    renderDetail({ calendarEvents })
+
+    expect(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' })).toBeInTheDocument()
+    expect(screen.getByText('Event 19')).toBeInTheDocument()
+    expect(screen.queryByText('Event 20')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.next' }))
+    expect(screen.getByText('Event 20')).toBeInTheDocument()
+    expect(screen.queryByText('Event 0')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'Event 22' } })
+    expect(screen.getByText('Event 22')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.next' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'No such event' } })
+    expect(screen.getByText('calendar.dayDetail.noMatchingEvents')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
+    expect(screen.getByText('Event 0')).toBeInTheDocument()
   })
 
   it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
@@ -338,6 +375,7 @@ describe('CalendarDayDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-calendar-sync-line]')).toBeNull()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -378,7 +416,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
 
     expect(
-      screen.getByText('Nothing left to import from Google Calendar on this day.'),
+      screen.getByText('No Google Calendar events on this day.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })

@@ -18,7 +18,7 @@ export function resolveHabitRowDotState(
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
-  frequencyLabel: string
+  frequencyLabel: string | null
   isOverdue: boolean
   selectedDateStr: string
   todayStr: string
@@ -40,7 +40,7 @@ export function buildHabitRowMetaParts({
   locale,
 }: BuildHabitRowMetaPartsParams): HabitRowMetaPart[] {
   const metaParts: HabitRowMetaPart[] = []
-  if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
+  if (frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
     metaParts.push(habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due)

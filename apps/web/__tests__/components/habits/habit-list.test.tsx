@@ -452,6 +452,21 @@ describe('HabitList', () => {
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
   })
 
+  it('shows a one-day habit row without an internal type label', () => {
+    rowImplementation.actual = true
+    const habit = createMockHabit({
+      id: 'one-day', title: 'Pay bill', frequencyUnit: null, frequencyQuantity: null,
+      dueDate: TODAY, scheduledDates: [TODAY], dueTime: '08:00',
+    })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    renderWithProviders(<HabitList view="today" selectedDate={new Date(`${TODAY}T12:00:00`)} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const row = screen.getByTestId('habit-row')
+    expect(row).toHaveTextContent('Pay bill')
+    expect(row).toHaveTextContent(/8:00/)
+    expect(row).not.toHaveTextContent('habits.oneTimeTask')
+  })
+
   it('shows a plain day line instead of first run on an empty future day with account habits', () => {
     accountHabitCount.count = 3
     renderWithProviders(

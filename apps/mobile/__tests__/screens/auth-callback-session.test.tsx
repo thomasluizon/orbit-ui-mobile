@@ -234,3 +234,15 @@ it('keeps the replacement return URL during reactivated Google continuation clea
   expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]()).toBe(false)
   expect(mocks.replace).not.toHaveBeenCalled()
 })
+
+it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated account to %s', async (returnUrl) => {
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
+    userId: 'user-1', name: 'A', email: 'a@example.com', wasReactivated: true })
+  mocks.login.mockResolvedValue(() => true)
+  mocks.getStoredAuthReturnUrl.mockResolvedValue(returnUrl)
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.callbackState).toBe('account'))
+  await TestRenderer.act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith(returnUrl))
+  expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledWith('attempt-1', expect.any(Function))
+})

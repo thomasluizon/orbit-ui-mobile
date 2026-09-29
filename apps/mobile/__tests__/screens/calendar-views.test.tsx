@@ -51,12 +51,14 @@ const state = vi.hoisted(() => ({
   },
   setAutoSync: vi.fn(() => Promise.resolve()),
   showError: vi.fn(),
+  showSuccess: vi.fn(),
   calendarEventsTimeZone: undefined as string | null | undefined,
   calendarEventsPending: false,
   calendarEventsError: null as Error | null,
   calendarEventsRefetch: vi.fn(),
   calendarRangeCalls: vi.fn(),
   routerPush: vi.fn(),
+  routeParams: {},
   setShowCreateModal: vi.fn(),
   setCalendarHasError: vi.fn(),
 }));
@@ -83,6 +85,11 @@ const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
 
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: state.routerPush, replace: vi.fn() }),
+  useLocalSearchParams: () => state.routeParams,
+}));
+
+vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
+  CalendarImportContent: ({ reviewMode }: { reviewMode: boolean }) => React.createElement('CalendarImportContentMock', { reviewMode }),
 }));
 
 vi.mock("@/stores/ui-store", () => ({
@@ -128,10 +135,11 @@ vi.mock("@/hooks/use-calendar-events", () => ({
 vi.mock("@/hooks/use-calendar-auto-sync", () => ({
   useCalendarAutoSyncState: () => ({ data: state.autoSyncState }),
   useSetCalendarAutoSync: () => ({ mutateAsync: state.setAutoSync }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(async () => {}) }),
 }));
 
 vi.mock("@/hooks/use-app-toast", () => ({
-  useAppToast: () => ({ showError: state.showError }),
+  useAppToast: () => ({ showError: state.showError, showSuccess: state.showSuccess }),
 }));
 
 
@@ -333,6 +341,7 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
+    state.routeParams = {};
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-12T12:00:00.000Z"));
     calendarGridProps.current = null;
@@ -353,6 +362,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEventsEnabled = undefined;
     state.setAutoSync.mockClear();
     state.showError.mockClear();
+    state.showSuccess.mockClear();
     state.calendarEventsTimeZone = undefined;
     state.calendarEventsPending = false;
     state.calendarEventsError = null;
@@ -395,6 +405,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { advanceAccountGeneration(); });
     await TestRenderer.act(async () => { await calendarDayDetailProps.current!.onCalendarAutoSyncChange(true); });
     expect(state.setAutoSync).toHaveBeenCalledTimes(2);
+    expect(state.showSuccess).toHaveBeenCalledExactlyOnceWith('calendar.autoSync.enableSuccess');
     await TestRenderer.act(async () => { failFirst(new Error('old failure')); await first; });
     expect(state.showError).not.toHaveBeenCalled();
     TestRenderer.act(() => headerTree.update(<></>));
@@ -579,8 +590,18 @@ describe("CalendarScreen views (mobile)", () => {
       calendarDayDetailProps.current?.onReconnectCalendarEvents();
     });
     expect(sheetTestControls.isDismissPending).toBe(false);
-    expect(state.routerPush).toHaveBeenCalledWith("/calendar-sync");
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'calendar.title')).toHaveLength(1);
+    expect(state.routerPush).not.toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it('opens the review sheet from a review notification route', () => {
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true };
+    state.routeParams = { mode: 'review' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    expect(tree.root.findAll((node) => node.type === 'CalendarImportContentMock' && node.props.reviewMode === true)).toHaveLength(1);
     TestRenderer.act(() => tree.update(<></>));
   });
 

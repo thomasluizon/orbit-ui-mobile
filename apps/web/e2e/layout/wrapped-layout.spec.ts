@@ -32,6 +32,14 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         await page.goto('/wrapped')
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        if (width === 412) {
+          await page.evaluate(() => document.fonts.ready)
+          const frame = await page.getByTestId('wrapped-frame').boundingBox()
+          const introTitle = await page.getByTestId('wrapped-slide-intro').locator('h1').boundingBox()
+          expect(frame).not.toBeNull()
+          expect(introTitle).not.toBeNull()
+          expect(Math.abs(introTitle!.x - frame!.x - 16)).toBeLessThanOrEqual(1)
+        }
         const pager = page.getByTestId('wrapped-pager')
         for (let index = 0; index < finalSlideIndex; index += 1) {
           await pager.getByRole('button', { name: messages.wrapped.next, exact: true }).click()
@@ -122,7 +130,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         })
         expect(introPadding).toEqual(wide
           ? ['48px', '64px', '48px', '64px']
-          : ['0px', '24px', '0px', '24px'])
+          : ['24px', '16px', '24px', '16px'])
         expect(await intro.locator('h1').evaluate((element) => getComputedStyle(element).fontSize))
           .toBe(wide ? '44px' : '34px')
 

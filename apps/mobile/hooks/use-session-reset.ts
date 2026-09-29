@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 
 /** Reads how many accounts this device has held, and re-renders on the next one. State that must
@@ -30,4 +30,33 @@ export function useResetOnAccountChange(reset: () => void): void {
     resetAccountGeneration.current = accountGeneration
     latestReset.current()
   }, [accountGeneration])
+}
+
+/** Keeps local UI state tied to the account that created it. */
+export function useAccountScopedState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>] {
+  const accountGeneration = useAccountGeneration()
+  const [value, setValue] = useState(initialState)
+  const [valueAccountGeneration, setValueAccountGeneration] = useState(accountGeneration)
+
+  if (valueAccountGeneration !== accountGeneration) {
+    setValueAccountGeneration(accountGeneration)
+    setValue(initialState)
+  }
+
+  const setAccountValue = useCallback<Dispatch<SetStateAction<S>>>((nextValue) => {
+    if (getAccountGeneration() !== accountGeneration) return
+    setValue(nextValue)
+  }, [accountGeneration])
+
+  return [value, setAccountValue]
+}
+
+/** Accepts a route request only for the account that first observed that URL value. */
+export function useAccountBoundRouteRequest(requestKey: string): boolean {
+  const accountGeneration = useAccountGeneration()
+  const [observed, setObserved] = useState({ requestKey, accountGeneration })
+  if (observed.requestKey !== requestKey) {
+    setObserved({ requestKey, accountGeneration })
+  }
+  return requestKey !== '' && observed.accountGeneration === accountGeneration
 }

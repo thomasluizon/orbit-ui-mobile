@@ -10,9 +10,6 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-vi.mock('sonner', () => ({
-  toast: { error: vi.fn() },
-}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,

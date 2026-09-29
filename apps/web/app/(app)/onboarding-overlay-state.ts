@@ -9,7 +9,7 @@ export function isCalendarPromptCriteriaMet(
     profile &&
     profile.hasCompletedOnboarding &&
     !profile.hasImportedCalendar &&
-    pathname !== '/calendar-sync'
+    pathname !== '/calendar'
   )
 }
 

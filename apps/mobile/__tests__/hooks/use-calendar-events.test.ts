@@ -80,15 +80,19 @@ describe('mobile useCalendarEvents', () => {
 
   it('returns a connected result with the fetched events', async () => {
     const queryFn = useCapturedQueryFn()
-    mocks.apiClient.mockResolvedValue([buildEvent('a'), buildEvent('b')])
+    const events = [
+      { ...buildEvent('a'), isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' },
+      { ...buildEvent('b'), isImported: false },
+    ]
+    mocks.apiClient.mockResolvedValue(events)
 
     const result = await queryFn()
 
     expect(result).toEqual({
       status: 'connected',
-      events: [buildEvent('a'), buildEvent('b')],
+      events,
     })
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events?includeImported=true')
   })
 
   it('coerces a non-array payload to an empty connected list', async () => {

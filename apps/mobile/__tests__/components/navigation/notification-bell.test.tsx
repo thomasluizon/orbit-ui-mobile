@@ -456,7 +456,7 @@ describe('mobile alerts', () => {
     ['/streak', '/progress', en.nav.progress], ['/', '/', en.nav.today],
     ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
     ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
-    ['/calendar-sync?mode=review', '/calendar', en.nav.calendar],
+    ['/calendar-sync?mode=review', '/calendar?mode=review', en.nav.calendar],
   ])('navigates from detail %s to the target after closing', (url, destination, labelTarget, habitId: string | null = null) => {
     sheetTestControls.defer(true)
     const onClose = vi.fn()

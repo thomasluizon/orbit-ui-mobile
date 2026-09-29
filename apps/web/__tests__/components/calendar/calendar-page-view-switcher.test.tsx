@@ -1,7 +1,8 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
-import { toast } from 'sonner'
+const toastError = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
@@ -25,6 +26,7 @@ function getMockAccountDateKey(): string {
 }
 
 let isWideDesktopValue = false
+let calendarRouteSearch = ''
 let calendarGridSelectionDate = '2026-01-05'
 const calendarGridProps: Record<string, unknown> & {
   currentMonth?: Date
@@ -112,7 +114,7 @@ let rangeLoading = false
 let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: toastSuccess }) }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -145,6 +147,11 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush }),
+  useSearchParams: () => new URLSearchParams(calendarRouteSearch),
+}))
+
+vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
+  CalendarImportContent: ({ reviewMode }: { reviewMode: boolean }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)} />,
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -164,6 +171,7 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
     return { data: autoSyncState }
   },
   useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSync }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(async () => {}) }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -364,6 +372,7 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
+    calendarRouteSearch = ''
     calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
     calendarDayDetailProps.calendarEvents = undefined
@@ -376,6 +385,8 @@ describe('CalendarPage view switcher', () => {
     }
     autoSyncQueryOptions = undefined
     setAutoSync.mockClear()
+    toastError.mockClear()
+    toastSuccess.mockClear()
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
     calendarStatsProps.state = undefined
@@ -842,8 +853,16 @@ describe('CalendarPage view switcher', () => {
 
     expect(calendarDayDetailProps.calendarEventsState).toBe('not-connected')
     expect(calendarDayDetailProps.calendarEvents).toEqual([])
-    calendarDayDetailProps.onReconnectCalendarEvents?.()
-    expect(routerPush).toHaveBeenCalledWith('/calendar-sync')
+    act(() => { calendarDayDetailProps.onReconnectCalendarEvents?.() })
+    expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
+    expect(routerPush).not.toHaveBeenCalledWith('/calendar-sync')
+  })
+
+  it('opens the review sheet from a review notification route', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarRouteSearch = 'mode=review'
+    render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-review', 'true')
   })
 
   it('passes a resolved empty Google events query as ready', () => {
@@ -892,6 +911,7 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('month-view'))
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
     await waitFor(() => expect(setAutoSync).toHaveBeenCalledWith({ enabled: false }))
+    expect(toastSuccess).toHaveBeenCalledWith('calendar.autoSync.disableSuccess')
     page.rerender(<CalendarPage />)
     expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
       .toHaveAttribute('aria-checked', 'false')
@@ -909,8 +929,9 @@ describe('CalendarPage view switcher', () => {
     act(() => advanceAccountGeneration())
     await act(async () => { await calendarDayDetailProps.onCalendarAutoSyncChange!(true) })
     expect(setAutoSync).toHaveBeenCalledTimes(2)
+    expect(toastSuccess).toHaveBeenCalledExactlyOnceWith('calendar.autoSync.enableSuccess')
     await act(async () => { failFirst(new Error('old failure')); await first })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {

@@ -126,7 +126,11 @@ export {
   CALENDAR_RECONNECT_REQUIRED_ERROR_CODE,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
   resolveCalendarEventsGrantRevocation,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
+  runCalendarSyncNowWithFeedback,
   type CalendarEventsGrantRevocationAction,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
@@ -136,6 +140,12 @@ export {
   getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
+  shouldPromptForCalendarConnection,
+  resolveCalendarImportConnectionStep,
+  shouldOpenCalendarImportSheet,
+  calendarImportRouteRequestKey,
+  calendarImportTitleKey,
+  selectInitialCalendarImportEvent,
   isCalendarSyncEventImportable,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
@@ -614,6 +624,7 @@ export type {
 } from './share-card'
 export {
   buildWrappedSlides,
+  formatClosedWrappedMonth,
   getWeeklyConsistencyReading,
 } from './wrapped'
 export type {

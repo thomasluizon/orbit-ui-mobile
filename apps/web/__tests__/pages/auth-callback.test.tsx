@@ -64,25 +64,37 @@ describe('Google code callback', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated account to %s', async (returnUrl) => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    sessionStorage.setItem('auth_return_url', returnUrl)
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A',
+      email: 'a@example.com', wasReactivated: true }), { status: 200 }))
+    render(<AuthCallbackPage />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+    await act(async () => { mocks.continueAccount?.() })
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith(returnUrl))
+    expect(sessionStorage.getItem('auth_return_url')).toBeNull()
+  })
+
   it.each(['access_denied', 'cancel', 'dismiss'])('returns to calendar after consent %s', async (error) => {
     window.history.replaceState(null, '', `/auth-callback?error=${error}&state=oauth-state`)
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+    sessionStorage.setItem('auth_return_url', '/calendar?import=1')
     fetchMock.mockResolvedValue({ ok: true })
     render(<AuthCallbackPage />)
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar-sync'))
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar?import=1'))
     expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
   })
 
   it('posts the code and state then navigates to the saved destination', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
+    sessionStorage.setItem('auth_return_url', '/calendar?import=1')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' }), { status: 200 }))
     render(<AuthCallbackPage />)
     await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledOnce())
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
       body: JSON.stringify({ code: 'google-code', state: 'oauth-state', language: 'pt-BR' }),
     }))
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/calendar-sync'))
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1'))
   })
 
   it.each(['?error=access_denied&state=oauth-state', '?code=google-code'])('shows a visible error for invalid callback %s', async (query) => {

@@ -1,28 +1,31 @@
 'use client'
 
-import { Loader2 } from '@/components/ui/icons'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Switch } from '@/components/ui/switch'
+import { CheckRow } from '@/components/ui/check-row'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 interface CalendarPickerSectionProps {
   enabled: boolean
 }
 
 /**
- * "Calendars" settings section: one Switch row per Google calendar, toggling
+ * "Calendars" settings section: one check row per Google calendar, selecting
  * which calendars Orbit reads events from. Persists each toggle immediately.
  * Renders nothing until enabled so it stays hidden when Google is not connected.
  */
 export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectionProps>) {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
+  const [visibleCount, setVisibleCount] = useState(20)
 
   if (!enabled) return null
 
@@ -30,7 +33,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     try {
       await setSelectedCalendars.mutateAsync({ id, isSynced })
     } catch (err: unknown) {
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
     }
   }
 
@@ -38,19 +41,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     <>
       <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
 
-      {isLoading && (
-        <div
-          className="flex items-center"
-          style={{ gap: 8, padding: '4px 16px 0' }}
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('calendar.calendars.loading')}
-          </span>
-        </div>
-      )}
+      {isLoading && <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} />}
 
       {isError && (
         <div
@@ -89,22 +80,28 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
 
       {!isLoading &&
         !isError &&
-        calendars?.map((calendar, index) => (
-          <SettingsRow
+        calendars?.slice(0, visibleCount).map((calendar) => (
+          <CheckRow
             key={calendar.id}
             label={calendar.name}
-            desc={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
-            leadingDot={calendar.backgroundColor ?? undefined}
-            accessory="none"
-            divider={index < calendars.length - 1}
-          >
-            <Switch
-              checked={calendar.isSynced}
-              onChange={(checked) => void handleToggle(calendar.id, checked)}
-              label={t('calendar.calendars.toggleLabel', { name: calendar.name })}
-            />
-          </SettingsRow>
+            description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
+            checked={calendar.isSynced}
+            onChange={(checked) => void handleToggle(calendar.id, checked)}
+          />
         ))}
+
+      {!isLoading && !isError && calendars && calendars.length > 20 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-2">
+          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+            {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
+          </span>
+          {visibleCount < calendars.length ? (
+            <PillButton variant="ghost" size="sm" onClick={() => setVisibleCount((count) => count + 20)}>
+              {t('calendar.showMore')}
+            </PillButton>
+          ) : null}
+        </div>
+      ) : null}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>
