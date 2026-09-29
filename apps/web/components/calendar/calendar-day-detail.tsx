@@ -319,6 +319,7 @@ export function CalendarDayDetail({
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
+        wrapTitle
         chevron={false}
         readOnly
       />

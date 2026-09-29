@@ -302,6 +302,7 @@ export function CalendarDayDetail({
         <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
+        wrapTitle
         accessibilityLabel={t('calendar.goToDay')}
         chevron={false}
         onClick={onGoToDay}

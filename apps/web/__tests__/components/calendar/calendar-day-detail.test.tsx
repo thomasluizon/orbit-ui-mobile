@@ -667,6 +667,7 @@ describe('CalendarDayDetail', () => {
       'href',
       '/?date=2025-06-15',
     )
+    expect(screen.getByText('Open this day on Today')).toHaveClass('break-words')
   })
 
   it('keeps the title, summary and route within a 24px inset card', () => {

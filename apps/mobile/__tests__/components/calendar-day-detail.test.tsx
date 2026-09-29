@@ -687,6 +687,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const routeRow = nodes(tree, 'ListRowMock').at(-1)
     expect(routeRow?.props).toMatchObject({
       title: 'Open this day on Today',
+      wrapTitle: true,
       icon: 'external-link',
       chevron: false,
       onClick: onGoToDay,
