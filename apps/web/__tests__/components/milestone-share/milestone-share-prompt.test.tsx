@@ -25,11 +25,13 @@ vi.mock('@/components/milestone-share/milestone-share-card', () => ({
   },
 }))
 
+const shareCard = vi.hoisted(() => ({ hasError: false }))
+
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     captureRef: { current: null },
     isSharing: false,
-    hasError: false,
+    hasError: shareCard.hasError,
     canShareFiles: false,
     share: vi.fn(),
     download: vi.fn(),
@@ -75,6 +77,7 @@ async function settle() {
 describe('MilestoneSharePrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    shareCard.hasError = false
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     resetStores()
@@ -124,6 +127,15 @@ describe('MilestoneSharePrompt', () => {
     expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.download', 'milestoneShare.later'])
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    shareCard.hasError = true
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    expect(screen.getByRole('alert').closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
   it('gives Later the shared press and a 44 pixel target, and spaces the pills 12 apart', async () => {

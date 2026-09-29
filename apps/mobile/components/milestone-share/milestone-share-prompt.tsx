@@ -129,6 +129,9 @@ export function MilestoneSharePrompt() {
       title={t('milestoneShare.title')}
       actions={(
         <DialogActionPair>
+          {hasError ? (
+            <Text accessibilityRole="alert" style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
+          ) : null}
           <PillButton
             loading={isSharing}
             disabled={isSharing}
@@ -164,10 +167,6 @@ export function MilestoneSharePrompt() {
           </View>
 
           <Text style={styles.body}>{t('milestoneShare.body')}</Text>
-
-          {hasError ? (
-            <Text style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
-          ) : null}
       </View>
     </Sheet>) : null
   )

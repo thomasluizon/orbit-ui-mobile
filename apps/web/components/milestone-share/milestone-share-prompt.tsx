@@ -143,6 +143,11 @@ export function MilestoneSharePrompt() {
       title={t('milestoneShare.title')}
       actions={(
         <DialogActionPair>
+          {hasError && (
+            <p role="alert" className="m-0" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
+              {t('milestoneShare.shareError')}
+            </p>
+          )}
           <div className="flex w-full" style={{ gap: 12 }}>
             {canShareFiles && (
               <PillButton loading={isSharing} disabled={isSharing} onClick={handleShare}>
@@ -190,12 +195,6 @@ export function MilestoneSharePrompt() {
           >
             {t('milestoneShare.body')}
           </p>
-
-          {hasError && (
-            <p role="alert" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
-              {t('milestoneShare.shareError')}
-            </p>
-          )}
       </div>
     </Sheet>) : null
   )

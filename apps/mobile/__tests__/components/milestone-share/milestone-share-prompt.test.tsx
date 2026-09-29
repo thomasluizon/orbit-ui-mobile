@@ -36,11 +36,13 @@ vi.mock('@/components/ui/pill-button', () => ({
   }) => React.createElement('PillButtonStub', { onPress }, children),
 }))
 
+const shareCard = vi.hoisted(() => ({ hasError: false }))
+
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     shareRef: { current: null },
     isSharing: false,
-    hasError: false,
+    hasError: shareCard.hasError,
     share: vi.fn(),
   }),
 }))
@@ -75,6 +77,7 @@ function resetStores() {
 describe('MilestoneSharePrompt (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    shareCard.hasError = false
     resetStores()
   })
 
@@ -161,6 +164,22 @@ describe('MilestoneSharePrompt (mobile)', () => {
     const resolved = typeof style === 'function' ? style({ pressed: false }) : style
 
     expect(StyleSheet.flatten(resolved).minHeight).toBeGreaterThanOrEqual(44)
+  })
+
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    shareCard.hasError = true
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    const alerts = (slot: 'SheetBody' | 'SheetActions') => tree.root
+      .findAll((node) => node.type === slot)[0]!
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+      .map((node) => node.props.children)
+
+    expect(alerts('SheetActions')).toEqual(['milestoneShare.shareError'])
+    expect(alerts('SheetBody')).toEqual([])
   })
 
   it('presses Later to the shared 0.96 scale', async () => {
