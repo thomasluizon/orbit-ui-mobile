@@ -10,7 +10,7 @@ vi.mock('next-intl', () => ({
       'chat.action.failed': 'Não foi possível concluir a ação',
       'chat.action.createFailed': 'Não foi possível criar {name}',
       'chat.action.updateFailed': 'Não foi possível atualizar {name}',
-      'chat.action.deleteFailed': 'Não foi possível excluir {name}',
+      'chat.action.deleteFailed': 'Não foi possível apagar {name}',
       'chat.unknownEntity': 'Desconhecido',
     }
     const template = translations[key]
@@ -73,7 +73,7 @@ describe('ActionChips', () => {
 
     expect(screen.getByText('Não foi possível criar Morning walk')).toBeInTheDocument()
     expect(screen.getByText('Não foi possível atualizar Read ten pages')).toBeInTheDocument()
-    expect(screen.getByText('Não foi possível excluir Drink water')).toBeInTheDocument()
+    expect(screen.getByText('Não foi possível apagar Drink water')).toBeInTheDocument()
   })
 
   it('keeps the successful create label unchanged', () => {

@@ -13,7 +13,6 @@ import { Check, Copy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
-import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
@@ -194,7 +193,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
 
   return (
     <Sheet open onClose={onClose} title={t('referral.drawer.title')}>
-      <View style={withDrawerContentInset(styles.content)}>
+      <View style={styles.content}>
         {isLoading ? (
           <View style={styles.loadingContainer} accessibilityRole="progressbar">
             <ActivityIndicator color={tokens.fg3} />

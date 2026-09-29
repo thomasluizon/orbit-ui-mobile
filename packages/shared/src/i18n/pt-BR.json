@@ -65,13 +65,13 @@
     "markAllReadError": "Não foi possível marcar os avisos como lidos. Tente de novo.",
     "deleteError": "Não foi possível apagar o aviso. Tente de novo.",
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
-    "markAllRead": "Marcar todas",
-    "markAsRead": "Marcar lida",
-    "markRead": "Marcar {title} como lida",
+    "markAllRead": "Marcar tudo como lido",
+    "markAsRead": "Marcar como lido",
+    "markRead": "Marcar {title} como lido",
     "deleteAll": "Limpar tudo",
-    "deleteAllAction": "Excluir notificações",
+    "deleteAllAction": "Apagar",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
-    "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
+    "deleteAllConfirmDescription": "{count, plural, one {O aviso sai da lista.} other {Os # avisos saem da lista.}} Não há como desfazer.",
     "delete": "Apagar",
     "deleteNotification": "Apagar: {title}",
     "deleteUndo": "Desfazer",
@@ -87,7 +87,7 @@
     "read": "lido",
     "unread": "sem ler",
     "habit": "Hábito",
-    "openIn": "Abrir {target}"
+    "openIn": "Abrir em {target}"
   },
   "persistentReminder": {
     "label": "Lembrete fixo",
@@ -115,7 +115,7 @@
     "notNow": "Agora não",
     "goBack": "Voltar",
     "later": "Talvez depois",
-    "delete": "Excluir",
+    "delete": "Apagar",
     "dismiss": "Fechar",
     "confirm": "Confirmar",
     "discard": "Descartar",
@@ -325,7 +325,7 @@
     "log": "Registrar",
     "skip": "Pular",
     "edit": "Editar",
-    "delete": "Excluir",
+    "delete": "Apagar",
     "duplicate": "Duplicar",
     "viewDetails": "Ver detalhes",
     "addSubHabit": "Adicionar sub-hábito"
@@ -422,7 +422,7 @@
     "refresh": "Atualizar",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
+      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e apagar aqui.",
       "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
     },
     "login": "Entrar",
@@ -455,7 +455,7 @@
     },
     "accountBack": {
       "title": "A sua conta está de volta",
-      "body": "O pedido de exclusão foi cancelado quando você entrou.",
+      "body": "O pedido para apagar a conta foi cancelado quando você entrou.",
       "action": "Meu dia"
     }
   },
@@ -463,7 +463,7 @@
     "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
+      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e apagar aqui.",
       "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
     },
     "emptyState": "Nenhum hábito ainda",
@@ -585,9 +585,9 @@
     "checklistCompleteConfirm": "Registrar hábito",
     "checklistClearTitle": "Limpar checklist?",
     "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
-    "bulkDeleteTitle": "Excluir hábitos",
+    "bulkDeleteTitle": "Apagar hábitos",
     "bulkDeleteMessage": "Isso remove {count} hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece. | Isso remove {count} hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.",
-    "bulkDeleteConfirm": "Excluir hábitos",
+    "bulkDeleteConfirm": "Apagar hábitos",
     "bulkLogTitle": "Registrar hábitos",
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
     "bulkLogConfirm": "Registrar",
@@ -596,7 +596,7 @@
     "bulkBar": {
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
-      "delete": "Excluir selecionados",
+      "delete": "Apagar selecionados",
       "partialFailure": "Não foi possível atualizar {count} linha selecionada. | Não foi possível atualizar {count} linhas selecionadas.",
       "retryFailed": "Tentar só as falhas",
       "offlineFailure": "Nada mudou porque seu dispositivo está sem conexão.",
@@ -805,7 +805,7 @@
       "saveAsTemplate": "Salvar modelo",
       "templateNamePlaceholder": "ex: Compras da semana",
       "saveTemplateError": "Não foi possível salvar o modelo. Tente de novo.",
-      "deleteTemplateError": "Não foi possível excluir o modelo. Tente de novo.",
+      "deleteTemplateError": "Não foi possível apagar o modelo. Tente de novo.",
       "resetChecklist": "Reiniciar",
       "clearChecklist": "Limpar checklist",
       "duplicateChecklistItem": "Duplicar item",
@@ -823,7 +823,7 @@
       "removeScheduledReminder": "Remover lembrete",
       "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar tag",
-      "deleteTag": "Excluir tag",
+      "deleteTag": "Apagar tag",
       "endDate": "Data de término",
       "endDateHint": "O hábito para de aparecer depois dessa data",
       "endDateBeforeDueDate": "A data de término precisa ser depois da data de início",
@@ -911,7 +911,7 @@
       "logDateConfirmLog": "Registrar hábito",
       "logDateConfirmUnlog": "Desfazer registro",
       "checklistError": "Não foi possível atualizar este checklist. Tente novamente.",
-      "deleteError": "Não foi possível excluir este hábito. Tente novamente.",
+      "deleteError": "Não foi possível apagar este hábito. Tente novamente.",
       "rescheduleWriteError": "Não foi possível aplicar este plano. Tente novamente.",
       "proposed": "Proposto",
       "doneWord": "concluído",
@@ -1155,13 +1155,13 @@
         "checklist-templates-write": "Modelos de checklist",
         "referrals-write": "Dados de indicação",
         "support-write": "Mensagem para suporte",
-        "habits-delete": "Excluir hábitos",
+        "habits-delete": "Apagar hábitos",
         "habits-bulk-write": "Alterações de hábitos em lote",
-        "habits-bulk-delete": "Exclusão de hábitos em lote",
-        "goals-delete": "Excluir metas",
-        "tags-delete": "Excluir tags",
-        "notifications-delete": "Excluir notificações",
-        "user-facts-delete": "Excluir memória",
+        "habits-bulk-delete": "Apagar hábitos em lote",
+        "goals-delete": "Apagar metas",
+        "tags-delete": "Apagar tags",
+        "notifications-delete": "Apagar notificações",
+        "user-facts-delete": "Apagar memória",
         "calendar-sync-manage": "Gerenciar sincronização de agenda",
         "subscriptions-manage": "Gerenciar assinatura",
         "api-keys-manage": "Gerenciar chaves de API",
@@ -1169,13 +1169,13 @@
         "account-manage": "Gerenciar conta"
       },
       "action": {
-        "habits-delete": "Excluir hábitos",
+        "habits-delete": "Apagar hábitos",
         "habits-bulk-write": "Alterar hábitos",
-        "habits-bulk-delete": "Excluir hábitos",
-        "goals-delete": "Excluir metas",
-        "tags-delete": "Excluir tags",
-        "notifications-delete": "Excluir notificações",
-        "user-facts-delete": "Excluir memória",
+        "habits-bulk-delete": "Apagar hábitos",
+        "goals-delete": "Apagar metas",
+        "tags-delete": "Apagar tags",
+        "notifications-delete": "Apagar notificações",
+        "user-facts-delete": "Apagar memória",
         "calendar-sync-manage": "Alterar sincronização",
         "subscriptions-manage": "Alterar assinatura",
         "api-keys-manage": "Alterar chaves",
@@ -1236,8 +1236,8 @@
       "logFailed": "Não foi possível registrar {name}",
       "updated": "Atualizou {name}",
       "updateFailed": "Não foi possível atualizar {name}",
-      "deleted": "Excluiu {name}",
-      "deleteFailed": "Não foi possível excluir {name}",
+      "deleted": "Apagou {name}",
+      "deleteFailed": "Não foi possível apagar {name}",
       "breakdown": "Divisão: {name}",
       "breakdownFailed": "Não foi possível dividir {name}",
       "createdSubHabit": "Sub-hábito adicionado: {name}",
@@ -1254,8 +1254,8 @@
       "createGoalFailed": "Não foi possível criar a meta: {name}",
       "updatedGoal": "Meta atualizada: {name}",
       "updateGoalFailed": "Não foi possível atualizar a meta: {name}",
-      "deletedGoal": "Meta excluída: {name}",
-      "deleteGoalFailed": "Não foi possível excluir a meta: {name}",
+      "deletedGoal": "Meta apagada: {name}",
+      "deleteGoalFailed": "Não foi possível apagar a meta: {name}",
       "updatedGoalProgress": "Progresso da meta atualizado: {name}",
       "updateGoalProgressFailed": "Não foi possível atualizar o progresso da meta: {name}",
       "updatedGoalStatus": "Status da meta atualizado: {name}",
@@ -1266,8 +1266,8 @@
       "createTagFailed": "Não foi possível criar a tag: {name}",
       "updatedTag": "Tag atualizada: {name}",
       "updateTagFailed": "Não foi possível atualizar a tag: {name}",
-      "deletedTag": "Tag excluída",
-      "deleteTagFailed": "Não foi possível excluir a tag: {name}",
+      "deletedTag": "Tag apagada",
+      "deleteTagFailed": "Não foi possível apagar a tag: {name}",
       "reorderedGoals": "Metas reordenadas",
       "reorderGoalsFailed": "Não foi possível reordenar as metas: {name}",
       "reorderedHabits": "Hábitos reordenados",
@@ -1587,7 +1587,7 @@
         "reminder_enabled": "Lembrete ativado",
         "reminder_times": "Minutos antes do horário",
         "scheduled_reminders": "Lembretes agendados",
-        "delete": "Excluir",
+        "delete": "Apagar",
         "dismiss_import": "Dispensar importação",
         "run_sync": "Sincronizar agora"
       },
@@ -1817,11 +1817,11 @@
     },
     "freshStart": {
       "button": "Recomeçar",
-      "reviewDeletion": "Revisar exclusão",
-      "deleteData": "Excluir dados",
+      "reviewDeletion": "Revisar",
+      "deleteData": "Apagar dados",
       "heading": "Recomeçar",
       "confirmHeading": "Isso apaga tudo",
-      "willDelete": "O que será excluído",
+      "willDelete": "O que será apagado",
       "willKeep": "O que continua",
       "description": "Comece do zero. Isso apaga para sempre o que você acompanha, e mantém a sua conta.",
       "deleteHabits": "Todos os hábitos, sub-hábitos e o histórico de conclusão",
@@ -1841,12 +1841,12 @@
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
     "deleteAccount": {
-      "button": "Excluir conta",
-      "title": "Excluir conta",
-      "headingAreYouSure": "Isso exclui sua conta",
+      "button": "Apagar a conta",
+      "title": "Apagar a conta",
+      "headingAreYouSure": "Isso apaga a sua conta",
       "headingConfirmCode": "Confirme com o código",
       "headingDeactivated": "Conta desativada",
-      "warning": "Você tem tempo para mudar de ideia. Depois disso, a exclusão é definitiva e não dá para desfazer.",
+      "warning": "Você tem tempo para mudar de ideia. Depois disso, a conta é apagada de vez e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
@@ -1856,7 +1856,7 @@
       "confirmDelete": "Desativar minha conta",
       "deleting": "Processando...",
       "deactivated": "Sua conta foi desativada. Ela será apagada de vez em {date}.",
-      "reactivated": "A exclusão da sua conta foi cancelada.",
+      "reactivated": "O pedido para apagar a sua conta foi cancelado.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
@@ -2058,12 +2058,12 @@
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho é desinscrito.",
-      "ai": "Histórico do chat com a IA: guardado enquanto os recursos de IA estiverem ativos e removido quando você exclui sua conta.",
+      "ai": "Histórico do chat com a IA: guardado enquanto os recursos de IA estiverem ativos e removido quando você apaga a sua conta.",
       "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
-      "syncRecords": "Registros excluídos mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
+      "syncRecords": "Registros apagados mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
       "calendarSuggestions": "Sugestões de importação do Google Agenda que você não importa: guardadas por 14 dias.",
       "billingRecords": "Registros operacionais e de cobrança: solicitações processadas e notificações de cobrança do Google Play são guardadas por 30 dias; eventos processados de webhook da Stripe são guardados por 90 dias.",
-      "afterDeletion": "Exclusão da conta: os dados pessoais são apagados de forma permanente 7 dias após a confirmação, ou 7 dias após o fim do período pago atual, o que ocorrer por último, exceto quando a lei exige guardar registros limitados."
+      "afterDeletion": "Ao apagar a conta: os dados pessoais são apagados de forma permanente 7 dias após a confirmação, ou 7 dias após o fim do período pago atual, o que ocorrer por último, exceto quando a lei exige guardar registros limitados."
     },
     "googleScopes": {
       "title": "Acesso à conta e ao Google Agenda",
@@ -2089,11 +2089,11 @@
       "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags e configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
     },
     "deletion": {
-      "title": "Exclusão de dados",
-      "body": "Você pode excluir sua conta e todos os dados ligados a ela quando quiser, pela página de Perfil no app. O processo precisa de confirmação por e-mail:",
-      "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
+      "title": "Apagar os seus dados",
+      "body": "Você pode apagar a sua conta e todos os dados ligados a ela quando quiser, pela página de Perfil no app. O processo precisa de confirmação por e-mail:",
+      "step1": "1. Vá ao Perfil e toque em \"Apagar a conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
-      "step3": "3. Digite o código para confirmar a exclusão",
+      "step3": "3. Digite o código para confirmar que quer apagar a conta",
       "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA e configurações. Esta ação não tem volta."
     },
     "contact": {
@@ -2323,7 +2323,7 @@
         "dragDropTitle": "Arrastar e soltar",
         "dragDropDesc": "Toque e segure qualquer cartão de hábito para arrastá-lo até a ordem que preferir. A ordem é salva automaticamente.",
         "bulkSelectTitle": "Ações em massa",
-        "bulkSelectDesc": "Toque em 'Selecionar' para entrar no modo de seleção. Escolha vários hábitos para registrar, pular ou excluir de uma vez.",
+        "bulkSelectDesc": "Toque em 'Selecionar' para entrar no modo de seleção. Escolha vários hábitos para registrar, pular ou apagar de uma vez.",
         "filteringTitle": "Busca e filtros",
         "filteringDesc": "Encontre hábitos pelo nome na busca. Use os chips abaixo dela para filtrar por dia, semana, mês, ano ou uma vez.",
         "summaryTitle": "Resumo diário da IA",
@@ -2360,8 +2360,8 @@
         "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar um. Você também pode pedir um hábito para um dia só, como 'comprar ovos amanhã'.",
         "toolsBreadthTitle": "63 ferramentas integradas",
         "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 63 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 5 mensagens de IA por dia; o Pro sobe para 50.",
-        "manageTitle": "Atualizar e excluir",
-        "manageDesc": "Peça à Astra para mudar hábitos: 'passar minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal' ou 'excluir meu hábito de leitura'. Ela também faz ações em massa.",
+        "manageTitle": "Atualizar e apagar",
+        "manageDesc": "Peça à Astra para mudar hábitos: 'passar minha academia para amanhã', 'renomear corrida para caminhada', 'mudar meditação para semanal' ou 'apagar meu hábito de leitura'. Ela também faz ações em massa.",
         "insightsTitle": "Progresso e análise",
         "insightsDesc": "Pergunte 'como estou indo?' e a Astra analisa suas sequências de verdade, suas taxas de conclusão e suas tendências. Ela faz revisões semanais, sugere melhorias e comemora o seu progresso.",
         "reschedulingTitle": "Reagendamento inteligente",
@@ -2415,7 +2415,7 @@
         "bellTitle": "Sua caixa de entrada",
         "bellDesc": "O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O badge conta os não lidos.",
         "managingTitle": "Ler lembretes",
-        "managingDesc": "Marque lembretes como lidos ou exclua um por vez. Você também pode marcar todos como lidos ou excluir todos.",
+        "managingDesc": "Marque lembretes como lidos ou apague um por vez. Você também pode marcar todos como lidos ou apagar todos.",
         "configuringRemindersTitle": "Definir no hábito",
         "configuringRemindersDesc": "Defina um ou mais lembretes no hábito. Use o horário dele ou escolha uma hora fixa."
       },
@@ -2610,7 +2610,7 @@
       "appUpdated": "O Orbit foi atualizado. Recarregue a página e tente de novo. O texto não salvo será perdido.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
-      "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Exclua um hábito para adicionar outro.",
+      "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Apague um hábito para adicionar outro.",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
       "astraLimit": "Você atingiu o limite de mensagens da Astra hoje. Você pode enviar mais mensagens amanhã.",
       "payGate": "Este recurso precisa do Orbit Pro. Veja suas opções na tela de upgrade.",
@@ -2656,9 +2656,9 @@
   },
   "undo": {
     "habitDeleted": "Hábito apagado",
-    "habitsDeleted": "{count} hábito excluído | {count} hábitos excluídos",
-    "goalDeleted": "Meta excluída",
-    "tagDeleted": "Tag excluída",
+    "habitsDeleted": "{count} hábito apagado | {count} hábitos apagados",
+    "goalDeleted": "Meta apagada",
+    "tagDeleted": "Tag apagada",
     "action": "Desfazer",
     "restored": "Restaurado",
     "restoreFailed": "Não foi possível restaurar. Tente de novo."
@@ -2734,7 +2734,7 @@
       "markCompleted": "Concluir meta",
       "markAbandoned": "Marcar abandonada",
       "reactivate": "Reabrir meta",
-      "delete": "Excluir meta",
+      "delete": "Apagar meta",
       "deleteConfirm": "Isso remove a meta. Você pode desfazer pela mensagem que aparece.",
       "edit": "Editar meta",
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
@@ -2755,7 +2755,7 @@
     "errors": {
       "create": "Não foi possível criar a meta",
       "update": "Não foi possível atualizar a meta",
-      "delete": "Não foi possível excluir a meta",
+      "delete": "Não foi possível apagar a meta",
       "progress": "Não foi possível atualizar o progresso"
     },
     "linkedHabits": "Hábitos Vinculados",
@@ -3101,7 +3101,7 @@
     "backToProfile": "Voltar para o Perfil",
     "successTitle": "A conta encerra em {date}",
     "successBody": "Até lá, entrar de novo cancela o encerramento e a conta volta inteira.",
-    "successPro": "A exclusão desta conta Pro está agendada para {date}.",
+    "successPro": "Esta conta Pro será apagada em {date}.",
     "signOut": "Sair",
     "neverShare": "O Orbit nunca pede este código em uma conversa, nem por email ou mensagem. Ele só é pedido aqui.",
     "cancel": "Cancelar esta ação",
@@ -3270,7 +3270,7 @@
     },
     "termination": {
       "title": "Encerramento",
-      "body": "Você pode parar de usar o Orbit e excluir sua conta quando quiser. Podemos suspender ou encerrar o acesso se você violar estes termos ou usar o serviço de um jeito que prejudique o Orbit ou outras pessoas."
+      "body": "Você pode parar de usar o Orbit e apagar a sua conta quando quiser. Podemos suspender ou encerrar o acesso se você violar estes termos ou usar o serviço de um jeito que prejudique o Orbit ou outras pessoas."
     },
     "governingLaw": {
       "title": "Legislação aplicável",
@@ -3286,31 +3286,31 @@
     }
   },
   "deleteAccount": {
-    "title": "Excluir sua conta",
+    "title": "Apagar a sua conta",
     "intro": {
-      "title": "Como excluir sua conta do Orbit",
-      "body": "Você pode excluir de vez a sua conta do Orbit e todos os dados ligados a ela quando quiser. Não precisa estar conectado nesta página para saber como. Dá para excluir direto no aplicativo ou por solicitação por e-mail."
+      "title": "Como apagar a sua conta do Orbit",
+      "body": "Você pode apagar de vez a sua conta do Orbit e todos os dados ligados a ela quando quiser. Não precisa estar conectado nesta página para saber como. Dá para apagar direto no aplicativo ou por solicitação por e-mail."
     },
     "inApp": {
-      "title": "Excluir pelo aplicativo",
-      "intro": "O jeito mais rápido de excluir sua conta é pelo aplicativo:",
+      "title": "Apagar pelo aplicativo",
+      "intro": "O jeito mais rápido de apagar a sua conta é pelo aplicativo:",
       "step1": "1. Abra o Orbit e vá até a aba Perfil.",
-      "step2": "2. Toque em \"Excluir conta\".",
+      "step2": "2. Toque em \"Apagar a conta\".",
       "step3": "3. Enviamos um código de confirmação de 6 dígitos por e-mail.",
       "step4": "4. Digite o código para confirmar. Sua conta é desativada na hora."
     },
     "grace": {
       "title": "Período de carência de 7 dias",
-      "body": "Depois que você confirma a exclusão, a conta é desativada na hora e apagada de vez ao fim de um período de carência de 7 dias. Se entrar de novo dentro desses 7 dias, sua conta é reativada e a exclusão é cancelada."
+      "body": "Depois que você confirma, a conta é desativada na hora e apagada de vez ao fim de um período de carência de 7 dias. Se entrar de novo dentro desses 7 dias, a sua conta é reativada e o pedido é cancelado."
     },
     "webFallback": {
-      "title": "Pedir a exclusão por e-mail",
-      "body": "Se você não conseguir mais acessar o aplicativo, escreva para contact@useorbit.org a partir do e-mail da sua conta e peça a exclusão. Vamos confirmar a sua identidade e cuidar da solicitação.",
-      "button": "Enviar pedido de exclusão"
+      "title": "Pedir para apagar a conta por e-mail",
+      "body": "Se você não conseguir mais acessar o aplicativo, escreva para contact@useorbit.org a partir do e-mail da sua conta e peça para apagar a conta. Vamos confirmar a sua identidade e cuidar da solicitação.",
+      "button": "Enviar o pedido"
     },
     "data": {
-      "title": "O que é excluído",
-      "body": "A exclusão remove seus hábitos, o histórico de conclusão, as metas, as tags, as conversas, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
+      "title": "O que é apagado",
+      "body": "Apagar a conta remove os seus hábitos, o histórico de conclusão, as metas, as tags, as conversas, as configurações e o perfil da conta. Depois do fim do período de carência, esta ação não tem volta."
     }
   },
   "dataExport": {

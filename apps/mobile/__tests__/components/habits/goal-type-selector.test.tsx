@@ -13,7 +13,7 @@ vi.mock('react-i18next', () => ({
 }))
 
 const tokens = createTokensV2('purple', 'dark')
-const styles = createStyles(tokens, 0)
+const styles = createStyles(tokens)
 
 function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }>) {
   const [value, setValue] = useState<GoalType>('Standard')

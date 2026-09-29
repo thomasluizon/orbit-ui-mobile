@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
@@ -51,13 +50,9 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
   )
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const insets = useSafeAreaInsets()
   const createGoal = useCreateGoal()
   const { showError } = useAppToast()
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const [goalType, setGoalType] = useState<GoalType>('Standard')
   const [description, setDescription] = useState('')

@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
@@ -57,13 +56,9 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   )
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const insets = useSafeAreaInsets()
   const updateGoal = useUpdateGoal()
   const { showError } = useAppToast()
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const isStreak = isStreakGoal(goal.type)
 
