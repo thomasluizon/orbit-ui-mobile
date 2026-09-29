@@ -42,11 +42,11 @@ for (const width of [412, 1280] as const) {
       const items = menu.getByRole('menuitem')
       expect(await items.count()).toBeGreaterThan(0)
       for (const item of await items.all()) {
-        expect(await item.evaluate((element) => (element as HTMLElement).offsetHeight)).toBe(width === 412 ? 56 : 44)
+        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '44px')
       }
       const destructive = items.last()
       await expect(destructive).toHaveAttribute('data-destructive')
-      expect(await destructive.evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe('1px')
+      await expect(destructive).toHaveCSS('border-top-width', '1px')
 
       if (width === 412) {
         await page.locator('.orbit-sheet-close').click()
@@ -58,7 +58,7 @@ for (const width of [412, 1280] as const) {
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expect(listMenu).toBeVisible()
       for (const item of await listMenu.getByRole('menuitem').all()) {
-        expect(await item.evaluate((element) => (element as HTMLElement).offsetHeight)).toBe(width === 412 ? 56 : 44)
+        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '44px')
       }
     })
   })
