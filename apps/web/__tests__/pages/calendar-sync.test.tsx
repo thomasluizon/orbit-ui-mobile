@@ -565,7 +565,7 @@ describe('CalendarSyncPage', () => {
     const button = await screen.findByText('Weekly review')
     const hitArea = button.closest('button')
     expect(hitArea).not.toBeDisabled()
-    expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-elev)]')
+    expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
     expect(hitArea?.className).toContain('rounded-[12px]')
     expect(hitArea?.parentElement?.className).not.toContain('hover:bg-')
   })

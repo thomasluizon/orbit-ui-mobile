@@ -69,7 +69,7 @@ export function SettingsGroupRow({
       accessibilityLabel={accessibilityLabel ?? label}
       style={({ pressed }) => [
         styles.row,
-        pressed && onPress ? { backgroundColor: tokens.bgElev } : null,
+        pressed && onPress ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}

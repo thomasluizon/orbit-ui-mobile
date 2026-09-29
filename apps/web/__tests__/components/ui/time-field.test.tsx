@@ -41,7 +41,7 @@ describe('TimeField', () => {
       expect(option.className).toContain('min-h-[44px]')
       expect(option.className).not.toContain('rounded-[10px]')
     }
-    expect(unselected.className).toContain('hover:bg-[var(--bg-elev)]')
+    expect(unselected.className).toContain('hover:bg-[var(--bg-hover)]')
     expect(selected.className).toContain('hover:bg-[var(--primary-hover)]')
   })
 

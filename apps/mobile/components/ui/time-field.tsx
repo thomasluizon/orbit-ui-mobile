@@ -56,7 +56,7 @@ interface TimeColumnProps {
 
 function pressedOptionBackground(tokens: Tokens, selected: boolean, pressed: boolean) {
   if (selected) return pressed ? tokens.primaryPressed : tokens.primary
-  return pressed ? tokens.bgElev : 'transparent'
+  return pressed ? tokens.bgHover : 'transparent'
 }
 
 function TimeOption({

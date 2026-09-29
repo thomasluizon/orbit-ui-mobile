@@ -103,6 +103,7 @@ export function createStyles(tokens: AppTokens) {
       width: 44,
       height: 44,
       borderRadius: 999,
+      overflow: 'hidden',
       borderWidth: 1.5,
       borderColor: tokens.hairlineStrong,
       alignItems: 'center',

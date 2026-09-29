@@ -119,7 +119,7 @@ export function HabitEmojiSelector({
         <Pressable
           style={({ pressed }) => [
             styles.emojiWell,
-            { width: wellSize, height: wellSize, borderRadius: 999 },
+            { width: wellSize, height: wellSize, borderRadius: 999, overflow: 'hidden' },
             pressed
               ? {
                   backgroundColor: tokens.bgHover,

@@ -98,7 +98,7 @@ describe('TimeField', () => {
     for (const option of [selected, unselected]) {
       expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
     }
-    expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgElev)
+    expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
     expect(StyleSheet.flatten(selected.props.style({ pressed: true })).backgroundColor).toBe(tokens.primaryPressed)
     expect(StyleSheet.flatten(selected.props.style({ pressed: false })).backgroundColor).toBe(tokens.primary)
   })

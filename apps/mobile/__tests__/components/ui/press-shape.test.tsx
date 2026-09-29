@@ -143,7 +143,7 @@ describe('pressed hit area shapes', () => {
 
     withTree(row, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
-      expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgElev })
+      expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
     })
   })

@@ -203,7 +203,7 @@ export function MessageBubble({
                     pressed
                       ? {
                           transform: [{ scale: 0.96 }],
-                          backgroundColor: tokens.bgElev2,
+                          backgroundColor: tokens.bgHover,
                         }
                       : null,
                   ]}
@@ -401,6 +401,7 @@ function createStyles(tokens: AppTokens) {
       minHeight: 44,
       paddingHorizontal: 16,
       borderRadius: 999,
+      overflow: "hidden",
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,

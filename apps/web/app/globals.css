@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* WHY: Tailwind's own hover variant gates on (hover: hover) alone, and DESIGN.md requires
+   (pointer: fine) too, so a touch tap cannot latch a hover state. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 .habit-detail-strip [data-scope='habit'] {
   --habit-strip-cell-size: 8px;
 }
