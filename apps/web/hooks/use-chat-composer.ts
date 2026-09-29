@@ -5,6 +5,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import {
   useState,
   useRef,
+  useId,
   useCallback,
   useEffect,
   useMemo,
@@ -147,6 +148,7 @@ export function useChatComposer() {
   } = useSpeechToText()
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const composerInputId = useId()
   const pendingVoiceCommit = useRef(false)
 
   const [sendError, setSendError] = useState<string | null>(null)
@@ -404,9 +406,10 @@ export function useChatComposer() {
 
   useEffect(() => {
     if (!draftHydrated) {
-      hydrateDraft(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY))
+      const textarea = document.getElementById(composerInputId) as HTMLTextAreaElement | null
+      hydrateDraft(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY), textarea?.value)
     }
-  }, [draftHydrated, hydrateDraft])
+  }, [composerInputId, draftHydrated, hydrateDraft])
 
   useEffect(() => {
     if (!draftHydrated) return
@@ -852,6 +855,7 @@ export function useChatComposer() {
     handleTextFileSelect,
     removeImage,
     composerProps,
+    composerInputId,
     sendMessage,
     retryLastSend,
     canRetryLastSend,

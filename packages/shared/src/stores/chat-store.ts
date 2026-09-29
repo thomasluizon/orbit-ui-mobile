@@ -19,7 +19,7 @@ export interface ChatStoreState {
   setIsTyping: (value: boolean) => void
   setStreamingMessageId: (value: string | null) => void
   setDraft: (value: string | ((current: string) => string)) => void
-  hydrateDraft: (storedDraft: string | null) => void
+  hydrateDraft: (storedDraft: string | null, preHydrationText?: string) => void
   setContextualSuggestion: (suggestion: ChatStoreState['contextualSuggestion']) => void
 }
 
@@ -78,8 +78,8 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       draft: typeof value === 'function' ? value(state.draft) : value,
       draftRevision: state.draftRevision + 1,
     })),
-    hydrateDraft: (storedDraft) => set((state) => ({
-      draft: state.draft || storedDraft || '',
+    hydrateDraft: (storedDraft, preHydrationText) => set((state) => ({
+      draft: preHydrationText || state.draft || storedDraft || '',
       draftHydrated: true,
     })),
     setContextualSuggestion: (contextualSuggestion) => set({ contextualSuggestion }),

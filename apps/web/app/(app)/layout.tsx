@@ -297,6 +297,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
+            inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
             conversationLabel={t('todayAstra.openConversation')}
             onSend={chat.composerProps.onSend}
