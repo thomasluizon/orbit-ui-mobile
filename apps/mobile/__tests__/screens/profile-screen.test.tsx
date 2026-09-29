@@ -1270,7 +1270,7 @@ describe('ProfileScreen', () => {
           node.props.testID === 'marketing-consent-section',
       ),
     ).toHaveLength(1)
-    expect(nodeText(notificationsGroup)).toContain('profile.analytics.description')
+    expect(nodeText(notificationsGroup)).not.toContain('profile.analytics.description')
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
@@ -1293,7 +1293,7 @@ describe('ProfileScreen', () => {
         (node: { children: unknown[] }) =>
           node.children.includes('profile.settingsRows.remindersNote'),
       ),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>

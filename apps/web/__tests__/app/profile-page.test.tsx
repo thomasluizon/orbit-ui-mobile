@@ -808,13 +808,13 @@ describe('ProfilePage', () => {
         name: 'profile.marketingEmails.decline',
       }),
     ).toBeInTheDocument()
-    expect(within(notificationsGroup).getByText('profile.analytics.description')).toBeInTheDocument()
+    expect(within(notificationsGroup).queryByText('profile.analytics.description')).not.toBeInTheDocument()
     expect(within(notificationsGroup).getByRole('switch', {
       name: 'profile.analytics.title',
     })).toHaveAttribute('aria-checked', 'true')
     expect(
-      within(notificationsGroup).queryByText('profile.settingsRows.remindersNote'),
-    ).not.toBeInTheDocument()
+      within(notificationsGroup).getByText('profile.settingsRows.remindersNote'),
+    ).toBeInTheDocument()
     expect(
       within(notificationsGroup).queryByRole('switch', {
         name: 'profile.settingsRows.currentDevice',

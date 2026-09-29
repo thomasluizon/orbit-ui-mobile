@@ -1578,7 +1578,6 @@
   "profile": {
     "analytics": {
       "title": "Usage analytics",
-      "description": "Allow Orbit to collect usage data from this device.",
       "saveError": "Change not saved. Try again."
     },
     "groups": {
@@ -1601,7 +1600,7 @@
       "startOver": "Start over",
       "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
-      "remindersNote": "Habit reminders and slip alerts are set on each habit.",
+      "remindersNote": "Each habit's reminders live on the habit itself.",
       "currentDevice": "This device",
       "pushDeviceLimit": "Up to 5 devices can receive alerts."
     },
@@ -1673,7 +1672,6 @@
     },
     "marketingEmails": {
       "title": "Product email",
-      "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime.",
       "question": "May we email you about the product?",
       "questionDescription": "What is new and what changed, once a month at most.",
       "accept": "Email me",

@@ -68,7 +68,6 @@ export function MarketingConsentSection({
     <SettingsRow
       icon={Mail}
       label={t('profile.marketingEmails.title')}
-      desc={t('profile.marketingEmails.description')}
       accessory="none"
       divider={false}
     >

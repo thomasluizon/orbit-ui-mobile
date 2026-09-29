@@ -354,7 +354,7 @@ export function ProfileSettingsContent({
           <SettingsRow
             icon={BarChart3}
             label={t('profile.analytics.title')}
-            desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+            desc={analyticsSaveError ? t('profile.analytics.saveError') : undefined}
             accessory="none"
             divider={false}
           >
@@ -386,6 +386,9 @@ export function ProfileSettingsContent({
           />
         </RowList>
       ) : null}
+      <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 }}>
+        {t('profile.settingsRows.remindersNote')}
+      </Text>
     </View>,
     more: buildMoreRows({ context, openWidget: () => setShowWidgetInfo(true) }),
     ending: buildEndingRows({

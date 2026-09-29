@@ -302,7 +302,7 @@ export function ProfileSettingsContent({
           <SettingsRow
             icon={BarChart3}
             label={t('profile.analytics.title')}
-            desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+            desc={analyticsSaveError ? t('profile.analytics.saveError') : undefined}
             accessory="none"
             divider={false}
           >
@@ -325,6 +325,7 @@ export function ProfileSettingsContent({
         showSectionLabel={false}
         contained
       />
+      <p className="m-0 text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
     </div>,
     more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     ending: buildEndingRows({

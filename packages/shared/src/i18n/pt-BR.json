@@ -1578,7 +1578,6 @@
   "profile": {
     "analytics": {
       "title": "Análise de uso",
-      "description": "Permita que o Orbit colete dados de uso deste dispositivo.",
       "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
@@ -1601,7 +1600,7 @@
       "startOver": "Começar de novo",
       "deleteAccount": "Apagar a conta",
       "reminders": "Lembretes dos hábitos",
-      "remindersNote": "Lembretes e alertas de deslize são configurados em cada hábito.",
+      "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "currentDevice": "Este aparelho",
       "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
     },
@@ -1673,7 +1672,6 @@
     },
     "marketingEmails": {
       "title": "Email sobre o produto",
-      "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser.",
       "question": "Podemos mandar email sobre o produto?",
       "questionDescription": "Novidades e mudanças, no máximo uma vez por mês.",
       "accept": "Pode mandar",
