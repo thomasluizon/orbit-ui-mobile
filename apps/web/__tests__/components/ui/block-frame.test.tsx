@@ -160,12 +160,11 @@ describe('BlockFrame on web', () => {
     expect(screen.getAllByText(labels.confirmNote)).toHaveLength(1)
   })
 
-  it('places risk beside the count and one actions slot after the scroll body', () => {
+  it('keeps one actions slot after the scroll body', () => {
     const { container } = render(
-      <BlockFrame {...resting({ risk: <span>High risk</span>, actions: <button>Apply</button> })} />,
+      <BlockFrame {...resting({ actions: <button>Apply</button> })} />,
     )
-    const header = screen.getByText('High risk').parentElement
-    expect(header).toHaveTextContent('Changes2High risk')
+    expect(container.querySelector('header')).toHaveTextContent('Changes2')
     const body = container.querySelector('[aria-live="polite"]')
     const actionRow = container.querySelector('[data-action-row]')
     expect(actionRow).toContainElement(screen.getByRole('button', { name: 'Apply' }))

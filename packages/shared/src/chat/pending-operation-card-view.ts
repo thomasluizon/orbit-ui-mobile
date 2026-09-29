@@ -1,4 +1,4 @@
-import type { PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
+import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -7,10 +7,12 @@ import type {
 import { getPendingOperationCardPresentation } from '../hooks/pending-operation-card-core'
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
+import { getActionChipNavigation } from './action-chips'
 
 export interface PendingOperationButtonSpec {
   disabled?: boolean
   label: string
+  accessibleName?: string
   loading?: boolean
   onClick: () => void
   variant?: 'destructive' | 'ghost' | 'primary'
@@ -30,7 +32,7 @@ export interface PendingOperationVerificationProps {
   open: boolean
   onClosed: () => void
   onClose: () => void
-  onCompleted: (status: 'done' | 'failed') => void
+  onCompleted: (result: PendingOperationExecutionResult) => void
   onVerify: (
     id: string,
     challengeId: string,
@@ -57,6 +59,9 @@ export interface PendingOperationEditSheetProps {
 
 interface PendingOperationFrameBase<Node> {
   title: string
+  wrapTitle?: boolean
+  focusTitleOnMount?: boolean
+  body?: Node
   count?: number
   items: readonly {
     id: string
@@ -71,7 +76,6 @@ interface PendingOperationFrameBase<Node> {
     control?: Node
   }[]
   proposedLabel?: string
-  risk: Node
   irreversibleLabel: string
   confirmNote: string
   actions: Node | undefined
@@ -86,7 +90,6 @@ export interface PendingOperationCardRenderers<Node> {
   blockFrame: (props: PendingOperationFrame<Node>) => Node
   button: (spec: PendingOperationButtonSpec) => Node
   confirmSheet: (props: PendingOperationConfirmSheetProps) => Node
-  risk: (label: string) => Node
   stepUp: (props: { message: string; actionLabel: string; onAction: () => void; busy: boolean }) => Node
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
@@ -104,7 +107,12 @@ export interface PendingOperationCardActions {
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
-  completeStepUp: (status: 'done' | 'failed') => void
+  completedOperation?: AgentOperationResult
+  canRetry?: boolean
+  focusTitleOnMount?: boolean
+  openableCapability?: boolean
+  onOpenTarget?: (entityId: string, actionType: string) => void
+  completeStepUp: (result: PendingOperationExecutionResult) => void
   closeStepUp: () => void
   clearClosingStepUp: () => void
   dismiss: () => void
@@ -134,6 +142,60 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
+
+const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
+  create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
+  duplicate_habit: 'DuplicateHabit', move_habit: 'MoveHabit', move_habit_parent: 'MoveHabit',
+  log_habit: 'LogHabit', skip_habit: 'SkipHabit', update_checklist: 'UpdateHabit',
+  link_goals_to_habit: 'UpdateHabit', reorder_habits: 'ReorderHabits',
+  bulk_update_habit_emojis: 'UpdateHabit', bulk_update_habits: 'UpdateHabit',
+  bulk_reschedule_habits: 'UpdateHabit', bulk_log_habits: 'BulkLogHabits',
+  bulk_skip_habits: 'BulkSkipHabits', bulk_create_habits: 'CreateHabit',
+  create_goal: 'CreateGoal', update_goal: 'UpdateGoal', update_goal_status: 'UpdateGoalStatus',
+  update_goal_progress: 'UpdateGoalProgress', link_habits_to_goal: 'LinkHabitsToGoal',
+  reorder_goals: 'ReorderGoals',
+  suggest_breakdown: null, delete_habit: null, bulk_delete_habits: null, delete_goal: null,
+  assign_tags: null, create_tag: null, update_tag: null, delete_tag: null,
+  update_profile_preferences: null, set_ai_memory: null, set_ai_summary: null,
+  update_notifications: null, delete_notifications: null, manage_calendar_sync: null,
+  create_checklist_template: null, delete_checklist_template: null,
+  delete_user_facts: null, manage_subscription: null, manage_api_keys: null,
+  send_support_request: null, manage_account: null,
+  CreateHabit: 'CreateHabit', UpdateHabit: 'UpdateHabit', CreateGoal: 'CreateGoal', UpdateGoal: 'UpdateGoal',
+}
+
+function completedTargetControl<Node>(
+  targetId: string | null | undefined,
+  entityName: string,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const operation = card.completedOperation
+  if (card.status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
+  const actionType = NAVIGABLE_OPERATION_ACTIONS[operation.sourceName]
+  if (!actionType) return undefined
+  const navigation = getActionChipNavigation({ type: actionType, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
+  return navigation.navigable
+    ? render.button({ label: labels.open, accessibleName: labels.openNamed(entityName), variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
+    : undefined
+}
+
+function itemControl<Node>(
+  item: PendingOperationItem,
+  itemCount: number,
+  revision: CardRevision,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const targetId = itemCount === 1
+    ? card.completedOperation?.targetId ?? item.entityId
+    : item.entityId
+  const open = completedTargetControl(targetId, item.entityName, card, labels, render)
+  if (open || card.status != null || revision.stale) return open
+  return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
+}
 
 function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
   const value = field.newValue ?? ''
@@ -224,11 +286,7 @@ function previewRows<Node>(
       proposed: card.status == null && !edited,
       wrapLabel: true,
       wrapMeta: true,
-      control: card.status == null && !revision.stale ? render.removeItem(
-        `${labels.remove} ${item.entityName}`,
-        card.busy || revision.busy,
-        () => void revision.rejectItem(item.itemId),
-      ) : undefined,
+      control: itemControl(item, revision.items.length, revision, card, labels, render),
     }
   })
 }
@@ -254,9 +312,7 @@ function unshownItemRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: card.status == null && !revision.stale
-        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-        : undefined,
+      control: itemControl(item, revision.items.length, revision, card, labels, render),
     })
     if (item.entityId != null) shownEntities.add(item.entityId)
   }
@@ -292,9 +348,9 @@ function changeRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: firstField && item && revision && card.status == null && !revision.stale
+      control: firstField ? completedTargetControl(count === 1 ? card.completedOperation?.targetId ?? change.entityId : change.entityId, change.entityName, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
         ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-        : undefined,
+        : undefined) : undefined,
     }
   })
   rows.push(...unshownItemRows(shownEntities, revision, card, labels, render, destructive))
@@ -304,6 +360,17 @@ function changeRows<Node>(
     irreversible: false, wrapLabel: true, editable: false, control: undefined,
   })
   return rows
+}
+
+function previewBody<Node>(
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  if (card.status !== 'failed') return undefined
+  if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied)
+  if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
+  return render.notice(labels.failed)
 }
 
 function previewFrame<Node>(
@@ -320,13 +387,15 @@ function previewFrame<Node>(
     : previewRows(revision, card, labels, presentation.destructive, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
+    wrapTitle: true,
+    focusTitleOnMount: card.focusTitleOnMount,
+    body: previewBody(card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,
       status: card.status, irreversible: presentation.destructive && card.status == null,
     }],
     proposedLabel: labels.proposed,
-    risk: render.risk(labels.risk),
     irreversibleLabel: labels.irreversible,
     confirmNote: labels.confirmNote,
     actions: revision?.stale ? undefined : actions,
@@ -359,9 +428,12 @@ export function renderPendingOperationCard<Node>({
 
   const presentation = getPendingOperationCardPresentation(
     pendingOperation.riskClass, pendingOperation.confirmationRequirement,
-    card.busy || revision?.busy === true, card.status,
+    card.busy || revision?.busy === true, card.status, card.canRetry,
   )
-  const blockFrame = previewFrame(pendingOperation, card, labels, render, presentation)
+  const openableCapability = pendingOperation.capabilityId === 'habits.write'
+    || pendingOperation.capabilityId === 'habits.bulk.write'
+    || pendingOperation.capabilityId === 'goals.write'
+  const blockFrame = previewFrame(pendingOperation, { ...card, openableCapability }, labels, render, presentation)
   const confirmSheet = render.confirmSheet({
     open: card.confirmOpen,
     title: labels.confirmTitle,

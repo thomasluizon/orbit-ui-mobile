@@ -38,12 +38,12 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 }
 
 async function renderExecution(
-  appendExecutionMessage: (response: AgentExecuteOperationResponse) => Promise<void>,
+  handleExecutedOperation: (response: AgentExecuteOperationResponse) => Promise<void>,
 ): Promise<{ current: Hook }> {
   const holder: { current: Hook | null } = { current: null }
 
   function Component() {
-    holder.current = usePendingOperationExecution({ appendExecutionMessage })
+    holder.current = usePendingOperationExecution({ handleExecutedOperation })
     return null
   }
 

@@ -6,7 +6,6 @@ import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOL
 import { useTranslation } from 'react-i18next'
 import { I18nManager, Pressable, Text, View } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
-import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { OtpInput } from '@/components/ui/otp-input'
@@ -150,8 +149,8 @@ function StepUpVerificationSheet({
   useEffect(() => {
     if (!open) closeSheet(onClosed, onClosed)
   }, [open, onClosed, closeSheet])
-  const completed = (status: 'done' | 'failed') => {
-    if (openRef.current) closeSheet(() => onCompleted(status), () => onCompleted(status))
+  const completed: PendingOperationVerificationProps['onCompleted'] = (result) => {
+    if (openRef.current) closeSheet(() => onCompleted(result), () => onCompleted(result))
   }
   const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
     genericError: t('stepUp.genericError'),
@@ -181,12 +180,11 @@ const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} />,
   button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
-  risk: (label) => <Badge variant="outline">{label}</Badge>,
   stepUp: (props) => <StepUp {...props} />,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
-  notice: (message) => <Text accessibilityRole="text">{message}</Text>,
+  notice: (message) => <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>,
   actionRow: (...children) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>,
   diffLabel: (field, oldValue, newValue, accessible) => <DiffLabel field={field} oldValue={oldValue} newValue={newValue} accessible={accessible} />,
 } satisfies PendingOperationCardRenderers
@@ -207,8 +205,12 @@ export function PendingOperationCard({
   onConfirmExecute,
   onRevise,
   onRefresh,
+  onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
+  focusTitleOnMount,
+  savedState,
+  onStateChange,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const { t } = useTranslation()
   const { displayTime } = useTimeFormat()
@@ -218,8 +220,12 @@ export function PendingOperationCard({
     onConfirmExecute={onConfirmExecute}
     onRevise={onRevise}
     onRefresh={onRefresh}
+    onOpenTarget={onOpenTarget}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
+    focusTitleOnMount={focusTitleOnMount}
+    savedState={savedState}
+    onStateChange={onStateChange}
     render={pendingOperationRenderers}
     labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
   />

@@ -1,9 +1,9 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ScrollView, Text, TextInput } from 'react-native'
+import { Pressable, ScrollView, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
-import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
@@ -19,6 +19,7 @@ vi.mock('react-native', async (importOriginal) => ({
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en' }, t: (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
+  if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
   return key
 } }) }))
 
@@ -37,7 +38,7 @@ vi.mock('@/components/ui/otp-input', () => ({
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
 }))
 
-function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: RevisePendingOperation, onRefresh?: RefreshPendingOperation) {
+function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: RevisePendingOperation, onRefresh?: RefreshPendingOperation, onOpenTarget?: (entityId: string, actionType: string) => void) {
   const handlers = {
     onConfirmExecute: vi.fn(),
     onPrepareStepUp: vi.fn(),
@@ -45,7 +46,7 @@ function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: R
   }
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} onRevise={onRevise} onRefresh={onRefresh} {...handlers} />)
+    tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} onRevise={onRevise} onRefresh={onRefresh} onOpenTarget={onOpenTarget} {...handlers} />)
   })
   return { tree, handlers }
 }
@@ -489,14 +490,14 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.approve' })).toHaveLength(0)
   })
 
-  it('states risk and requires confirmation before a destructive operation', async () => {
+  it('hides risk and requires confirmation before a destructive operation', async () => {
     const { tree, handlers } = renderCard()
     handlers.onConfirmExecute.mockResolvedValue({
       ok: true,
       response: { operation: { status: 'Succeeded' } },
     })
 
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.risk.destructive')
+    expect(renderedText(tree.toJSON())).not.toContain('chat.operation.risk.destructive')
     expect(renderedText(tree.toJSON())).toContain('chat.operation.irreversible')
     TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
@@ -505,6 +506,47 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
     expect(handlers.onConfirmExecute).toHaveBeenCalledWith('pending-1')
+  })
+
+  it('keeps the completed preview and opens its created habit', async () => {
+    const onOpenTarget = vi.fn()
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const { tree, handlers } = renderCard(pendingOperation, vi.fn(), undefined, onOpenTarget)
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created', targetName: 'Beber água',
+    } } })
+    expect(renderedText(tree.toJSON())).toContain('Beber água')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.edit')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('status.done')
+    expect(tree.root.findAllByType(Pressable).filter((node: import('react-test-renderer').ReactTestInstance) =>
+      node.props.accessibilityLabel === 'Open details: Beber água')).toHaveLength(1)
+    TestRenderer.act(() => press(tree, 'chat.action.open').props.onPress())
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('shows an execution error and lets the same preview retry', async () => {
+    const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
+    handlers.onConfirmExecute.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('status.done')
+    expect(handlers.onConfirmExecute).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a terminal operation failure in the preview with localized status', async () => {
+    const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    expect(renderedText(tree.toJSON())).not.toContain('Habit could not be created.')
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(press(tree, 'chat.operation.approve')).toBeUndefined()
   })
 
   it('finishes a verified step up even when the native dismissal rejects', async () => {

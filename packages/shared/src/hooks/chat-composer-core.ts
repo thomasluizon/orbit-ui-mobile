@@ -13,7 +13,6 @@ import {
 } from '../query/keys'
 import type {
   ActionResult,
-  AgentExecuteOperationResponse,
   AgentPolicyDenial,
 } from '../types/index'
 import {
@@ -62,17 +61,6 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 ])
 
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
-
-/**
- * Resolves the assistant chat line shown after an agent operation runs, from the caller's
- * localized done/failed copy based on the outcome.
- */
-export function buildAgentExecutionMessage(
-  response: AgentExecuteOperationResponse,
-  labels: { done: string; failed: string },
-): string {
-  return response.operation.status === 'Succeeded' ? labels.done : labels.failed
-}
 
 /**
  * Query-key families invalidated after any successful agent operation. Both

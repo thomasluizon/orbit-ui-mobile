@@ -56,7 +56,7 @@ async function runChatAction<T>(action: Promise<ServerActionResult<T>>): Promise
 /**
  * Confirm/execute and step-up verification flows for chat pending operations.
  * Routes through the chat Server Actions and forwards a successful execution to
- * `onExecuted` so the composer can append the resulting message + invalidate.
+ * `onExecuted` so the composer can invalidate affected queries.
  */
 export function useChatPendingOperations(
   onExecuted: (response: AgentExecuteOperationResponse) => Promise<void>,

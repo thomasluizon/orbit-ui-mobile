@@ -1,4 +1,4 @@
-import type { AgentExecuteOperationResponse } from '../types/ai'
+import type { AgentExecuteOperationResponse, AgentOperationResult } from '../types/ai'
 
 export type PendingOperationExecutionResult = {
   ok: boolean
@@ -26,6 +26,8 @@ export interface PendingOperationAuthorizationState {
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
+  completedOperation: AgentOperationResult | undefined
+  canRetry: boolean
   dismissed: boolean
 }
 
@@ -33,8 +35,9 @@ export function createPendingOperationAuthorizationState(
   sourceId: string,
   sourceFingerprint: string | null | undefined,
   authorizationVersion = 0,
+  settled?: Partial<Pick<PendingOperationAuthorizationState, 'status' | 'completedOperation' | 'canRetry' | 'dismissed'>>,
 ): PendingOperationAuthorizationState {
-  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, dismissed: false }
+  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: settled?.status, completedOperation: settled?.completedOperation, canRetry: settled?.canRetry ?? false, dismissed: settled?.dismissed ?? false }
 }
 
 export function matchesPendingOperationAuthorization(
@@ -89,10 +92,11 @@ export function getPendingOperationCardPresentation(
   confirmationRequirement: string,
   busy: boolean,
   status: PendingOperationCardStatus,
+  canRetry = false,
 ): { destructive: boolean; action: 'none' | 'stepUp' | 'buttons'; frameState: 'acting' | 'partiallyFailed' | 'resting' } {
   return {
     destructive: riskClass === 'Destructive',
-    action: status ? 'none' : confirmationRequirement === 'StepUp' ? 'stepUp' : 'buttons',
+    action: status === 'done' || (status === 'failed' && !canRetry) ? 'none' : confirmationRequirement === 'StepUp' ? 'stepUp' : 'buttons',
     frameState: busy ? 'acting' : status === 'failed' ? 'partiallyFailed' : 'resting',
   }
 }

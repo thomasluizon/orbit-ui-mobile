@@ -1,5 +1,5 @@
 import type { PendingAgentOperation } from '../types/ai'
-import { getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
+import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 
 export const PENDING_OPERATION_WEEKDAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
@@ -46,9 +46,13 @@ export interface PendingOperationCardLabels {
   pendingTitle: string
   proposed: string
   notSet: string
+  open: string
+  openNamed: (name: string) => string
+  failed: string
+  denied: string
+  unsupported: string
   diff: (field: string, oldValue: string, newValue: string) => string
   more: (count: number) => string
-  risk: string
   stepUpAction: string
   stepUpMessage: string
 }
@@ -91,7 +95,7 @@ export function buildPendingOperationCardLabels(
     checklistLimit: translate('chat.operation.list.checklistLimit'),
     scheduledLimit: translate('chat.operation.list.scheduledLimit'),
     checked: translate('chat.operation.list.checked'),
-    confirm: translate(capabilityKey?.replace('capability.', 'action.') ?? 'chat.pendingOp.action.applyChanges'),
+    confirm: translate(getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges'),
     reminderWhen: translate('chat.operation.list.when'),
     reminderSameDay: translate('chat.operation.list.sameDay'),
     reminderDayBefore: translate('chat.operation.list.dayBefore'),
@@ -105,9 +109,13 @@ export function buildPendingOperationCardLabels(
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
     notSet: translate('chat.preview.notSet'),
+    open: translate('chat.action.open'),
+    openNamed: (name) => translate('chat.action.openEntity', { name }),
+    failed: translate('chat.operationFailed'),
+    denied: translate('chat.operation.status.Denied'),
+    unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
     diff: (field, oldValue, newValue) => translate('chat.preview.diff', { field, old: oldValue, new: newValue }),
     more: (count) => translate('chat.preview.more', { count }),
-    risk: translate(`chat.operation.risk.${pendingOperation.riskClass.toLowerCase()}`),
     stepUpAction: translate('chat.operation.stepUpAction'),
     stepUpMessage: translate('chat.operation.stepUpMessage'),
   }

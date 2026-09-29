@@ -34,7 +34,6 @@ import {
   consumeChatSseStream,
 } from '@orbit/shared/chat'
 import {
-  buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
   invalidateAgentQueries,
@@ -252,26 +251,11 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     })
   }, [])
 
-  const appendExecutionMessage = useCallback(async (response: AgentExecuteOperationResponse) => {
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'ai',
-      content: buildAgentExecutionMessage(response, {
-        done: t('chat.operationDone'),
-        failed: t('chat.operationFailed'),
-      }),
-      operations: [response.operation],
-      pendingOperations: response.pendingOperation ? [response.pendingOperation] : undefined,
-      policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
-      timestamp: new Date(),
-    })
-
-    scrollToBottom()
-
+  const handleExecutedOperation = useCallback(async (response: AgentExecuteOperationResponse) => {
     if (response.operation.status === 'Succeeded') {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, queryClient, scrollToBottom, t])
+  }, [queryClient])
 
   const {
     revisePendingOperationForBubble,
@@ -279,7 +263,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-  } = useChatPendingOperations(appendExecutionMessage)
+  } = useChatPendingOperations(handleExecutedOperation)
 
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,

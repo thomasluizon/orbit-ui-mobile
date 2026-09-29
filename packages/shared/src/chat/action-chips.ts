@@ -66,7 +66,7 @@ const NON_NAVIGABLE_ACTION_TYPES = new Set([
   'DeleteTag',
 ])
 
-type ActionChipNavigation =
+export type ActionChipNavigation =
   | { navigable: true; entityId: string; actionType: string }
   | { navigable: false }
 
@@ -89,7 +89,7 @@ export interface ActionChipsModel {
   conflicts: ActionChipConflict[]
 }
 
-function getNavigation(action: ActionResult, hasHandler: boolean): ActionChipNavigation {
+export function getActionChipNavigation(action: ActionResult, hasHandler: boolean): ActionChipNavigation {
   if (
     hasHandler &&
     action.status === 'Success' &&
@@ -126,7 +126,7 @@ export function buildActionChipsModel(
         : action.status === 'Failed'
           ? 'failed'
           : undefined,
-      navigation: getNavigation(action, hasHandler),
+      navigation: getActionChipNavigation(action, hasHandler),
     })),
     conflicts: visibleActions.flatMap((action, index) =>
       action.conflictWarning?.hasConflict

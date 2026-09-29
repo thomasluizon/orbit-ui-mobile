@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/types/ai'
+import type { PendingOperationMessageState } from '@orbit/shared/chat'
 import {
   pendingOperationEdits, pendingOperationRevisionRequest,
   createPendingOperationRevisionState, reconcilePendingOperationRevisionState,
@@ -13,17 +14,22 @@ export function usePendingOperationRevision(
   initialOperation: PendingAgentOperation,
   onRevise: RevisePendingOperation | undefined,
   onRefresh?: RefreshPendingOperation,
+  onSettled?: (patch: PendingOperationMessageState) => void,
+  savedState?: PendingOperationMessageState,
 ) {
-  const [revision, setRevision] = useState(() => createPendingOperationRevisionState(initialOperation))
+  const [revision, setRevision] = useState<ReturnType<typeof createPendingOperationRevisionState>>(() => ({
+    ...createPendingOperationRevisionState(initialOperation),
+    editedItemIds: savedState?.editedItemIds ?? [],
+  }))
   const synchronized = reconcilePendingOperationRevisionState(revision, initialOperation)
   if (synchronized !== revision) setRevision(synchronized)
   const { operation, editingItemId, editedItemIds } = synchronized
   const draft = useMemo(() => editingItemId ? synchronized.drafts[editingItemId] ?? {} : {},
     [editingItemId, synchronized.drafts])
   const [busy, setBusy] = useState(false)
-  const [staleFingerprint, setStaleFingerprint] = useState<string>()
-  const [refreshUnavailableFingerprint, setRefreshUnavailableFingerprint] = useState<string>()
-  const [rejectedFingerprint, setRejectedFingerprint] = useState<string>()
+  const [staleFingerprint, setStaleFingerprint] = useState<string | undefined>(savedState?.stale ? initialOperation.previewFingerprint ?? undefined : undefined)
+  const [refreshUnavailableFingerprint, setRefreshUnavailableFingerprint] = useState<string | undefined>(savedState?.refreshUnavailable ? initialOperation.previewFingerprint ?? undefined : undefined)
+  const [rejectedFingerprint, setRejectedFingerprint] = useState<string | undefined>(savedState?.rejected ? initialOperation.previewFingerprint ?? undefined : undefined)
   const [revisionError, setRevisionError] = useState<{ fingerprint: string; message: string }>()
   const stale = Boolean(staleFingerprint && staleFingerprint === operation.previewFingerprint)
   const refreshUnavailable = refreshUnavailableFingerprint === operation.previewFingerprint
@@ -42,16 +48,21 @@ export function usePendingOperationRevision(
       const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits))
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
+        if (response.stale) onSettled?.({ stale: true })
         setRevisionError(response.stale ? undefined : { fingerprint: requestFingerprint, message: response.error })
         return false
       } else if (response.result.cancelled) {
         setRejectedFingerprint(requestFingerprint)
+        onSettled?.({ rejected: true })
         return true
       } else if (response.result.preview) {
         const preview = response.result.preview
+        const next = applyPendingOperationRevisionPreview(synchronized, preview, edits?.itemId)
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
           ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId) : current)
         setStaleFingerprint(undefined)
+        setRefreshUnavailableFingerprint(undefined)
+        onSettled?.({ operation: next.operation, editedItemIds: [...next.editedItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
         return true
       }
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
@@ -62,7 +73,7 @@ export function usePendingOperationRevision(
     } finally {
       setBusy(false)
     }
-  }, [busy, onRevise, operation])
+  }, [busy, onRevise, onSettled, operation, synchronized])
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!onRefresh || busy || !operation.previewFingerprint || refreshUnavailable) return
@@ -72,7 +83,7 @@ export function usePendingOperationRevision(
     try {
       const response = await onRefresh(operation.id)
       if (!response.ok) {
-        if (response.stale) setRefreshUnavailableFingerprint(requestFingerprint)
+        if (response.stale) { setRefreshUnavailableFingerprint(requestFingerprint); onSettled?.({ refreshUnavailable: true }) }
         else setRevisionError({ fingerprint: requestFingerprint, message: response.error })
       } else if (response.result.preview) {
         const preview = response.result.preview
@@ -81,13 +92,15 @@ export function usePendingOperationRevision(
               sourceFingerprint: current.sourceFingerprint,
               authorizationVersion: current.authorizationVersion + 1 } : current)
         setStaleFingerprint(undefined)
+        setRefreshUnavailableFingerprint(undefined)
+        onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
       }
     } catch {
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
     } finally {
       setBusy(false)
     }
-  }, [busy, onRefresh, operation, refreshUnavailable])
+  }, [busy, onRefresh, onSettled, operation, refreshUnavailable])
 
   const startEdit = useCallback((itemId: string) => {
     setRevision((current) => selectPendingOperationRevisionItem(current, itemId))

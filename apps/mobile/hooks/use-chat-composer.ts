@@ -33,7 +33,6 @@ import type {
 } from "@orbit/shared/types";
 import type { Profile } from "@orbit/shared/types/profile";
 import {
-  buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
   invalidateAgentQueries,
@@ -273,30 +272,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     }, 100);
   }, []);
 
-  const appendExecutionMessage = useCallback(
+  const handleExecutedOperation = useCallback(
     async (response: AgentExecuteOperationResponse) => {
-      addMessage({
-        id: createChatMessageId(),
-        role: "ai",
-        content: buildAgentExecutionMessage(response, {
-          done: t("chat.operationDone"),
-          failed: t("chat.operationFailed"),
-        }),
-        operations: [response.operation],
-        pendingOperations: response.pendingOperation
-          ? [response.pendingOperation]
-          : undefined,
-        policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
-        timestamp: new Date(),
-      });
-
-      scrollToBottom();
-
       if (response.operation.status === "Succeeded") {
         await invalidateAgentQueries(queryClient);
       }
     },
-    [addMessage, queryClient, scrollToBottom, t],
+    [queryClient],
   );
 
   useEffect(() => {
@@ -924,7 +906,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-  } = usePendingOperationExecution({ appendExecutionMessage });
+  } = usePendingOperationExecution({ handleExecutedOperation });
 
   const handleBreakdownConfirmed = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });

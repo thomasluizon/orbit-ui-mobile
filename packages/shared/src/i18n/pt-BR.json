@@ -1134,12 +1134,17 @@
       "title": "Você está sem conexão"
     },
     "pendingOp": {
-      "risk": {
-        "high": "Risco alto",
-        "destructive": "Destrutivo",
-        "low": "Risco baixo"
-      },
       "capability": {
+        "habits-write": "Hábitos",
+        "goals-write": "Metas",
+        "tags-write": "Tags",
+        "profile-preferences-write": "Configurações do perfil",
+        "profile-ai-memory-write": "Memória da Astra",
+        "profile-ai-summary-write": "Resumo diário",
+        "notifications-write": "Notificações",
+        "checklist-templates-write": "Modelos de checklist",
+        "referrals-write": "Dados de indicação",
+        "support-write": "Mensagem para suporte",
         "habits-delete": "Excluir hábitos",
         "habits-bulk-write": "Alterações de hábitos em lote",
         "habits-bulk-delete": "Exclusão de hábitos em lote",
@@ -1582,11 +1587,6 @@
       "stepUpMessage": "Confirme a identidade no aparelho antes de continuar.",
       "stepUpAction": "Confirmar identidade",
       "openProfile": "Abrir Perfil",
-      "risk": {
-        "low": "Risco baixo",
-        "destructive": "Destrutivo",
-        "high": "Risco alto"
-      },
       "outcome": {
         "PendingConfirmation": "Aguardando confirmação",
         "Denied": "Não disponível",

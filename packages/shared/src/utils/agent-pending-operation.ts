@@ -1,4 +1,17 @@
-const LOCALIZED_CAPABILITY_IDS = new Set([
+const WRITE_CAPABILITY_IDS = new Set([
+  'habits.write',
+  'goals.write',
+  'tags.write',
+  'profile.preferences.write',
+  'profile.ai-memory.write',
+  'profile.ai-summary.write',
+  'notifications.write',
+  'checklist-templates.write',
+  'referrals.write',
+  'support.write',
+])
+
+const LOCALIZED_ACTION_CAPABILITY_IDS = new Set([
   'habits.delete',
   'habits.bulk.write',
   'habits.bulk.delete',
@@ -12,6 +25,8 @@ const LOCALIZED_CAPABILITY_IDS = new Set([
   'sync.write',
   'account.manage',
 ])
+
+const LOCALIZED_CAPABILITY_IDS = new Set([...WRITE_CAPABILITY_IDS, ...LOCALIZED_ACTION_CAPABILITY_IDS])
 
 const LOCALIZED_POLICY_REASONS = new Set(['confirmation_required', 'step_up_required'])
 
@@ -42,6 +57,12 @@ const OPERATION_LABEL_KEYS: Readonly<Record<string, string>> = {
 export function getAgentCapabilityLabelKey(capabilityId: string): string | null {
   return LOCALIZED_CAPABILITY_IDS.has(capabilityId)
     ? `chat.pendingOp.capability.${capabilityId.replaceAll('.', '-')}`
+    : null
+}
+
+export function getAgentCapabilityActionLabelKey(capabilityId: string): string | null {
+  return LOCALIZED_ACTION_CAPABILITY_IDS.has(capabilityId)
+    ? `chat.pendingOp.action.${capabilityId.replaceAll('.', '-')}`
     : null
 }
 
