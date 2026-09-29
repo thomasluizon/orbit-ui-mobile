@@ -161,7 +161,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(document.cookie).toContain('i18n_locale=pt-BR')
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
   })
 
   it('skips the backend call but still reloads when unauthenticated', async () => {

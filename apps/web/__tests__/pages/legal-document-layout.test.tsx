@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -6,6 +6,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import PrivacyPage from '@/app/(public)/privacy/page'
 import TermsPage from '@/app/(public)/terms/page'
 import PublicLayout from '@/app/(public)/layout'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 const navigation = vi.hoisted(() => ({ pathname: '/privacy' }))
 
@@ -74,6 +75,21 @@ describe.each([
   { locale: 'en', messages: en },
   { locale: 'pt-BR', messages: ptBR },
 ])('legal document layout in $locale', ({ locale, messages }) => {
+  it('shows a queued notice in the public page shell', async () => {
+    navigation.pathname = '/privacy'
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <PublicLayout><PrivacyPage /></PublicLayout>
+      </NextIntlClientProvider>,
+    )
+
+    act(() => { useAppToastStore.getState().showError('Unable to save') })
+    await screen.findByText('Unable to save')
+    expect(container.querySelector('[data-shell-notice] [data-kind="neutral"]'))
+      .toHaveTextContent('Unable to save')
+  })
+
   it.each(cases)('renders $key through the shared measured layout', ({ Page, key, sectionKeys }) => {
     navigation.pathname = `/${key}`
     const document = messages[key] as DocumentMessages

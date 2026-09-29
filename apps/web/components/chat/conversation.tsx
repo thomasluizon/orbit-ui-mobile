@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -45,7 +45,7 @@ type ChatController = Omit<
   'fileInputRef' | 'textFileInputRef' | 'handleFileSelect' | 'handleTextFileSelect'
 >
 
-export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
+export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
@@ -179,6 +179,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       </div>
 
       <div className="shrink-0">
+        {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
         {sendError ? (
           <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad-text)]">
             <p className="m-0">{sendError}</p>

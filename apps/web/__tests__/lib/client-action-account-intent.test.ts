@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import en from '@orbit/shared/i18n/en.json'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
@@ -21,14 +21,13 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => account.generation }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 describe('client account intent', () => {
   beforeEach(() => {
     setAccountEventOrigin(null)
     account.id = 'account-a'
     account.generation = 1
-    vi.mocked(toast.error).mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     setApiFetchTranslate((key) => {
       if (key === 'errors.api.accountChanged') return en.errors.api.accountChanged
       if (key === 'errors.api.appUpdated') return en.errors.api.appUpdated
@@ -58,19 +57,17 @@ describe('client account intent', () => {
   it('shows account-specific reload guidance for an account refusal', () => {
     reportAccountChanged()
 
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.objectContaining({
-      id: 'account-changed',
-      duration: Infinity,
-      action: expect.objectContaining({ label: en.errors.api.reload }),
-    }))
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral', message: en.errors.api.accountChanged, actionLabel: en.errors.api.reload,
+    })
   })
 
   it('reports only account refusals from fire-and-forget actions', () => {
     reportAccountChangedIfNeeded(new Error('network'))
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
 
     reportAccountChangedIfNeeded({ code: 'ACCOUNT_CHANGED' })
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(en.errors.api.accountChanged)
   })
 
   it('reports and stops an account refusal before callers can apply success state', async () => {
@@ -78,7 +75,7 @@ describe('client account intent', () => {
       ok: false, error: 'Account changed', status: 409,
       code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false,
     })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(en.errors.api.accountChanged)
   })
 
   it('offers a reload when the current server does not recognize the action', async () => {
@@ -88,17 +85,15 @@ describe('client account intent', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.appUpdated, expect.objectContaining({
-      id: 'app-updated',
-      duration: Infinity,
-      action: expect.objectContaining({ label: en.errors.api.reload, onClick: expect.any(Function) }),
-    }))
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral', message: en.errors.api.appUpdated, actionLabel: en.errors.api.reload, onAction: expect.any(Function),
+    })
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
   it('leaves network failures for the existing connection error path', async () => {
     const networkError = new TypeError('Failed to fetch')
     await expect(runServerAction(Promise.reject(networkError))).rejects.toBe(networkError)
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
   })
 })

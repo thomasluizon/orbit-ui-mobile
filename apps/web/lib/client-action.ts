@@ -2,7 +2,7 @@
 
 import { createApiClientError } from '@orbit/shared'
 import { unstable_isUnrecognizedActionError } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -35,11 +35,9 @@ export function reportAccountChanged(): void {
   const message = translateApiFetchMessage('errors.api.accountChanged')
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
-  toast.error(message, {
-    id: 'account-changed',
-    duration: Infinity,
-    ...(reloadLabel ? { action: { label: reloadLabel, onClick: () => globalThis.location.reload() } } : {}),
-  })
+  useAppToastStore.getState().showToast(reloadLabel
+    ? { kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload() }
+    : { kind: 'neutral', message })
 }
 
 export function reportAccountChangedIfNeeded(error: unknown): void {
@@ -75,10 +73,8 @@ export async function runServerActionResult<T>(
       const message = translateApiFetchMessage('errors.api.appUpdated')
       const reloadLabel = translateApiFetchMessage('errors.api.reload')
       if (message && reloadLabel) {
-        toast.error(message, {
-          id: 'app-updated',
-          duration: Infinity,
-          action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
+        useAppToastStore.getState().showToast({
+          kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload(),
         })
         return new Promise<ServerActionResult<T>>(() => {})
       }

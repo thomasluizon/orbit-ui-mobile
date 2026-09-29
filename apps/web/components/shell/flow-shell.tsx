@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { ShellScrollerProvider } from './shell-scroller-context'
 import { ShellWide } from './shell-wide'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 
 type FlowShellMode = 'card' | 'detail' | 'document' | 'full' | 'onboarding'
 
@@ -45,6 +46,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
           className="h-dvh min-h-dvh w-full overflow-hidden"
         >
           {children}
+          <AppToastHost placement="page" />
         </div>
       </ShellScrollerProvider>
     )
@@ -79,7 +81,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
     : header
 
   return (
-    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={notice}>
+    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={<>{notice}<AppToastHost /></>}>
       {content}
     </ShellWide>
   )
