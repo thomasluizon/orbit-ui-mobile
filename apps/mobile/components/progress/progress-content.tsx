@@ -491,6 +491,9 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const columns = width >= 768 ? 4 : 2
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+      <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
+        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
+      </View>
       <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 4 / columns }, (_, row) => (
           <View key={row} style={styles.loadingTileRow}>
@@ -571,7 +574,7 @@ export function ProgressContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },

@@ -585,6 +585,7 @@ describe('mobile ProgressContent', () => {
     expect(announcements[0]?.props).toMatchObject({ accessible: true, accessibilityLabel: 'progressScreen.loading', accessibilityState: { busy: true } })
     const units = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('skeleton-unit-'))
     expect(units.map((unit) => unit.props.testID)).toEqual([
+      'skeleton-unit-settings', 'skeleton-unit-settings',
       'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile',
       'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
     ])
