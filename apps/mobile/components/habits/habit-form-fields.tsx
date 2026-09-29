@@ -17,6 +17,7 @@ import {
   formatLocaleDate,
   getFriendlyErrorMessage,
   habitFeaturePlan,
+  isHabitDailySchedule,
   isFeatureEnabled,
   isHabitAstraLimitReached,
   readHabitPhrase,
@@ -329,6 +330,7 @@ export function HabitFormFields({
     () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
     [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
   )
+  const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const astraFallbackCopy = useMemo(
@@ -414,7 +416,7 @@ export function HabitFormFields({
         onQuantityChange={controller.setQuantity}
         onModeChange={controller.setScheduleMode}
         onIntervalWeeksChange={controller.setIntervalWeeks}
-        onToggleDay={controller.toggleDay}
+        onToggleDay={(day) => controller.toggleDay(day, daily)}
         onEmojiSelect={controller.setEmoji}
         onSuggestEmoji={onSuggestEmoji}
         isSuggestingEmoji={isSuggestingEmoji}
@@ -429,6 +431,7 @@ export function HabitFormFields({
         intervalWeeks={intervalWeeks}
         dayOptions={daysList}
         days={days}
+        daily={daily}
         emoji={emoji}
         error={errors.title?.message}
         value={title}

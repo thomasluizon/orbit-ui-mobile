@@ -59,6 +59,7 @@ const state = vi.hoisted(() => ({
   routerPush: vi.fn(),
   routeParams: {},
   setShowCreateModal: vi.fn(),
+  setCalendarHasError: vi.fn(),
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
@@ -92,7 +93,7 @@ vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
 
 vi.mock("@/stores/ui-store", () => ({
   useUIStore: (selector: (value: Record<string, unknown>) => unknown) =>
-    selector({ setShowCreateModal: state.setShowCreateModal }),
+    selector({ setShowCreateModal: state.setShowCreateModal, setCalendarHasError: state.setCalendarHasError }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -370,6 +371,7 @@ describe("CalendarScreen views (mobile)", () => {
     calendarStatsProps.current = null;
     state.routerPush.mockClear();
     state.setShowCreateModal.mockClear();
+    state.setCalendarHasError.mockClear();
     const todayStr = getMockAccountDateKey();
     state.monthMap = new Map();
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
@@ -1302,6 +1304,7 @@ describe("CalendarScreen views (mobile)", () => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
+    expect(state.setCalendarHasError).toHaveBeenCalledWith(true);
     expect(hostTexts(tree!)).toContain("calendar.loadError");
 
     const retryButtons = tree!.root.findAll(

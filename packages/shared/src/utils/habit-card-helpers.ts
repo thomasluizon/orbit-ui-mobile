@@ -74,6 +74,10 @@ export function computeHabitFrequencyLabel(
       unit: t(`habits.form.unit${frequencyUnit}`),
     })
   }
+  if (frequencyUnit === 'Day' && frequencyQuantity === 1 &&
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    return t('habits.frequency.everyDay')
+  }
   if (frequencyQuantity === 1 && days.length > 0) {
     return days
       .map((day) => t(`dates.daysShort.${day.toLowerCase()}`))

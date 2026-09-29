@@ -30,11 +30,6 @@ export function clearContextualSuggestionIfCurrent(chat: ContextualChat, id: str
   if (chat.contextualSuggestion?.id === id) chat.setContextualSuggestion(null)
 }
 
-export function publishContextualSuggestion(getChat: () => ContextualChat, suggestion: ContextualSuggestion): () => void {
-  getChat().setContextualSuggestion(suggestion)
-  return () => clearContextualSuggestionIfCurrent(getChat(), suggestion.id)
-}
-
 export function prepareChatRequest(
   chat: Pick<ChatStoreState, 'draft' | 'setDraft' | 'setContextualSuggestion'>,
   request: ContextualSuggestion,

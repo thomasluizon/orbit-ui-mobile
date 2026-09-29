@@ -28,7 +28,7 @@ vi.mock('next/dynamic', () => ({
 }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   DestinationShell: ({ children, onCreate, notice, createRefusal }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode }) => (
     <><button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-testid="notice-slot">{notice}</div>{children}</>

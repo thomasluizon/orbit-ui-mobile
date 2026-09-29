@@ -51,18 +51,32 @@ describe('Composer', () => {
     expect(within(group).getAllByRole('button')).toHaveLength(3)
   })
 
+  it('renders no chip row for an empty suggestion list', () => {
+    render(<Composer {...props({ suggestions: [] })} />)
+    expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
+  })
+
   it('renders six suggestions', () => {
     render(<Composer {...props({ suggestions: suggestions(6) })} />)
     expect(screen.getAllByText(/chip sentinel/)).toHaveLength(6)
   })
 
+  it('keeps focus in the composer when a selected chip disappears', () => {
+    const chips = suggestions(3)
+    const view = render(<Composer {...props({ suggestions: chips })} />)
+    fireEvent.click(screen.getByRole('button', { name: chips[0]!.label }))
+    expect(document.activeElement).toHaveAttribute('data-composer-root')
+    view.rerender(<Composer {...props({ suggestions: chips, state: 'sending' })} />)
+    expect(document.activeElement).toHaveAttribute('data-composer-root')
+  })
+
   it('selects only the pressed suggestion', () => {
     const chips = suggestions(3)
     render(<Composer {...props({ suggestions: chips })} />)
-    fireEvent.click(screen.getByRole('button', { name: chips[1].label }))
-    expect(chips[1].onSelect).toHaveBeenCalledOnce()
-    expect(chips[0].onSelect).not.toHaveBeenCalled()
-    expect(chips[2].onSelect).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: chips[1]!.label }))
+    expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
+    expect(chips[0]!.onSelect).not.toHaveBeenCalled()
+    expect(chips[2]!.onSelect).not.toHaveBeenCalled()
   })
 
   it('reports input changes', () => {
@@ -185,11 +199,11 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('disables input and send while keeping suggestions during sending', () => {
+  it('disables input and send and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
     expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
-    expect(screen.getByRole('group', { name: words.suggestionsLabel })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
   })
 
   it('renders only the limit reason above disabled controls without an accent send', () => {

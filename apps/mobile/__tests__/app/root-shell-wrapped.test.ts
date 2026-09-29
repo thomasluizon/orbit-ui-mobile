@@ -120,7 +120,8 @@ vi.mock('@/stores/referral-prompt-store', () => ({
       armReviewPrompt: vi.fn(),
     }),
 }))
-vi.mock('@orbit/shared/stores', () => ({
+vi.mock('@orbit/shared/stores', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/stores')>()),
   MARKETING_CONSENT_MILESTONE_KEY: 'marketing-consent',
   getMilestoneShareAchievementKey: vi.fn(),
   getMilestoneShareStreakKey: vi.fn(),

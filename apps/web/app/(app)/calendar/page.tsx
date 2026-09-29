@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef, Suspense, type Dispatch, type SetStateAction, type ReactNode } from 'react'
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, Suspense, type Dispatch, type SetStateAction, type ReactNode } from 'react'
 import {
   addMonths,
   addDays,
@@ -341,6 +341,7 @@ function CalendarPageContent({
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const setCalendarHasError = useUIStore((state) => state.setCalendarHasError)
   const { isOnline } = useOffline()
   const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
   useEffect(() => { if (isOnline) setShowCreateRefusal(false) }, [isOnline, setShowCreateRefusal])
@@ -529,6 +530,11 @@ function CalendarPageContent({
           error: rangeError,
           refresh: rangeRefresh,
         }
+
+  useLayoutEffect(() => {
+    setCalendarHasError(Boolean(activeError))
+    return () => setCalendarHasError(false)
+  }, [activeError, setCalendarHasError])
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')

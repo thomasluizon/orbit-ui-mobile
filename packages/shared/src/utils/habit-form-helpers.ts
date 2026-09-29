@@ -146,6 +146,28 @@ export interface HabitDayOption {
   accessibleLabel: string
 }
 
+export function isHabitDailySchedule(
+  days: readonly string[],
+  isFlexible: boolean,
+  frequencyUnit: FrequencyUnit | null | undefined,
+  frequencyQuantity: number | null,
+): boolean {
+  return days.length === 0 && !isFlexible && frequencyUnit === 'Day' && frequencyQuantity === 1
+}
+
+export function toggleHabitDaySelection(
+  days: readonly string[],
+  day: string,
+  allDays: readonly string[],
+  daily: boolean,
+): string[] {
+  const selected = daily ? allDays : days
+  const next = selected.includes(day)
+    ? selected.filter((selectedDay) => selectedDay !== day)
+    : [...selected, day]
+  return next.length === allDays.length ? [] : next
+}
+
 export interface HabitFormProposal {
   setup: boolean
   checklist: boolean
@@ -217,6 +239,7 @@ export interface HabitUnderstandingProps {
   error?: string
   emoji: string
   days: string[]
+  daily?: boolean
   dayOptions: HabitDayOption[]
   quantity: number
   mode: 'fixed' | 'flexible'
@@ -318,7 +341,7 @@ interface HabitFormControllerTarget {
   updateProposal: (update: (proposal: HabitFormProposal) => HabitFormProposal) => void
   hasSchedule?: () => boolean
   setField: <Field extends HabitControllerField>(field: Field, value: HabitFormData[Field], validate?: boolean) => void
-  toggleDay: (day: string) => void
+  toggleDay: (day: string, daily?: boolean) => void
 }
 
 export interface HabitFormControllerOptions {
@@ -348,7 +371,7 @@ export interface HabitFormController {
   setEmoji: (emoji: string) => void
   setScheduleMode: (mode: 'fixed' | 'flexible') => void
   setIntervalWeeks: (intervalWeeks: number) => void
-  toggleDay: (day: string) => void
+  toggleDay: (day: string, daily?: boolean) => void
   setQuantity: (quantity: number) => void
 }
 
@@ -421,10 +444,10 @@ export function createHabitFormController({
       resolveSection('setup')
       target.setField('emoji', emoji)
     },
-    toggleDay: (day: string): void => {
+    toggleDay: (day: string, daily = false): void => {
       resolveSection('setup')
       releaseOwnership('cadence')
-      if (applyHabitDayCorrection(lockedGeneral, target)) target.toggleDay(day)
+      if (applyHabitDayCorrection(lockedGeneral, target)) target.toggleDay(day, daily)
     },
     setQuantity: (quantity: number): void => {
       resolveSection('setup')
@@ -521,9 +544,7 @@ export function applyHabitPhraseRead(
   target.setRecurring()
   target.setField('frequencyUnit', 'Day')
   target.setField('frequencyQuantity', 1)
-  target.setField('days', read.cadence === 'daily'
-    ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    : read.days)
+  target.setField('days', read.days)
   return nextOwnership
 }
 
@@ -616,7 +637,10 @@ export function buildHabitUnderstandingSentence(
   const intervalKey = isFlexible
     ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
     : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
-  if (days.length > 0) {
+  if (!isFlexible && frequencyUnit === 'Day' && quantity === 1 &&
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    key = 'habits.form.understoodDaily'
+  } else if (days.length > 0) {
     const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
     const listLocale = locale === 'en' ? 'en-GB' : locale
     key = labels.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
@@ -624,8 +648,6 @@ export function buildHabitUnderstandingSentence(
       style: 'long',
       type: 'conjunction',
     }).format(labels)
-  } else if (!isFlexible && frequencyUnit === 'Day' && quantity === 1) {
-    key = 'habits.form.understoodDaily'
   } else if (intervalKey) {
     key = intervalKey
     values.count = quantity

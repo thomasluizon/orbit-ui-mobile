@@ -19,6 +19,7 @@ import {
   formatLocaleDate,
   getFriendlyErrorMessage,
   habitFeaturePlan,
+  isHabitDailySchedule,
   isFeatureEnabled,
   isHabitAstraLimitReached,
   readHabitPhrase,
@@ -302,6 +303,7 @@ export function HabitFormFields({
     () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
     [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
   )
+  const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
@@ -385,6 +387,7 @@ export function HabitFormFields({
         error={errors.title?.message}
         emoji={emoji}
         days={days}
+        daily={daily}
         dayOptions={daysList}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
@@ -400,7 +403,7 @@ export function HabitFormFields({
         onSuggestEmoji={onSuggestEmoji}
         isSuggestingEmoji={isSuggestingEmoji}
         isSuggestionDisabled={isSuggesting || isSuggestingEmoji}
-        onToggleDay={controller.toggleDay}
+        onToggleDay={(day) => controller.toggleDay(day, daily)}
         onQuantityChange={controller.setQuantity}
         onModeChange={controller.setScheduleMode}
         onIntervalWeeksChange={controller.setIntervalWeeks}

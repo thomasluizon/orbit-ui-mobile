@@ -1,4 +1,4 @@
-export { hasComposerContent } from './Composer'
+export { hasComposerContent, toComposerSuggestions } from './Composer'
 export type {
   ComposerAttachWords,
   ComposerAttachment,

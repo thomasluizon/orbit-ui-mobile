@@ -2,7 +2,6 @@ export {
   clearContextualSuggestionIfCurrent,
   createChatStoreState,
   prepareChatRequest,
-  publishContextualSuggestion,
   type ChatStoreState,
 } from './chat-store'
 export {

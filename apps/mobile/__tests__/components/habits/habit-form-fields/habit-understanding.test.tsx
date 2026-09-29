@@ -25,6 +25,7 @@ interface TestNode {
 
 interface TestTree {
   root: TestNode;
+  update(element: React.ReactNode): void;
 }
 
 interface TestRendererApi {
@@ -94,7 +95,31 @@ function button(tree: TestTree, label: string): TestNode {
   )[0]!;
 }
 
+function daySelected(tree: TestTree, label: string): boolean {
+  return (button(tree, label).props.accessibilityState as { selected: boolean }).selected;
+}
+
 describe("HabitUnderstanding mobile", () => {
+  it("shows every weekday selected for a daily phrase", () => {
+    const dayOptions = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+      .map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value }));
+    const { tree, props } = renderUnderstanding({
+      value: "Read every day at 21h",
+      days: [],
+      dayOptions,
+      daily: true,
+      sentence: "Every day at 21:00",
+    });
+
+    expect(dayOptions.every((day) => daySelected(tree, day.value))).toBe(true);
+    const sixDays = dayOptions.map((day) => day.value).filter((day) => day !== "Monday");
+    TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} days={sixDays} daily={false} />));
+    expect(daySelected(tree, "Monday")).toBe(false);
+    expect(dayOptions.slice(1).every((day) => daySelected(tree, day.value))).toBe(true);
+    TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} days={[]} daily />));
+    expect(dayOptions.every((day) => daySelected(tree, day.value))).toBe(true);
+  });
+
   it("shows the mirrored placeholder and forwards text entry while empty", () => {
     const { tree, props } = renderUnderstanding();
     expect(

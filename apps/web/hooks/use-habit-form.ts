@@ -15,6 +15,7 @@ import {
   buildHabitFrequencyUnits,
   formatHabitTimeInput,
   getHabitFormFlags,
+  toggleHabitDaySelection,
   normalizeHabitFormData,
   translateErrorKey,
   validateHabitFormInput,
@@ -36,7 +37,7 @@ export interface HabitFormHelpers {
   showDayPicker: boolean
   showEndDate: boolean
   daysList: HabitDayOption[]
-  toggleDay: (day: string) => void
+  toggleDay: (day: string, daily?: boolean) => void
   frequencyUnits: { value: FrequencyUnit; label: string }[]
   setOneTime: () => void
   setRecurring: () => void
@@ -129,21 +130,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   )
 
   const toggleDay = useCallback(
-    (day: string) => {
+    (day: string, daily = false) => {
       const current = form.getValues('days') ?? []
-      const idx = current.indexOf(day)
-      if (idx >= 0) {
-        form.setValue(
-          'days',
-          current.filter((selectedDay) => selectedDay !== day),
-          { shouldDirty: true },
-        )
-        return
-      }
-
-      form.setValue('days', [...current, day], { shouldDirty: true })
+      form.setValue('days', toggleHabitDaySelection(current, day, daysList.map((option) => option.value), daily), { shouldDirty: true })
     },
-    [form],
+    [daysList, form],
   )
 
   const setOneTime = useCallback(() => {

@@ -32,7 +32,6 @@ const mocks = vi.hoisted(() => ({
     speechSupported: false,
     toggleRecording: vi.fn(),
     recordingTime: '0:00',
-    starterChips: [],
     aiMessagesUsed: 0,
     aiMessagesLimit: 20,
     canSend: false,
