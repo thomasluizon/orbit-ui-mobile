@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ApiClientError } from '@orbit/shared'
 import {
   getPushStatusToneClass,
   getWebPushStatusMessageKey,
@@ -117,12 +118,12 @@ export async function loadPushNotificationState(): Promise<PushPreferenceSnapsho
  */
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  intendedAccountId: string | null = getHeldAccountId(),
 ): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
 
-  const intendedAccountId = getHeldAccountId()
   const permission =
     Notification.permission === 'granted'
       ? 'granted'
@@ -135,12 +136,12 @@ export async function subscribeToPushNotifications(
   const registration = await navigator.serviceWorker.ready
   const existingSubscription = await registration.pushManager.getSubscription()
 
-  if (existingSubscription) {
-    await existingSubscription.unsubscribe()
-  }
-
   if (!vapidKey) {
     throw new Error('Missing VAPID public key')
+  }
+
+  if (existingSubscription) {
+    await existingSubscription.unsubscribe()
   }
 
   const subscription = await registration.pushManager.subscribe({
@@ -173,10 +174,17 @@ export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> 
   const existingSubscription = await registration.pushManager.getSubscription()
 
   if (!existingSubscription) {
-    return subscribeToPushNotifications()
+    return subscribeToPushNotifications(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, intendedAccountId)
   }
 
-  await subscribePushAction(existingSubscription.toJSON(), intendedAccountId)
+  try {
+    await subscribePushAction(existingSubscription.toJSON(), intendedAccountId)
+  } catch (error) {
+    if (error instanceof ApiClientError && error.code === 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER') {
+      return subscribeToPushNotifications(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, intendedAccountId)
+    }
+    throw error
+  }
   return createSnapshot('granted', true)
 }
 

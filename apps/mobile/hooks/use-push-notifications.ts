@@ -66,6 +66,7 @@ interface ExpoNotificationsModule {
   requestPermissionsAsync: () => Promise<NotificationPermissionsResponse>
   getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
   getDevicePushTokenAsync: () => Promise<{ type?: string; data: string }>
+  unregisterForNotificationsAsync: () => Promise<void>
   getLastNotificationResponse: () => ExpoNotificationResponse | null
   clearLastNotificationResponse: () => void
   addNotificationResponseReceivedListener: (
@@ -141,6 +142,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'requestPermissionsAsync') &&
     hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
+    hasFunctionProperty(value, 'unregisterForNotificationsAsync') &&
     hasFunctionProperty(value, 'getLastNotificationResponse') &&
     hasFunctionProperty(value, 'clearLastNotificationResponse') &&
     hasFunctionProperty(value, 'addNotificationReceivedListener') &&
@@ -273,6 +275,21 @@ async function sendTokenToBackend(token: string, isCurrent: () => boolean): Prom
   })
 }
 
+async function replaceForeignPushToken(
+  token: string,
+  userId: string | null,
+  stillCurrent: () => boolean,
+  ownershipError: Error,
+): Promise<string | null> {
+  if (!ownsPushRegistration(userId, stillCurrent) || !notificationsModule) return null
+  await notificationsModule.unregisterForNotificationsAsync()
+  if (!ownsPushRegistration(userId, stillCurrent)) return null
+  const replacementToken = await getCurrentPushToken()
+  if (!replacementToken || replacementToken === token) throw ownershipError
+  await sendTokenToBackend(replacementToken, stillCurrent)
+  return replacementToken
+}
+
 async function removeTokenFromBackend(token: string): Promise<void> {
   await apiClient(API.notifications.unsubscribe, {
     method: 'POST',
@@ -342,8 +359,20 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
 
   const syncRegistrationToken = useCallback(async (token: string, stillCurrent: () => boolean): Promise<boolean> => {
     try {
-      await sendTokenToBackend(token, stillCurrent)
+      let registeredToken = token
+      try {
+        await sendTokenToBackend(token, stillCurrent)
+      } catch (error) {
+        if (!(error instanceof Error) || !('code' in error)
+          || error.code !== 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER') {
+          throw error
+        }
+        const replacementToken = await replaceForeignPushToken(token, userId, stillCurrent, error)
+        if (!replacementToken) return false
+        registeredToken = replacementToken
+      }
       if (!ownsPushRegistration(userId, stillCurrent)) return false
+      setExpoPushToken(registeredToken)
       await writeDisabledPreference(false)
       if (!stillCurrent()) return false
       setRegistrationStatus('registered')

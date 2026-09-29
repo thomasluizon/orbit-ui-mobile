@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { createApiClientError } from '@orbit/shared'
 
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
@@ -21,7 +22,7 @@ import {
 
 interface MockPushSubscription {
   endpoint: string
-  toJSON: () => { keys: { p256dh: string; auth: string } }
+  toJSON: () => PushSubscriptionJSON
   unsubscribe: ReturnType<typeof vi.fn>
 }
 
@@ -39,6 +40,7 @@ function createMockSubscription(endpoint = 'https://example.com/push'): MockPush
   return {
     endpoint,
     toJSON: () => ({
+      endpoint,
       keys: {
         p256dh: 'p256dh-key',
         auth: 'auth-key',
@@ -246,6 +248,32 @@ describe('use-push-notification-preferences helpers', () => {
     expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
     expect(subscribe).not.toHaveBeenCalled()
     expect(mockSubscribePush).toHaveBeenCalledWith(existingSubscription.toJSON(), null)
+    expect(result.status).toBe('registered')
+  })
+
+  it('replaces an endpoint owned by another account before registering this browser', async () => {
+    const previousSubscription = createMockSubscription('https://example.com/account-a')
+    const currentSubscription = createMockSubscription('https://example.com/account-b')
+    const { subscribe } = setupPushEnvironment({
+      permission: 'granted',
+      existingSubscription: previousSubscription,
+      subscribeResult: currentSubscription,
+    })
+    mockSubscribePush
+      .mockRejectedValueOnce(createApiClientError(400, {
+        error: 'Push subscription endpoint is already registered to a different user.',
+        errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER',
+      }, 'Failed with status 400'))
+      .mockResolvedValueOnce(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(mockSubscribePush).toHaveBeenNthCalledWith(1,
+      expect.objectContaining({ endpoint: 'https://example.com/account-a' }), null)
+    expect(previousSubscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(subscribe).toHaveBeenCalledTimes(1)
+    expect(mockSubscribePush).toHaveBeenNthCalledWith(2,
+      expect.objectContaining({ endpoint: 'https://example.com/account-b' }), null)
     expect(result.status).toBe('registered')
   })
 
