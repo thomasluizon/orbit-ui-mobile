@@ -932,7 +932,8 @@
       "quickAction": {
         "daily": "Todo dia",
         "weekly": "Toda semana",
-        "threePerWeek": "3 vezes por semana"
+        "threePerWeek": "3 vezes por semana",
+        "oneTime": "Uma vez"
       },
       "successCreated": "''{name}'' criado",
       "errorExpired": "Esta pergunta expirou. Pode perguntar de novo.",

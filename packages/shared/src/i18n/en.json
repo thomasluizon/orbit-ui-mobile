@@ -932,7 +932,8 @@
       "quickAction": {
         "daily": "Daily",
         "weekly": "Weekly",
-        "threePerWeek": "3 times per week"
+        "threePerWeek": "3 times per week",
+        "oneTime": "Once"
       },
       "successCreated": "Created ''{name}''",
       "errorExpired": "This clarification expired. Please ask again.",
