@@ -39,7 +39,7 @@ export const sheetTestControls = {
  * a test cannot assert a prop the real sheet does not take. Import it through
  * `vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))`.
  */
-export function Sheet({ title, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
+export function Sheet({ title, accessibleTitle, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
   const [presented, setPresented] = useState(true)
   const requestClose = useCallback(
     (exitAction?: () => void) => {
@@ -65,7 +65,7 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
   return (
     <div
       role="dialog"
-      aria-label={title}
+      aria-label={title ?? accessibleTitle}
       aria-hidden={presented ? undefined : true}
       data-testid="sheet"
     >

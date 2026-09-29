@@ -496,14 +496,13 @@
     },
     "reschedule": {
       "title": "Reschedule with AI",
-      "loading": "Finding a realistic new plan…",
-      "error": "Couldn't suggest a new plan.",
+      "loading": "Looking for a realistic plan.",
+      "error": "No plan could be suggested.",
       "retry": "Try again",
-      "accept": "Use plan",
+      "accept": "Use this plan",
       "dismiss": "Not now",
-      "proposedScheduleLabel": "Suggested schedule",
-      "freePrompt": "Pro turns a missed habit into a realistic plan to get back on track.",
-      "upgrade": "Upgrade"
+      "freePrompt": "With Pro, Astra turns a missed habit into a realistic plan.",
+      "upgrade": "See Pro"
     },
     "backToHabits": "All habits",
     "completed": "completed",

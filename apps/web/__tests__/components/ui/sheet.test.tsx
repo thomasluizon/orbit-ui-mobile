@@ -10,6 +10,11 @@ import { useUIStore } from '@/stores/ui-store'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Sheet', () => {
+  it('uses an accessible title without showing a visible heading', () => {
+    render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)
+    expect(screen.getByRole('dialog', { name: 'Reschedule with AI' })).toBeInTheDocument()
+    expect(screen.getByText('Reschedule with AI')).toHaveClass('sr-only')
+  })
   it('registers while open and releases its overlay slot on unmount', () => {
     useUIStore.setState({ openOverlayIds: [] })
     const { unmount } = render(<Sheet open title="Options" />)

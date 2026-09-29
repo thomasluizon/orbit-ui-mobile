@@ -496,14 +496,13 @@
     },
     "reschedule": {
       "title": "Reagendar com IA",
-      "loading": "Buscando um novo plano realista…",
-      "error": "Não foi possível sugerir um novo plano.",
+      "loading": "Procurando um plano realista.",
+      "error": "Nenhum plano pôde ser sugerido.",
       "retry": "Tentar novamente",
-      "accept": "Usar plano",
+      "accept": "Usar este plano",
       "dismiss": "Agora não",
-      "proposedScheduleLabel": "Agenda sugerida",
-      "freePrompt": "O Pro transforma um hábito perdido em um plano realista para voltar aos trilhos.",
-      "upgrade": "Fazer upgrade"
+      "freePrompt": "Com o Pro, a Astra transforma um hábito atrasado em um plano realista.",
+      "upgrade": "Conhecer o Pro"
     },
     "backToHabits": "Hábitos",
     "completed": "concluídos",

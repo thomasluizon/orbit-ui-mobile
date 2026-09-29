@@ -15,7 +15,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
@@ -43,6 +43,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const { displayTime } = useTimeFormat()
   const updateHabit = useUpdateHabit()
   const { showError } = useAppToast()
+  const wide = useIsWideDesktop()
 
   const hasProAccess = profile?.hasProAccess ?? false
   const locale = profile?.language ?? uiLocale
@@ -54,18 +55,22 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     enabled: open && hasProAccess && isOverdue,
   })
 
+  const handleClosed = useCallback(() => {
+    onOpenChange(false)
+  }, [onOpenChange])
+
   const handleAccept = useCallback(async () => {
     if (!habit || !suggestion) return
     const request = buildRescheduleUpdateRequest(habit, suggestion)
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-      closeSheet(() => onOpenChange(false))
+      closeSheet(handleClosed)
     } catch (mutationError: unknown) {
       showError(
         getFriendlyErrorMessage(mutationError, (key, values) => t(key, values), 'errors.updateHabit', 'habit'),
       )
     }
-  }, [closeSheet, habit, suggestion, updateHabit, onOpenChange, showError, t])
+  }, [closeSheet, handleClosed, habit, suggestion, updateHabit, showError, t])
 
   const scheduleLabel = suggestion
     ? computeHabitFrequencyLabel(
@@ -81,62 +86,66 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     : ''
   const dateLabel = suggestion
     ? formatLocaleDate(new Date(`${suggestion.dueDate}T00:00:00`), locale, {
-        month: 'short',
+        weekday: 'short',
         day: 'numeric',
-        year: 'numeric',
+        month: 'short',
       })
     : ''
   const timeLabel = suggestion?.dueTime ? displayTime(suggestion.dueTime) : null
 
   function renderFooter() {
+    if (hasProAccess && isLoading) return null
+    const filledVariant = wide ? 'secondary' : 'primary'
     if (!hasProAccess) {
       return (
-        <DialogActionPair>
+        <>
+          <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
+            {t('habits.reschedule.dismiss')}
+          </PillButton>
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
           <PillButton
-            matchedWidth
+            variant={filledVariant}
+            size="sm"
             onClick={() =>
               closeSheet(() => {
-                onOpenChange(false)
+                handleClosed()
                 router.push('/upgrade')
               })
             }
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-            {t('habits.reschedule.dismiss')}
-          </PillButton>
-        </DialogActionPair>
+        </>
       )
     }
     if (error) {
       return (
-        <DialogActionPair>
-          <PillButton matchedWidth onClick={() => void refetch()}>
-            {t('habits.reschedule.retry')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={() => onOpenChange(false)}>
+        <>
+          <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </DialogActionPair>
+          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
+            {t('habits.reschedule.retry')}
+          </PillButton>
+        </>
       )
     }
     return (
-      <DialogActionPair>
+      <>
+        <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => closeSheet()}>
+          {t('habits.reschedule.dismiss')}
+        </PillButton>
+        {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
         <PillButton
-          matchedWidth
-
-          disabled={!suggestion || updateHabit.isPending}
-
-
+          variant={filledVariant}
+          size="sm"
+          disabled={!suggestion}
+          loading={updateHabit.isPending}
           onClick={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-        <PillButton variant="ghost" matchedWidth disabled={updateHabit.isPending} onClick={() => onOpenChange(false)}>
-          {t('habits.reschedule.dismiss')}
-        </PillButton>
-      </DialogActionPair>
+      </>
     )
   }
 
@@ -145,7 +154,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <p
           data-testid="reschedule-free-prompt"
-          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}
         >
           {t('habits.reschedule.freePrompt')}
         </p>
@@ -154,10 +163,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (isLoading) {
       return (
         <div className="flex flex-col" style={{ gap: 12 }}>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
             {t('habits.reschedule.loading')}
           </p>
-          <div data-testid="reschedule-loading-skeleton"><Skeleton variant="settings" label={t('habits.reschedule.loading')} /></div>
+          <div data-testid="reschedule-loading-skeleton" className="flex flex-col" style={{ gap: 8 }}>
+            <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
+            <Skeleton variant="habit-row" grouped />
+          </div>
         </div>
       )
     }
@@ -165,7 +177,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <p
           data-testid="reschedule-error"
-          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}
         >
           {t('habits.reschedule.error')}
         </p>
@@ -174,7 +186,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (suggestion) {
       return (
         <RescheduleProposal
-          proposedLabel={t('habits.reschedule.proposedScheduleLabel')}
+          proposedLabel={t('habits.form.proposedByAstra')}
           dateLabel={dateLabel}
           timeLabel={timeLabel}
           scheduleLabel={scheduleLabel}
@@ -190,26 +202,23 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     open ? (<Sheet
       ref={sheetRef}
       open
-      onClose={() => onOpenChange(false)}
-      title={t('habits.reschedule.title')}
+      onClose={handleClosed}
+      accessibleTitle={t('habits.reschedule.title')}
       actions={renderFooter()}
     >
-      <div className="stagger-enter">
-        <div className="flex items-center" style={{ gap: 8, marginBottom: 12 }}>
-          <AstraGlyph size={20} color="var(--fg-3)" />
+      <div className="flex flex-col pb-2" style={{ gap: 16 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <AstraGlyph size={20} color="var(--fg-1)" />
           <span
+            translate="no"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 12,
               fontWeight: 500,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color: 'var(--fg-2)',
             }}
           >
             Astra
           </span>
-          <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
+          <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </div>
 
         {renderBody()}
