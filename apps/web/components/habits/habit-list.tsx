@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -76,6 +76,8 @@ import {
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useUIStore } from '@/stores/ui-store'
 
 const CreateHabitModal = dynamic(() =>
@@ -136,6 +138,7 @@ interface HabitListProps {
   onToggleSelection?: (habitId: string) => void
   onEnterSelectMode?: (habitId: string) => void
   onCreate?: () => void
+  createRefusal?: boolean
   onSeeUpcoming?: () => void
   /** Notified whenever the all-collapsed status changes. Used by parent
    * components that need to surface this in render (e.g., a controls menu). */
@@ -306,11 +309,13 @@ export function HabitList({
   onToggleSelection,
   onEnterSelectMode,
   onCreate,
+  createRefusal,
   onSeeUpcoming,
   onAllCollapsedChange,
   onSurfaceOpenChange,
 }: Readonly<HabitListProps>) {
   const t = useTranslations()
+  const { isOnline } = useOffline()
   const router = useRouter()
   const { profile } = useProfile()
   const todayStr = useToday(profile?.timeZone)
@@ -680,6 +685,8 @@ export function HabitList({
   const [habitToEdit, setHabitToEdit] = useAccountScopedState<NormalizedHabit | null>(null)
   const [editModalOnSaved, setEditModalOnSaved] = useAccountScopedState<(() => void | Promise<void>) | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useAccountScopedState(false)
+  const [refusedSubHabitParentId, setRefusedSubHabitParentId] = useAccountScopedState<string | null>(null)
+  useEffect(() => { if (isOnline) setRefusedSubHabitParentId(null) }, [isOnline, setRefusedSubHabitParentId])
   const [subHabitParent, setSubHabitParent] = useAccountScopedState<NormalizedHabit | null>(null)
   const [showRescheduleSheet, setShowRescheduleSheet] = useAccountScopedState(false)
   const [habitToReschedule, setHabitToReschedule] = useAccountScopedState<NormalizedHabit | null>(null)
@@ -1035,6 +1042,7 @@ export function HabitList({
 
     const parent = habitsById.get(parentId)
     if (!parent) return
+    if (!isOnline) { setRefusedSubHabitParentId(parentId); return }
     if (collapsedIds.has(parentId)) toggleExpand(parentId)
     setSubHabitParent(parent)
     setShowSubHabitModal(true)
@@ -1235,8 +1243,8 @@ export function HabitList({
     const completionReadOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     return (
+      <Fragment key={habit.id}>
       <HabitRow
-        key={habit.id}
         habit={habit}
         state={state}
         meta={meta}
@@ -1281,6 +1289,12 @@ export function HabitList({
           onEnterSelectMode: () => onEnterSelectMode?.(habit.id),
         }}
       />
+      <div aria-live="polite" aria-atomic="true" className="px-4 pb-3">
+        {refusedSubHabitParentId === habit.id && drill.currentParentId !== habit.id && !isOnline
+          ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} />
+          : null}
+      </div>
+      </Fragment>
     )
   }
 
@@ -1311,6 +1325,7 @@ export function HabitList({
           hasProAccess={profile?.hasProAccess !== false}
           renderHabitCard={renderHabitCard}
           onAddSubHabit={startAddSubHabit}
+          subHabitRefusal={refusedSubHabitParentId === drill.currentParentId && !isOnline}
           onShowCompleted={onShowCompleted}
         />
       )
@@ -1338,6 +1353,7 @@ export function HabitList({
           onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
           onAction={onCreate}
+          createRefusal={createRefusal}
         />
       )
     }

@@ -231,6 +231,15 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toBeInTheDocument()
   })
 
+  it('keeps the stop control and shows the connection reason during an offline recording', () => {
+    const onVoice = vi.fn()
+    render(<Composer {...props({ state: 'recording', words: { ...words, placeholder: en.shell.composer.offline.placeholder, offlineReason: en.shell.composer.offline.reason }, onVoice, voiceWords })} />)
+    expect(screen.getByText(voiceWords.recording)).toBeVisible()
+    expect(screen.getByText(en.shell.composer.offline.reason)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: voiceWords.stop }))
+    expect(onVoice).toHaveBeenCalledOnce()
+  })
+
   it('renders transcribing status with an unusable input', () => {
     render(<Composer {...props({ state: 'transcribing', onVoice: vi.fn(), voiceWords })} />)
     expect(screen.getByText(voiceWords.transcribing)).toBeInTheDocument()

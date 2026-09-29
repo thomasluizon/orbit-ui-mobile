@@ -297,6 +297,15 @@ describe('Composer (mobile)', () => {
     expect(onVoice).toHaveBeenCalledOnce()
   })
 
+  it('keeps the stop control and shows the connection reason during an offline recording', async () => {
+    const onVoice = vi.fn()
+    const tree = await renderComposer(props({ state: 'recording', words: { ...words, placeholder: en.shell.composer.offline.placeholder, offlineReason: en.shell.composer.offline.reason }, onVoice, voiceWords }))
+    expect(textValues(tree.root)).toContain(voiceWords.recording)
+    expect(textValues(tree.root)).toContain(en.shell.composer.offline.reason)
+    pressControl(byLabel(tree.root, voiceWords.stop)[0])
+    expect(onVoice).toHaveBeenCalledOnce()
+  })
+
   it('renders transcribing status with an unusable input', async () => {
     const tree = await renderComposer(props({ state: 'transcribing', onVoice: vi.fn(), voiceWords }))
     expect(textValues(tree.root)).toContain(voiceWords.transcribing)

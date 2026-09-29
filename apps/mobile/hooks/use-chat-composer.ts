@@ -857,6 +857,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     const words = {
       placeholder: t(isOnline ? "shell.composer.placeholder" : "shell.composer.offline.placeholder"),
       inputLabel: t("shell.composer.placeholder"),
+      ...(!isOnline ? { offlineReason: t("shell.composer.offline.reason") } : {}),
       send: t("shell.composer.send"),
       suggestionsLabel: t("shell.composer.suggestionsLabel"),
       retry: t("shell.composer.retry"),

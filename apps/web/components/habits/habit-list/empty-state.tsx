@@ -4,6 +4,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslations } from 'next-intl'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -22,6 +23,7 @@ interface HabitListEmptyStateProps {
   description: string
   actionLabel?: string
   onAction?: () => void
+  createRefusal?: boolean
   askAstraLabel?: string
   onAskAstra?: () => void
   variant?: 'primary' | 'secondary'
@@ -36,10 +38,12 @@ export function HabitListEmptyState({
   description,
   actionLabel,
   onAction,
+  createRefusal,
   askAstraLabel,
   onAskAstra,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
+  const t = useTranslations()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
@@ -114,6 +118,9 @@ export function HabitListEmptyState({
           </button>
         )
       )}
+      <div aria-live="polite" aria-atomic="true" className="w-full max-w-[300px]">
+        {createRefusal ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
+      </div>
     </div>
   )
 }
@@ -129,4 +136,3 @@ export function HabitListSkeleton() {
     </div>
   )
 }
-

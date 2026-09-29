@@ -14,6 +14,8 @@ import { HabitList } from '@/components/habits/habit-list'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
+import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { TodayView } from './use-today-page'
 
 const SelectionTray = dynamic(
@@ -127,6 +129,9 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
 }
 
 export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
+  const { isOnline } = useOffline()
+  const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
+  useEffect(() => { if (isOnline) setShowCreateRefusal(false) }, [isOnline, setShowCreateRefusal])
   const {
     data,
     habitListRef,
@@ -161,7 +166,11 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
           if (!isSelectMode) toggleSelectMode()
           selection.handleToggleSelection(habitId)
         }}
-        onCreate={() => setShowCreateModal(true)}
+        onCreate={() => {
+          if (!isOnline) { setShowCreateRefusal(true); return }
+          setShowCreateModal(true)
+        }}
+        createRefusal={showCreateRefusal && !isOnline}
         onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
         onAllCollapsedChange={setHabitListAllCollapsed}
         onSurfaceOpenChange={view.setListSurfaceOpen}

@@ -190,6 +190,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       onEdit?: () => void
       onDuplicate?: () => void
       onDetail?: () => void
+      onAddSubHabit?: () => void
       onToggleSelection?: () => void
     }
   }) => (
@@ -230,6 +231,9 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
       <button data-testid={`detail-${habit.id}`} onClick={actions?.onDetail}>
         detail
       </button>
+      <button data-testid={`add-sub-${habit.id}`} onClick={actions?.onAddSubHabit}>
+        add sub-habit
+      </button>
       {selectMode && (
         <button
           data-testid={`select-${habit.id}`}
@@ -250,7 +254,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: () => null,
+  CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -364,6 +368,21 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it('explains an offline sub-habit request beside the parent row', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    try {
+      const habit = createMockHabit({ id: 'offline-parent', title: 'Parent', scheduledDates: [TODAY] })
+      mockHabitsData.habitsById.set(habit.id, habit)
+      mockHabitsData.topLevelHabits = [habit]
+      mockHabitsData.totalCount = 1
+      renderWithProviders(<HabitList view="today" selectedDate={new Date(`${TODAY}T12:00:00`)} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+      fireEvent.click(screen.getByTestId('add-sub-offline-parent'))
+      expect(screen.getByText('offline.create.reason')).toBeVisible()
+      expect(screen.queryByRole('dialog', { name: 'Create habit' })).toBeNull()
+    } finally {
+      Reflect.deleteProperty(navigator, 'onLine')
+    }
+  })
   beforeEach(() => {
     rowImplementation.actual = false
     accountDate.timeZone = undefined

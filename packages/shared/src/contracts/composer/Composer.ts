@@ -2,6 +2,7 @@
 export type ComposerWords = {
   placeholder: string
   inputLabel?: string
+  offlineReason?: string
   send: string
   suggestionsLabel: string
   retry?: string

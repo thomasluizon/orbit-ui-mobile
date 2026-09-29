@@ -53,6 +53,7 @@ type NoRetryVariant = Extract<ComposerProps, { onRetry?: never }>
 type ExpectedComposerWords = {
   placeholder: string
   inputLabel?: string
+  offlineReason?: string
   send: string
   suggestionsLabel: string
   retry?: string
@@ -217,6 +218,7 @@ export type ComposerContractWidthAssertions = [
   Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown, unknown, unknown]>, readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]>>,
   Assert<IsExactWidth<ComposerWords['placeholder'], string>>,
   Assert<IsExactWidth<ComposerWords['inputLabel'], string | undefined>>,
+  Assert<IsExactWidth<ComposerWords['offlineReason'], string | undefined>>,
   Assert<IsExactWidth<ComposerWords['send'], string>>,
   Assert<IsExactWidth<ComposerWords['suggestionsLabel'], string>>,
   Assert<IsExactWidth<ComposerWords['retry'], string | undefined>>,

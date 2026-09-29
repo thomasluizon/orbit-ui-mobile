@@ -1331,6 +1331,14 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.limitReason).toBe('shell.composer.offline.reason')
   })
 
+  it('keeps an active recording stoppable and explains a lost connection', async () => {
+    mocks.state.isRecording = true
+    const composer = await renderComposer({ isOnline: false })
+    expect(composer.current.composerProps.state).toBe('recording')
+    expect(composer.current.composerProps.words.offlineReason).toBe('shell.composer.offline.reason')
+    expect(composer.current.composerProps.onVoice).toBe(mocks.toggleRecording)
+  })
+
   it('rejects an oversized image with the size error copy', async () => {
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
     mocks.launchImageLibraryAsync.mockResolvedValue({

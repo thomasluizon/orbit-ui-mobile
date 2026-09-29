@@ -7,6 +7,7 @@ import { ArrowLeft } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { HabitListSkeleton } from './empty-state'
 
 interface HabitDrillProps {
@@ -21,6 +22,7 @@ interface HabitDrillProps {
     options?: { isDrillCard?: boolean; isDraggingList?: boolean },
   ) => ReactNode
   onAddSubHabit: (parentId: string) => void
+  subHabitRefusal?: boolean
   onShowCompleted?: () => void
 }
 
@@ -50,6 +52,7 @@ export function HabitDrill({
   hasProAccess,
   renderHabitCard,
   onAddSubHabit,
+  subHabitRefusal,
   onShowCompleted,
 }: Readonly<HabitDrillProps>) {
   const addRow = drill.currentParentId ? (
@@ -149,6 +152,9 @@ export function HabitDrill({
             })
           )}
           {addRow}
+          <div aria-live="polite" aria-atomic="true">
+            {subHabitRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
+          </div>
         </>
       ) : null}
     </>
