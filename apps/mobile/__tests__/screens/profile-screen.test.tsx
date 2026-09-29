@@ -67,6 +67,7 @@ const {
   mockPushSupported,
   mockPushEnabled,
   mockDeviceState,
+  mockFocusCallback,
   mockPushPermissionStatus,
   mockDisablePushNotifications,
   mockOpenSettings,
@@ -107,6 +108,7 @@ const {
   mockPushSupported: { current: false },
   mockPushEnabled: { current: false },
   mockDeviceState: { current: deviceState },
+  mockFocusCallback: { current: null as null | (() => void) },
   mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
   mockDisablePushNotifications: vi.fn(),
   mockOpenSettings: vi.fn(),
@@ -147,6 +149,7 @@ vi.mock('expo-device', () => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void) => { mockFocusCallback.current = callback },
   useLocalSearchParams: () => mockSearchParams.current,
   useRouter: () => ({
     push: mockRouterPush,
@@ -547,6 +550,7 @@ describe('ProfileScreen', () => {
     mockPushSupported.current = false
     mockPushEnabled.current = false
     mockDeviceState.current = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn().mockResolvedValue(undefined) }
+    mockFocusCallback.current = null
     mockPushPermissionStatus.current = null
     mockDisablePushNotifications.mockReset().mockResolvedValue(undefined)
     mockOpenSettings.mockReset().mockResolvedValue(undefined)
@@ -1596,6 +1600,16 @@ describe('ProfileScreen', () => {
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
         node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes the device count when Perfil regains focus', async () => {
+    await renderProfileScreen()
+    expect(mockFocusCallback.current).toBeTypeOf('function')
+    await TestRenderer.act(async () => {
+      mockFocusCallback.current?.()
       await Promise.resolve()
     })
     expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()

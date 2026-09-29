@@ -26,6 +26,7 @@ export function usePushSubscriptions() {
       const endpointHash = await currentEndpointHash()
       return { response, endpointHash }
     },
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   })
   const response = query.data?.response

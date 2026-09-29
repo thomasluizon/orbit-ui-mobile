@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, Linking, Pressable, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
@@ -272,6 +272,10 @@ export function ProfileSettingsContent({
   const preferenceControls = usePreferenceControls()
   const pushPreferences = usePushNotifications()
   const pushSubscriptions = usePushSubscriptions(pushPreferences.expoPushToken)
+  const refreshPushSubscriptions = pushSubscriptions.refresh
+  useFocusEffect(useCallback(() => {
+    void refreshPushSubscriptions()
+  }, [refreshPushSubscriptions]))
   const { isSupported: pushSupported, refreshPermissionStatus } = pushPreferences
   const persistentReminder = usePersistentReminder()
   useEffect(() => {
