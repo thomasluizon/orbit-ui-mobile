@@ -17,6 +17,11 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+const accountHabitCount = vi.hoisted(() => ({ count: 0 }))
+
+vi.mock('@/hooks/use-habit-queries', () => ({
+  useHabitCountLoaded: () => ({ count: accountHabitCount.count, isLoaded: true }),
+}))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: accountDate.timeZone } }),
@@ -405,6 +410,7 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.clear()
     mockHabitsData.topLevelHabits = []
     mockHabitsData.totalCount = 0
+    accountHabitCount.count = 0
   })
 
   it('renders without crashing with no habits', () => {
@@ -413,6 +419,41 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.emptyState')).toBeDefined()
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('shows a plain day line instead of first run on an empty future day with account habits', () => {
+    accountHabitCount.count = 3
+    renderWithProviders(
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />,
+    )
+    expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
+    expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.askAstra')).not.toBeInTheDocument()
+  })
+
+  it('shows the plain line when nothing is due today', () => {
+    accountHabitCount.count = 3
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
+    expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
+  })
+
+  it('keeps first-run actions on another day when the account has no habits', () => {
+    renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} onCreate={vi.fn()} />)
+    expect(screen.getByText('habits.emptyState')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.askAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.createManually' })).toBeInTheDocument()
+  })
+
+  it('uses the plain line on a past day with every due habit logged', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'past-due', scheduledDates: [YESTERDAY], isLoggedInRange: true })
+    mockHabitsData.habitsById.set(due.id, due)
+    mockHabitsData.topLevelHabits = [due]
+    renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)} />)
+    expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
+    expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
   })
 
   it('does not carry recent completion feedback into another selected date', () => {
@@ -472,6 +513,7 @@ describe('HabitList', () => {
 
   it('renders the all-done upcoming action only when it can navigate', () => {
     useActualHabitVisibility = true
+    accountHabitCount.count = 1
     const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
     mockHabitsData.habitsById.set(due.id, due)
     mockHabitsData.topLevelHabits = [due]
@@ -494,10 +536,17 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.seeUpcoming' }))
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
+    const title = screen.getByText('habits.allDoneToday')
+    expect(title.parentElement?.className).not.toMatch(/items-center|text-center/)
+    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '500' })
+    expect(title.parentElement?.querySelector('[data-asset="orbit-mark"]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-size', 'sm')
+    expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('shows all-done above an unfinished anytime habit', () => {
     useActualHabitVisibility = true
+    accountHabitCount.count = 2
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
     const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
     mockHabitsData.habitsById = new Map([[due.id, due], [anytime.id, anytime]])
@@ -508,6 +557,18 @@ describe('HabitList', () => {
 
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
     expect(screen.getByText('Anytime habit')).toBeInTheDocument()
+    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText('Anytime habit')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps the all-done block above completed rows when they are shown', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'done-due', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById.set(due.id, due)
+    mockHabitsData.topLevelHabits = [due]
+    renderWithProviders(<HabitList filters={defaultFilters} showCompleted />)
+    expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
+    expect(screen.getByTestId('habit-card-done-due')).toBeInTheDocument()
   })
 
   it('keeps a completed row in place for 1400 ms', () => {

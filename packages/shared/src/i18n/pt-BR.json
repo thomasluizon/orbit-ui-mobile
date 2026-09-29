@@ -463,6 +463,7 @@
     "allDoneToday": "Por hoje é isso",
     "allDoneHint": "Tudo que era para hoje está feito.",
     "seeUpcoming": "Ver amanhã",
+    "nothingOpen": "Nada em aberto neste dia.",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "filterEmptySubHabits": "Nenhum sub-hábito corresponde a esta visualização.",
     "moveParent": {

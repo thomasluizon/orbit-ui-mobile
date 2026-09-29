@@ -68,7 +68,8 @@ import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import { HabitListEmptyState } from './habit-list/empty-state'
+import { HabitListAllDone, HabitListEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { HabitDrill } from './habit-list/habit-drill'
 import {
   MoveParentDialog,
@@ -366,24 +367,10 @@ function resolveParentSettlement(
   return mode ? { parentId: prompt.habit.id, mode, date: prompt.date } : null
 }
 
-function shouldShowAllDoneWithAnytime(
-  items: { habit: NormalizedHabit }[],
-  showCompleted: boolean | undefined,
-  habitsById: Map<string, NormalizedHabit>,
-  childrenByParent: Map<string, string[]>,
-  date: string,
-): boolean {
-  return !showCompleted && items.length > 0 && items.every((item) => item.habit.isGeneral) &&
-    getAllDoneOnDate(habitsById, childrenByParent, date).allDone
-}
-
 function renderAllDoneListHeader(
   showAllDone: boolean,
   header: ReactElement | null,
   sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
-  title: string,
-  description: string,
-  upcomingLabel: string,
   onAction: (() => void) | undefined,
 ): ReactElement | null {
   if (!showAllDone) return header
@@ -391,16 +378,22 @@ function renderAllDoneListHeader(
     <View>
       {header}
       <View style={sectionInsetStyle}>
-        <HabitListEmptyState
-          title={title}
-          description={description}
-          actionLabel={onAction ? upcomingLabel : undefined}
-          onAction={onAction}
-          variant="secondary"
-        />
+        <HabitListAllDone onSeeUpcoming={onAction} />
       </View>
     </View>
   )
+}
+
+function renderDayListEmptyState(
+  isCountLoaded: boolean,
+  accountCount: number,
+  showAllDone: boolean,
+  renderFirstRun: () => ReactElement,
+  sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+): ReactElement | null {
+  if (!isCountLoaded || showAllDone) return null
+  if (accountCount === 0) return renderFirstRun()
+  return <View style={sectionInsetStyle}><HabitListNothingOpen /></View>
 }
 
 // react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, habit-drill, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -429,6 +422,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     ref,
   ) {
     const { t } = useTranslation()
+    const accountHabitCount = useHabitCountLoaded()
     const router = useRouter()
     const pathname = usePathname()
     const { profile } = useProfile()
@@ -466,7 +460,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-    const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
     const isError = habitsQuery.isError
     const isFetching = habitsQuery.isFetching
@@ -1786,54 +1779,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    if (
-      flatItems.length === 0 &&
-      totalCount > 0 &&
-      !showCompleted &&
+    const showAllDone = accountHabitCount.isLoaded && accountHabitCount.count > 0 &&
+      selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
-    ) {
-      return (
-        <>
-          <FlatList
-            data={[]}
-            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
-            keyExtractor={() => 'all-done'}
-            renderItem={undefined}
-            ListHeaderComponent={listHeaderComponent}
-            ListEmptyComponent={
-              <View style={styles.sectionInset}>
-                <HabitListEmptyState
-                  title={t('habits.allDoneToday')}
-                  description={t('habits.allDoneHint')}
-                  actionLabel={onSeeUpcoming ? t('habits.seeUpcoming') : undefined}
-                  onAction={onSeeUpcoming}
-                  variant="secondary"
-                />
-              </View>
-            }
-            contentContainerStyle={[
-              styles.listContent,
-              bulkBarStyle,
-            ]}
-            refreshControl={refreshControl}
-            onScrollBeginDrag={onScrollBeginDrag}
-            showsVerticalScrollIndicator={false}
-          />
-          {commonOverlays}
-        </>
-      )
-    }
-
-    const showAllDoneWithAnytime = shouldShowAllDoneWithAnytime(
-      flatItems, showCompleted, habitsById, childrenByParent, selectedDateStr,
-    )
     const activeListHeader = renderAllDoneListHeader(
-      showAllDoneWithAnytime,
+      showAllDone,
       listHeaderComponent,
       styles.sectionInset,
-      t('habits.allDoneToday'),
-      t('habits.allDoneHint'),
-      t('habits.seeUpcoming'),
       onSeeUpcoming,
     )
 
@@ -1854,7 +1806,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
-          ListEmptyComponent={renderEmptyState()}
+          ListEmptyComponent={renderDayListEmptyState(
+            accountHabitCount.isLoaded,
+            accountHabitCount.count,
+            showAllDone,
+            renderEmptyState,
+            styles.sectionInset,
+          )}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
           onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}
