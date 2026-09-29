@@ -76,9 +76,29 @@ describe('Composer', () => {
     field.focus()
 
     expect(field).toHaveFocus()
-    expect(field.parentElement?.className.split(' ')).toContain('focus-within:outline-2')
+    expect(field.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:outline-2')
+    expect(field.parentElement?.className.split(' ')).not.toContain('focus-within:outline-2')
     expect(field).toHaveClass('focus-visible:outline-0')
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
+  })
+
+  it('gives each inner control its own shaped ring without the wrapper ring', () => {
+    render(<Composer {...props({
+      onAttachFile: vi.fn(),
+      onAttachImage: vi.fn(),
+      onVoice: vi.fn(),
+      attachWords,
+      voiceWords,
+    })} />)
+
+    for (const name of [attachWords.file, attachWords.image, voiceWords.start]) {
+      const control = screen.getByRole('button', { name })
+      control.focus()
+      expect(control).toHaveFocus()
+      expect(control.className.split(' ')).not.toContain('focus-visible:outline-0')
+      expect(control).toHaveClass('rounded-full')
+      expect(control.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:outline-2')
+    }
   })
 
   it.each(['', '   '])('does not send a blank value %j', (value) => {

@@ -2,7 +2,8 @@ import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
-import { replaceAccountWith, respondWithAccount } from '@/__tests__/support/account-change'
+import { replaceAccountWith, respondWithAccount, retireHeldAccount } from '@/__tests__/support/account-change'
+import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 
 function HeldAccount() {
   const accountId = useHeldAccountId()
@@ -31,6 +32,13 @@ it('reports the account the first session check of a cold tab records', async ()
   await act(async () => {
     await useAuthStore.getState().checkSession()
   })
+
+  expect(heldAccount()).toBe('user-1')
+})
+
+it('publishes the server-rendered account to a mounted page', async () => {
+  await retireHeldAccount()
+  render(<RenderedAccountSeed accountId="user-1"><HeldAccount /></RenderedAccountSeed>)
 
   expect(heldAccount()).toBe('user-1')
 })

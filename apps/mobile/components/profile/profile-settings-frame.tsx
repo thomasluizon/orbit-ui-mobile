@@ -93,11 +93,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 12,
   },
   valueLabel: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 120,
     minWidth: 0,
     fontFamily: 'Geist_400Regular',
     fontSize: 17,
@@ -107,7 +110,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   control: {
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: '100%',
     alignItems: 'center',
   },
 })

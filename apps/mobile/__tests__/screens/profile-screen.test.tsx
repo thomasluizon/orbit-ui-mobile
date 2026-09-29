@@ -9,7 +9,6 @@ import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
-import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
@@ -34,6 +33,8 @@ vi.mock('react-native', async (importOriginal) => {
       announceForAccessibility: mockAnnounceForAccessibility,
     },
     Platform: { ...native.Platform, OS: 'android' },
+    Linking: { ...native.Linking, openSettings: mockOpenSettings },
+    AppState: { ...native.AppState, addEventListener: mockAddAppStateListener },
   }
 })
 
@@ -51,6 +52,19 @@ const {
   mockSetAstraConversationOpen,
   mockSendAccessibilityEvent,
   mockAnnounceForAccessibility,
+  mockApplyTheme,
+  mockChangeLanguage,
+  mockPushSupported,
+  mockPushEnabled,
+  mockPushPermissionStatus,
+  mockDisablePushNotifications,
+  mockOpenSettings,
+  mockRequestPushPermission,
+  mockRefreshPushPermissionStatus,
+  mockAddAppStateListener,
+  mockRemoveAppStateListener,
+  mockReminderSupported,
+  mockToggleReminder,
   mockConversationOpen,
   mockProfileState,
   mockSearchParams,
@@ -73,6 +87,19 @@ const {
   mockSetAstraConversationOpen: vi.fn(),
   mockSendAccessibilityEvent: vi.fn(),
   mockAnnounceForAccessibility: vi.fn(),
+  mockApplyTheme: vi.fn(),
+  mockChangeLanguage: vi.fn(),
+  mockPushSupported: { current: false },
+  mockPushEnabled: { current: false },
+  mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
+  mockDisablePushNotifications: vi.fn(),
+  mockOpenSettings: vi.fn(),
+  mockRequestPushPermission: vi.fn(),
+  mockRefreshPushPermissionStatus: vi.fn(),
+  mockRemoveAppStateListener: vi.fn(),
+  mockAddAppStateListener: vi.fn(),
+  mockReminderSupported: { current: false },
+  mockToggleReminder: vi.fn(),
   mockConversationOpen: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
@@ -116,7 +143,7 @@ vi.mock('react-i18next', () => ({
   },
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: { language: 'en' },
+    i18n: { language: 'en', changeLanguage: mockChangeLanguage },
   }),
 }))
 
@@ -141,6 +168,24 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
+}))
+
+vi.mock('@/hooks/use-push-notifications', () => ({
+  usePushNotifications: () => ({
+    isSupported: mockPushSupported.current,
+    isEnabled: mockPushEnabled.current,
+    isRegistered: false,
+    isLoading: false,
+    permissionStatus: mockPushPermissionStatus.current,
+    registrationStatus: 'unsupported',
+    refreshPermissionStatus: mockRefreshPushPermissionStatus,
+    disablePushNotifications: mockDisablePushNotifications,
+    requestPermission: mockRequestPushPermission,
+  }),
+}))
+
+vi.mock('@/hooks/use-persistent-reminder', () => ({
+  usePersistentReminder: () => ({ isSupported: mockReminderSupported.current, enabled: false, isLoading: false, toggle: mockToggleReminder }),
 }))
 
 vi.mock('@/hooks/use-gamification', () => ({
@@ -174,7 +219,7 @@ vi.mock('@/lib/use-app-theme', () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
     currentScheme: 'purple',
     currentTheme: 'dark',
-    applyTheme: vi.fn(),
+    applyTheme: mockApplyTheme,
   }),
 }))
 
@@ -321,7 +366,8 @@ vi.mock('@/components/ui/settings-group', () => ({
 }))
 
 vi.mock('@/components/ui/row-list', () => ({
-  RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  RowList: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('RowListStub', { rowCount: React.Children.toArray(children).length }, children),
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
@@ -472,6 +518,19 @@ describe('ProfileScreen', () => {
     mockSetAstraConversationOpen.mockClear()
     mockSendAccessibilityEvent.mockClear()
     mockAnnounceForAccessibility.mockClear()
+    mockApplyTheme.mockClear()
+    mockChangeLanguage.mockReset().mockResolvedValue(undefined)
+    mockPushSupported.current = false
+    mockPushEnabled.current = false
+    mockPushPermissionStatus.current = null
+    mockDisablePushNotifications.mockReset().mockResolvedValue(undefined)
+    mockOpenSettings.mockReset().mockResolvedValue(undefined)
+    mockRequestPushPermission.mockReset().mockResolvedValue(undefined)
+    mockRefreshPushPermissionStatus.mockReset().mockResolvedValue(undefined)
+    mockRemoveAppStateListener.mockReset()
+    mockAddAppStateListener.mockReset().mockReturnValue({ remove: mockRemoveAppStateListener })
+    mockReminderSupported.current = false
+    mockToggleReminder.mockReset().mockResolvedValue(undefined)
     mockConversationOpen.current = false
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
@@ -522,6 +581,7 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBeUndefined()
 
     const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
+    expect(more.findAllByType('RowListStub')[0].props.rowCount).toBeGreaterThan(1)
     expect(
       more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
         .map((node: SettingsRowStubNode) => node.props.label),
@@ -568,7 +628,6 @@ describe('ProfileScreen', () => {
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
       'settings.weekStartDay.title',
-      'preferences.themeMode',
       'profile.subscription.plan',
       'profile.wrappedTitle',
       'profile.widgetTitle',
@@ -591,6 +650,10 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+    const themeChoices = tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode')
+    expect(themeChoices.some((choice: { props: { style: { flexWrap?: string; maxWidth?: string } } }) =>
+      choice.props.style.flexWrap === 'wrap' && choice.props.style.maxWidth === '100%')).toBe(true)
   })
 
   it('keeps the share card reachable outside Ending things', async () => {
@@ -1083,6 +1146,7 @@ describe('ProfileScreen', () => {
       accessibilityRole: 'switch',
       accessibilityLabel: 'profile.aiSummary.title',
     })
+    expect(astra.findAllByType('RowListStub')[0].props.rowCount).toBe(2)
     TestRenderer.act(() => {
       proactiveSwitch.props.onPress()
       summarySwitch.props.onPress()
@@ -1299,15 +1363,16 @@ describe('ProfileScreen', () => {
       findRowByLabel(tree, 'profile.widgetTitle').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockRouterPush).toHaveBeenCalledWith('/advanced')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
+      node.type === 'SheetStub' && node.props.title === 'profile.widgetTitle')).toHaveLength(1)
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true, 'support')
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
@@ -1317,25 +1382,139 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
-  it('returns Android accessibility focus to Support after closing the conversation', async () => {
-    const supportNode = { label: 'profile.support.title' }
-    const tree = await renderProfileScreen(({ props }) =>
-      props.label === 'profile.support.title' ? supportNode : null)
-
+  it('opens each inline preference directly and sends Support to its form', async () => {
+    const tree = await renderProfileScreen()
+    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+      mockRouterPush.mockClear()
+      await TestRenderer.act(async () => {
+        findRowByLabel(tree, label).props.onPress?.()
+        await Promise.resolve()
+      })
+      expect(mockRouterPush).not.toHaveBeenCalled()
+    }
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode').length).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
-      mockConversationOpen.current = true
-      tree.update(<ProfileScreen />)
       await Promise.resolve()
     })
-    expect(mockSendAccessibilityEvent).not.toHaveBeenCalled()
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+  })
 
+  it('routes the plan row to upgrade with the profile return path', async () => {
+    const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      mockConversationOpen.current = false
-      tree.update(<ProfileScreen />)
+      findRowByLabel(tree, 'profile.subscription.plan').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockSendAccessibilityEvent).toHaveBeenCalledWith(supportNode, 'focus')
+    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/upgrade', params: { from: '/profile' } })
+  })
+
+  it('refreshes push permission when the app becomes active', async () => {
+    mockPushSupported.current = true
+    const tree = await renderProfileScreen()
+    expect(mockAddAppStateListener).toHaveBeenCalledWith('change', expect.any(Function))
+    const onAppStateChange = mockAddAppStateListener.mock.calls[0]?.[1] as (state: string) => void
+    await TestRenderer.act(async () => {
+      onAppStateChange('background')
+      await Promise.resolve()
+    })
+    expect(mockRefreshPushPermissionStatus).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      onAppStateChange('active')
+      await Promise.resolve()
+    })
+    expect(mockRefreshPushPermissionStatus).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+    expect(mockRemoveAppStateListener).toHaveBeenCalledOnce()
+  })
+
+  it('changes theme and general habits from their inline controls', async () => {
+    const write = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    try {
+      const tree = await renderProfileScreen()
+      await TestRenderer.act(async () => {
+        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+          node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'preferences.themeModeLight' && typeof node.props.onPress === 'function').props.onPress()
+        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+          node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.homeScreen.showGeneral' && typeof node.props.onPress === 'function').props.onPress()
+        await Promise.resolve()
+      })
+      expect(mockApplyTheme).toHaveBeenCalledWith('light')
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('orbit_show_general_on_today'), 'true')
+    } finally {
+      write.mockRestore()
+    }
+  })
+
+  it('commits language and week start through the inline pickers', async () => {
+    const tree = await renderProfileScreen()
+    TestRenderer.act(() => {
+      findRowByLabel(tree, 'profile.language.title').props.onPress?.()
+    })
+    await TestRenderer.act(async () => {
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'Português' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockChangeLanguage).toHaveBeenCalledWith('pt-BR')
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setLanguage', payload: { language: 'pt-BR' } }))
+
+    TestRenderer.act(() => {
+      findRowByLabel(tree, 'settings.weekStartDay.title').props.onPress?.()
+    })
+    await TestRenderer.act(async () => {
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'settings.weekStartDay.sunday' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setWeekStartDay', payload: { weekStartDay: 0 } }))
+  })
+
+  it('uses inline switches for push and persistent reminders', async () => {
+    mockPushSupported.current = true
+    mockReminderSupported.current = true
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      for (const label of ['settings.notifications.title', 'persistentReminder.label']) {
+        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+          node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').props.onPress()
+      }
+      await Promise.resolve()
+    })
+    expect(mockRequestPushPermission).toHaveBeenCalledOnce()
+    expect(mockToggleReminder).toHaveBeenCalledOnce()
+  })
+
+  it('disables an enabled push registration from Perfil', async () => {
+    mockPushSupported.current = true
+    mockPushEnabled.current = true
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.notifications.title' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockDisablePushNotifications).toHaveBeenCalledOnce()
+    expect(mockRequestPushPermission).not.toHaveBeenCalled()
+    expect(mockOpenSettings).not.toHaveBeenCalled()
+  })
+
+  it('opens device settings when push permission is denied', async () => {
+    mockPushSupported.current = true
+    mockPushPermissionStatus.current = 'denied'
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.notifications.title' && typeof node.props.onPress === 'function').props.onPress()
+      tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void }; children: unknown[] }) =>
+        node.props.accessibilityRole === 'button' && nodeText(node) === 'settings.notifications.openSettings' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockOpenSettings).toHaveBeenCalledTimes(2)
+    expect(mockDisablePushNotifications).not.toHaveBeenCalled()
+    expect(mockRequestPushPermission).not.toHaveBeenCalled()
   })
 
   it('opens calendar sync directly for Pro', async () => {
@@ -1355,49 +1534,5 @@ describe('ProfileScreen', () => {
     expect(calendarRow.props.chevron).toBe(true)
     expect(calendarRow.props.hasTrailing).toBe(false)
     expect(mockRouterPush).toHaveBeenCalledWith('/calendar-sync')
-  })
-})
-
-describe('PreferenceSettingsList', () => {
-  it('does not render a color scheme row', () => {
-    const tokens = new Proxy({}, { get: () => '#111111' })
-    let tree!: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <PreferenceSettingsList
-          tokens={tokens as never}
-          t={(key) => key}
-          languageLabel="English"
-          themeLabel="Dark"
-          weekStartLabel="Monday"
-          showGeneralOnToday={false}
-          onOpenPicker={vi.fn()}
-          onToggleShowGeneral={vi.fn()}
-          push={{
-            pushSupported: false,
-            pushEnabled: false,
-            pushRegistered: false,
-            pushLoading: false,
-            permissionStatus: null,
-            registrationStatus: 'unsupported',
-            onToggle: vi.fn(),
-            onOpenSettings: vi.fn(),
-          }}
-          persistentReminder={{
-            isSupported: false,
-            enabled: false,
-            isLoading: false,
-            onToggle: vi.fn(),
-          }}
-        />,
-      )
-    })
-    expect(
-      tree.root.findAll(
-        (node: SettingsRowStubNode) =>
-          node.type === 'SettingsRowStub' &&
-          node.props.label === 'profile.colorScheme.title',
-      ),
-    ).toHaveLength(0)
   })
 })

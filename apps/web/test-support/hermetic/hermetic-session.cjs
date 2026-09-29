@@ -8,15 +8,16 @@ function encodeSegment(value) {
 }
 
 /**
- * The BFF only decodes `exp`; runtime minting avoids a committed token.
+ * The BFF reads expiry and account identity; the mock API reads the optional profile.
  * @returns {string} an unsigned JWT the BFF accepts for the hermetic session.
  */
-function mintHermeticJwt() {
+function mintHermeticJwt(profile) {
   const header = encodeSegment({ alg: 'HS256', typ: 'JWT' })
   const payload = encodeSegment({
     'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'hermetic-perf-user',
     exp: FAR_FUTURE_EXP_SECONDS,
     iat: 1750000000,
+    ...(profile ? { hermeticProfile: profile } : {}),
   })
   return `${header}.${payload}.hermetic-test-signature`
 }

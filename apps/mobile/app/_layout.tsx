@@ -89,9 +89,6 @@ import {
 } from '@/lib/capture-mode'
 
 const SLIDE_FROM_RIGHT_SCREENS = [
-  'preferences',
-  'ai-settings',
-  'advanced',
   'support',
   'upgrade',
   'wrapped',

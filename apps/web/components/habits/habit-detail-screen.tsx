@@ -137,7 +137,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
       <div className="min-w-0 flex-1 pt-1">
         {editing ? (
-          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
+          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
         ) : (
           <button type="button" onClick={() => setEditing(true)} className="block max-w-full border-0 bg-transparent p-0 text-left">
             <h1 className="truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">{habit.title}</h1>
@@ -367,13 +367,13 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     else if (fromToday) router.back()
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
-  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string, reportError = true): Promise<boolean> => {
     const accountGeneration = getAccountGeneration()
     try {
       await write()
       return getAccountGeneration() === accountGeneration
     } catch {
-      if (getAccountGeneration() === accountGeneration) showError(errorMessage)
+      if (reportError && getAccountGeneration() === accountGeneration) showError(errorMessage)
       return false
     }
   }, [showError])
@@ -409,6 +409,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       return await runWrite(
         () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
         t('habits.detail.logError'),
+        false,
       )
     } finally {
       pendingToggleKeys.delete(toggleKey)

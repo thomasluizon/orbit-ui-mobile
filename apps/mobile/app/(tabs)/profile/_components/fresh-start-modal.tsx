@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
+import { resetAccountQueries } from '@orbit/shared/query'
 import {
   buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
@@ -135,13 +136,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         removeScopedTrialExpiredFlag(accountId),
       ])
       if (!isCurrentAccount()) return
-      queryClient.clear()
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentAccount()) return
       closeSheet(() => {
         if (!isCurrentAccount()) return
         onClose()
-        queryClient.clear()
+        void resetAccountQueries(queryClient, 'signed-in')
         router.replace('/')
       })
     } catch (err: unknown) {

@@ -1190,7 +1190,7 @@ describe('HabitDetailScreen', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it.each(['2020-01-01', '2030-01-01'])('rejects an outside date before offline queueing: %s', async (date) => {

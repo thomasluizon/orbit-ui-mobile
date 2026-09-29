@@ -87,7 +87,7 @@ export function AstraAllowancePanel({
 const styles = StyleSheet.create({
   panel: {
     gap: 12,
-    padding: 16,
+    padding: 24,
     borderRadius: radius.xl,
     borderWidth: 1,
   },

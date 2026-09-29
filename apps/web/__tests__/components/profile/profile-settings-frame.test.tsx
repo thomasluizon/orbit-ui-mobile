@@ -42,5 +42,8 @@ describe('ProfileSettingsFrame', () => {
       minHeight: '44px',
       padding: '12px 16px',
     })
+    expect(screen.getByTestId('profile-value-row')).toHaveClass('flex-wrap')
+    expect(screen.getByText('Theme')).toHaveStyle({ flex: '1 1 120px' })
+    expect(screen.getByRole('button', { name: 'Change' }).parentElement).toHaveClass('max-w-full', 'shrink')
   })
 })

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { profileKeys } from '@orbit/shared/query'
+import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habit'
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
@@ -18,7 +18,7 @@ import {
   completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
-import { getHeldAccountId } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 
@@ -163,7 +163,9 @@ export function useLiveOnboardingActions(): OnboardingActions {
           }
         } catch (error) {
           if (reportsAccountChanged(error)) {
-            if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) queryClient.clear()
+            if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) {
+              void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
+            }
             showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
           }
           throw error

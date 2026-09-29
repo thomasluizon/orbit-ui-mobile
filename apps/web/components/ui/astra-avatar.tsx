@@ -1,16 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
-interface AstraMarkAdapterProps {
-  size?: string | number
-  color?: string
-}
-
-/** @deprecated Use AstraGlyph directly outside legacy Tabler icon slots. */
-export function AstraMark({ size = 24, color }: Readonly<AstraMarkAdapterProps>) {
-  return <AstraGlyph size={typeof size === 'number' ? size : Number(size)} color={color} />
-}
-
 interface AstraAvatarProps {
   size?: number
   label?: string

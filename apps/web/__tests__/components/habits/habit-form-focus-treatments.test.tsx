@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
@@ -85,7 +86,7 @@ describe('habit form focus treatments', () => {
     expect(input).toHaveClass('focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]')
   })
 
-  it('restores native focus and keeps the row focus treatment for sub-habit inputs', () => {
+  it('keeps the sub-habit input and remove action in keyboard order', async () => {
     render(
       <SubHabitEditor
         subHabits={[{ id: 'sub-1', value: 'Warm up' }]}
@@ -95,8 +96,10 @@ describe('habit form focus treatments', () => {
       />,
     )
 
-    const input = screen.getByRole('textbox')
-    expect(input).not.toHaveClass('focus:outline-none')
-    expect(input.parentElement).toHaveClass('focus-within:shadow-[inset_0_0_0_2px_var(--primary)]')
+    const user = userEvent.setup()
+    await user.tab()
+    expect(screen.getByRole('textbox')).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'habits.form.removeSubHabit' })).toHaveFocus()
   })
 })

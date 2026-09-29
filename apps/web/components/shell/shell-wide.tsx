@@ -6,6 +6,7 @@ import {
   useRef,
   useSyncExternalStore,
   type ComponentType,
+  type ReactNode,
   type RefCallback,
 } from 'react'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
@@ -23,6 +24,8 @@ import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 
 const SIDE_PANEL_QUERY = '(min-width: 1024px)'
+
+type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode }
 
 const ICONS: Record<string, ComponentType<IconProps>> = {
   home: Home,
@@ -107,7 +110,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
   return (
     <aside
       data-shell-sidebar=""
-      className="z-sticky flex h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)]"
+      className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
     >
       <div className="flex flex-col gap-6">
         <div className="flex h-11 items-center">
@@ -165,6 +168,41 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
   )
 }
 
+function ShellBottomChrome({ props, conversationOpen }: Readonly<{
+  props: ResponsiveShellProps
+  conversationOpen: boolean
+}>) {
+  const navigationEnabled = props.nav !== false
+  const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
+    || props.notice !== undefined || pinnedSlot !== undefined
+  if (!hasBottomChrome) return null
+
+  return (
+    <div
+      data-shell-bottom=""
+      className="z-sticky relative shrink-0 bg-[var(--bg)] shadow-[inset_0_1px_0_var(--hairline)] pb-[var(--safe-bottom)] lg:shadow-none lg:pb-0"
+    >
+      {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
+      <div className="relative">
+        {pinnedSlot !== undefined ? (
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
+            {pinnedSlot}
+          </div>
+        ) : null}
+        {navigationEnabled && props.tabBar !== undefined ? (
+          <div data-shell-tab-bar="" className="lg:hidden">{props.tabBar}</div>
+        ) : null}
+        {props.fab !== undefined ? (
+          <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
+            {props.fab}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function ShellWideBackground({
   props,
   conversationOpen,
@@ -172,15 +210,13 @@ function ShellWideBackground({
   modalOpen,
   registerScroller,
 }: Readonly<{
-  props: ShellWideProps
+  props: ResponsiveShellProps
   conversationOpen: boolean
   sidePanel: boolean
   modalOpen: boolean
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
-  const pinnedSlot = navigationEnabled ? props.composer : props.action
-
   return (
     <div
       data-shell-background=""
@@ -190,8 +226,8 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} /> : null}
 
-      <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'px-8'}`}>
-        <div className="flex h-dvh w-full max-w-[740px] min-w-0 flex-col pt-8">
+      <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
+        <div className="flex h-dvh w-full min-w-0 flex-col lg:max-w-[740px] lg:pt-8">
           {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
           <main
             ref={registerScroller}
@@ -205,19 +241,14 @@ function ShellWideBackground({
             />
             {props.children}
           </main>
-          {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
-          {pinnedSlot !== undefined ? (
-            <div data-shell-pinned-slot="" hidden={conversationOpen} className="shrink-0 pb-4">
-              {pinnedSlot}
-            </div>
-          ) : null}
+          <ShellBottomChrome props={props} conversationOpen={conversationOpen} />
         </div>
       </div>
     </div>
   )
 }
 
-export function ShellWide(props: Readonly<ShellWideProps>) {
+export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const sidePanel = useSyncExternalStore(
     subscribeToSidePanel,
@@ -287,7 +318,7 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
           aria-label={props.conversationLabel}
           tabIndex={-1}
           data-shell-conversation="overlay"
-          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </div>

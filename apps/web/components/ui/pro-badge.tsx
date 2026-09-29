@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { useProfile } from '@/hooks/use-profile'
 
 interface ProBadgeProps {
+  variant?: 'solid' | 'outline'
   /**
    * When true, the badge is always rendered regardless of the user's pro/trial status.
    * Use this for UI labels that should always show the PRO badge (e.g. locked feature headers).
@@ -16,7 +17,7 @@ interface ProBadgeProps {
   label?: string
 }
 
-export function ProBadge({ alwaysVisible = false, className, label }: Readonly<ProBadgeProps>) {
+export function ProBadge({ alwaysVisible = false, className, label, variant = 'solid' }: Readonly<ProBadgeProps>) {
   const t = useTranslations()
   const { profile } = useProfile()
 
@@ -28,7 +29,7 @@ export function ProBadge({ alwaysVisible = false, className, label }: Readonly<P
 
   const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
-  const badge = <Badge>{badgeLabel}</Badge>
+  const badge = <Badge variant={variant}>{badgeLabel}</Badge>
 
   return className ? <span className={className}>{badge}</span> : badge
 }

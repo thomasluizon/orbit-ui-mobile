@@ -27,12 +27,12 @@ describe('profile-navigation', () => {
 
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/wrapped',
-      '/advanced',
-      '/calendar-sync',
       null,
+      '/calendar-sync',
+      '/support',
       '/about',
     ])
-    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'support')?.action).toBe('openSupport')
+    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'android-widget')?.action).toBe('openWidget')
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
       ['profile.wrappedTitle', null],
       ['profile.widgetTitle', 'profile.widgetHint'],

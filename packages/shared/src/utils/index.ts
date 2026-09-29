@@ -689,6 +689,7 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
+export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,

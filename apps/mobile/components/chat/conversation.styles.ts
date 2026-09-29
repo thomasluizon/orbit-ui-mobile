@@ -49,7 +49,8 @@ export function createStyles(tokens: Tokens) {
       color: tokens.fg3,
     },
     messageList: {
-      paddingVertical: 16,
+      padding: 16,
+      gap: 16,
     },
   });
 }

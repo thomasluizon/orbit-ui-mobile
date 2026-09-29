@@ -10,6 +10,8 @@ import {
 } from '@/hooks/use-subscription-plans'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { setAccountId } from '@/lib/account-scope'
+import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
+import { retireHeldAccount } from '@/__tests__/support/account-change'
 
 const mockFetch = vi.fn()
 const { mockReportApiError } = vi.hoisted(() => ({
@@ -121,6 +123,23 @@ describe('useSubscriptionPlans', () => {
     expect(result.current.plans).toBeDefined()
     expect(result.current.plans!.monthly.unitAmount).toBe(999)
     expect(result.current.plans!.yearly.unitAmount).toBe(7999)
+  })
+
+  it('fetches plans for the account supplied by the server render', async () => {
+    await retireHeldAccount()
+    setAccountId(null)
+    const plans = makePlans()
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(plans) })
+    const queryClient = createQueryClient()
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <RenderedAccountSeed accountId="account-from-server">{children}</RenderedAccountSeed>
+      </QueryClientProvider>
+    )
+
+    const { result } = renderHook(() => useSubscriptionPlans(), { wrapper: Wrapper })
+
+    await waitFor(() => expect(result.current.plans).toEqual(plans))
   })
 
   it('returns null plans when query fails', () => {

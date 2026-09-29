@@ -79,7 +79,7 @@ const {
   saveWidgetTokenMock,
   apiClientMock,
   clearPersistedQueryCacheMock,
-  queryClientClearMock,
+  resetAccountQueriesMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
   getAuthReturnUrlAttemptMock,
@@ -111,7 +111,7 @@ const {
   saveWidgetTokenMock: vi.fn(),
   apiClientMock: vi.fn(),
   clearPersistedQueryCacheMock: vi.fn(),
-  queryClientClearMock: vi.fn(),
+  resetAccountQueriesMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
   getAuthReturnUrlAttemptMock: vi.fn(() => 0),
@@ -204,9 +204,13 @@ vi.mock('@/hooks/use-push-notifications', () => ({
   unsubscribePushToken: unsubscribePushTokenMock,
 }))
 
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: resetAccountQueriesMock,
+}))
+
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
-    clear: queryClientClearMock,
     cancelQueries: cancelQueriesMock,
     getQueryData: getQueryDataMock,
     invalidateQueries: invalidateQueriesMock,
@@ -329,7 +333,7 @@ describe('mobile auth store security paths', () => {
     saveWidgetTokenMock.mockReset()
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
-    queryClientClearMock.mockReset()
+    resetAccountQueriesMock.mockReset()
     setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     resetAccountScopedChatMock.mockReset()
@@ -349,7 +353,7 @@ describe('mobile auth store security paths', () => {
     getQueryDataMock.mockClear()
     invalidateQueriesMock.mockClear()
     queryCache.clear()
-    queryClientClearMock.mockImplementation(() => queryCache.clear())
+    resetAccountQueriesMock.mockImplementation(() => queryCache.clear())
     setQueryDataMock.mockImplementation((
       queryKey: readonly unknown[],
       updater: unknown,
@@ -501,8 +505,8 @@ describe('mobile auth store security paths', () => {
       callOrder.push('setRefreshToken')
       return Promise.resolve()
     })
-    queryClientClearMock.mockImplementation(() => {
-      callOrder.push('queryClient.clear')
+    resetAccountQueriesMock.mockImplementation(() => {
+      callOrder.push('resetAccountQueries')
     })
 
     await useAuthStore.getState().login('access-token', 'refresh-token', {
@@ -512,8 +516,8 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(callOrder.indexOf('setToken')).toBeGreaterThanOrEqual(0)
-    expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
-    expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
+    expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
+    expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('resetAccountQueries'))
   })
 
   it('does not carry the support draft into a replacement account', async () => {
@@ -984,7 +988,7 @@ describe('mobile auth store security paths', () => {
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
     expect(forgetStoredSupportDraftMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
@@ -1041,7 +1045,7 @@ describe('mobile auth store security paths', () => {
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
     expect(forgetStoredSupportDraftMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
@@ -1065,7 +1069,7 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
-    expect(queryClientClearMock).not.toHaveBeenCalled()
+    expect(resetAccountQueriesMock).not.toHaveBeenCalled()
     expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
     expect(forgetStoredSupportDraftMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
@@ -1088,7 +1092,7 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
-    expect(queryClientClearMock).not.toHaveBeenCalled()
+    expect(resetAccountQueriesMock).not.toHaveBeenCalled()
     expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
     expect(forgetStoredSupportDraftMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
@@ -1133,8 +1137,8 @@ describe('mobile auth store security paths', () => {
         resetCountsAtSignedOut.push(posthogMocks.resetPostHogUser.mock.calls.length)
       }
     })
-    queryClientClearMock.mockImplementation(() => {
-      order.push('clearCache')
+    resetAccountQueriesMock.mockImplementation(() => {
+      order.push('resetAccountQueries')
     })
 
     await useAuthStore.getState().logout()
@@ -1144,12 +1148,12 @@ describe('mobile auth store security paths', () => {
 
     expect(replaceMock).not.toHaveBeenCalled()
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(order.indexOf('unauthenticated')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('unauthenticated')).toBeLessThan(
-      order.indexOf('clearCache'),
+      order.indexOf('resetAccountQueries'),
     )
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -1879,7 +1883,7 @@ describe('mobile auth store security paths', () => {
     await expect(useAuthStore.getState().logout()).resolves.toBe(true)
 
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
-    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountQueriesMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       sessionPhase: 'signed-out',
       isAuthenticated: false,

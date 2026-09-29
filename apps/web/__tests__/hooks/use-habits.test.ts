@@ -6,6 +6,7 @@ import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, getReturningInterval } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
@@ -365,6 +366,7 @@ describe('useLogHabit', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     captureHabitLogged.mockClear()
+    mockShowError.mockClear()
   })
 
   it('calls logHabit action and invalidates caches on settled', async () => {
@@ -396,16 +398,47 @@ describe('useLogHabit', () => {
     expect(captureHabitLogged.mock.calls[0]).toEqual([])
   })
 
-  it('does not capture a failed habit log', async () => {
+  it('rolls back a failed habit log and shows its mapped error once', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
-    vi.mocked(logHabit).mockRejectedValueOnce(new Error('Log failed'))
+    vi.mocked(logHabit).mockRejectedValueOnce(createApiClientError(400, {
+      error: 'Not scheduled on date', errorCode: 'NOT_SCHEDULED_ON_DATE',
+    }, 'Request failed: 400'))
+    const queryClient = createQueryClient()
+    const listKey = habitKeys.list({})
+    queryClient.setQueryData(listKey, [makeScheduleItem({ id: 'h-1', isCompleted: false })])
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toThrow()
+    })
+
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(listKey)?.[0]?.isCompleted).toBe(false)
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('errors.api.logNotAllowed', 'common.dismiss')
+    expect(captureHabitLogged).not.toHaveBeenCalled()
+  })
+
+  it('shows one generic mapped error for a network failure', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockRejectedValueOnce(new Error('Network failed'))
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toThrow('Log failed')
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'unlog' })).rejects.toThrow('Network failed')
     })
 
-    expect(captureHabitLogged).not.toHaveBeenCalled()
+    expect(mockShowError).toHaveBeenCalledExactlyOnceWith('habits.detail.logError', 'common.dismiss')
+  })
+
+  it('uses account-changed handling without a log error toast', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('reconciles habit data without refetching response-backed or AI summary families', async () => {

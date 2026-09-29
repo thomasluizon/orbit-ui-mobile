@@ -394,7 +394,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg2 }]}>
           {t('profile.settingsRows.apiKeysMcp')}
         </Text>
-        <ProBadge alwaysVisible />
+        <ProBadge alwaysVisible variant="outline" />
       </View>
       <Text style={[styles.description, { color: tokens.fg3 }]}>{t('profile.apiKeys.description')}</Text>
 
