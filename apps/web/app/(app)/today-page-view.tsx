@@ -104,8 +104,10 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={view.habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
         completedLabel={view.showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        showCompleted={view.showCompleted}
         isFetching={view.data.isFetching}
         onToggleSelect={view.toggleSelectMode}
         onToggleCollapse={() => {
