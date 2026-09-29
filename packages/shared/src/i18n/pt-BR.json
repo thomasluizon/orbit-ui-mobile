@@ -1852,16 +1852,11 @@
     }
   },
   "shareCard": {
-    "title": "Compartilhe seu progresso",
-    "entry": "Compartilhar progresso",
     "share": "Compartilhar",
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
     "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
-    "loading": "Preparando seu card…",
-    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
-    "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",
