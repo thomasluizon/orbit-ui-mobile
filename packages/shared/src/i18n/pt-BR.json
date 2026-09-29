@@ -2243,7 +2243,7 @@
       "importNotNow": "Agora não"
     },
     "featureGuide": {
-      "title": "Guia de recursos",
+      "title": "Guia do Orbit",
       "openButton": "Guia de recursos",
       "habits": "Hábitos",
       "calendar": "Calendário",
@@ -3124,10 +3124,11 @@
     "themeModeDark": "Escuro"
   },
   "about": {
-    "title": "Sobre e Ajuda",
-    "featureGuide": "Recursos",
-    "terms": "Termos",
-    "privacy": "Privacidade",
+    "title": "Sobre",
+    "featureGuide": "Guia do Orbit",
+    "support": "Falar com o suporte",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade",
     "version": "Versão {version}",
     "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
     "versionLabel": "Versão",

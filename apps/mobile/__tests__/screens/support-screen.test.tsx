@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
 import { Pressable, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
@@ -148,6 +149,13 @@ describe('SupportScreen', () => {
     mocks.apiClient.mockResolvedValue(undefined)
     mocks.expoVersion = '1.1.4'
     mocks.translations.clear()
+  })
+
+  it('keeps the support page heading distinct from the About row label', async () => {
+    mocks.translations.set('profile.support.title', en.profile.support.title)
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')
+      .map((node) => node.props.children)).toContain('Support')
   })
 
   it('does not render an editable name field', async () => {

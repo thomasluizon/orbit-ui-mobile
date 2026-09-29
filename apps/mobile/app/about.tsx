@@ -95,24 +95,28 @@ export default function AboutScreen() {
 
           <View testID="about-destinations" style={styles.destinations}>
             <RowList style={styles.rowList}>
+              {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Sobre.dc.html:192 (D42) */}
               <ListRow
                 accessibilityLabel={t('about.featureGuide')}
                 onClick={() => setShowGuide(true)}
                 title={t('about.featureGuide')}
                 wrapTitle
               />
+              {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Sobre.dc.html:193 (D42) */}
               <ListRow
-                accessibilityLabel={t('profile.support.title')}
+                accessibilityLabel={t('about.support')}
                 onClick={() => router.push('/support')}
-                title={t('profile.support.title')}
+                title={t('about.support')}
                 wrapTitle
               />
+              {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Sobre.dc.html:194 (D42) */}
               <ListRow
                 accessibilityLabel={t('about.terms')}
                 onClick={() => router.push('/terms')}
                 title={t('about.terms')}
                 wrapTitle
               />
+              {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Sobre.dc.html:195 (D42) */}
               <ListRow
                 accessibilityLabel={t('about.privacy')}
                 onClick={() => router.push('/privacy')}

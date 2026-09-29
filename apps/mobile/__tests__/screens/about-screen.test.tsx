@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutScreen from '@/app/about'
+import en from '@orbit/shared/i18n/en.json'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -14,14 +15,16 @@ type TestNode = {
 
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
-  guideOpen: vi.fn(),
   isAuthenticated: true,
   push: vi.fn(),
   useProfile: vi.fn(() => ({ profile: { email: 'profile-account-with-a-long-address@example.com' } })),
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string) => key.split('.').reduce<unknown>(
+    (value, part) => (value as Record<string, unknown>)[part],
+    en,
+  ) as string }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -42,11 +45,9 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/onboarding/feature-guide-drawer', () => ({
-  FeatureGuideDrawer: ({ open }: { open: boolean }) => {
-    mocks.guideOpen(open)
-    return null
-  },
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, title, children }: { open: boolean; title: string; children: React.ReactNode }) =>
+    open ? React.createElement('View', { testID: 'guide-sheet' }, React.createElement('Text', null, title), children) : null,
 }))
 
 function flattenedStyle(node: TestNode) {
@@ -61,7 +62,6 @@ function textContent(node: TestNode): string {
 
 describe('AboutScreen', () => {
   beforeEach(() => {
-    mocks.guideOpen.mockClear()
     mocks.push.mockClear()
     mocks.useProfile.mockClear()
     mocks.isAuthenticated = true
@@ -78,8 +78,10 @@ describe('AboutScreen', () => {
         (node) => node.type === 'Svg' && node.props.testID === 'orbit-mark-accent',
       ),
     ).toHaveLength(1)
-    expect(textContent(tree.root)).toContain('common.appName')
-    expect(textContent(tree.root)).toContain('about.tagline')
+    expect(textContent(tree.root)).toContain('Orbit')
+    expect(textContent(tree.root)).toContain(en.about.tagline)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')
+      .map(textContent)).toContain('About')
     expect(textContent(tree.root)).toContain('1.0.0')
     expect(textContent(tree.root)).toContain(mocks.email)
     expect(tree.root.findAll((node) => node.props.testID === 'about-credit')).toHaveLength(0)
@@ -91,20 +93,26 @@ describe('AboutScreen', () => {
         typeof node.props.accessibilityLabel === 'string',
     )
     expect(destinations.map((node) => node.props.accessibilityLabel)).toEqual([
-      'common.backToProfile',
-      'about.featureGuide',
-      'profile.support.title',
-      'about.terms',
-      'about.privacy',
+      en.common.backToProfile,
+      'Orbit guide',
+      'Contact support',
+      'Terms of use',
+      'Privacy policy',
     ])
 
     TestRenderer.act(() => {
-      destinations.slice(1).forEach((destination) => {
+      const onPress = destinations[1]!.props.onPress as () => void
+      onPress()
+    })
+    expect(textContent(tree.root.findAll((node) => node.props.testID === 'guide-sheet')[0]!))
+      .toContain('Orbit guide')
+
+    TestRenderer.act(() => {
+      destinations.slice(2).forEach((destination) => {
         const onPress = destination.props.onPress as () => void
         onPress()
       })
     })
-    expect(mocks.guideOpen).toHaveBeenLastCalledWith(true)
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 

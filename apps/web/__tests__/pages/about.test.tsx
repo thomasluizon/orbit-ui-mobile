@@ -3,15 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
-  guideOpen: vi.fn(),
   push: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => key.split('.').reduce<unknown>(
+    (value, part) => (value as Record<string, unknown>)[part],
+    ptBR,
+  ) as string,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -27,16 +30,13 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/onboarding/feature-guide-drawer', () => ({
-  FeatureGuideDrawer: ({ open }: { open: boolean }) => {
-    mocks.guideOpen(open)
-    return null
-  },
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, title, titleTranslate, children }: { open: boolean; title: string; titleTranslate?: 'no'; children: React.ReactNode }) =>
+    open ? <section role="dialog" aria-label={title} translate={titleTranslate}>{children}</section> : null,
 }))
 
 describe('AboutPage', () => {
   beforeEach(() => {
-    mocks.guideOpen.mockClear()
     mocks.push.mockClear()
     useAuthStore.setState({ isAuthenticated: true })
   })
@@ -45,8 +45,9 @@ describe('AboutPage', () => {
     const { container } = render(<AboutPage />)
 
     expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
-    expect(screen.getByText('common.appName')).toBeInTheDocument()
-    expect(screen.getByText('about.tagline')).toBeInTheDocument()
+    expect(screen.getByText('Orbit')).toBeInTheDocument()
+    expect(screen.getByText(ptBR.about.tagline)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sobre' })).toBeInTheDocument()
     expect(screen.getByText('0.0.1')).toBeInTheDocument()
     expect(screen.getByText(mocks.email)).toBeInTheDocument()
     expect(screen.queryByTestId('about-credit')).not.toBeInTheDocument()
@@ -56,18 +57,19 @@ describe('AboutPage', () => {
       .getAllByRole('button')
       .map((row) => row.getAttribute('aria-label'))
     expect(destinationLabels).toEqual([
-      'about.featureGuide',
-      'profile.support.title',
-      'about.terms',
-      'about.privacy',
+      'Guia do Orbit',
+      'Falar com o suporte',
+      'Termos de uso',
+      'Política de privacidade',
     ])
 
-    fireEvent.click(destinations.getByRole('button', { name: 'about.featureGuide' }))
-    expect(mocks.guideOpen).toHaveBeenLastCalledWith(true)
+    fireEvent.click(destinations.getByRole('button', { name: 'Guia do Orbit' }))
+    expect(screen.getByRole('dialog', { name: 'Guia do Orbit' })).toHaveAttribute('translate', 'no')
+    expect(destinations.getByText('Guia do Orbit')).toHaveAttribute('translate', 'no')
 
-    fireEvent.click(destinations.getByRole('button', { name: 'profile.support.title' }))
-    fireEvent.click(destinations.getByRole('button', { name: 'about.terms' }))
-    fireEvent.click(destinations.getByRole('button', { name: 'about.privacy' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'Falar com o suporte' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'Termos de uso' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'Política de privacidade' }))
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 
