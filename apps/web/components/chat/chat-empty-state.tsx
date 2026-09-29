@@ -15,7 +15,7 @@ export function ChatEmptyState({ onSelectSuggestion, contextualAction }: Readonl
   const t = useTranslations()
 
   return (
-    <div className="flex h-full min-h-[420px] flex-col justify-center" style={{ gap: 24 }}>
+    <div className="flex h-full min-h-[420px] flex-col justify-center" style={{ gap: 24 }} aria-live="off">
       <EmptyState mark="astra" title={t('chat.empty.title')} />
       <div className="flex flex-col items-center" style={{ gap: 8 }}>
         <p

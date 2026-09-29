@@ -69,7 +69,8 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
     selector({ setAstraConversationOpen: mocks.setOpen }),
 }))
-vi.mock('@/components/ui/app-bar', () => ({
+vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/app-bar')>()),
   AppBar: ({ action }: { action?: ReactNode }) => <div data-testid="app-bar">{action}</div>,
 }))
 vi.mock('@/components/chat/message-bubble', () => ({

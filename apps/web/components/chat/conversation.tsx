@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { chatTraceLabelKey } from '@orbit/shared/chat'
-import { AppBar } from '@/components/ui/app-bar'
+import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -136,7 +136,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
               type="button"
               aria-label={t('common.closeConversation')}
               onClick={close}
-              className="flex size-11 items-center justify-center rounded-full text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+              className={APP_BAR_CONTROL_CLASS}
             >
               <X size={20} strokeWidth={2} aria-hidden="true" />
             </button>

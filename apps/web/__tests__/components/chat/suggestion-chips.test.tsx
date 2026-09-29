@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
@@ -15,9 +15,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC' } }),
 }))
 
-vi.mock('@/lib/api-fetch', () => ({
-  fetchJson: () => Promise.reject(new Error('the suggestion chips must read the cached habit list')),
+const habitRequest = vi.hoisted(() => ({
+  fetchJson: vi.fn((_url: string): Promise<unknown> =>
+    Promise.reject(new Error('the suggestion chips must read the cached habit list'))),
 }))
+
+vi.mock('@/lib/api-fetch', () => habitRequest)
 
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 
@@ -32,18 +35,19 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
   })
 }
 
-function renderChips(items: HabitScheduleItem[], onSelect = vi.fn()) {
+const TODAY_LIST_KEY = habitKeys.list(
+  habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true),
+)
+
+function renderChips(items: HabitScheduleItem[] | null, onSelect = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  queryClient.setQueryData(
-    habitKeys.list(habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true)),
-    items,
-  )
+  if (items !== null) queryClient.setQueryData(TODAY_LIST_KEY, items)
   render(
     <QueryClientProvider client={queryClient}>
       <SuggestionChips onSelect={onSelect} />
     </QueryClientProvider>,
   )
-  return onSelect
+  return { onSelect, queryClient }
 }
 
 describe('SuggestionChips', () => {
@@ -81,11 +85,49 @@ describe('SuggestionChips', () => {
   })
 
   it('sends the shown text when a suggestion is pressed', () => {
-    const onSelect = renderChips([makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })])
+    const { onSelect } = renderChips([makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })])
 
     fireEvent.click(screen.getByText('chat.suggestion.logHabit:Caminhar'))
 
     expect(onSelect).toHaveBeenCalledWith('chat.suggestion.logHabit:Caminhar')
+  })
+
+  it('shows no suggestion until the habit list arrives, then all of them at once', async () => {
+    let answer: (page: unknown) => void = () => {}
+    habitRequest.fetchJson.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
+    renderChips(null)
+
+    expect(screen.queryAllByRole('button')).toEqual([])
+
+    await act(async () => {
+      answer({
+        items: [makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })],
+        totalCount: 1,
+        totalPages: 1,
+        page: 1,
+        pageSize: 200,
+      })
+    })
+
+    expect((await screen.findAllByRole('button')).map((button) => button.textContent)).toEqual([
+      'chat.suggestion.logHabit:Caminhar',
+      'chat.suggestion.week',
+      'chat.suggestion.splitHabit:Caminhar',
+      'chat.suggestion.goals',
+    ])
+  })
+
+  it('keeps focus on a suggestion whose habit changes under it', async () => {
+    const { queryClient } = renderChips([makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })])
+    const logSuggestion = screen.getByRole('button', { name: 'chat.suggestion.logHabit:Caminhar' })
+    logSuggestion.focus()
+
+    act(() => {
+      queryClient.setQueryData(TODAY_LIST_KEY, [makeTopLevelItem({ id: 'read', title: 'Ler', position: 0 })])
+    })
+
+    await waitFor(() => expect(logSuggestion).toHaveTextContent('chat.suggestion.logHabit:Ler'))
+    expect(document.activeElement).toBe(logSuggestion)
   })
 
   it('never paints a suggestion with the accent', () => {

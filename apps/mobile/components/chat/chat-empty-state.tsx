@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { View, Text } from "react-native";
+import { ScrollView, View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
@@ -19,7 +19,7 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
 
     return (
       <View ref={ref} style={styles.emptyState}>
-        <View style={styles.emptyContent}>
+        <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
           <EmptyState mark="astra" title={t("chat.empty.title")} />
           <View style={styles.emptySuggestions}>
             <Text style={styles.emptyPrompt}>{t("chat.suggestion.prompt")}</Text>
@@ -28,7 +28,7 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
           <Text style={styles.aiDisclaimer}>
             {t("aiDisclosure.notMedicalAdvice")}
           </Text>
-        </View>
+        </ScrollView>
       </View>
     );
   },

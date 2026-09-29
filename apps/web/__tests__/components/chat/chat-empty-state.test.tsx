@@ -34,6 +34,17 @@ describe('ChatEmptyState', () => {
     }
   })
 
+  it('keeps its suggestions out of the conversation live log', () => {
+    render(
+      <div role="log" aria-live="polite">
+        <ChatEmptyState onSelectSuggestion={vi.fn()} />
+      </div>,
+    )
+
+    const suggestion = screen.getByRole('button', { name: 'Como foi a semana' })
+    expect(suggestion.closest('[aria-live]')).toHaveAttribute('aria-live', 'off')
+  })
+
   it('renders the drawn title and the prompt over the suggestions', () => {
     render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
 

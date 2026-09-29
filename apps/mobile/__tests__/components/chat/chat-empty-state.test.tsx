@@ -22,9 +22,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC' } }),
 }))
 
-vi.mock('@/lib/api-client', () => ({
-  apiClient: () => Promise.reject(new Error('the empty state must read the cached habit list')),
+const habitRequest = vi.hoisted(() => ({
+  apiClient: vi.fn((_url: string): Promise<unknown> =>
+    Promise.reject(new Error('the empty state must read the cached habit list'))),
 }))
+
+vi.mock('@/lib/api-client', () => habitRequest)
 
 const TestRenderer = require('react-test-renderer')
 
@@ -41,12 +44,14 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
   })
 }
 
-function renderEmptyState(items: HabitScheduleItem[], onSelectSuggestion = vi.fn()) {
+function renderEmptyState(items: HabitScheduleItem[] | null, onSelectSuggestion = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  queryClient.setQueryData(
-    habitKeys.list(habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true)),
-    items,
-  )
+  if (items !== null) {
+    queryClient.setQueryData(
+      habitKeys.list(habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true)),
+      items,
+    )
+  }
   let tree: any
   TestRenderer.act(() => {
     tree = TestRenderer.create(
@@ -106,6 +111,44 @@ describe('ChatEmptyState (mobile)', () => {
       'chat.suggestion.splitHabit:Caminhar',
       'chat.suggestion.goals',
     ])
+  })
+
+  it('shows no suggestion until the habit list arrives, then all of them at once', async () => {
+    let answer: (page: unknown) => void = () => {}
+    habitRequest.apiClient.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
+    const { tree } = renderEmptyState(null)
+
+    expect(suggestionLabels(tree)).toEqual([])
+
+    await TestRenderer.act(async () => {
+      answer({
+        items: [makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })],
+        totalCount: 1,
+        totalPages: 1,
+        page: 1,
+        pageSize: 200,
+      })
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    expect(suggestionLabels(tree)).toEqual([
+      'chat.suggestion.logHabit:Caminhar',
+      'chat.suggestion.week',
+      'chat.suggestion.splitHabit:Caminhar',
+      'chat.suggestion.goals',
+    ])
+  })
+
+  it('keeps a long habit title on one line inside its suggestion', () => {
+    const { tree } = renderEmptyState([
+      makeTopLevelItem({ id: 'long', title: 'Arrumar a casa inteira antes do almoço de domingo', position: 0 }),
+    ])
+
+    const labels = tree.root
+      .findAll((node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'button')
+      .flatMap((button: any) => button.findAll((node: any) => node.type === 'Text'))
+    expect(labels).toHaveLength(4)
+    for (const label of labels) expect(label.props.numberOfLines).toBe(1)
   })
 
   it('leaves out both habit suggestions when the account has no habits', () => {

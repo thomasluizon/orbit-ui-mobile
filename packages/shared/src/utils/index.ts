@@ -4,8 +4,8 @@ export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
 export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
-export { selectAstraSuggestionHabits } from './astra-suggestions'
-export type { AstraSuggestionHabits } from './astra-suggestions'
+export { selectAstraSuggestions } from './astra-suggestions'
+export type { AstraSuggestion } from './astra-suggestions'
 export {
   buildAccountScopedStorageKey,
   readAccountScopedFlag,

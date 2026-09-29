@@ -21,15 +21,13 @@ export function createStyles(tokens: Tokens) {
     },
     emptyState: {
       flex: 1,
-      position: "relative",
     },
     emptyContent: {
-      flex: 1,
+      flexGrow: 1,
       alignItems: "center",
       justifyContent: "center",
       gap: 24,
       paddingHorizontal: 16,
-      zIndex: 1,
     },
     emptySuggestions: {
       alignItems: "center",

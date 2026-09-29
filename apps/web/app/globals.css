@@ -1038,16 +1038,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: check-item-pop 200ms var(--ease-out);
 }
 
-/* Chat chip slide-in */
-@keyframes chip-slide-in {
-  0% { opacity: 0; transform: translateX(-8px) scale(0.95); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-.animate-chip-in {
-  animation: chip-slide-in 280ms var(--ease-out) both;
-}
-
 /* Chat message rise-in */
 @keyframes msg-rise-in {
   0% { opacity: 0; transform: translateY(8px); }
@@ -1377,7 +1367,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     opacity var(--dur-1) var(--ease-out),
-    transform var(--dur-1) var(--ease-out);
+    scale var(--dur-1) var(--ease-out);
 }
 }
 

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
+import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useAstraSuggestionHabits } from "@/hooks/use-astra-suggestions";
+import { MotionPressable } from "@/components/ui/motion-pressable";
+import { useAstraSuggestions } from "@/hooks/use-astra-suggestions";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -22,50 +22,32 @@ export function SuggestionChips({ onSelect, contextualAction }: Readonly<Suggest
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const { logHabitTitle, splitHabitTitle } = useAstraSuggestionHabits();
+  const suggestions = useAstraSuggestions();
 
-  const suggestions = useMemo(
-    () => [
-      ...(logHabitTitle === null ? [] : [t("chat.suggestion.logHabit", { habit: logHabitTitle })]),
-      t("chat.suggestion.week"),
-      ...(splitHabitTitle === null ? [] : [t("chat.suggestion.splitHabit", { habit: splitHabitTitle })]),
-      t("chat.suggestion.goals"),
-    ],
-    [logHabitTitle, splitHabitTitle, t],
+  if (suggestions === null) return null;
+
+  const renderSuggestion = (key: string, label: string, onPress: () => void) => (
+    <MotionPressable
+      key={key}
+      style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={styles.chipText} numberOfLines={1}>{label}</Text>
+    </MotionPressable>
   );
 
   return (
     <View style={styles.container}>
-      {contextualAction ? (
-        <Pressable
-          style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
-          onPress={contextualAction.onSelect}
-          accessibilityRole="button"
-          accessibilityLabel={contextualAction.label}
-        >
-          <Text style={styles.chipText}>{contextualAction.label}</Text>
-        </Pressable>
-      ) : null}
-      {suggestions.map((suggestion, index) => (
-        <Animated.View
-          key={suggestion}
-          entering={FadeInLeft.duration(280)
-            .delay(index * 60)
-            .reduceMotion(ReduceMotion.System)}
-        >
-          {/* eslint-disable-next-line local/max-button-words -- granted canvas suggestions, Orbit Astra Conversation.dc.html:177 (D42) */}
-          <Pressable
-            style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
-            onPress={() => onSelect(suggestion)}
-            accessibilityRole="button"
-            accessibilityLabel={suggestion}
-          >
-            <Text style={styles.chipText}>{suggestion}</Text>
-          </Pressable>
-        </Animated.View>
-      ))}
+      {contextualAction
+        ? renderSuggestion("contextual", contextualAction.label, contextualAction.onSelect)
+        : null}
+      {suggestions.map((suggestion) => {
+        const label = t(suggestion.key, suggestion.params);
+        return renderSuggestion(suggestion.id, label, () => onSelect(label));
+      })}
     </View>
   );
 }
@@ -73,13 +55,15 @@ export function SuggestionChips({ onSelect, contextualAction }: Readonly<Suggest
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
+      maxWidth: "100%",
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "center",
       gap: 8,
     },
     chip: {
-      height: 44,
+      minHeight: 44,
+      maxWidth: "100%",
       justifyContent: "center",
       paddingHorizontal: 16,
       borderRadius: 999,
@@ -88,11 +72,11 @@ function createStyles(tokens: AppTokens) {
     },
     chipPressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     chipText: {
       fontFamily: 'Geist_500Medium',
       fontSize: 14,
+      includeFontPadding: false,
       color: tokens.fg2,
     },
   });

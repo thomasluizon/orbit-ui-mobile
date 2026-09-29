@@ -293,7 +293,7 @@ function RootLayoutNav() {
   const conversation = {
     conversation: <AstraConversation chat={chat} />,
     conversationOpen: astraConversationOpen,
-    conversationLabel: t('todayAstra.openConversation'),
+    conversationLabel: t('chat.title'),
   }
   const androidBackFallbackRoute = useMemo(
     () =>

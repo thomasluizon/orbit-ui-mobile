@@ -23,6 +23,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { MotionPressable } from "@/components/ui/motion-pressable";
 import { ChevronDown, RefreshCw, X } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
@@ -189,7 +190,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           titleRef={titleRef}
           title={t("chat.title")}
           action={
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={t("common.closeConversation")}
               onPress={closeConversation}
@@ -199,7 +200,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               ]}
             >
               <X size={20} strokeWidth={2} color={tokens.fg1} />
-            </Pressable>
+            </MotionPressable>
           }
         />
 
