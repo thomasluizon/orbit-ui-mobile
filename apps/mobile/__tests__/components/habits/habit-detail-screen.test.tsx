@@ -1044,6 +1044,14 @@ describe('HabitDetailScreen', () => {
     expect(JSON.stringify(header.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))).not.toContain(' · ')
   })
 
+  it('omits the summary element when there is no frequency or due time', () => {
+    mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: null }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const header = tree!.root.findByProps({ testID: 'header-log' }).parent.parent
+    expect(header.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === '')).toBe(false)
+  })
+
   it('persists each inline detail editor through its dedicated patch', async () => {
     mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
     let tree: ReturnType<typeof TestRenderer.create>

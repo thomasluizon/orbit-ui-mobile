@@ -2606,7 +2606,7 @@
       "logNotAllowed": "You can't log this habit right now.",
       "selfParent": "A habit can't be its own sub-habit.",
       "generalMismatchWithParent": "A sub-habit and its parent must have the same 'anytime' setting.",
-      "generalMismatchWithChildren": "Change the sub-habits' schedules before changing 'anytime'.",
+      "generalMismatchWithChildren": "Match each sub-habit's 'anytime' setting before changing this habit.",
       "calendarNotConnected": "Connect Google Calendar first.",
       "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
       "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",

@@ -167,7 +167,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
             <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] [@media(pointer:fine)]:hover:text-[var(--fg-2)]">{habit.title}</button>
           </h1>
         )}
-        <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p>
+        {summary ? <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p> : null}
         {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
       </div>
       <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />

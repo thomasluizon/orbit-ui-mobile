@@ -2606,7 +2606,7 @@
       "logNotAllowed": "Não dá para registrar esse hábito agora.",
       "selfParent": "Um hábito não pode ser sub-hábito de si mesmo.",
       "generalMismatchWithParent": "Um sub-hábito e o hábito principal precisam ter a mesma opção 'sem dia certo'.",
-      "generalMismatchWithChildren": "Ajuste a programação dos sub-hábitos antes de mudar 'sem dia certo'.",
+      "generalMismatchWithChildren": "Iguale a opção 'sem dia certo' dos sub-hábitos antes de mudar este hábito.",
       "calendarNotConnected": "Conecte o Google Agenda primeiro.",
       "calendarReconnect": "Sua conexão com o Google Agenda expirou. Reconecte para continuar.",
       "calendarFetchFailed": "Não foi possível carregar seus eventos. Tente de novo.",
