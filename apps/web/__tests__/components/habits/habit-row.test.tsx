@@ -14,6 +14,46 @@ import { HabitRow } from '@/components/habits/habit-row'
 describe('HabitRow overflow menus', () => {
   afterEach(() => vi.unstubAllGlobals())
 
+  it('matches the drawn menu for an overdue parent on a free plan', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} state="overdue" hasSubHabits hasProAccess={false}
+      actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
+        onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    const items = await screen.findAllByRole('menuitem')
+    expect(document.querySelector('.orbit-menu-panel')).toHaveAttribute('aria-label', 'Walk')
+    expect(items.map((item) => item.textContent)).toEqual([
+      'habits.actions.addSubHabitPro', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
+    ])
+    expect(items.map((item) => item.querySelector('[data-icon]')?.getAttribute('data-icon'))).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(items.every((item) => item.querySelector('[data-icon] svg[width="20"][stroke-width="2"]'))).toBe(true)
+    expect(items[8]).toHaveAttribute('data-destructive', 'true')
+  })
+
+  it('omits overdue and child actions when their row conditions do not apply', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} state="empty" hasProAccess
+      actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    expect(await screen.findByRole('menuitem', { name: 'habits.actions.addSubHabit' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'habits.actions.reschedule' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'habits.actions.openSubHabits' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'common.select' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'habits.actions.addSubHabit' })).not.toHaveTextContent('Pro')
+    expect(screen.getByText('Read', { selector: '.orbit-sheet-title' })).toBeInTheDocument()
+  })
+
+  it('removes the menu while selecting rows', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Walk' })} selectMode
+      actions={{ onEnterSelectMode: vi.fn(), onEdit: vi.fn() }} />)
+    expect(screen.queryByRole('button', { name: 'habits.actions.more' })).toBeNull()
+  })
+
   it('keeps only the second row menu open when another row opens', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: true,
@@ -35,7 +75,7 @@ describe('HabitRow overflow menus', () => {
 
     fireEvent.pointerDown(secondTrigger!)
     fireEvent.click(secondTrigger!)
-    expect(await screen.findByRole('menuitem', { name: 'habits.deleteHabit' })).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: 'habits.actions.delete' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'common.edit' })).toBeNull()
   })
 })
@@ -141,8 +181,8 @@ describe('HabitRow check circle accessible name', () => {
       hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
-    for (const label of ['habits.form.addSubHabit', 'habits.moveParent.button', 'common.edit',
-      'habits.actions.duplicate', 'common.select', 'habits.actions.openSubHabits', 'habits.deleteHabit']) {
+    for (const label of ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'common.edit',
+      'habits.actions.duplicate', 'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']) {
       expect(screen.getByRole('menuitem', { name: label })).toBeEnabled()
     }
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.skip' })).toBeNull()
