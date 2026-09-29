@@ -547,6 +547,14 @@ describe('usePushNotifications', () => {
     })
 
     await TestRenderer.act(() => {
+      notify(buildResponse('/progress'))
+      notify(buildResponse('/progress?wrapped=month&year=2026&month=8'))
+    })
+    expect(mocks.router.push).toHaveBeenNthCalledWith(1, '/streak')
+    expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/wrapped')
+    mocks.router.push.mockClear()
+
+    await TestRenderer.act(() => {
       notify(buildResponse('/social'))
     })
     expect(mocks.router.push).not.toHaveBeenCalled()

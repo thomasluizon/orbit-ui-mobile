@@ -254,9 +254,11 @@ export {
 export { formatNotificationRelativeTime } from './notification-time'
 export type { NotificationGlyph } from './notification-actions'
 export {
+  getNotificationDestination,
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from './notification-actions'
 export {
   buildTempGoal,

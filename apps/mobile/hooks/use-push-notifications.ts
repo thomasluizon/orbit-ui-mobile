@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
 import {
-  isViewableNotificationUrl,
+  getNotificationDestination,
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
@@ -520,8 +520,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
       (response) => {
         const maybeUrl = response.notification.request.content?.data?.url
-        if (typeof maybeUrl === 'string' && isViewableNotificationUrl(maybeUrl)) {
-          router.push(maybeUrl)
+        const destination = typeof maybeUrl === 'string'
+          ? getNotificationDestination(maybeUrl)
+          : null
+        if (destination) {
+          router.push(destination.url)
         }
       },
     )

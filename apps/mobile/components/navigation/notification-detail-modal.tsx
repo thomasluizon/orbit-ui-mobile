@@ -4,8 +4,8 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   formatNotificationRelativeTime,
+  getNotificationDestination,
   getNotificationDetailActionVisibility,
-  isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -43,9 +43,9 @@ export function NotificationDetailModal({
   )
 
   function handleView() {
-    const url = notification.url
-    if (isViewableNotificationUrl(url)) {
-      scheduleExitAction(() => router.push(url))
+    const destination = getNotificationDestination(notification.url, notification.habitId)
+    if (destination) {
+      scheduleExitAction(() => router.push(destination.url))
       onClose()
     }
   }

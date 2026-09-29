@@ -106,6 +106,12 @@ describe('NotificationDetailModal', () => {
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('opens a progress notification on the streak screen', () => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url: '/progress' }} />)
+    fireEvent.click(screen.getByText('notifications.view'))
+    expect(mockPush).toHaveBeenCalledWith('/streak')
+  })
+
   it('does not show view button for invalid URLs', () => {
     const noUrlNotification = { ...mockNotification, url: null }
     render(

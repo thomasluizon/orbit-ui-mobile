@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
+  getNotificationDestination,
   getNotificationDetailActionVisibility,
-  isViewableNotificationUrl,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -31,10 +31,10 @@ export function NotificationDetailModal({
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
 
   function handleView() {
-    const url = notification.url
-    if (url && isViewableNotificationUrl(url)) {
+    const destination = getNotificationDestination(notification.url, notification.habitId)
+    if (destination) {
       onOpenChange(false)
-      router.push(url)
+      router.push(destination.url)
     }
   }
 
