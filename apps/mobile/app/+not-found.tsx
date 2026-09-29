@@ -6,16 +6,14 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useAuthStore } from '@/stores/auth-store'
 
 export default function NotFoundScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, isAuthenticated && styles.notFoundRoot]}>
+    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={styles.root}>
       <OrbitMark size={40} />
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
