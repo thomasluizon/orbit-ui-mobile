@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides, getWeeklyConsistencyReading } from '../utils/wrapped'
+import { buildWrappedSlides, formatClosedWrappedMonth, getWeeklyConsistencyReading } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
+
+describe('formatClosedWrappedMonth', () => {
+  it.each([
+    ['en', 1, 'January 2026'],
+    ['en', 12, 'December 2026'],
+    ['pt-BR', 1, 'Janeiro de 2026'],
+    ['pt-BR', 12, 'Dezembro de 2026'],
+  ])('formats %s month %i in the calendar month', (locale, month, label) => {
+    expect(formatClosedWrappedMonth({ year: 2026, month }, locale)).toBe(label)
+  })
+
+  it('keeps January in January under a negative UTC offset', () => {
+    const date = new Date(0)
+    date.setUTCFullYear(2026, 0, 1)
+    expect(new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date))
+      .toBe(formatClosedWrappedMonth({ year: 2026, month: 1 }, 'en'))
+  })
+})
 
 describe('buildWrappedSlides', () => {
   it('produces the fixed positive-only story order ending on the share slide', () => {

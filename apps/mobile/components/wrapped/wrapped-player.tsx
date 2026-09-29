@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from 'react'
-import { BackHandler, Pressable, ScrollView, View } from 'react-native'
+import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { formatClosedWrappedMonth, type ClosedRecapMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
 import { Pager } from '@/components/ui/pager'
@@ -18,6 +18,7 @@ interface WrappedPlayerProps {
   slides: WrappedSlideModel[]
   recap: Recap
   period: RecapSharePeriod
+  closedMonth?: ClosedRecapMonth
   tokens: Tokens
   onClose: () => void
 }
@@ -28,10 +29,14 @@ export function WrappedPlayer({
   slides,
   recap,
   period,
+  closedMonth,
   tokens,
   onClose,
 }: Readonly<WrappedPlayerProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const windowLabel = closedMonth && period === 'month'
+    ? formatClosedWrappedMonth(closedMonth, i18n.language)
+    : t(`wrapped.player.window.${period}`)
   const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
@@ -69,7 +74,11 @@ export function WrappedPlayer({
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}>
-        <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.headerRow, { paddingTop: Math.max(8, insets.top) }]}>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t(`wrapped.player.eyebrow.${period}`)}</Text>
+            <Text style={[styles.headerWindow, { color: tokens.fg3 }]}>{windowLabel}</Text>
+          </View>
           <Pressable
             onPress={onClose}
             accessibilityRole="button"

@@ -1922,10 +1922,7 @@
   },
   "wrapped": {
     "title": "Orbit Wrapped",
-    "back": "Back to profile",
-    "entry": "Your Wrapped",
-    "coverEyebrow": "Your habits, replayed",
-    "coverSubtitle": "Pick a period to begin.",
+    "coverSubtitle": "The period's logs, one page at a time.",
     "coverTitles": {
       "week": "Close the week.",
       "month": "Close the month.",
@@ -1938,7 +1935,7 @@
     "previous": "Previous",
     "progressLabel": "Slide {current} of {total}",
     "loading": "Preparing your Wrapped…",
-    "empty": "Log a few habits first to see your Wrapped.",
+    "empty": "Nothing logged in this period. Pick another period to see a recap.",
     "error": "Couldn't load your Wrapped. Please try again.",
     "retry": "Try again",
     "periods": {
@@ -1948,24 +1945,20 @@
     },
     "slides": {
       "intro": {
-        "eyebrow": "Orbit Wrapped",
         "week": "Your week in orbit",
         "month": "Your month in orbit",
         "year": "Your year in orbit",
-        "caption": "Tap through your highlights."
+        "caption": "One page at a time, and you can leave whenever you like."
       },
       "completions": {
-        "eyebrow": "Completions",
         "label": "Habits logged",
-        "caption": "Every check-in kept you in motion."
+        "caption": "Each one is a habit you logged."
       },
       "activeDays": {
-        "eyebrow": "Active days",
         "label": "Days active",
         "caption": "{rate} completion across the period."
       },
       "consistency": {
-        "eyebrow": "Your rhythm",
         "title": "Your weekly rhythm",
         "summary": "{strong} is your strongest day.",
         "even": "No single day stands out.",
@@ -1973,22 +1966,31 @@
         "thin": "Not enough logged yet to compare your days."
       },
       "streak": {
-        "eyebrow": "Best streak",
         "label": "Best streak",
-        "caption": "Currently a {count}-day streak."
+        "caption": "{count, plural, =0 {Your next log starts a new streak.} one {Your current streak is # day.} other {Your current streak is # days.}}"
       },
       "topHabit": {
-        "eyebrow": "Your standout",
-        "caption": "{rate} completion, your most consistent habit."
+        "caption": "Done on {rate} of its scheduled days.",
+        "label": "Most consistent habit"
       },
       "goals": {
         "zero": "No goals closed this time.",
         "some": "{count, plural, one {You closed one goal this period.} other {You closed # goals this period.}}"
       },
       "share": {
-        "eyebrow": "That's a wrap",
-        "title": "Share your Wrapped",
-        "caption": "Snapshot your recap and pull a friend into orbit."
+        "title": "Take your Wrapped with you"
+      }
+    },
+    "player": {
+      "eyebrow": {
+        "week": "Closing the week",
+        "month": "Closing the month",
+        "year": "Closing the year"
+      },
+      "window": {
+        "week": "This week so far",
+        "month": "The last 30 days",
+        "year": "The last 365 days"
       }
     }
   },

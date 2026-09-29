@@ -2,20 +2,22 @@
 
 import { useEffect, useId, useRef, useEffectEvent, type ReactNode } from 'react'
 import { X } from '@/components/ui/icons'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { formatClosedWrappedMonth, type ClosedRecapMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { WrappedSlide } from './wrapped-slide'
+import { coverEyebrowStyle } from './wrapped-styles'
 
 interface WrappedPlayerProps {
   slides: WrappedSlideModel[]
   recap: Recap
   period: RecapSharePeriod
+  closedMonth?: ClosedRecapMonth
   onClose: () => void
 }
 
@@ -25,9 +27,14 @@ export function WrappedPlayer({
   slides,
   recap,
   period,
+  closedMonth,
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const t = useTranslations()
+  const locale = useLocale()
+  const windowLabel = closedMonth && period === 'month'
+    ? formatClosedWrappedMonth(closedMonth, locale)
+    : t(`wrapped.player.window.${period}`)
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
   const current = slides[index]
@@ -95,7 +102,11 @@ export function WrappedPlayer({
       style={{ background: 'var(--bg)' }}
     >
       <div data-testid="wrapped-frame" className="mx-auto flex w-full max-w-[900px] flex-1 flex-col">
-        <div className="flex justify-end" style={{ padding: '12px 16px 4px' }}>
+        <div className="flex items-center gap-2" style={{ padding: '8px 8px 8px 16px' }}>
+          <div className="flex min-w-0 flex-1 flex-col items-start">
+            <p style={coverEyebrowStyle}>{t(`wrapped.player.eyebrow.${period}`)}</p>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' }}>{windowLabel}</p>
+          </div>
           <button
             ref={closeRef}
             type="button"

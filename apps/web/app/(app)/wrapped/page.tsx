@@ -108,6 +108,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           slides={slides}
           recap={recap}
           period={period}
+          closedMonth={closedMonth}
           onClose={() => setIsPlaying(false)}
         />
       )}
