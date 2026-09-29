@@ -2,7 +2,7 @@ import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { test } from './upgrade-fixtures'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -15,10 +15,21 @@ const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
 const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
   items: [habit], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
 })
+const calendarMonth = calendarMonthResponseSchema.parse({ habits: [habit], logs: {} })
+
+async function readHitBoxOnceStill(control: Locator) {
+  await expect(async () => {
+    await control.scrollIntoViewIfNeeded()
+    const first = await control.boundingBox()
+    await control.page().waitForTimeout(250)
+    expect(await control.boundingBox()).toEqual(first)
+  }).toPass()
+  return control.boundingBox()
+}
 
 async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20) {
   await expect(control).toBeVisible()
-  const hitBox = await control.boundingBox()
+  const hitBox = await readHitBoxOnceStill(control)
   expect(hitBox).not.toBeNull()
   const restingBackground = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
   await control.hover()
@@ -50,7 +61,7 @@ for (const width of [412, 1280] as const) {
     test('fills navigation, composer, icon, and pill hit areas', async ({ page }) => {
       await page.goto('/')
       const destination = width === 412
-        ? page.locator('nav:has(> button[aria-current]) > button').nth(2)
+        ? page.locator('[data-shell-tab-bar] nav > button').nth(2)
         : page.locator('[data-shell-sidebar] nav button').nth(2)
       await expectHoverOnHitArea(destination, width === 412 ? 'pill' : 12)
 
@@ -84,6 +95,7 @@ for (const width of [412, 1280] as const) {
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
       await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
+      await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
