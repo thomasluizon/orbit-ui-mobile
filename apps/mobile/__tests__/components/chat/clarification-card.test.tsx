@@ -45,10 +45,15 @@ const colorProxy = new Proxy<ColorRecord>(
   },
 )
 
-vi.mock('react-i18next', () => ({
+vi.mock('react-i18next', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-i18next')>(),
   useTranslation: () => ({
     t: (key: string) => key,
   }),
+}))
+
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({

@@ -13,6 +13,10 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
+}))
+
 const mutateAsync = vi.fn()
 const isPendingRef = { current: false }
 
