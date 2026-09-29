@@ -49,7 +49,8 @@ describe('Menu (mobile)', () => {
     })
     expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
     const rows = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem')
-    expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([56, 56])
+    expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([56, 56])
+    expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(1)
     const sheet = tree.root.findAll((node: any) => node.type?.name === 'TrueSheet')[0]
     if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')

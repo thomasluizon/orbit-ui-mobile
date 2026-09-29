@@ -28,8 +28,10 @@ for (const width of [412, 1280] as const) {
     test('keeps habit and list menu rows at their presentation height', async ({ page, context }) => {
       await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
         (route) => route.fulfill({ json: habitsPage }))
-      await page.goto('/')
-      await page.getByRole('button', { name: ptBr.dates.previousDay }).click()
+      await page.goto('/?date=2026-09-03')
+      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await page.getByRole('menu', { name: ptBr.habits.listOptions })
+        .getByRole('menuitem', { name: ptBr.habits.refresh }).click()
 
       const row = page.locator('[data-habit-title="Beber água"]')
       await expect(row).toBeVisible()
@@ -40,7 +42,7 @@ for (const width of [412, 1280] as const) {
       const items = menu.getByRole('menuitem')
       expect(await items.count()).toBeGreaterThan(0)
       for (const item of await items.all()) {
-        expect((await item.boundingBox())?.height).toBe(width === 412 ? 56 : 44)
+        expect(await item.evaluate((element) => (element as HTMLElement).offsetHeight)).toBe(width === 412 ? 56 : 44)
       }
       const destructive = items.last()
       await expect(destructive).toHaveAttribute('data-destructive')
@@ -56,7 +58,7 @@ for (const width of [412, 1280] as const) {
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expect(listMenu).toBeVisible()
       for (const item of await listMenu.getByRole('menuitem').all()) {
-        expect((await item.boundingBox())?.height).toBe(width === 412 ? 56 : 44)
+        expect(await item.evaluate((element) => (element as HTMLElement).offsetHeight)).toBe(width === 412 ? 56 : 44)
       }
     })
   })

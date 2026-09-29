@@ -253,7 +253,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   sheetItem: {
-    height: 56,
     minHeight: 56,
   },
   label: {
