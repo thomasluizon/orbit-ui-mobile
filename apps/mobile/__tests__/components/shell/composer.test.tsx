@@ -210,6 +210,8 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props(overrides))
     const send = byLabel(tree.root, words.send)[0]
     expect(send.props.testID).toBe(accented ? 'composer-send-accent' : 'composer-send-neutral')
+    if (_case === 'sending') expect(StyleSheet.flatten(send.props.style).opacity).toBeUndefined()
+    else if (disabled) expect(StyleSheet.flatten(send.props.style).opacity).toBeCloseTo(0.4)
     expect(send.props.disabled).toBe(disabled)
   })
 

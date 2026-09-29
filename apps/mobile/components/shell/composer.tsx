@@ -273,7 +273,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerPro
                 : tokens.primary
               : tokens.bgWell,
           },
-          !canSend ? styles.disabled : null,
+          !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
         <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
