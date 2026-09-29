@@ -13,6 +13,7 @@ const baseStep = {
   isQueryLoading: false,
   isQueryError: false,
   eventsStatus: 'connected' as string | undefined,
+  hasLoadedEvents: false,
 }
 
 describe('resolveCalendarSyncStep (web)', () => {
@@ -24,6 +25,11 @@ describe('resolveCalendarSyncStep (web)', () => {
 
   it('returns offline when disconnected', () => {
     expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false })).toBe('offline')
+  })
+
+  it('keeps the selection step when loaded events exist after disconnect', () => {
+    expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false, hasLoadedEvents: true })).toBe('select')
+    expect(resolveCalendarSyncStep({ ...baseStep, isOnline: false, isReviewMode: true, hasLoadedEvents: true })).toBe('select')
   })
 
   it('reflects query loading and error', () => {

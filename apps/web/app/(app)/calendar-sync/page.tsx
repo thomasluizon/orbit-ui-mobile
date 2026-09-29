@@ -7,7 +7,6 @@ import {
   Check,
   Link as LinkIcon,
   AlertTriangle,
-  WifiOff,
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/ui/page-header'
@@ -21,6 +20,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
@@ -147,6 +147,7 @@ function CalendarSyncPageContent() {
     isQueryLoading: activeQuery.isLoading,
     isQueryError: activeQuery.isError,
     eventsStatus: eventsQuery.data?.status,
+    hasLoadedEvents: events.length > 0,
   })
 
   const displayedErrorMessage = resolveDisplayedErrorMessage({
@@ -187,6 +188,7 @@ function CalendarSyncPageContent() {
   }
 
   async function handleDismissSuggestion(suggestionId: string) {
+    if (!isOnline) return
     const requestAccount = getAccountGeneration()
     try {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
@@ -322,6 +324,12 @@ function CalendarSyncPageContent() {
         </div>
       )}
 
+      {step === 'offline' && !hasProAccess && (
+        <div className="px-4 pt-6">
+          <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
+        </div>
+      )}
+
       {step === 'not-connected' && !isReviewMode && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <div
@@ -369,35 +377,6 @@ function CalendarSyncPageContent() {
         </div>
       )}
 
-      {step === 'offline' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
-          <WifiOff className="size-7 text-[var(--fg-3)]" strokeWidth={1.4} />
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 4,
-              }}
-            >
-              {t('offline.title')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('offline.description')}
-            </p>
-          </div>
-        </div>
-      )}
-
       {step === 'select' && (
         <div>
           {events.length === 0 ? (
@@ -437,7 +416,7 @@ function CalendarSyncPageContent() {
                     selected={selectedIds.has(event.id)}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
-                    dismissPending={dismissSuggestion.isPending}
+                    dismissPending={dismissSuggestion.isPending || !isOnline}
                     onToggle={toggleEvent}
                     onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
                     t={t}
@@ -477,14 +456,18 @@ function CalendarSyncPageContent() {
                 </div>
               )}
 
-              <div className="md:flex md:justify-center" style={{ padding: '16px 16px 0' }}>
-                <PillButton
-
-                  disabled={selectedIds.size === 0 || !isOnline}
-                  onClick={() => importSelected()}
-                >
-                  {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
-                </PillButton>
+              <div className={!isOnline ? 'flex flex-col gap-4' : 'flex flex-col'} style={{ padding: '16px 16px 0' }}>
+                <div role="status">
+                  {!isOnline && <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />}
+                </div>
+                <div className="md:flex md:justify-center">
+                  <PillButton
+                    disabled={selectedIds.size === 0 || !isOnline}
+                    onClick={() => importSelected()}
+                  >
+                    {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
+                  </PillButton>
+                </div>
               </div>
             </>
           )}

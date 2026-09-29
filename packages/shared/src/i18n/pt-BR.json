@@ -235,7 +235,8 @@
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
       },
       "offline": {
-        "reason": "A Astra precisa de conexão. Reconecte-se e tente de novo. O registro de hábitos continua funcionando offline."
+        "placeholder": "Sem conexão",
+        "reason": "Sem conexão. A Astra volta quando a conexão voltar."
       }
     }
   },
@@ -1085,8 +1086,7 @@
   "chat": {
     "title": "Astra",
     "offline": {
-      "title": "Você está sem conexão",
-      "description": "A Astra precisa de internet. Reconecte para continuar a conversa."
+      "title": "Você está sem conexão"
     },
     "pendingOp": {
       "risk": {
@@ -2601,7 +2601,15 @@
   },
   "offline": {
     "title": "Você está sem conexão",
-    "description": "Confira sua internet e tente de novo."
+    "description": "Confira sua internet e tente de novo.",
+    "create": {
+      "title": "Criar hábito",
+      "reason": "Criar precisa de conexão porque o hábito nasce no servidor. Volte quando a conexão voltar."
+    },
+    "calendar": {
+      "title": "Sincronizar a agenda",
+      "reason": "A agenda do Google não responde sem conexão. Os compromissos já carregados continuam à vista."
+    }
   },
   "undo": {
     "habitDeleted": "Hábito excluído",

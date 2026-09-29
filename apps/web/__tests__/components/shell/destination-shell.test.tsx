@@ -55,13 +55,14 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     activeId?: string | null
     onSelect?: (id: string) => void
     onCreate?: () => void
+    createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
     account?: string
@@ -82,6 +83,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       )) : tabBar}
       {mocks.wide && onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      {mocks.wide ? createRefusal : null}
       {!mocks.wide ? fab : null}
     </div>
   ),
@@ -189,6 +191,18 @@ describe('DestinationShell', () => {
     expect(mocks.push).toHaveBeenCalledWith('/progress')
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('forwards the create refusal to the wide create control', () => {
+    mocks.wide = true
+    render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
+  })
+
+  it('forwards the create refusal beside the compact FAB', () => {
+    render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.create' })).toBeInTheDocument()
   })
 
   it('passes the selection tray target through the destination composer slot', () => {

@@ -1017,6 +1017,8 @@ describe('web useChatComposer streaming send', () => {
       expect(result.current.isOnline).toBe(false)
       expect(result.current.canSend).toBe(false)
       expect(result.current.composerProps.state).toBe('offline')
+      expect(result.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
+      expect(result.current.composerProps.words.inputLabel).toBe('shell.composer.placeholder')
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
@@ -1149,6 +1151,19 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.composerProps.onVoice).toBe(mocks.toggleRecording)
   })
 
+  it('keeps an active recording stoppable and explains a lost connection', () => {
+    mocks.state.isRecording = true
+    Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: false })
+    try {
+      const { result } = renderHook(() => useChatComposer())
+      expect(result.current.composerProps.state).toBe('recording')
+      expect(result.current.composerProps.words.offlineReason).toBe('shell.composer.offline.reason')
+      expect(result.current.composerProps.onVoice).toBe(mocks.toggleRecording)
+    } finally {
+      Reflect.deleteProperty(globalThis.navigator, 'onLine')
+    }
+  })
+
   it('clears a new speech permission error after its visible timeout', async () => {
     vi.useFakeTimers()
     const { result, rerender } = renderHook(() => useChatComposer())
@@ -1175,6 +1190,18 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.composerProps.state).toBe('atLimit')
     expect(result.current.composerProps.onVoice).toBeUndefined()
+  })
+
+  it('explains the connection first when offline at the account limit', () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 20, aiMessagesLimit: 20 })
+    Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: false })
+    try {
+      const { result } = renderHook(() => useChatComposer())
+      expect(result.current.composerProps.state).toBe('offline')
+      expect(result.current.composerProps.limitReason).toBe('shell.composer.offline.reason')
+    } finally {
+      Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: true })
+    }
   })
 
   it('arms retry when the transport fails before a response', async () => {
