@@ -145,7 +145,8 @@ it('keeps an undone delayed delete silent', async () => {
   vi.mocked(apiClient).mockResolvedValue(response)
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
-  press('Delete: Reminder')
+  pressStarting('Reminder.')
+  press('Delete')
   press('Undo')
   await advance(5000)
   expect(useAppToastStore.getState().currentToast).toBeNull()
@@ -159,7 +160,8 @@ it('runs out the delayed delete failure and holds it while a pointer rests on it
   ))
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
-  press('Delete: Reminder')
+  pressStarting('Reminder.')
+  press('Delete')
   await advance(5000)
   deferred.reject()
   await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })

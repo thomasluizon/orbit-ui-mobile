@@ -166,7 +166,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) {
               void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
             }
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
           }
           throw error
 
@@ -181,12 +181,12 @@ export function useLiveOnboardingActions(): OnboardingActions {
           await completeOnboarding(intendedAccountId)
         } catch (error) {
           if (reportsAccountChanged(error)) {
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
             throw error
           }
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+          showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
           throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
         }
         if (getAccountGeneration() !== accountGeneration) return

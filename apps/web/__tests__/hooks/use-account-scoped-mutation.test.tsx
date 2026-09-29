@@ -99,7 +99,7 @@ describe('useAccountScopedMutation', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(['profile'])).toBe('account-b-profile')
     expect(onSettled).not.toHaveBeenCalled()
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
   })
 
   it('removes an optimistic write resumed after another account loaded', async () => {
@@ -186,7 +186,7 @@ describe('useAccountScopedMutation', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(['profile'])).toBeUndefined()
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
   })
 
   it('hands every callback the caller variables, without the account wrapper', async () => {

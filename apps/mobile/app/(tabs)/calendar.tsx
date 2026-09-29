@@ -415,7 +415,7 @@ function CalendarScreenContent({
   const params = useLocalSearchParams<{ mode?: string; import?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
-  const { showError } = useAppToast();
+  const { showError, showSuccess } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
@@ -506,6 +506,8 @@ function CalendarScreenContent({
     const requestAccount = getAccountGeneration();
     try {
       await setCalendarAutoSync.mutateAsync({ enabled });
+      if (getAccountGeneration() !== requestAccount) return;
+      showSuccess(t(enabled ? 'calendar.autoSync.enableSuccess' : 'calendar.autoSync.disableSuccess'));
     } catch (error: unknown) {
       if (getAccountGeneration() !== requestAccount) return;
       showError(getFriendlyErrorMessage(
@@ -515,7 +517,7 @@ function CalendarScreenContent({
         'generic',
       ));
     }
-  }, [setCalendarAutoSync, showError, t]);
+  }, [setCalendarAutoSync, showError, showSuccess, t]);
 
   const handleCalendarSyncNow = useCallback(async () => {
     await runCalendarSyncNowWithFeedback(

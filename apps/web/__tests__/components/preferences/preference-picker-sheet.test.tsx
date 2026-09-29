@@ -17,6 +17,7 @@ const pickerTitles: Record<PreferencePicker, string> = {
   theme: 'Theme',
   timeZone: 'Timezone',
   weekStart: 'Week start',
+  clock: 'Clock',
 }
 
 function baseProps() {
@@ -35,6 +36,8 @@ function baseProps() {
       { value: 1 as const, label: 'Monday' },
       { value: 0 as const, label: 'Sunday' },
     ],
+    clockFormatOptions: [{ value: '24h' as const, label: '24 hour' }, { value: '12h' as const, label: '12 hour' }],
+    uses24HourClock: true,
     pickerTitles,
     pickerDescriptions: {},
     timeZoneSearchLabel: 'Search timezones',
@@ -45,12 +48,27 @@ function baseProps() {
     onThemeModeChange: vi.fn(),
     onTimeZoneChange: vi.fn(),
     onWeekStartChange: vi.fn(),
+    onClockFormatChange: vi.fn(),
   }
 }
 
 describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+  })
+
+  it('shows the selected clock and commits one choice', () => {
+    const props = { ...baseProps(), activePicker: 'clock' as const }
+    render(<PreferencePickerSheet {...props} />)
+    expect(screen.getByRole('radio', { name: '24 hour' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: '12 hour' }))
+    expect(props.onClockFormatChange).toHaveBeenCalledOnce()
+    expect(props.onClockFormatChange).toHaveBeenCalledWith(false)
+  })
+
+  it('checks the locale default when no clock preference is saved', () => {
+    render(<PreferencePickerSheet {...baseProps()} activePicker="clock" uses24HourClock={undefined} />)
+    expect(screen.getByRole('radio', { name: '12 hour' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('renders nothing when no picker is active', () => {

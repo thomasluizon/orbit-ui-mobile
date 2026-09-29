@@ -1,8 +1,8 @@
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useState } from 'react'
 import { X, Plus, Bell } from '@/components/ui/icons'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import { formatLocaleTime } from '@orbit/shared/utils'
 import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -44,7 +44,7 @@ export function ScheduledReminderSection({
   onToggleReminder, onSetScheduledReminders, onValidationError, nested = false,
   offsetReminderCount = 0, t,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const locale = useLocale()
+  const { displayTime } = useTimeFormat()
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
   const [time, setTime] = useState<Time24 | ''>('')
@@ -81,7 +81,7 @@ export function ScheduledReminderSection({
   }
 
   function scheduledReminderLabel(sr: { when: ScheduledReminderWhen; time: string }): string {
-    const timeDisplay = formatLocaleTime(sr.time, locale)
+    const timeDisplay = displayTime(sr.time)
     if (sr.when === 'day_before') {
       return t('habits.form.scheduledReminderDayBeforeAt', { time: timeDisplay })
     }

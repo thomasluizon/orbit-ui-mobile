@@ -1,6 +1,6 @@
 'use client'
 
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import {
   buildClientTimeZoneHeaders,
@@ -82,10 +82,9 @@ export function reportApiError(error: unknown): void {
   }
 
   reportedApiErrors.add(error)
-  toast.error(getToastTitle(error.status), {
-    description: extractBackendError({ data: error.data }) || undefined,
-    duration: 5000,
-  })
+  const title = getToastTitle(error.status)
+  const detail = extractBackendError({ data: error.data })
+  useAppToastStore.getState().showError(detail ? `${title}: ${detail}` : title)
 }
 
 export async function applySessionRefreshFailure(response: Response): Promise<void> {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 
 const refetch = vi.fn()
 const goBackOrFallback = vi.fn()
@@ -42,14 +42,17 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-cover', () => ({
   ),
 }))
 vi.mock('@/app/(app)/wrapped/_components/wrapped-player', () => ({
-  WrappedPlayer: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="player">
+  WrappedPlayer: ({ onClose, notice }: { onClose: () => void; notice?: React.ReactNode }) => (
+    <div role="dialog" aria-modal="true" aria-label="Wrapped" data-testid="player">
       <button type="button" aria-label="close-player" onClick={onClose} />
+      <div data-shell-notice="">{notice}</div>
+      <div data-testid="wrapped-pager">Pager</div>
     </div>
   ),
 }))
 
 import WrappedPage from '@/app/(app)/wrapped/page'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 describe('WrappedPage', () => {
   beforeEach(() => {
@@ -58,6 +61,7 @@ describe('WrappedPage', () => {
     mocks.searchParams = new URLSearchParams()
     mocks.useWrapped.mockClear()
     mocks.wrapped = { recap: { id: 'recap-1' }, slides: [], isEmpty: false, isLoading: false, isError: false }
+    useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
   it('starts on the week period with the ready cover', () => {
@@ -114,6 +118,13 @@ describe('WrappedPage', () => {
     expect(screen.getAllByRole('main')).toHaveLength(1)
   })
 
+  it('places the back control inside the capped cover frame', () => {
+    render(<WrappedPage />)
+    const main = screen.getByRole('main')
+    expect(main).toHaveClass('max-w-[900px]')
+    expect(main).toContainElement(screen.getByRole('button', { name: 'common.backToProfile' }))
+  })
+
   it('exits the cover to Profile while player close only returns to the cover', () => {
     render(<WrappedPage />)
 
@@ -124,5 +135,29 @@ describe('WrappedPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'close-player' }))
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
     expect(goBackOrFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a queued error at the bottom of the cover', async () => {
+    const view = render(<WrappedPage />)
+    act(() => { useAppToastStore.getState().showError('Wrapped fetch failed') })
+
+    await screen.findByText('Wrapped fetch failed')
+    expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
+  })
+
+  it('moves actionable feedback inside the player above its pager', async () => {
+    const reload = vi.fn()
+    const view = render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
+
+    await screen.findByText('App updated')
+    const player = screen.getByRole('dialog', { name: 'Wrapped' })
+    const notice = player.querySelector('[data-shell-notice]')
+    expect(notice?.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
+    expect(notice?.nextElementSibling).toHaveAttribute('data-testid', 'wrapped-pager')
+    expect(view.container.querySelector('[data-toast-page-host]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    expect(reload).toHaveBeenCalledOnce()
   })
 })

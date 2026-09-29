@@ -1,11 +1,13 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => {
@@ -53,13 +55,13 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => <div>{header}{notice}{children}{action}</div>,
 }))
-vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children, tabBar }: { children: React.ReactNode; tabBar?: React.ReactNode }) => <div>{children}{tabBar}</div> }))
+vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children, tabBar, notice }: { children: React.ReactNode; tabBar?: React.ReactNode; notice?: React.ReactNode }) => <div>{children}<div data-shell-notice="">{notice}</div>{tabBar}</div> }))
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, onSelect }: { items: { id: string; label: string }[]; onSelect: (id: string) => void }) => <nav>{items.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav> }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => <button type="button" disabled={disabled || loading} onClick={onClick}>{children}</button>,
+  PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', descriptionId }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; descriptionId?: string }) => <button type="button" disabled={disabled || loading} onClick={onClick} data-variant={variant} data-size={size} aria-describedby={descriptionId}>{children}</button>,
 }))
 vi.mock('@/components/ui/quiet-link', () => ({ QuietLink: ({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) => <button type="button" disabled={disabled} onClick={onClick}>{children}</button> }))
-vi.mock('@/components/ui/toast', () => ({ Toast: ({ message }: { message: string }) => <div>{message}</div> }))
+vi.mock('@/components/ui/toast', () => ({ Toast: ({ message, actionLabel, onAction }: { message: string; actionLabel?: string; onAction?: () => void }) => <div role="status">{message}{actionLabel ? <button type="button" onClick={onAction}>{actionLabel}</button> : null}</div> }))
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
 }))
@@ -95,7 +97,7 @@ async function reachReminder(isLive: boolean) {
   await screen.findByTestId('reminder-state')
 }
 
-const COUNTER_PATTERN = /^Orbit \d{2} \/ \d{2}$/
+const COUNTER_PATTERN = /^Orbit · \d{2} \/ \d{2}$/
 const originalTimeZone = process.env.TZ
 
 function isCounter(element: Element | null): boolean {
@@ -120,6 +122,7 @@ describe('OnboardingFlow state model', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.finishOnboarding.mockReset()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
@@ -133,7 +136,29 @@ describe('OnboardingFlow state model', () => {
     mocks.subscribe.mockResolvedValue({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
     mocks.requestPermissionOnly.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    useUIStore.setState({ openOverlayIds: [] })
     mocks.liveActions.mockReturnValue(actions())
+  })
+
+  it('keeps Reload reachable inside the done dialog when finishing fails', async () => {
+    const reload = vi.fn()
+    mocks.finishOnboarding.mockImplementation(async () => {
+      useAppToastStore.getState().showToast({
+        kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
+      })
+      throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
+    })
+    await reachDone(false)
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+
+    const dialog = screen.getByRole('dialog')
+    await waitFor(() => expect(dialog.querySelector('[role="status"]')).toHaveTextContent('Account changed'))
+    const action = screen.getByRole('button', { name: 'Reload' })
+    act(() => { fireEvent.click(action) })
+    expect(reload).toHaveBeenCalledOnce()
+    expect(dialog.querySelector('[role="status"]')).toBeNull()
+    expect(dialog).toBeInTheDocument()
   })
 
   it('drops the typed habit when another account replaces the tab', async () => {
@@ -246,21 +271,58 @@ describe('OnboardingFlow state model', () => {
 
   it('counts each rendered decision once and drops the counter on the done screen', async () => {
     mount(false)
-    expect(headerCounter()).toBe('Orbit 01 / 03')
+    expect(headerCounter()).toBe('Orbit · 01 / 03')
+    expect(screen.getByText('Orbit')).toHaveAttribute('translate', 'no')
     expect(screen.getByLabelText('sentence')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditate at 07:00' } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-    expect(headerCounter()).toBe('Orbit 02 / 03')
+    expect(headerCounter()).toBe('Orbit · 02 / 03')
     expect(screen.getByTestId('schedule')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'create' }))
     await screen.findByTestId('reminder-state')
-    expect(headerCounter()).toBe('Orbit 03 / 03')
+    expect(headerCounter()).toBe('Orbit · 03 / 03')
 
     fireEvent.click(screen.getByRole('button', { name: 'remind.continue' }))
     await screen.findByTestId('done')
     expect(screen.queryByText((_, element) => isCounter(element))).toBeNull()
+  })
+
+  it('explains the empty continue action and moves the account action into the signed-out stack', () => {
+    mount(false)
+    const continueButton = screen.getByRole('button', { name: 'continue' })
+    const reason = screen.getByText('what.continueReason')
+    const accountButton = screen.getByRole('button', { name: 'what.haveAccount' })
+    expect(continueButton).toBeDisabled()
+    expect(continueButton).toHaveAttribute('aria-describedby', reason.id)
+    expect(reason).toHaveClass('text-sm', 'text-[var(--fg-3)]', 'text-center')
+    expect(continueButton.parentElement).toContainElement(accountButton)
+    expect(accountButton).toHaveAttribute('data-variant', 'ghost')
+    expect(reason.nextElementSibling).toBe(accountButton)
+
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk' } })
+    expect(screen.queryByText('what.continueReason')).not.toBeInTheDocument()
+    expect(continueButton).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('hides the account action for a signed-in account', () => {
+    mount(true)
+    expect(screen.queryByRole('button', { name: 'what.haveAccount' })).not.toBeInTheDocument()
+  })
+
+  it('uses small ghost controls for back and skip', () => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    for (const label of ['back', 'skip']) expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-variant', 'ghost')
+    for (const label of ['back', 'skip']) expect(screen.getByRole('button', { name: label })).toHaveAttribute('data-size', 'sm')
+  })
+
+  it('uses a ghost button for the reminder deny action', async () => {
+    await reachReminder(false)
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('ask')
+    expect(screen.getByRole('button', { name: 'remind.deny' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it.each([

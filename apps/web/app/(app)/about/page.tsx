@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
@@ -118,30 +119,16 @@ export default function AboutPage() {
 
             <div className="min-w-0" data-testid="about-destinations">
               <RowList style={{ minWidth: 0 }}>
-                <ListRow
-                  accessibilityLabel={t('about.featureGuide')}
-                  onClick={() => setShowGuide(true)}
-                  title={t('about.featureGuide')}
-                  wrapTitle
-                />
-                <ListRow
-                  accessibilityLabel={t('profile.support.title')}
-                  onClick={() => router.push('/support')}
-                  title={t('profile.support.title')}
-                  wrapTitle
-                />
-                <ListRow
-                  accessibilityLabel={t('about.terms')}
-                  onClick={() => router.push('/terms')}
-                  title={t('about.terms')}
-                  wrapTitle
-                />
-                <ListRow
-                  accessibilityLabel={t('about.privacy')}
-                  onClick={() => router.push('/privacy')}
-                  title={t('about.privacy')}
-                  wrapTitle
-                />
+                {ABOUT_DESTINATIONS.map((destination) => (
+                  <ListRow
+                    key={destination.id}
+                    accessibilityLabel={t(destination.titleKey)}
+                    onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
+                    title={t(destination.titleKey)}
+                    titleTranslate={destination.titleTranslate}
+                    wrapTitle
+                  />
+                ))}
               </RowList>
             </div>
 

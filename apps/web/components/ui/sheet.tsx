@@ -5,6 +5,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import {
   registerModalFocusOwner,
   registerOverlay,
@@ -41,16 +42,18 @@ export function useSheetHost() {
 interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
   initialFocus?: RefObject<HTMLElement | null>
+  titleTranslate?: 'no'
   /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
   ref?: Ref<SheetHandle>
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
+  const modalId = `modal:${overlayId}`
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const exitActionRef = useRef<(() => void) | null>(null)
@@ -72,19 +75,19 @@ export function Sheet({ title, accessibleTitle, headerAccessory, actions, virtua
   useEffect(() => {
     if (!modalFocusOwnerActive) return
     registerOverlay({
-      id: overlayId,
+      id: modalId,
       dismiss: () => {
         if (onCloseRef.current) requestClose()
       },
     })
-    registerModalFocusOwner(overlayId)
-    registerOpenOverlay(overlayId)
+    registerModalFocusOwner(modalId)
+    registerOpenOverlay(modalId)
     return () => {
-      unregisterOverlay(overlayId)
-      unregisterModalFocusOwner(overlayId)
-      unregisterOpenOverlay(overlayId)
+      unregisterOverlay(modalId)
+      unregisterModalFocusOwner(modalId)
+      unregisterOpenOverlay(modalId)
     }
-  }, [modalFocusOwnerActive, overlayId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
+  }, [modalFocusOwnerActive, modalId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
 
   function runExit() {
     const exitAction = exitActionRef.current
@@ -117,7 +120,7 @@ export function Sheet({ title, accessibleTitle, headerAccessory, actions, virtua
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
-              <Dialog.Title className={title ? 'orbit-sheet-title' : 'sr-only'}>
+              <Dialog.Title translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
                 {title ?? accessibleTitle ?? t('common.appName')}
               </Dialog.Title>
               {headerAccessory}
@@ -132,6 +135,9 @@ export function Sheet({ title, accessibleTitle, headerAccessory, actions, virtua
                 {children}
               </div>
             )}
+            <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
+              <AppToastHost placement="modal" modalId={modalId} />
+            </div>
             {actions == null ? null : (
               <footer className="orbit-sheet-actions" data-slot="sheet-actions">
                 {actions}

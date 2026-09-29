@@ -274,18 +274,17 @@ export { formatHabitDetailSummary } from './habit-detail-summary'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
+  createTimeDisplay,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
-  formatDeviceDate,
-  formatDeviceDateTime,
-  formatDeviceTime,
   getSystemLocale,
   resolveSupportedLocale,
   resolveSystemLocale,
   splitMonthYear,
 } from './locale-format'
+export type { TimeDisplay } from './locale-format'
 export {
   DAY_PERIODS,
   formatTimeParts,
@@ -344,7 +343,19 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { formatTimeFieldInput } from './time-field'
+export {
+  changeTimeFieldInput,
+  commitTimeFieldPickerDraft,
+  formatTimeFieldInput,
+  initialTimeFieldPickerDraft,
+  presentTimeFieldValue,
+  parseTypedTimeFieldValue,
+  selectTimeFieldHour,
+  selectTimeFieldMinute,
+  selectTimeFieldPeriod,
+} from './time-field'
+export { buildPreferencePickerModel } from './preference-picker'
+export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
@@ -551,6 +562,7 @@ export {
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'
 export { initialsOf } from './name-initials'
+export { ABOUT_DESTINATIONS } from './about-navigation'
 export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
@@ -635,6 +647,7 @@ export type {
   UpgradeEntitlementResolution,
 } from './upgrade'
 export {
+  buildClockFormatOptions,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
 } from './preferences-options'

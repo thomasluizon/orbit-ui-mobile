@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockToastError = vi.fn()
-vi.mock('sonner', () => ({
-  toast: {
-    error: (...args: unknown[]) => mockToastError(...args),
-  },
-}))
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
@@ -32,6 +28,7 @@ describe('setApiFetchTranslate', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockToastError.mockReset()
+    useAppToastStore.setState({ showError: mockToastError, currentToast: null, queue: [] })
   })
 
   it('uses translated toast titles when translate function is set', async () => {
@@ -53,7 +50,6 @@ describe('setApiFetchTranslate', () => {
 
     expect(mockToastError).toHaveBeenCalledWith(
       'translated:toast.errors.validation',
-      expect.any(Object),
     )
   })
 
@@ -82,7 +78,6 @@ describe('setApiFetchTranslate', () => {
 
     expect(mockToastError).toHaveBeenCalledWith(
       key,
-      expect.any(Object),
     )
   })
 })

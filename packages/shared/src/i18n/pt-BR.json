@@ -34,6 +34,11 @@
       "showGeneral": "Mostrar hábitos gerais no Hoje",
       "showGeneralDesc": "Mostra seus hábitos gerais abaixo dos agendados para hoje"
     },
+    "clock": {
+      "title": "Relógio",
+      "hour24": "24 horas",
+      "hour12": "12 horas"
+    },
     "weekStartDay": {
       "title": "Primeiro dia",
       "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
@@ -2141,7 +2146,8 @@
           "read": "Ler antes de dormir",
           "tidy": "Arrumar a casa no sábado"
         },
-        "haveAccount": "Já tenho uma conta"
+        "haveAccount": "Já tenho uma conta",
+        "continueReason": "Escreva o que você quer acompanhar."
       },
       "when": {
         "astraRead": "Entendi assim. Toque para corrigir.",
@@ -2282,7 +2288,7 @@
       "importNotNow": "Agora não"
     },
     "featureGuide": {
-      "title": "Guia de recursos",
+      "title": "Guia do Orbit",
       "openButton": "Guia de recursos",
       "habits": "Hábitos",
       "calendar": "Calendário",
@@ -3163,10 +3169,11 @@
     "themeModeDark": "Escuro"
   },
   "about": {
-    "title": "Sobre e Ajuda",
-    "featureGuide": "Recursos",
-    "terms": "Termos",
-    "privacy": "Privacidade",
+    "title": "Sobre",
+    "featureGuide": "Guia do Orbit",
+    "support": "Falar com o suporte",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade",
     "version": "Versão {version}",
     "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
     "versionLabel": "Versão",

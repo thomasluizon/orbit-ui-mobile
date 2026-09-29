@@ -14,10 +14,11 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 
 export default function WrappedPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AppToastHost placement="page" />}>
       <WrappedPageRoute />
     </Suspense>
   )
@@ -79,9 +80,10 @@ function WrappedPageContent({ initialSelection }: Readonly<{
         : recap
           ? 'ready'
           : 'loading'
+  const playerOpen = isPlaying && recap && !isEmpty
 
   return (
-    <main className="relative flex min-h-dvh flex-col">
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
       {!isPlaying ? (
         <div className="absolute left-4 top-2 z-[1]">
           <Button
@@ -103,14 +105,16 @@ function WrappedPageContent({ initialSelection }: Readonly<{
         onRetry={() => void retryCover()}
       />
 
-      {isPlaying && recap && !isEmpty && (
+      {playerOpen && (
         <WrappedPlayer
           slides={slides}
           recap={recap}
           period={period}
           onClose={() => setIsPlaying(false)}
+          notice={<AppToastHost />}
         />
       )}
+      {!playerOpen ? <AppToastHost placement="page" /> : null}
     </main>
   )
 }

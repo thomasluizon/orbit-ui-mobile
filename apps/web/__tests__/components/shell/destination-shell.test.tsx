@@ -95,6 +95,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
 import {
   DestinationShell,
   useShellComposerSlot,
+  useShellHeaderSlot,
 } from '@/components/shell/destination-shell'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
@@ -505,11 +506,16 @@ describe('DestinationShell', () => {
   })
 
   it('focuses the object heading after navigating to a detail route', async () => {
+    function Detail() {
+      useShellHeaderSlot(() => <AppBar title="Habit" titleIsHeading={false} />, 'habit-1')
+      return <h1 tabIndex={-1}>Read</h1>
+    }
     const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
     mocks.pathname = '/habits/h1'
-    view.rerender(<DestinationShell onCreate={() => {}}><AppBar title="Habit" titleIsHeading={false} /><h1 tabIndex={-1}>Read</h1></DestinationShell>)
+    view.rerender(<DestinationShell onCreate={() => {}}><Detail /></DestinationShell>)
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Read' })).toHaveFocus())
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByText('Habit').closest('[data-shell-header]')).toBeInTheDocument()
   })
 
   it.each([false, true])('pins pushed headers outside the scroller at wide=%s', async (wide) => {
@@ -523,6 +529,31 @@ describe('DestinationShell', () => {
     expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
     expect(heading.closest('[data-shell-scroller]')).toBeNull()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('replaces a hosted header when its renderer changes under the same key', () => {
+    function HeaderSlot({ title }: { title: string }) {
+      useShellHeaderSlot(() => <h1>{title}</h1>, 'same-route')
+      return null
+    }
+    const view = render(<DestinationShell onCreate={() => {}}><HeaderSlot title="Loading" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Loading' })).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}><HeaderSlot title="Ready" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Ready' })).toBeInTheDocument()
+  })
+
+  it('updates a pushed page header action while its title stays the same', () => {
+    const view = render(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>One unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('One unread').closest('[data-shell-header]')).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>Two unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('Two unread').closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
   it.each([false, true])('shows composer only on roots and habit detail at wide=%s', (wide) => {

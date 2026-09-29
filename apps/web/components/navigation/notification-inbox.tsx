@@ -38,7 +38,7 @@ export function NotificationInbox() {
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-[560px] flex-col">
+    <section className="flex w-full flex-col">
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}`}
@@ -49,9 +49,11 @@ export function NotificationInbox() {
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
         </div> : undefined}
       />
-      <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
-        onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
-        onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
+      <div className="lg:ms-12 lg:ps-3">
+        <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
+          onRetry={() => void inbox.refetch()}
+          onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
+      </div>
       {selected ? <NotificationDetailModal open={detailOpen} onOpenChange={setDetailOpen}
         notification={inbox.notifications.find((item) => item.id === selected.id) ?? selected}
         onMarkAsRead={(id) => markAsRead.mutate(id)}

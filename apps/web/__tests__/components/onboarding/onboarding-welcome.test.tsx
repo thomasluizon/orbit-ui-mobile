@@ -14,11 +14,9 @@ describe('OnboardingWelcome', () => {
     expect(onChange).toHaveBeenCalledWith('what.starters.water')
   })
 
-  it('only shows the account link when supplied', () => {
-    const { rerender } = render(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />)
+  it('keeps the account action out of the content', () => {
+    render(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />)
     expect(screen.queryByText('what.haveAccount')).not.toBeInTheDocument()
-    rerender(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} onHaveAccount={vi.fn()} />)
-    expect(screen.getByText('what.haveAccount')).toBeInTheDocument()
   })
 
   it('exposes parsed words through the required marks label', () => {

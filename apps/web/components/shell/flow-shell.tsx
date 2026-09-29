@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { ShellScrollerProvider } from './shell-scroller-context'
 import { ShellWide } from './shell-wide'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 
 type FlowShellMode = 'card' | 'detail' | 'document' | 'full' | 'onboarding'
 
@@ -45,6 +46,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
           className="h-dvh min-h-dvh w-full overflow-hidden"
         >
           {children}
+          <AppToastHost placement="page" />
         </div>
       </ShellScrollerProvider>
     )
@@ -69,7 +71,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   const pinnedAction = action ? (
     <div
       data-flow-action=""
-      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 md:[&_button]:w-auto md:[&>div]:items-end ${onboarding ? 'max-w-[408px] lg:max-w-[560px]' : 'max-w-[408px]'}`}
+      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 ${onboarding ? 'max-w-[408px] lg:max-w-[560px] [&>div]:w-full' : 'max-w-[408px] md:[&_button]:w-auto md:[&>div]:items-end'}`}
     >
       {action}
     </div>
@@ -79,7 +81,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
     : header
 
   return (
-    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={notice}>
+    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={<>{notice}<AppToastHost /></>}>
       {content}
     </ShellWide>
   )

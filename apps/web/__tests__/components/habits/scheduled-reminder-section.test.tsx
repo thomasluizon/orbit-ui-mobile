@@ -4,9 +4,10 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-}))
+const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
+vi.mock('next-intl', () => ({ useLocale: () => clockState.language }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: clockState.uses24HourClock } }) }))
 
 vi.mock('@/components/ui/time-field', () => ({
   TimeField: ({
@@ -53,6 +54,17 @@ describe('ScheduledReminderSection', () => {
   it('drops its own switch when nested beside the offset-reminder card', () => {
     renderSection({ nested: true })
     expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('shows fixed reminder times with %s and the saved clock', (language, uses24HourClock, expected, excluded) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    renderSection({ scheduledReminders: [sameDay('19:30')] })
+    expect(screen.getByText(new RegExp(expected))).toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(excluded))).not.toBeInTheDocument()
   })
 
   it('renders same-day and day-before chips and removes the clicked one', () => {

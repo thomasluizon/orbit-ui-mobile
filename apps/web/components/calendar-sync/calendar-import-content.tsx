@@ -49,7 +49,7 @@ import {
   resolveCalendarImportEvents,
   resolveCalendarImportSelection,
 } from '@orbit/shared/utils'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 interface ImportResult {
   imported: number
@@ -71,6 +71,7 @@ type CalendarEvent = CalendarSyncEvent
 
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const router = useRouter()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
@@ -188,7 +189,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 
@@ -200,7 +201,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       await connectGoogle(isReviewMode)
     } catch {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(t('auth.googleError'))
+      showError(t('auth.googleError'))
     } finally {
       if (getAccountGeneration() === requestAccount) setIsConnecting(false)
     }
@@ -233,7 +234,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               return
             }
             if (failedItems.length > 0) {
-              toast.error(
+              showError(
                 plural(
                   t('calendar.importPartialFailure', { count: failedItems.length }),
                   failedItems.length,

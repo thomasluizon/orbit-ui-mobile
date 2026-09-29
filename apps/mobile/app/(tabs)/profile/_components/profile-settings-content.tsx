@@ -8,7 +8,7 @@ import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
-import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
+import { buildProfilePickerLabels, buildClockFormatOptions, buildWeekStartOptions, resolveHourCycle, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -17,6 +17,7 @@ import {
   Calendar,
   BarChart3,
   Clock,
+  Clock3,
   Download,
   Languages,
   Lock,
@@ -125,6 +126,7 @@ function buildYouRows(
     <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
     <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="clock" icon={icon(Clock3, tokens.fg1)} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
     <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
     <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
@@ -194,6 +196,7 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
       currentTheme={controls.currentTheme}
       timeZone={profile?.timeZone}
       weekStartDay={profile?.weekStartDay}
+      uses24HourClock={profile?.uses24HourClock}
       sheetRef={sheetRef}
       closePicker={closeSheet}
       onHidden={() => controls.setActivePicker(null)}
@@ -201,6 +204,7 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
       onThemeModeChange={controls.handleThemeModeChange}
       onTimeZoneChange={(timeZone) => controls.timeZoneMutation.mutate(timeZone)}
       onWeekStartChange={(day) => controls.weekStartMutation.mutate(day)}
+      onClockFormatChange={(uses24HourClock) => controls.clockFormatMutation.mutate(uses24HourClock)}
     />
   )
 }

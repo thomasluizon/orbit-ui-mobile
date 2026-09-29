@@ -1552,7 +1552,8 @@
       "href": "/step-up",
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
-        "apps/web/app/step-up/step-up-screen.tsx"
+        "apps/web/app/step-up/step-up-screen.tsx",
+        "apps/web/components/ui/quiet-link.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1566,7 +1567,8 @@
       "href": "/step-up",
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
-        "apps/web/app/step-up/step-up-screen.tsx"
+        "apps/web/app/step-up/step-up-screen.tsx",
+        "apps/web/components/ui/quiet-link.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1580,7 +1582,8 @@
       "href": "/step-up",
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
-        "apps/web/app/step-up/step-up-screen.tsx"
+        "apps/web/app/step-up/step-up-screen.tsx",
+        "apps/web/components/ui/quiet-link.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1594,7 +1597,8 @@
       "href": "/step-up",
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
-        "apps/web/app/step-up/step-up-screen.tsx"
+        "apps/web/app/step-up/step-up-screen.tsx",
+        "apps/web/components/ui/quiet-link.tsx"
       ],
       "state": "default",
       "theme": "dark",

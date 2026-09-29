@@ -18,7 +18,7 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 import {
   formatAPIDate,
   parseAPIDate,
@@ -332,6 +332,7 @@ function CalendarPageContent({
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
+  const { showError, showSuccess } = useAppToast()
   const { sheetRef, closeSheet } = useSheetHost()
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost()
   const locale = useLocale()
@@ -405,24 +406,26 @@ function CalendarPageContent({
     const requestAccount = getAccountGeneration()
     try {
       await setCalendarAutoSync.mutateAsync({ enabled })
+      if (getAccountGeneration() !== requestAccount) return
+      showSuccess(t(enabled ? 'calendar.autoSync.enableSuccess' : 'calendar.autoSync.disableSuccess'))
     } catch (error: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(
+      showError(getFriendlyErrorMessage(
         error,
         t,
         'calendar.autoSync.syncFailed',
         'generic',
       ))
     }
-  }, [setCalendarAutoSync, t])
+  }, [setCalendarAutoSync, showError, showSuccess, t])
 
   const handleCalendarSyncNow = useCallback(async () => {
     await runCalendarSyncNowWithFeedback(
       () => runCalendarSyncNow.mutateAsync(),
-      (error) => toast.error(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
+      (error) => showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
       getAccountGeneration,
     )
-  }, [runCalendarSyncNow, t])
+  }, [runCalendarSyncNow, showError, t])
 
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {

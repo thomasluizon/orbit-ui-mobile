@@ -51,6 +51,7 @@ const state = vi.hoisted(() => ({
   },
   setAutoSync: vi.fn(() => Promise.resolve()),
   showError: vi.fn(),
+  showSuccess: vi.fn(),
   calendarEventsTimeZone: undefined as string | null | undefined,
   calendarEventsPending: false,
   calendarEventsError: null as Error | null,
@@ -138,7 +139,7 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
 }));
 
 vi.mock("@/hooks/use-app-toast", () => ({
-  useAppToast: () => ({ showError: state.showError }),
+  useAppToast: () => ({ showError: state.showError, showSuccess: state.showSuccess }),
 }));
 
 
@@ -361,6 +362,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEventsEnabled = undefined;
     state.setAutoSync.mockClear();
     state.showError.mockClear();
+    state.showSuccess.mockClear();
     state.calendarEventsTimeZone = undefined;
     state.calendarEventsPending = false;
     state.calendarEventsError = null;
@@ -403,6 +405,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { advanceAccountGeneration(); });
     await TestRenderer.act(async () => { await calendarDayDetailProps.current!.onCalendarAutoSyncChange(true); });
     expect(state.setAutoSync).toHaveBeenCalledTimes(2);
+    expect(state.showSuccess).toHaveBeenCalledExactlyOnceWith('calendar.autoSync.enableSuccess');
     await TestRenderer.act(async () => { failFirst(new Error('old failure')); await first; });
     expect(state.showError).not.toHaveBeenCalled();
     TestRenderer.act(() => headerTree.update(<></>));

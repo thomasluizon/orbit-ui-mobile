@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Gift, Home, User } from '@/components/ui/icons'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
@@ -16,10 +16,9 @@ const TARGET_ICONS = {
   'notifications.habit': CircleDot,
 }
 
-export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
+export function NotificationRow({ item, onOpen }: Readonly<{
   item: NotificationItem
   onOpen: (item: NotificationItem) => void
-  onDelete: (item: NotificationItem) => void
 }>) {
   const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
@@ -57,19 +56,13 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
           </View> : null}
         </View>
       </Pressable>
-      <Pressable accessibilityRole="button"
-        accessibilityLabel={t('notifications.deleteNotification', { title: item.title })}
-        onPress={() => onDelete(item)}
-        style={({ pressed }) => [styles.delete, pressed && { backgroundColor: tokens.bgHover }]}>
-        <Trash2 size={20} color={tokens.statusBad} />
-      </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
-  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
+  wrapper: { borderRadius: 12 },
+  row: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },
@@ -78,5 +71,4 @@ const styles = StyleSheet.create({
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   target: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  delete: { width: 44, height: 44, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
 })

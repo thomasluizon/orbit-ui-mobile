@@ -13,6 +13,7 @@ import { Check } from '@/components/ui/icons'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
 const MINIMUM_TOAST_LIFE_MS = 5000
@@ -82,7 +83,7 @@ function WorkingMark({ color }: Readonly<{ color: string }>) {
 }
 
 /** Stable Android live-region feedback. It owns no position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps>) {
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -125,7 +126,7 @@ export function Toast(props: Readonly<ToastProps>) {
         styles.toast,
         {
           backgroundColor: colors.background,
-          borderColor: tokens.hairline,
+          borderColor: props.outlined ? tokens.fg3 : tokens.hairline,
         },
       ]}
       testID={`toast-${props.kind}`}
@@ -178,13 +179,17 @@ export function Toast(props: Readonly<ToastProps>) {
 }
 
 /** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
-export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'overlay' | 'slot' }>) {
+export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placement?: 'overlay' | 'slot' | 'sheet'; sheetId?: string }>) {
   const insets = useSafeAreaInsets()
   const { width: screenWidth } = useWindowDimensions()
   const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
+  const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
 
+  if (placement === 'sheet') {
+    if (!sheetId || topOverlayId !== sheetId) return null
+  } else if (topOverlayId?.startsWith('sheet:')) return null
   if (!currentToast) return null
 
   const toast = currentToast.toast
@@ -193,7 +198,7 @@ export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'over
       ? { ...toast, onAction: triggerAction }
       : toast
 
-  if (placement === 'slot') return <Toast {...hostedToast} />
+  if (placement !== 'overlay') return <Toast {...hostedToast} outlined={placement === 'sheet'} />
 
   return (
     <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -19,6 +20,7 @@ import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-sha
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
@@ -80,7 +82,7 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (!isAuthenticated && isPublicPath(pathname)) return <>{children}</>
+  if (!isAuthenticated && isPublicPath(pathname)) return <>{children}<AppToastHost placement="page" /></>
   return (
     <Providers>
       <AccountEventConnection />
@@ -179,6 +181,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
+  const wideDesktop = useIsWideDesktop()
+  const toastInConversation = astraConversationOpen && !wideDesktop
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
   const {
     fileInputRef,
@@ -259,7 +263,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
   }, [setShowCalendarPrompt, showPersistentError, t])
 
@@ -267,7 +271,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     setRouteTransitionIntent('forward')
     router.push('/calendar?import=1')
@@ -286,7 +290,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissImportPrompt = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
   }, [patchProfile, setShowImportPrompt, showPersistentError, t])
@@ -295,7 +299,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
     if ('localStorage' in globalThis) {
@@ -338,7 +342,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             onSend={chat.composerProps.onSend}
           />
         }
-        conversation={<AstraConversation chat={chat} />}
+        conversation={<AstraConversation chat={chat} notice={toastInConversation ? <AppToastHost /> : undefined} />}
         conversationOpen={astraConversationOpen}
         conversationLabel={t('todayAstra.openConversation')}
         notice={(
@@ -346,6 +350,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             <CelebrationPanel />
             <UpdateAvailableBanner />
             <NotificationDeleteNotice />
+            {!toastInConversation && pathname !== '/wrapped' ? <AppToastHost /> : null}
           </>
         )}
       >

@@ -713,6 +713,7 @@ describe('ProfileScreen', () => {
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
       'profile.settingsRows.weekStart',
+      'settings.clock.title',
       'profile.settingsRows.wrapped',
       'profile.widgetTitle',
       'profile.calendarSync.title',
@@ -1462,9 +1463,19 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
+  it('places the clock choice between week start and language', async () => {
+    mockProfileState.current = { ...mockProfileState.current, profile: createMockProfile({ uses24HourClock: true }) }
+    const tree = await renderProfileScreen()
+    const rows = tree.root.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
+    const labels = rows.map((row: SettingsRowStubNode) => row.props.label)
+    expect(labels.indexOf('profile.settingsRows.weekStart')).toBeLessThan(labels.indexOf('settings.clock.title'))
+    expect(labels.indexOf('settings.clock.title')).toBeLessThan(labels.indexOf('profile.language.title'))
+    expect(findRowByLabel(tree, 'settings.clock.title').props.value).toBe('settings.clock.hour24')
+  })
+
   it('opens each inline preference directly and sends Support to its form', async () => {
     const tree = await renderProfileScreen()
-    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart']) {
+    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart', 'settings.clock.title']) {
       mockRouterPush.mockClear()
       await TestRenderer.act(async () => {
         findRowByLabel(tree, label).props.onPress?.()

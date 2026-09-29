@@ -113,70 +113,51 @@ Tickets, in dependency order (every Batch M ticket except `#805` is closed, `#83
 
 The owner reviewed staging (`redesign/main`) and found the redesign far from the drawings and `DESIGN.md`. Everything he reported gets fixed, and the rendered sweeps (standing rule above) continue until a full pass finds nothing. This batch runs beside Batch M, because Batch M's remaining items wait on AWS; it outranks every later batch. Tickets that fix a shipped defect land on `main` first and are carried into `redesign/main` through `#556` (UI) or `#746` (API); every other ticket lands on `redesign/main`.
 
-Open pull requests and in-flight work first, in this order:
+The owner's first instruction for the next run: fix `#942` first (the Modelos row hover in the Criar hábito checklist block, which the owner called absolutely horrible), before any other queued ticket.
 
-- `#916` The all-done celebration survives a habit added or removed before the Today refetch: `ui#1275` on `main` at `3f6ceea6`, every check green, Pullfrog approved at that head. Merge it to `main`, release production web, then cherry-pick its squash commit with `-x` into `ui#1268`, answer that pull request's P1 thread with the fix, and merge `ui#1268`.
-- The standing carry (Batch 0b) of `main`'s all-done fix (`#878`): `ui#1268` at `6dd8bfaf`, one P1 thread open (the `#916` finding), behind `redesign/main` and overlapping the merged `#883` in the habit list and `use-habits` files: merge `redesign/main` into it with the cherry-pick.
-- `#879` Hoje all-done words and first run on a day with nothing due: copy commit `cbbac9ee` on `fix/ticket-879-hoje-day-states`, no pull request; open it after `ui#1268` merges.
-- `#923` Web pills rendered on the client lose their start padding (every dialog, sheet and confirmation): `ui#1279` at `aff1f2a6`, CI running. Its layout spec `pill-padding.spec.ts` was observed red with the old `pill-button.tsx` and green with the fix. Check every surface with a client-rendered pill before merge.
-- `#908` Hoje list options labels and glyphs: `ui#1272` at `f9f4540e` (Sonar duplication cleared by listing the icon map, the icon registries and the Today options pair as CPD mirror pairs), Pullfrog approved at that head, CI finishing; copy approved.
-- `#906` Perfil groups, rows and labels: `ui#1276` at `95bc47ef`, Pullfrog approved, copy approved with `/second-opinion` (verdict posted), `Surface Manifest Drift` red: regenerate the manifest (`node tools/surface-manifest.mjs`) in the pull request, then merge.
-- `#921` The shared chat schema accepts `done` and both platforms send `supportsHabitListDoneStatus`: `ui#1277` at `afdb85a3`, CI running.
-- `#912` Web keeps composer text typed before hydration: `ui#1278` at `ee22df9b` (`parity:exempt`, web SSR adapter), CI running.
-- `#919` (`repo:api`) The active API key count on the profile, and the five-key limit on the same definition (neither revoked nor expired): `orbit-api#651` at `e76ad50f` on `redesign/main`, P1 answered and resolved, needs a fresh approval. After it merges, dispatch `redesign-drift.yml` for the contract rebaseline, then `#920`.
-- The standing `orbit-api` carry (Batch 0b, `#746`) of `#910` (`orbit-api` `main` `4c108bd0`) into `orbit-api` `redesign/main`: `orbit-api#652` at `5021112a`, CI running. Release the staging API after it merges.
+Open pull requests and in-flight work first, in this order (heads are leads; re-read each):
+
+- `#942` The Modelos row in the create habit checklist block: square full-bleed hover fill against the input, and an empty icon slot (`icon="template"` renders nothing). Not started; first.
+- `#939` Pending skips stay out of all-done on `redesign/main`: `ui#1316` at `5cdc8fed`, one P1 (a settled skip's marker keeps the day open in cached lists); a review-batch worker was running on `ticket-939-skip-all-done-carry` when the run ended (its order lived in the old scratchpad). Read the worktree: a new commit is the fix to carry into the body, resolve the thread, push. Then `#940` carries the same fix to `main`, followed by a production web release and an Android open-track build.
+- `#930` The compact FAB sits above the shell notice: `ui#1317` at `f1d70c04`, approved, but its own new layout spec `fab-notice.spec.ts` fails at 412px ("Notice controls missing"). The fix commit is on `ticket-930-fab-celebration`, unpushed: carry its report into the body, push, rerun if `Unit Tests` hits the known flaky `pending-operation-card` test.
+- `#870` Google Calendar sync and import fold into Calendário, imported events read only (API `#937` merged): `ui#1313` at `30da0d09`, approved; merge on the bar (a merge-result check first if it overlaps later merges).
+- `#871` Perfil's two Astra rows: `ui#1320` at `5d205bb1`, approved; merge on the bar.
+- `#929` Drawn weekday values (best-day tile at `--fs-lg`) and sentence-case achievement names: `ui#1318` at `1a500d7f`, Pullfrog commented; copy approved. Fix the findings.
+- `#884` Internal habit type names never render: `ui#1319` at `161ae2f7`, Pullfrog requested changes; copy approved (the Perfil switch text is drawn verbatim). Fix the findings.
+- `#894` Each Astra write reports once in one preview block, risk level never shown: `ui#1321` at `86aa95d1`, awaiting review. Holding every write for approval needs `#893` (`repo:api`).
+- `#852` Wrapped player pages and header as drawn: `ui#1322` at `bcfe672f`, awaiting review; copy approved (eyebrows and empty state are drawn verbatim).
+- `#928` Perfil's delete row draws its icon in the danger colour: `ui#1323` at `17e67f4b`, awaiting review.
 - Batch M's web privacy disclosures: `ui#1217` on `main`, held until email runs on SES.
+
+Board closures owed (merged, still open, because a `redesign/main` merge closes nothing and the board's close workflow is off): `#916` (merged on `main` as `ui#1275`), `#919` (merged as `orbit-api#651`). Close each with `node tools/complete-ticket.mjs --issue "#N"`, a few at a time.
 
 Then the filed tickets, highest first. A ticket on `main` is carried into `redesign/main` by `#556`/`#746` after it merges:
 
-- `#922` A new habit's name drops the schedule words the form read (decided by the owner; worktree `ticket-922-habit-name-schedule` and its order are ready).
-- `#924` Progresso draws what its drawing has: no Wrapped card, the Conquistas section title, sentence-case category names and legend words (copy needs `/second-opinion`).
-- `#907` Every compact overflow menu has the drawn 56px rows (worktree `ticket-907-menu-row-height` and a fresh order; it edits the menu primitive, so it starts after `ui#1272` merges).
-- `#911` The Astra habit block shows done habits as done, names its scope and says when it is empty (after `ui#1277`).
-- `#914` Offline, web refuses in place as drawn and the composer shows its offline words.
-- `#918` Component CSS moves into `@layer components` so Tailwind utilities win; desktop Hoje then hides its date row search (owner ruling: compact shell only).
-- `#917` Perfil's "Aparelhos com aviso" row (its API `#915` runs on the staging API; starts after `ui#1276` merges, both edit Perfil).
-- `#920` The Perfil keys entry shows the active key count (after `orbit-api#651` and the contract rebaseline).
-- `#884` The internal habit type names never render.
-- `#885` The delete confirmation drops the zero item clause and closes on confirm.
-- `#882` Web toasts render the drawn Toast in the shell notice slot; Sonner goes.
-- `#902` The Avisos rows and column as drawn, no red delete on every row (blocked by `#868`).
-- `#857` The composer chips come from live state (3 to 6), and hide while the Astra thread is empty.
-- `#847` The create habit form: dismissal, one focus ring per field, the understood block, `Mais detalhes`, the discard prompt (its comment adds the disabled reason and the drawn words).
+- `#941` A flexible habit counts done for the day once logged (decided from the Hoje drawing; blocked by `#939`), then its `main` backport.
+- `#893` (`repo:api`, on `redesign/main`) Hold every Astra chat write for approval, whatever its risk class.
+- `#936` HabitRow disclosure controls link to their child panels (`aria-controls`).
+- `#869` The Astra conversation's close control and empty state as drawn.
+- `#868` The Avisos labels, and proof that an achievement row shows its Progresso target.
+- `#841` The Astra dock, tab bar and Today column cap at 740 in the narrow shell.
+- `#850` The habit detail rescue card's full proposal and free upgrade card (copy needs `/second-opinion`).
+- `#847` The create habit form: dismissal, one focus ring per field, the understood block, `Mais detalhes`, the discard prompt.
 - `#851` Every sheet's action row in the pinned footer (blocked by `#847`).
 - `#892` Habit creation is the drawn pushed screen, not a dialog (blocked by `#847` and `#851`).
-- `#849` HabitRow side columns and selection mode; the row menu states `aria-expanded`.
-- `#899` The row menu's title, labels and icons as drawn.
-- `#886` The reschedule sheet as drawn.
-- `#888` The web not-found page renders inside the shell.
-- `#877` Habit detail has one page heading.
-- `#850` The habit detail rescue card's full proposal and free upgrade card (copy needs `/second-opinion`).
-- `#841` The Astra dock, tab bar and Today column cap at 740 in the narrow shell.
-- `#844` Wrapped holds its 900px frame on desktop web; then `#852` the Wrapped pages and header.
-- `#859` The sidebar search entry reads Buscar and the create action Criar hábito.
-- `#860` Desktop `/search` renders the results surface; one loading indicator at a time.
-- `#861` The pitch is titled Orbit Pro and the dashboard Assinatura; the interval control fills its column.
-- `#862` Onboarding counter, disabled reason and ghost actions as drawn.
-- `#863` The Entrar email label and placeholder as drawn.
-- `#864` The support form in the drawn order, drawn copy, no name field.
-- `#866` (`repo:api`) Achievement and level-up notifications link to Progresso and use sentence case; then `#868` the Avisos labels and target line.
-- `#867` The Sobre title, row labels and guide title as drawn.
-- `#869` The Astra conversation's close control and empty state as drawn.
-- `#870` Google Calendar sync and import fold into Calendário (owner decision: keep import).
-- `#871` Perfil's two Astra rows use the drawn labels.
-- `#853` (`repo:api`) A person chooses a 12-hour or 24-hour clock; then `#854` the Perfil Clock row and every time display (blocked by `#853`).
-- `#873` (`repo:api`) Each pending Astra operation carries an action key that names its consequence; then `#893` (`repo:api`, on `redesign/main`) holds every Astra chat write for approval, whatever its risk class; then `#894` each write is reported once in one preview block and the risk level never renders (blocked by `#893`).
-- `#889` (on `main`) Sobre and Suporte show the served web build, not 0.0.1.
+- `#934` Every pt-BR delete string uses the drawn verb "Apagar", with a test that no "exclu" string remains (the single-habit delete flow already does).
+- `#935` Web shows its deployed version on Sobre and in support messages instead of 0.0.1; this duplicates `#889` (on `main`): close one as a duplicate of the other and keep the `main` fix plus its carry.
+- `#932` (`repo:api`) Retire stale push subscriptions after a device changes accounts (confirm the branch from the push device code: the device list `#915` lives on `redesign/main`).
+- `#889` (on `main`) Sobre and Suporte show the served web build.
 - `#897` (on `main`) A logged sub-habit shows on its Calendário day.
-- `#842` (on `main`) Web push: serve and register a service worker (desktop Chrome on Perfil says push is unsupported today).
-- `#848` (on `main`) Notifications on `main` link to screens `main` has.
+- `#842` (on `main`) Web push: serve and register a service worker.
 - `#845` (on `main`) A tab that returns without an event cursor refetches account data once, not twice.
 
-Before a new ticket starts, check its files against the open pull requests: a ticket whose files overlap one waits for that one to merge. The shared i18n JSON files do not count as overlap. Today `#907` (the menu primitive) overlaps `ui#1272`; `#885` (habit list) overlaps `ui#1268`; `#917` and `#920` (Perfil) overlap `ui#1276`; `#918` (today shell) overlaps `ui#1272`; `#914` (composer) overlaps `ui#1278`; `#911` (chat habit block) follows `ui#1277`.
+Before a new ticket starts, check its files against the open pull requests: a ticket whose files overlap one waits for that one to merge. The shared i18n JSON files do not count as overlap, but `#934` rewrites dozens of pt-BR strings and should start when few copy pull requests are open.
 
-Unverified findings, reproduce before filing: habit detail once rendered with no header and no back control after a palette navigation with the Astra panel open at 1352px; three later attempts (direct load, a Hoje row, the palette with and without the panel) kept the header. In a hidden browser window: Escape not closing a sheet, focus not moving into a sheet or a confirmation, a first click dropped, a sheet menu item that does not act, and two route transition layers on screen (see Constraints; re-check in a visible window before filing).
+Decisions this run took that bind the rest of the batch: a drawn string beats a ticket paraphrase and a worker's second-opinion dissent (the orchestrator frames `/second-opinion` as a claimed defect, so DISAGREE approves); the pt-BR delete verb is "Apagar" everywhere (every drawing uses it); an existing type token may replace a drawn size that cannot fit the longest locale value (`--fs-lg` for the best-day tile); the Perfil "Análise de uso" switch stays although the drawing omits it, because removing a usage-analytics consent control drops the person's privacy choice; a flexible habit is done for the day once logged; a toast host follows the topmost open modal (sheet, dialog, command palette).
 
-Sweep coverage so far: every screen and overlay at desktop width except the celebration panel and the reschedule free and failed states; at phone width every screen, the Astra conversation, Offline, the habit row menu, the Hoje list options, the create sheet, the delete confirmation and the skip confirmation. The latest sweep ran on staging web `19a85c61` and the staging API `106de867`: the skip confirmation asks first on both widths (`#883` verified), the composer send is neutral with "Peça algo à Astra" (`#858` verified), the tier label matches (`#890` verified), and it filed `#923` and `#924` and added the doubled "Google Calendar desconectado" state to `#870`. Still to sweep: every surface each later merge changes, the celebration panel once `ui#1268` is released, Perfil once `ui#1276` is released, every dialog and sheet once `ui#1279` is released. The test habit "Alongar 3 vezes por semana" (flexible) is still in the owner's staging account; delete it once the skip sweep no longer needs it. Every merged batch is released to staging and swept again at both widths until a full pass finds nothing.
+Unverified findings, reproduce before filing: two copies of Habit detail stay on screen after a client navigation from Hoje in a hidden browser window (both copies are Habit detail, which points at an exit animation paused by the hidden window; re-check in a visible window). The not-found page shows Today's composer chips; confirm whether the drawing wants chips there.
+
+Sweep coverage so far: the latest sweeps ran on staging web `8393f925` at 600px and 1280px and verified the delete flow ("Apagar este hábito?"), the Perfil key count, the Astra habit block, the sidebar "Buscar" and "Criar hábito", "Todo dia" rows, live composer chips, the in-shell not-found page, Sobre, desktop search and Progresso's hidden title (drawn). Still to sweep at both widths after the next staging release: everything merged since `8393f925` (drawn toasts in every modal, the Perfil Clock row and 12 or 24 hour times, Wrapped's desktop frame, Avisos rows, onboarding, Habit detail's single heading), then every later merge, until a full pass finds nothing. The owner's staging account holds "Ler 10 minutos" (daily 21:00), "Beber água" (daily 08:00) and "Caminhar"; delete "Ler 10 minutos" once sweeps no longer need it.
 
 ### Batch 0a: DONE
 
@@ -217,6 +198,7 @@ file a harness ticket as a substitute for a fix.
 
 - `#556` The standing `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
 - `#746` The standing `orbit-api` `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
+- `#926` Delete the redesign drift merge job that fails on every `main` push
 
 The contract rebaseline App (`#702`) is done: its pull requests now start every required check. The redesign rebaseline passes the App key to its reusable workflow (`#787`): dispatch `redesign-drift.yml` on `redesign/main` after each orbit-api `redesign/main` merge that changes the contract. Worktree teardown accepts clean local base merges (`#785`) and merged carry worktrees of the standing tickets listed in `tickets.standing` (`#786`); a closed, unmerged ledger row with a blocker and `closed: true` ends a sleep run BLOCKED (`#788`), and an explicit `closed: false` reopens it (`#789`).
 
@@ -514,17 +496,13 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository (REST `gh api repos/thomasluizon/<repo>/pulls?state=open` while GraphQL is exhausted).
 
-Batch M is done except email: production runs entirely on the new stack. Production API runs `4c108bd0` (`orbit-api` `main`, with `#910`: Astra's today list includes habits already done today, and the card's `done` status reaches only clients that send `supportsHabitListDoneStatus`); production web runs `94bf8f66`; `main` (`ui`) is at `1585e1eb` (tools only since that web release). Android 1.3.40 (99) is on the open track; nothing in `apps/mobile` changed on `main` since. Email still goes through Resend: AWS has not granted SES production access, and AWS owes the next reply.
+Batch M is done except email: production runs entirely on the new stack. Production web runs `24160e3a` (`main`, with `#848` notification routes and closed-month Wrapped, and `#931` all-done counting a completed due habit and ignoring a pending skip); Android 1.3.43 (102) is on the open track with the same; the production API runs `4c108bd0`. A narrow gap shipped with `#931`: a settled skip's marker stays in cached lists until a refetch, so logging the last due habit can miss the all-done celebration; `#940` fixes it on `main` after `#939` lands. Email still goes through Resend: AWS has not granted SES production access, and AWS owes the next reply.
 
-THE REDESIGN GATE is open and failing: Batch R is in progress. `redesign/main` (`ui`) is at `19a85c61` with the skip confirmation (`#883`), the neutral send (`#858`), the tier label (`#890`) and the push device contract snapshot. Staging web runs `19a85c61`; the staging API runs `106de867` (`orbit-api` `redesign/main` with the push device list `#915`). The internal Android build 1.3.39 (98) is still the one on the internal track; the next internal build waits until Batch R lands.
+THE REDESIGN GATE is open and failing: Batch R is in progress. `redesign/main` (`ui`) is at `4871a5d5`; staging web runs `8393f925` and needs a release; the staging API runs `40efecfb` (`orbit-api` `redesign/main`, with imported calendar events behind `includeImported`). The internal Android build 1.3.39 (98) is still the one on the internal track; the next internal build waits until Batch R lands.
 
-Tickets merged into `redesign/main` but still open on the board (a `redesign/main` merge closes nothing): `#858`, `#883`, `#890`. Close each with `node tools/complete-ticket.mjs --issue "#N"` a few at a time.
+Open pull requests: `ui` `#1313`, `#1316`, `#1317`, `#1318`, `#1319`, `#1320`, `#1321`, `#1322`, `#1323` (base `redesign/main`) and `#1217` (base `main`); none in `orbit-api` or `orbit-landing-page`. See Batch R's in-flight list for each one's state.
 
-Open pull requests: `ui` `#1268`, `#1272`, `#1276`, `#1277`, `#1278`, `#1279` (base `redesign/main`), `#1275` and `#1217` (base `main`); `orbit-api` `#651` and `#652` (base `redesign/main`); none in `orbit-landing-page`. See Batch R in flight for each one's state.
-
-Pullfrog sometimes publishes no review of a merge-forward push; request one with `node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900` (a plain request when the head has no review).
-
-Staging data in the owner's account: "Caminhar" (every 3 weeks), "Beber água" (daily 08:00) and the sweep's flexible test habit "Alongar 3 vezes por semana".
+Pullfrog sometimes publishes no review of a merge-forward or review-fix push, and sometimes approves a head without publishing the `pullfrog-approval` check; request a review with `node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900` (add `--re-review` when the head already has a review). A pull request whose base moved under it is proven with the combined local merge-result check before merging at its approved head; a conflict is resolved on the branch and pushed.
 
 Waiting on the owner:
 
@@ -534,4 +512,4 @@ Waiting on the owner:
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Board status: a closed ticket that still shows a Todo Status needs `complete-ticket.mjs --repair-status`; re-derive the list per ticket before repairing, a few at a time. Stale worktrees: tear down each merged ticket's worktree with `node tools/teardown-worktree.mjs`, which refuses anything unmerged (merged and still present include `ticket-858-send-neutral`, `ticket-883-skip-confirm`, `ticket-890-tier-tile-label`, `ticket-896-composer-panel-fit`, and in `orbit-api` `ticket-910-astra-today-done`, plus the older ones this list named before). Prepared worktrees with no commits yet: `ticket-907-menu-row-height`, `ticket-922-habit-name-schedule`, `ticket-885-delete-confirm` (all on `redesign/main`, fast-forward them before use). The detached scratch worktree `integ` in the session scratchpad and the detached `ticket-822-web-health-retry` are removable with `git worktree remove` (no `--force`: `node_modules` holds symlinks).
+Board status: a closed ticket that still shows a Todo Status needs `complete-ticket.mjs --repair-status`, a few at a time. Worktrees: each merged ticket's worktree can go with `node tools/teardown-worktree.mjs`, which refuses anything unmerged. Local branches of squash-merged pull requests (`ticket-862-onboarding-details`, `ticket-867-sobre-labels`, `ticket-882-drawn-toast`, `ticket-888-shell-not-found`) show commits ahead of a deleted upstream; they are merged, not lost. Unpushed real work: `ticket-805-privacy-processors` (1 commit), `ticket-930-fab-celebration` (1 commit, the layout fix), `ticket-939-skip-all-done-carry` (a worker may have added the settled-skip fix). The detached scratch worktree `integ` under an old scratchpad and the detached `ticket-822-web-health-retry` are removable with `git worktree remove` (no `--force`: `node_modules` holds symlinks).

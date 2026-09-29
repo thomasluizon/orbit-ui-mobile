@@ -9,6 +9,7 @@ import { fetchJson } from '@/lib/api-fetch'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -37,11 +38,6 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => v
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 vi.mock('@/app/actions/notifications', () => actionMocks)
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    dismiss: vi.fn(), error: feedback.showError, info: vi.fn(), success: vi.fn(),
-  }),
-}))
 
 let queryClient: QueryClient
 
@@ -70,6 +66,7 @@ async function flushPromises() {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  useAppToastStore.setState({ showError: feedback.showError, currentToast: null, queue: [] })
   resetPendingNotificationDeletesForTests()
   focusManager.setFocused(true)
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
@@ -113,7 +110,7 @@ it.each([
 
   deferred.reject()
   await flushPromises()
-  expect(feedback.showError).toHaveBeenCalledWith(message, { duration: 5000 })
+  expect(feedback.showError).toHaveBeenCalledWith(message)
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
@@ -122,13 +119,15 @@ it('announces a delayed delete rejection after the inbox unmounts and keeps undo
   actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
   const view = render(shell(true))
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
   await advance(5000)
   expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
   expect(feedback.showError).not.toHaveBeenCalled()
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   await advance(5000)
   view.rerender(shell(false))
   deferred.reject()
@@ -146,7 +145,8 @@ it('runs out the delayed delete failure and holds it while the pointer rests on 
   actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
   render(shell(true))
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   await advance(5000)
   deferred.reject()
   await flushPromises()

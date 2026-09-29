@@ -1,5 +1,9 @@
 'use client'
 
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { TimeField } from '@/components/ui/time-field'
+import { useTimeFormat } from '@/hooks/use-time-format'
+
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslations } from 'next-intl'
@@ -37,7 +41,7 @@ function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<
       {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
       {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
     </RadioGroup>
-    <Input label={`${rowLabel}: ${labels.reminderTime}`} value={typeof row.time === 'string' ? row.time : ''} onChange={(next) => change('time', next)} disabled={busy} />
+    <TimeField label={`${rowLabel}: ${labels.reminderTime}`} value={(typeof row.time === 'string' ? row.time : '') as Time24 | ''} onChange={(next) => change('time', next)} disabled={busy} />
   </>
   return <Input label={rowLabel} value={typeof row.value === 'string' || typeof row.value === 'number' ? String(row.value) : ''} onChange={(next) => change('value', next)} disabled={busy} kind="number" />
 }
@@ -101,6 +105,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
           return <fieldset key={field.field}><legend className="mb-2 text-sm">{label}</legend><div className="flex flex-wrap gap-2">{PENDING_OPERATION_WEEKDAYS.map((day) => <button key={day} type="button" aria-pressed={days.includes(day)} disabled={busy} onClick={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} className="min-h-11 rounded-[8px] border border-[var(--hairline)] px-3 text-sm aria-pressed:border-[var(--primary)] aria-pressed:bg-[var(--bg-hover)]">{labels.dayLabels[day]}</button>)}</div></fieldset>
         }
+        if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={(draft[field.field] ?? '') as Time24 | ''} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
           key={field.field}
           label={label}
@@ -190,6 +195,7 @@ export function PendingOperationCard({
   onVerifyStepUp,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
+  const { displayTime } = useTimeFormat()
 
   return <SharedPendingOperationCard
     pendingOperation={pendingOperation}
@@ -199,6 +205,6 @@ export function PendingOperationCard({
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t)}
+    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
   />
 }

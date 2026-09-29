@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildWeekStartOptions,
+  buildClockFormatOptions,
   LANGUAGE_OPTIONS,
 } from '../utils/preferences-options'
 
@@ -9,6 +10,13 @@ describe('preferences options', () => {
     expect(LANGUAGE_OPTIONS).toEqual([
       { value: 'en', label: 'English' },
       { value: 'pt-BR', label: 'Português' },
+    ])
+  })
+
+  it('builds clock choices in display order', () => {
+    expect(buildClockFormatOptions((key) => `t:${key}`)).toEqual([
+      { value: '24h', label: 't:settings.clock.hour24' },
+      { value: '12h', label: 't:settings.clock.hour12' },
     ])
   })
 

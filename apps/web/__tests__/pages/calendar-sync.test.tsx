@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
-import { toast } from 'sonner'
 import { useRef, useState } from 'react'
+const toastError = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
 
 
 vi.mock('next-intl', () => ({
@@ -214,12 +215,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: toastSuccess }) }))
 
 let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknown> } | null = null
 
@@ -284,7 +280,7 @@ describe('CalendarSyncPage', () => {
     mockRunSyncNow.mockClear()
     mockDismissSuggestion.mockClear()
     mockGoogleAssign.mockClear()
-    vi.mocked(toast.error).mockClear()
+    vi.mocked(toastError).mockClear()
     setNavigatorOnline(true)
 
     globalThis.fetch = vi.fn().mockImplementation(() => {
@@ -763,7 +759,7 @@ describe('CalendarSyncPage', () => {
     })
     expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
-    expect(toast.error).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+    expect(toastError).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
   })
 
   it('drops the import result when another account replaces the tab', async () => {
@@ -826,7 +822,7 @@ describe('CalendarSyncPage', () => {
       { status: 'Failed', habitId: null, title: 'Account A event', error: 'failed' },
     ] })
 
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
     expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
   })
 
@@ -847,7 +843,7 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'sug-1' }))
     await replaceAccountWith('user-2')
     await act(async () => { failDismiss(new Error('old failure')); await Promise.resolve() })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('invalidates sync suggestions after a review-mode import', async () => {

@@ -24,6 +24,8 @@ interface CommandMenuProps {
   onClose: () => void
 }
 
+type HabitSearchState = ReturnType<typeof useHabitSearch>
+
 function useCreateRefusal(onCreateHabit: (title?: string) => void, onClose: () => void) {
   const [createRefusal, setCreateRefusal] = useAccountScopedState<'command' | 'search' | null>(null)
   const { isOnline } = useOffline()
@@ -36,10 +38,19 @@ function useCreateRefusal(onCreateHabit: (title?: string) => void, onClose: () =
   return { createRefusal: isOnline ? null : createRefusal, createHabit }
 }
 
-export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = false }: Readonly<CommandMenuProps>) {
+function HabitSearchLoading({ show, text, heading }: Readonly<{ show: boolean; text: string; heading: string }>) {
+  if (!show) return null
+  return text.trim() ? <Searching /> : <CommandHabitSkeleton heading={heading} />
+}
+
+export function CommandMenu(props: Readonly<CommandMenuProps>) {
+  const search = useHabitSearch()
+  return <CommandMenuWithSearch {...props} search={search} />
+}
+
+export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search, resultsMode = false }: Readonly<CommandMenuProps & { search: HabitSearchState }>) {
   const t = useTranslations()
   const router = useRouter()
-  const search = useHabitSearch()
   /**
    * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it
    * open and `#600` leaves that store alone. Its rows are already the next account's, and so
@@ -82,12 +93,12 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex min-h-0 flex-1 flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
-    <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'p-2' : 'h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
+    <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'p-2' : 'h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
       {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
-      {search.showLoading && <><Searching /><CommandHabitSkeleton heading={t('command.groups.search')} /></>}
+      <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
       {!search.busy && !search.isError && <CommandResults showResults={showResults} entries={entries} totalCount={search.data?.totalCount ?? 0} query={search.query} onOpen={chooseHabit} onCreate={() => createHabit(search.query, 'search')} createRefusal={createRefusal === 'search'} disabled={logHabit.isPending || skipHabit.isPending} />}
       {page === null && <CommandGroups hideCreate={showResults && entries.length === 0 && !search.busy} query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal === 'command'} />}
       <div className="flex gap-3">

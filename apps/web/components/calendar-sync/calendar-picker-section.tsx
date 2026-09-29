@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 interface CalendarPickerSectionProps {
   enabled: boolean
@@ -22,6 +22,7 @@ interface CalendarPickerSectionProps {
  */
 export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectionProps>) {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const [visibleCount, setVisibleCount] = useState(20)
@@ -32,7 +33,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     try {
       await setSelectedCalendars.mutateAsync({ id, isSynced })
     } catch (err: unknown) {
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
     }
   }
 
