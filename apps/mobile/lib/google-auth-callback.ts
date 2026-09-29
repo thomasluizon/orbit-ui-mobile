@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import * as SecureStore from 'expo-secure-store'
 import { createAuthReturnUrlAttempt } from './auth-flow'
 
-export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
+export const AUTH_CALLBACK_URL = `${APP_LINK_ORIGIN}/auth-callback`
 const GOOGLE_AUTH_ATTEMPT_KEY = 'google_auth_attempt'
 const GOOGLE_AUTH_ATTEMPT_WINDOW_MS = 10 * 60 * 1000
 

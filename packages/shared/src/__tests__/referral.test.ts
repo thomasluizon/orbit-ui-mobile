@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRecapShareUrl, buildReferralUrl, isValidReferralCode } from '../utils/referral'
+import { buildRecapShareUrl, buildReferralUrl, isValidReferralCode, withShareLinkOrigin } from '../utils/referral'
 
 describe('isValidReferralCode', () => {
   it('accepts url-safe token shapes', () => {
@@ -21,6 +21,11 @@ describe('buildReferralUrl', () => {
     expect(buildReferralUrl('XYZ789')).toBe('https://app.useorbit.org/r/XYZ789')
   })
 
+  it('builds a staging referral url from the selected origin', () => {
+    expect(buildReferralUrl('XYZ789', 'https://app-staging.useorbit.org'))
+      .toBe('https://app-staging.useorbit.org/r/XYZ789')
+  })
+
   it('returns an empty string when the code is missing', () => {
     expect(buildReferralUrl(null)).toBe('')
     expect(buildReferralUrl(undefined)).toBe('')
@@ -33,8 +38,27 @@ describe('buildRecapShareUrl', () => {
     expect(buildRecapShareUrl('XYZ789', 'year')).toBe('https://app.useorbit.org/r/XYZ789?recap=year')
   })
 
+  it('builds a staging recap url from the selected origin', () => {
+    expect(buildRecapShareUrl('XYZ789', 'week', 'https://app-staging.useorbit.org'))
+      .toBe('https://app-staging.useorbit.org/r/XYZ789?recap=week')
+  })
+
   it('returns an empty string when the code is missing', () => {
     expect(buildRecapShareUrl(null, 'week')).toBe('')
     expect(buildRecapShareUrl(undefined, 'month')).toBe('')
+  })
+})
+
+describe('withShareLinkOrigin', () => {
+  it('keeps a production recap link byte-identical', () => {
+    const link = 'https://app.useorbit.org/r/XYZ789?recap=week'
+    expect(withShareLinkOrigin(link, 'https://app.useorbit.org')).toBe(link)
+  })
+
+  it('uses the staging origin while preserving the recap path and query', () => {
+    expect(withShareLinkOrigin(
+      'https://app.useorbit.org/r/XYZ789?recap=week',
+      'https://app-staging.useorbit.org',
+    )).toBe('https://app-staging.useorbit.org/r/XYZ789?recap=week')
   })
 })
