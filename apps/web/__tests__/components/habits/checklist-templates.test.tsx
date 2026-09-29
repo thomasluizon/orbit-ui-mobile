@@ -46,6 +46,14 @@ describe('ChecklistTemplates', () => {
     mockIsPending = false
   })
 
+  it('renders the templates glyph in a compact, rounded form row', () => {
+    render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
+    const row = screen.getByRole('button', { name: 'habits.form.templates' })
+    expect(row.querySelector('[data-icon="template"] svg')).toBeInTheDocument()
+    expect(row.parentElement).toHaveClass('orbit-list-row-form')
+    expect(row).toHaveStyle({ minHeight: '52px' })
+  })
+
   it('shows save button when items are present', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)

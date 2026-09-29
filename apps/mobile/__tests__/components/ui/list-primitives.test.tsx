@@ -53,6 +53,18 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('renders the templates glyph in a compact pressed row', () => {
+    const tree = render(<ListRow icon="template" title="Templates" compact inForm onClick={vi.fn()} />)
+    const icon = tree.root.find((node) => node.props.testID === 'icon-template')
+    expect(icon.props.children).toBeTruthy()
+    const row = tree.root.findByType(View)
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    const body = tree.root.findByType(Pressable)
+    expect(StyleSheet.flatten(body.props.style)).toMatchObject({ minHeight: 52, paddingHorizontal: 12 })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ borderRadius: 12 })
+  })
+
   it('exposes the Support action as an accessibility focus target', () => {
     const supportRef = createRef<View>()
     const tree = render(<ListRow title="Support" onClick={() => {}} ref={supportRef} />)

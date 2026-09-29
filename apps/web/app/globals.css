@@ -100,6 +100,12 @@
   transition: background-color 380ms var(--ease-standard);
 }
 
+.orbit-list-row-form {
+  margin: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .orbit-row-list > div:first-child .orbit-list-row-shell {
   border-start-start-radius: 20px;
   border-start-end-radius: 20px;

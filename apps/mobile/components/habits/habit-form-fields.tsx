@@ -207,7 +207,7 @@ function SubHabitSection({
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inForm onClick={onUpgrade} />
       )}
     </View>
   )
@@ -447,7 +447,7 @@ export function HabitFormFields({
       />
 
       <View style={styles.disclosure}>
-        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
+        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} chevron={false} inForm onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <View>

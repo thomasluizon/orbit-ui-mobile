@@ -109,6 +109,8 @@ export function ChecklistTemplates({
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}
+        compact
+        inForm
         onClick={() => setOpen(true)}
       />
       {open ? (
