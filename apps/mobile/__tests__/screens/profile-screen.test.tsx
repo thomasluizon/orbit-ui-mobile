@@ -629,7 +629,7 @@ describe('ProfileScreen', () => {
       ).toBeGreaterThan(0)
     }
 
-    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.settingsRows.wrapped').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
       'profile.widgetHint',
     )
@@ -645,7 +645,7 @@ describe('ProfileScreen', () => {
       more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
         .map((node: SettingsRowStubNode) => node.props.label),
     ).toEqual([
-      'profile.wrappedTitle',
+      'profile.settingsRows.wrapped',
       'profile.widgetTitle',
       'profile.calendarSync.title',
       'profile.support.rowTitle',
@@ -689,7 +689,7 @@ describe('ProfileScreen', () => {
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
       'profile.settingsRows.weekStart',
-      'profile.wrappedTitle',
+      'profile.settingsRows.wrapped',
       'profile.widgetTitle',
       'profile.calendarSync.title',
       'profile.support.rowTitle',
@@ -1409,7 +1409,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.wrappedTitle').props.onPress?.()
+      findRowByLabel(tree, 'profile.settingsRows.wrapped').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')

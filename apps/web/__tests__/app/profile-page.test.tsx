@@ -294,7 +294,7 @@ describe('ProfilePage', () => {
       'profile.groups.more',
       'profile.groups.ending',
     ])
-    expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
+    expect(screen.getByText('profile.settingsRows.wrapped')).toBeInTheDocument()
     expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
     expect(screen.getByText('profile.widgetTitle')).toBeInTheDocument()
     expect(screen.getByText('profile.calendarSync.title')).toBeInTheDocument()
@@ -335,7 +335,7 @@ describe('ProfilePage', () => {
     }
     expect(screen.getByRole('group', { name: 'profile.settingsRows.theme' })).toBeInTheDocument()
     for (const name of [
-      'profile.wrappedTitle',
+      'profile.settingsRows.wrapped',
       'profile.calendarSync.title',
       'profile.aboutRow',
       'profile.support.rowTitle',
@@ -442,7 +442,7 @@ describe('ProfilePage', () => {
     const view = render(<ProfilePage />)
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
 
-    expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
+    expect(freeMore.getByRole('link', { name: /profile\.settingsRows\.wrapped/i })).toHaveAttribute('href', '/wrapped')
     expect(freeMore.getByRole('button', { name: /profile\.widgetTitle/i })).toBeInTheDocument()
     const calendarGate = freeMore.getByRole('link', { name: /profile\.calendarSync\.title/i })
     expect(calendarGate).toHaveAttribute('href', '/upgrade')

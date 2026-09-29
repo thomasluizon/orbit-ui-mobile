@@ -1593,6 +1593,7 @@
       "timezoneValue": "Fuso {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
       "apiKeysMcp": "Chaves de API e MCP",
+      "wrapped": "Orbit Wrapped",
       "weekStart": "Semana começa em",
       "theme": "Tema",
       "export": "Exportar os meus dados",
@@ -1729,7 +1730,7 @@
       "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
     "logout": "Sair",
-    "wrappedTitle": "Orbit Wrapped",
+    "wrappedTitle": "Seu Wrapped",
     "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
     "widgetTitle": "Widget do Android",
     "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",

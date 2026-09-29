@@ -1593,6 +1593,7 @@
       "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
       "apiKeysMcp": "API keys and MCP",
+      "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
       "theme": "Theme",
       "export": "Export my data",
@@ -1729,7 +1730,7 @@
       "sendNeedsMessage": "Add a message to send."
     },
     "logout": "Log Out",
-    "wrappedTitle": "Orbit Wrapped",
+    "wrappedTitle": "Your Wrapped",
     "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Android widget",
     "widgetHint": "Today's habits on the device's home screen.",

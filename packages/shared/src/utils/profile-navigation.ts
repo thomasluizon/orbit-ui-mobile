@@ -62,7 +62,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     section: 'features',
     route: '/wrapped',
     iconKey: 'wrapped',
-    titleKey: 'profile.wrappedTitle',
+    titleKey: 'profile.settingsRows.wrapped',
     hintKey: null,
     variant: 'primary',
     proBadge: false,
