@@ -90,13 +90,17 @@ const ticket = `${liveTicket.body.replace(/\s*$/, "")}${commentSection}`
 const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
 
+const vitestEvidence = repoKey === "ui"
+  ? ` The repository's own Vitest suites are required evidence: run them in full, including any headless Chromium geometry tests they launch. That Chromium use is permitted within Vitest.`
+  : ""
+
 const browserBan = `
 
-**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
-own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
-Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
-logging in to the app. If the ticket says screenshots are required, do not gather them in this
-worker. A fresh worktree has no seeded session.`
+**NEVER open the app in a browser and never start a dev or production server. This is unconditional
+and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence}
+No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no Playwright, Maestro or Cypress,
+nothing under \`e2e/\`, no layout guard, no navigating to localhost on any port, no logging in to the app.
+If the ticket says screenshots are required, do not gather them in this worker. A fresh worktree has no seeded session.`
 
 const brief = `## Orchestrator's brief
 
