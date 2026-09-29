@@ -117,7 +117,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
   const items = sectionItems[activeSection]
 
   return (
-    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')}>
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')} titleTranslate="no">
       <div className="overlay-bleed">
         <div
           role="tablist"

@@ -8,9 +8,10 @@ import { Icon } from '@/components/ui/icon'
 
 type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   onClick?: MouseEventHandler<HTMLElement>
+  titleTranslate?: 'no'
 }
 
-function RowBody({ title, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
+function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<WebListRowProps, 'title' | 'titleTranslate' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
@@ -21,7 +22,7 @@ function RowBody({ title, wrapTitle, description, icon, value, wrapValue, danger
         </span>
       ) : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
-        <span className={wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
+        <span translate={titleTranslate} className={wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
         {description ? <span style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
       </span>
       {value ? <span className={`max-w-[50%] shrink-0 ${wrapValue ? 'break-words' : 'truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}

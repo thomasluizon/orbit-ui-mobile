@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTranslator } from 'next-intl'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -85,6 +86,12 @@ describe('SupportPage', () => {
 
   afterEach(() => {
     localStorage.clear()
+  })
+
+  it('keeps the support page heading distinct from the About row label', () => {
+    mockI18n.overrides.set('profile.support.title', ptBR.profile.support.title)
+    render(<SupportPage />)
+    expect(screen.getByRole('heading', { name: 'Suporte' })).toBeInTheDocument()
   })
 
   it('does not render an editable name field', () => {

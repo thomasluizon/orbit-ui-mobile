@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
 import Constants from 'expo-constants'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { PageHeader } from '@/components/ui/page-header'
@@ -95,30 +96,15 @@ export default function AboutScreen() {
 
           <View testID="about-destinations" style={styles.destinations}>
             <RowList style={styles.rowList}>
-              <ListRow
-                accessibilityLabel={t('about.featureGuide')}
-                onClick={() => setShowGuide(true)}
-                title={t('about.featureGuide')}
-                wrapTitle
-              />
-              <ListRow
-                accessibilityLabel={t('profile.support.title')}
-                onClick={() => router.push('/support')}
-                title={t('profile.support.title')}
-                wrapTitle
-              />
-              <ListRow
-                accessibilityLabel={t('about.terms')}
-                onClick={() => router.push('/terms')}
-                title={t('about.terms')}
-                wrapTitle
-              />
-              <ListRow
-                accessibilityLabel={t('about.privacy')}
-                onClick={() => router.push('/privacy')}
-                title={t('about.privacy')}
-                wrapTitle
-              />
+              {ABOUT_DESTINATIONS.map((destination) => (
+                <ListRow
+                  key={destination.id}
+                  accessibilityLabel={t(destination.titleKey)}
+                  onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
+                  title={t(destination.titleKey)}
+                  wrapTitle
+                />
+              ))}
             </RowList>
           </View>
 
