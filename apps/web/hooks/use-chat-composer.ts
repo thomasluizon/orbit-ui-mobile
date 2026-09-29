@@ -452,6 +452,7 @@ export function useChatComposer() {
       timeFormat: detectDefaultTimeFormat(locale),
       currentAppArea: 'chat',
       supportsHabitListCard: true,
+      supportsHabitListDoneStatus: true,
       supportsGoalListCard: true,
       supportsMetricsCard: true,
       supportsPeriodInsightCard: true,

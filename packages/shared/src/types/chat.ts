@@ -13,6 +13,7 @@ export const chatClientContextSchema = z.object({
   timeFormat: z.string(),
   currentAppArea: z.string(),
   supportsHabitListCard: z.boolean(),
+  supportsHabitListDoneStatus: z.boolean().optional(),
   supportsGoalListCard: z.boolean(),
   supportsMetricsCard: z.boolean().optional(),
   supportsPeriodInsightCard: z.boolean().optional(),
@@ -145,7 +146,7 @@ export const actionResultSchema = z
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
-export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none'])
+export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none', 'done'])
 
 export type HabitListCardStatus = z.infer<typeof habitListCardStatusSchema>
 
