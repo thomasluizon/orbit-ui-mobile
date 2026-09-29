@@ -186,6 +186,37 @@ it('refreshes once when the first open after a return fails and again when the s
   view.unmount()
 })
 
+it('refreshes a query still fetching at a failed open after a return once that fetch settles', async () => {
+  const setVisibility = stubVisibility()
+  const client = useRealQueryClient()
+  let failSecondTicket!: (error: Error) => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(ticketResponse('first'))
+    .mockResolvedValueOnce(idleStream())
+    .mockReturnValueOnce(new Promise<Response>((_resolve, reject) => { failSecondTicket = reject }))
+    .mockRejectedValue(new Error('ticket unavailable'))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  await settle()
+  const idleQueries = observeAccountQueries(client, [habitKeys.count()])
+  const inFlightQuery = observeInFlightQuery(client, profileKeys.detail())
+  setVisibility('hidden')
+  setVisibility('visible')
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+  failSecondTicket(new Error('ticket unavailable'))
+  await waitFor(() => expect(refreshCounts(idleQueries)).toEqual([1]))
+  expect(inFlightQuery.queryFn).toHaveBeenCalledTimes(1)
+  inFlightQuery.settle('before the change')
+  await waitFor(() => expect(inFlightQuery.observer.getCurrentResult().data).toBe('after return'))
+  await waitFor(() => expect(client.isFetching()).toBe(0))
+  expect({ idle: refreshCounts(idleQueries), inFlight: inFlightQuery.queryFn.mock.calls.length })
+    .toEqual({ idle: [1], inFlight: 2 })
+  inFlightQuery.unsubscribe()
+  stopObserving(idleQueries)
+  view.unmount()
+})
+
 it('refreshes each account query once after a cursorless stream closes and reopens', async () => {
   stubVisibility()
   const client = useRealQueryClient()
@@ -243,13 +274,28 @@ function useRealQueryClient() {
   return client
 }
 
-function observeAccountQueries(client: QueryClient) {
-  return [profileKeys.detail(), habitKeys.list({ date: 'today' }), habitKeys.count()].map((queryKey) => {
+function observeAccountQueries(
+  client: QueryClient,
+  queryKeys: readonly (readonly unknown[])[] = [profileKeys.detail(), habitKeys.list({ date: 'today' }), habitKeys.count()],
+) {
+  return queryKeys.map((queryKey) => {
     client.setQueryData(queryKey, 'before return', { updatedAt: Date.now() - 60_000 })
     const queryFn = vi.fn(async () => 'after return')
     const unsubscribe = new QueryObserver(client, { queryKey, queryFn, staleTime: Infinity }).subscribe(() => {})
     return { queryFn, unsubscribe }
   })
+}
+
+function observeInFlightQuery(client: QueryClient, queryKey: readonly unknown[]) {
+  client.setQueryData(queryKey, 'before return', { updatedAt: Date.now() - 60_000 })
+  let settle!: (data: string) => void
+  const queryFn = vi.fn()
+    .mockReturnValueOnce(new Promise<string>((resolve) => { settle = resolve }))
+    .mockResolvedValue('after return')
+  const observer = new QueryObserver(client, { queryKey, queryFn, staleTime: Infinity })
+  const unsubscribe = observer.subscribe(() => {})
+  void observer.refetch()
+  return { queryFn, observer, unsubscribe, settle: (data: string) => settle(data) }
 }
 
 function refreshCounts(queries: ReturnType<typeof observeAccountQueries>) {

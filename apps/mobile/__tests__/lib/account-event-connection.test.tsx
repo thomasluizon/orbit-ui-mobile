@@ -231,6 +231,45 @@ it('refreshes once when the first open after a return fails and again when the s
   }
 })
 
+it('refreshes a query still fetching at a failed open after a return once that fetch settles', async () => {
+  mocks.queryClient = queryClient
+  let failSecondOpen!: (error: Error) => void
+  mocks.expoFetch
+    .mockResolvedValueOnce(idleStream())
+    .mockReturnValueOnce(new Promise((_resolve, reject) => { failSecondOpen = reject }))
+    .mockRejectedValue(new Error('stream unavailable'))
+  vi.useFakeTimers()
+  let view!: ReturnType<typeof TestRenderer.create>
+  let idleQueries: ReturnType<typeof observeAccountQueries> = []
+  let inFlightQuery: ReturnType<typeof observeInFlightQuery> | null = null
+  try {
+    await act(async () => { view = TestRenderer.create(React.createElement(AccountEventConnection)); await vi.advanceTimersByTimeAsync(0) })
+    idleQueries = observeAccountQueries([habitKeys.count()])
+    inFlightQuery = observeInFlightQuery(profileKeys.detail())
+    await act(async () => { mocks.onAppState?.('background'); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { mocks.onAppState?.('active'); await vi.advanceTimersByTimeAsync(0) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    await act(async () => {
+      failSecondOpen(new Error('stream unavailable'))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await vi.waitFor(() => expect(refreshCounts(idleQueries)).toEqual([1]))
+    expect(inFlightQuery.queryFn).toHaveBeenCalledTimes(1)
+    const { observer, settle } = inFlightQuery
+    await act(async () => { settle('before the change'); await vi.advanceTimersByTimeAsync(0) })
+    await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe('after return'))
+    await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect({ idle: refreshCounts(idleQueries), inFlight: inFlightQuery.queryFn.mock.calls.length })
+      .toEqual({ idle: [1], inFlight: 2 })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+  } finally {
+    await act(() => { (view as unknown as { unmount: () => void }).unmount() })
+    stopObserving(idleQueries)
+    inFlightQuery?.unsubscribe()
+    vi.useRealTimers()
+  }
+})
+
 it('refreshes each account query once after a cursorless stream closes and reopens', async () => {
   mocks.queryClient = queryClient
   let closeFirstStream!: () => void
@@ -269,13 +308,27 @@ function idleStream() {
   return { ok: true, status: 200, body: new ReadableStream<Uint8Array>({ start() {} }) }
 }
 
-function observeAccountQueries() {
-  return [profileKeys.detail(), habitKeys.list({ date: 'today' }), habitKeys.count()].map((queryKey) => {
+function observeAccountQueries(
+  queryKeys: readonly (readonly unknown[])[] = [profileKeys.detail(), habitKeys.list({ date: 'today' }), habitKeys.count()],
+) {
+  return queryKeys.map((queryKey) => {
     queryClient.setQueryData(queryKey, 'before return', { updatedAt: Date.now() - 60_000 })
     const queryFn = vi.fn(() => Promise.resolve('after return'))
     const unsubscribe = new QueryObserver(queryClient, { queryKey, queryFn, staleTime: Infinity }).subscribe(() => {})
     return { queryFn, unsubscribe }
   })
+}
+
+function observeInFlightQuery(queryKey: readonly unknown[]) {
+  queryClient.setQueryData(queryKey, 'before return', { updatedAt: Date.now() - 60_000 })
+  let settle!: (data: string) => void
+  const queryFn = vi.fn()
+    .mockReturnValueOnce(new Promise<string>((resolve) => { settle = resolve }))
+    .mockResolvedValue('after return')
+  const observer = new QueryObserver(queryClient, { queryKey, queryFn, staleTime: Infinity })
+  const unsubscribe = observer.subscribe(() => {})
+  void observer.refetch()
+  return { queryFn, observer, unsubscribe, settle: (data: string) => settle(data) }
 }
 
 function refreshCounts(queries: ReturnType<typeof observeAccountQueries>) {

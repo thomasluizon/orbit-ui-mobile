@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesBefore } from '@orbit/shared/query'
+import {
+  consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
+} from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
@@ -24,8 +26,9 @@ export function AccountEventConnection(): null {
       close()
       if (document.visibilityState !== 'visible') return
       controller = new AbortController()
+      const connectionSignal = controller.signal
       void consumeAccountEventStream({
-        signal: controller.signal,
+        signal: connectionSignal,
         lastEventId,
         resumed,
         open: async (signal, lastEventId) => {
@@ -41,7 +44,7 @@ export function AccountEventConnection(): null {
           })
         },
         onOpen: (openedAt) => invalidateAccountQueriesBefore(queryClient, openedAt),
-        onFirstFailure: (failedAt) => invalidateAccountQueriesBefore(queryClient, failedAt),
+        onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, connectionSignal),
         onReconnect: () => setAccountEventOrigin(null),
         onEvent: (event) => {
           if (event.id) lastEventId = event.id

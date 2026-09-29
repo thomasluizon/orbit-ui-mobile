@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
-import { consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesBefore } from '@orbit/shared/query'
+import {
+  consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
+} from '@orbit/shared/query'
 import { useAuthStore } from '@/stores/auth-store'
 import { openAccountEventStream } from './account-event-stream'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
@@ -32,7 +34,7 @@ export function AccountEventConnection(): null {
       resumed: resumed.current,
       open: openAccountEventStream,
       onOpen: (openedAt) => invalidateAccountQueriesBefore(queryClient, openedAt),
-      onFirstFailure: (failedAt) => invalidateAccountQueriesBefore(queryClient, failedAt),
+      onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, controller.signal),
       onReconnect: () => setAccountEventOrigin(null),
       onEvent: (event) => {
         if (event.id) lastEventId.current = event.id
