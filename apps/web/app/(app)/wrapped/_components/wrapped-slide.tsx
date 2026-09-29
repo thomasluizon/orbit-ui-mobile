@@ -14,13 +14,17 @@ import {
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import {
   captionStyle,
-  eyebrowStyle,
   heroNumeralStyle,
   introTitleStyle,
   labelStyle,
+  streakNumeralStyle,
   titleStyle,
+  topHabitTitleStyle,
+  weekdayNoteStyle,
+  weekdayReadingStyle,
 } from './wrapped-styles'
 
 interface WrappedSlideProps {
@@ -55,10 +59,8 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
   switch (slide.id) {
     case 'intro':
       return (
-        <SlideShell testId="wrapped-slide-intro">
-          <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
-            {t('wrapped.slides.intro.eyebrow')}
-          </motion.span>
+        <SlideShell testId="wrapped-slide-intro" gap={16}>
+          <motion.div data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)}><OrbitMark size={48} /></motion.div>
           <motion.h1
             className="text-[34px] lg:text-[44px]"
             data-testid="wrapped-motion-part"
@@ -77,7 +79,6 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
       return (
         <HeroStatSlide
           testId="wrapped-slide-completions"
-          eyebrow={t('wrapped.slides.completions.eyebrow')}
           value={slide.totalCompletions}
           label={t('wrapped.slides.completions.label')}
           caption={t('wrapped.slides.completions.caption')}
@@ -88,7 +89,6 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
       return (
         <HeroStatSlide
           testId="wrapped-slide-activeDays"
-          eyebrow={t('wrapped.slides.activeDays.eyebrow')}
           value={slide.activeDays}
           label={t('wrapped.slides.activeDays.label')}
           caption={t('wrapped.slides.activeDays.caption', {
@@ -99,11 +99,8 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
       )
     case 'consistency':
       return (
-        <SlideShell testId="wrapped-slide-consistency">
-          <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
-            {t('wrapped.slides.consistency.eyebrow')}
-          </motion.span>
-          <motion.h2 data-testid="wrapped-motion-part" {...motionProps(1, reducedMotion)} style={titleStyle}>
+        <SlideShell testId="wrapped-slide-consistency" gap={24}>
+          <motion.h2 data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={titleStyle}>
             {t('wrapped.slides.consistency.title')}
           </motion.h2>
           <WeekdayColumns values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
@@ -113,7 +110,6 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
     case 'streak':
       return (
         <StreakSlide
-          eyebrow={t('wrapped.slides.streak.eyebrow')}
           value={slide.bestStreak}
           label={t('wrapped.slides.streak.label')}
           caption={t('wrapped.slides.streak.caption', { count: slide.currentStreak })}
@@ -122,24 +118,23 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
       )
     case 'topHabit':
       return (
-        <SlideShell testId="wrapped-slide-topHabit">
-          <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
-            {t('wrapped.slides.topHabit.eyebrow')}
-          </motion.span>
-          <motion.span
+        <SlideShell testId="wrapped-slide-topHabit" gap={16}>
+          <motion.div
             data-testid="wrapped-motion-part"
             data-wrapped-figure="primary"
-            {...motionProps(1, reducedMotion)}
-            style={{ fontSize: 72, lineHeight: 1 }}
+            {...motionProps(0, reducedMotion)}
+            className="flex size-[88px] items-center justify-center rounded-[var(--r-well)] bg-[var(--bg-well)]"
             aria-hidden="true"
           >
-            {slide.habit.emoji ?? '⭐'}
-          </motion.span>
+            <span style={{ fontSize: 44, lineHeight: 1, color: slide.habit.emoji ? undefined : 'var(--fg-3)', fontWeight: 500 }}>
+              {slide.habit.emoji || slide.habit.name.charAt(0).toLocaleUpperCase()}
+            </span>
+          </motion.div>
           <motion.h2
             data-testid="wrapped-motion-part"
-            {...motionProps(2, reducedMotion)}
+            {...motionProps(1, reducedMotion)}
             style={{
-              ...titleStyle,
+              ...topHabitTitleStyle,
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
@@ -148,6 +143,9 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
           >
             {slide.habit.name}
           </motion.h2>
+          <motion.span data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={labelStyle}>
+            {t('wrapped.slides.topHabit.label')}
+          </motion.span>
           <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
             {t('wrapped.slides.topHabit.caption', {
               rate: formatCompletionRate(slide.habit.completionRate),
@@ -192,14 +190,15 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
 interface SlideShellProps {
   children: ReactNode
   testId: string
+  gap?: number
 }
 
-function SlideShell({ children, testId }: Readonly<SlideShellProps>) {
+function SlideShell({ children, testId, gap = 8 }: Readonly<SlideShellProps>) {
   return (
     <div
       data-testid={testId}
-      className="flex flex-1 flex-col items-center justify-center px-6 text-center lg:px-16 lg:py-12"
-      style={{ gap: 16 }}
+      className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
+      style={{ gap }}
     >
       {children}
     </div>
@@ -208,31 +207,27 @@ function SlideShell({ children, testId }: Readonly<SlideShellProps>) {
 
 interface HeroStatSlideProps {
   testId: string
-  eyebrow: string
   value: number
   label: string
   caption: string
   reducedMotion: boolean
 }
 
-function HeroStatSlide({ testId, eyebrow, value, label, caption, reducedMotion }: Readonly<HeroStatSlideProps>) {
+function HeroStatSlide({ testId, value, label, caption, reducedMotion }: Readonly<HeroStatSlideProps>) {
   return (
     <SlideShell testId={testId}>
-      <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
-        {eyebrow}
-      </motion.span>
       <motion.span
         data-testid="wrapped-motion-part"
         data-wrapped-figure="primary"
-        {...motionProps(1, reducedMotion)}
+        {...motionProps(0, reducedMotion)}
         style={heroNumeralStyle}
       >
         {value}
       </motion.span>
-      <motion.span data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={labelStyle}>
+      <motion.span data-testid="wrapped-motion-part" {...motionProps(1, reducedMotion)} style={labelStyle}>
         {label}
       </motion.span>
-      <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+      <motion.p data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={captionStyle}>
         {caption}
       </motion.p>
     </SlideShell>
@@ -245,8 +240,8 @@ function WeekdayColumns({ values, reducedMotion }: Readonly<{ values: number[]; 
     <motion.div
       data-testid="wrapped-motion-part"
       data-wrapped-figure="primary"
-      {...motionProps(2, reducedMotion)}
-      className="w-full max-w-sm"
+      {...motionProps(1, reducedMotion)}
+      className="w-full"
     >
       <Columns
         columns={values.slice(0, 7).map((value, index) => {
@@ -269,13 +264,10 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testId'>>) {
     ease: motionEasings.enter,
   }
   return (
-    <SlideShell testId="wrapped-slide-streak">
-      <motion.span data-testid="wrapped-motion-part" {...motionProps(0, props.reducedMotion)} style={eyebrowStyle}>
-        {props.eyebrow}
-      </motion.span>
+    <SlideShell testId="wrapped-slide-streak" gap={24}>
       <motion.div
         data-testid="wrapped-motion-part"
-        {...motionProps(1, props.reducedMotion)}
+        {...motionProps(0, props.reducedMotion)}
         style={{ lineHeight: 0 }}
       >
         <svg width="88" height="88" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
@@ -297,20 +289,18 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testId'>>) {
           />
         </svg>
       </motion.div>
-      <motion.span
-        data-testid="wrapped-motion-part"
-        data-wrapped-figure="primary"
-        {...motionProps(2, props.reducedMotion)}
-        style={heroNumeralStyle}
-      >
-        {props.value}
-      </motion.span>
-      <motion.span data-testid="wrapped-motion-part" {...motionProps(3, props.reducedMotion)} style={labelStyle}>
-        {props.label}
-      </motion.span>
-      <motion.p data-testid="wrapped-motion-part" {...motionProps(4, props.reducedMotion)} style={captionStyle}>
-        {props.caption}
-      </motion.p>
+      <div className="flex flex-col items-start" style={{ gap: 8 }}>
+        <motion.span data-testid="wrapped-motion-part" data-wrapped-figure="primary"
+          {...motionProps(1, props.reducedMotion)} style={streakNumeralStyle}>
+          {props.value}
+        </motion.span>
+        <motion.span data-testid="wrapped-motion-part" {...motionProps(2, props.reducedMotion)} style={labelStyle}>
+          {props.label}
+        </motion.span>
+        <motion.p data-testid="wrapped-motion-part" {...motionProps(3, props.reducedMotion)} style={captionStyle}>
+          {props.caption}
+        </motion.p>
+      </div>
     </SlideShell>
   )
 }
@@ -324,17 +314,22 @@ function WeekdayInterpretation({
   switch (reading.kind) {
     case 'thin':
       return (
-        <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
-          {t('wrapped.slides.consistency.thin')}
-        </motion.p>
+        <>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={weekdayReadingStyle}>
+            {t('wrapped.slides.consistency.thin')}
+          </motion.p>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={weekdayNoteStyle}>
+            {t('wrapped.slides.consistency.note')}
+          </motion.p>
+        </>
       )
     case 'even':
       return (
         <>
-          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={weekdayReadingStyle}>
             {t('wrapped.slides.consistency.even')}
           </motion.p>
-          <motion.p data-testid="wrapped-motion-part" {...motionProps(4, reducedMotion)} style={captionStyle}>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={weekdayNoteStyle}>
             {t('wrapped.slides.consistency.note')}
           </motion.p>
         </>
@@ -343,12 +338,12 @@ function WeekdayInterpretation({
       const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
       return (
         <>
-          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={weekdayReadingStyle}>
             {t('wrapped.slides.consistency.summary', {
               strong: t(`dates.daysShort.${strongestWeekday}`),
             })}
           </motion.p>
-          <motion.p data-testid="wrapped-motion-part" {...motionProps(4, reducedMotion)} style={captionStyle}>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={weekdayNoteStyle}>
             {t('wrapped.slides.consistency.note')}
           </motion.p>
         </>
@@ -371,12 +366,12 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
   return (
     <div
       data-testid="wrapped-slide-share"
-      className="flex flex-1 flex-col items-center justify-center px-6 pb-6 pt-2 lg:px-16 lg:py-12"
+      className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
       style={{ gap: 16 }}
     >
-      <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
-        {t('wrapped.slides.share.eyebrow')}
-      </motion.span>
+      <motion.h2 data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={titleStyle}>
+        {t('wrapped.slides.share.title')}
+      </motion.h2>
       <motion.div
         data-testid="wrapped-motion-part"
         data-wrapped-figure="primary"
@@ -393,7 +388,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
           data-testid="wrapped-motion-part"
           {...motionProps(2, reducedMotion)}
           role="alert"
-          style={{ textAlign: 'center', fontSize: 13 }}
+          style={{ fontSize: 13 }}
         >
           <span style={{ color: 'var(--status-bad-text)' }}>{t('shareCard.shareError')}</span>
         </motion.p>
@@ -404,7 +399,6 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
         {...motionProps(2, reducedMotion)}
         role="status"
         style={{
-          textAlign: 'center',
           fontFamily: 'var(--font-mono)',
           fontSize: 13,
           color: 'var(--fg-2)',

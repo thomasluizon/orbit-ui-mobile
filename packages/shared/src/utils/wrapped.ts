@@ -1,5 +1,17 @@
 import type { Recap } from '../types/gamification'
 import type { RetrospectiveHabitStat } from './retrospective'
+import type { ClosedRecapMonth } from './share-card'
+
+export function formatClosedWrappedMonth(closedMonth: ClosedRecapMonth, locale: string): string {
+  const date = new Date(0)
+  date.setUTCFullYear(closedMonth.year, closedMonth.month - 1, 1)
+  const label = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+  return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1)
+}
 
 /**
  * One Orbit Wrapped story slide, discriminated by `id` and carrying the recap

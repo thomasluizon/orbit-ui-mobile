@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { buildWrappedSlides } from '@orbit/shared/utils'
+import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 
 const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
@@ -13,6 +13,7 @@ const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => translationMock.labels[key] ?? key,
+    i18n: { language: 'en' },
   }),
 }))
 
@@ -122,6 +123,26 @@ describe('WrappedPlayer', () => {
     shareCardMock.canShareFiles = true
     shareCardMock.share.mockReset()
     shareCardMock.download.mockReset()
+  })
+
+  it('shows the month header before close and formats a closed month', () => {
+    const recap = createMockRecap()
+    const slides = buildWrappedSlides(recap)
+    let tree!: ReactTestRenderer
+    void renderer.act(() => {
+      tree = renderer.create(<WrappedPlayer slides={slides} recap={recap} period="month" tokens={tokens} onClose={vi.fn()} />)
+    })
+    const pageHosts = hosts(tree)
+    const eyebrowIndex = pageHosts.findIndex((node) => node.props.children === 'wrapped.player.eyebrow.month')
+    const windowIndex = pageHosts.findIndex((node) => node.props.children === 'wrapped.player.window.month')
+    const closeIndex = pageHosts.findIndex((node) => node.props.accessibilityLabel === 'wrapped.close')
+    expect(eyebrowIndex).toBeGreaterThanOrEqual(0)
+    expect(windowIndex).toBeGreaterThan(eyebrowIndex)
+    expect(closeIndex).toBeGreaterThan(windowIndex)
+    void renderer.act(() => {
+      tree.update(<WrappedPlayer slides={slides} recap={recap} period="month" closedMonth={{ year: 2026, month: 8 }} tokens={tokens} onClose={vi.fn()} />)
+    })
+    expect(hasText(tree, formatClosedWrappedMonth({ year: 2026, month: 8 }, 'en'))).toBe(true)
   })
 
   it('puts one segment per slide in the foot Pager', () => {

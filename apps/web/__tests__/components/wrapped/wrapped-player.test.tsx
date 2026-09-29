@@ -2,12 +2,13 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
-import { buildWrappedSlides } from '@orbit/shared/utils'
+import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
@@ -89,6 +90,21 @@ describe('WrappedPlayer', () => {
     const frame = screen.getByTestId('wrapped-frame')
     expect(frame).toHaveClass('max-w-[900px]')
     expect(frame).not.toHaveClass('md:max-w-[480px]')
+  })
+
+  it('shows the month header before its close control and formats a closed month', () => {
+    const recap = createMockRecap()
+    const slides = buildWrappedSlides(recap)
+    const view = render(<WrappedPlayer slides={slides} recap={recap} period="month" onClose={vi.fn()} />)
+    const eyebrow = screen.getByText('wrapped.player.eyebrow.month')
+    const window = screen.getByText('wrapped.player.window.month')
+    const close = screen.getByRole('button', { name: 'wrapped.close' })
+    expect(eyebrow.compareDocumentPosition(window) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(window.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(window).toHaveStyle({ color: 'var(--fg-3)' })
+    view.unmount()
+    render(<WrappedPlayer slides={slides} recap={recap} period="month" closedMonth={{ year: 2026, month: 8 }} onClose={vi.fn()} />)
+    expect(screen.getByText(formatClosedWrappedMonth({ year: 2026, month: 8 }, 'en'))).toBeInTheDocument()
   })
 
   it('pages forward and back through the Pager controls', () => {

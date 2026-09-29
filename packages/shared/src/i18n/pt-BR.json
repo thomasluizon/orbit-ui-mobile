@@ -1925,10 +1925,7 @@
   },
   "wrapped": {
     "title": "Orbit Wrapped",
-    "back": "Voltar ao perfil",
-    "entry": "Seu Wrapped",
-    "coverEyebrow": "Seus hábitos em replay",
-    "coverSubtitle": "Escolha um período para começar.",
+    "coverSubtitle": "Os registros do período, uma página de cada vez.",
     "coverTitles": {
       "week": "Feche a semana.",
       "month": "Feche o mês.",
@@ -1941,7 +1938,7 @@
     "previous": "Anterior",
     "progressLabel": "Slide {current} de {total}",
     "loading": "Preparando seu Wrapped…",
-    "empty": "Registre alguns hábitos primeiro para ver seu Wrapped.",
+    "empty": "Nada registrado nesse período. Escolha outro período para ver um fechamento.",
     "error": "Não foi possível carregar seu Wrapped. Tente novamente.",
     "retry": "Tentar novamente",
     "periods": {
@@ -1951,24 +1948,20 @@
     },
     "slides": {
       "intro": {
-        "eyebrow": "Orbit Wrapped",
         "week": "Sua semana em órbita",
         "month": "Seu mês em órbita",
         "year": "Seu ano em órbita",
-        "caption": "Toque para ver seus destaques."
+        "caption": "Uma página de cada vez, e você pode sair quando quiser."
       },
       "completions": {
-        "eyebrow": "Conclusões",
         "label": "Hábitos registrados",
-        "caption": "Cada registro manteve você em movimento."
+        "caption": "Cada um foi um toque seu, num dia que você escolheu aparecer."
       },
       "activeDays": {
-        "eyebrow": "Dias ativos",
         "label": "Dias ativos",
         "caption": "{rate} de conclusão no período."
       },
       "consistency": {
-        "eyebrow": "Seu ritmo",
         "title": "Seu ritmo semanal",
         "summary": "{strong} é o seu dia mais forte.",
         "even": "Nenhum dia se destaca.",
@@ -1976,22 +1969,31 @@
         "thin": "Ainda não há registros suficientes para comparar os seus dias."
       },
       "streak": {
-        "eyebrow": "Melhor sequência",
         "label": "Melhor sequência",
-        "caption": "Atualmente uma sequência de {count} dias."
+        "caption": "{count, plural, =0 {Seu próximo registro começa uma nova sequência.} one {Sua sequência atual é de # dia.} other {Sua sequência atual é de # dias.}}"
       },
       "topHabit": {
-        "eyebrow": "Seu destaque",
-        "caption": "{rate} de conclusão, seu hábito mais consistente."
+        "caption": "Feito {rate} das vezes no período.",
+        "label": "Hábito mais constante"
       },
       "goals": {
         "zero": "Nenhuma meta fechada desta vez.",
         "some": "{count, plural, one {Você fechou uma meta neste período.} other {Você fechou # metas neste período.}}"
       },
       "share": {
-        "eyebrow": "É isso aí",
-        "title": "Compartilhe seu Wrapped",
-        "caption": "Capture seu resumo e traga um amigo para a órbita."
+        "title": "Leve seu Wrapped com você"
+      }
+    },
+    "player": {
+      "eyebrow": {
+        "week": "Fechamento da semana",
+        "month": "Fechamento do mês",
+        "year": "Fechamento do ano"
+      },
+      "window": {
+        "week": "Esta semana até hoje",
+        "month": "Os últimos 30 dias",
+        "year": "Os últimos 365 dias"
       }
     }
   },
