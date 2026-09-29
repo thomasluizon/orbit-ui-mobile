@@ -78,8 +78,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
       <div className="pt-2">
         <ListRow
           icon="template"
-          title={t('habits.form.templates')}
-          value={templates.length > 0 ? String(templates.length) : undefined}
+          title={t('habits.form.useTemplate')}
           compact
           inForm
           onClick={() => setOpen(true)}

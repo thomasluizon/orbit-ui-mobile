@@ -108,8 +108,7 @@ export function ChecklistTemplates({
       <View style={styles.formRow}>
         <ListRow
           icon="template"
-          title={t('habits.form.templates')}
-          value={templates.length > 0 ? String(templates.length) : undefined}
+          title={t('habits.form.useTemplate')}
           compact
           inForm
           onClick={() => setOpen(true)}

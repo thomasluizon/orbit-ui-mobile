@@ -34,7 +34,7 @@ import {
 } from '@/__tests__/support/account-change'
 
 function openTemplates() {
-  fireEvent.click(screen.getByText('habits.form.templates'))
+  fireEvent.click(screen.getByText('habits.form.useTemplate'))
 }
 
 describe('ChecklistTemplates', () => {
@@ -47,11 +47,13 @@ describe('ChecklistTemplates', () => {
   })
 
   it('renders the templates glyph in a compact, rounded form row', () => {
+    mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name: 'Workout', items: ['Run'] }] })
     render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
-    const row = screen.getByRole('button', { name: 'habits.form.templates' })
+    const row = screen.getByRole('button', { name: 'habits.form.useTemplate' })
     expect(row.querySelector('[data-icon="template"] svg')).toBeInTheDocument()
     expect(row.parentElement).toHaveClass('orbit-list-row-form')
     expect(row).toHaveStyle({ minHeight: '52px' })
+    expect(row).not.toHaveTextContent('1')
   })
 
   it('shows save button when items are present', () => {

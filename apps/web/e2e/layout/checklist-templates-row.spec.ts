@@ -16,10 +16,11 @@ for (const width of [412, 1280] as const) {
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
       const inputBlock = input.locator('xpath=..')
-      const button = disclosure.getByRole('button', { name: messages.habits.form.templates })
+      const button = disclosure.getByRole('button', { name: messages.habits.form.useTemplate })
       const row = button.locator('xpath=..')
       await expect(input).toBeVisible()
       await expect(row).toHaveClass(/orbit-list-row-form/)
+      await expect(button).not.toContainText(/\d/)
       await button.hover()
 
       const inputBox = await input.boundingBox()
