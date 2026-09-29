@@ -82,6 +82,9 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - A new value in a response enum is a breaking change for any client whose schema enum is strict: the client that accepts it ships first (web and an Android release), or the API sends it only to clients that declare support.
 - Several approved pull requests that are behind `redesign/main` may merge on one combined local merge-result check: a scratch worktree at the base with every head merged, then `npm ci`, `npx turbo run type-check --force`, `node tools/check-i18n-usage.mjs`, `node tools/surface-manifest.mjs --check`, `node tools/check-sonar-paths.mjs`, the three Vitest suites, the web build and the hermetic layout project, all by exit code.
 - The load average rule reads the one-minute figure: above 20 on 18 cores, no new worker starts.
+- Hover and focus follow the control's own shape everywhere, on both platforms: a pressed or hovered row, tab, chip or button fills its whole hit area with the control's radius (never a squared or partial rectangle), and every field or code box draws one focus indicator (never a ring inside a ringed wrapper). This is the highest-priority redesign defect class; a fix covers every surface that uses the pattern and proves itself with a layout guard on web and a style test on Android.
+- The web type tokens (`--fs-*`) equal the granted canvas scale (12 14 16 17 20 22 28 34 44 60); a size outside that set needs a drawing that sets it.
+- The MCP OAuth authorize page served by the API is a redesign surface: it follows the Entrar and Verificacao drawings and the tokens, with the orbital mark.
 - The redesign is finished only when every redesign ticket on the board is merged and closed, every service that has redesign work (web, API, landing, Android internal) is released to staging from `redesign/main`, and a full rendered sweep of staging at both widths finds nothing. Nothing redesign-related is left for later.
 
 ## The order
@@ -107,7 +110,6 @@ Owner rules for Batch M: the production copy loses zero rows (writes frozen duri
 
 Tickets, in dependency order (every other Batch M ticket is closed):
 
-- `#805` Web privacy disclosures (`ui#1217`, on `main`): email now runs on SES, the LGPD safeguards sentence and a merge of `main` (conflicts resolved to this pull request's residency text) are pushed, the three P1 threads are answered as resolved by the cutover, and the copy is approved. It needs green CI and a fresh Pullfrog approval of its head, then merges to `main`; production web is then released.
 - `#943` (`repo:api`, on `main`) Retire the Resend email provider: delete the Resend code and configuration, make SES the only provider, then carry it by `#746`.
 - Email runs on Amazon SES in both environments: production access is granted, `Email__Provider` is `Ses` in both API environment groups, both SES dead-letter alarm topics email `contact@useorbit.org` (confirmed), and Resend Pro is cancelled (ends at its billing date; the free tier stays for rollback until `#943` lands). After `#943`, list the retired projects for the owner's delete click: the two Vercel Orbit projects, the paused Supabase project, and Resend.
 
@@ -117,18 +119,21 @@ The owner reviewed staging (`redesign/main`) and found the redesign far from the
 
 Open pull requests and in-flight work first, in this order (heads are leads; re-read each):
 
-- `#944` The shell scroller has no bottom clearance, so a screen's last element ends flush on the pinned chrome's divider (Perfil's "Apagar a conta" card on web); the owner has reported this repeatedly. The fix lives in the shell on both platforms, removes per-page duplicates, and proves itself with a layout spec over every destination at 412 and 1280. A worker was running on `fix/ticket-944-scroller-clearance` when the run ended: read the worktree, and deliver or salvage it.
-- `#942` The Modelos row in the create habit checklist block (rounded inset hover, restored glyphs, label "Usar modelo" / "Use template" with no count, a layout spec): `ui#1324`, copy approved; waiting on CI and review.
-- `#939` Pending skips stay out of all-done: `ui#1316`, the settled-skip fix and a shared coverage test pushed; waiting on CI and a fresh review. Then `#940` carries it to `main`, followed by a production web release and an Android open-track build.
-- `#870` Google Calendar import and sync fold into Calendário: `ui#1313`, merged forward, Sonar duplication and shared coverage fixed; waiting on CI and a fresh review.
-- `#884` Internal habit type names never render: `ui#1319`, the Astra one-time clarification label restored as "Once" / "Uma vez" (copy approved) and merged forward; waiting on CI and a fresh review.
-- `#929` Drawn weekday values and sentence-case achievement names: `ui#1318`, one P1 (the weekday still clips at a 360 viewport); a review-batch worker was running on its branch when the run ended.
-- `#894` Each Astra write reports once in one preview block: `ui#1321`, two P1s (a completed preview resets to Approve after a remount; Open after a completed goal routes to a habit); a review-batch worker was running on its branch when the run ended.
-- Batch M's `#805` (`ui#1217`, on `main`), above.
+- Owner reports from the Android internal build, max priority, file each first after checking whether `redesign/main` already fixed it: every hover and pressed state is squared or partial instead of filling the control's shape (seen on the Android tab bar's pressed Progresso tab, and reported as everywhere); every input draws a double border or ring when focused (seen on the code entry's focused box); the sign-in screen is not vertically centred as drawn; the Astra composer at the bottom of every destination is clamped (its placeholder wraps letter by letter because the three attach icons and the separate send button leave it no width) and an empty band sits between the content and the chips above the FAB on Hoje. Fix each once in its shared primitive on web and Android, check every surface that uses it, then ship an internal Android build from `redesign/main`.
+- File and build: a separate staging Android application id (for example `org.useorbit.app.staging`, its own Play Console app on internal testing) so the production and staging builds install side by side; today every track ships `org.useorbit.app`, so only one Orbit can be installed.
+- `#945` (`repo:api`, `main`) MCP OAuth Google sign-in: `api#660` replaces One Tap (Google's `gsi/status` answered 503, so the button did nothing) with an authorization-code redirect through `GoogleCodeAuthCommand`. A review-batch worker committed `be60d5fa` (not pushed): Terraform callback URIs, the CodeQL redirect taint, `POST /oauth/google` kept as deprecated for the OpenAPI gate, and Sonar coverage. Verify its report, merge it into the body, resolve both threads, push, merge on the bar, apply the targeted Terraform change for both API environment groups, release the production API, verify the Google button end to end, then file the ticket that deletes the deprecated route. Both callback URIs are already registered on the Google OAuth client.
+- `#946` (`repo:api`, `redesign/main`, blocked by `#945`) the MCP OAuth page rebuilt on the drawings with the orbital mark, after `#746` carries `#945`.
+- `#944` bottom clearance: `ui#1325` (shell publishes 96 or 0 through a context on Android; web scroller `pb-24 lg:pb-8` only with pinned chrome). Merged forward, the layout spec passed 33 of 33 locally and failed 28 of 33 with the clearance removed. CI flagged `Upgrade layout geometry` on an earlier head and Pullfrog left one unresolved thread: read both and fix.
+- `#942` Modelos row: `ui#1324` at `423669bd` (merge-forward of the approved head); no review of this head yet: request one, then merge.
+- `#929` weekday fit: `ui#1318` APPROVED at `a971d0b6`, 0 threads; merge on the bar.
+- `#894` Astra previews: `ui#1321` APPROVED at `f73647f9`, 0 threads; merge on the bar.
+- `#948` the flaky `fab-notice.spec.ts` (a list-options sheet backdrop still leaving intercepts the hit test; fails 5 of 8 on `redesign/main`): fix before more merges depend on the layout job.
+- `#947` web `--fs-*` tokens one step off the canvas scale (page titles render 22px, drawn 20px); start after `ui#1318` and `ui#1325` merge, since both touch its files.
 
 Then the filed tickets, highest first. A ticket on `main` is carried into `redesign/main` by `#556`/`#746` after it merges:
 
-- `#941` A flexible habit counts done for the day once logged (decided from the Hoje drawing; blocked by `#939`), then its `main` backport.
+- `#940` (on `main`) carries the merged `#939` skip fix to `main`, then a production web release and an Android open-track build.
+- `#941` A flexible habit counts done for the day once logged (decided from the Hoje drawing), then its `main` backport.
 - `#893` (`repo:api`, on `redesign/main`) Hold every Astra chat write for approval, whatever its risk class.
 - `#936` HabitRow disclosure controls link to their child panels (`aria-controls`).
 - `#869` The Astra conversation's close control and empty state as drawn.
@@ -492,22 +497,18 @@ Current operational rules above take precedence when a record conflicts.
 
 ## Current state
 
-The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository (REST `gh api repos/thomasluizon/<repo>/pulls?state=open` while GraphQL is exhausted).
+The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Batch M is done except the Resend retirement (`#943`) and `#805`: production runs entirely on the new stack and email sends through Amazon SES in both environments. Production web runs `24160e3a` (`main`); Android 1.3.43 (102) is on the open track; the production API runs `a78ba3aa`.
+Batch M is done except the Resend retirement (`#943`): the privacy policy naming Render, S3 and Amazon SES is merged and live on production web (`057294c2`). The production API runs `a78ba3aa`; Android 1.3.43 (102) is on the open track.
 
-THE REDESIGN GATE is open: Batch R is in progress. `redesign/main` (`ui`) carries the Perfil Astra rows, the Perfil delete icon, the FAB above the shell notice and the Wrapped player as drawn; a staging web release of that head was running when the run ended. The staging API runs `40efecfb` (`orbit-api` `redesign/main`). The internal Android build 1.3.39 (98) is still the one on the internal track; the next internal build waits until Batch R lands.
+THE REDESIGN GATE is open: Batch R is in progress. Staging web runs `redesign/main` `5a7d1df2` (settled skips no longer block all-done, Google Calendar import folded into a Calendario sheet, internal type names removed); the staging API runs `40efecfb`; the internal Android build is 1.3.39 (98), older than every Batch R fix, so the owner's phone does not show them yet.
 
-Open pull requests: `ui` `#1313`, `#1316`, `#1318`, `#1319`, `#1321`, `#1324` (base `redesign/main`) and `#1217` (base `main`); none in `orbit-api` or `orbit-landing-page`. See Batch R's in-flight list for each one's state.
+Open pull requests: `ui` `#1318`, `#1321` (approved), `#1324`, `#1325` (base `redesign/main`); `api` `#660` (base `main`); none in `orbit-landing-page`.
 
-Pullfrog sometimes publishes no review of a merge-forward or review-fix push, and sometimes approves a head without publishing the `pullfrog-approval` check; request a review with `node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900` (add `--re-review` when the head already has a review). A pull request whose base moved under it is proven with the combined local merge-result check before merging at its approved head; a conflict is resolved on the branch and pushed.
+Sweep coverage: a desktop pass on `8eb6594d` covered Hoje, Perfil and Calendario only and filed `#947`; the phone-width sweep and the remaining screens were not run. The owner's device reports above replace any claim that a screen is done.
 
-Waiting on the owner:
-
-- The redesign approval at THE REDESIGN GATE, after Batch R.
-- A device test of `#390` (bulk log replay) and `#134` (three-dot menu) on the current open-track build.
-- The delete click on the retired projects once `#943` lands: the two Vercel Orbit projects, the paused Supabase project, and Resend.
+Waiting on the owner: the redesign approval at THE REDESIGN GATE; a device test of `#390` and `#134`; the delete click on the retired projects once `#943` lands (the two Vercel Orbit projects, the paused Supabase project, Resend).
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Board status: a closed ticket that still shows a Todo Status needs `complete-ticket.mjs --repair-status`, a few at a time. Worktrees: each merged ticket's worktree can go with `node tools/teardown-worktree.mjs`, which refuses anything unmerged (the merged `ticket-852`, `ticket-871`, `ticket-928` and `ticket-930` worktrees are among them). Local branches of squash-merged pull requests (`ticket-862-onboarding-details`, `ticket-867-sobre-labels`, `ticket-882-drawn-toast`, `ticket-888-shell-not-found`) show commits ahead of a deleted upstream; they are merged, not lost. The detached `ticket-822-web-health-retry` worktree is removable with `git worktree remove` (no `--force`).
+Worktrees: merged tickets' worktrees go with `node tools/teardown-worktree.mjs`; the scratch `integ` worktree and the detached `ticket-822-web-health-retry` worktree are removable with `git worktree remove`.
