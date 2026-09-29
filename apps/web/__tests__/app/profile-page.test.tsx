@@ -242,10 +242,10 @@ describe('ProfilePage', () => {
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
     expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
     expect(screen.getByText('profile.widgetTitle')).toBeInTheDocument()
-    expect(screen.getByText('calendar.profileButton')).toBeInTheDocument()
-    expect(screen.getByText('profile.support.title')).toBeInTheDocument()
-    expect(screen.getByText('profile.sections.aboutHelp')).toBeInTheDocument()
-    expect(screen.queryByText('profile.sections.aboutHelpHint')).not.toBeInTheDocument()
+    expect(screen.getByText('profile.calendarSync.title')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.rowTitle')).toBeInTheDocument()
+    expect(screen.getByText('profile.aboutRow')).toBeInTheDocument()
+    expect(screen.queryByText('profile.aboutRowHint')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.preferences')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.aiFeatures')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.advanced')).not.toBeInTheDocument()
@@ -261,27 +261,29 @@ describe('ProfilePage', () => {
   it('keeps every profile setting reachable by its accessible name', () => {
     render(<ProfilePage />)
 
+    expect(screen.queryByRole('button', { name: 'profile.subscription.plan' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'shareCard.entry' })).not.toBeInTheDocument()
+
     const accessibleNames = [
       'profile.settingsRows.editName',
       'profile.language.title',
       'profile.settingsRows.timezone',
-      'settings.weekStartDay.title',
-      'profile.subscription.plan',
-      'dataExport.button',
-      'profile.logout',
-      'profile.freshStart.button',
-      'profile.deleteAccount.button',
+      'profile.settingsRows.weekStart',
+      'profile.settingsRows.export',
+      'profile.settingsRows.signOut',
+      'profile.settingsRows.startOver',
+      'profile.settingsRows.deleteAccount',
     ]
 
     for (const name of accessibleNames) {
       expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
-    expect(screen.getByRole('group', { name: 'preferences.themeMode' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'profile.settingsRows.theme' })).toBeInTheDocument()
     for (const name of [
       'profile.wrappedTitle',
-      'calendar.profileButton',
-      'profile.sections.aboutHelp',
-      'profile.support.title',
+      'profile.calendarSync.title',
+      'profile.aboutRow',
+      'profile.support.rowTitle',
     ]) {
       expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
@@ -294,7 +296,7 @@ describe('ProfilePage', () => {
   })
 
   it('opens each inline preference directly and sends Support to its form', () => {
-    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart']) {
       const view = render(<ProfilePage />)
       mockRouterPush.mockClear()
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
@@ -303,11 +305,11 @@ describe('ProfilePage', () => {
       view.unmount()
     }
     render(<ProfilePage />)
-    const themeChoices = screen.getByRole('group', { name: 'preferences.themeMode' })
+    const themeChoices = screen.getByRole('group', { name: 'profile.settingsRows.theme' })
     expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
     expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
     expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
-    expect(screen.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
+    expect(screen.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
   })
 
   it('changes the inline theme and general habits preference', () => {
@@ -323,18 +325,15 @@ describe('ProfilePage', () => {
     write.mockRestore()
   })
 
-  it('routes the plan row to upgrade and opens widget help inline', () => {
+  it('opens widget help inline', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('button', { name: /profile\.subscription\.plan/i }))
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
-
     fireEvent.click(screen.getByRole('button', { name: /profile\.widgetTitle/i }))
     expect(screen.getByRole('dialog', { name: 'profile.widgetTitle' })).toBeInTheDocument()
   })
 
   it('commits a week start choice from the inline picker', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('button', { name: /settings\.weekStartDay\.title/i }))
+    fireEvent.click(screen.getByRole('button', { name: /profile\.settingsRows\.weekStart/i }))
     fireEvent.click(screen.getByRole('radio', { name: 'settings.weekStartDay.sunday' }))
     expect(mockUpdateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, 'account-a')
   })
@@ -352,21 +351,16 @@ describe('ProfilePage', () => {
     expect(mockTogglePush).toHaveBeenCalledOnce()
   })
 
-  it('keeps the share card reachable outside Ending things', () => {
+  it('keeps the share card off Perfil', () => {
     render(<ProfilePage />)
-
-    const shareCardEntry = screen.getByRole('button', { name: /shareCard\.entry/i })
-    const ending = screen.getByTestId('profile-settings-group-ending')
-
-    expect(shareCardEntry).toBeInTheDocument()
-    expect(ending).not.toContainElement(shareCardEntry)
+    expect(screen.queryByRole('button', { name: /shareCard\.entry/i })).not.toBeInTheDocument()
   })
 
   it('puts Sign out first in Ending things', () => {
     render(<ProfilePage />)
     const ending = screen.getByTestId('profile-settings-group-ending')
 
-    expect(within(ending).getAllByRole('button')[0]).toHaveTextContent('profile.logout')
+    expect(within(ending).getAllByRole('button')[0]).toHaveTextContent('profile.settingsRows.signOut')
   })
 
   it('puts Fresh Start directly after Sign out', () => {
@@ -374,7 +368,7 @@ describe('ProfilePage', () => {
     const ending = screen.getByTestId('profile-settings-group-ending')
     const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
 
-    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+    expect(labels.slice(0, 2)).toEqual(['profile.settingsRows.signOut', 'profile.settingsRows.startOver'])
   })
 
   it('keeps Delete account last in the three-row ending group', () => {
@@ -383,9 +377,9 @@ describe('ProfilePage', () => {
     const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
 
     expect(labels).toEqual([
-      'profile.logout',
-      'profile.freshStart.button',
-      'profile.deleteAccount.button',
+      'profile.settingsRows.signOut',
+      'profile.settingsRows.startOver',
+      'profile.settingsRows.deleteAccount',
     ])
   })
 
@@ -395,11 +389,11 @@ describe('ProfilePage', () => {
 
     expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
     expect(freeMore.getByRole('button', { name: /profile\.widgetTitle/i })).toBeInTheDocument()
-    const calendarGate = freeMore.getByRole('link', { name: /calendar\.profileButton/i })
+    const calendarGate = freeMore.getByRole('link', { name: /profile\.calendarSync\.title/i })
     expect(calendarGate).toHaveAttribute('href', '/upgrade')
     expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
-    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
-    expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
+    expect(freeMore.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
+    expect(freeMore.getByRole('link', { name: /profile\.aboutRow/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
 
     view.unmount()
@@ -411,7 +405,7 @@ describe('ProfilePage', () => {
     }
     render(<ProfilePage />)
     const proMore = within(screen.getByTestId('profile-settings-group-more'))
-    expect(proMore.getByRole('link', { name: /calendar\.profileButton/i })).toHaveAttribute('href', '/calendar-sync')
+    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar-sync')
     expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 
@@ -760,8 +754,8 @@ describe('ProfilePage', () => {
     const endingGroup = screen.getByTestId('profile-settings-group-ending')
     const youButtons = Array.from(youGroup.querySelectorAll('button'))
 
-    expect(youButtons.at(-1)).toHaveAccessibleName(/dataExport\.button/i)
-    expect(endingGroup).not.toHaveTextContent('dataExport.button')
+    expect(youButtons.at(-1)).toHaveAccessibleName(/profile\.settingsRows\.export/i)
+    expect(endingGroup).not.toHaveTextContent('profile.settingsRows.export')
   })
 
   it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
@@ -773,7 +767,7 @@ describe('ProfilePage', () => {
     )
     render(<ProfilePage />)
 
-    const exportRow = screen.getByRole('button', { name: /dataExport\.button/i })
+    const exportRow = screen.getByRole('button', { name: /profile\.settingsRows\.export/i })
     fireEvent.click(exportRow)
     expect(exportRow).toHaveTextContent('dataExport.preparing')
 

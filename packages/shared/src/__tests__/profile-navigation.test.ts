@@ -36,9 +36,9 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
       ['profile.wrappedTitle', null],
       ['profile.widgetTitle', 'profile.widgetHint'],
-      ['calendar.profileButton', 'calendar.profileHint'],
-      ['profile.support.title', 'profile.support.description'],
-      ['profile.sections.aboutHelp', null],
+      ['profile.calendarSync.title', 'profile.calendarSync.hint'],
+      ['profile.support.rowTitle', null],
+      ['profile.aboutRow', null],
     ])
   })
 

@@ -1593,7 +1593,13 @@
       "timezone": "Fuso horário",
       "timezoneValue": "Fuso {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
-      "apiKeysMcp": "Chaves API",
+      "apiKeysMcp": "Chaves de API e MCP",
+      "weekStart": "Semana começa em",
+      "theme": "Tema",
+      "export": "Exportar os meus dados",
+      "signOut": "Sair da conta",
+      "startOver": "Começar de novo",
+      "deleteAccount": "Apagar a conta",
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Lembretes e alertas de deslize são configurados em cada hábito.",
       "currentDevice": "Este aparelho",
@@ -1606,13 +1612,13 @@
       "plan": "Plano",
       "free": "Grátis",
       "pro": "Pro",
-      "seePro": "Ver Pro",
+      "seePro": "Ver o Pro",
       "manageSubscription": "Gerir assinatura"
     },
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Ver Pro",
-      "open": "Gerenciar chaves de API",
+      "open": "Abrir as chaves",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
@@ -1654,6 +1660,7 @@
     },
     "language": {
       "title": "Idioma",
+      "brazilianPortuguese": "Português do Brasil",
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
@@ -1665,15 +1672,16 @@
       "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "marketingEmails": {
-      "title": "Novidades do produto por e-mail",
+      "title": "Email sobre o produto",
       "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser.",
-      "question": "Podemos mandar e-mail sobre o produto?",
+      "question": "Podemos mandar email sobre o produto?",
       "questionDescription": "Novidades e mudanças, no máximo uma vez por mês.",
       "accept": "Pode mandar",
       "decline": "Não mandar"
     },
     "support": {
       "title": "Suporte",
+      "rowTitle": "Ajuda e suporte",
       "description": "Tem uma dúvida, encontrou um bug ou quer dar um feedback? É só escrever.",
       "name": "Nome",
       "email": "E-mail",
@@ -1723,10 +1731,15 @@
       "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
     "logout": "Sair",
-    "wrappedTitle": "Seu Wrapped",
+    "wrappedTitle": "Orbit Wrapped",
     "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
-    "widgetTitle": "Widget na tela inicial",
-    "widgetHint": "Veja seus hábitos num relance",
+    "widgetTitle": "Widget do Android",
+    "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
+    "calendarSync": {
+      "title": "Sincronizar calendário",
+      "hint": "Eventos dos seus calendários aparecem no Calendário."
+    },
+    "aboutRow": "Sobre o Orbit",
     "widgetHow": {
       "title": "Como adicionar",
       "step1": "Toque e segure numa área vazia da tela inicial",

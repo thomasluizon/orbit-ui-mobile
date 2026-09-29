@@ -1593,7 +1593,13 @@
       "timezone": "Timezone",
       "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
-      "apiKeysMcp": "API keys",
+      "apiKeysMcp": "API keys and MCP",
+      "weekStart": "Week starts on",
+      "theme": "Theme",
+      "export": "Export my data",
+      "signOut": "Sign out",
+      "startOver": "Start over",
+      "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
       "remindersNote": "Habit reminders and slip alerts are set on each habit.",
       "currentDevice": "This device",
@@ -1612,7 +1618,7 @@
     "apiKeys": {
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
-      "open": "Manage API keys",
+      "open": "Open the keys",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",
@@ -1654,6 +1660,7 @@
     },
     "language": {
       "title": "Language",
+      "brazilianPortuguese": "Brazilian Portuguese",
       "description": "Select your preferred language"
     },
     "aiSummary": {
@@ -1665,7 +1672,7 @@
       "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
     },
     "marketingEmails": {
-      "title": "Product updates by email",
+      "title": "Product email",
       "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime.",
       "question": "May we email you about the product?",
       "questionDescription": "What is new and what changed, once a month at most.",
@@ -1674,6 +1681,7 @@
     },
     "support": {
       "title": "Support",
+      "rowTitle": "Help and support",
       "description": "Have a question, bug report, or feedback? Send us a message.",
       "name": "Name",
       "email": "Email",
@@ -1723,10 +1731,15 @@
       "sendNeedsMessage": "Add a message to send."
     },
     "logout": "Log Out",
-    "wrappedTitle": "Your Wrapped",
+    "wrappedTitle": "Orbit Wrapped",
     "wrappedHint": "A shareable recap of your week, month, or year",
-    "widgetTitle": "Home Screen Widget",
-    "widgetHint": "See your habits at a glance",
+    "widgetTitle": "Android widget",
+    "widgetHint": "Today's habits on the device's home screen.",
+    "calendarSync": {
+      "title": "Calendar sync",
+      "hint": "Events from your calendars show on Calendar."
+    },
+    "aboutRow": "About Orbit",
     "widgetHow": {
       "title": "How to Add",
       "step1": "Long-press on an empty area of your home screen",

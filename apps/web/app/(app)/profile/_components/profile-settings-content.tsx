@@ -16,7 +16,6 @@ import {
   Calendar,
   BarChart3,
   Clock,
-  CreditCard,
   Download,
   Languages,
   Lock,
@@ -37,7 +36,6 @@ import {
   ProfileSettingsFrame,
   ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
-import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -80,7 +78,7 @@ const icon = (Icon: typeof User) => (
 const getServerAnalyticsOptOut = () => null
 
 function buildYouRows(
-  { profile, router, t }: RowContext,
+  { profile, t }: RowContext,
   exportError: string | null,
   isExporting: boolean,
   onEditName: () => void,
@@ -88,7 +86,7 @@ function buildYouRows(
   onOpenTimeZone: () => void,
   controls: ReturnType<typeof usePreferenceControls>,
 ) {
-  const { planLabelKey, timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
+  const { timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
     profile,
     selectedLanguage: controls.selectedLanguage,
     weekStartOptions: buildWeekStartOptions(t),
@@ -97,7 +95,7 @@ function buildYouRows(
     ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
   const themeChoice = (
-    <div role="group" aria-label={t('preferences.themeMode')} className="flex max-w-full flex-wrap gap-1">
+    <div role="group" aria-label={t('profile.settingsRows.theme')} className="flex max-w-full flex-wrap gap-1">
       {(['dark', 'light'] as const).map((mode) => (
         <button
           key={mode}
@@ -115,10 +113,11 @@ function buildYouRows(
 
   return [
     <ListRow key="account" icon={icon(User)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
-    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} value={languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ListRow key="timezone" icon={icon(Clock)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
-    <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
-    <ProfileValueRow key="theme" label={t('preferences.themeMode')} control={themeChoice} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
+    <ListRow key="week-start" icon={icon(Calendar)} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
+    <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
     <div key="show-general" className="flex flex-col px-4 py-3" style={{ gap: 4 }}>
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
@@ -126,8 +125,8 @@ function buildYouRows(
       </div>
       <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
     </div>,
-    <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={t(planLabelKey)} onClick={() => router.push('/upgrade')} />,
-    <ListRow key="export" icon={icon(Download)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */
+    <ListRow key="export" icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
   ]
 }
 
@@ -209,10 +208,7 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
     )
   })
 
-  return [
-    ...navigationRows,
-    <ShareCardEntryButton key="share" />,
-  ]
+  return navigationRows
 }
 
 interface EndingRowsOptions {
@@ -229,9 +225,12 @@ function buildEndingRows({
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
-    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
-    <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
+    <ListRow key="logout" icon={icon(LogOut)} title={t('profile.settingsRows.signOut')} chevron={false} onClick={onLogout} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */
+    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} chevron={false} onClick={onFreshStart} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */
+    <ListRow key="delete" icon={icon(UserX)} title={t('profile.settingsRows.deleteAccount')} danger chevron={false} onClick={onDeleteAccount} />,
   ]
 }
 
