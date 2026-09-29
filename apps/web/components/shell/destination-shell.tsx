@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -50,6 +51,15 @@ interface ShellComposerSlotContextValue {
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 const ShellHeaderSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
+const NotFoundShellContext = createContext<((visible: boolean) => void) | null>(null)
+
+export function useNotFoundShell() {
+  const setNotFoundVisible = useContext(NotFoundShellContext)
+  useLayoutEffect(() => {
+    setNotFoundVisible?.(true)
+    return () => setNotFoundVisible?.(false)
+  }, [setNotFoundVisible])
+}
 
 function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
@@ -133,6 +143,7 @@ export function DestinationShell({
   onCreate,
   createRefusal,
 }: Readonly<DestinationShellProps>) {
+  const [notFoundVisible, setNotFoundVisible] = useState(false)
   const registeredComposer = useShellComposerHost()
   const registeredHeader = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
@@ -144,18 +155,21 @@ export function DestinationShell({
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotContext.Provider value={registeredComposer.value}>
         <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
-        <DestinationShellContent
-          header={registeredHeader.content}
-          notice={hostedNotice}
-          composer={registeredComposer.content ?? composer}
-          conversation={conversation}
-          conversationOpen={conversationOpen}
-          conversationLabel={conversationLabel}
-          onCreate={onCreate}
-          createRefusal={createRefusal}
-        >
-          {children}
-        </DestinationShellContent>
+          <NotFoundShellContext.Provider value={setNotFoundVisible}>
+            <DestinationShellContent
+              header={registeredHeader.content}
+              notice={hostedNotice}
+              composer={registeredComposer.content ?? composer}
+              conversation={conversation}
+              conversationOpen={conversationOpen}
+              conversationLabel={conversationLabel}
+              onCreate={onCreate}
+              createRefusal={createRefusal}
+              notFoundVisible={notFoundVisible}
+            >
+              {children}
+            </DestinationShellContent>
+          </NotFoundShellContext.Provider>
         </ShellHeaderSlotContext.Provider>
       </ShellComposerSlotContext.Provider>
     </ShellNoticeSlotProvider>
@@ -172,7 +186,8 @@ function DestinationShellContent({
   conversationLabel,
   onCreate,
   createRefusal,
-}: Readonly<DestinationShellProps & { header?: ReactNode }>) {
+  notFoundVisible,
+}: Readonly<DestinationShellProps & { header?: ReactNode; notFoundVisible: boolean }>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
@@ -186,6 +201,7 @@ function DestinationShellContent({
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
   const chrome = resolveShellChrome(pathname, lastDestination)
+  const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
     if (destination && pathname !== '/upgrade') setLastDestination(destination)
   }, [destination, pathname, setLastDestination])
@@ -284,7 +300,7 @@ function DestinationShellContent({
       <ShellWide
         {...conversationSlot}
         items={wideItems}
-        activeId={chrome.activeId}
+        activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as BottomTab)}
         {...wideCreate}
@@ -295,10 +311,10 @@ function DestinationShellContent({
         paletteHint={paletteHint}
         notice={notice}
         header={header}
-        composer={chrome.composer ? composer : undefined}
+        composer={notFoundVisible || chrome.composer ? composer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
-            activeId={chrome.activeId}
+            activeId={activeId}
             items={[
               { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
               { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },

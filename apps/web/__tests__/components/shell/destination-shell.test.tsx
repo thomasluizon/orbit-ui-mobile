@@ -97,6 +97,7 @@ import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
+import NotFound from '@/app/not-found'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
@@ -118,6 +119,19 @@ describe('DestinationShell', () => {
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  it.each([false, true])('shows an unselected not-found shell with its composer at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.wide = wide
+    const view = render(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+    expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
   })
 
   afterEach(() => {
