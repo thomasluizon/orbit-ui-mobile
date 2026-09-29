@@ -3304,7 +3304,7 @@
       "body": "Depois que você confirma, a conta é desativada na hora e apagada de vez ao fim de um período de carência de 7 dias. Se entrar de novo dentro desses 7 dias, a sua conta é reativada e o pedido é cancelado."
     },
     "webFallback": {
-      "title": "Pedir para apagar por e-mail",
+      "title": "Pedir para apagar a conta por e-mail",
       "body": "Se você não conseguir mais acessar o aplicativo, escreva para contact@useorbit.org a partir do e-mail da sua conta e peça para apagar a conta. Vamos confirmar a sua identidade e cuidar da solicitação.",
       "button": "Enviar o pedido"
     },
