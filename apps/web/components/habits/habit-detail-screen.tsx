@@ -165,7 +165,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
           <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" /></>
         ) : (
           <h1 ref={headingRef} tabIndex={-1} className="max-w-full truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">
-            <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left">{habit.title}</button>
+            <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
           </h1>
         )}
         <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p>
