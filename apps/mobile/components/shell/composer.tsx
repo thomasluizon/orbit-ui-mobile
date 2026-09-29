@@ -99,7 +99,7 @@ function SuggestionStrip({
           ]}
         >
           {suggestion.icon}
-          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+          <Text numberOfLines={1} style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -374,7 +374,6 @@ const styles = StyleSheet.create({
   },
   suggestion: {
     minHeight: 44,
-    maxWidth: 240,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -383,7 +382,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   suggestionText: {
-    flexShrink: 1,
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
