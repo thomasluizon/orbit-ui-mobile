@@ -447,7 +447,6 @@ export default function CalendarSyncScreen() {
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {showProSection ? (

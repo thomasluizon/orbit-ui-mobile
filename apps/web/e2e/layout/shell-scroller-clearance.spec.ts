@@ -1,11 +1,26 @@
 import { expect, test } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { LAYOUT_ORIGIN } from '../support/env'
+
+const habitId = 'habit-1'
+const habit = habitDetailSchema.parse(makeHabitDetail())
+const metrics = habitMetricsSchema.parse({
+  currentStreak: 1,
+  longestStreak: 1,
+  weeklyCompletionRate: 100,
+  monthlyCompletionRate: 100,
+  totalCompletions: 1,
+  lastCompletedDate: null,
+})
 
 const destinations = [
   ['Hoje', '/'],
   ['Calendário', '/calendar'],
   ['Progresso', '/progress'],
   ['Perfil', '/profile'],
-  ['Habit detail', '/habits/layout-habit'],
+  ['Habit detail', `/habits/${habitId}`],
   ['Sobre', '/about'],
   ['Avisos', '/notifications'],
   ['Busca', '/search'],
@@ -21,8 +36,14 @@ for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
     test.use({ viewport: { width, height: 915 } })
 
     for (const [name, path] of destinations) {
-      test(`${name} clears the pinned chrome`, async ({ page }) => {
+      test(`${name} clears the pinned chrome`, async ({ page, context }) => {
+        if (name === 'Habit detail') {
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habitId)}`, (route) => route.fulfill({ json: habit }))
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habitId)}`, (route) => route.fulfill({ json: [] }))
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))
+        }
         await page.goto(path)
+        if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title })).toBeVisible()
         const scroller = page.locator('[data-shell-scroller]')
         const chrome = page.locator('[data-shell-bottom]')
         await expect(scroller).toBeVisible()
