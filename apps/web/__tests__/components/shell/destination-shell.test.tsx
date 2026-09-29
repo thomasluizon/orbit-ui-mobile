@@ -55,13 +55,14 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     activeId?: string | null
     onSelect?: (id: string) => void
     onCreate?: () => void
+    createLabel?: string
     createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
@@ -82,7 +83,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide ? items?.map((item) => (
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       )) : tabBar}
-      {mocks.wide && onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
       {mocks.wide ? createRefusal : null}
       {!mocks.wide ? fab : null}
     </div>
@@ -186,7 +187,7 @@ describe('DestinationShell', () => {
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      'nav.create',
+      'nav.createHabit',
     ])
     fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
@@ -203,7 +204,7 @@ describe('DestinationShell', () => {
   it('forwards the create refusal beside the compact FAB', () => {
     render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'nav.create' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.createHabit' })).toBeInTheDocument()
   })
 
   it('passes the selection tray target through the destination composer slot', () => {
@@ -341,7 +342,7 @@ describe('DestinationShell', () => {
     mocks.pathname = '/calendar'
     render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
 
-    expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).not.toBeInTheDocument()
   })
 
   it('keeps a later pushed flow after selecting the active destination', () => {
@@ -364,14 +365,17 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'command.title',
+      'nav.search',
       'nav.today',
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      '',
+      'nav.createHabit',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'wide-create' }))
+    expect(screen.getByRole('button', { name: 'nav.search' })).not.toHaveTextContent('command.title')
+    fireEvent.click(screen.getByRole('button', { name: 'nav.search' }))
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
 
@@ -520,7 +524,7 @@ describe('DestinationShell', () => {
     const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Upgrade</h1></DestinationShell>)
     expect(view.container.querySelectorAll('button[aria-current], button[aria-label^="nav."]')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'nav.profile' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: 'command.title' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.search' })).toBeInTheDocument()
     expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('data-loading', 'true')
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'wide-create' })).toBeNull()

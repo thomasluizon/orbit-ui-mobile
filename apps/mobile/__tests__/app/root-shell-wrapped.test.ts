@@ -163,7 +163,6 @@ vi.mock('@/components/navigation/notification-delete-notice', () => ({
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
-vi.mock('@/components/ui/fab', () => ({ Fab: ({ onClick }: { onClick: () => void }) => React.createElement('Fab', { onClick }) }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
 vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
@@ -233,14 +232,23 @@ describe('Wrapped root shell', () => {
     createState.count = 10
     createState.countLoaded = true
     const tree = await renderRoot()
-    const [createFab] = tree.root.findAll((node) => (node.type as unknown) === 'Fab')
-    await TestRenderer.act(() => (createFab?.props.onClick as () => void)())
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
     expect(createState.showCreate).toHaveBeenCalledWith(true)
     expect(createState.push).not.toHaveBeenCalledWith('/upgrade')
 
     createState.profile = { hasProAccess: true }
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(createState.showCreate).not.toHaveBeenCalledWith(false)
+  })
+
+  it('names the Hoje create FAB for the habit action', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    const tree = await renderRoot()
+
+    const [createFab] = findByTestId(tree, 'fab')
+    expect(createFab?.props.accessibilityLabel).toBe('nav.createHabit')
   })
 
   it('renders Wrapped without bottom chrome or notices', async () => {
