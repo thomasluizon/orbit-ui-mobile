@@ -156,6 +156,26 @@ describe('getTodayHabitList', () => {
     expect(await getTodayHabitListAfterRefetch(queryClient, today)).toBeUndefined()
     expect(fetches).toBe(2)
   })
+
+  it('replaces a Today fetch that began before the log settled', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const key = habitKeys.list(todayFilters)
+    let resolvePreLogFetch: (items: HabitScheduleItem[]) => void = () => undefined
+    let fetches = 0
+    await queryClient.fetchQuery({ queryKey: key, queryFn: () => {
+      fetches += 1
+      if (fetches === 2) return new Promise<HabitScheduleItem[]>((resolve) => { resolvePreLogFetch = resolve })
+      return Promise.resolve([{ ...scheduled('a'), isCompleted: fetches > 2 }])
+    } })
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 1)
+    void queryClient.refetchQueries({ queryKey: key })
+
+    const afterLog = getTodayHabitListAfterRefetch(queryClient, today)
+    resolvePreLogFetch([scheduled('a')])
+
+    expect((await afterLog)?.map((item) => item.isCompleted)).toEqual([true])
+    expect(fetches).toBe(3)
+  })
 })
 
 describe('deduplicateHabitList', () => {

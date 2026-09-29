@@ -648,10 +648,7 @@ describe('useLogHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      { queryKey: habitKeys.lists(), refetchType: 'all' },
-      { cancelRefetch: false },
-    )
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists(), refetchType: 'all' })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({

@@ -96,14 +96,12 @@ export function checkTodayAllDoneOrDefer(
   return false
 }
 
+/** Refetches every habit list, replacing a fetch already in flight, since one that began before a log settled can return the unlogged row. */
 export async function getTodayHabitListAfterRefetch(
   queryClient: QueryClient,
   date: string,
 ): Promise<HabitScheduleItem[] | undefined> {
-  await queryClient.invalidateQueries(
-    { queryKey: habitKeys.lists(), refetchType: 'all' },
-    { cancelRefetch: false },
-  )
+  await queryClient.invalidateQueries({ queryKey: habitKeys.lists(), refetchType: 'all' })
   return findTodayHabitList(queryClient, date, true)
 }
 
