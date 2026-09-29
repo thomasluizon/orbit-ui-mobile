@@ -10,6 +10,7 @@ const SOURCE_EXTENSIONS = new Set(['.css', '.ts', '.tsx'])
 const CUSTOM_PROPERTY_REFERENCE = /var\(\s*(--[a-z0-9-]+)/g
 const CSS_DECLARATION = /(--[a-z0-9-]+)\s*:/g
 const LOCAL_RUNTIME_DECLARATION = /['"](--[a-z0-9-]+)['"]\s*:/g
+const TAILWIND_ARBITRARY_DECLARATION = /\[(--[a-z0-9-]+):/g
 const NEXT_FONT_DECLARATION = /\bvariable\s*:\s*['"](--[a-z0-9-]+)['"]/g
 
 type ScannedSource = {
@@ -142,6 +143,9 @@ function declaredCustomProperties(files: ScannedSource[]): Set<string> {
   }
   for (const { contents } of files) {
     for (const property of matchingValues(contents, LOCAL_RUNTIME_DECLARATION)) {
+      declarations.add(property)
+    }
+    for (const property of matchingValues(contents, TAILWIND_ARBITRARY_DECLARATION)) {
       declarations.add(property)
     }
     for (const property of matchingValues(contents, NEXT_FONT_DECLARATION)) {
