@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
+import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
@@ -63,8 +63,8 @@ function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof
 
 function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tokens: Tokens; onChange: (days: string[]) => void }>) {
   const { t } = useTranslation()
-  const toggle = (day: string) => onChange(days.includes(day) ? days.filter((value) => value !== day) : [...days, day])
-  return <View style={styles.chips}>{HABIT_DETAIL_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day) }} style={[styles.dayChip, { borderColor: days.includes(day) ? tokens.primary : tokens.hairline, backgroundColor: days.includes(day) ? tokens.selectionBg : tokens.bg }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable>)}</View>
+  const toggle = (day: string) => onChange(toggleHabitDaySelection(days, day, HABIT_DETAIL_WEEKDAYS, days.length === 0))
+  return <View style={styles.chips}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={[styles.dayChip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: selected ? tokens.selectionBg : tokens.bg }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
 }
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {

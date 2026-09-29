@@ -21,6 +21,7 @@ export function HabitUnderstanding({
   error,
   emoji,
   days,
+  daily = false,
   dayOptions,
   quantity,
   mode,
@@ -129,7 +130,7 @@ export function HabitUnderstanding({
             {mode === 'fixed' ? (
               <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
                 {dayOptions.map((day) => {
-                  const selected = days.includes(day.value)
+                  const selected = daily || days.includes(day.value)
                   return (
                     <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
                       className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}

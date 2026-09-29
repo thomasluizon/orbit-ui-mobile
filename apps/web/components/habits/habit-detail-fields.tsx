@@ -13,6 +13,7 @@ import {
   formatHabitReminderLabel,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
+  toggleHabitDaySelection,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
@@ -76,7 +77,7 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
           {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
         </RadioGroup>
       </div>
-      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.includes(day); return <button key={day} type="button" aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => selected ? current.filter((value) => value !== day) : [...current, day])}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
+      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
     </FieldWell>
   )

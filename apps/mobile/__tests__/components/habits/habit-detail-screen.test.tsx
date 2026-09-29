@@ -894,6 +894,29 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByType('EditHabitModal')).toHaveLength(0)
   })
 
+  it('keeps a daily schedule selected when correcting weekdays inline', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+
+    const dayButtons = () => tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean } } }) =>
+      node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityState?.selected !== undefined)
+    expect(dayButtons()).toHaveLength(7)
+    expect(dayButtons()[0]!.props.accessibilityLabel).toBe('dates.daysLong.sunday')
+    expect(dayButtons().every((button: { props: { accessibilityState: { selected: boolean } } }) => button.props.accessibilityState.selected)).toBe(true)
+    TestRenderer.act(() => dayButtons()[0]!.props.onPress())
+    expect(dayButtons().filter((button: { props: { accessibilityState: { selected: boolean } } }) => button.props.accessibilityState.selected)).toHaveLength(6)
+    TestRenderer.act(() => dayButtons()[0]!.props.onPress())
+    expect(dayButtons().every((button: { props: { accessibilityState: { selected: boolean } } }) => button.props.accessibilityState.selected)).toBe(true)
+    await TestRenderer.act(async () => {
+      tree!.root.findAllByType('PillButton').find((button: { props: { children?: React.ReactNode } }) => button.props.children === 'common.save')!.props.onClick()
+      await Promise.resolve()
+    })
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [] })
+  })
+
   it('shows reminder offsets before schedule and edits them inline', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

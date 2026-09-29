@@ -582,7 +582,7 @@ describe('habit form helpers', () => {
     controller.toggleDay('Monday')
     expect(ownership.cadence).toBe(false)
     expect(setRecurring).toHaveBeenCalledOnce()
-    expect(toggleDay).toHaveBeenCalledWith('Monday')
+    expect(toggleDay).toHaveBeenCalledWith('Monday', false)
     expect(fields.get('frequencyUnit')?.value).toBe('Day')
 
     proposal = proposed
