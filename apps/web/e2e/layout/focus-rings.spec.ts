@@ -70,7 +70,7 @@ for (const width of [412, 1280] as const) {
       ['Suporte', '/support', 'form textarea'],
       ['Perfil', '/profile', null],
       ['Calendário', '/calendar', null],
-      ['Progresso', '/progress', `main button[aria-label="${messages.profile.wrappedTitle}"]`],
+      ['Progresso', '/progress', 'main [data-empty-state-action] button'],
     ] as const) {
       test(`${surface} has one ring at each Tab stop`, async ({ page }) => {
         await page.goto(path)

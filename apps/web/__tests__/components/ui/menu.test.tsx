@@ -41,6 +41,8 @@ describe('Menu', () => {
     const rows = screen.getAllByRole('menuitem')
     expect(rows.map((row) => row.textContent)).toEqual(['Edit', 'Delete'])
     expect(rows[1]).toHaveAttribute('data-destructive')
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    expect(stylesheet).toMatch(/\.orbit-sheet-panel \.orbit-menu-item \{\s*min-height: 56px;/)
   })
 
   it('matches menu icon stroke to medium-weight labels', async () => {

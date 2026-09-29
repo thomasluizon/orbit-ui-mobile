@@ -89,7 +89,9 @@ describe('PillButton', () => {
 
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
-    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')
+    const button = screen.getByRole('button', { name: 'Continue' })
+    expect(button).toHaveClass('whitespace-nowrap')
+    expect(button).toHaveStyle({ paddingInlineStart: '26px', paddingInlineEnd: '26px' })
   })
 
   it('keeps a leading glyph decorative and tightens its side of the pill', () => {
@@ -97,7 +99,7 @@ describe('PillButton', () => {
     const button = screen.getByRole('button', { name: 'Copy' })
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(button.querySelector('svg')).toHaveAttribute('width', '16')
-    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInline: '18px' })
+    expect(button).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: '18px' })
   })
 
   it('gives pill links the interactive states their button variants expose', () => {
@@ -122,6 +124,10 @@ describe('PillButton', () => {
       'hover:bg-[var(--bg-card)]',
       'active:scale-[0.96]',
     )
+    expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({
+      paddingInlineStart: '26px',
+      paddingInlineEnd: '26px',
+    })
   })
 
   it('fires onClick when clicked', () => {
@@ -165,7 +171,9 @@ describe('PillButton', () => {
       </PillButton>,
     )
     expect(screen.getByTestId('leading-node')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Open menu' })
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveStyle({ paddingInlineStart: '0px', paddingInlineEnd: '0px' })
   })
 
   it('no-ops clicks and exposes the loading state', () => {
