@@ -214,7 +214,7 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Pergunte para a Astra",
+      "placeholder": "Peça algo à Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
