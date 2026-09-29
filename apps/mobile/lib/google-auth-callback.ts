@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 
-export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
+export const AUTH_CALLBACK_URL = `${APP_LINK_ORIGIN}/auth-callback`
 
 interface PendingGoogleAuthSessionState {
   callbackUrl: string | null

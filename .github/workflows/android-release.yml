@@ -280,11 +280,13 @@ jobs:
           case "${RELEASE_TRACK}" in
             internal)
               build_api_base="https://api-staging.useorbit.org"
+              build_app_variant="staging"
               deployment_environment="staging"
               build_posthog_key="${STAGING_POSTHOG_KEY}"
               ;;
             open|production)
               build_api_base="https://api.useorbit.org"
+              build_app_variant="production"
               deployment_environment="production"
               build_posthog_key="${PRODUCTION_POSTHOG_KEY}"
               ;;
@@ -294,13 +296,18 @@ jobs:
               ;;
           esac
 
+          play_package_name=$(ORBIT_APP_VARIANT="${build_app_variant}" node -p "require('./apps/mobile/app.config.js')().android.package")
+
           {
             echo "BUILD_API_BASE=${build_api_base}"
+            echo "ORBIT_APP_VARIANT=${build_app_variant}"
+            echo "PLAY_PACKAGE_NAME=${play_package_name}"
             echo "BUILD_POSTHOG_KEY=${build_posthog_key}"
             echo "DEPLOYMENT_ENVIRONMENT=${deployment_environment}"
             echo "BUILD_EAS_PROFILE=production"
           } >> "${GITHUB_ENV}"
           echo "Build target: ${deployment_environment} (api_base=${build_api_base})"
+          echo "Play package: ${play_package_name}"
           echo "| API base | \`${build_api_base}\` |" >> "${GITHUB_STEP_SUMMARY}"
 
       # EXPO_NO_METRO_WORKSPACE_ROOT pins Metro's root to apps/mobile instead of the
@@ -464,6 +471,7 @@ jobs:
         shell: bash
         env:
           RESOLVED_PLAY_TRACK: ${{ env.PLAY_TRACK }}
+          RESOLVED_PLAY_PACKAGE_NAME: ${{ env.PLAY_PACKAGE_NAME }}
         run: |
           set -euo pipefail
 
@@ -472,7 +480,12 @@ jobs:
             exit 1
           fi
 
-          echo "Uploading to the Google Play ${RESOLVED_PLAY_TRACK} track."
+          if [ -z "${RESOLVED_PLAY_PACKAGE_NAME}" ]; then
+            echo "::error::PLAY_PACKAGE_NAME is empty. The upload requires the package from the Expo app config."
+            exit 1
+          fi
+
+          echo "Uploading ${RESOLVED_PLAY_PACKAGE_NAME} to the Google Play ${RESOLVED_PLAY_TRACK} track."
 
       # Uploads straight to the Play Developer API. eas-cli submit routed the AAB
       # through Expo's GCS bucket and sent the Play service account key to Expo's
@@ -484,7 +497,7 @@ jobs:
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: org.useorbit.app
+          packageName: ${{ env.PLAY_PACKAGE_NAME }}
           releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           tracks: ${{ env.PLAY_TRACK }}
           status: completed

@@ -3,14 +3,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Recap } from '@orbit/shared/types/gamification'
-import { buildRecapRequestUrl, type RecapSharePeriod } from '@orbit/shared/utils'
+import { buildRecapRequestUrl, withShareLinkOrigin, type RecapSharePeriod } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import { getPublicOrigin } from '@/lib/public-origin'
 
 /** Fetches the gamification recap for a share-card period. Lazy by default — enable it when the share sheet opens. */
 export function useRecap(period: RecapSharePeriod, enabled = false) {
   return useQuery({
     queryKey: gamificationKeys.recap(period),
-    queryFn: () => fetchJson<Recap>(buildRecapRequestUrl(period)),
+    queryFn: async () => {
+      const recap = await fetchJson<Recap>(buildRecapRequestUrl(period))
+      return { ...recap, shareDeepLink: withShareLinkOrigin(recap.shareDeepLink, getPublicOrigin()) }
+    },
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })

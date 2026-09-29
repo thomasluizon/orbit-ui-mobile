@@ -12,6 +12,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -102,7 +103,7 @@ export function MilestoneSharePrompt() {
   const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
   const variant = visibleKey ? resolveVariant(visibleKey, profile) : null
   const cachedReferral = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const referralUrl = buildReferralUrl(cachedReferral?.code)
+  const referralUrl = buildReferralUrl(cachedReferral?.code, APP_LINK_ORIGIN)
 
   function dismiss() {
     setVisibleKey(null)

@@ -22,11 +22,15 @@ runs only after the user confirms the exact inputs.
 | `validate_expo_dependencies` | no | boolean, default `false` |
 | `message` | no | free text recorded in the run log and summary |
 
-The workflow builds `internal` against `https://api-staging.useorbit.org` and
-records them in the `staging` GitHub environment. It builds `open` and `production` against
-`https://api.useorbit.org` in the `production` environment.
+The workflow builds `internal` as `org.useorbit.app.staging` ("Orbit Staging") against
+`https://api-staging.useorbit.org` and records it in the `staging` GitHub environment.
+It builds `open` and `production` as `org.useorbit.app` ("Orbit") against
+`https://api.useorbit.org` in the `production` environment. The `android-internal`
+GitHub environment supplies the Firebase config containing both Android app clients;
+the other tracks use the repository secret.
 Each successful Play upload records an Android GitHub Deployment with the commit, version and
-versionCode. Play's versionCode sequence is shared across all tracks. `open` and `production` require `main`; `internal` builds the selected branch.
+versionCode. The workflow derives each new versionCode from the last run across tracks;
+Play enforces uniqueness within each package. `open` and `production` require `main`; `internal` builds the selected branch.
 A binary is never promoted
 between tracks because its API base is fixed when it is built.
 

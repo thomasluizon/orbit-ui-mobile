@@ -49,5 +49,19 @@ describe('useRecap', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mockFetch).toHaveBeenCalledWith('/api/gamification/recap?period=month')
     expect(result.current.data!.period).toBe('month')
+    expect(result.current.data!.shareDeepLink).toBe('https://app.useorbit.org/r/ABC123?recap=week')
+  })
+
+  it('uses the public staging origin for a recap link from the API', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app-staging.useorbit.org')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(createMockRecap()),
+    })
+
+    const { result } = renderHook(() => useRecap('week', true), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data!.shareDeepLink).toBe('https://app-staging.useorbit.org/r/ABC123?recap=week')
+    vi.unstubAllEnvs()
   })
 })
