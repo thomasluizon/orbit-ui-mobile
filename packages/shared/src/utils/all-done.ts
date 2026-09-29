@@ -25,7 +25,7 @@ export function getAllDoneOnDate(
       (hasHabitScheduleOnDate(habit, date) || habit.isOverdue)) {
       const logged = isHabitLoggedOnDate(habit, date)
       const skipped = isHabitSkippedOnDate(habit, date)
-      const pendingSkip = Boolean((habit as NormalizedHabit & { [optimisticSkipMarker]?: true })[optimisticSkipMarker])
+      const pendingSkip = (habit as NormalizedHabit & { [optimisticSkipMarker]?: string })[optimisticSkipMarker] === date
       const completed = habit.isCompleted || logged
       const done = !skipped && (habit.isFlexible
         ? habit.flexibleTarget !== null && habit.flexibleCompleted !== null &&

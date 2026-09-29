@@ -24,6 +24,7 @@ export {
 export {
   updateHabitListsForDate,
   updateCachedHabitLists,
+  clearCachedOptimisticSkip,
   restoreCachedHabitLists,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,

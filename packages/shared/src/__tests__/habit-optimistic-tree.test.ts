@@ -4,6 +4,7 @@ import { getAllDoneOnDate, isHabitSkippedOnDate } from '../utils/all-done'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import {
   buildOptimisticSkipPatch,
+  clearOptimisticSkipMarker,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,
@@ -117,6 +118,7 @@ describe('buildOptimisticSkipPatch', () => {
     expect(patch).toMatchObject({
       isCompleted: true,
       instances: [{ date: '2026-04-06', status: 'Completed', logId: null }],
+      __optimisticSkip: '2026-04-06',
     })
   })
 
@@ -129,6 +131,19 @@ describe('buildOptimisticSkipPatch', () => {
     expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
     expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
       .toEqual({ allDone: false, count: 1 })
+  })
+
+  it('counts the day done once the recurring skip settles and its marker clears', () => {
+    const date = '2026-04-06'
+    const skipped = makeItem({ id: 'skipped', dueDate: date, scheduledDates: [date] })
+    const logged = makeItem({ id: 'logged', dueDate: date, scheduledDates: [date], isLoggedInRange: true })
+    const settled = clearOptimisticSkipMarker([{ ...skipped, ...buildOptimisticSkipPatch(skipped, date) }, logged], 'skipped', date)
+    const normalized = normalizeHabits(settled)
+
+    expect(settled[0]).not.toHaveProperty('__optimisticSkip')
+    expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
+      .toEqual({ allDone: true, count: 1 })
   })
 
   it('postpones one-time habits to tomorrow', () => {
