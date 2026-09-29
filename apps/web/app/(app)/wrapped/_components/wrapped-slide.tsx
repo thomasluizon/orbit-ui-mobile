@@ -18,6 +18,7 @@ import {
   captionStyle,
   eyebrowStyle,
   heroNumeralStyle,
+  introTitleStyle,
   labelStyle,
   titleStyle,
 } from './wrapped-styles'
@@ -59,10 +60,11 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             {t('wrapped.slides.intro.eyebrow')}
           </motion.span>
           <motion.h1
+            className="lg:[--wrapped-intro-title-size:44px]"
             data-testid="wrapped-motion-part"
             data-wrapped-figure="primary"
             {...motionProps(1, reducedMotion)}
-            style={titleStyle}
+            style={introTitleStyle}
           >
             {t(`wrapped.slides.intro.${period}`)}
           </motion.h1>
@@ -196,8 +198,8 @@ function SlideShell({ children, testId }: Readonly<SlideShellProps>) {
   return (
     <div
       data-testid={testId}
-      className="flex flex-1 flex-col items-center justify-center text-center"
-      style={{ gap: 16, padding: '0 24px' }}
+      className="flex flex-1 flex-col items-center justify-center px-6 text-center lg:px-16 lg:py-12"
+      style={{ gap: 16 }}
     >
       {children}
     </div>
@@ -369,8 +371,8 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
   return (
     <div
       data-testid="wrapped-slide-share"
-      className="flex flex-1 flex-col items-center justify-center"
-      style={{ gap: 16, padding: '8px 24px 24px' }}
+      className="flex flex-1 flex-col items-center justify-center px-6 pb-6 pt-2 lg:px-16 lg:py-12"
+      style={{ gap: 16 }}
     >
       <motion.span data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={eyebrowStyle}>
         {t('wrapped.slides.share.eyebrow')}
