@@ -14,26 +14,33 @@ const cellWords: DayCellWords = {
 }
 
 describe('painted press and hover shapes', () => {
-  it('keeps a loggable completed day fill on the button that owns the hit area', () => {
+  it('layers the day hover fill over the whole round hit area without hiding the outcome', () => {
     const { container } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />,
     )
 
     const hitArea = container.querySelector('button')
     expect(hitArea?.className).toContain('rounded-full')
-    expect(hitArea?.className).toContain('bg-[var(--fg-1)]')
-    expect(hitArea?.className).toContain('hover:bg-[var(--bg-hover)]')
-    expect(hitArea?.className).toContain('group')
-    expect(hitArea?.querySelector('span')).toHaveStyle({ background: 'transparent' })
-    expect(hitArea?.querySelector('span span')?.className).toContain('group-hover:text-[var(--fg-1)]')
+    expect(hitArea?.className).toContain('overflow-hidden')
+
+    const pressFill = hitArea?.querySelector('[data-press-fill]')
+    expect(pressFill?.className).toContain('absolute inset-0')
+    expect(pressFill?.className).toContain('rounded-full')
+    expect(pressFill?.className).toContain('bg-[var(--bg-hover)]')
+    expect(pressFill?.className).toContain('group-hover:opacity-100')
+    expect(pressFill?.className).toContain('pointer-events-none')
+    expect(pressFill).toHaveAttribute('aria-hidden', 'true')
+    expect(hitArea?.lastElementChild).toBe(pressFill)
+    expect(container.querySelector('[data-outcome="full"] span')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 
-  it('leaves a read-only completed day fill on its own disc', () => {
+  it('gives a read-only day no press fill', () => {
     const { container } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} />,
     )
 
     expect(container.querySelector('button')).toBeNull()
+    expect(container.querySelector('[data-press-fill]')).toBeNull()
     expect(container.querySelector('[data-outcome="full"] span')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 })

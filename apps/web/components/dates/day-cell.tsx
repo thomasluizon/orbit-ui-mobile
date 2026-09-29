@@ -4,18 +4,22 @@ import type { CSSProperties } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 
-const NUMERAL_ON_FILL = 'text-[var(--bg)]'
-const NUMERAL_ON_FILL_INTERACTIVE = 'text-[var(--bg)] group-hover:text-[var(--fg-1)]'
-
-function ringStyle(outcome: DayOutcome, interactive: boolean): CSSProperties {
-  if (outcome === 'full') return { background: interactive ? 'transparent' : 'var(--fg-1)' }
+function ringStyle(outcome: DayOutcome): CSSProperties {
+  if (outcome === 'full') return { background: 'var(--fg-1)' }
   if (outcome === 'not-scheduled') return { background: 'transparent' }
   if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return {}
 }
 
-function filledNumeralClass(interactive: boolean) {
-  return interactive ? NUMERAL_ON_FILL_INTERACTIVE : NUMERAL_ON_FILL
+/** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
+function PressFill() {
+  return (
+    <span
+      aria-hidden="true"
+      data-press-fill=""
+      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100"
+    />
+  )
 }
 
 function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: number }>) {
@@ -41,14 +45,14 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
   )
 }
 
-function DayCellContents({ props, outcome, size, interactive }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; interactive: boolean }>) {
+function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
   const fraction = props.scheduled && props.done !== undefined ? props.done / props.scheduled : 0.5
-  const numeralClass = outcome === 'full' ? filledNumeralClass(interactive) : 'text-[var(--fg-2)]'
+  const numeralClass = outcome === 'full' ? 'text-[var(--bg)]' : 'text-[var(--fg-2)]'
   return (
     <span
       aria-hidden="true"
       className="relative inline-flex items-center justify-center rounded-full"
-      style={{ width: size, height: size, ...ringStyle(outcome, interactive) }}
+      style={{ width: size, height: size, ...ringStyle(outcome) }}
     >
       {outcome === 'partial' ? <PartialArc fraction={fraction} size={size} /> : null}
       <span
@@ -66,17 +70,17 @@ function DayCellContents({ props, outcome, size, interactive }: Readonly<{ props
   )
 }
 
-function HabitHistoryContents({ props, outcome, size, interactive }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; interactive: boolean }>) {
+function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled'
   let numeralClass = 'text-[var(--fg-2)]'
-  if (outcome === 'full') numeralClass = filledNumeralClass(interactive)
+  if (outcome === 'full') numeralClass = 'text-[var(--bg)]'
   else if (missed) numeralClass = 'text-[var(--fg-3)]'
   return (
     <span
       aria-hidden="true"
       className="relative inline-flex items-center justify-center rounded-full"
-      style={{ width: size, height: size, background: outcome === 'full' && !interactive ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
+      style={{ width: size, height: size, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
     >
       <span className={numeralClass} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>
       {missed ? <span className="absolute rounded-full bg-[var(--status-empty)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
@@ -102,8 +106,8 @@ export function DayCell(props: Readonly<DayCellProps>) {
     },
   }
   const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} interactive={interactive} />
-    : <DayCellContents props={props} outcome={outcome} size={size} interactive={interactive} />
+    ? <HabitHistoryContents props={props} outcome={outcome} size={size} />
+    : <DayCellContents props={props} outcome={outcome} size={size} />
 
   if (interactive) {
     return (
@@ -111,9 +115,10 @@ export function DayCell(props: Readonly<DayCellProps>) {
         {...commonProps}
         type="button"
         onClick={props.onPress}
-        className={`group inline-flex shrink-0 items-center justify-center rounded-full border-0 p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${outcome === 'full' ? 'bg-[var(--fg-1)]' : 'bg-transparent'}`}
+        className="group relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 cursor-pointer transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
         {contents}
+        <PressFill />
       </button>
     )
   }

@@ -8,20 +8,21 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; interactive: boolean; pressed: boolean }>
+type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>
 
-function filledNumeralColor(tokens: Tokens, interactive: boolean, pressed: boolean) {
-  return interactive && pressed ? tokens.fg1 : tokens.bg
+/** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
+function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
+  return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
 
-function DayCellContents({ props, outcome, size, tokens, interactive, pressed }: ContentsProps) {
+function DayCellContents({ props, outcome, size, tokens }: ContentsProps) {
   const stroke = 2
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const fraction = props.scheduled && props.done !== undefined ? Math.max(0, Math.min(1, props.done / props.scheduled)) : 0.5
-  const fill = outcome === 'full' && !interactive ? tokens.fg1 : 'transparent'
+  const fill = outcome === 'full' ? tokens.fg1 : 'transparent'
   const borderColor = outcome === 'none' ? tokens.statusEmpty : 'transparent'
-  const textColor = outcome === 'full' ? filledNumeralColor(tokens, interactive, pressed) : tokens.fg2
+  const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
@@ -47,14 +48,14 @@ function DayCellContents({ props, outcome, size, tokens, interactive, pressed }:
   )
 }
 
-function HabitHistoryContents({ props, outcome, size, tokens, interactive, pressed }: ContentsProps) {
+function HabitHistoryContents({ props, outcome, size, tokens }: ContentsProps) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled'
   let textColor = tokens.fg2
-  if (outcome === 'full') textColor = filledNumeralColor(tokens, interactive, pressed)
+  if (outcome === 'full') textColor = tokens.bg
   else if (missed) textColor = tokens.fg3
   return (
-    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' && !interactive ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
@@ -81,8 +82,8 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
   const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} interactive={interactive} pressed={pressed} />
-    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} interactive={interactive} pressed={pressed} />
+    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} />
+    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
 
   if (interactive) {
     return (
@@ -94,9 +95,10 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
         onPressIn={() => setPressed(true)}
         onPressOut={() => setPressed(false)}
         testID={testID}
-        style={({ pressed: isPressed }) => [containerStyle, { backgroundColor: isPressed ? tokens.bgHover : outcome === 'full' ? tokens.fg1 : 'transparent' }]}
+        style={containerStyle}
       >
         {contents}
+        {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       </Pressable>
     )
   }
@@ -118,6 +120,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center' },
+  pressFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   disc: { alignItems: 'center', justifyContent: 'center' },
   arc: { position: 'absolute', top: 0, left: 0 },
   numeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },

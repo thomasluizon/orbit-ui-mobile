@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-import type { DayCellProps, DayCellWords } from '@orbit/shared/contracts/dates'
+import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName } from '@orbit/shared/utils'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { createStyles as createCalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
@@ -92,34 +92,33 @@ describe('pressed hit area shapes', () => {
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgHover })
   })
 
-  it('moves a loggable completed day fill onto the round hit area so the press stays visible', () => {
+  it('layers the day press fill over the whole round hit area without hiding the outcome', () => {
     const label = buildDayCellAccessibleName(loggableFullDay, 'full')
-    const cell = <DayCell {...loggableFullDay} />
 
-    expect(pressedStyle(cell, label)).toMatchObject({ borderRadius: 22, overflow: 'hidden', backgroundColor: tokens.bgHover })
-    withTree(cell, (tree) => {
-      const control = findPressable(tree, label)
-      expect(pressedFill(control, false)).toMatchObject({ backgroundColor: tokens.fg1 })
-      expect(discFill(control)).toBe('transparent')
-      expect(numeralColor(control)).toBe(tokens.bg)
-    })
-  })
-
-  it('flips the completed day numeral onto the press fill so it stays legible', () => {
-    const label = buildDayCellAccessibleName(loggableFullDay, 'full')
     withTree(<DayCell {...loggableFullDay} />, (tree) => {
       const control = findPressable(tree, label)
+      expect(discFill(control)).toBe(tokens.fg1)
       expect(numeralColor(control)).toBe(tokens.bg)
+      expect(control.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
+
       renderer.act(() => control.props.onPressIn?.())
-      expect(numeralColor(findPressable(tree, label))).toBe(tokens.fg1)
+      const pressed = findPressable(tree, label)
+      const fill = pressed.findAllByProps({ testID: 'day-press-fill' })[0]
+      expect(fill).toBeDefined()
+      expect(StyleSheet.flatten(fill!.props.style as StyleProp<ViewStyle>)).toMatchObject({
+        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 22, backgroundColor: tokens.bgHover,
+      })
+      expect(discFill(pressed)).toBe(tokens.fg1)
+
       renderer.act(() => control.props.onPressOut?.())
-      expect(numeralColor(findPressable(tree, label))).toBe(tokens.bg)
+      expect(findPressable(tree, label).findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
     })
   })
 
-  it('keeps a read-only completed day fill on its own disc', () => {
+  it('gives a read-only completed day no press fill', () => {
     withTree(<DayCell {...readOnlyFullDay} />, (tree) => {
       expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+      expect(tree.root.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
       expect(discFill(tree.root)).toBe(tokens.fg1)
     })
   })
