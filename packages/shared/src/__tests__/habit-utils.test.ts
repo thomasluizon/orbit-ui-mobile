@@ -7,7 +7,13 @@ import {
   getHabitEmptyStateKey,
   hasAncestorInSet,
 } from '../utils/habits'
-import type { CalendarMonthResponse } from '../types/habit'
+import type { CalendarDayEntry } from '../types/calendar'
+import type {
+  CalendarMonthResponse,
+  HabitScheduleChild,
+  HabitScheduleItem,
+} from '../types/habit'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
 
 describe('getHabitEmptyStateKey', () => {
   it('returns the general key for general view', () => {
@@ -154,6 +160,141 @@ describe('buildCalendarDayMap', () => {
         isOneTime: true,
       },
     ])
+  })
+
+  describe('descendant logs', () => {
+    const now = new Date('2026-09-29T12:00:00')
+    const loggedDate = '2026-09-28'
+
+    function loggedChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
+      return createMockHabitScheduleChild({
+        id: 'child',
+        title: 'Child',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 3,
+        dueDate: '2026-10-19',
+        scheduledDates: [loggedDate],
+        isLoggedInRange: true,
+        instances: [{ date: loggedDate, status: 'Completed', logId: 'child-log' }],
+        ...overrides,
+      })
+    }
+
+    function exhaustedFlexibleParent(children: HabitScheduleChild[]): HabitScheduleItem {
+      return createMockHabitScheduleItem({
+        id: 'parent',
+        title: 'Flexible parent',
+        frequencyUnit: 'Year',
+        frequencyQuantity: 1,
+        isFlexible: true,
+        dueDate: '2026-01-01',
+        dueTime: '07:30',
+        flexibleTarget: 1,
+        flexibleCompleted: 1,
+        children,
+        hasSubHabits: children.length > 0,
+      })
+    }
+
+    const familyEntry: CalendarDayEntry = {
+      habitId: 'parent',
+      title: 'Flexible parent',
+      status: 'completed',
+      isBadHabit: false,
+      dueTime: '07:30',
+      isOneTime: false,
+    }
+
+    it('shows a child log on a day the parent has no occurrence of its own', () => {
+      const dayMap = buildCalendarDayMap(
+        { habits: [exhaustedFlexibleParent([loggedChild()])], logs: { parent: [] } },
+        now,
+      )
+
+      expect(dayMap.get(loggedDate)).toEqual([familyEntry])
+      expect([...dayMap.keys()]).toEqual([loggedDate])
+    })
+
+    it('shows a grandchild log on its family day', () => {
+      const child = loggedChild({
+        scheduledDates: [],
+        isLoggedInRange: false,
+        instances: [],
+        children: [loggedChild({ id: 'grandchild', title: 'Grandchild' })],
+        hasSubHabits: true,
+      })
+
+      const dayMap = buildCalendarDayMap(
+        { habits: [exhaustedFlexibleParent([child])], logs: { parent: [] } },
+        now,
+      )
+
+      expect(dayMap.get(loggedDate)).toEqual([familyEntry])
+    })
+
+    it('renders one family entry when several descendants log the same day', () => {
+      const dayMap = buildCalendarDayMap(
+        {
+          habits: [
+            exhaustedFlexibleParent([
+              loggedChild(),
+              loggedChild({
+                id: 'second-child',
+                instances: [{ date: loggedDate, status: 'Completed', logId: 'second-log' }],
+              }),
+            ]),
+          ],
+          logs: { parent: [] },
+        },
+        now,
+      )
+
+      expect(dayMap.get(loggedDate)).toEqual([familyEntry])
+    })
+
+    it('keeps the parent occurrence as the only entry when a child logs the same day', () => {
+      const parent = createMockHabitScheduleItem({
+        id: 'parent',
+        title: 'Weekly parent',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        dueDate: loggedDate,
+        scheduledDates: [loggedDate],
+        instances: [{ date: loggedDate, status: 'Overdue', logId: null }],
+        children: [loggedChild()],
+        hasSubHabits: true,
+      })
+
+      const dayMap = buildCalendarDayMap({ habits: [parent], logs: { parent: [] } }, now)
+
+      expect(dayMap.get(loggedDate)).toEqual([
+        {
+          habitId: 'parent',
+          title: 'Weekly parent',
+          status: 'missed',
+          isBadHabit: false,
+          dueTime: null,
+          isOneTime: false,
+        },
+      ])
+    })
+
+    it('adds nothing for a child occurrence without a log', () => {
+      const unloggedChild = loggedChild({
+        dueDate: '2026-09-21',
+        scheduledDates: ['2026-09-21'],
+        isOverdue: true,
+        isLoggedInRange: false,
+        instances: [{ date: '2026-09-21', status: 'Overdue', logId: null }],
+      })
+
+      const dayMap = buildCalendarDayMap(
+        { habits: [exhaustedFlexibleParent([unloggedChild])], logs: { parent: [] } },
+        now,
+      )
+
+      expect(dayMap.size).toBe(0)
+    })
   })
 })
 

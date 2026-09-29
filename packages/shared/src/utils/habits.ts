@@ -1,7 +1,11 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
-import type { CalendarMonthResponse } from '../types/habit'
+import type {
+  CalendarMonthResponse,
+  HabitScheduleChild,
+  HabitScheduleItem,
+} from '../types/habit'
 
 interface HabitScheduleMatchSource {
   dueDate?: string | null
@@ -55,22 +59,55 @@ export function buildCalendarDayMap(
     for (const dateStr of dates) {
       const date = parseAPIDate(dateStr)
       const wasLogged = logsByHabit.get(habit.id)?.has(dateStr) ?? false
-      const status = determineHabitDayStatus(date, wasLogged, now)
+      appendCalendarEntry(map, dateStr, habit, determineHabitDayStatus(date, wasLogged, now))
+    }
 
-      const entries = map.get(dateStr) ?? []
-      entries.push({
-        habitId: habit.id,
-        title: habit.title,
-        status,
-        isBadHabit: habit.isBadHabit,
-        dueTime: habit.dueTime ?? null,
-        isOneTime: !habit.frequencyUnit,
-      })
-      map.set(dateStr, entries)
+    const ownDates = new Set(dates)
+    for (const dateStr of collectDescendantLogDates(habit.children)) {
+      if (!ownDates.has(dateStr)) appendCalendarEntry(map, dateStr, habit, 'completed')
     }
   }
 
   return map
+}
+
+function appendCalendarEntry(
+  map: Map<string, CalendarDayEntry[]>,
+  dateStr: string,
+  habit: HabitScheduleItem,
+  status: HabitDayStatus,
+): void {
+  const entries = map.get(dateStr) ?? []
+  entries.push({
+    habitId: habit.id,
+    title: habit.title,
+    status,
+    isBadHabit: habit.isBadHabit,
+    dueTime: habit.dueTime ?? null,
+    isOneTime: !habit.frequencyUnit,
+  })
+  map.set(dateStr, entries)
+}
+
+/**
+ * The month response lists only top-level habits in `logs`; a sub-habit's log
+ * reaches the client as an instance carrying its `logId`.
+ */
+function collectDescendantLogDates(children: HabitScheduleChild[]): Set<string> {
+  const dates = new Set<string>()
+  const stack = [...children]
+
+  while (stack.length > 0) {
+    const child = stack.pop()
+    if (!child) continue
+
+    for (const instance of child.instances) {
+      if (instance.logId !== null) dates.add(instance.date)
+    }
+    stack.push(...child.children)
+  }
+
+  return dates
 }
 
 export function hasHabitScheduleOnDate(
