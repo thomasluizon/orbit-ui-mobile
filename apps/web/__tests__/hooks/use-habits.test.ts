@@ -7,7 +7,7 @@ import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, u
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
-import { buildCalendarDayMap, formatAPIDate, getReturningInterval, hasHabitScheduleOnDate } from '@orbit/shared/utils'
+import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -422,6 +422,35 @@ describe('useLogHabit', () => {
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+  })
+
+  it('does not celebrate a logged habit while a recurring skip is pending', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit, skipHabit } = await import('@/lib/actions/habits')
+    let resolveSkip!: () => void
+    vi.mocked(skipHabit).mockImplementation(() => new Promise<void>((resolve) => { resolveSkip = resolve }))
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, [
+      makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeScheduleItem({ id: 'logged', dueDate: today, scheduledDates: [today] }),
+    ])
+    const { result } = renderHook(() => ({ skip: useSkipHabit(), log: useLogHabit() }),
+      { wrapper: createWrapper(queryClient) })
+
+    act(() => { result.current.skip.mutate({ habitId: 'skipped' }) })
+    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([]))
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'logged', intent: 'log' }) })
+
+    const normalized = normalizeHabits(queryClient.getQueryData<HabitScheduleItem[]>(key)!)
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today))
+      .toEqual({ allDone: false, count: 1 })
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    await act(async () => { resolveSkip() })
   })
 
   it('celebrates once after deleting a due habit before logging the last one', async () => {

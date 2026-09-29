@@ -567,6 +567,32 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.getQueryData(countKey)).toBe(2)
   })
 
+  it('does not celebrate a logged habit while a recurring skip is pending', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeHabit({ id: 'logged', dueDate: today, scheduledDates: [today] }),
+    ] }]
+
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, unknown>
+    await skip.onMutate?.({ habitId: 'skipped' })
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const variables = { habitId: 'logged', intent: 'log' as const }
+    const context = await log.onMutate?.(variables)
+    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+
+    const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today))
+      .toEqual({ allDone: false, count: 1 })
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    mocks.useRealUIStore = false
+  })
+
   it('keeps a newly duplicated due habit in the complete list until its log', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
