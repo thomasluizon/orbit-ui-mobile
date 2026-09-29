@@ -21,6 +21,8 @@ export interface ListRowBase {
   onClick?: () => void
   disabled?: boolean
   inset?: boolean
+  compact?: boolean
+  inForm?: boolean
 }
 
 export type ListRowMode =

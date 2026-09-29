@@ -796,6 +796,7 @@
       "checklist": "Checklist",
       "checklistPlaceholder": "Item",
       "templates": "Templates",
+      "useTemplate": "Use template",
       "noTemplates": "No saved templates",
       "noTemplatesDescription": "Save a list to reuse it on another habit.",
       "saveCurrentList": "Save list",

@@ -796,6 +796,7 @@
       "checklist": "Checklist",
       "checklistPlaceholder": "Item",
       "templates": "Modelos",
+      "useTemplate": "Usar modelo",
       "noTemplates": "Nenhum modelo salvo",
       "noTemplatesDescription": "Salve uma lista para reusar em outro hábito.",
       "saveCurrentList": "Salvar lista",
