@@ -15,6 +15,7 @@ import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 
 export default function WrappedPage() {
   return (
@@ -84,6 +85,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
+      {!playerOpen ? <UpdateAvailableBanner /> : null}
       {!isPlaying ? (
         <div className="absolute left-4 top-2 z-[1]">
           <Button
@@ -112,7 +114,12 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           period={period}
           closedMonth={closedMonth}
           onClose={() => setIsPlaying(false)}
-          notice={<AppToastHost />}
+          notice={(
+            <>
+              <UpdateAvailableBanner />
+              <AppToastHost />
+            </>
+          )}
         />
       )}
       {!playerOpen ? <AppToastHost placement="page" /> : null}

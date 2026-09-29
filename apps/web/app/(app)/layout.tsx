@@ -342,7 +342,17 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             onSend={chat.composerProps.onSend}
           />
         }
-        conversation={<AstraConversation chat={chat} notice={toastInConversation ? <AppToastHost /> : undefined} />}
+        conversation={(
+          <AstraConversation
+            chat={chat}
+            notice={(
+              <>
+                <UpdateAvailableBanner />
+                {toastInConversation ? <AppToastHost /> : null}
+              </>
+            )}
+          />
+        )}
         conversationOpen={astraConversationOpen}
         conversationLabel={t('todayAstra.openConversation')}
         notice={(

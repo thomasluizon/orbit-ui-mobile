@@ -54,6 +54,7 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-player', () => ({
 
 import WrappedPage from '@/app/(app)/wrapped/page'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 describe('WrappedPage', () => {
   beforeEach(() => {
@@ -63,6 +64,18 @@ describe('WrappedPage', () => {
     mocks.useWrapped.mockClear()
     mocks.wrapped = { recap: { id: 'recap-1' }, slides: [], isEmpty: false, isLoading: false, isError: false }
     useAppToastStore.setState({ currentToast: null, queue: [] })
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+  })
+
+  it('keeps the reload guidance on the cover and inside the player', () => {
+    useVersionGateStore.getState().requireReload('appUpdated')
+    render(<WrappedPage />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
   })
 
   it('starts on the week period with the ready cover', () => {

@@ -141,6 +141,19 @@ describe('Today create during first load', () => {
     expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
   })
 
+  it('keeps reload guidance reachable while the Astra conversation is open', () => {
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+
+    const banners = screen.getAllByRole('status')
+      .filter((node) => node.hasAttribute('data-update-banner'))
+    expect(banners).toHaveLength(1)
+    expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
+    expect(banners[0]?.closest('[inert]')).toBeNull()
+  })
+
   it('waits to show the calendar import prompt until creation closes', async () => {
     state.profile = {
       hasProAccess: true,
