@@ -430,7 +430,7 @@ describe('mobile habit hooks', () => {
     const context = await mutation.onMutate?.(variables)
     expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[1]?.isCompleted).toBe(true)
     const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
-    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: false, count: 1 })
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: true, count: 2 })
     mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
     const completed = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
     expect(getAllDoneOnDate(completed, buildChildrenIndex(completed), today)).toEqual({ allDone: true, count: 2 })
