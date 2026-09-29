@@ -191,16 +191,24 @@ function patchHabitTime(
   }
 }
 
+function dragCursor(draggable: boolean, isDragging: boolean): React.CSSProperties['cursor'] {
+  if (!draggable) return 'default'
+  return isDragging ? 'grabbing' : 'grab'
+}
+
 interface AgendaEventBlockProps {
   block: PlacedBlock
   displayTime: (time: string) => string
+  /** False for a sub-habit row: the time reschedule rebuilds a top-level habit only. */
+  draggable: boolean
 }
 
-function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps>) {
+function AgendaEventBlock({ block, displayTime, draggable }: Readonly<AgendaEventBlockProps>) {
   const { entry } = block
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: entry.habitId,
     data: { minutes: block.startMinutes },
+    disabled: !draggable,
   })
   const [isHovered, setIsHovered] = useState(false)
   const accent = entryAccent(entry)
@@ -228,7 +236,7 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
     zIndex: isDragging ? 5 : 1,
     opacity: isDragging ? 0.9 : 1,
     touchAction: 'none',
-    cursor: isDragging ? 'grabbing' : 'grab',
+    cursor: dragCursor(draggable, isDragging),
     padding: '6px 8px',
     borderRadius: 8,
     overflow: 'hidden',
@@ -599,6 +607,7 @@ export function CalendarAgendaView({
                     key={block.entry.habitId}
                     block={block}
                     displayTime={displayTime}
+                    draggable={habitsById.has(block.entry.habitId)}
                   />
                 ))}
 

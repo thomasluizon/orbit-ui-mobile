@@ -57,7 +57,11 @@ describe('habit utils', () => {
   })
 
   it('builds calendar day entries from scheduled dates when instances are empty', () => {
-    const map = buildCalendarDayMap(calendarMonth, new Date('2026-04-02T12:00:00Z'))
+    const map = buildCalendarDayMap(
+      calendarMonth,
+      { from: '2026-04-01', to: '2026-04-30' },
+      new Date('2026-04-02T12:00:00Z'),
+    )
 
     expect(map.get('2026-04-01')).toEqual([
       {

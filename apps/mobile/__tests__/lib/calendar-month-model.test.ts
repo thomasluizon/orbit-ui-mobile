@@ -98,13 +98,17 @@ describe("buildCalendarMonthModel with sub-habit logs (mobile)", () => {
     }
   }
 
-  it("counts each sub-habit log day once per family", () => {
-    const dayMap = buildCalendarDayMap(subHabitLogMonth(), new Date(2026, 8, 29, 12))
+  it("counts each logged occurrence once", () => {
+    const dayMap = buildCalendarDayMap(
+      subHabitLogMonth(),
+      { from: "2026-09-01", to: "2026-09-30" },
+      new Date(2026, 8, 29, 12),
+    )
     const { gridDays, monthStats } = buildCalendarMonthModel(september, dayMap, 1)
     const loggedDay = gridDays.find((gridDay) => gridDay.dateStr === loggedDate)
 
     expect(loggedDay?.entries.map((dayEntry) => dayEntry.habitId)).toEqual([
-      "flexible-parent",
+      "flexible-child",
       "weekly-parent",
     ])
     expect(loggedDay?.completedCount).toBe(2)

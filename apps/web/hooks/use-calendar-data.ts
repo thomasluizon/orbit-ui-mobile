@@ -40,8 +40,8 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
 
   const dayMap = useMemo<Map<string, CalendarDayEntry[]>>(() => {
     if (!query.data) return new Map()
-    return buildCalendarDayMap(query.data)
-  }, [query.data])
+    return buildCalendarDayMap(query.data, { from: rangeStart, to: rangeEnd })
+  }, [query.data, rangeStart, rangeEnd])
 
   return {
     dayMap,
@@ -86,12 +86,13 @@ export function useCalendarRangeChunked(rangeStart: Date, rangeEnd: Date, enable
       queryFn: () => fetchCalendarMonth(chunk.from, chunk.to),
       staleTime: QUERY_STALE_TIMES.habits,
       enabled,
+      select: (data: CalendarMonthResponse) => buildCalendarDayMap(data, chunk),
     })),
     combine: (results) => {
       const dayMap = new Map<string, CalendarDayEntry[]>()
       for (const result of results) {
         if (!result.data) continue
-        for (const [day, entries] of buildCalendarDayMap(result.data)) {
+        for (const [day, entries] of result.data) {
           dayMap.set(day, entries)
         }
       }

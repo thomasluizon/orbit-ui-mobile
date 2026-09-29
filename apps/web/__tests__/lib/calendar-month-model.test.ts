@@ -98,12 +98,16 @@ describe('buildCalendarMonthModel with sub-habit logs (web)', () => {
     }
   }
 
-  it('counts each sub-habit log day once per family', () => {
-    const dayMap = buildCalendarDayMap(subHabitLogMonth(), new Date(2026, 8, 29, 12))
+  it('counts each logged occurrence once', () => {
+    const dayMap = buildCalendarDayMap(
+      subHabitLogMonth(),
+      { from: '2026-09-01', to: '2026-09-30' },
+      new Date(2026, 8, 29, 12),
+    )
     const { monthStats } = buildCalendarMonthModel(september, dayMap)
 
     expect(dayMap.get(loggedDate)?.map((dayEntry) => dayEntry.habitId)).toEqual([
-      'flexible-parent',
+      'flexible-child',
       'weekly-parent',
     ])
     expect(monthStats).toEqual({ bestStreak: 1, totalLogs: 2, missed: 0, hasEntries: true })

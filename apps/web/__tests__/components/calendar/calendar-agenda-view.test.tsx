@@ -8,6 +8,7 @@ import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import type { AgendaEntry } from '@/components/calendar/use-agenda-day'
 
 let capturedOnDragEnd: ((event: DragEndEvent) => void) | undefined
+const draggableCalls: Array<{ id: string; disabled?: boolean }> = []
 const updateMutate = vi.fn()
 const showSuccess = vi.fn()
 const showError = vi.fn()
@@ -57,13 +58,16 @@ vi.mock('@dnd-kit/core', () => ({
   KeyboardSensor: vi.fn(),
   useSensor: () => ({}),
   useSensors: () => [],
-  useDraggable: () => ({
-    attributes: {},
-    listeners: {},
-    setNodeRef: vi.fn(),
-    transform: null,
-    isDragging: false,
-  }),
+  useDraggable: (args: { id: string; disabled?: boolean }) => {
+    draggableCalls.push(args)
+    return {
+      attributes: {},
+      listeners: {},
+      setNodeRef: vi.fn(),
+      transform: null,
+      isDragging: false,
+    }
+  },
 }))
 
 vi.mock('@dnd-kit/utilities', () => ({
@@ -149,6 +153,7 @@ describe('CalendarAgendaView', () => {
     capturedOnDragEnd = undefined
     agendaData.entries = []
     agendaData.habitsById = new Map()
+    draggableCalls.length = 0
     updateMutate.mockImplementation(
       (_vars: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.(),
     )
@@ -163,6 +168,24 @@ describe('CalendarAgendaView', () => {
     const block = screen.getByTestId('agenda-event')
     expect(block).toHaveAttribute('data-habit-id', 'h1')
     expect(block).toHaveTextContent('Workout')
+  })
+
+  it('keeps a sub-habit block in place because only a top-level habit can be rescheduled', () => {
+    agendaData.entries = [
+      makeEntry({ habitId: 'h1', title: 'Workout', dueTime: '07:00' }),
+      makeEntry({ habitId: 'child-1', title: 'Stretch', dueTime: '18:00', status: 'completed' }),
+    ]
+    agendaData.habitsById = new Map([['h1', makeHabit()]])
+
+    renderAgenda()
+
+    const lastCallFor = (habitId: string) =>
+      draggableCalls.filter((call) => call.id === habitId).at(-1)
+    expect(lastCallFor('h1')?.disabled).toBe(false)
+    expect(lastCallFor('child-1')?.disabled).toBe(true)
+    const [workoutBlock, stretchBlock] = screen.getAllByTestId('agenda-event')
+    expect(workoutBlock!.style.cursor).toBe('grab')
+    expect(stretchBlock!.style.cursor).toBe('default')
   })
 
   it('keeps an untimed habit in the all-day band, not the timeline', () => {
