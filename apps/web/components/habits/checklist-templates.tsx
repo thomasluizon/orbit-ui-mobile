@@ -75,14 +75,16 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
 
   return (
     <>
-      <ListRow
-        icon="template"
-        title={t('habits.form.templates')}
-        value={templates.length > 0 ? String(templates.length) : undefined}
-        compact
-        inForm
-        onClick={() => setOpen(true)}
-      />
+      <div className="pt-2">
+        <ListRow
+          icon="template"
+          title={t('habits.form.templates')}
+          value={templates.length > 0 ? String(templates.length) : undefined}
+          compact
+          inForm
+          onClick={() => setOpen(true)}
+        />
+      </div>
       {open ? (
         <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <div className="flex flex-col" style={{ gap: 4 }}>

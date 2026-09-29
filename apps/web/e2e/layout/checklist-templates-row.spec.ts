@@ -15,6 +15,7 @@ for (const width of [412, 1280] as const) {
 
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
+      const inputBlock = input.locator('xpath=..')
       const button = disclosure.getByRole('button', { name: messages.habits.form.templates })
       const row = button.locator('xpath=..')
       await expect(input).toBeVisible()
@@ -22,12 +23,14 @@ for (const width of [412, 1280] as const) {
       await button.hover()
 
       const inputBox = await input.boundingBox()
+      const inputBlockBox = await inputBlock.boundingBox()
       const rowBox = await row.boundingBox()
       expect(inputBox).not.toBeNull()
+      expect(inputBlockBox).not.toBeNull()
       expect(rowBox).not.toBeNull()
-      if (!inputBox || !rowBox) return
-      expect(rowBox.x).toBeGreaterThan(inputBox.x)
-      expect(rowBox.x + rowBox.width).toBeLessThan(inputBox.x + inputBox.width)
+      if (!inputBox || !inputBlockBox || !rowBox) return
+      expect(rowBox.x).toBeGreaterThan(inputBlockBox.x)
+      expect(rowBox.x + rowBox.width).toBeLessThan(inputBlockBox.x + inputBlockBox.width)
       expect(rowBox.y - (inputBox.y + inputBox.height)).toBeGreaterThanOrEqual(8)
       expect(rowBox.height).toBe(52)
       await expect(row).toHaveCSS('border-radius', '12px')

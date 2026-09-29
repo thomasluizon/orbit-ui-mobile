@@ -101,7 +101,7 @@
 }
 
 .orbit-list-row-form {
-  margin: 8px;
+  margin-inline: 8px;
   border-radius: 12px;
   overflow: hidden;
 }

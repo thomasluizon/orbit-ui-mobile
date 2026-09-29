@@ -21,6 +21,10 @@ function getBodyStyle(compact: boolean, hasAction: boolean) {
   return [styles.body, compact ? styles.compactBody : null, hasAction ? styles.bodyWithAction : null]
 }
 
+function getFormPressedStyle(inForm: boolean, pressed: boolean, backgroundColor: string) {
+  return inForm && pressed ? { backgroundColor } : null
+}
+
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
   return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
@@ -55,7 +59,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled)]}>{body}</Pressable>
+        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled), getFormPressedStyle(inForm, bodyPressed, tokens.bgHover)]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
@@ -72,7 +76,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
 
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
-  formRow: { marginHorizontal: 8, marginVertical: 8, borderRadius: 12, overflow: 'hidden' },
+  formRow: { marginHorizontal: 8, borderRadius: 12, overflow: 'hidden' },
   body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' },
   compactBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 12 },
   bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },

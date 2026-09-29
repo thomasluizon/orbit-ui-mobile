@@ -62,6 +62,7 @@ describe('list primitives on mobile', () => {
     const body = tree.root.findByType(Pressable)
     expect(StyleSheet.flatten(body.props.style)).toMatchObject({ minHeight: 52, paddingHorizontal: 12 })
     void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(body.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover })
     expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ borderRadius: 12 })
   })
 
