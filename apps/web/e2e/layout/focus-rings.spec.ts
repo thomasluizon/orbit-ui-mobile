@@ -40,6 +40,39 @@ async function expectOneRing(page: Page, surface: string, stop: number) {
   expect(state.indicators, `${surface} Tab stop ${stop}: ${state.focused} drew ${state.indicators.join(', ')}`).toHaveLength(1)
 }
 
+async function expectOneFieldIndicator(page: Page, targetSelector: string, rootSelector: string, surface: string) {
+  const target = page.locator(targetSelector).first()
+  await expect(target).toBeVisible()
+  await target.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(target).toBeFocused()
+  const indicators = await target.evaluate((field, selector) => {
+    const root = field.closest(selector)
+    if (!root) throw new Error(`Missing field root: ${selector}`)
+    const perimeter: Element[] = []
+    let current: Element | null = field
+    while (current) {
+      perimeter.push(current)
+      if (current === root) break
+      current = current.parentElement
+    }
+    const activeCell = root.querySelector('[data-otp-cell][data-active]')
+    if (activeCell) perimeter.push(activeCell)
+    return perimeter.flatMap((element) => {
+      const style = getComputedStyle(element)
+      const label = element.tagName.toLowerCase()
+      const visible: string[] = []
+      if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) visible.push(`${label}:outline`)
+      const shadows = style.boxShadow.match(/\binset\b/g)
+      for (let index = 0; index < (shadows?.length ?? 0); index += 1) visible.push(`${label}:shadow`)
+      if (style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0) visible.push(`${label}:border`)
+      return visible
+    })
+  }, rootSelector)
+  expect(indicators, `${surface} drew ${indicators.join(', ')}`).toHaveLength(1)
+}
+
 async function inspectTabStops(page: Page, surface: string) {
   let focusedStops = 0
   for (let stop = 1; stop <= 45; stop += 1) {
@@ -84,6 +117,9 @@ for (const width of [412, 1280] as const) {
         await page.keyboard.press('Tab')
         await expect(target).toBeFocused()
         await expectOneRing(page, `${surface} route control ${width}px`, 0)
+        if (surface === 'Hoje') await expectOneFieldIndicator(page, targetSelector, '[data-composer-input-row]', `composer ${width}px`)
+        if (surface === 'Busca') await expectOneFieldIndicator(page, targetSelector, '[cmdk-input]', `search ${width}px`)
+        if (surface === 'Suporte') await expectOneFieldIndicator(page, targetSelector, '[data-input-root]', `support message ${width}px`)
       })
     }
 
@@ -103,6 +139,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(field).toBeFocused()
       await expectOneRing(page, `palette field ${width}px`, 0)
+      await expectOneFieldIndicator(page, '[cmdk-input]', '[cmdk-input]', `palette search ${width}px`)
       await inspectTabStops(page, `palette ${width}px`)
     })
 
@@ -117,6 +154,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(phrase).toBeFocused()
       await expectOneRing(page, `create phrase ${width}px`, 0)
+      await expectOneFieldIndicator(page, '#habit-phrase', '[data-habit-phrase-field]', `create phrase ${width}px`)
       await inspectTabStops(page, `create form ${width}px`)
       await phrase.fill('Caminhar toda segunda')
       await inspectTabStops(page, `create form with phrase ${width}px`)
@@ -130,6 +168,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(time).toBeFocused()
       await expectOneRing(page, `create exact time ${width}px`, 0)
+      await expectOneFieldIndicator(page, 'input[data-hour-cycle]', 'input[data-hour-cycle]', `create time ${width}px`)
       await inspectTabStops(page, `create expanded form ${width}px`)
     })
 
@@ -168,6 +207,17 @@ for (const width of [412, 1280] as const) {
       await page.goto('/login')
       await expect(page.getByRole('textbox').first()).toBeVisible()
       await inspectTabStops(page, `Entrar ${width}px`)
+      await expectOneFieldIndicator(page, 'input[name="email"]', '[data-input-root]', `sign-in email ${width}px`)
+    })
+
+    test('code entry has one ring on its active box', async ({ page }) => {
+      await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
+      await page.goto('/login')
+      await page.locator('input[name="email"]').fill('focus@example.com')
+      await page.getByRole('button', { name: messages.auth.sendCode }).click()
+      const code = page.locator('input[name="verificationCode"]')
+      await expect(code).toBeVisible()
+      await expectOneFieldIndicator(page, 'input[name="verificationCode"]', 'form', `sign-in code ${width}px`)
     })
   })
 }

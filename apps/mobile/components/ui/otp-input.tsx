@@ -72,9 +72,6 @@ export function OtpInput({
                     ? tokens.primary
                     : tokens.borderControl,
                 borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
-                outlineWidth: focused && !disabled && index === activeIndex ? 2 : 0,
-                outlineOffset: 2,
-                outlineColor: tokens.primary,
               },
             ]}
           >

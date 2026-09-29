@@ -81,6 +81,20 @@ async function pressDone(tree: any) {
 }
 
 describe('TimeField', () => {
+  it('keeps one ring on the focused time entry', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TimeField value="" onChange={vi.fn()} label="Time" />)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+    const row = tree.root.findAllByType('View').find((node: any) =>
+      Array.isArray(node.props.style) && node.props.style[1]?.borderWidth === 2,
+    )
+    expect(row).toBeDefined()
+    expect(row.props.style[1].outlineWidth ?? 0).toBe(0)
+  })
+
   beforeEach(() => {
     mockUses24HourClock = true
     __resetTestHostConfig()
