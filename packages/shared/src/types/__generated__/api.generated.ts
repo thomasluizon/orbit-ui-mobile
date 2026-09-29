@@ -317,6 +317,32 @@ export const PostApiAuthOperationsGoogleBody = zod.object({
 export const PostApiAuthOperationsGoogleResponse = zod.unknown()
 
 
+export const postApiAuthGoogleCodeBodyLanguageDefault = `en`;
+
+export const PostApiAuthGoogleCodeBody = zod.object({
+  "code": zod.string(),
+  "codeVerifier": zod.string(),
+  "redirectUri": zod.string(),
+  "language": zod.string().default(postApiAuthGoogleCodeBodyLanguageDefault),
+  "referralCode": zod.string().nullish()
+})
+
+export const PostApiAuthGoogleCodeResponse = zod.unknown()
+
+
+export const postApiAuthOperationsGoogleCodeBodyLanguageDefault = `en`;
+
+export const PostApiAuthOperationsGoogleCodeBody = zod.object({
+  "code": zod.string(),
+  "codeVerifier": zod.string(),
+  "redirectUri": zod.string(),
+  "language": zod.string().default(postApiAuthOperationsGoogleCodeBodyLanguageDefault),
+  "referralCode": zod.string().nullish()
+})
+
+export const PostApiAuthOperationsGoogleCodeResponse = zod.unknown()
+
+
 export const PostApiAuthRefreshBody = zod.object({
   "refreshToken": zod.string()
 })
@@ -864,6 +890,9 @@ export const DeleteApiChecklistTemplatesIdResponse = zod.void()
 
 
 export const GetApiConfigResponse = zod.unknown()
+
+
+export const PostApiEmailSesEventsResponse = zod.unknown()
 
 
 export const PostApiEventsTicketResponse = zod.object({
@@ -1647,6 +1676,20 @@ export const PostApiMarketingUnsubscribeResponse = zod.unknown()
 export const GetApiNotificationsResponse = zod.unknown()
 
 
+export const getApiNotificationsSubscriptionsResponseMaxRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiNotificationsSubscriptionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.uuid(),
+  "transport": zod.string(),
+  "createdAtUtc": zod.iso.datetime({"offset":true}),
+  "endpointHash": zod.string()
+})),
+  "max": zod.union([zod.int(),zod.stringFormat('int32', getApiNotificationsSubscriptionsResponseMaxRegExpTwo)])
+})
+
+
 export const PutApiNotificationsIdReadParams = zod.object({
   "id": zod.uuid()
 })
@@ -2196,6 +2239,14 @@ export const PostApiUploadsSignBody = zod.object({
 })
 
 export const PostApiUploadsSignResponse = zod.unknown()
+
+
+export const GetApiUploadsObjectUserIdFileNameParams = zod.object({
+  "userId": zod.string(),
+  "fileName": zod.string()
+})
+
+export const GetApiUploadsObjectUserIdFileNameResponse = zod.void()
 
 
 export const GetApiUserFactsResponse = zod.unknown()
