@@ -60,7 +60,7 @@ describe('mobile calendar events reconciliation', () => {
     let rejectEvents!: (error: unknown) => void
     let resolveAutoSyncState!: () => void
     mocks.apiClient.mockImplementation((path: string) => {
-      if (path === API.calendar.events) {
+      if (path === `${API.calendar.events}?includeImported=true`) {
         return new Promise((_resolve, reject) => {
           rejectEvents = reject
         })
