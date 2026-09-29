@@ -122,6 +122,16 @@ describe('EditNameSheet', () => {
     expect(findByTestId(tree, 'edit-name-input').props.value).toBe('Alex')
   })
 
+  it('pins Save in the sheet footer, never in the scrolling body', async () => {
+    const { tree } = await renderSheet()
+    const slotButtons = (slot: string) => (tree.root.findAll((node) => node.type === slot)[0] as TestTreeRoot)
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+      .map((node) => flattenText(node.props.children))
+
+    expect(slotButtons('SheetActions')).toEqual(['common.save'])
+    expect(slotButtons('SheetBody')).toEqual([])
+  })
+
   it('shows the required error and skips the mutation for a whitespace-only name', async () => {
     const { tree } = await renderSheet()
 

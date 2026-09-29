@@ -165,6 +165,19 @@ describe('FreshStartModal', () => {
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
   })
 
+  it('pins both steps\' actions in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    const slotButtons = (slot: string) => tree.root.findAll((node) => node.type === slot)[0]!
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+      .map((node) => node.props.testID)
+
+    expect(slotButtons('SheetActions')).toEqual(['button-caution-md', 'button-ghost-md'])
+    expect(slotButtons('SheetBody')).toEqual([])
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(slotButtons('SheetActions')).toEqual(['button-caution-md', 'button-ghost-md'])
+    expect(slotButtons('SheetBody')).toEqual([])
+  })
+
   it('names the deletion review and gives both actions one width in each step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     const width = (label: string) => {

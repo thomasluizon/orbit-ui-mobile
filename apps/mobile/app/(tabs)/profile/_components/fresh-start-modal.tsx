@@ -169,6 +169,39 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
+        actions={resetStep === 'info' ? (
+          <DialogActionPair>
+            <PillButton
+              variant="caution"
+              matchedWidth
+              accessibleName={t('profile.freshStart.reviewDeletion')}
+              onClick={() => setResetStep('confirm')}
+            >
+              {t('profile.freshStart.reviewDeletion')}
+            </PillButton>
+            <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
+              {t('common.cancel')}
+            </PillButton>
+          </DialogActionPair>
+        ) : (
+          <DialogActionPair>
+            <PillButton
+              variant="caution"
+              matchedWidth
+              accessibleName={confirmButtonLabel}
+              disabled={!isResetConfirmed || resetLoading}
+              loading={resetLoading}
+              onClick={() => {
+                void handleResetAccount()
+              }}
+            >
+              {confirmButtonLabel}
+            </PillButton>
+            <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
+              {t('common.cancel')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
         {resetStep === 'info' ? (
           <View style={styles.body}>
@@ -230,22 +263,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 ))}
               </View>
             </View>
-
-            <View style={styles.actionInset}>
-              <DialogActionPair>
-                <PillButton
-                  variant="caution"
-                  matchedWidth
-                  accessibleName={t('profile.freshStart.reviewDeletion')}
-                  onClick={() => setResetStep('confirm')}
-                >
-                  {t('profile.freshStart.reviewDeletion')}
-                </PillButton>
-                <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-                  {t('common.cancel')}
-                </PillButton>
-              </DialogActionPair>
-            </View>
           </View>
         ) : (
           <View style={styles.body}>
@@ -282,25 +299,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 {resetError}
               </Text>
             ) : null}
-            <View style={styles.actionInset}>
-              <DialogActionPair>
-                <PillButton
-                  variant="caution"
-                  matchedWidth
-                  accessibleName={confirmButtonLabel}
-                  disabled={!isResetConfirmed || resetLoading}
-                  loading={resetLoading}
-                  onClick={() => {
-                    void handleResetAccount()
-                  }}
-                >
-                  {confirmButtonLabel}
-                </PillButton>
-                <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
-                  {t('common.cancel')}
-                </PillButton>
-              </DialogActionPair>
-            </View>
           </View>
         )}
       </Sheet>) : null}
@@ -319,7 +317,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  actionInset: { paddingTop: 8 },
 
   listRow: {
     flexDirection: 'row',

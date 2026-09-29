@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('next-intl', () => ({
@@ -52,6 +52,12 @@ beforeEach(() => {
   useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
 })
 
+function slotButtons(slot: 'sheet-body' | 'sheet-actions') {
+  const container = document.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
+  if (!container) throw new Error(`Expected the ${slot} slot`)
+  return within(container).queryAllByRole('button').map((button) => button.textContent)
+}
+
 describe('EditNameSheet', () => {
   beforeEach(() => {
     mockUpdateName.mockReset()
@@ -64,6 +70,12 @@ describe('EditNameSheet', () => {
     renderSheet()
 
     expect(screen.getByDisplayValue('Alex')).toBeInTheDocument()
+  })
+
+  it('pins Save in the sheet footer, never in the scrolling body', () => {
+    renderSheet()
+    expect(slotButtons('sheet-actions')).toEqual(['common.save'])
+    expect(slotButtons('sheet-body')).toEqual([])
   })
 
   it('shows the required error and skips the action for a whitespace-only name', () => {

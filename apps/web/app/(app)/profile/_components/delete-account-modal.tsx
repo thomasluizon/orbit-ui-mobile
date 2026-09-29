@@ -94,6 +94,22 @@ export function DeleteAccountModal({
       open
       onClose={() => handleOpenChange(false)}
       title={t('profile.deleteAccount.headingAreYouSure')}
+      actions={(
+        <DialogActionPair>
+          <PillButton
+            variant="destructive"
+            matchedWidth
+            disabled={loading || accountId === null}
+            loading={loading}
+            onClick={() => void handleRequestDeletion()}
+          >
+            {t('profile.deleteAccount.sendCode')}
+          </PillButton>
+          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+        </DialogActionPair>
+      )}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
         <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
@@ -125,22 +141,6 @@ export function DeleteAccountModal({
             {error}
           </p>
         ) : null}
-        <div style={{ paddingTop: 8 }}>
-          <DialogActionPair>
-            <PillButton
-              variant="destructive"
-              matchedWidth
-              disabled={loading || accountId === null}
-              loading={loading}
-              onClick={() => void handleRequestDeletion()}
-            >
-              {t('profile.deleteAccount.sendCode')}
-            </PillButton>
-            <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
-          </DialogActionPair>
-        </div>
       </div>
     </Sheet>
   )

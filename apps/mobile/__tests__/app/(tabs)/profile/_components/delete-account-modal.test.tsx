@@ -116,6 +116,21 @@ describe('DeleteAccountModal', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['online', true, ['button-destructive-md', 'button-ghost-md']],
+    ['offline', false, []],
+  ] as const)('pins the %s actions in the sheet footer, never in the scrolling body', async (_state, isOnline, footer) => {
+    mocks.isOnline.current = isOnline
+    const tree = await renderModal()
+    const slotButtons = (slot: string) => tree.root.findAll((node: { type: unknown }) => node.type === slot)[0]!
+      .findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+      .map((node: { props: Record<string, unknown> }) => node.props.testID)
+
+    expect(slotButtons('SheetActions')).toEqual(footer)
+    expect(slotButtons('SheetBody')).toEqual([])
+  })
+
   it('cancels before requesting an account deletion code', async () => {
     const tree = await renderModal()
     TestRenderer.act(() => {

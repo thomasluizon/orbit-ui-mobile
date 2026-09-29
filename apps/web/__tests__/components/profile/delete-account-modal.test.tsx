@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -83,6 +83,12 @@ const profile = {
   googleCalendarLastSyncedAt: null,
 }
 
+function slotButtons(slot: 'sheet-body' | 'sheet-actions') {
+  const container = document.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
+  if (!container) throw new Error(`Expected the ${slot} slot`)
+  return within(container).queryAllByRole('button').map((button) => button.textContent)
+}
+
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -107,6 +113,12 @@ describe('DeleteAccountModal', () => {
     expect(screen.getByText(en.profile.deleteAccount.warningDetail)).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('pins Send code and Cancel in the sheet footer, never in the scrolling body', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    expect(slotButtons('sheet-actions')).toEqual(['profile.deleteAccount.sendCode', 'common.cancel'])
+    expect(slotButtons('sheet-body')).toEqual([])
   })
 
   it('cancels before requesting an account deletion code', () => {

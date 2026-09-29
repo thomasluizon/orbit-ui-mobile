@@ -134,14 +134,19 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
-      >
-        {step === 'info' ? (
-          <FreshStartInfoStep
-            deletedItems={deletedItems}
-            preservedItems={preservedItems}
+        actions={(
+          <FreshStartActions
+            step={step}
+            isConfirmed={isConfirmed}
+            loading={loading}
             onCancel={() => closeSheet()}
             onContinue={() => setStep('confirm')}
+            onReset={() => void handleReset()}
           />
+        )}
+      >
+        {step === 'info' ? (
+          <FreshStartInfoStep deletedItems={deletedItems} preservedItems={preservedItems} />
         ) : (
           <FreshStartConfirmStep
             confirmText={confirmText}
@@ -149,7 +154,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
-            onCancel={() => closeSheet()}
             onReset={() => void handleReset()}
           />
         )}
@@ -224,16 +228,54 @@ function ListBlock({
   )
 }
 
+function FreshStartActions({
+  step,
+  isConfirmed,
+  loading,
+  onCancel,
+  onContinue,
+  onReset,
+}: Readonly<{
+  step: 'info' | 'confirm'
+  isConfirmed: boolean
+  loading: boolean
+  onCancel: () => void
+  onContinue: () => void
+  onReset: () => void
+}>) {
+  const t = useTranslations()
+
+  if (step === 'info') {
+    return (
+      <DialogActionPair>
+        <PillButton variant="caution" matchedWidth onClick={onContinue}>
+          {t('profile.freshStart.reviewDeletion')}
+        </PillButton>
+        <PillButton variant="ghost" matchedWidth onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+      </DialogActionPair>
+    )
+  }
+
+  return (
+    <DialogActionPair>
+      <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
+        {t('profile.freshStart.deleteData')}
+      </PillButton>
+      <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
+        {t('common.cancel')}
+      </PillButton>
+    </DialogActionPair>
+  )
+}
+
 function FreshStartInfoStep({
   deletedItems,
   preservedItems,
-  onCancel,
-  onContinue,
 }: Readonly<{
   deletedItems: string[]
   preservedItems: string[]
-  onCancel: () => void
-  onContinue: () => void
 }>) {
   const t = useTranslations()
 
@@ -252,16 +294,6 @@ function FreshStartInfoStep({
           itemIcon="keep"
         />
       </div>
-      <div style={{ paddingTop: 8 }}>
-        <DialogActionPair>
-          <PillButton variant="caution" matchedWidth onClick={onContinue}>
-            {t('profile.freshStart.reviewDeletion')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={onCancel}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
-      </div>
     </div>
   )
 }
@@ -272,7 +304,6 @@ function FreshStartConfirmStep({
   isConfirmed,
   loading,
   error,
-  onCancel,
   onReset,
 }: Readonly<{
   confirmText: string
@@ -280,7 +311,6 @@ function FreshStartConfirmStep({
   isConfirmed: boolean
   loading: boolean
   error: string
-  onCancel: () => void
   onReset: () => void
 }>) {
   const t = useTranslations()
@@ -320,16 +350,6 @@ function FreshStartConfirmStep({
           {error}
         </p>
       )}
-      <div style={{ paddingTop: 8 }}>
-        <DialogActionPair>
-          <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
-            {t('profile.freshStart.deleteData')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
-      </div>
     </div>
   )
 }

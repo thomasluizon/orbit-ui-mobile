@@ -77,6 +77,13 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       open
       onClose={() => onOpenChange(false)}
       title={t('profile.editName.title')}
+      actions={(
+        <div className="flex w-full flex-col sm:mx-auto sm:max-w-[360px]">
+          <PillButton onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </div>
+      )}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
         <Input
@@ -101,19 +108,6 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
             {error}
           </p>
         )}
-        <div
-          className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
-          style={{ gap: 12, paddingTop: 8 }}
-        >
-          <PillButton
-
-            onClick={handleSave}
-            disabled={mutation.isPending}
-            loading={mutation.isPending}
-          >
-            {t('common.save')}
-          </PillButton>
-        </div>
       </div>
     </Sheet>) : null
   )

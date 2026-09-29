@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 
@@ -50,6 +50,12 @@ import {
 } from '@/__tests__/support/account-change'
 
 
+function slotButtons(slot: 'sheet-body' | 'sheet-actions') {
+  const container = document.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
+  if (!container) throw new Error(`Expected the ${slot} slot`)
+  return within(container).queryAllByRole('button').map((button) => button.textContent)
+}
+
 describe('FreshStartModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -67,6 +73,16 @@ describe('FreshStartModal', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
     expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('profile.freshStart.heading')).toBeInTheDocument()
+  })
+
+  it('pins both steps\' actions in the sheet footer, never in the scrolling body', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+    expect(slotButtons('sheet-actions')).toEqual(['profile.freshStart.reviewDeletion', 'common.cancel'])
+    expect(slotButtons('sheet-body')).toEqual([])
+
+    fireEvent.click(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' }))
+    expect(slotButtons('sheet-actions')).toEqual(['profile.freshStart.deleteData', 'common.cancel'])
+    expect(slotButtons('sheet-body')).toEqual([])
   })
 
   it('shows info step by default with description', () => {

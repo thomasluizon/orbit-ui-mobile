@@ -88,6 +88,13 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       open
       onClose={onClose}
       title={t('profile.editName.title')}
+      actions={(
+        <View style={styles.actions}>
+          <PillButton onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </View>
+      )}
     >
       <View style={styles.body}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>
@@ -113,17 +120,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
             {error}
           </Text>
         ) : null}
-        <View style={styles.actions}>
-          <PillButton
-
-            onClick={handleSave}
-            disabled={mutation.isPending}
-            loading={mutation.isPending}
-
-          >
-            {t('common.save')}
-          </PillButton>
-        </View>
       </View>
     </Sheet>) : null
   )
@@ -145,7 +141,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   actions: {
-    gap: 12,
-    paddingTop: 8,
+    width: '100%',
   },
 })
