@@ -65,12 +65,12 @@ export const cases = () => {
     throw new Error("wrapped share alert paragraph is missing")
   }
   const alertParagraph = wrappedSlideSource.slice(paragraphStart, paragraphEnd)
-  if (!alertParagraph.includes("style={{ textAlign: 'center', fontSize: 13 }}")
-    || !alertParagraph.includes("<span style={{ color: 'var(--status-bad-text)' }}>")) {
+  const paragraphStyle = /style=\{\{ ([^}]+) \}\}/.exec(alertParagraph)
+  if (!paragraphStyle || !alertParagraph.includes("<span style={{ color: 'var(--status-bad-text)' }}>")) {
     throw new Error("wrapped share alert paragraph has changed")
   }
   const coloredParagraph = alertParagraph
-    .replace("style={{ textAlign: 'center', fontSize: 13 }}", "style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}")
+    .replace(paragraphStyle[0], `style={{ ${paragraphStyle[1]}, color: 'var(--status-bad-text)' }}`)
     .replace("<span style={{ color: 'var(--status-bad-text)' }}>", "<span>")
   const motionText = stageRepository("motion-text", { web: `export function WrappedShareSlide(){return (${coloredParagraph})}` })
   check("check-surface-scope.mjs", "accepts the wrapped share alert color on its motion paragraph", ["--root", motionText], {
