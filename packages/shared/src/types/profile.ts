@@ -99,6 +99,7 @@ export const profileSchema = z.object({
   lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
   subscriptionEndedAt: z.string().nullable().optional(),
   lastCompletionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  activeApiKeyCount: z.number().int().nonnegative().nullable().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

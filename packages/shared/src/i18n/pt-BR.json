@@ -496,14 +496,13 @@
     },
     "reschedule": {
       "title": "Reagendar com IA",
-      "loading": "Buscando um novo plano realista…",
-      "error": "Não foi possível sugerir um novo plano.",
+      "loading": "Procurando um plano realista.",
+      "error": "Nenhum plano pôde ser sugerido.",
       "retry": "Tentar novamente",
-      "accept": "Usar plano",
+      "accept": "Usar este plano",
       "dismiss": "Agora não",
-      "proposedScheduleLabel": "Agenda sugerida",
-      "freePrompt": "O Pro transforma um hábito perdido em um plano realista para voltar aos trilhos.",
-      "upgrade": "Fazer upgrade"
+      "freePrompt": "Com o Pro, a Astra transforma um hábito atrasado em um plano realista.",
+      "upgrade": "Conhecer o Pro"
     },
     "backToHabits": "Hábitos",
     "completed": "concluídos",
@@ -1240,6 +1239,9 @@
     },
     "habitList": {
       "title": "Hábitos de hoje",
+      "allTitle": "Todos os hábitos",
+      "todayEmpty": "Nenhum hábito para mostrar hoje",
+      "allEmpty": "Nenhum hábito para mostrar",
       "count": "{shown} de {total}",
       "open": "Abrir {name}",
       "log": "Registrar {name}",
@@ -1249,8 +1251,7 @@
       "more": "Mostrar mais",
       "today": "Hoje",
       "overdue": "Atrasado",
-      "general": "Geral",
-      "empty": "Nenhum hábito para mostrar"
+      "general": "Geral"
     },
     "metrics": {
       "title": "Seu progresso",
@@ -1628,6 +1629,8 @@
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Liberar com o Pro",
       "open": "Abrir as chaves",
+      "noKeys": "Nenhuma chave ainda",
+      "activeCount": "{count, plural, one {# chave ativa} other {# chaves ativas}}",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",

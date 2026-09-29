@@ -6,13 +6,30 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { getTodayBoundary } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const localeMock = vi.hoisted(() => ({ rescheduleLabel: null as string | null }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'habits.actions.reschedule' && localeMock.rescheduleLabel ? localeMock.rescheduleLabel : key }))
 
 import { HabitRow } from '@/components/habits/habit-row'
 
 describe('HabitRow overflow menus', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localeMock.rescheduleLabel = null
+  })
+
+  it.each([['en', en.habits.actions.reschedule], ['pt-BR', ptBR.habits.actions.reschedule]])('shows the %s reschedule label on an overdue row', (_locale, label) => {
+    localeMock.rescheduleLabel = label
+    const onReschedule = vi.fn()
+    render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} state="overdue" actions={{ onReschedule }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    const item = screen.getByRole('menuitem', { name: label })
+    expect(label).toBe(_locale === 'en' ? 'Reschedule' : 'Reagendar')
+    fireEvent.click(item)
+    expect(onReschedule).toHaveBeenCalledOnce()
+  })
 
   it('matches the drawn menu for an overdue parent on a free plan', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))

@@ -20,6 +20,7 @@ import {
   getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
+  isHabitDoneForRange,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -1202,7 +1203,7 @@ export function HabitList({
     recentlyCompleted: boolean,
   ): HabitStatus {
     if (habit.isBadHabit) return 'bad'
-    const completed = recentlyCompleted || habit.isCompleted || habit.isLoggedInRange
+    const completed = recentlyCompleted || isHabitDoneForRange(habit)
     if (completed) return 'done'
     const status = computeHabitCardStatus(habit, cardSelectedDate)
     if (status === 'overdue') return 'overdue'

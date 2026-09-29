@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,18 +9,18 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { RescheduleProposal } from './reschedule-proposal'
 
@@ -43,6 +43,8 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const updateHabit = useUpdateHabit()
   const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
+  const { width } = useWindowDimensions()
+  const filledVariant = width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
@@ -87,9 +89,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     : ''
   const dateLabel = suggestion
     ? formatLocaleDate(new Date(`${suggestion.dueDate}T00:00:00`), locale, {
-        month: 'short',
+        weekday: 'short',
         day: 'numeric',
-        year: 'numeric',
+        month: 'short',
       })
     : ''
   const timeLabel = suggestion?.dueTime ? displayTime(suggestion.dueTime) : null
@@ -106,7 +108,8 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <View style={styles.suggestionBlock}>
           <Text style={styles.bodyText}>{t('habits.reschedule.loading')}</Text>
-          <Skeleton variant="settings" label={t('habits.reschedule.loading')} />
+          <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
+          <Skeleton variant="habit-row" grouped />
         </View>
       )
     }
@@ -116,7 +119,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!suggestion) return null
     return (
       <RescheduleProposal
-        proposedLabel={t('habits.reschedule.proposedScheduleLabel')}
+        proposedLabel={t('habits.form.proposedByAstra')}
         dateLabel={dateLabel}
         timeLabel={timeLabel}
         scheduleLabel={scheduleLabel}
@@ -127,12 +130,17 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   }
 
   function renderActions() {
+    if (hasProAccess && isLoading) return null
     if (!hasProAccess) {
       return (
-        <DialogActionPair>
+        <>
+          <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
+            {t('habits.reschedule.dismiss')}
+          </PillButton>
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
           <PillButton
-            matchedWidth
-
+            variant={filledVariant}
+            size="sm"
             onClick={() => {
               closeSheet(() => {
                 onOpenChange(false)
@@ -142,44 +150,37 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-            {t('habits.reschedule.dismiss')}
-          </PillButton>
-        </DialogActionPair>
+        </>
       )
     }
     if (error) {
       return (
-        <DialogActionPair>
-          <PillButton matchedWidth onClick={() => void refetch()}>
-            {t('habits.reschedule.retry')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
+        <>
+          <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-        </DialogActionPair>
+          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
+            {t('habits.reschedule.retry')}
+          </PillButton>
+        </>
       )
     }
     return (
-      <DialogActionPair>
+      <>
+        <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => closeSheet()}>
+          {t('habits.reschedule.dismiss')}
+        </PillButton>
+        {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
         <PillButton
-          matchedWidth
-
-          disabled={!suggestion || updateHabit.isPending}
+          variant={filledVariant}
+          size="sm"
+          disabled={!suggestion}
           loading={updateHabit.isPending}
           onClick={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-        <PillButton
-          variant="ghost"
-          matchedWidth
-          disabled={updateHabit.isPending}
-          onClick={() => closeSheet()}
-        >
-          {t('habits.reschedule.dismiss')}
-        </PillButton>
-      </DialogActionPair>
+      </>
     )
   }
 
@@ -188,121 +189,45 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       ref={sheetRef}
       open
       onClose={() => onOpenChange(false)}
-      title={t('habits.reschedule.title')}
+      accessibleTitle={t('habits.reschedule.title')}
+      actions={renderActions()}
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <AstraGlyph size={20} color={tokens.fg3} />
-          <Text style={styles.eyebrow}>Astra</Text>
-          <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
+          <AstraGlyph size={20} color={tokens.fg1} />
+          <Text style={styles.astraName}>Astra</Text>
+          <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>
         {renderBody()}
       </View>
-      <View style={styles.actionsFooter}>{renderActions()}</View>
     </Sheet>) : null
   )
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: 24,
-      paddingTop: 4,
-      paddingBottom: 12,
-      gap: 12,
+      gap: 16,
+      paddingBottom: 8,
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
     },
-    eyebrow: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      color: tokens.fg2,
-    },
-    aiBadge: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 10,
-      letterSpacing: 0.6,
-      color: tokens.fg3,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 0,
-      overflow: 'hidden',
+    astraName: {
+      fontFamily: 'Geist_500Medium',
+      fontWeight: '500',
+      color: tokens.fg1,
     },
     bodyText: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      lineHeight: 20,
+      lineHeight: 22,
       color: tokens.fg2,
     },
     suggestionBlock: {
       gap: 12,
-    },
-    loadingCard: {
-      borderRadius: 18,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    scheduleCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      borderRadius: 18,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      backgroundColor: tintFromPrimary(tokens, 0.1),
-      borderWidth: 1,
-      borderColor: tintFromPrimary(tokens, 0.28),
-    },
-    scheduleTextWrap: {
-      flex: 1,
-    },
-    scheduleLabel: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-    },
-    scheduleValue: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 16,
-      color: tokens.fg1,
-      marginTop: 4,
-    },
-    scheduleSub: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-      marginTop: 4,
-    },
-    rationale: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
-      color: tokens.fg1,
-    },
-    disclaimer: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
-      color: tokens.fg3,
-    },
-    actionsFooter: {
-      paddingHorizontal: 24,
-      paddingTop: 4,
-      paddingBottom: 32,
     },
   })
 }
