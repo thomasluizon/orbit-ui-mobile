@@ -712,6 +712,12 @@ describe('mobile ProgressContent', () => {
       prompt: 'progressScreen.goals.request',
     })
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    mocks.goals.data.allGoals = [createMockGoal()]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {

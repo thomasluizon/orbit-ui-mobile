@@ -629,7 +629,7 @@ describe('ProgressContent', () => {
 
   it('keeps an unsent Astra draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
-    render(<ProgressContent />)
+    const { rerender } = render(<ProgressContent />)
 
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.createAction' }))
     expect(useChatStore.getState().draft).toBe('Unsent note')
@@ -639,6 +639,9 @@ describe('ProgressContent', () => {
       prompt: 'progressScreen.goals.request',
     })
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    mocks.goals.data.allGoals = [createMockGoal()]
+    rerender(<ProgressContent />)
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {

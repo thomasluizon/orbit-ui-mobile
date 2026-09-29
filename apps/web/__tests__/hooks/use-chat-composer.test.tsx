@@ -1330,6 +1330,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1344,6 +1345,7 @@ describe('web useChatComposer streaming send', () => {
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

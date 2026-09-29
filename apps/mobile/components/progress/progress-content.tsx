@@ -324,6 +324,12 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
 
 function GoalsEmptyState() {
   const { t } = useTranslation()
+  useEffect(() => () => {
+    const chat = useChatStore.getState()
+    if (chat.contextualSuggestion?.id === 'progress-create-goal') {
+      chat.setContextualSuggestion(null)
+    }
+  }, [])
   const askAstraForGoal = () => {
     const chat = useChatStore.getState()
     if (chat.draft) {
