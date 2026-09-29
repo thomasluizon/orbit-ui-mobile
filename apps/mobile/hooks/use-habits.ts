@@ -9,6 +9,7 @@ import {
   gamificationKeys,
   profileKeys,
   checkTodayAllDoneOrDefer,
+  clearCachedOptimisticSkip,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
@@ -511,7 +512,7 @@ export function useSkipHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; skippedDate: string }
   >({
     mutationFn: ({ habitId, date }) =>
       performQueuedApiMutation<void>({
@@ -536,25 +537,28 @@ export function useSkipHabit() {
         return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate))
       })
 
-      return { previousLists }
+      return { previousLists, skippedDate }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, { habitId }, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) queryClient.setQueryData(key, data)
         }
       }
+      if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
     },
 
-    onSettled: (data, error, { habitId }) =>
+    onSettled: (data, error, { habitId }, context) => {
+      if (!error && context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
       finalizeHabitMutation(queryClient, data, error, {
         habitId,
         includeCount: false,
         includeGoals: true,
         includeProfile: true,
         includeGamification: true,
-      }),
+      })
+    },
   })
 }
 

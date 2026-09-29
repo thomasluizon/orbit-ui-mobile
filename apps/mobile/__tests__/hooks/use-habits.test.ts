@@ -593,6 +593,61 @@ describe('mobile habit hooks', () => {
     mocks.useRealUIStore = false
   })
 
+  it.each(['online', 'queued'] as const)('celebrates after a %s settled skip from cached Today lists', async (settlement) => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const completeKey = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    const ordinaryKey = habitKeys.list({ dateFrom: today, dateTo: today })
+    const items = [
+      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] }),
+    ]
+    mocks.state.entries = [{ key: completeKey, value: items }, { key: ordinaryKey, value: items }]
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, HabitSnapshotContext>
+    const skipVariables = { habitId: 'skipped' }
+    const skipContext = await skip.onMutate?.(skipVariables)
+    const result = settlement === 'queued' ? { queued: true, queuedMutationId: 'mutation-1' } : undefined
+    skip.onSettled?.(result, null, skipVariables, skipContext)
+    expect((mocks.queryClient.getQueryData(completeKey) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
+    expect((mocks.queryClient.getQueryData(ordinaryKey) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
+
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const logVariables = { habitId: 'last', intent: 'log' as const }
+    const logContext = await log.onMutate?.(logVariables)
+    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, logVariables, logContext)
+
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    mocks.useRealUIStore = false
+  })
+
+  it('keeps a failed skip open before the final log', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeHabit({ id: 'last', dueDate: today, scheduledDates: [today] }),
+    ] }]
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, HabitSnapshotContext>
+    const skipVariables = { habitId: 'skipped' }
+    const skipContext = await skip.onMutate?.(skipVariables)
+    skip.onError?.(new Error('Skip failed'), skipVariables, skipContext)
+    skip.onSettled?.(undefined, new Error('Skip failed'), skipVariables, skipContext)
+    expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[0]).not.toHaveProperty('__optimisticSkip')
+
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, HabitSnapshotContext>
+    const logVariables = { habitId: 'last', intent: 'log' as const }
+    const logContext = await log.onMutate?.(logVariables)
+    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, logVariables, logContext)
+
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    mocks.useRealUIStore = false
+  })
+
   it('keeps a newly duplicated due habit in the complete list until its log', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
