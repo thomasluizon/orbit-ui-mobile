@@ -55,4 +55,19 @@ describe('WrappedScreen', () => {
     })
     TestRenderer.act(() => tree.unmount())
   })
+
+  it('selects the next notified closed month when only the params change', () => {
+    mocks.params = { wrapped: 'month', year: '2024', month: '2' }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<WrappedScreen />) })
+    TestRenderer.act(() => tree.root.findByType('WrappedCover').props.onSelectPeriod('week'))
+    mocks.params = { wrapped: 'month', year: '2024', month: '3' }
+    TestRenderer.act(() => tree.update(<WrappedScreen />))
+    expect(tree.root.findByType('WrappedCover').props.period).toBe('month')
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2024, month: 3 },
+    })
+    TestRenderer.act(() => tree.unmount())
+  })
 })

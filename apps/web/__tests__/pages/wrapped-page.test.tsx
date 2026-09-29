@@ -75,6 +75,20 @@ describe('WrappedPage', () => {
     })
   })
 
+  it('selects the next notified closed month when only the query changes', () => {
+    mocks.searchParams = new URLSearchParams('wrapped=month&year=2024&month=2')
+    const { rerender } = render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    mocks.searchParams = new URLSearchParams('wrapped=month&year=2024&month=3')
+    rerender(<WrappedPage />)
+    expect(screen.getByTestId('period')).toHaveTextContent('month')
+    expect(screen.queryByTestId('player')).toBeNull()
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2024, month: 3 },
+    })
+  })
+
   it('starts on the week period and enables start once a recap is loaded', () => {
     render(<WrappedPage />)
     expect(screen.getByTestId('period')).toHaveTextContent('week')

@@ -15,6 +15,18 @@ import { WrappedPlayer } from './wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {
+  const params = useLocalSearchParams<{
+    wrapped?: string | string[]
+    year?: string | string[]
+    month?: string | string[]
+  }>()
+  const notifiedMonth = getClosedMonthFromWrappedParams(params)
+  const notifiedMonthKey = notifiedMonth ? `${notifiedMonth.year}-${notifiedMonth.month}` : 'current'
+
+  return <WrappedScreenContent key={notifiedMonthKey} notifiedMonth={notifiedMonth} />
+}
+
+function WrappedScreenContent({ notifiedMonth }: Readonly<{ notifiedMonth: ClosedMonth | null }>) {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -23,16 +35,10 @@ export default function WrappedScreen() {
     [currentScheme, currentTheme],
   )
   const { profile } = useProfile()
-  const params = useLocalSearchParams<{
-    wrapped?: string | string[]
-    year?: string | string[]
-    month?: string | string[]
-  }>()
-  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => {
-    const closedMonth = getClosedMonthFromWrappedParams(params)
-    const period: RecapSharePeriod = closedMonth ? 'month' : 'week'
-    return { period, closedMonth }
-  })
+  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => ({
+    period: notifiedMonth ? 'month' : 'week',
+    closedMonth: notifiedMonth,
+  }))
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {

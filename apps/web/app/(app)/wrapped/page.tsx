@@ -12,19 +12,25 @@ import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
 
 export default function WrappedPage() {
+  const searchParams = useSearchParams()
+  const notifiedMonth = getClosedMonthFromWrappedParams({
+    wrapped: searchParams.get('wrapped'),
+    year: searchParams.get('year'),
+    month: searchParams.get('month'),
+  })
+  const notifiedMonthKey = notifiedMonth ? `${notifiedMonth.year}-${notifiedMonth.month}` : 'current'
+
+  return <WrappedPageContent key={notifiedMonthKey} notifiedMonth={notifiedMonth} />
+}
+
+function WrappedPageContent({ notifiedMonth }: Readonly<{ notifiedMonth: ClosedMonth | null }>) {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
-  const searchParams = useSearchParams()
-  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => {
-    const closedMonth = getClosedMonthFromWrappedParams({
-      wrapped: searchParams.get('wrapped'),
-      year: searchParams.get('year'),
-      month: searchParams.get('month'),
-    })
-    const period: RecapSharePeriod = closedMonth ? 'month' : 'week'
-    return { period, closedMonth }
-  })
+  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => ({
+    period: notifiedMonth ? 'month' : 'week',
+    closedMonth: notifiedMonth,
+  }))
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
