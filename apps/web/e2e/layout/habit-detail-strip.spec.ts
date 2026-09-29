@@ -18,8 +18,14 @@ const metrics = habitMetricsSchema.parse({
   lastCompletedDate: null,
 })
 
-for (const width of [320, 412, 1024, 1352] as const) {
-  test.describe(`habit detail strip at ${width}px`, () => {
+for (const { width, panelOpen } of [
+  { width: 320, panelOpen: false },
+  { width: 412, panelOpen: false },
+  { width: 1024, panelOpen: false },
+  { width: 1024, panelOpen: true },
+  { width: 1352, panelOpen: false },
+] as const) {
+  test.describe(`habit detail strip at ${width}px with Astra panel ${panelOpen ? 'open' : 'closed'}`, () => {
     test.use({ viewport: { width, height: 915 } })
 
     test('shows every day within the strip without horizontal overflow', async ({ page, context }) => {
@@ -31,6 +37,10 @@ for (const width of [320, 412, 1024, 1352] as const) {
       await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))
 
       await page.goto(`/habits/${habitId}`)
+      if (panelOpen) {
+        await page.getByRole('button', { name: ptBr.todayAstra.openConversation }).click()
+        await expect(page.locator('[data-shell-conversation="panel"]')).toBeVisible()
+      }
       const strip = page.getByRole('group', { name: ptBr.habits.detail.lastThirtyDays })
       await expect(strip).toBeVisible()
       await expect(strip.locator('[data-state]')).toHaveCount(30)
@@ -42,6 +52,7 @@ for (const width of [320, 412, 1024, 1352] as const) {
         return {
           clientWidth: element.clientWidth,
           scrollWidth: element.scrollWidth,
+          contentWidth: element.closest('section')?.clientWidth,
           cellWidths: cells.map((cell) => cell.getBoundingClientRect().width),
           clippedCells: cells.filter((cell) => {
             const cellBounds = cell.getBoundingClientRect()
@@ -49,8 +60,9 @@ for (const width of [320, 412, 1024, 1352] as const) {
           }).length,
         }
       })
-      expect(geometry.scrollWidth, `strip overflow at ${width}px`).toBeLessThanOrEqual(geometry.clientWidth)
-      expect(geometry.cellWidths).toEqual(Array(30).fill(width >= 1024 ? 16 : 8))
+      expect(geometry.scrollWidth, `strip overflow at ${width}px, panel ${panelOpen}`).toBeLessThanOrEqual(geometry.clientWidth)
+      expect(geometry.contentWidth).toBeGreaterThan(0)
+      expect(geometry.cellWidths).toEqual(Array(30).fill(geometry.contentWidth! >= 480 ? 16 : 8))
       expect(geometry.clippedCells).toBe(0)
     })
   })

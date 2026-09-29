@@ -968,7 +968,7 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ title: 'habits.detail.slipAlert' })).toBeDefined()
   })
 
-  it('renders the 30-day strip directly at compact and wide cell sizes without horizontal scrolling', () => {
+  it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const strip = tree!.root.findByProps({ testID: 'detail-strip' })
@@ -977,6 +977,11 @@ describe('HabitDetailScreen', () => {
     expect(strip.parent.type).not.toBe('ScrollView')
     __setWindowDimensions({ width: 1024, height: 892, scale: 1, fontScale: 1 })
     TestRenderer.act(() => { tree!.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(8)
+    const section = tree!.root.findByProps({ testID: 'habit-detail-strip-section' })
+    TestRenderer.act(() => { section.props.onLayout({ nativeEvent: { layout: { width: 380 } } }) })
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(8)
+    TestRenderer.act(() => { section.props.onLayout({ nativeEvent: { layout: { width: 740 } } }) })
     expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(16)
   })
 

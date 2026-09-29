@@ -21,7 +21,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
   const labels = props.labels?.slice(firstIndex)
 
   return (
-    <div role="group" aria-label={props.label} data-scope={props.scope} className="flex items-center" style={{ width: '100%', minWidth: 0, justifyContent: 'space-between', gap: account ? 4 : 0 }}>
+    <div role="group" aria-label={props.label} data-scope={props.scope} className={account ? 'flex items-center' : 'grid items-center'} style={{ width: '100%', minWidth: 0, justifyContent: 'space-between', gap: account ? 4 : 0, gridTemplateColumns: account ? undefined : `repeat(${days.length}, minmax(0, 1fr))` }}>
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         return (
@@ -32,7 +32,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
             aria-current={state === 'today' ? 'date' : undefined}
             data-state={state}
             className="inline-flex items-center justify-center"
-            style={{ width: size, height: size, flexShrink: account ? 1 : 0, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
+            style={{ width: account ? size : `min(100%, var(--habit-strip-cell-size, ${size}px))`, height: account ? size : `var(--habit-strip-cell-size, ${size}px)`, flexShrink: account ? 1 : undefined, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
           >
             {state === 'frozen' ? (
               <Snowflake aria-hidden="true" size={16} strokeWidth={2} color="var(--bg)" />

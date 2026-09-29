@@ -845,17 +845,14 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toBeInTheDocument()
   })
 
-  it('renders the 30-day strip directly at the compact and wide cell sizes without horizontal scrolling', () => {
-    const compact = render(<HabitDetailScreen habitId="habit-1" />)
+  it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
+    render(<HabitDetailScreen habitId="habit-1" />)
     const strip = screen.getByTestId('detail-strip')
     expect(strip).toHaveAttribute('data-days', '30')
-    expect(strip).toHaveAttribute('data-size', '8')
+    expect(strip).toHaveAttribute('data-size', '16')
+    expect(strip.closest('section')).toHaveStyle({ containerType: 'inline-size' })
     expect(strip.closest('section')).not.toHaveClass('bg-[var(--bg-card)]')
     expect(strip.parentElement).not.toHaveClass('overflow-x-auto')
-    compact.unmount()
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(min-width: 1024px)', addEventListener: () => {}, removeEventListener: () => {} }))
-    render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByTestId('detail-strip')).toHaveAttribute('data-size', '16')
   })
 
   it('formats the due time in the header without seconds', () => {
