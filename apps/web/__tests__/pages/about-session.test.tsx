@@ -1,6 +1,6 @@
 import { use, type ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi, afterEach } from 'vitest'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import RootLayout from '@/app/layout'
@@ -9,6 +9,7 @@ import AuthLayout from '@/app/(auth)/layout'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -22,11 +23,13 @@ const mocks = vi.hoisted(() => ({
   searchPending: false,
   searchParams: new URLSearchParams(),
   router: { prefetch: vi.fn(), replace: vi.fn() },
+  realHabitModal: false,
+  validateHabit: vi.fn(),
 }))
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
 vi.mock('@/app/fonts', () => ({ geist: {}, geistMono: {}, spaceGrotesk: {} }))
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en', NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
   useRouter: () => mocks.router,
@@ -36,8 +39,12 @@ vi.mock('next/navigation', () => ({
   },
 }))
 vi.mock('next/dynamic', () => ({
-  default: () => (props: { initialDate?: string | null }) =>
-    'initialDate' in props ? <div data-testid="create-habit-modal">{props.initialDate}</div> : null,
+  default: () => (props: { initialDate?: string | null; open?: boolean; onOpenChange?: (open: boolean) => void }) =>
+    'initialDate' in props
+      ? mocks.realHabitModal
+        ? <CreateHabitModal open={props.open ?? true} onOpenChange={props.onOpenChange ?? (() => {})} initialDate={props.initialDate} />
+        : <div data-testid="create-habit-modal">{props.initialDate}</div>
+      : null,
 }))
 vi.mock('@vercel/analytics/next', () => ({ Analytics: () => null }))
 vi.mock('@vercel/speed-insights/next', () => ({ SpeedInsights: () => null }))
@@ -49,12 +56,32 @@ vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { c
 vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children, notice }: { children: ReactNode; notice?: ReactNode }) => <main aria-label="Destination shell">{children}<div data-shell-notice="">{notice}</div></main> }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => true }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
 vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
-vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
+vi.mock('@/hooks/use-habits', () => ({
+  useTotalHabitCount: () => 0,
+  useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
+  form: {
+    watch: (field: string) => field === 'title' ? 'Test Habit' : field === 'scheduledReminders' ? [] : undefined,
+    reset: vi.fn(),
+    setValue: vi.fn(),
+    formState: { isDirty: false },
+  },
+  validateAll: mocks.validateHabit,
+  setGeneral: vi.fn(),
+}) }))
+vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
+vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }) }))
+vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn() }) }))
+vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <input aria-label="Habit title" defaultValue="Test Habit" /> }))
+vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
@@ -83,6 +110,8 @@ beforeEach(() => {
   mocks.pathname = '/about'
   mocks.searchPending = false
   mocks.searchParams = new URLSearchParams()
+  mocks.realHabitModal = false
+  mocks.validateHabit.mockReset()
   mocks.router.replace.mockClear()
   mocks.fetch.mockReset()
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
@@ -98,6 +127,26 @@ it('renders app feedback inside the destination notice slot', () => {
   act(() => { useAppToastStore.getState().showError('x') })
   expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toBeInTheDocument()
   expect(screen.getByRole('status')).toBeInTheDocument()
+})
+
+it('keeps failed form feedback and its action reachable in the open sheet', async () => {
+  mocks.pathname = '/'
+  mocks.realHabitModal = true
+  mocks.validateHabit.mockReturnValue('Habit name is required')
+  const action = vi.fn()
+  const view = render(<AppLayout><p>Today content</p></AppLayout>)
+  act(() => useUIStore.getState().setShowCreateModal(true))
+
+  const dialog = screen.getByRole('dialog')
+  fireEvent.submit(dialog.querySelector('form')!)
+  expect(mocks.validateHabit).toHaveBeenCalledOnce()
+  await waitFor(() => expect(dialog.querySelector('[data-kind="neutral"]')).toHaveTextContent('Habit name is required'))
+  expect(view.container.querySelector('[data-shell-notice] [data-kind]')).toBeNull()
+
+  act(() => { useAppToastStore.getState().showQueued('Retry save', 'Retry', action) })
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  expect(action).toHaveBeenCalledOnce()
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
 })
 
 it('places signed-out feedback at the bottom of the page', () => {

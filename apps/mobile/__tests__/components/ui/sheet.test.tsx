@@ -11,8 +11,38 @@ import {
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Sheet, useSheetHost, type SheetHandle } from '@/components/ui/sheet'
 import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { Toast } from '@/components/ui/app-toast'
+import { habitFormSchema } from '@orbit/shared/validation'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { PillButton } from '@/components/ui/pill-button'
 
 vi.unmock('@/components/ui/sheet')
+
+const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
+
+vi.mock('react-hook-form', () => ({
+  useWatch: ({ name }: { name: string }) => name === 'title' ? 'Test Habit' : name === 'scheduledReminders' ? [] : undefined,
+}))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-habits', () => ({
+  useCreateHabit: () => ({ mutateAsync: habitMocks.createHabit, isPending: false }),
+  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
+  form: { control: {}, reset: vi.fn(), setValue: vi.fn(), getValues: vi.fn(), formState: { isDirty: false } },
+  validateAll: habitMocks.validateAll,
+  setGeneral: vi.fn(),
+}) }))
+vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
+vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
+vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
+vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <Text>Habit fields</Text> }))
+vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 
 const { present, dismiss, didDismiss } = vi.hoisted(() => {
   const handlers: { current: (() => void) | null } = { current: null }
@@ -37,13 +67,16 @@ const { present, dismiss, didDismiss } = vi.hoisted(() => {
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class TrueSheet extends React.Component<{
     children?: React.ReactNode
+    footer?: React.ReactNode
     onDidDismiss?: () => void
   }> {
     present = present
     dismiss = dismiss
-    render() {
+    componentDidMount() {
       didDismiss.register(this.props.onDidDismiss)
-      return this.props.children ?? null
+    }
+    render() {
+      return <>{this.props.children}{this.props.footer}</>
     }
   },
 }))
@@ -53,6 +86,7 @@ const TestRenderer = require('react-test-renderer')
 describe('Sheet (mobile)', () => {
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [] })
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
@@ -70,6 +104,36 @@ describe('Sheet (mobile)', () => {
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
     TestRenderer.act(() => didDismiss.complete())
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('keeps create-habit validation feedback in its real native sheet', async () => {
+    const invalidTitle = habitFormSchema.safeParse({ title: '' })
+    if (invalidTitle.success) throw new Error('Expected an invalid habit title')
+    const issue = invalidTitle.error.issues[0]
+    if (!issue) throw new Error('Expected a title validation issue')
+    habitMocks.validateAll.mockReturnValue(issue.message)
+    const onClose = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CreateHabitModal open onClose={onClose} />)
+      await Promise.resolve()
+    })
+
+    const createButton = tree!.root.findAllByType(PillButton).at(-1)
+    if (!createButton) throw new Error('Expected the create action')
+    await TestRenderer.act(async () => {
+      createButton.props.onClick()
+      await Promise.resolve()
+    })
+
+    expect(habitMocks.validateAll).toHaveBeenCalledOnce()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(issue.message)
+    expect(tree!.root.findByType(TrueSheet).props.footer).toBeDefined()
+    expect(tree!.root.findAllByType(Toast)).toHaveLength(1)
+    expect(habitMocks.createHabit).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
     TestRenderer.act(() => tree!.unmount())
   })
 

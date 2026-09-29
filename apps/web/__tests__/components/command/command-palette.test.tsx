@@ -71,10 +71,12 @@ vi.mock('@/stores/ui-store', () => ({
     setActiveView: typeof mockSetActiveView
     registerOpenOverlay: typeof mockRegisterOpenOverlay
     unregisterOpenOverlay: typeof mockUnregisterOpenOverlay
+    openOverlayIds: string[]
   }) => unknown) => selector({
     setActiveView: mockSetActiveView,
     registerOpenOverlay: mockRegisterOpenOverlay,
     unregisterOpenOverlay: mockUnregisterOpenOverlay,
+    openOverlayIds: [],
   }),
 }))
 
