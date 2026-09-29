@@ -153,7 +153,7 @@ it('does not route the next account after an old key challenge resolves', async 
       <ProfileApiKeys profile={proProfile()} unlocked={false} />
     </QueryClientProvider>,
   )
-  fireEvent.click(screen.getByText('Manage API keys'))
+  fireEvent.click(screen.getByText('Open the keys'))
   fireEvent.click(screen.getByText('Sign in again'))
 
   respondWithAccount('user-2')
@@ -179,7 +179,7 @@ it('waits for the first account check before requesting an API key challenge', a
       <ProfileApiKeys profile={proProfile()} unlocked={false} />
     </QueryClientProvider>,
   )
-  fireEvent.click(screen.getByText('Manage API keys'))
+  fireEvent.click(screen.getByText('Open the keys'))
   const sendButton = screen.getByText('Sign in again').closest('button')!
   expect(sendButton).toBeDisabled()
   expect(sendButton).not.toHaveAttribute('data-loading')
@@ -195,7 +195,7 @@ it('waits for the first account check before requesting an API key challenge', a
     } as Response)
     await firstCheck
   })
-  fireEvent.click(screen.getByText('Manage API keys'))
+  fireEvent.click(screen.getByText('Open the keys'))
   fireEvent.click(screen.getByText('Sign in again'))
   await act(async () => { await Promise.resolve() })
   expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
