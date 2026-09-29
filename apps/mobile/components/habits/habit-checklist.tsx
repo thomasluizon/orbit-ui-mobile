@@ -584,7 +584,7 @@ function createStyles(tokens: AppTokens) {
   addItemRow: {
     flexDirection: 'row',
     minHeight: 44,
-    gap: 4,
+    gap: 12,
   },
   addItemInput: {
     flex: 1,

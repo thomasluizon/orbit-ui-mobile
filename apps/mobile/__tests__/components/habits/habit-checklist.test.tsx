@@ -137,7 +137,7 @@ describe('HabitChecklist editable rows', () => {
     let row = input.parent
     while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 44) row = row.parent
     if (!row) throw new Error('Expected checklist add row')
-    expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 4 })
+    expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 12 })
   })
 
   it('keeps a draft with its row through an optimistic reorder and rollback', () => {
