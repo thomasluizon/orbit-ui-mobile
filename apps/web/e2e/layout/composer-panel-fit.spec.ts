@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession } from './profile-session'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const width of [1024, 1352] as const) {
@@ -14,8 +14,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       test('fits the placeholder and wrapped text with reachable controls', async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`,
-          (route) => route.fulfill({ json: profile }))
+        await setLayoutProfileSession(context, profile)
         await page.goto('/')
         await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
 
