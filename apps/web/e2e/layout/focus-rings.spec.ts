@@ -40,36 +40,37 @@ async function expectOneRing(page: Page, surface: string, stop: number) {
   expect(state.indicators, `${surface} Tab stop ${stop}: ${state.focused} drew ${state.indicators.join(', ')}`).toHaveLength(1)
 }
 
-async function expectOneFieldIndicator(page: Page, targetSelector: string, rootSelector: string, surface: string) {
+async function expectOneFieldIndicator(page: Page, targetSelector: string, rootSelector: string, surface: string, includeDescendants = false) {
   const target = page.locator(targetSelector).first()
   await expect(target).toBeVisible()
   await target.focus()
   await page.keyboard.press('Shift+Tab')
   await page.keyboard.press('Tab')
   await expect(target).toBeFocused()
-  const indicators = await target.evaluate((field, selector) => {
-    const root = field.closest(selector)
-    if (!root) throw new Error(`Missing field root: ${selector}`)
-    const perimeter: Element[] = []
+  const indicators = await target.evaluate((field, options) => {
+    const root = field.closest(options.rootSelector)
+    if (!root) throw new Error(`Missing field root: ${options.rootSelector}`)
+    const perimeter = new Set<Element>()
     let current: Element | null = field
     while (current) {
-      perimeter.push(current)
+      perimeter.add(current)
       if (current === root) break
       current = current.parentElement
     }
     const activeCell = root.querySelector('[data-otp-cell][data-active]')
-    if (activeCell) perimeter.push(activeCell)
-    return perimeter.flatMap((element) => {
+    if (activeCell) perimeter.add(activeCell)
+    if (options.includeDescendants) root.querySelectorAll('*').forEach((element) => perimeter.add(element))
+    return [...perimeter].flatMap((element) => {
       const style = getComputedStyle(element)
       const label = element.tagName.toLowerCase()
       const visible: string[] = []
       if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) visible.push(`${label}:outline`)
-      const shadows = style.boxShadow.match(/\binset\b/g)
-      for (let index = 0; index < (shadows?.length ?? 0); index += 1) visible.push(`${label}:shadow`)
+      const shadows = style.boxShadow.matchAll(/\b0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+(\d*\.?\d+)px\b/g)
+      for (const shadow of shadows) if (Number(shadow[1]) > 0) visible.push(`${label}:shadow`)
       if (style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0) visible.push(`${label}:border`)
       return visible
     })
-  }, rootSelector)
+  }, { rootSelector, includeDescendants })
   expect(indicators, `${surface} drew ${indicators.join(', ')}`).toHaveLength(1)
 }
 
@@ -118,7 +119,7 @@ for (const width of [412, 1280] as const) {
         await expect(target).toBeFocused()
         await expectOneRing(page, `${surface} route control ${width}px`, 0)
         if (surface === 'Hoje') await expectOneFieldIndicator(page, targetSelector, '[data-composer-input-row]', `composer ${width}px`)
-        if (surface === 'Busca') await expectOneFieldIndicator(page, targetSelector, '[cmdk-input]', `search ${width}px`)
+        if (surface === 'Busca') await expectOneFieldIndicator(page, targetSelector, 'div.relative', `search ${width}px`, true)
         if (surface === 'Suporte') await expectOneFieldIndicator(page, targetSelector, '[data-input-root]', `support message ${width}px`)
       })
     }
@@ -139,7 +140,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(field).toBeFocused()
       await expectOneRing(page, `palette field ${width}px`, 0)
-      await expectOneFieldIndicator(page, '[cmdk-input]', '[cmdk-input]', `palette search ${width}px`)
+      await expectOneFieldIndicator(page, '[cmdk-input]', 'div.relative', `palette search ${width}px`, true)
       await inspectTabStops(page, `palette ${width}px`)
     })
 

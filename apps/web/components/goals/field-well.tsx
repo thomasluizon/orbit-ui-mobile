@@ -55,7 +55,7 @@ export function FieldWell({
         aria-describedby={error ? `${id}-error` : undefined}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-2xl border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        className="w-full appearance-none rounded-2xl border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border forced-colors:border-[CanvasText] forced-colors:focus-visible:border-2 forced-colors:focus-visible:border-[Highlight]"
         style={{
           minHeight: 54,
           padding: '0 16px',
