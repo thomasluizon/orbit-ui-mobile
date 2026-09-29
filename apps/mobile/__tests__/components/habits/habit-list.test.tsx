@@ -23,7 +23,7 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
-const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
+const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true, isError: false }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitCountLoaded: () => accountHabitCount,
@@ -567,6 +567,7 @@ describe('HabitList', () => {
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
+    accountHabitCount.isError = false
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
@@ -917,6 +918,7 @@ describe('HabitList', () => {
 
   it('keeps the plain line visible if the account count cannot load', () => {
     accountHabitCount.isLoaded = false
+    accountHabitCount.isError = true
     seedHabits([])
     let tree: any
     TestRenderer.act(() => {
@@ -924,6 +926,18 @@ describe('HabitList', () => {
     })
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
+  })
+
+  it('shows a loading skeleton while the account count is pending', () => {
+    accountHabitCount.isLoaded = false
+    seedHabits([])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    const loadingList = tree.root.findAll((node: any) => node.type === FlatList)[0]
+    expect(loadingList?.props.accessibilityState.busy).toBe(true)
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.nothingOpen')
   })
 
   it('keeps first-run actions on another day when the account has no habits', () => {

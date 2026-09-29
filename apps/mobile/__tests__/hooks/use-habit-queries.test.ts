@@ -266,7 +266,7 @@ describe('useHabitCountLoaded (mobile)', () => {
     TestRenderer.act(() => {
       TestRenderer.create(React.createElement(Probe))
     })
-    expect(loaded).toEqual({ count: 0, isLoaded: false })
+    expect(loaded).toEqual({ count: 0, isLoaded: false, isError: false })
   })
 })
 

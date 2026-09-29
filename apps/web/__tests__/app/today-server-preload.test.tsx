@@ -105,12 +105,13 @@ describe('Today server preload', () => {
     vi.useRealTimers()
   })
 
-  it('renders the real empty Today content without a plan line on the server', () => {
+  it('reserves the Today list while account count loads on the server', () => {
     const client = createTestQueryClient()
     try {
       const html = renderToString(createTodayTree(client))
 
-      expect(html).toContain(`>${en.habits.nothingOpen}<`)
+      expect(html).toContain('aria-busy="true"')
+      expect(html).not.toContain(`>${en.habits.nothingOpen}<`)
       expect(html).not.toContain(`>${en.habits.noHabitsBody}<`)
       expect(html).not.toContain('data-trial-line')
     } finally {
@@ -136,7 +137,7 @@ describe('Today server preload', () => {
       })
 
       expect(recoverableError).not.toHaveBeenCalled()
-      expect(container.innerHTML).toContain(`>${en.habits.nothingOpen}<`)
+      expect(container.innerHTML).toContain('aria-busy="true"')
     } finally {
       await act(async () => root?.unmount())
       container.remove()
