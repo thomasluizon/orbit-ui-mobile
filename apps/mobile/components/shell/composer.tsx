@@ -111,7 +111,7 @@ function VoiceStatus({
   tokens: AppTokensV2
 }>) {
   return (
-    <View accessibilityLiveRegion="polite" style={styles.voiceStatus}>
+    <View style={styles.voiceStatus}>
       <View
         style={[
           styles.voiceDot,
@@ -135,7 +135,10 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
     )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
-    return <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} />
+    return <View accessibilityLiveRegion="polite" style={styles.limitStatus}>
+      <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} />
+      {props.words.offlineReason ? <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.words.offlineReason}</Text> : null}
+    </View>
   }
   return (
     <SuggestionStrip
@@ -181,7 +184,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerPro
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
       >
         <TextInput
-          accessibilityLabel={props.words.placeholder}
+          accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
           editable={!inputDisabled}
           multiline

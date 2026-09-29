@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
 import { QuietActionButton } from './quiet-action-button'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { connectGoogle } from './connect-google'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
@@ -68,10 +69,7 @@ export function AutoSyncSettingsCard() {
   }
 
   async function handleSyncNow() {
-    if (!isOnline) {
-      toast.error(t('errors.offline'))
-      return
-    }
+    if (!isOnline) return
     const requestAccount = getAccountGeneration()
     try {
       await runSyncNow.mutateAsync()
@@ -157,10 +155,13 @@ export function AutoSyncSettingsCard() {
         </div>
       </div>
       <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
+      <div aria-live="polite" aria-atomic="true" className="px-4">
+        {!isOnline ? <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
+      </div>
 
       {!isLoading && hasConnection && (
         <div className="flex justify-end" style={{ padding: '0 16px 4px' }}>
-          <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
+          <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending || !isOnline}>
             {runSyncNow.isPending ? (
               <>
                 <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -210,7 +211,7 @@ export function AutoSyncSettingsCard() {
               </p>
             </div>
           </div>
-          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting} tone="warning">
+          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting || !isOnline} tone="warning">
             {t('calendar.autoSync.reconnectCta')}
           </QuietActionButton>
         </div>

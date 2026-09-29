@@ -172,7 +172,7 @@ vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { si
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => <div aria-label={label}>{children}</div>,
 }))
-vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
+vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
 }))
@@ -370,6 +370,18 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(add)
     expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
     expect(screen.getByTestId('list-row-habits.detail.delete')).toHaveAttribute('data-chevron', 'false')
+  })
+
+  it('explains an offline sub-habit request beside its detail action', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    try {
+      render(<HabitDetailScreen habitId="habit-1" />)
+      fireEvent.click(screen.getByTestId('list-row-habits.detail.addSubHabit'))
+      expect(screen.getByText('offline.create.reason')).toBeVisible()
+      expect(screen.queryByRole('dialog', { name: 'Create habit' })).toBeNull()
+    } finally {
+      Reflect.deleteProperty(navigator, 'onLine')
+    }
   })
 
   it('returns a direct detail link to Today while the profile loads', () => {

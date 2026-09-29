@@ -1,7 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import {
@@ -125,6 +125,8 @@ vi.mock('@/components/habits/habit-list', () => ({
   HabitList: function MockHabitList(props: {
     showCompleted?: boolean
     onSeeUpcoming?: () => void
+    onCreate?: () => void
+    createRefusal?: boolean
     filters?: { tagIds?: string[] }
   }) {
     return (
@@ -132,10 +134,13 @@ vi.mock('@/components/habits/habit-list', () => ({
         {props.onSeeUpcoming ? (
           <button type="button" onClick={props.onSeeUpcoming}>See upcoming</button>
         ) : null}
+        <button type="button" onClick={props.onCreate}>Create manually</button>
+        <div aria-live="polite">{props.createRefusal ? en.offline.create.reason : null}</div>
       </div>
     )
   },
 }))
+afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
 vi.mock('@/components/habits/bulk-action-bar-v2', () => ({ BulkActionBarV2: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({
@@ -389,6 +394,15 @@ describe('Hoje date control', () => {
     render(<TodayHabitsPanel view={view} />)
 
     expect(screen.getByTestId('today-habit-list')).toHaveAttribute('data-tag-ids', 'tag-1')
+  })
+
+  it('explains an offline empty-list create request beside the action', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    const view = createMotionView('2026-04-08')
+    render(<TestIntlProvider locale="en" messages={en}><TodayHabitsPanel view={view} /></TestIntlProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create manually' }))
+    expect(screen.getByText(en.offline.create.reason)).toBeVisible()
+    expect(view.setShowCreateModal).not.toHaveBeenCalled()
   })
 
   it('omits the all-done upcoming action at the instance horizon', () => {

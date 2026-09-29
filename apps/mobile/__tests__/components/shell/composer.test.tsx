@@ -297,6 +297,15 @@ describe('Composer (mobile)', () => {
     expect(onVoice).toHaveBeenCalledOnce()
   })
 
+  it('keeps the stop control and shows the connection reason during an offline recording', async () => {
+    const onVoice = vi.fn()
+    const tree = await renderComposer(props({ state: 'recording', words: { ...words, placeholder: en.shell.composer.offline.placeholder, offlineReason: en.shell.composer.offline.reason }, onVoice, voiceWords }))
+    expect(textValues(tree.root)).toContain(voiceWords.recording)
+    expect(textValues(tree.root)).toContain(en.shell.composer.offline.reason)
+    pressControl(byLabel(tree.root, voiceWords.stop)[0])
+    expect(onVoice).toHaveBeenCalledOnce()
+  })
+
   it('renders transcribing status with an unusable input', async () => {
     const tree = await renderComposer(props({ state: 'transcribing', onVoice: vi.fn(), voiceWords }))
     expect(textValues(tree.root)).toContain(voiceWords.transcribing)
@@ -375,6 +384,15 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)
     expect(byLabel(tree.root, placeholder)[0].props.placeholder).toBe(expected)
+  })
+
+  it.each([
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+  ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
+    const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
+    expect(byLabel(tree.root, 'Ask Astra for something')[0].props.placeholder).toBe(placeholder)
+    expect(textValues(tree.root)).toContain(reason)
   })
 
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(

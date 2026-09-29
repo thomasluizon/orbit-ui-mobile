@@ -6,13 +6,14 @@ import { searchCommands, type SearchCommandId } from '@orbit/shared/utils'
 import { Check, Plus, SkipForward } from '@/components/ui/icons'
 import type { CommandNavigationItem } from './command-palette'
 import { CommandRow } from './command-row'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { GROUP_CLASS } from './command-menu-chrome'
 
 const ICONS = { create: Plus, log: Check, skip: SkipForward }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions' } as const
 
-export function CommandGroups({ query, navItems, onSelect, onNavigate, hideCreate = false }: Readonly<{
-  hideCreate?: boolean; query: string; navItems: readonly CommandNavigationItem[]
+export function CommandGroups({ query, navItems, onSelect, onNavigate, hideCreate = false, createRefusal = false }: Readonly<{
+  hideCreate?: boolean; createRefusal?: boolean; query: string; navItems: readonly CommandNavigationItem[]
   onSelect: (id: SearchCommandId) => void; onNavigate: (action: () => void) => void
 }>) {
   const t = useTranslations()
@@ -28,6 +29,9 @@ export function CommandGroups({ query, navItems, onSelect, onNavigate, hideCreat
           const Icon = ICONS[entry.id]
           return <CommandRow key={entry.id} leading={<Icon size={20} aria-hidden />} label={t(entry.label)} value={entry.id} onSelect={() => onSelect(entry.id)} />
         })}
+        {group === 'create' ? <div aria-live="polite" aria-atomic="true" className={createRefusal ? 'p-2' : ''}>
+          {createRefusal ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
+        </div> : null}
       </CommandGroup>
     })}
     {destinations.length > 0 && <CommandGroup heading={t('command.groups.destinations')} className={GROUP_CLASS} data-command-group="destinations">

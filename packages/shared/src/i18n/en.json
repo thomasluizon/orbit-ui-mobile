@@ -235,7 +235,8 @@
         "reason": "Astra is still answering. Wait for this response before sending another message."
       },
       "offline": {
-        "reason": "Astra needs a connection. Reconnect and try again. Habit logging still works offline."
+        "placeholder": "No connection",
+        "reason": "No connection. Astra comes back when the connection does."
       }
     }
   },
@@ -337,7 +338,7 @@
     "signIn": "Sign in",
     "enterCode": "Enter the code",
     "email": "Email",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
     "turnstileLoading": "Checking your connection…",
     "turnstileFailed": "Security check didn't load.",
@@ -1085,8 +1086,7 @@
   "chat": {
     "title": "Astra",
     "offline": {
-      "title": "You’re offline",
-      "description": "Astra needs an internet connection. Reconnect to keep chatting."
+      "title": "You’re offline"
     },
     "pendingOp": {
       "risk": {
@@ -2389,6 +2389,7 @@
   },
   "upgrade": {
     "title": "Subscription",
+    "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -2603,7 +2604,15 @@
   },
   "offline": {
     "title": "You're offline",
-    "description": "Check your connection and try again."
+    "description": "Check your connection and try again.",
+    "create": {
+      "title": "Create habit",
+      "reason": "Creating needs a connection because the habit is made on the server. Come back when the connection does."
+    },
+    "calendar": {
+      "title": "Sync the calendar",
+      "reason": "Google Calendar does not answer without a connection. Events already loaded stay in view."
+    }
   },
   "undo": {
     "habitDeleted": "Habit deleted",

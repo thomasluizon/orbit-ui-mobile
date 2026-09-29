@@ -69,6 +69,16 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     void testI18n.changeLanguage(locale)
     setI18n(testI18n)
   })
+  it('labels the email field and shows the drawn example address', () => {
+    setFixture('email', locale)
+    const tree = render()
+    const placeholder = locale === 'en' ? 'name@example.com' : 'nome@exemplo.com'
+    const input = host(tree.root, 'TextInput')[0]
+    expect(input?.props.accessibilityLabel).toBe('Email')
+    expect(input?.props.placeholder).toBe(placeholder)
+    expect(textOf(tree.root)).toContain('Email')
+    act(() => tree.unmount())
+  })
   it('blocks code requests while keeping code entry available until a mobile token exists', () => {
     const { t } = setFixture('resend ready', locale)
     mocks.flow.turnstileSiteKey = 'test-site-key'

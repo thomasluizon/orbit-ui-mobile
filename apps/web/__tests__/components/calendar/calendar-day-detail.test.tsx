@@ -10,6 +10,9 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
 
+const network = vi.hoisted(() => ({ isOnline: true }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: network.isOnline }) }))
+
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
@@ -264,6 +267,22 @@ describe('CalendarDayDetail', () => {
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
   })
 
+  it('refuses calendar sync beside the day control while offline', () => {
+    network.isOnline = false
+    try {
+      const onCalendarAutoSyncChange = vi.fn(async () => {})
+      renderDetail({ autoSyncState: proAutoSyncState, onCalendarAutoSyncChange })
+      expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+      expect(autoSync).toBeDisabled()
+      fireEvent.click(autoSync)
+      expect(onCalendarAutoSyncChange).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
+  })
+
   it('does not offer auto-sync as enabled without a Google connection', () => {
     renderDetail({
       dateStr: '2025-06-15',
@@ -273,6 +292,23 @@ describe('CalendarDayDetail', () => {
 
     const switches = screen.queryAllByRole('switch', { name: 'calendar.dayDetail.autoSync' })
     expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
+  })
+
+  it('refuses disconnected calendar reconnection in place while offline', () => {
+    network.isOnline = false
+    try {
+      const onReconnectCalendarEvents = vi.fn()
+      renderDetail({
+        calendarEventsState: 'not-connected',
+        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+        onReconnectCalendarEvents,
+      })
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
   })
 
   it('renders a failed events request instead of the empty result', () => {

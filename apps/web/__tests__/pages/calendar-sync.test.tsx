@@ -627,9 +627,57 @@ describe('CalendarSyncPage', () => {
   it('shows the offline state instead of the wizard when the browser is offline', () => {
     setNavigatorOnline(false)
     renderPage()
-    expect(screen.getByText('offline.title')).toBeInTheDocument()
-    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
     expect(screen.queryByText('calendar.fetchingEvents')).not.toBeInTheDocument()
+  })
+
+  it('keeps loaded events visible and refuses import after disconnect', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+
+    renderPage()
+    await screen.findByText('Morning Workout')
+    const offlineStatus = screen.getByRole('status')
+    setNavigatorOnline(false)
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+
+    expect(screen.getByText('Morning Workout')).toBeVisible()
+    const refusals = screen.getAllByText('offline.calendar.reason')
+    expect(refusals).toHaveLength(2)
+    expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
+    const importButton = screen.getByText('calendar.importButton:{"count":1}').closest('button')!
+    expect(importButton.parentElement?.parentElement).toContainElement(refusals[1]!)
+    expect(importButton).toBeDisabled()
+    expect(mockBulkMutate).not.toHaveBeenCalled()
+  })
+
+  it('keeps loaded review suggestions visible and refuses writes after disconnect', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'suggestion-1',
+        event: { id: 'e1', title: 'Team meeting', description: null, startDate: '2025-06-01', startTime: '09:00', endTime: '10:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      }],
+      isLoading: false,
+    }
+
+    renderPage()
+    await screen.findByText('Team meeting')
+    setNavigatorOnline(false)
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+
+    expect(screen.getByText('Team meeting')).toBeVisible()
+    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })).toBeDisabled()
+    expect(mockBulkMutate).not.toHaveBeenCalled()
+    expect(mockDismissSuggestion).not.toHaveBeenCalled()
   })
 
   it('lists imported habits on the done step and toasts partial failures', async () => {

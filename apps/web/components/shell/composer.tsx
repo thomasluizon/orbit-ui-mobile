@@ -82,7 +82,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
 
 function VoiceStatus({ state, words }: Readonly<{ state: 'recording' | 'transcribing'; words: ComposerVoiceWords }>) {
   return (
-    <div aria-live="polite" className="flex min-h-11 items-center gap-3 text-sm font-medium text-[var(--fg-2)]">
+    <div className="flex min-h-11 items-center gap-3 text-sm font-medium text-[var(--fg-2)]">
       <span
         aria-hidden="true"
         className={`size-2 rounded-full ${state === 'recording' ? 'bg-[var(--status-bad)]' : 'bg-[var(--primary)]'}`}
@@ -108,7 +108,10 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
     )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
-    return <VoiceStatus state={props.state} words={props.voiceWords} />
+    return <div aria-live="polite" className="flex flex-col gap-1">
+      <VoiceStatus state={props.state} words={props.voiceWords} />
+      {props.words.offlineReason ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.words.offlineReason}</p> : null}
+    </div>
   }
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
@@ -138,7 +141,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           id={props.inputId}
           rows={1}
           data-composer-input
-          aria-label={props.words.placeholder}
+          aria-label={props.words.inputLabel ?? props.words.placeholder}
           disabled={inputDisabled}
           placeholder={props.words.placeholder}
           value={props.value}

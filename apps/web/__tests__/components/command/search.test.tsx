@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
@@ -53,8 +53,29 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   mocks.query.mockReturnValue(result([]))
 })
+afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
 
 describe('habit search', () => {
+  it.each([false, true])('keeps create in the %s command surface and explains offline refusal', (resultsMode) => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    const onCreate = vi.fn()
+    if (resultsMode) {
+      render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    } else mount(false, 'en', onCreate)
+    fireEvent.click(screen.getByRole('option', { name: 'Create habit' }))
+    expect(screen.getByText(en.offline.create.reason)).toBeVisible()
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Create habit' })).toBeNull()
+  })
+
+  it('explains offline refusal beside empty search results', async () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'new habit' } })
+    fireEvent.click(await screen.findByRole('button', { name: en.habits.search.create }))
+    expect(screen.getByText(en.offline.create.reason)).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Create habit' })).toBeNull()
+  })
   it.each([false, true])('selects the first habit when results load in resultsMode=%s', async (resultsMode) => {
     mocks.query.mockReturnValue(result([], true))
     const view = mount(resultsMode)

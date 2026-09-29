@@ -97,7 +97,7 @@ export function PlanSelection({
   }
 
   const intervalControl = (
-    <div>
+    <div className="min-[1024px]:w-full min-[1024px]:max-w-[320px]">
       <SegmentedControl
         label={t('upgrade.plans.intervalLabel')}
         options={[
@@ -107,6 +107,7 @@ export function PlanSelection({
         value={selectedInterval}
         onChange={selectInterval}
         disabled={checkoutPending}
+        wideFill
       />
     </div>
   )
