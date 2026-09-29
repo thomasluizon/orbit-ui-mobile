@@ -171,7 +171,7 @@ describe('Today create during first load', () => {
     render(<AppLayout><div>Today</div></AppLayout>)
     await act(async () => {})
 
-    expect(screen.getByRole('button', { name: quiet }).className.split(' ')).toContain('active:scale-[0.96]')
+    expect(screen.getByRole('button', { name: quiet }).className.split(' ')).toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
   })
 
   it('waits to offer calendar import while another sheet is open', async () => {

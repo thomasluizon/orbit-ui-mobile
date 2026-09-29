@@ -119,7 +119,7 @@ export function MarketingConsentPrompt() {
           <button
             type="button"
             onClick={() => answer(false)}
-            className="touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-out hover:text-[var(--fg-1)] active:scale-[0.96]"
+            className="orbit-pill-action touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
           >
             {t('marketingConsent.prompt.decline')}
           </button>

@@ -105,6 +105,15 @@ describe('ReferralPrompt', () => {
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
+  it('gives Later the shared action transitions and press', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'referral.prompt.later' }).className.split(' '))
+      .toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
+  })
+
   it('stays hidden while a celebration is in flight', async () => {
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     render(<ReferralPrompt />)

@@ -136,6 +136,15 @@ describe('MarketingConsentPrompt', () => {
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
+  it('gives Decline the shared action transitions and press', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' }).className.split(' '))
+      .toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
+  })
+
   it('shows after the settle delay and records markEngagementPrompted', async () => {
     renderPrompt()
     await armConsent()

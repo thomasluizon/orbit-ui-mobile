@@ -167,7 +167,7 @@ export function MilestoneSharePrompt() {
           <button
             type="button"
             onClick={dismiss}
-            className="touch-target w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="orbit-pill-action touch-target w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             style={{
               padding: '12px 0',
               fontFamily: 'var(--font-sans)',

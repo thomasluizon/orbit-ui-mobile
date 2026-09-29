@@ -144,7 +144,7 @@ describe('MilestoneSharePrompt', () => {
     await settle()
 
     const later = screen.getByRole('button', { name: 'milestoneShare.later' })
-    expect(later.className.split(' ')).toEqual(expect.arrayContaining(['touch-target', 'active:scale-[0.96]']))
+    expect(later.className.split(' ')).toEqual(expect.arrayContaining(['touch-target', 'orbit-pill-action', 'active:scale-[0.96]']))
     expect(screen.getByRole('button', { name: 'milestoneShare.download' }).parentElement!.style.gap).toBe('12px')
   })
 
