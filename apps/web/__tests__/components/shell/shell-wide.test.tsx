@@ -51,7 +51,7 @@ describe('ShellWide', () => {
     )
 
     expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('w-[232px]')
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-notice]')).toHaveTextContent('Notice')
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
@@ -165,7 +165,7 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-scroller]')?.parentElement?.parentElement).not.toHaveClass('px-8')
   })
 

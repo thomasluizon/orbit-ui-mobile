@@ -4,6 +4,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import {
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -84,6 +85,31 @@ describe('HabitRow canonical content (mobile)', () => {
     )
 
     expect(texts).toContain('R')
+  })
+
+  it.each([
+    { depth: 0, color: createTokensV2('purple', 'dark').fg1 },
+    { depth: 1, color: createTokensV2('purple', 'dark').fg2 },
+  ] as const)('keeps done and pending titles alike at depth $depth', ({ depth, color }) => {
+    const styles: Record<string, unknown>[] = []
+    for (const isCompleted of [false, true]) {
+      let renderer: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        renderer = TestRenderer.create(
+          <HabitRow habit={createMockHabit({ title: 'Read', isCompleted })} depth={depth} />,
+        )
+      })
+      const title = renderer!.root.findAllByType('Text').find(
+        (node: { children: unknown[] }) => node.children.includes('Read'),
+      )
+      expect(title).toBeDefined()
+      styles.push(StyleSheet.flatten(title!.props.style) as Record<string, unknown>)
+      TestRenderer.act(() => renderer.unmount())
+    }
+    expect(styles[0]).toMatchObject({ color })
+    expect(styles[1]).toMatchObject({ color })
+    expect(styles[0]?.textDecorationLine).not.toBe('line-through')
+    expect(styles[1]?.textDecorationLine).not.toBe('line-through')
   })
 })
 

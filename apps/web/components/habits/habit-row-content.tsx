@@ -13,7 +13,6 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
-  isDone: boolean
   meta: HabitRowMetaToken[]
 }
 
@@ -22,12 +21,11 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
-  isDone,
   meta,
 }: Readonly<HabitRowContentProps>) {
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
-      <TitleText title={habit.title} size={titleSize} color={titleColor} strikethrough={isDone} />
+      <TitleText title={habit.title} size={titleSize} color={titleColor} />
       {meta.length > 0 ? <MetaStrip tokens={meta} /> : null}
     </div>
   )
@@ -36,9 +34,6 @@ export function HabitRowContent({
 const TITLE_TEXT_STYLE_BASE = {
   fontFamily: 'var(--font-sans)',
   fontWeight: 500,
-  textDecorationStyle: 'solid',
-  textDecorationColor: 'var(--fg-3)',
-  textDecorationThickness: 1,
   lineHeight: 1.25,
   letterSpacing: '-0.005em',
   overflowWrap: 'anywhere',
@@ -48,10 +43,9 @@ interface TitleTextProps {
   title: string
   size: number
   color: string
-  strikethrough: boolean
 }
 
-export function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProps>) {
+export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
   return (
     <span
       className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
@@ -59,7 +53,6 @@ export function TitleText({ title, size, color, strikethrough }: Readonly<TitleT
         ...TITLE_TEXT_STYLE_BASE,
         fontSize: size,
         color,
-        textDecorationLine: strikethrough ? 'line-through' : 'none',
       }}
     >
       {title}

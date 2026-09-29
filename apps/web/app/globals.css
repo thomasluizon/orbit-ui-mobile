@@ -72,10 +72,43 @@
 .orbit-list-row-action:focus-visible,
 .orbit-list-row-body:focus-visible {
   outline: none;
+}
 
-  > span {
-    outline: 2px solid var(--primary);
-  }
+.orbit-list-row-shell:has(.orbit-list-row-body:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.orbit-list-row-action:focus-visible > span {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.orbit-list-row-shell {
+  transition: background-color 380ms var(--ease-standard);
+}
+
+.orbit-row-list > div:first-child .orbit-list-row-shell {
+  border-start-start-radius: 20px;
+  border-start-end-radius: 20px;
+}
+
+.orbit-row-list > div:last-child .orbit-list-row-shell {
+  border-end-start-radius: 20px;
+  border-end-end-radius: 20px;
+}
+
+.orbit-profile-theme-choice {
+  color: var(--fg-2);
+  background: var(--bg-well);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard);
+}
+
+.orbit-profile-theme-choice[data-selected] {
+  color: var(--fg-1);
+  background: var(--primary-dim);
+  box-shadow: inset 0 0 0 1.5px var(--primary);
 }
 
 .habit-form-disclosure {
@@ -101,10 +134,24 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-list-row:hover,
-  .orbit-list-row-body:hover > .orbit-list-row {
+  .orbit-list-row:hover {
     background: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  }
+
+  .orbit-list-row-interactive:hover:not(:has(.orbit-list-row-action:hover)) {
+    background: var(--bg-hover);
+    --orbit-list-row-secondary: var(--fg-2);
+  }
+
+  .orbit-profile-theme-choice:hover {
+    color: var(--fg-1);
+    background: var(--bg-hover);
+  }
+
+  .orbit-profile-theme-choice[data-selected]:hover {
+    color: var(--primary-soft);
+    background: var(--primary-dim);
   }
 }
 
@@ -701,6 +748,11 @@
     }
   }
 
+  /* Global focus-visible indicator; component utilities can replace it. */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 html {
@@ -1315,16 +1367,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* Global focus-visible indicator */
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
 @media (forced-colors: active) {
   :focus-visible {
     /* WHY: Forced colors mode removes box-shadow focus indicators. */
     outline: 2px solid CanvasText !important;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-composer-input-row]:has(textarea:focus-visible) {
+    outline: none;
   }
 }
 
@@ -1628,6 +1680,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+.prose-orbit.thread-prose :is(pre, table):focus-visible {
+  outline-color: var(--fg-1);
+}
+
 .prose-orbit th,
 .prose-orbit td {
   border: 1px solid var(--hairline);
@@ -1645,26 +1701,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-bottom: 0;
 }
 
-[data-bubble-role='ai'] .prose-orbit {
+.thread-prose,
+.thread-prose li {
   color: var(--fg-1);
-}
-
-[data-bubble-role='user'] .prose-orbit,
-[data-bubble-role='user'] .prose-orbit :is(strong, em, code, li),
-[data-bubble-role='user'] .prose-orbit a[href] {
-  color: var(--fg-on-primary);
-}
-
-[data-bubble-role='user'] .prose-orbit a[href]:active {
-  background: var(--primary-pressed);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .prose-orbit a[href] :is(strong, em, code) {
   color: inherit;
-}
-
-[data-bubble-role='user'] .prose-orbit code {
-  background: rgba(255, 255, 255, 0.14);
 }
 
 /* Theme transition class (toggled by useColorScheme on scheme change) */

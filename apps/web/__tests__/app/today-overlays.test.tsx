@@ -46,9 +46,16 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Test', email: 'test@example.com' } }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
-vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: () => null }))
+vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
 vi.mock('@/components/shell/shell-412', () => ({
   Shell412: ({ children, composer, tabBar }: {
+    children: ReactNode
+    composer?: ReactNode
+    tabBar?: ReactNode
+  }) => <main>{children}{composer}{tabBar}</main>,
+}))
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, composer, tabBar }: {
     children: ReactNode
     composer?: ReactNode
     tabBar?: ReactNode

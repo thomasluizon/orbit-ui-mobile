@@ -9,10 +9,16 @@ export function useAppToast() {
     toast(message)
   }, [])
 
-  const showError = useCallback((message: string) => {
-    toast.error(message, {
-      duration: 5000,
-    })
+  const showError = useCallback((message: string, dismissLabel?: string) => {
+    if (dismissLabel) {
+      const toastId = toast.error(message, {
+        duration: Infinity,
+        cancel: { label: dismissLabel, onClick: () => toast.dismiss(toastId) },
+        cancelButtonStyle: { minHeight: 44 },
+      })
+      return
+    }
+    toast.error(message, { duration: 5000 })
   }, [])
 
   const showPersistentError = useCallback((message: string, dismissLabel: string, reloadLabel: string) => {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
@@ -13,7 +14,8 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const replace = vi.fn()
-const queryClientClear = vi.fn()
+const resetAccountQueries = vi.hoisted(() => vi.fn(async (_client: QueryClient, _mode: 'signed-in' | 'signed-out') => {}))
+const activeQueryClient = vi.hoisted(() => ({ current: null as QueryClient | null }))
 const storage = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('react-i18next', async (importOriginal) => ({
@@ -28,8 +30,14 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ replace }),
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ clear: queryClientClear }),
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQueryClient: () => activeQueryClient.current ?? {},
+}))
+
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries,
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -126,6 +134,7 @@ await Promise.resolve()
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
+    activeQueryClient.current = null
     storage.clear()
     useOfflineSyncStore.setState({ drops: [] })
     useAuthStore.setState({
@@ -134,9 +143,10 @@ describe('FreshStartModal', () => {
       user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' },
     })
     replace.mockClear()
-    queryClientClear.mockClear()
+    resetAccountQueries.mockClear()
   })
   afterEach(() => {
+    activeQueryClient.current = null
     sheetTestControls.defer(false)
     vi.clearAllMocks()
   })
@@ -177,7 +187,7 @@ describe('FreshStartModal', () => {
     if (step === 'confirm') await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     await press(tree.root.findAll((node) => node.props.testID === 'button-ghost-md')[0]!)
     expect(onClose).toHaveBeenCalledTimes(1)
-    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(resetAccountQueries).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -212,7 +222,7 @@ await Promise.resolve()
     )
     expect(vi.mocked(offlineQueue.clear)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(offlineQueue.enqueue)).not.toHaveBeenCalled()
-    expect(queryClientClear).toHaveBeenCalled()
+    expect(resetAccountQueries).toHaveBeenCalled()
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
@@ -224,6 +234,39 @@ await Promise.resolve()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(replace).toHaveBeenCalledWith('/')
     expect(replace).toHaveBeenCalledTimes(1)
+  })
+
+  it('settles a mounted query whose fetch was held across Fresh Start', async () => {
+    sheetTestControls.defer(true)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    activeQueryClient.current = client
+    const actual = await vi.importActual<typeof import('@orbit/shared/query')>('@orbit/shared/query')
+    resetAccountQueries.mockImplementationOnce((queryClient, mode) => actual.resetAccountQueries(queryClient, mode))
+    let fetches = 0
+    const observer = new QueryObserver(client, {
+      queryKey: ['profile', 'detail'],
+      queryFn: () => {
+        fetches += 1
+        return fetches === 1 ? new Promise<string>(() => undefined) : Promise.resolve('after-reset')
+      },
+    })
+    const unsubscribe = observer.subscribe(() => {})
+
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('fetching'))
+      const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+      await confirmReset(tree)
+
+      await vi.waitFor(() => expect(observer.getCurrentResult()).toMatchObject({
+        status: 'success', fetchStatus: 'idle', data: 'after-reset',
+      }))
+      expect(fetches).toBe(2)
+      expect(resetAccountQueries).toHaveBeenCalledWith(client, 'signed-in')
+    } finally {
+      unsubscribe()
+      client.clear()
+      activeQueryClient.current = null
+    }
   })
 
   it('lets the trial notice appear again, whichever key suppressed it', async () => {
@@ -260,7 +303,7 @@ await Promise.resolve()
     })
 
     expect(storage.get(nextAccountKey)).toBe('1')
-    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(resetAccountQueries).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -292,7 +335,7 @@ await Promise.resolve()
 
       expect(getAccountGeneration()).toBe(startingGeneration)
       expect(storage.get(nextAccountKey)).toBe('1')
-      expect(queryClientClear).not.toHaveBeenCalled()
+      expect(resetAccountQueries).not.toHaveBeenCalled()
       expect(replace).not.toHaveBeenCalled()
       const offlineMutations = await import('@/lib/offline-mutations')
       const request = vi.mocked(offlineMutations.queueOrExecute).mock.calls[0]![0]

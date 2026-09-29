@@ -16,50 +16,51 @@ The owner's written authorization overrides the sleep skill's generic hard stops
 
 Every issue from the owner's staging review gets fixed, plus many sweeps until nothing is wrong: the redesign is far from acceptable right now. Treat that as the top priority beside Batch M's remaining merges. After each batch of merged fixes, release `redesign/main` to staging and run a rendered sweep: open every screen on staging in the browser at desktop and phone width, check it against the `DESIGN.md` rules, its drawing, `BRAND.md` and the brain decisions, file what is wrong, fix it, and sweep again until a full pass finds nothing. Code-only audit agents do not count as a sweep.
 
-The owner reported again, on staging, an input with two orange borders (the palette field "Buscar ou executar": its own focus ring inside the wrapper's ring), and said it must be fixed in the whole app. That is `#895` (`ui#1256`), now the first Batch R item: every focusable control in the app draws exactly one focus indicator, proven by a layout guard, and checked on every surface before merge (spec standing rules).
+The owner's double orange ring report (the palette field "Buscar ou executar") must be fixed in the whole app: `#895` (`ui#1256`) is the first item below.
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff time the board had 178 open tickets, all 178 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff time the board had 176 open tickets, all 176 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
 
 ## In flight (verify each first)
 
 | item | disposition |
 |---|---|
-| `ui#1256` focus ring base layer (`#895`) | approved at `96dc2d86`; a review batch is committed locally in worktree `ticket-895-focus-ring-layer` (1 commit ahead, not pushed): read the newest `#895-*.log` report, merge it into the body with `merge-review-batch-body.mjs --ui-scope`, push, get a fresh approval; walk every focusable field (palette, Busca, create form, sheets, Entrar, support form, Perfil inline controls) and extend the guard to the palette field before merge |
-| `#556` carry of `#855` and `#875` | the worker hit the 45 minute ceiling in worktree `ticket-556-carry-account-reset` (branch never pushed): 8 commits plus 4 staged test files; salvage under `/orchestrate` step 7, open the pull request (`Refs #556`, `Closes #855`), drive review |
-| `ui#1255` all-done celebration (`#878`, `main`) | approved at `9a56e5cf`; SonarCloud red on that head: fix in one review batch, merge, release production web, carry to `redesign/main` |
-| `ui#1247` Perfil (`#837`) | merge-forward at `11740651` pushed; waiting for a fresh Pullfrog approval |
-| `api#644` Calendário logged habit (`#876`, `main`) | at `6918f7a6`, Pullfrog commented with one open thread on that head: read, fix or file, merge; then release production API (carries `#640`, `#642`, `#874`) and production web (`#875`, `#878`); then carry `#874` and `#876` into `orbit-api` `redesign/main` (`#746`) and release the staging API |
-| `ui#1257` Astra thread (`#881`) | opened by its worker at `05aac950`; drive review |
-| `#879` Hoje day states | copy commit `cbbac9ee` pushed on `fix/ticket-879-hoje-day-states`, no pull request; waits for `#878` on `redesign/main` |
-| `ui#1217` privacy (`#805`) | held until email runs on SES; local commit unpushed in worktree `ticket-805-privacy-processors` |
-| Staging web | runs `redesign/main` at `fa84c529` (health `ok`); release again after the next redesign merges, then sweep |
-| Production | web runs `main` at `ffae0d88` (`#855`); API runs `828b14bf` (behind `orbit-api` `main` by `#640`, `#642`, `#874`) |
-| SES production access | case `179056896000159`: `aws sesv2 get-account` reported `DENIED`; AWS owes the reply |
-| Sweep browser | local Mac Chrome ("Browser 2"); the window reports `visibilityState` `hidden`: finish animations before judging transitions, focus moves or Escape (spec Constraints); stay within 1352 by 849 |
-| Staging data | "Caminhar" and "Beber água" are logged today in the owner's staging account; delete "Beber água" when sweeps no longer need it |
-| Running workers | none known after handoff (the `#881` and `#556` workers exited; read their worktrees above) |
+| `ui#1256` focus rings (`#895`) | at `2ae50c93`, waiting for Pullfrog; review-fix attempts used 2 of 3; the local hermetic guard run passed 25 of 25 and failed on the double rings with the fix reverted. Merge on approval |
+| `ui#1247` Perfil (`#837`) | approved at `8724a60a`, green: merge |
+| `ui#1257` Astra thread (`#881`) | approved at `db41a69c`, green: merge |
+| `ui#1258` the `#556` carry of `#855` and `#875` | approved at `7db0a4ca`, green: merge, then close `#855` |
+| `ui#1262` row skip asks first (`#883`) | one Pullfrog thread open; copy already approved with `/second-opinion`: clear the thread, merge |
+| `ui#1263` Hoje date row (`#865`) | one Pullfrog thread open: clear, merge |
+| `ui#1264` habit detail strip (`#901`) | one Pullfrog thread open: clear, merge |
+| `ui#1261` reload banner (`#872`, `main`) | one Pullfrog thread open; also make the web store extend `createVersionGateStoreState` instead of copying it; merge, release production web |
+| `api#645` the `#746` carry of `#640` `#642` `#874` `#876` | one Pullfrog thread open: clear, merge, release the staging API |
+| `ui#1217` privacy (`#805`, `main`) | held until email runs on SES; worktree `ticket-805-privacy-processors` has 1 unpushed commit |
+| `#879` Hoje day states | commit `cbbac9ee` on `fix/ticket-879-hoje-day-states`, no pull request; needs `#878` on `redesign/main` through the next `#556` sync (`main` `75809748`) |
+| Staging | web still runs `fa84c529`; `redesign/main` is at `a27525df` with `#898` and `#900`; release after the approved merges above, then sweep at both widths |
+| Production | API `35e141da`, web `75809748`, Android 1.3.40 (99) on the open track |
+| SES production access | case `179056896000159`: AWS owes the reply |
+| Running workers | none; CI waiters from the last session exit on their own |
 | Stashes | none in any of the three repositories |
-| Uncommitted work | 4 staged test files in `ticket-556-carry-account-reset`; none elsewhere |
-| Unpushed commits | `ticket-895-focus-ring-layer` (1), `ticket-805-privacy-processors` (1), `ticket-556-carry-account-reset` (branch never pushed) |
-| Ignored files | `orbit-api/infra/local.tfvars` holds the web digests, the Render database choice, the landing apex-only domain list, and both storage providers set to `S3` |
-| Other worktrees | many ticket worktrees of merged tickets remain in both repositories (for example `ticket-834`, `ticket-835`, `ticket-839`, `ticket-846`, `ticket-855`, `ticket-856`, `ticket-875`, `api` `ticket-874`); tear them down one at a time with `teardown-worktree.mjs`, never an unmerged one |
+| Uncommitted work | none in any worktree |
+| Unpushed commits | `ticket-805-privacy-processors` (1) only |
+| Ignored files | `orbit-api/infra/local.tfvars` (web digests, database choice, storage providers); Playwright Chromium 151 installed in `~/Library/Caches/ms-playwright` for local guard runs |
+| Other worktrees | merged ticket worktrees remain in both repositories (for example `ticket-878`, `ticket-898`, `ticket-900`, `api` `ticket-876`); tear down with `teardown-worktree.mjs`, one at a time |
 
 ## Then, in order
 
-1. The in-flight rows above, top to bottom: `#895` first, then the `#556` salvage, then the approvals and merges, then the production API and web releases, then the `#746` carry and the staging API release.
-2. The spec's `### Batch R`: launch workers for its filed tickets in the listed order within the local cap, the CPU load (load average above 20 on 18 cores means no new worker) and the admission gate; merge and release as they pass; release `redesign/main` to staging after each batch of merges and sweep at desktop and phone width; file what the sweep finds into Batch R; repeat.
-3. The rest of `### Batch M` (the SES switch, then Resend, then `#805`).
-4. THE REDESIGN GATE stays open for the owner; do not merge `redesign/main` to `main`.
-5. Everything else in the spec's order: the rest of Batch E, Batch 0b and Batch 0c.
+1. The in-flight rows above, top to bottom: merge the four approved pull requests, clear the four single-thread reviews, merge `api#645` and release the staging API, then release `redesign/main` to staging and sweep at desktop and phone width (start with the owner's palette field, Perfil, the skip question, Hoje's date row and habit detail).
+2. `#904` (Batch 0b, harness): the worker order's Chromium carve-out, on `main`.
+3. The spec's `### Batch R`: launch workers for its filed tickets in the listed order within the local cap, the CPU load (load average above 20 on 18 cores means no new worker) and the admission gate; start a ticket whose files overlap an open pull request only after that one merges; file what each sweep finds into Batch R; repeat.
+4. The rest of `### Batch M` (the SES switch, then Resend, then `#805`).
+5. THE REDESIGN GATE stays open for the owner; do not merge `redesign/main` to `main`.
+6. Everything else in the spec's order: `#903` and the rest of Batch 0c, the rest of Batch E, Batch 0b.
 
 ## Previous prompt, disposition
 
-- Opening, entry point, sleep contract, authorization and the owner's instruction: carried, with the owner's new double-ring report added.
-- Goal: carried, with fresh counts (178 open, 178 placed).
-- In flight, `ui#1242`: done (merged, `#835` closed). `ui#1249`: done (merged to `main`, released to production web). `ui#1250`: done (merged, `#846` closed). `ui#1252`: done (merged). `ui#1251`: done (merged after the review batch and a local merge test, `#839` closed). `ui#1253`: done (merged after the CodeQL and layout guard fixes, `#856` closed). `ui#1247`: carried (merge-forward pushed, awaiting approval). `ui#1217`: carried. `#838`: done (closed).
-- In flight, sweep findings: done (all filed as `#874` to `#899`; `#880` cancelled as not reproduced; the unverified ones are listed in Batch R). Staging release: done (released at `fa84c529` and swept; findings filed as `#900` to `#902`). SES, sweep browser, staging data, GraphQL budget, workers, stashes, uncommitted work, ignored files, other worktrees: carried with fresh results.
-- Steps 1 to 5: carried, with step 1 rewritten for the new in-flight rows.
+- Opening, entry point, sleep contract, authorization and the owner's instruction: carried.
+- Goal: carried, with fresh counts (176 open, 176 placed).
+- In flight, `ui#1256`: carried (batch 1 and batch 2 pushed; guard extended to the palette and every listed surface). `#556` salvage: done (salvaged, opened as `ui#1258`, now approved). `ui#1255`: done (Sonar coverage fixed, merged, released to production web and Android). `ui#1247`: carried (redirect fix and merge-forward pushed, now approved). `api#644`: done (thread fixed, merged, production API released). `ui#1257`: carried (two fixes and a merge-forward, now approved). `#879`: carried. `ui#1217`: carried. Staging web: carried (not yet released). Production: done (API, web and Android released). SES, stashes, uncommitted work, unpushed commits, ignored files, other worktrees: carried with fresh results. Running workers: done (none).
+- Steps 1 to 5: carried, with step 1 rewritten for the new in-flight rows and `#904` added as step 2.
 
 Every identifier here came from a previous session: treat each as a lead to verify.

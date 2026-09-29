@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createContext, useContext, useEffect, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useCallback, useMemo, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -15,6 +15,7 @@ import {
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 
 export const PreloadedProfileContext = createContext<Profile | undefined>(undefined)
 
@@ -29,7 +30,11 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   const locale = useLocale()
   const isClient = useIsClient()
   const contextProfile = useContext(PreloadedProfileContext)
-  const initialData = options?.initialData ?? contextProfile
+  const accountGeneration = useAccountGeneration()
+  const [preloadAccountGeneration] = useState(accountGeneration)
+  const initialData = accountGeneration === preloadAccountGeneration
+    ? options?.initialData ?? contextProfile
+    : undefined
   const {
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,

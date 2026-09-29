@@ -6,7 +6,10 @@ import path from 'node:path'
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
 export function getLegacyRedirects() {
-  return [{ source: '/streak', destination: '/progress', permanent: true }]
+  return [
+    { source: '/streak', destination: '/progress', permanent: true },
+    ...['/preferences', '/advanced', '/ai-settings'].map((source) => ({ source, destination: '/profile', permanent: true })),
+  ]
 }
 
 const nextConfig: NextConfig = {

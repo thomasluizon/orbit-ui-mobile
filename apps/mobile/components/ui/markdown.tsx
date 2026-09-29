@@ -1,5 +1,5 @@
-import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
-import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { Children, cloneElement, isValidElement, useMemo, useState, type ElementType, type ReactNode } from 'react'
+import { Linking, Text, View, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
   MarkedTokenizer,
   Renderer,
@@ -12,7 +12,7 @@ import { getMarkdownImageLabel } from '@orbit/shared/utils'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type MarkdownTone = "default" | "muted" | "onPrimary"
+type MarkdownTone = "default" | "muted" | "thread"
 
 interface MarkdownProps {
   children: string
@@ -23,32 +23,33 @@ interface ProseColors {
   body: string
   heading: string
   link: string
+  quote: string
   activeLink: TextStyle
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
-    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
-  if (tone === "onPrimary")
-    return {
-      body: tokens.fgOnPrimary,
-      heading: tokens.fgOnPrimary,
-      link: tokens.fgOnPrimary,
-      activeLink: { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed },
-    }
-  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
+  if (tone === "thread")
+    return { body: tokens.fg1, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, quote: tokens.fg3, activeLink: { color: tokens.fg2 } }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
-function styleLinkChildren(children: ReactNode, style: TextStyle): ReactNode {
+function styleTextDescendants(children: ReactNode, style: TextStyle, preserved?: ElementType): ReactNode {
   return Children.map(children, (child) => {
     if (!isValidElement<{ style?: StyleProp<TextStyle>; children?: ReactNode }>(child)) return child
+    if (preserved && child.type === preserved) return child
     return cloneElement(child, {
       ...(child.type === Text ? { style: [child.props.style, style] } : {}),
-      children: styleLinkChildren(child.props.children, style),
+      children: styleTextDescendants(child.props.children, style, preserved),
     })
   })
+}
+
+function StrongText({ children, style }: Readonly<{ children: ReactNode; style?: TextStyle }>) {
+  return <Text selectable style={style}>{children}</Text>
 }
 
 function ProseLink({ children, href, styles, colors }: Readonly<{
@@ -71,7 +72,7 @@ function ProseLink({ children, href, styles, colors }: Readonly<{
       onPressIn={safe ? () => setPressed(true) : undefined}
       onPressOut={safe ? () => setPressed(false) : undefined}
     >
-      {styleLinkChildren(children, style)}
+      {styleTextDescendants(children, style)}
     </Text>
   )
 }
@@ -97,6 +98,14 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
 
   override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
     return super.paragraph([this.text(children, this.textStyles)], styles)
+  }
+
+  override blockquote(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    return super.blockquote([styleTextDescendants(children, { color: this.colors.quote }, StrongText)], styles)
+  }
+
+  override strong(children: string | ReactNode[], styles?: TextStyle): ReactNode {
+    return <StrongText key={this.getKey()} style={styles}>{children}</StrongText>
   }
 
   override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {
@@ -144,17 +153,18 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 }
 
-function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyles {
+function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: MarkdownTone): MarkedStyles {
   const { body, heading, link } = colors
+  const thread = tone === 'thread'
   return {
     text: {
       color: body,
       fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
-    paragraph: { marginVertical: 4 },
+    paragraph: thread ? { marginVertical: 0, paddingVertical: 0 } : { marginVertical: 4 },
     strong: { color: heading, fontFamily: 'Geist_500Medium' },
     em: { color: body, fontStyle: 'italic' },
     link: { color: link, textDecorationLine: 'underline', flexShrink: 1 },
@@ -180,8 +190,8 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyle
     li: {
       color: body,
       fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: thread ? 16 : 14,
+      lineHeight: thread ? 24 : 20,
       flexShrink: 1,
     },
     codespan: {
@@ -216,8 +226,8 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
   )
   const colors = useMemo(() => resolveProseColors(tokens, tone), [tokens, tone])
   const styles = useMemo(
-    () => createMarkedStyles(tokens, colors),
-    [tokens, colors],
+    () => createMarkedStyles(tokens, colors, tone),
+    [tokens, colors, tone],
   )
   const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
   const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
@@ -239,6 +249,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
       flatListProps={{
         scrollEnabled: false,
         initialNumToRender: 12,
+        ItemSeparatorComponent: tone === 'thread' ? () => <View style={{ height: 12 }} /> : undefined,
         style: { backgroundColor: 'transparent', minWidth: 0 },
       }}
     />

@@ -1,23 +1,8 @@
 import { useMemo } from 'react'
-import { View, type ColorValue, type StyleProp, type ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-interface AstraMarkAdapterProps {
-  size?: string | number
-  color?: ColorValue
-}
-
-/** @deprecated Use AstraGlyph directly outside legacy Tabler icon slots. */
-export function AstraMark({ size = 24, color }: Readonly<AstraMarkAdapterProps>) {
-  return (
-    <AstraGlyph
-      size={typeof size === 'number' ? size : Number(size)}
-      color={typeof color === 'string' ? color : undefined}
-    />
-  )
-}
 
 interface AstraAvatarProps {
   size?: number

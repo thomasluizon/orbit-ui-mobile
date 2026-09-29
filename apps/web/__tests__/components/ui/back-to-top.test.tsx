@@ -7,7 +7,7 @@ vi.mock('next-intl', () => ({
 
 import { BackToTop } from '@/components/ui/back-to-top'
 import { useUIStore } from '@/stores/ui-store'
-import { Shell412 } from '@/components/shell/shell-412'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 
 let observerCallback: ((entries: Array<{ isIntersecting: boolean }>) => void) | null = null
@@ -30,7 +30,7 @@ vi.stubGlobal(
 function renderBackToTop() {
   const view = render(
     <ShellScrollerProvider>
-      <Shell412 tabBar={<div>Tabs</div>}><div>Today</div></Shell412>
+      <ShellWide nav={false}><div>Today</div></ShellWide>
       <BackToTop />
     </ShellScrollerProvider>,
   )
@@ -42,6 +42,11 @@ function renderBackToTop() {
 
 describe('BackToTop', () => {
   beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })))
     useUIStore.setState({ isSelectMode: false })
   })
 

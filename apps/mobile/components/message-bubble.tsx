@@ -1,14 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
+import { BUTTON_SIZES } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
   getRelatedSurfaces,
+  hasChatProse,
   partitionMessageActions,
   stripChatDirectives,
 } from "@orbit/shared/chat";
@@ -27,37 +29,42 @@ import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
-import { AstraMark } from "@/components/ui/astra-avatar";
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { PillButton } from "@/components/ui/pill-button";
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
-function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
+function MessageCopyControl({ sourceText }: Readonly<{
   sourceText: string;
-  tokens: ReturnType<typeof createTokensV2>;
-  styles: ReturnType<typeof createStyles>;
 }>) {
   const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme]);
   const [copied, setCopied] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+  }, []);
 
   async function copySourceText() {
     await Clipboard.setStringAsync(sourceText);
     setCopied(true);
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copied ? t("chat.copied") : t("chat.copy")}
-      onPress={() => void copySourceText()}
-      style={styles.copyControl}
+    <PillButton
+      variant="ghost"
+      size="sm"
+      accessibleName={copied ? t("chat.copied") : t("chat.copy")}
+      onClick={() => void copySourceText()}
+      leadingIcon={copied
+        ? <Check size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />
+        : <Copy size={BUTTON_SIZES.sm.iconSize} color={tokens.fg1} aria-hidden />}
     >
-      {copied ? (
-        <Check size={16} strokeWidth={1.8} color={tokens.fg3} />
-      ) : (
-        <Copy size={16} strokeWidth={1.8} color={tokens.fg3} />
-      )}
-      <Text style={styles.copyText}>{copied ? t("chat.copied") : t("chat.copy")}</Text>
-    </Pressable>
+      {copied ? t("chat.copied") : t("chat.copy")}
+    </PillButton>
   );
 }
 
@@ -118,7 +125,7 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
-  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false);
+  const sourceText = stripChatDirectives(message.content, isStreaming);
 
   const {
     clarificationActions,
@@ -145,15 +152,10 @@ export function MessageBubble({
 
   const bubbleContent = (
     <>
-      {!isUser && (
-        <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <AstraMark size={16} />
-        </View>
-      )}
-
       <View
         style={isUser ? styles.bubbleColumnUser : styles.bubbleColumnAI}
       >
+        <View style={[styles.proseStack, isUser ? styles.userProseStack : null]}>
         <View
           style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
         >
@@ -167,12 +169,13 @@ export function MessageBubble({
             />
           )}
 
-          <Markdown tone={isUser ? "onPrimary" : "default"}>
-            {isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
+          <Markdown tone="thread">
+            {isUser ? message.content : sourceText}
           </Markdown>
         </View>
 
-        <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} />
+        {!isUser && hasChatProse(sourceText) ? <MessageCopyControl sourceText={sourceText} /> : null}
+        </View>
 
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
@@ -299,9 +302,6 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
       flexDirection: "row",
-      marginBottom: 16,
-      paddingHorizontal: 16,
-      gap: 8,
     },
     userContainer: {
       justifyContent: "flex-end",
@@ -310,18 +310,8 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "flex-start",
     },
 
-    aiAvatar: {
-      width: 30,
-      height: 30,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.18),
-      alignItems: "center",
-      justifyContent: "center",
-      alignSelf: "flex-start",
-    },
-
     bubbleColumnUser: {
-      maxWidth: "82%",
+      maxWidth: "80%",
       minWidth: 0,
       flexDirection: "column",
       alignItems: "flex-end",
@@ -333,50 +323,43 @@ function createStyles(tokens: AppTokens) {
       alignItems: "flex-start",
     },
 
+    proseStack: {
+      maxWidth: "100%",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: 8,
+    },
+    userProseStack: {
+      alignItems: "flex-end",
+    },
+
     bubble: {
       maxWidth: "100%",
       minWidth: 0,
       flexShrink: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
     },
     userBubble: {
-      backgroundColor: tokens.primary,
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 4,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
+      backgroundColor: tokens.bgWell,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     aiBubble: {
-      backgroundColor: tokens.bgElev,
       maxWidth: "100%",
-      borderTopLeftRadius: 4,
-      borderTopRightRadius: 18,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
     },
 
     imageAttachment: {
       width: 200,
+      maxWidth: "100%",
       height: 192,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
       marginBottom: 8,
     },
-    copyControl: {
-      minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 8,
-    },
-    copyText: {
-      color: tokens.fg3,
-      fontFamily: "Geist_500Medium",
-      fontSize: 14,
-    },
-
     relatedContainer: {
       marginTop: 8,
       width: "100%",

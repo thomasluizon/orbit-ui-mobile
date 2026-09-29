@@ -21,6 +21,7 @@ const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
 const mockRegisterOpenOverlay = vi.fn()
 const mockUnregisterOpenOverlay = vi.fn()
+const mockLogHabitMutate = vi.fn()
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -79,7 +80,7 @@ vi.mock('@/stores/ui-store', () => ({
 
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
-  useLogHabit: () => ({ mutate: vi.fn() }),
+  useLogHabit: () => ({ mutate: mockLogHabitMutate }),
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
@@ -121,6 +122,7 @@ beforeEach(() => {
     isSuccess: true,
   }
   mockPush.mockClear()
+  mockLogHabitMutate.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
   mockRegisterOpenOverlay.mockClear()
@@ -187,6 +189,16 @@ describe('CommandPalette', () => {
     renderPalette()
     fireEvent.click(screen.getByText('Run'))
     expect(mockPush).toHaveBeenCalledWith('/habits/h1')
+  })
+
+  it('leaves a failed log to the mutation error toast', () => {
+    renderPalette()
+    fireEvent.click(screen.getByText('command.logHabit'))
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockLogHabitMutate).toHaveBeenCalledWith(
+      { habitId: 'h1', intent: 'log' },
+      { onSuccess: expect.any(Function) },
+    )
   })
 
   it('closes when Escape is pressed in the focused search input', async () => {

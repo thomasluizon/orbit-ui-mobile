@@ -26,6 +26,7 @@ type ExpectedButtonBase = {
 }
 type ExpectedLabelledVariant = ExpectedButtonBase & {
   children: string
+  leadingIcon?: React.ReactNode
   accessibleName?: string
   iconOnly?: never
   label?: never
@@ -35,6 +36,7 @@ type ExpectedIconOnlyVariant = ExpectedButtonBase & {
   iconOnly: true
   label: string
   accessibleName?: never
+  leadingIcon?: never
 }
 
 export type ButtonTypeContract = [

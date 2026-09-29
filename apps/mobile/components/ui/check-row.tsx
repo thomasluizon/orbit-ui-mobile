@@ -40,7 +40,6 @@ export function CheckRow({
           style={[
             styles.label,
             { color: checked ? tokens.fg3 : tokens.fg1 },
-            checked ? styles.checkedLabel : null,
           ]}
         >
           {label}
@@ -62,7 +61,6 @@ const styles = StyleSheet.create({
   row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8 },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
-  checkedLabel: { textDecorationLine: 'line-through' },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },

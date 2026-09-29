@@ -1216,8 +1216,7 @@
         "today": "Hoje",
         "gamification": "Conquistas",
         "notifications": "Notificações",
-        "subscriptions": "Assinar",
-        "aiSettings": "Configurações de IA"
+        "subscriptions": "Assinar"
       }
     },
     "conflict": {
@@ -1614,7 +1613,7 @@
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Ver Pro",
-      "open": "Abrir as chaves",
+      "open": "Gerenciar chaves de API",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
@@ -1639,12 +1638,10 @@
       "account": "Conta",
       "preferences": "Preferências",
       "communication": "Comunicação",
-      "aiFeatures": "Recursos de IA",
       "aboutHelp": "Sobre e Ajuda",
       "advanced": "Avançado",
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
-      "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
@@ -2020,7 +2017,7 @@
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
-      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
+      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, no Perfil, e pode se opor ao processamento automatizado entrando em contato com a gente."
     },
     "minors": {
       "title": "Requisito de idade",
@@ -2393,7 +2390,7 @@
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
-      "trialHeading": "As 50 por dia ficam, ou voltam a ser 5.",
+      "trialHeading": "Pro: 50 mensagens da Astra por dia.",
       "trialCta": "Manter o Pro",
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "Dez vezes mais Astra.",
@@ -3105,9 +3102,6 @@
     "themeMode": "Aparência",
     "themeModeLight": "Claro",
     "themeModeDark": "Escuro"
-  },
-  "aiSettings": {
-    "title": "Recursos de IA"
   },
   "about": {
     "title": "Sobre e Ajuda",
