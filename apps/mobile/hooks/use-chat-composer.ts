@@ -860,7 +860,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
       const label = providedLabel ?? t(key, params);
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label);
-      return { id, label, onSelect: () => void sendMessage(prompt) };
+      return { id, label, onSelect: () => {
+        useUIStore.getState().setAstraConversationOpen(true);
+        void sendMessage(prompt);
+      } };
     }));
   }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, totalHabitCount, profile, date, today, sendMessage, t]);
 

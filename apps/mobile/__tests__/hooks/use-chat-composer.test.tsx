@@ -1441,6 +1441,7 @@ describe('mobile useChatComposer', () => {
     const suggestion = composer.current.composerProps.suggestions[0]!
 
     TestRenderer.act(() => suggestion.onSelect())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)

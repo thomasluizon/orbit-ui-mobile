@@ -736,7 +736,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
       const label = providedLabel ?? t(key, params)
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label)
-      return { id, label, onSelect: () => void sendMessage(prompt) }
+      return { id, label, onSelect: () => {
+        useUIStore.getState().setAstraConversationOpen(true)
+        void sendMessage(prompt)
+      } }
     }))
   }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, options.totalHabitCount, profile, selectedDate, today, sendMessage, t])
 

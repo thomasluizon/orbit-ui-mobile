@@ -1430,6 +1430,7 @@ describe('web useChatComposer streaming send', () => {
     const suggestion = result.current.composerProps.suggestions[0]!
 
     act(() => suggestion.onSelect())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     expect(requestBody).toBeInstanceOf(FormData)
