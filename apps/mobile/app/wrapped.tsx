@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { useLocalSearchParams } from 'expo-router'
+import { getClosedMonthFromWrappedParams, type ClosedMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
@@ -14,6 +15,18 @@ import { WrappedPlayer } from './wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {
+  const params = useLocalSearchParams<{
+    wrapped?: string | string[]
+    year?: string | string[]
+    month?: string | string[]
+  }>()
+  const notifiedMonth = getClosedMonthFromWrappedParams(params)
+  const notifiedMonthKey = notifiedMonth ? `${notifiedMonth.year}-${notifiedMonth.month}` : 'current'
+
+  return <WrappedScreenContent key={notifiedMonthKey} notifiedMonth={notifiedMonth} />
+}
+
+function WrappedScreenContent({ notifiedMonth }: Readonly<{ notifiedMonth: ClosedMonth | null }>) {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -22,14 +35,19 @@ export default function WrappedScreen() {
     [currentScheme, currentTheme],
   )
   const { profile } = useProfile()
-  const [period, setPeriod] = useState<RecapSharePeriod>('week')
+  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => ({
+    period: notifiedMonth ? 'month' : 'week',
+    closedMonth: notifiedMonth,
+  }))
+  const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
+    closedMonth,
   })
 
   function selectPeriod(next: RecapSharePeriod) {
-    setPeriod(next)
+    setSelection({ period: next, closedMonth: null })
     setIsPlaying(false)
   }
 
