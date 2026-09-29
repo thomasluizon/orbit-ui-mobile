@@ -128,13 +128,7 @@ export function MoveParentOverlay({
           <PillButton variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
-          <PillButton
-
-            disabled={!canSubmit}
-            loading={isMoving}
-            onClick={onConfirm}
-
-          >
+          <PillButton disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>
             {t('habits.moveParent.confirm')}
           </PillButton>
         </div>
