@@ -450,7 +450,7 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
     expect(issue).toBeVisible()
     expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
 
     const row = screen.getByText('Second Monday review').closest('button')?.parentElement
     expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
@@ -480,7 +480,7 @@ describe('CalendarSyncPage', () => {
     renderPage()
 
     expect((await screen.findByText('Alternate week training')).closest('button')).not.toBeDisabled()
-    const importButton = screen.getByText(/calendar.importButton/).closest('button')
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
     fireEvent.click(importButton!)
     expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
@@ -511,7 +511,7 @@ describe('CalendarSyncPage', () => {
     expect((await screen.findByText('Unsupported training')).closest('button')).toBeDisabled()
     expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
     expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
   })
 
   it('explains and disables a finite month-end suggestion before import', async () => {
@@ -605,7 +605,7 @@ describe('CalendarSyncPage', () => {
     })
 
     expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('calendar.importButton')
+    expect(await screen.findByText(/calendar.importButton/)).toBeInTheDocument()
   })
 
   it('renders import button with selected count', async () => {
@@ -693,7 +693,7 @@ describe('CalendarSyncPage', () => {
     const refusals = screen.getAllByText('offline.calendar.reason')
     expect(refusals).toHaveLength(1)
     expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
-    const importButton = screen.getByText('calendar.importButton:{"count":1}').closest('button')!
+    const importButton = (await screen.findByText('calendar.importButton:{"count":1}')).closest('button')!
     expect(screen.getByTestId('sheet-body')).toContainElement(refusals[0]!)
     expect(screen.getByTestId('sheet-actions')).toContainElement(importButton)
     expect(screen.getByTestId('sheet-body')).not.toContainElement(importButton)
@@ -717,7 +717,7 @@ describe('CalendarSyncPage', () => {
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
 
     expect(screen.getByText('Team meeting')).toBeVisible()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })).toBeDisabled()
     expect(mockBulkMutate).not.toHaveBeenCalled()
     expect(mockDismissSuggestion).not.toHaveBeenCalled()
