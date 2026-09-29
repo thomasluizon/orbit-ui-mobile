@@ -50,6 +50,7 @@
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
+  /* Resolves to 0 until the document opts into viewport-fit cover, and keeps the pinned actions clear of the home indicator the day it does. */
   padding-bottom: env(safe-area-inset-bottom);
   border-radius: 28px 28px 0 0;
   background: var(--bg-sheet);

@@ -293,7 +293,8 @@ describe('Sheet (mobile)', () => {
     expect(contentStyle.flex).toBeUndefined()
     expect(contentStyle.flexGrow).toBeUndefined()
     const actions = nativeSheet.props.footer.props.children[1]
-    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingBottom: 40 })
+    expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ padding: 16 })
     expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
     await TestRenderer.act(() => {
       nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
@@ -304,6 +305,23 @@ describe('Sheet (mobile)', () => {
     })
     const measuredScroller = tree.root.findAllByType('ScrollView')[0]
     expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24)
+  })
+
+  it('clears the bottom inset for a sheet toast that has no actions', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open title="Title"><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      useAppToastStore.getState().showError('Could not save')
+      await Promise.resolve()
+    })
+
+    const footer = tree.root.findByType(TrueSheet).props.footer
+    expect(footer).toBeDefined()
+    expect(StyleSheet.flatten(footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('keeps a short sheet at its content height with no stretched body', async () => {

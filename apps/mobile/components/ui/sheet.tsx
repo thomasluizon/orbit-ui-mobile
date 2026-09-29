@@ -217,9 +217,9 @@ function renderSheetFooter(
 ) {
   if (!actions && !showSheetToast) return undefined
   return (
-    <View onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
+    <View style={{ paddingBottom: bottomInset }} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
       {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
-      {actions ? <View style={[styles.actions, { paddingBottom: 16 + bottomInset }]}>{actions}</View> : null}
+      {actions ? <View style={styles.actions}>{actions}</View> : null}
     </View>
   )
 }

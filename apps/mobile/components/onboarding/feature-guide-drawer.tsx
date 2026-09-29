@@ -177,9 +177,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 8,
       paddingRight: 12,
     },
-    sectionScroll: {
-      flex: 1,
-    },
     sectionContent: {
       paddingHorizontal: 24,
       paddingTop: 16,

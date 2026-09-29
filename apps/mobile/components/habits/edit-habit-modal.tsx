@@ -525,9 +525,6 @@ export function EditHabitModal({
 
 function createStyles() {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
       paddingHorizontal: 16,
       paddingBottom: 16,

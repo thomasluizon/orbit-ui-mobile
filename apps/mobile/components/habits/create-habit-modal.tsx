@@ -610,9 +610,6 @@ export function CreateHabitModal({
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
       paddingHorizontal: 16,
       paddingBottom: 16,

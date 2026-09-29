@@ -248,9 +248,6 @@ function createStyles(tokens: AppTokensV2) {
       marginTop: 4,
       marginBottom: 8,
     },
-    moveOptionsList: {
-      flex: 1,
-    },
     moveOptionsContent: {
       gap: 4,
       paddingTop: 4,
@@ -347,9 +344,6 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       gap: 12,
       marginTop: 16,
-    },
-    footerPill: {
-      flex: 1,
     },
   })
 }

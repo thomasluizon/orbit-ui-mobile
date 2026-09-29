@@ -6,9 +6,6 @@ export type EditGoalStyles = ReturnType<typeof createStyles>
 
 export function createStyles(tokens: EditGoalTokens) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     form: {
       paddingTop: 8,
       paddingHorizontal: 16,
