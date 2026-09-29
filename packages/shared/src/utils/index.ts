@@ -262,13 +262,10 @@ export { formatHabitDetailSummary } from './habit-detail-summary'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
-  formatDeviceDate,
-  formatDeviceDateTime,
-  formatDeviceTime,
   getSystemLocale,
   resolveSupportedLocale,
   resolveSystemLocale,
@@ -623,6 +620,7 @@ export type {
   UpgradeEntitlementResolution,
 } from './upgrade'
 export {
+  buildClockFormatOptions,
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
 } from './preferences-options'

@@ -1,14 +1,14 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { getTimezoneList, LANGUAGE_OPTIONS } from '@orbit/shared/utils'
+import { getTimezoneList, LANGUAGE_OPTIONS, resolveHourCycle } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-row'
 
-export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
+export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart' | 'clock'
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
 const TIME_ZONE_PAGE_SIZE = 20
@@ -124,8 +124,10 @@ interface PreferencePickerSheetProps {
   currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
+  uses24HourClock?: boolean
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
+  clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   pickerTitles: Record<PreferencePicker, string>
   pickerDescriptions: Partial<Record<PreferencePicker, string>>
   timeZoneSearchLabel: string
@@ -136,45 +138,22 @@ interface PreferencePickerSheetProps {
   onThemeModeChange: (mode: ThemeMode) => void
   onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
+  onClockFormatChange: (uses24HourClock: boolean) => void
 }
 
-export function PreferencePickerSheet({
-  activePicker,
-  mounted,
-  selectedLanguage,
-  currentTheme,
-  timeZone,
-  weekStartDay,
-  themeModeOptions,
-  weekStartOptions,
-  pickerTitles,
-  pickerDescriptions,
-  timeZoneSearchLabel,
-  timeZoneNoResultsLabel,
-  timeZoneShowMoreLabel,
-  onClose,
-  onLanguageChange,
-  onThemeModeChange,
-  onTimeZoneChange,
-  onWeekStartChange,
-}: Readonly<PreferencePickerSheetProps>) {
-  const { sheetRef, closeSheet } = useSheetHost()
-  const commitSelection = (apply: () => void) => closeSheet(() => {
-    onClose()
-    apply()
-  })
-  if (activePicker === null) return null
-
-  return (
-    <Sheet
-      ref={sheetRef}
-      open
-      onClose={onClose}
-      title={pickerTitles[activePicker]}
-    >
-      <p className="mb-3 text-sm text-[var(--fg-3)]">
-        {pickerDescriptions[activePicker]}
-      </p>
+function PickerContent({
+  props,
+  commitSelection,
+}: Readonly<{
+  props: PreferencePickerSheetProps
+  commitSelection: (apply: () => void) => void
+}>) {
+  const {
+    activePicker, mounted, selectedLanguage, currentTheme, timeZone, themeModeOptions,
+    pickerTitles, timeZoneSearchLabel, timeZoneNoResultsLabel, timeZoneShowMoreLabel,
+    onLanguageChange, onThemeModeChange, onTimeZoneChange,
+  } = props
+  return <>
       {activePicker === 'language' ? (
         <PickerOptions
           label={pickerTitles.language}
@@ -200,6 +179,24 @@ export function PreferencePickerSheet({
           onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
         />
       ) : null}
+  </>
+}
+
+function ClockPickerContent({ props, commitSelection }: Readonly<{
+  props: PreferencePickerSheetProps
+  commitSelection: (apply: () => void) => void
+}>) {
+  const { activePicker, mounted, selectedLanguage, uses24HourClock, weekStartDay, clockFormatOptions,
+    weekStartOptions, pickerTitles, onClockFormatChange, onWeekStartChange } = props
+  return <>
+      {activePicker === 'clock' ? (
+        <PickerOptions
+          label={pickerTitles.clock}
+          options={clockFormatOptions}
+          selected={resolveHourCycle(uses24HourClock, selectedLanguage) === 'h23' ? '24h' : '12h'}
+          onCommit={(value) => commitSelection(() => onClockFormatChange(value === '24h'))}
+        />
+      ) : null}
       {activePicker === 'weekStart' ? (
         <PickerOptions
           label={pickerTitles.weekStart}
@@ -208,6 +205,25 @@ export function PreferencePickerSheet({
           onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
         />
       ) : null}
+  </>
+}
+
+export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
+  const { activePicker, pickerTitles, pickerDescriptions, onClose } = props
+  const { sheetRef, closeSheet } = useSheetHost()
+  const commitSelection = (apply: () => void) => closeSheet(() => {
+    onClose()
+    apply()
+  })
+  if (activePicker === null) return null
+
+  return (
+    <Sheet ref={sheetRef} open onClose={onClose} title={pickerTitles[activePicker]}>
+      {pickerDescriptions[activePicker] ? <p className="mb-3 text-sm text-[var(--fg-3)]">
+        {pickerDescriptions[activePicker]}
+      </p> : null}
+      <PickerContent props={props} commitSelection={commitSelection} />
+      <ClockPickerContent props={props} commitSelection={commitSelection} />
     </Sheet>
   )
 }

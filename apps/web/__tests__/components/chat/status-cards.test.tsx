@@ -5,16 +5,16 @@ import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { StreakCard } from '@/components/chat/streak-card'
 import { CalendarCard } from '@/components/chat/calendar-card'
 
-const mocks = vi.hoisted(() => ({ push: vi.fn() }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), language: 'pt-BR', uses24HourClock: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
-vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
+vi.mock('next-intl', () => ({ useLocale: () => mocks.language, useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <section>{body}{items.map((item) => <div data-testid="card-row" data-status={item.status} key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
 
 describe('Astra status cards on web', () => {
-  beforeEach(() => mocks.push.mockReset())
+  beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
 
   it('labels the day ring and opens Today', () => {
     render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
@@ -62,6 +62,17 @@ describe('Astra status cards on web', () => {
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
     expect(mocks.push).toHaveBeenCalledWith('/calendar')
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('shows a timed calendar event with %s and the saved clock', (language, uses24HourClock, expected, excluded) => {
+    mocks.language = language
+    mocks.uses24HourClock = uses24HourClock
+    render(<CalendarCard calendarCard={{ events: [{ title: 'Meeting', start: '2026-09-26T19:30:00', end: null, isAllDay: false }], surfaceId: 'calendar' }} />)
+    expect(screen.getByTestId('card-row')).toHaveTextContent(expected)
+    expect(screen.getByTestId('card-row')).not.toHaveTextContent(excluded)
   })
 
   it('shows disabled sync without a failure mark', () => {

@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   formatTimeParts,
   formatTimeFieldInput,
   from12Hour,
@@ -269,8 +269,8 @@ export function TimeField({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { profile } = useProfile()
-  const uses24HourClock = profile?.uses24HourClock ?? detectDefaultTimeFormat(i18n.language) === '24h'
-  const resolvedHourCycle = hourCycle ?? (uses24HourClock ? 'h23' : 'h12')
+  const resolvedProfileHourCycle = resolveHourCycle(profile?.uses24HourClock, i18n.language)
+  const resolvedHourCycle = hourCycle ?? resolvedProfileHourCycle
   const resolvedLabel = label ?? accessibilityLabel ?? placeholder ?? t('common.selectTime')
   const presentedValue = presentTime(value, resolvedHourCycle)
   const [focused, setFocused] = useState(false)

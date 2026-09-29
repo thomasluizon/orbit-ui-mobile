@@ -600,7 +600,7 @@ const MUTATION_SCOPES = {
   markNotificationRead: 'notifications', markAllNotificationsRead: 'notifications',
   deleteNotification: 'notifications', deleteAllNotifications: 'notifications',
   createApiKey: 'apiKeys', deleteApiKey: 'apiKeys', dismissCalendarPrompt: 'calendar',
-  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setColorScheme: 'profile',
+  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setClockFormat: 'profile', setColorScheme: 'profile',
   setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile',
   setProactiveAstra: 'profile', setMarketingConsent: 'profile', completeOnboarding: 'profile',
   dismissImportPrompt: 'profile', resetProfile: 'profile',

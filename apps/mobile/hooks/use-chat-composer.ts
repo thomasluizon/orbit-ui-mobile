@@ -38,7 +38,7 @@ import {
 } from "@orbit/shared/hooks";
 import {
   buildRecentChatHistory,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
 import { openChatStream } from "@/lib/chat-stream";
@@ -559,7 +559,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const clientContext = {
         platform: "mobile",
         locale: i18n.language,
-        timeFormat: detectDefaultTimeFormat(i18n.language),
+        timeFormat: resolveHourCycle(profile?.uses24HourClock, i18n.language) === 'h23' ? '24h' : '12h',
         currentAppArea: "chat",
         supportsHabitListCard: true,
         supportsHabitListDoneStatus: true,
@@ -580,7 +580,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       formData.append("clientContext", JSON.stringify(clientContext));
       return formData;
     },
-    [i18n.language],
+    [i18n.language, profile?.uses24HourClock],
   );
 
   const runStreamingSend = useCallback(

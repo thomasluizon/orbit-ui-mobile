@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   formatTimeParts,
   formatTimeFieldInput,
   from12Hour,
@@ -209,8 +209,8 @@ export function TimeField({
   const locale = useLocale()
   const generatedId = useId()
   const { profile } = useProfile()
-  const uses24HourClock = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
-  const resolvedHourCycle = hourCycle ?? (uses24HourClock ? 'h23' : 'h12')
+  const resolvedProfileHourCycle = resolveHourCycle(profile?.uses24HourClock, locale)
+  const resolvedHourCycle = hourCycle ?? resolvedProfileHourCycle
   const resolvedLabel = label ?? ariaLabel ?? placeholder ?? t('common.selectTime')
   const inputId = id ?? generatedId
   const descriptionId = useId()

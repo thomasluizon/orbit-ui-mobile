@@ -1,10 +1,10 @@
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
 import { View, Text, } from "react-native";
 import { X, Plus, Bell } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
-import { formatLocaleTime } from "@orbit/shared/utils";
 import {
   MAX_SCHEDULED_REMINDERS,
   validateScheduledReminders,
@@ -69,8 +69,8 @@ export function ScheduledReminderSection({
   nested = false,
   offsetReminderCount = 0,
 }: Readonly<ScheduledReminderSectionProps>) {
-  const { t, i18n } = useTranslation();
-  const deviceLocale = i18n.language;
+  const { t } = useTranslation();
+  const { displayTime } = useTimeFormat();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
@@ -113,7 +113,7 @@ export function ScheduledReminderSection({
     when: ScheduledReminderWhen;
     time: string;
   }): string {
-    const timeDisplay = formatLocaleTime(sr.time, deviceLocale);
+    const timeDisplay = displayTime(sr.time);
     if (sr.when === "day_before") {
       return t("habits.form.scheduledReminderDayBeforeAt", {
         time: timeDisplay,

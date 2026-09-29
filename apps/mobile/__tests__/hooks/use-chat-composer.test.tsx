@@ -300,6 +300,16 @@ function documentPickerAsset(
 }
 
 describe('mobile useChatComposer', () => {
+  it('sends the profile clock preference to Astra', async () => {
+    mocks.state.profile = createMockProfile({ uses24HourClock: true })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Hello') })
+    const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context.timeFormat).toBe('24h')
+  })
+
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(
       frame('{"type":"step","domain":"habits","access":"read"}'),

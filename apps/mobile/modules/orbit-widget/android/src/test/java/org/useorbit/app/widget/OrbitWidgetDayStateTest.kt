@@ -2,8 +2,16 @@ package org.useorbit.app.widget
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.Locale
 
 class OrbitWidgetDayStateTest {
+    @Test
+    fun `formats the profile clock while keeping the legacy widget default`() {
+        assertEquals("09:05", formatWidgetTime("09:05:00", true, Locale.ENGLISH))
+        assertEquals("09:05", formatWidgetTime("09:05:00", null, Locale.ENGLISH))
+        assertEquals("9:05 AM", formatWidgetTime("09:05:00", false, Locale.ENGLISH))
+    }
+
     @Test
     fun `selects empty copy from the payload reason with the completed case as fallback`() {
         assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString("all-done"))

@@ -32,6 +32,7 @@ const {
   updateProactiveAstra,
   updateMarketingConsent,
   updateWeekStartDay,
+  updateClockFormat,
   updateThemePreference,
   completeOnboarding,
   resetAccount,
@@ -144,6 +145,17 @@ describe('profile server actions', () => {
     })
   })
 
+
+  describe('updateClockFormat', () => {
+    it('sends the selected clock to the profile endpoint', async () => {
+      mock204()
+      await updateClockFormat({ uses24HourClock: false }, 'account-a')
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/profile/clock-format')
+      expect(init.method).toBe('PUT')
+      expect(JSON.parse(init.body)).toEqual({ uses24HourClock: false })
+    })
+  })
 
   describe('updateWeekStartDay', () => {
     it('sends PUT to /api/profile/week-start-day', async () => {

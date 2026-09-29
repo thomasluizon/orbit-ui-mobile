@@ -39,7 +39,7 @@ import {
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import {
   buildRecentChatHistory,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
@@ -449,7 +449,7 @@ export function useChatComposer() {
     const clientContext = {
       platform: 'web',
       locale,
-      timeFormat: detectDefaultTimeFormat(locale),
+      timeFormat: resolveHourCycle(profile?.uses24HourClock, locale) === 'h23' ? '24h' : '12h',
       currentAppArea: 'chat',
       supportsHabitListCard: true,
       supportsHabitListDoneStatus: true,
@@ -469,7 +469,7 @@ export function useChatComposer() {
     } satisfies ChatClientContext
     formData.append('clientContext', JSON.stringify(clientContext))
     return formData
-  }, [locale])
+  }, [locale, profile?.uses24HourClock])
 
   const runStreamingSend = useCallback(async (attempted: AttemptedSend) => {
     const startingAccountGeneration = getAccountGeneration()

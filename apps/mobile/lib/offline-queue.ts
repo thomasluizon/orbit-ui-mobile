@@ -198,6 +198,7 @@ const DROP_CREATE_TYPES = new Set<string>([
 const LAST_WRITE_WINS_TYPES = new Set<string>([
   'setLanguage',
   'setWeekStartDay',
+  'setClockFormat',
   'setColorScheme',
   'setThemePreference',
   'setTimeZone',

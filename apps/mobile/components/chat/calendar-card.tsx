@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
 import type { CalendarCard as CalendarCardData } from '@orbit/shared/types/chat'
@@ -9,16 +10,16 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: CalendarCardData }>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const { displayClock } = useTimeFormat()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const time = new Intl.DateTimeFormat(i18n.language, { hour: 'numeric', minute: '2-digit' })
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => ({
     id: `event-${index}`,
     label: event.title,
     wrapLabel: true,
-    meta: event.isAllDay ? t('chat.calendarCard.allDay') : time.format(new Date(event.start)),
+    meta: event.isAllDay ? t('chat.calendarCard.allDay') : displayClock(event.start),
   }))
   if (calendarCard.sync) {
     const failed = calendarCard.sync.enabled && calendarCard.sync.status !== 'Idle'

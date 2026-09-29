@@ -34,6 +34,11 @@
       "showGeneral": "Mostrar hábitos gerais no Hoje",
       "showGeneralDesc": "Mostra seus hábitos gerais abaixo dos agendados para hoje"
     },
+    "clock": {
+      "title": "Relógio",
+      "hour24": "24 horas",
+      "hour12": "12 horas"
+    },
     "weekStartDay": {
       "title": "Primeiro dia",
       "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",

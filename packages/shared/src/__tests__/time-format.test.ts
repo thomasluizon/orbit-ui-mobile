@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   capitalizeFirstLetter,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -20,8 +20,10 @@ describe('locale-format utils', () => {
   })
 
   it('detects locale-specific default time formats', () => {
-    expect(detectDefaultTimeFormat('en')).toBe('12h')
-    expect(detectDefaultTimeFormat('pt-BR')).toBe('24h')
+    expect(resolveHourCycle(undefined, 'en')).toBe('h12')
+    expect(resolveHourCycle(undefined, 'pt-BR')).toBe('h23')
+    expect(resolveHourCycle(true, 'en')).toBe('h23')
+    expect(resolveHourCycle(false, 'pt-BR')).toBe('h12')
   })
 
   it('maps Portuguese system locales to pt-BR', () => {

@@ -181,17 +181,17 @@ describe('habit detail flow model', () => {
       reminderEnabled: false,
       reminderTimes: [10],
       scheduledReminders: [],
-    }, translate)).toBe('habits.detail.noValue')
+    }, translate, (time) => `clock:${time}`)).toBe('habits.detail.noValue')
     expect(formatHabitDetailReminderValue({
       reminderEnabled: true,
       reminderTimes: [10, 30],
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
-    }, translate)).toBe('habits.form.reminder10min, habits.form.reminder30min, 08:00')
+    }, translate, (time) => `clock:${time}`)).toBe('habits.form.reminder10min, habits.form.reminder30min, clock:08:00')
     expect(formatHabitDetailReminderValue({
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [],
-    }, translate)).toBe('habits.detail.noValue')
+    }, translate, (time) => `clock:${time}`)).toBe('habits.detail.noValue')
   })
 
   it('validates inline times and clears a stale end when the start changes', () => {

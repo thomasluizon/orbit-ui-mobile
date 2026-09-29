@@ -53,7 +53,7 @@ export {
   resolveAutoManagedReminderEnabled,
   fetchAllPaginatedItems,
   capitalizeFirstLetter,
-  detectDefaultTimeFormat,
+  resolveHourCycle,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,

@@ -145,6 +145,12 @@ export const setWeekStartDayRequestSchema = z.object({
 
 export type SetWeekStartDayRequest = z.infer<typeof setWeekStartDayRequestSchema>
 
+export const setClockFormatRequestSchema = z.object({
+  uses24HourClock: z.boolean(),
+})
+
+export type SetClockFormatRequest = z.infer<typeof setClockFormatRequestSchema>
+
 export const setThemePreferenceRequestSchema = z.object({
   themePreference: z.string().nullable(),
 })

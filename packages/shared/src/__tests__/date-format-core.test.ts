@@ -21,7 +21,6 @@ describe('createLocaleDateFormatters', () => {
     expect(formatters.displayDateMedium(undefined)).toBe('')
     expect(formatters.displayWeekdayDate(null)).toBe('')
     expect(formatters.displayMonthYear(undefined)).toBe('')
-    expect(formatters.displayDateTime(null)).toBe('')
   })
 
   it('renders the long month name for the default display date', () => {
