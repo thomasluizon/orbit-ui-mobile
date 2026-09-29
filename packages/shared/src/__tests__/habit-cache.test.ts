@@ -3,10 +3,13 @@ import { QueryClient } from '@tanstack/query-core'
 import { createMockHabit } from './factories'
 import { habitKeys } from '../query/keys'
 import {
+  checkTodayAllDoneOrDefer,
   deduplicateHabitList,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
+  restoreCachedHabitLists,
+  updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
 import { optimisticRemoveHabits } from '../utils/habit-optimistic'
@@ -175,6 +178,57 @@ describe('getTodayHabitList', () => {
 
     expect((await afterLog)?.map((item) => item.isCompleted)).toEqual([true])
     expect(fetches).toBe(3)
+  })
+
+  it('keeps every cached list and its count in step with an optimistic change and its rollback', () => {
+    const queryClient = new QueryClient()
+    const key = habitKeys.list(todayFilters)
+    const countKey = habitKeys.listTotalCount(todayFilters)
+    const allKey = habitKeys.list({})
+    const original = [scheduled('a'), scheduled('b')]
+    queryClient.setQueryData(key, original)
+    queryClient.setQueryData(countKey, 2)
+    queryClient.setQueryData(allKey, original)
+    queryClient.setQueryData(habitKeys.list({ search: 'empty' }), undefined)
+    const snapshots = queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+
+    updateCachedHabitLists(queryClient, (items) => optimisticRemoveHabits(items, ['a']))
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(allKey)?.map((item) => item.id)).toEqual(['b'])
+    expect(queryClient.getQueryData(countKey)).toBe(1)
+
+    queryClient.removeQueries({ queryKey: allKey, exact: true })
+    restoreCachedHabitLists(queryClient, snapshots)
+    expect(queryClient.getQueryData(key)).toEqual(original)
+    expect(queryClient.getQueryData(allKey)).toEqual(original)
+    expect(queryClient.getQueryData(countKey)).toBe(2)
+  })
+
+  it('checks the complete Today list at once and defers otherwise', async () => {
+    const check = vi.fn()
+    const queryClient = new QueryClient()
+    const items = [{ ...scheduled('a'), isCompleted: true }]
+
+    expect(checkTodayAllDoneOrDefer(queryClient, today, '2025-01-01', false, check)).toBe(false)
+    expect(checkTodayAllDoneOrDefer(queryClient, today, undefined, true, check)).toBe(true)
+    expect(checkTodayAllDoneOrDefer(queryClient, today, today, false, check)).toBe(true)
+    expect(check).not.toHaveBeenCalled()
+
+    queryClient.setQueryData(habitKeys.list(todayFilters), items)
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 1)
+    let finishFetch: (value: HabitScheduleItem[]) => void = () => undefined
+    const inFlight = queryClient.fetchQuery({
+      queryKey: habitKeys.list(todayFilters),
+      queryFn: () => new Promise<HabitScheduleItem[]>((resolve) => { finishFetch = resolve }),
+      staleTime: 0,
+    })
+    expect(checkTodayAllDoneOrDefer(queryClient, today, today, false, check)).toBe(true)
+    finishFetch(items)
+    await inFlight
+
+    expect(checkTodayAllDoneOrDefer(queryClient, today, today, false, check)).toBe(false)
+    expect(check).toHaveBeenCalledTimes(1)
+    expect(check.mock.calls[0]?.[2]).toBe(today)
+    expect([...check.mock.calls[0]?.[0].keys()]).toEqual(['a'])
   })
 })
 
