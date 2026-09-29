@@ -101,9 +101,9 @@ describe('ChatEmptyState copy (mobile)', () => {
     ]))
     expect(suggestionLabels(tree)).toEqual([
       'Log Caminhar',
-      'How was my week',
+      'How the week went',
       'Split Rotina da casa',
-      'How are my goals doing',
+      'How are my goals',
     ])
   })
 
