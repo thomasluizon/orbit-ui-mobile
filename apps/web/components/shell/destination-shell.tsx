@@ -76,8 +76,7 @@ export function useShellComposerSlot(
 
 export function useShellHeaderSlot(renderer: ComposerRenderer, refreshKey: string) {
   const host = useContext(ShellHeaderSlotContext)
-  const registerRenderer = useEffectEvent(() => host?.register(renderer))
-  useEffect(() => registerRenderer(), [host, refreshKey])
+  useEffect(() => host?.register(renderer), [host, refreshKey, renderer])
   return host !== null
 }
 

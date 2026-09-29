@@ -95,6 +95,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
 import {
   DestinationShell,
   useShellComposerSlot,
+  useShellHeaderSlot,
 } from '@/components/shell/destination-shell'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
@@ -523,6 +524,31 @@ describe('DestinationShell', () => {
     expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
     expect(heading.closest('[data-shell-scroller]')).toBeNull()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('replaces a hosted header when its renderer changes under the same key', () => {
+    function HeaderSlot({ title }: { title: string }) {
+      useShellHeaderSlot(() => <h1>{title}</h1>, 'same-route')
+      return null
+    }
+    const view = render(<DestinationShell onCreate={() => {}}><HeaderSlot title="Loading" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Loading' })).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}><HeaderSlot title="Ready" /></DestinationShell>)
+    expect(screen.getByRole('heading', { level: 1, name: 'Ready' })).toBeInTheDocument()
+  })
+
+  it('updates a pushed page header action while its title stays the same', () => {
+    const view = render(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>One unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('One unread').closest('[data-shell-header]')).toBeInTheDocument()
+
+    view.rerender(<DestinationShell onCreate={() => {}}>
+      <PageHeader title="Inbox" backLabel="Back" onBack={() => {}} action={<span>Two unread</span>} />
+    </DestinationShell>)
+    expect(screen.getByText('Two unread').closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
   it.each([false, true])('shows composer only on roots and habit detail at wide=%s', (wide) => {
