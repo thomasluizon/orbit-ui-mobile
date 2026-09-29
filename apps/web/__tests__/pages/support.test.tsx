@@ -52,6 +52,15 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,
+    buildSupportRequestBody: (
+      profile: Record<string, unknown> | null,
+      fields: { name: string; email: string; subject: string; message: string },
+    ) => ({
+      name: fields.name.trim() || profile?.name,
+      email: fields.email.trim() || profile?.email,
+      subject: fields.subject.trim(),
+      message: fields.message.trim(),
+    }),
     getFriendlyErrorMessage: (_err: unknown, _t: unknown, _fallbackKey: string, _kind: string) =>
       'support.sendError',
   }
@@ -64,6 +73,9 @@ const DRAFT_KEY = 'orbit-support-draft'
 
 function messageField() {
   return screen.getByRole('textbox', { name: 'profile.support.message' })
+}
+function nameField() {
+  return screen.getByRole('textbox', { name: 'profile.support.name' })
 }
 function emailField() {
   return screen.getByRole('textbox', { name: 'profile.support.email' })
@@ -85,27 +97,6 @@ describe('SupportPage', () => {
 
   afterEach(() => {
     localStorage.clear()
-  })
-
-  it('does not render an editable name field', () => {
-    render(<SupportPage />)
-    expect(screen.queryByRole('textbox', { name: 'profile.support.name' })).not.toBeInTheDocument()
-  })
-
-  it('orders subject, message, and locked reply email', () => {
-    render(<SupportPage />)
-    const controls = [screen.getByRole('radiogroup'), messageField(), emailField()]
-    expect(controls[0]!.compareDocumentPosition(controls[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(controls[1]!.compareDocumentPosition(controls[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(emailField()).toBeDisabled()
-  })
-
-  it('shows both field errors when the empty controls lose focus', () => {
-    render(<SupportPage />)
-    fireEvent.blur(screen.getByRole('radiogroup'))
-    fireEvent.blur(messageField())
-    expect(screen.getByText('profile.support.subjectRequired')).toBeInTheDocument()
-    expect(screen.getByText('profile.support.messageRequired')).toBeInTheDocument()
   })
 
   it('shows an explicit offline state and disables sending when offline', () => {
@@ -186,6 +177,7 @@ describe('SupportPage', () => {
 
     expect(messageField()).toHaveAttribute('rows', '6')
     expect(messageField().closest('[data-multiline]')).toHaveAttribute('data-multiline', '')
+    expect(nameField()).toHaveValue('Orbit User')
     expect(emailField()).toHaveValue('orbit@example.com')
     expect(emailField()).toBeDisabled()
     const lockedReason = screen.getByText('profile.support.emailLockedReason')
@@ -196,15 +188,12 @@ describe('SupportPage', () => {
     )
   })
 
-  it('keeps the reply field locked while the profile loads', () => {
+  it('does not show the locked email reason when the account email is editable', () => {
     mockProfile = null
     render(<SupportPage />)
-    expect(emailField()).toBeDisabled()
-    expect(emailField()).toHaveValue('')
-    expect(screen.getByText('profile.support.emailLockedReason')).toBeInTheDocument()
-    const reason = screen.getByText('profile.support.sendNeedsProfile')
-    expect(sendButton()).toBeDisabled()
-    expect(sendButton()).toHaveAttribute('aria-describedby', reason.id)
+
+    expect(emailField()).toBeEnabled()
+    expect(screen.queryByText('profile.support.emailLockedReason')).not.toBeInTheDocument()
   })
 
   it('shows the required subject error beside the picker', async () => {
@@ -287,13 +276,15 @@ describe('SupportPage', () => {
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
-  it('sends the loaded profile contact details after hydration', async () => {
+  it('replaces an email typed while loading with the resolved profile email', async () => {
     mockProfile = null
     mockSendSupportMessage.mockResolvedValue(undefined)
     const view = render(<SupportPage />)
+
+    fireEvent.change(nameField(), { target: { value: 'Orbit User' } })
+    fireEvent.change(emailField(), { target: { value: 'stale@example.com' } })
     fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
-    expect(sendButton()).toBeDisabled()
 
     mockProfile = { name: 'Profile User', email: 'profile@example.com' }
     view.rerender(<SupportPage />)
@@ -302,11 +293,45 @@ describe('SupportPage', () => {
     fireEvent.click(sendButton())
 
     await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
-      name: 'Profile User',
+      name: 'Orbit User',
       email: 'profile@example.com',
       subject: 'profile.support.subjects.problem.label',
       message: 'Message\n\nOrbit 0.0.1',
     }, null))
+  })
+
+  it('clears stale account errors when profile hydration supplies valid values', async () => {
+    mockProfile = null
+    const view = render(<SupportPage />)
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('profile.support.nameRequired')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.emailRequired')).toBeInTheDocument()
+
+    mockProfile = { name: 'Profile User', email: 'profile@example.com' }
+    view.rerender(<SupportPage />)
+    expect(screen.queryByText('profile.support.nameRequired')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.support.emailRequired')).not.toBeInTheDocument()
+    expect(nameField()).not.toHaveAttribute('aria-invalid')
+    expect(emailField()).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('places the existing contact errors beside their system inputs', async () => {
+    mockProfile = null
+    render(<SupportPage />)
+
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    fireEvent.click(sendButton())
+
+    expect(await screen.findByText('profile.support.nameRequired')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.emailRequired')).toBeInTheDocument()
+    fireEvent.change(nameField(), { target: { value: 'Orbit User' } })
+    fireEvent.change(emailField(), { target: { value: 'invalid' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('profile.support.emailInvalid')).toBeInTheDocument()
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
   it('sends the built payload, shows success, and clears the draft', async () => {

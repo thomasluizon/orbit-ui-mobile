@@ -283,9 +283,7 @@ describe('profile server actions', () => {
       ['calendar sync', () => runCalendarSyncNow('account-a')],
       ['calendar suggestion', () => dismissCalendarSuggestion('suggestion-1', 'account-a')],
       ['customer portal', () => openCustomerPortal('account-a')],
-      ['support message', () => sendSupportMessage({
-        name: 'Ada', email: 'ada@example.com', subject: 'Sync', message: 'My calendar did not sync.',
-      }, 'account-a')],
+      ['support message', () => sendSupportMessage({ subject: 'Sync', message: 'My calendar did not sync.' }, 'account-a')],
     ] as const)('refuses the %s write after the cookie changes accounts', async (_label, send) => {
       vi.mocked(resolveServerSession).mockResolvedValue({
         token: tokenForAccount('account-b'),
@@ -358,9 +356,7 @@ describe('profile server actions', () => {
 
     it('sends the support message body with POST', async () => {
       mock204()
-      const payload = {
-        name: 'Ada', email: 'ada@example.com', subject: 'Sync', message: 'My calendar did not sync.',
-      }
+      const payload = { subject: 'Sync', message: 'My calendar did not sync.' }
       await sendSupportMessage(payload, 'account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/support')

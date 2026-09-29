@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SubscriptionStatus } from '../types/profile'
-import { resolveSubscriptionScreen, resolveUpgradeHeader } from '../utils/subscription-screen'
+import { resolveSubscriptionScreen } from '../utils/subscription-screen'
 
 const status: SubscriptionStatus = {
   plan: 'pro',
@@ -160,32 +160,5 @@ describe('resolveSubscriptionScreen', () => {
       provider: null,
       view: 'pitch',
     })
-  })
-})
-
-describe('resolveUpgradeHeader', () => {
-  const free: SubscriptionStatus = { ...status, plan: 'free', hasProAccess: false, planExpiresAt: null, subscriptionInterval: null, source: null }
-  const lapsed: SubscriptionStatus = { ...free, lapseReason: 'expired' }
-
-  it('titles the pitch Orbit Pro for a free account', () => {
-    expect(resolveUpgradeHeader(free, resolve({ status: free }), true)).toEqual({ lapsedNoticeStatus: null, titleKey: 'upgrade.pitchTitle' })
-  })
-
-  it('keeps the subscription title and the lapsed notice when the pitch is not shown', () => {
-    expect(resolveUpgradeHeader(lapsed, resolve({ status: lapsed }), false)).toEqual({ lapsedNoticeStatus: lapsed, titleKey: 'upgrade.title' })
-  })
-
-  it('drops the lapsed notice while the pitch is shown', () => {
-    expect(resolveUpgradeHeader(lapsed, resolve({ status: lapsed }), true)).toEqual({ lapsedNoticeStatus: null, titleKey: 'upgrade.pitchTitle' })
-  })
-
-  it('uses the subscription title for the management view and a failed load', () => {
-    expect(resolveUpgradeHeader(status, resolve(), false).titleKey).toBe('upgrade.title')
-    expect(resolveUpgradeHeader(null, resolve({ status: null, isStatusError: true }), false).titleKey).toBe('upgrade.title')
-  })
-
-  it('shows no title before the status arrives or when the caller withholds it', () => {
-    expect(resolveUpgradeHeader(null, resolve({ status: null, isStatusLoading: true }), true).titleKey).toBeNull()
-    expect(resolveUpgradeHeader(free, resolve({ status: free }), true, false).titleKey).toBeNull()
   })
 })

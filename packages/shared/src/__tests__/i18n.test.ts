@@ -78,10 +78,6 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
-  it.each([en, ptBR])('uses the invalid-email example in the sign-in placeholder', (catalog) => {
-    expect(catalog.auth.errors.invalidEmail).toContain(catalog.auth.emailPlaceholder)
-  })
-
   it('labels the Progresso streak tier tile in both locales', () => {
     expect(en.streakDisplay.detail.tierTileLabel).toBe('Streak tier')
     expect(ptBR.streakDisplay.detail.tierTileLabel).toBe('Nível da sequência')

@@ -40,22 +40,6 @@ export interface SubscriptionScreenModel {
   isManageView: boolean
 }
 
-export function resolveUpgradeHeader(
-  status: SubscriptionStatus | null,
-  model: SubscriptionScreenModel,
-  showPitch: boolean,
-  canShowTitle = true,
-): { lapsedNoticeStatus: SubscriptionStatus | null; titleKey: 'upgrade.title' | 'upgrade.pitchTitle' | null } {
-  const lapsedNoticeStatus = status && !status.hasProAccess
-    && (status.lapseReason || status.subscriptionEndedAtUtc) && !showPitch ? status : null
-  const titleKey = !canShowTitle || (!status && model.state !== 'load-failed')
-    ? null
-    : model.state === 'load-failed' || lapsedNoticeStatus || model.content !== 'pitch'
-      ? 'upgrade.title'
-      : 'upgrade.pitchTitle'
-  return { lapsedNoticeStatus, titleKey }
-}
-
 function resolvePitchState(status: SubscriptionStatus): SubscriptionScreenState {
   if (status.plan === 'pro' && status.isTrialActive) return 'trial'
   if (status.lapseReason || status.subscriptionEndedAtUtc) return 'lapsed'

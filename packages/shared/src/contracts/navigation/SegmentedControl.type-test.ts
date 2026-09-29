@@ -18,7 +18,7 @@ type Archived = { value: 'archived'; label: 'Archived' }
 type TwoOptions = { options: readonly [All, Active]; value: 'all'; onChange: (value: 'all' | 'active') => void; label: 'View' }
 type ThreeOptions = { options: readonly [All, Active, Done]; value: 'done'; onChange: (value: 'all' | 'active' | 'done') => void; label: 'View' }
 type FourOptions = { options: readonly [All, Active, Done, Archived]; value: 'archived'; onChange: (value: Value) => void; label: 'View' }
-type ExpectedKeys = 'options' | 'value' | 'onChange' | 'label' | 'disabled' | 'wideFill'
+type ExpectedKeys = 'options' | 'value' | 'onChange' | 'label' | 'disabled'
 type ConcreteProps = SegmentedControlProps<Value>
 type ExpectedOptions =
   | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>]
@@ -65,7 +65,6 @@ export type SegmentedControlTypeContract = [
   Assert<IsExactWidth<ConcreteProps['onChange'], (value: Value) => void>>,
   Assert<IsExactWidth<ConcreteProps['label'], string>>,
   Assert<IsExactWidth<ConcreteProps['disabled'], boolean | undefined>>,
-  Assert<IsExactWidth<ConcreteProps['wideFill'], boolean | undefined>>,
   Assert<IsExactWidth<SegmentedControlOption<Value>['value'], Value>>,
   Assert<IsExactWidth<SegmentedControlOption<Value>['label'], string>>,
   Assert<IsExactWidth<SegmentedControlOption<Value>['disabled'], boolean | undefined>>,

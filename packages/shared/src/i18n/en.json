@@ -338,7 +338,7 @@
     "signIn": "Sign in",
     "enterCode": "Enter the code",
     "email": "Email",
-    "emailPlaceholder": "name@example.com",
+    "emailPlaceholder": "you@example.com",
     "sendCode": "Continue",
     "turnstileLoading": "Checking your connection…",
     "turnstileFailed": "Security check didn't load.",
@@ -1690,45 +1690,50 @@
     "support": {
       "title": "Support",
       "rowTitle": "Help and support",
-      "description": "Tell us what happened. The more concrete it is, the faster we can fix it.",
-      "email": "Reply to",
+      "description": "Have a question, bug report, or feedback? Send us a message.",
+      "name": "Name",
+      "email": "Email",
       "subject": "What is it about",
-      "message": "What happened",
-      "messagePlaceholder": "I logged the walk and it went back to pending after I closed the app.",
+      "message": "Message",
+      "namePlaceholder": "Your name",
+      "emailPlaceholder": "Your email",
+      "messagePlaceholder": "Describe your issue or feedback...",
       "send": "Send",
       "success": "Your message arrived",
       "successHint": "We will reply to {email} within one working day.",
       "backToAbout": "Open About",
       "failureTitle": "The message was not sent",
-      "failureBody": "What you wrote is still here. Try again whenever you like.",
+      "failureBody": "Your words are still here. Try again when you are ready.",
       "retry": "Try again",
       "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
           "label": "Something does not work",
-          "description": "A screen, a log or a sync."
+          "description": "A screen, log, or sync."
         },
         "billing": {
           "label": "Billing or plan",
-          "description": "Amounts, changing plan or cancelling."
+          "description": "Charges, plan changes, or cancellations."
         },
         "account": {
           "label": "Account and access",
-          "description": "Signing in, the verification code or deleting the account."
+          "description": "Signing in, verification codes, or account deletion."
         },
         "other": {
           "label": "Something else",
-          "description": "Suggestions and anything not above."
+          "description": "Suggestions and anything not listed above."
         }
       },
-      "subjectRequired": "Pick a subject so we can route it properly.",
+      "nameRequired": "Name is required.",
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Please enter a valid email address.",
+      "subjectRequired": "Choose a subject.",
       "subjectSendingReason": "The subject cannot change while sending.",
-      "messageRequired": "Write at least one sentence about what happened.",
+      "messageRequired": "Message is required.",
       "versionIncluded": "Orbit {version} is included with your message.",
       "messageOverLimit": "Your message is {overage, plural, one {# character} other {# characters}} too long.",
       "sendNeedsShorterMessage": "Shorten your message to send.",
-      "emailLockedReason": "Managed by your account.",
-      "sendNeedsProfile": "Wait for your account to load before sending.",
+      "emailLockedReason": "We reply to the email on your account.",
       "sendIncomplete": "Choose a subject and add a message to send.",
       "sendNeedsSubject": "Choose a subject to send.",
       "sendNeedsMessage": "Add a message to send."
@@ -2382,7 +2387,6 @@
   },
   "upgrade": {
     "title": "Subscription",
-    "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",

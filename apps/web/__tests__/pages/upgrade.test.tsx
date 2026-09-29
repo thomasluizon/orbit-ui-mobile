@@ -210,7 +210,7 @@ describe('UpgradePage', () => {
       level: Number(heading.tagName.slice(1)),
       name: heading.textContent,
     }))).toEqual([
-      { level: 1, name: 'upgrade.pitchTitle' },
+      { level: 1, name: 'upgrade.title' },
       { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
       { level: 3, name: 'upgrade.outcomes.calendar.title' },
       { level: 3, name: 'upgrade.outcomes.retrospective.title' },
@@ -228,7 +228,7 @@ describe('UpgradePage', () => {
 
   it('renders the page header with title and back button', () => {
     render(<UpgradePage />)
-    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.pitchTitle' })).toHaveAttribute('translate', 'no')
+    expect(screen.getByText('upgrade.title')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
@@ -317,7 +317,7 @@ describe('UpgradePage', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)
     const shimmerElements = container.querySelectorAll('.skeleton-pulse, .animate-pulse')
-    expect(screen.getByText('upgrade.pitchTitle')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.title')).toBeInTheDocument()
   })
 
   it('shows plans error state', () => {

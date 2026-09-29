@@ -12,6 +12,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { WifiOff } from '@/components/ui/icons'
 
 interface SupportFormProps {
+  name: string
   email: string
   subject: SupportSubjectId | null
   message: string
@@ -19,13 +20,20 @@ interface SupportFormProps {
   messageMaxLength: number
   messageOverLimitHint: string | null
   error: string | null
+  nameError: string | null
+  emailError: string | null
   subjectError: string | null
   messageError: string | null
   isSending: boolean
   isOnline: boolean
   disabled: boolean
   disabledReason: string | null
+  emailDisabled: boolean
+  nameFocusRequest: number
+  emailFocusRequest: number
   messageFocusRequest: number
+  onNameChange: (next: string) => void
+  onEmailChange: (next: string) => void
   onSubjectChange: (next: SupportSubjectId) => void
   onMessageChange: (next: string) => void
   onSubjectBlur: () => void
@@ -34,6 +42,7 @@ interface SupportFormProps {
 }
 
 export function SupportForm({
+  name,
   email,
   subject,
   message,
@@ -41,13 +50,20 @@ export function SupportForm({
   messageMaxLength,
   messageOverLimitHint,
   error,
+  nameError,
+  emailError,
   subjectError,
   messageError,
   isSending,
   isOnline,
   disabled,
   disabledReason,
+  emailDisabled,
+  nameFocusRequest,
+  emailFocusRequest,
   messageFocusRequest,
+  onNameChange,
+  onEmailChange,
   onSubjectChange,
   onMessageChange,
   onSubjectBlur,
@@ -83,6 +99,29 @@ export function SupportForm({
           </p>
         </div>
       ) : null}
+      <Input
+        label={t('profile.support.name')}
+        value={name}
+        onChange={onNameChange}
+        placeholder={t('profile.support.namePlaceholder')}
+        disabled={isSending}
+        error={nameError ?? undefined}
+        autoComplete="name"
+        focusRequest={nameFocusRequest}
+      />
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={onEmailChange}
+        placeholder={t('profile.support.emailPlaceholder')}
+        disabled={isSending || emailDisabled}
+        error={emailError ?? undefined}
+        hint={emailDisabled ? t('profile.support.emailLockedReason') : undefined}
+        kind="email"
+        inputMode="email"
+        autoComplete="email"
+        focusRequest={emailFocusRequest}
+      />
       <div className="flex min-w-0 flex-col gap-2">
         <span id="support-subject-label" className="text-sm font-medium text-[var(--fg-2)]">
           {t('profile.support.subject')}
@@ -123,7 +162,6 @@ export function SupportForm({
       </div>
       <Input
         label={t('profile.support.message')}
-        name="message"
         value={message}
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
@@ -131,22 +169,10 @@ export function SupportForm({
         error={messageError ?? undefined}
         hint={messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
-        autoComplete="off"
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
-      />
-      <Input
-        label={t('profile.support.email')}
-        name="replyEmail"
-        value={email}
-        onChange={() => {}}
-        disabled
-        hint={t('profile.support.emailLockedReason')}
-        kind="email"
-        inputMode="email"
-        autoComplete="off"
       />
       <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
         {t('profile.support.versionIncluded', { version: appVersion })}

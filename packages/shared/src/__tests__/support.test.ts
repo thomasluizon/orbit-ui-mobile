@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import en from '../i18n/en.json'
-import ptBR from '../i18n/pt-BR.json'
 import {
   attachSupportVersion,
   buildSupportRequestBody,
@@ -13,44 +11,39 @@ import {
 } from '../utils/support'
 
 describe('buildSupportRequestBody', () => {
-  it('takes contact fields only from the profile', () => {
-    expect(buildSupportRequestBody(
-      { name: ' Orbit User ', email: ' orbit@example.com ' },
-      { subject: '  Help me  ', message: '  The app crashed  ' },
-    )).toEqual({
+  it('trims fields and falls back to profile values', () => {
+    expect(
+      buildSupportRequestBody(
+        { name: 'Orbit User', email: 'orbit@example.com' },
+        {
+          name: '  ',
+          email: '  ',
+          subject: '  Help me  ',
+          message: '  The app crashed  ',
+        },
+      ),
+    ).toEqual({
       name: 'Orbit User',
       email: 'orbit@example.com',
       subject: 'Help me',
       message: 'The app crashed',
     })
   })
-})
 
-describe('support copy', () => {
-  it('keeps the form labels, validation, and reply reason aligned in both locales', () => {
-    expect(en.profile.support).toMatchObject({
-      description: 'Tell us what happened. The more concrete it is, the faster we can fix it.',
-      message: 'What happened',
-      email: 'Reply to',
-      emailLockedReason: 'Managed by your account.',
-      subjectRequired: 'Pick a subject so we can route it properly.',
-      messageRequired: 'Write at least one sentence about what happened.',
+  it('omits empty profile fallbacks', () => {
+    expect(
+      buildSupportRequestBody(null, {
+        name: 'Orbit',
+        email: 'orbit@example.com',
+        subject: 'Need help',
+        message: 'Please contact me',
+      }),
+    ).toEqual({
+      name: 'Orbit',
+      email: 'orbit@example.com',
+      subject: 'Need help',
+      message: 'Please contact me',
     })
-    expect(ptBR.profile.support).toMatchObject({
-      description: 'Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.',
-      message: 'O que aconteceu',
-      email: 'Resposta para',
-      emailLockedReason: 'Gerido pela sua conta.',
-      subjectRequired: 'Escolha um assunto para a gente encaminhar certo.',
-      messageRequired: 'Escreva pelo menos uma frase sobre o que aconteceu.',
-    })
-    for (const support of [en.profile.support, ptBR.profile.support]) {
-      for (const removed of [
-        'name', 'namePlaceholder', 'nameRequired', 'emailPlaceholder', 'emailRequired', 'emailInvalid',
-      ]) {
-        expect(support).not.toHaveProperty(removed)
-      }
-    }
   })
 })
 
@@ -101,7 +94,6 @@ describe('support version metadata', () => {
   it('names the active reason a support request cannot send', () => {
     expect(getSupportSendReasonKey({
       hasMessage: true,
-      hasProfile: true,
       hasSubject: true,
       isOnline: true,
       isSending: false,
@@ -109,15 +101,10 @@ describe('support version metadata', () => {
     })).toBe('profile.support.sendNeedsShorterMessage')
     expect(getSupportSendReasonKey({
       hasMessage: false,
-      hasProfile: true,
       hasSubject: true,
       isOnline: true,
       isSending: false,
       messageFits: true,
     })).toBe('profile.support.sendNeedsMessage')
-    expect(getSupportSendReasonKey({
-      hasMessage: true, hasProfile: false, hasSubject: true,
-      isOnline: true, isSending: false, messageFits: true,
-    })).toBe('profile.support.sendNeedsProfile')
   })
 })

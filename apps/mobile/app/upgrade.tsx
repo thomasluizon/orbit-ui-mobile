@@ -8,7 +8,6 @@ import {
   getTrialDaysLeft,
   playManageSubscriptionUrl,
   resolveSubscriptionScreen,
-  resolveUpgradeHeader,
 } from '@orbit/shared/utils'
 import type {
   SubscriptionPortalState,
@@ -163,7 +162,6 @@ export default function UpgradeScreen() {
     isOnline,
     portalState,
   })
-  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -245,8 +243,8 @@ export default function UpgradeScreen() {
     />
   )
 
-  const pitchContent = lapsedNoticeStatus ? (
-    <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
+  const pitchContent = !status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch ? (
+    <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
     <>
       <PricingSection
@@ -285,7 +283,7 @@ export default function UpgradeScreen() {
     >
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
-        title={titleKey ? t(titleKey) : ''}
+        title={t('upgrade.title')}
         backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })}
       />
 

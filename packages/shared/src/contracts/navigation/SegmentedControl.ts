@@ -13,5 +13,4 @@ export type SegmentedControlProps<TValue extends string> = {
   onChange: (value: NoInfer<TValue>) => void
   label: string
   disabled?: boolean
-  wideFill?: boolean
 }

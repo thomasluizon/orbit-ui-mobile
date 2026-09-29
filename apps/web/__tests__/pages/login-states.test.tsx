@@ -26,12 +26,6 @@ function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], local
 
 describe.each(authLocales)('auth screen composition in %s', (locale) => {
   beforeEach(() => vi.clearAllMocks())
-  it('labels the email field and shows the drawn example address', () => {
-    setFixture('email', locale)
-    render(<LoginContent />)
-    const placeholder = locale === 'en' ? 'name@example.com' : 'nome@exemplo.com'
-    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveAttribute('placeholder', placeholder)
-  })
   it('renders the complete localized legal sentence with both destinations', () => {
     setFixture('email', locale)
     render(<LoginContent />)
