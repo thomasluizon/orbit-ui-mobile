@@ -7,7 +7,7 @@ import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
-import { HabitListEmptyState } from '@/components/habit-list/empty-state'
+import { HabitListAllDone } from '@/components/habit-list/empty-state'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -23,6 +23,11 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
+
+vi.mock('@/hooks/use-habit-queries', () => ({
+  useHabitCountLoaded: () => accountHabitCount,
+}))
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -472,13 +477,6 @@ async function confirmRowSkip(tree: any, habitId: string) {
 }
 
 type BulkActions = ReturnType<typeof useBulkActions>
-type AllDoneListEmptyComponent = React.ReactElement<{
-  children: React.ReactElement<{
-    actionLabel?: string
-    onAction?: () => void
-  }>
-}>
-
 function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
   const habitListRef = React.createRef<HabitListHandle>()
   const captured: { current: BulkActions | null } = { current: null }
@@ -567,6 +565,8 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
+    accountHabitCount.count = 1
+    accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
@@ -889,6 +889,68 @@ describe('HabitList', () => {
     ).toEqual(['due-today', 'completed-today'])
   })
 
+  it('shows a plain day line instead of first run on an empty future day with account habits', () => {
+    accountHabitCount.count = 3
+    seedHabits([])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }}
+          selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />,
+      )
+    })
+    expect(flattenRenderedText(tree!.toJSON())).toContain('habits.nothingOpen')
+    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.emptyState')
+    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.askAstra')
+  })
+
+  it('shows the plain line when nothing is due today', () => {
+    accountHabitCount.count = 3
+    seedHabits([])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
+  })
+
+  it('keeps the plain line visible if the account count cannot load', () => {
+    accountHabitCount.isLoaded = false
+    seedHabits([])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
+  })
+
+  it('keeps first-run actions on another day when the account has no habits', () => {
+    accountHabitCount.count = 0
+    seedHabits([])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    const text = flattenRenderedText(tree.toJSON())
+    expect(text).toContain('habits.emptyState')
+    expect(text).toContain('habits.askAstra')
+    expect(text).toContain('habits.createManually')
+  })
+
+  it('uses the plain line on a past day with every due habit logged', () => {
+    useActualHabitVisibility = true
+    seedHabits([createMockHabit({ id: 'past-due', scheduledDates: [YESTERDAY], isLoggedInRange: true })])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    const text = flattenRenderedText(tree.toJSON())
+    expect(text).toContain('habits.nothingOpen')
+    expect(text).not.toContain('habits.allDoneToday')
+  })
+
   it('renders the all-done upcoming action only when it can navigate', () => {
     useActualHabitVisibility = true
     seedHabits([createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })])
@@ -907,13 +969,8 @@ describe('HabitList', () => {
       )
     })
 
-    let flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
-    if (!flatList) throw new Error('All-done list is missing')
-    let emptyState = (
-      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
-    ).props.children
-    expect(emptyState.props.actionLabel).toBeUndefined()
-    expect(emptyState.props.onAction).toBeUndefined()
+    let allDone = tree!.root.findAll((node) => node.type === HabitListAllDone)[0]
+    expect(allDone?.props.onSeeUpcoming).toBeUndefined()
 
     TestRenderer.act(() => {
       tree!.update(
@@ -926,16 +983,14 @@ describe('HabitList', () => {
         />,
       )
     })
-    flatList = tree!.root.findAll((node) => node.type === FlatList)[0]
-    if (!flatList) throw new Error('All-done list is missing')
-    emptyState = (
-      flatList.props.ListEmptyComponent as AllDoneListEmptyComponent
-    ).props.children
-    expect(emptyState.props.actionLabel).toBe('habits.seeUpcoming')
-    expect(emptyState.props.onAction).toBe(onSeeUpcoming)
-    const onAction = emptyState.props.onAction
-    if (!onAction) throw new Error('Upcoming action is missing')
-    TestRenderer.act(onAction)
+    allDone = tree!.root.findAll((node) => node.type === HabitListAllDone)[0]
+    expect(allDone?.props.onSeeUpcoming).toBe(onSeeUpcoming)
+    expect(allDone?.findAll((node) => node.props.testID === 'orbit-mark')).toHaveLength(0)
+    expect(allDone?.findAll((node) => (node.props.style as { alignItems?: string } | undefined)?.alignItems === 'flex-start').length).toBeGreaterThan(0)
+    expect(allDone?.findAll((node) => node.props.testID === 'button-ghost-sm').length).toBeGreaterThan(0)
+    const action = allDone?.props.onSeeUpcoming as (() => void) | undefined
+    if (!action) throw new Error('Upcoming action is missing')
+    TestRenderer.act(action)
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
@@ -955,10 +1010,32 @@ describe('HabitList', () => {
       )
     })
 
-    expect(tree!.root.findAll((node) => node.type === HabitListEmptyState).map((node) => node.props.title))
-      .toContain('habits.allDoneToday')
+    expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree!.root.findAll((node) => node.type === HabitRow)
       .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
+  })
+
+  it('keeps the all-done block above completed rows when they are shown', () => {
+    useActualHabitVisibility = true
+    seedHabits([createMockHabit({ id: 'done-due', scheduledDates: [TODAY], isLoggedInRange: true })])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    expect(tree.root.findAll((node: any) => node.type === HabitListAllDone)).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.type === HabitRow)
+      .map((node: any) => (node.props.habit as NormalizedHabit).id)).toContain('done-due')
+  })
+
+  it('shows all-done when a due row is completed without a range log flag', () => {
+    useActualHabitVisibility = true
+    seedHabits([createMockHabit({ id: 'completed-due', scheduledDates: [TODAY], isCompleted: true, isLoggedInRange: false })])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.allDoneToday')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.nothingOpen')
   })
 
   it('asks before skipping a recurring habit', async () => {

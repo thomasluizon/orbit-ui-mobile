@@ -35,12 +35,14 @@ import {
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  getHabitPhraseTitle,
   hasHabitFormProposal,
   isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
+  resolveSupportedLocale,
   toggleSelectedId,
 } from '@orbit/shared/utils'
-import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
@@ -158,6 +160,13 @@ export function CreateHabitModal({
     setSubHabits(nextSubHabits)
   }, [])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const phraseOwnershipRef = useRef<HabitPhraseFormOwnership>({ cadence: false, dueTime: false })
+  useLayoutEffect(() => {
+    if (open) phraseOwnershipRef.current = { cadence: false, dueTime: false }
+  }, [open])
+  const handlePhraseOwnershipChange = useCallback((ownership: HabitPhraseFormOwnership) => {
+    phraseOwnershipRef.current = ownership
+  }, [])
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
@@ -354,8 +363,9 @@ export function CreateHabitModal({
           data: subRequest,
         })
       } else {
+        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current)
         const request = buildCreateHabitRequest(
-          data,
+          { ...data, title },
           reminderTimes,
           tags.selectedTagIds,
           selectedGoalIds,
@@ -376,6 +386,7 @@ export function CreateHabitModal({
     }
   }, [
     formHelpers,
+    i18n.language,
     isSubHabitMode,
     parentHabit,
     tags,
@@ -549,6 +560,7 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             onSuggestionContextChange={suggestionRevision.advance}
+            onPhraseOwnershipChange={handlePhraseOwnershipChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
             onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             expandAdvancedSignal={expandAdvancedSignal}

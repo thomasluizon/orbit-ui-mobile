@@ -188,6 +188,7 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
   isSuggesting?: boolean
   readPhraseLocally?: boolean
+  onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
   startDate?: string | null
   children?: ChildNode | ((proposedItems: number) => ChildNode)
 }
