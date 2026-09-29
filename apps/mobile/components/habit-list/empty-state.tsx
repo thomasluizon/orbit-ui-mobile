@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
@@ -95,7 +96,51 @@ export function HabitListEmptyState({
   )
 }
 
+export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
+  return (
+    <View style={styles.allDone}>
+      <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
+      <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
+      {onSeeUpcoming ? (
+        <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
+          {t('habits.seeUpcoming')}
+        </PillButton>
+      ) : null}
+    </View>
+  )
+}
+
+export function HabitListNothingOpen() {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
+  return <Text style={[styles.nothingOpen, { color: tokens.fg3 }]}>{t('habits.nothingOpen')}</Text>
+}
+
 const styles = StyleSheet.create({
+  allDone: {
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  allDoneTitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 20,
+    letterSpacing: -0.2,
+  },
+  allDoneHint: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  nothingOpen: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
+  },
   container: {
     alignItems: 'center',
     justifyContent: 'center',

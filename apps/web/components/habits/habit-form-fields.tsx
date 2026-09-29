@@ -225,6 +225,7 @@ export function HabitFormFields({
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onSuggestionContextChange,
+  onPhraseOwnershipChange,
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
@@ -319,7 +320,10 @@ export function HabitFormFields({
     target: {
       hasSchedule: () => isFlexible || Boolean(frequencyUnit),
       getOwnership: () => phraseOwnership,
-      setOwnership: setPhraseOwnership,
+      setOwnership: (ownership) => {
+        setPhraseOwnership(ownership)
+        onPhraseOwnershipChange?.(ownership)
+      },
       updateProposal: (update) => setProposal(update),
       setOneTime,
       setRecurring,
@@ -332,7 +336,7 @@ export function HabitFormFields({
       ),
       toggleDay,
     },
-  }), [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestionContextChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setPhraseOwnership, setProposal, setRecurring, setValue, toggleDay])
+  }), [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestionContextChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setPhraseOwnership, setProposal, setRecurring, setValue, toggleDay])
 
   useEffect(() => {
     if (lastLocallyReadTitleRef.current === title) return
