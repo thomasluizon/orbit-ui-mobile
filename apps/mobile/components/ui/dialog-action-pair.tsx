@@ -8,6 +8,6 @@ export function DialogActionPair({ children, inline = false }: Readonly<{ childr
 }
 
 const styles = StyleSheet.create({
-  pair: { alignSelf: 'center', gap: 12, maxWidth: MATCHED_PILL_MAX_WIDTH, width: '100%' },
+  pair: { gap: 12, marginHorizontal: 'auto', maxWidth: MATCHED_PILL_MAX_WIDTH, width: '100%' },
   inline: { flexDirection: 'row', justifyContent: 'flex-end' },
 })
