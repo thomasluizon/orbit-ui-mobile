@@ -748,6 +748,11 @@
     }
   }
 
+  /* Global focus-visible indicator; component utilities can replace it. */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 html {
@@ -1362,16 +1367,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* Global focus-visible indicator */
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
 @media (forced-colors: active) {
   :focus-visible {
     /* WHY: Forced colors mode removes box-shadow focus indicators. */
     outline: 2px solid CanvasText !important;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-composer-input-row]:has(textarea:focus-visible) {
+    outline: none;
   }
 }
 
