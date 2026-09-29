@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -14,7 +14,7 @@ import { useVersionGateStore } from '@/stores/version-gate-store'
 
 describe('UpdateAvailableBanner', () => {
   beforeEach(() => {
-    useVersionGateStore.setState({ upgradeRequired: false, minVersion: null })
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     reloadMock.mockReset()
     Object.defineProperty(globalThis, 'location', {
       value: { ...originalLocation, reload: reloadMock },
@@ -51,6 +51,15 @@ describe('UpdateAvailableBanner', () => {
     render(<UpdateAvailableBanner />)
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('protects the brand line and leaves reload guidance translatable', () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    const { container } = render(<UpdateAvailableBanner />)
+    expect(container.querySelector('[data-update-banner] p')).toHaveAttribute('translate', 'no')
+
+    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+    expect(container.querySelector('[data-update-banner] p')).not.toHaveAttribute('translate')
   })
 
   it('renders after apiFetch records a 426 response', async () => {

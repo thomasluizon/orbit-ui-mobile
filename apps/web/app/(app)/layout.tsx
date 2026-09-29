@@ -345,12 +345,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         conversation={(
           <AstraConversation
             chat={chat}
-            notice={(
+            notice={toastInConversation ? (
               <>
                 <UpdateAvailableBanner />
-                {toastInConversation ? <AppToastHost /> : null}
+                <AppToastHost />
               </>
-            )}
+            ) : undefined}
           />
         )}
         conversationOpen={astraConversationOpen}

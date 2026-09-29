@@ -84,28 +84,30 @@ function WrappedPageContent({ initialSelection }: Readonly<{
   const playerOpen = isPlaying && recap && !isEmpty
 
   return (
-    <main className="relative mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
       {!playerOpen ? <UpdateAvailableBanner /> : null}
-      {!isPlaying ? (
-        <div className="absolute left-4 top-2 z-[1]">
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            label={t('common.backToProfile')}
-            onClick={() => goBackOrFallback('/profile')}
-          >
-            <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
-          </Button>
-        </div>
-      ) : null}
-      <WrappedCover
-        period={period}
-        onSelectPeriod={selectPeriod}
-        state={coverState}
-        onStart={startPlayer}
-        onRetry={() => void retryCover()}
-      />
+      <div className="relative flex flex-1 flex-col">
+        {!isPlaying ? (
+          <div className="absolute left-4 top-2 z-[1]">
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              label={t('common.backToProfile')}
+              onClick={() => goBackOrFallback('/profile')}
+            >
+              <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          </div>
+        ) : null}
+        <WrappedCover
+          period={period}
+          onSelectPeriod={selectPeriod}
+          state={coverState}
+          onStart={startPlayer}
+          onRetry={() => void retryCover()}
+        />
+      </div>
 
       {playerOpen && (
         <WrappedPlayer
@@ -117,7 +119,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           notice={(
             <>
               <UpdateAvailableBanner />
-              <AppToastHost />
+              <div className="px-4"><AppToastHost /></div>
             </>
           )}
         />

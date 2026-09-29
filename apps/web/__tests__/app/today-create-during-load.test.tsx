@@ -44,6 +44,7 @@ vi.mock('@/components/shell/destination-shell', () => ({
             <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
           </div>
           {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
+          {conversationOpen && state.wide ? <aside aria-label="Astra conversation">{conversation}</aside> : null}
         </>
       )}
     </>
@@ -152,6 +153,19 @@ describe('Today create during first load', () => {
     expect(banners).toHaveLength(1)
     expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
     expect(banners[0]?.closest('[inert]')).toBeNull()
+  })
+
+  it('announces reload guidance once while the conversation is a side panel', () => {
+    state.wide = true
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+
+    const banners = screen.getAllByRole('status')
+      .filter((node) => node.hasAttribute('data-update-banner'))
+    expect(banners).toHaveLength(1)
+    expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
   })
 
   it('waits to show the calendar import prompt until creation closes', async () => {

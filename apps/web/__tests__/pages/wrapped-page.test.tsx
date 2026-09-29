@@ -78,6 +78,17 @@ describe('WrappedPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
   })
 
+  it('keeps the version banner dismissed when the player opens', () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('starts on the week period with the ready cover', () => {
     render(<WrappedPage />)
     expect(screen.getByTestId('period')).toHaveTextContent('week')
