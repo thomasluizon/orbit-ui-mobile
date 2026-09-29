@@ -1605,6 +1605,9 @@
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "currentDevice": "Este aparelho",
+      "devices": "Aparelhos com aviso",
+      "of": "de",
+      "devicesUnavailable": "Não foi possível carregar os aparelhos. Tente de novo mais tarde.",
       "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
     },
     "allowance": {

@@ -1605,6 +1605,9 @@
       "reminders": "Habit reminders",
       "remindersNote": "Each habit's reminders live on the habit itself.",
       "currentDevice": "This device",
+      "devices": "Devices getting alerts",
+      "of": "of",
+      "devicesUnavailable": "Could not load devices. Try again later.",
       "pushDeviceLimit": "Up to 5 devices can receive alerts."
     },
     "allowance": {

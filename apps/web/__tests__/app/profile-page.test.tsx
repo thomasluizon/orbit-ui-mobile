@@ -24,6 +24,7 @@ const {
   mockUpdateWeekStartDay,
   mockUpdateLanguage,
   mockTogglePush,
+  mockDeviceState,
   mockTranslate,
   mockLocale,
 } = vi.hoisted(() => ({
@@ -44,6 +45,7 @@ const {
   mockUpdateWeekStartDay: vi.fn(),
   mockUpdateLanguage: vi.fn(),
   mockTogglePush: vi.fn(),
+  mockDeviceState: { current: { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() } },
   mockTranslate: { current: (key: string) => key },
   mockLocale: { current: 'en' },
   mockProfileState: {
@@ -73,6 +75,10 @@ vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => (
     status: 'not-registered',
     togglePush: mockTogglePush,
   }),
+}))
+
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => mockDeviceState.current,
 }))
 
 vi.mock('@/lib/actions/api-keys', () => ({
@@ -222,6 +228,7 @@ describe('ProfilePage', () => {
     mockUpdateWeekStartDay.mockReset().mockResolvedValue(undefined)
     mockUpdateLanguage.mockReset().mockRejectedValue(new Error('save failed'))
     mockTogglePush.mockReset().mockResolvedValue(undefined)
+    mockDeviceState.current = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn().mockResolvedValue(undefined) }
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -272,7 +279,7 @@ describe('ProfilePage', () => {
     inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
     inOrder('notifications', [
       'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
-      'Análise de uso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     inOrder('more', [
       'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
@@ -399,10 +406,27 @@ describe('ProfilePage', () => {
     await waitFor(() => expect(mockUpdateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a'))
   })
 
-  it('uses the inline notification switch to toggle browser push', () => {
+  it('uses the current device switch to enable browser push', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('switch', { name: 'settings.notifications.title' }))
-    expect(mockTogglePush).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' }))
+    expect(mockTogglePush).toHaveBeenCalledWith(true)
+  })
+
+  it.each([0, 1, 5])('shows %i devices against the cap', (count) => {
+    mockDeviceState.current.count = count
+    render(<ProfilePage />)
+    expect(screen.getByText(`${count} profile.settingsRows.of 5`)).toBeInTheDocument()
+    expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
+  })
+
+  it('names this device when its endpoint is registered and turns it off', () => {
+    mockDeviceState.current.count = 1
+    mockDeviceState.current.isCurrentDeviceRegistered = true
+    render(<ProfilePage />)
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })
+    expect(control).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(control)
+    expect(mockTogglePush).toHaveBeenCalledWith(false)
   })
 
   it('keeps the share card off Perfil', () => {
@@ -870,10 +894,10 @@ describe('ProfilePage', () => {
       within(notificationsGroup).getByText('profile.settingsRows.remindersNote'),
     ).toBeInTheDocument()
     expect(
-      within(notificationsGroup).queryByRole('switch', {
+      within(notificationsGroup).getByRole('switch', {
         name: 'profile.settingsRows.currentDevice',
       }),
-    ).not.toBeInTheDocument()
+    ).toBeInTheDocument()
   })
 
   it('restores the analytics switch and explains a failed local save', async () => {

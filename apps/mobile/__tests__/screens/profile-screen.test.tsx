@@ -57,6 +57,7 @@ const {
   mockChangeLanguage,
   mockPushSupported,
   mockPushEnabled,
+  mockDeviceState,
   mockPushPermissionStatus,
   mockDisablePushNotifications,
   mockOpenSettings,
@@ -94,6 +95,7 @@ const {
   mockChangeLanguage: vi.fn(),
   mockPushSupported: { current: false },
   mockPushEnabled: { current: false },
+  mockDeviceState: { current: { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() } },
   mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
   mockDisablePushNotifications: vi.fn(),
   mockOpenSettings: vi.fn(),
@@ -176,6 +178,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({
+    expoPushToken: 'fcm-token',
     isSupported: mockPushSupported.current,
     isEnabled: mockPushEnabled.current,
     isRegistered: false,
@@ -186,6 +189,10 @@ vi.mock('@/hooks/use-push-notifications', () => ({
     disablePushNotifications: mockDisablePushNotifications,
     requestPermission: mockRequestPushPermission,
   }),
+}))
+
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => mockDeviceState.current,
 }))
 
 vi.mock('@/hooks/use-persistent-reminder', () => ({
@@ -528,6 +535,7 @@ describe('ProfileScreen', () => {
     mockChangeLanguage.mockReset().mockResolvedValue(undefined)
     mockPushSupported.current = false
     mockPushEnabled.current = false
+    mockDeviceState.current = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn().mockResolvedValue(undefined) }
     mockPushPermissionStatus.current = null
     mockDisablePushNotifications.mockReset().mockResolvedValue(undefined)
     mockOpenSettings.mockReset().mockResolvedValue(undefined)
@@ -597,7 +605,7 @@ describe('ProfileScreen', () => {
     ])
     inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
     inOrder('notifications', [
-      'Análise de uso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     expect(tree.root.findAll((node: { props: { testID?: string } }) =>
       node.props.testID === 'marketing-consent-section')).toHaveLength(1)
@@ -1360,7 +1368,7 @@ describe('ProfileScreen', () => {
           node.props.accessibilityRole === 'switch' &&
           node.props.accessibilityLabel === 'profile.settingsRows.currentDevice',
       ),
-    ).toHaveLength(0)
+    ).not.toHaveLength(0)
   })
 
   it('restores the analytics switch and announces a failed local save', async () => {
@@ -1518,12 +1526,12 @@ describe('ProfileScreen', () => {
     expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setWeekStartDay', payload: { weekStartDay: 0 } }))
   })
 
-  it('uses inline switches for push and persistent reminders', async () => {
+  it('uses inline switches for this device and persistent reminders', async () => {
     mockPushSupported.current = true
     mockReminderSupported.current = true
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      for (const label of ['settings.notifications.title', 'persistentReminder.label']) {
+      for (const label of ['profile.settingsRows.currentDevice', 'persistentReminder.label']) {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').props.onPress()
       }
@@ -1533,13 +1541,31 @@ describe('ProfileScreen', () => {
     expect(mockToggleReminder).toHaveBeenCalledOnce()
   })
 
+  it.each([0, 1, 5])('shows %i devices against the cap', async (count) => {
+    mockDeviceState.current.count = count
+    const tree = await renderProfileScreen()
+    expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} profile.settingsRows.of 5`)
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
+  })
+
+  it('names this device when its token is registered', async () => {
+    mockPushSupported.current = true
+    mockDeviceState.current.count = 1
+    mockDeviceState.current.isCurrentDeviceRegistered = true
+    const tree = await renderProfileScreen()
+    const control = tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function')
+    expect(control.props.accessibilityState?.checked).toBe(true)
+  })
+
   it('disables an enabled push registration from Perfil', async () => {
     mockPushSupported.current = true
-    mockPushEnabled.current = true
+    mockDeviceState.current.count = 1
+    mockDeviceState.current.isCurrentDeviceRegistered = true
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.notifications.title' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()
     })
     expect(mockDisablePushNotifications).toHaveBeenCalledOnce()
@@ -1553,7 +1579,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.notifications.title' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
       tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void }; children: unknown[] }) =>
         node.props.accessibilityRole === 'button' && nodeText(node) === 'settings.notifications.openSettings' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()

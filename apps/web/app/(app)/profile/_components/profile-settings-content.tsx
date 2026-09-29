@@ -7,6 +7,7 @@ import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
+import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -48,7 +49,7 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
 import { getAnalyticsOptOut, setAnalyticsOptOut, subscribeAnalyticsOptOut } from '@/lib/posthog'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
-import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
+import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { DeleteAccountModal } from './delete-account-modal'
@@ -246,6 +247,11 @@ export function ProfileSettingsContent({
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const preferenceControls = usePreferenceControls()
   const pushPreferences = usePushNotificationPreferences()
+  const pushSubscriptions = usePushSubscriptions()
+  const toggleThisDevice = async () => {
+    await pushPreferences.togglePush(!pushSubscriptions.isCurrentDeviceRegistered)
+    await pushSubscriptions.refresh()
+  }
   const {
     isExporting,
     exportDone,
@@ -313,17 +319,16 @@ export function ProfileSettingsContent({
           </SettingsRow>
         )}
       />
-      <PushNotificationSection
-        push={{
-          supported: pushPreferences.supported,
-          subscribed: pushPreferences.subscribed,
-          permission: pushPreferences.permission,
-          loading: pushPreferences.loading,
-          status: pushPreferences.status,
-          onToggle: () => void pushPreferences.togglePush(),
-        }}
-        showSectionLabel={false}
-        contained
+      <PushDevicesRow
+        count={pushSubscriptions.count}
+        max={pushSubscriptions.max}
+        currentDeviceRegistered={pushSubscriptions.isCurrentDeviceRegistered}
+        supported={pushPreferences.supported && pushPreferences.permission !== 'denied'}
+        loading={pushPreferences.loading || pushSubscriptions.isLoading}
+        error={pushSubscriptions.isError}
+        permission={pushPreferences.permission}
+        status={pushPreferences.status}
+        onToggle={() => void toggleThisDevice()}
       />
       <p className="m-0 text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
     </div>,

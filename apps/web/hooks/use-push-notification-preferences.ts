@@ -24,7 +24,7 @@ export interface PushPreferenceSnapshot {
 
 export interface UsePushNotificationPreferencesResult extends PushPreferenceSnapshot {
   loading: boolean
-  togglePush: () => Promise<void>
+  togglePush: (enabled?: boolean) => Promise<void>
 }
 
 function createUnsupportedSnapshot(): PushPreferenceSnapshot {
@@ -237,17 +237,17 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
     }
   }, [])
 
-  async function togglePush() {
+  async function togglePush(enabled = !state.subscribed) {
     setState((current) => ({
       ...current,
       loading: true,
-      status: current.subscribed ? current.status : 'requesting',
+      status: enabled ? 'requesting' : current.status,
     }))
 
     try {
-      const snapshot = state.subscribed
-        ? await unsubscribeFromPushNotifications(state.permission)
-        : await subscribeToPushNotifications()
+      const snapshot = enabled
+        ? await ensurePushSubscription()
+        : await unsubscribeFromPushNotifications(state.permission)
 
       setState((current) => ({
         ...current,
