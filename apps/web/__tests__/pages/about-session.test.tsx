@@ -5,7 +5,9 @@ import { beforeEach, expect, it, vi, afterEach } from 'vitest'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import RootLayout from '@/app/layout'
 import AppLayout from '@/app/(app)/layout'
+import AuthLayout from '@/app/(auth)/layout'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -44,7 +46,7 @@ vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children }))
-vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children }: { children: ReactNode }) => <main aria-label="Destination shell">{children}</main> }))
+vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children, notice }: { children: ReactNode; notice?: ReactNode }) => <main aria-label="Destination shell">{children}<div data-shell-notice="">{notice}</div></main> }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
@@ -83,9 +85,33 @@ beforeEach(() => {
   mocks.searchParams = new URLSearchParams()
   mocks.router.replace.mockClear()
   mocks.fetch.mockReset()
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   vi.stubGlobal('fetch', mocks.fetch)
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
   useUIStore.setState({ activeView: 'today', showCreateModal: false })
+  useAppToastStore.setState({ currentToast: null, queue: [] })
+})
+
+it('renders app feedback inside the destination notice slot', () => {
+  mocks.pathname = '/'
+  const view = render(<AppLayout><p>Today content</p></AppLayout>)
+  act(() => { useAppToastStore.getState().showError('x') })
+  expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toBeInTheDocument()
+  expect(screen.getByRole('status')).toBeInTheDocument()
+})
+
+it('places signed-out feedback at the bottom of the page', () => {
+  const view = render(<AuthLayout><p>Sign in</p></AuthLayout>)
+  act(() => { useAppToastStore.getState().showError('x') })
+  expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
+  expect(view.container.querySelector('[data-toast-page-host]')).toHaveClass('bottom-0')
+})
+
+it('places public About feedback at the bottom of the page', () => {
+  const view = render(<AppLayout><p>About content</p></AppLayout>)
+  act(() => { useAppToastStore.getState().showError('x') })
+  expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
+  expect(view.container.querySelector('[data-shell-notice]')).toBeNull()
 })
 
 it('keeps the Today shell and content in server markup while search parameters are pending', () => {

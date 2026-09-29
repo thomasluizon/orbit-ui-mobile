@@ -79,7 +79,7 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (pathname === '/about' && !isAuthenticated) return <>{children}</>
+  if (pathname === '/about' && !isAuthenticated) return <>{children}<AppToastHost placement="page" /></>
   return (
     <Providers>
       <AccountEventConnection />
