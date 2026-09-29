@@ -199,7 +199,22 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
-    /your own exit code counts for nothing/.test(prompt) && /tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
+    /your own exit code counts for nothing/.test(prompt) &&
+      /tools\/verify-delivery\.mjs/.test(prompt) &&
+      /NEVER open the app in a browser and never start a dev or production server/.test(prompt) &&
+      /Playwright, Maestro or Cypress/.test(prompt) &&
+      /nothing under `e2e\/`/.test(prompt) &&
+      /no layout guard/.test(prompt) &&
+      /no navigating to localhost/.test(prompt) &&
+      /no logging in to the app/.test(prompt),
+    prompt,
+  )
+  T(
+    `${TOOL}: the UI brief includes Chromium geometry within Vitest evidence`,
+    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
+      /including any headless Chromium geometry tests they launch/.test(prompt) &&
+      !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
+      /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
   )
   T(
@@ -224,7 +239,7 @@ export const cases = () => {
       layoutPrompt.includes("Nothing else under `e2e/` may be created or edited") &&
       /`\.github\/workflows\/layout\.yml`\s+on the pull request is the only runner and the only evidence/.test(layoutPrompt) &&
       /Never run the\s+layout guard or Playwright/.test(layoutPrompt) &&
-      layoutPrompt.includes("NEVER open a browser and never start a server") &&
+      layoutPrompt.includes("NEVER open the app in a browser and never start a dev or production server") &&
       !layoutPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**"),
     layoutPrompt,
   )
@@ -419,6 +434,16 @@ export const cases = () => {
     T(
       `${TOOL}: a redesign ${repository} order carries no UI review sweep`,
       !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
+      repositoryPrompt,
+    )
+    T(
+      `${TOOL}: a ${repository} order keeps the browser boundary without the UI Vitest carve-out`,
+      /NEVER open the app in a browser and never start a dev or production server/.test(repositoryPrompt) &&
+        /Playwright, Maestro or Cypress/.test(repositoryPrompt) &&
+        /nothing under `e2e\/`/.test(repositoryPrompt) &&
+        /no layout guard/.test(repositoryPrompt) &&
+        !/Vitest suites are required evidence/.test(repositoryPrompt) &&
+        !/Chromium geometry tests/.test(repositoryPrompt),
       repositoryPrompt,
     )
   }
