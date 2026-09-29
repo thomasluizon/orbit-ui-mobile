@@ -82,11 +82,11 @@ describe('WrappedPage', () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<WrappedPage />)
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
     expect(screen.getByTestId('player')).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('starts on the week period with the ready cover', () => {

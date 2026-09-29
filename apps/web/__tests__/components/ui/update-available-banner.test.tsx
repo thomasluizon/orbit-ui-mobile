@@ -27,9 +27,24 @@ describe('UpdateAvailableBanner', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders nothing when no upgrade is required', () => {
-    const { container } = render(<UpdateAvailableBanner />)
-    expect(container.innerHTML).toBe('')
+  it('keeps only an empty live region when no upgrade is required', () => {
+    render(<UpdateAvailableBanner />)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByRole('status')).not.toHaveAttribute('data-update-banner')
+  })
+
+  it.each([
+    ['a failed Server Action', () => useVersionGateStore.getState().requireReload('appUpdated'), 'errors.api.appUpdated'],
+    ['a 426 response', () => useVersionGateStore.getState().markUpgradeRequired('1.5.0'), 'forceUpdate.banner'],
+  ])('announces %s through a live region that was already mounted and empty', (_trigger, trigger, message) => {
+    render(<UpdateAvailableBanner />)
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+
+    act(trigger)
+
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent(message)
   })
 
   it('renders the banner when an upgrade is required', () => {
@@ -50,7 +65,7 @@ describe('UpdateAvailableBanner', () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<UpdateAvailableBanner />)
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('protects the brand line and leaves reload guidance translatable', () => {

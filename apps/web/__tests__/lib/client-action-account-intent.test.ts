@@ -98,7 +98,7 @@ describe('client account intent', () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(createElement(UpdateAvailableBanner))
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
     act(() => reportAccountChanged())
     expect(screen.getByText(en.errors.api.accountChanged)).toBeInTheDocument()
