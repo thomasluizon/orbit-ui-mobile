@@ -68,7 +68,7 @@ import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
-import { OfflineNotice } from '@/components/offline-notice'
+import { useOfflineNoticeContent } from '@/components/offline-notice'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
@@ -190,10 +190,12 @@ function getNoNavigationNotice(
   isAuthenticated: boolean,
   topSegment: string | undefined,
   notificationDeleteNotice: ReactNode,
+  offlineNotice: ReactNode,
 ) {
   if (!isAuthenticated) return undefined
-  if (topSegment === 'wrapped' && notificationDeleteNotice === null) return undefined
-  return <>{notificationDeleteNotice}{topSegment === 'wrapped' ? null : <OfflineNotice />}</>
+  const routedOfflineNotice = topSegment === 'wrapped' ? null : offlineNotice
+  if (notificationDeleteNotice === null && routedOfflineNotice === null) return undefined
+  return <>{notificationDeleteNotice}{routedOfflineNotice}</>
 }
 
 function getComposerSelectedDate(date: string | string[] | undefined): string | undefined {
@@ -238,6 +240,7 @@ function RootLayoutNav() {
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
   const offline = useOffline()
+  const offlineNotice = useOfflineNoticeContent()
   const chat = useChatComposer({
     isOnline: offline.isOnline,
     offlineTitle: t('chat.offline.title'),
@@ -370,7 +373,7 @@ function RootLayoutNav() {
             notice={<>
               <CelebrationPanel />
               {notificationDeleteNotice}
-              <OfflineNotice />
+              {offlineNotice}
             </>}
             tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
             fab={pathname === '/' && !todayFabHidden
@@ -389,6 +392,7 @@ function RootLayoutNav() {
               isAuthenticated,
               topSegment,
               notificationDeleteNotice,
+              offlineNotice,
             )}
           >
             <RootStackScreens

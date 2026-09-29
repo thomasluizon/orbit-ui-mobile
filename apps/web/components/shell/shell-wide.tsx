@@ -171,15 +171,14 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
   )
 }
 
-function ShellBottomChrome({ props, conversationOpen }: Readonly<{
+function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
+  visible: boolean
 }>) {
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
-  const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
-    || props.notice !== undefined || pinnedSlot !== undefined
-  if (!hasBottomChrome) return null
+  if (!visible) return null
 
   return (
     <div
@@ -220,6 +219,9 @@ function ShellWideBackground({
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
+  const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
+    || props.notice !== undefined || pinnedSlot !== undefined
   return (
     <div
       data-shell-background=""
@@ -235,7 +237,7 @@ function ShellWideBackground({
           <main
             ref={registerScroller}
             data-shell-scroller=""
-            className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? 'pb-24 lg:pb-8' : ''}`}
           >
             <span
               aria-hidden="true"
@@ -244,7 +246,7 @@ function ShellWideBackground({
             />
             {props.children}
           </main>
-          <ShellBottomChrome props={props} conversationOpen={conversationOpen} />
+          <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
         </div>
       </div>
     </div>

@@ -28,6 +28,7 @@ import { apiClient } from '@/lib/api-client'
 import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -232,6 +233,7 @@ function SupportForm({
 }
 
 export default function SupportScreen() {
+  const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -352,7 +354,7 @@ export default function SupportScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={pageEnd.safeAreaEdges}
     >
       <PageHeader
         onBack={() => goBackOrFallback('/profile')}
@@ -363,7 +365,7 @@ export default function SupportScreen() {
         avoidKeyboard={false}
         style={styles.container}
         containerStyle={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >
@@ -419,7 +421,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
   formBlock: {
     gap: 24,
   },

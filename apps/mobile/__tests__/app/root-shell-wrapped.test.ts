@@ -167,7 +167,7 @@ vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
-vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
+vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
   CelebrationPanel: () => null,
 }))
@@ -314,13 +314,13 @@ describe('Wrapped root shell', () => {
     'privacy',
     'terms',
     'r',
-  ])('keeps notices on the authenticated %s route', async (segment) => {
+  ])('keeps the authenticated %s route free of empty bottom chrome', async (segment) => {
     routeState.pathname = `/${segment}`
     routeState.segments = [segment]
     const tree = await renderRoot()
 
-    expect(findByTestId(tree, 'shell-bottom')).toHaveLength(1)
-    expect(findByTestId(tree, 'shell-notice')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
   it('keeps an unauthenticated no-navigation route free of notices', async () => {

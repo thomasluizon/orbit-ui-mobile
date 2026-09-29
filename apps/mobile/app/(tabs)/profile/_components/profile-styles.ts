@@ -11,8 +11,8 @@ export function createProfileStyles() {
       flex: 1,
     },
     scrollContent: {
-      padding: 16,
-      paddingBottom: 96,
+      paddingHorizontal: 16,
+      paddingTop: 16,
     },
     errorBlock: {
       paddingBottom: 12,

@@ -18,11 +18,11 @@ interface FlowShellProps {
 
 function contentClassName(mode: FlowShellMode): string {
   if (mode === 'document') return 'min-h-full w-full'
-  if (mode === 'detail') return 'mx-auto flex min-h-full w-full max-w-[740px] flex-col px-4 py-6'
+  if (mode === 'detail') return 'mx-auto flex min-h-full w-full max-w-[740px] flex-col px-4 pt-6'
   if (mode === 'onboarding') {
-    return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 lg:max-w-[560px] lg:px-0 lg:py-0'
+    return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 pt-8 lg:max-w-[560px] lg:px-0 lg:pt-0'
   }
-  return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0'
+  return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 pt-8 md:justify-center md:px-0'
 }
 
 function contentFrameClassName(mode: FlowShellMode): string {
@@ -80,9 +80,13 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
     ? <div className="mx-auto w-full lg:max-w-[560px]">{header}</div>
     : header
 
+  const pinnedNotice = action || notice ? <>{notice}<AppToastHost /></> : undefined
   return (
-    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={<>{notice}<AppToastHost /></>}>
-      {content}
-    </ShellWide>
+    <>
+      <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={pinnedNotice}>
+        {content}
+      </ShellWide>
+      {pinnedNotice ? null : <AppToastHost placement="page" />}
+    </>
   )
 }

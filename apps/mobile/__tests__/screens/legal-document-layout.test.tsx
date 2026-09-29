@@ -132,7 +132,8 @@ describe.each([
     expect(ReactNative.StyleSheet.flatten(layout.props.style)).toMatchObject({
       maxWidth: 620,
       minWidth: 0,
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 16,
       width: '100%',
     })
     expect(safeArea.props.edges).toEqual(['top', 'bottom'])

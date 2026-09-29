@@ -21,6 +21,7 @@ import { usePlayBilling } from '@/hooks/use-play-billing'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { createTokensV2 } from '@/lib/theme'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
@@ -89,6 +90,7 @@ function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
 }
 
 export default function UpgradeScreen() {
+  const clearance = useShellScrollerClearance()
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
   const goBackOrFallback = useGoBackOrFallback()
   const { t, i18n } = useTranslation()
@@ -291,7 +293,7 @@ export default function UpgradeScreen() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, clearance > 0 ? { paddingBottom: clearance } : undefined]}
         showsVerticalScrollIndicator={false}
       >
         <UpgradeContent

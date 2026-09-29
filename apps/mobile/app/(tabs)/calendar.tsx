@@ -75,6 +75,7 @@ import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2, radius } from "@/lib/theme";
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
@@ -322,11 +323,12 @@ function CalendarProfileState({
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(), []);
+  const clearance = useShellScrollerClearance();
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <ScrollView style={styles.profileStateWrap} contentContainerStyle={styles.profileScrollContent}>
+      <ScrollView style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
@@ -411,6 +413,7 @@ function CalendarScreenContent({
   setView,
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
+  const clearance = useShellScrollerClearance();
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string; import?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
@@ -953,12 +956,11 @@ function CalendarScreenContent({
         emptyLabel={t('calendar.emptyStat')}
       />
 
-      <View style={{ height: 24 }} />
     </View>
   );
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarHeader
         monthLabel={monthLabel}
@@ -979,21 +981,23 @@ function CalendarScreenContent({
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
       {activeError && (
-        <View style={styles.errorWrap}>
-          <View
-            style={[
-              styles.errorCard,
-              { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-            ]}
-          >
-            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
-              {t("calendar.loadError")}
-            </Text>
-            <PillButton variant="ghost" onClick={() => void activeRefresh()}>
-              {t("common.retry")}
-            </PillButton>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
+          <View style={styles.errorWrap}>
+            <View
+              style={[
+                styles.errorCard,
+                { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: tokens.fg2 }]}>
+                {t("calendar.loadError")}
+              </Text>
+              <PillButton variant="ghost" onClick={() => void activeRefresh()}>
+                {t("common.retry")}
+              </PillButton>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       )}
       {!activeError && view === "month" && (
         <FlatList
@@ -1004,6 +1008,7 @@ function CalendarScreenContent({
           renderItem={null}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
           onScroll={handleCalendarScroll}
           scrollEventThrottle={16}
@@ -1019,7 +1024,7 @@ function CalendarScreenContent({
       {!activeError && view !== "month" && (
         <ScrollView
           style={styles.container}
-          contentContainerStyle={styles.viewScrollContent}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         >
           {view === "week" ? (
@@ -1146,10 +1151,6 @@ function createStyles() {
     container: { flex: 1 },
 
 
-    viewScrollContent: {
-      paddingBottom: 24,
-    },
-
     agendaView: {
       alignSelf: "flex-start",
       gap: 16,
@@ -1188,7 +1189,7 @@ function createStyles() {
       flex: 1,
     },
     profileScrollContent: {
-      paddingVertical: 12,
+      paddingTop: 12,
     },
     profileLoading: {
       gap: 0,

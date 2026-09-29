@@ -24,6 +24,7 @@ import DraggableFlatList, {
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import {
   canLogHabitOnDate,
   computeHabitReorderPositions,
@@ -437,7 +438,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [currentScheme, currentTheme],
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
-    const bulkBarStyle = isSelectMode ? styles.listContentWithBulkBar : null
+    const clearance = useShellScrollerClearance()
+    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? 24 : 0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const handleListScroll = useCallback(

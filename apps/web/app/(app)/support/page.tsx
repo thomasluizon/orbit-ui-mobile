@@ -157,7 +157,7 @@ export default function SupportPage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.support.title')}
         />
-        <div className="min-h-0 flex-1 px-4 py-4">
+        <div className="min-h-0 flex-1 px-4 pt-4">
           <p role="status" aria-live="polite" className="sr-only">
             {success ? t('profile.support.success') : ''}
           </p>
