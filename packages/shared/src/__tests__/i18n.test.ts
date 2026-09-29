@@ -111,6 +111,20 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('keeps zero, one, and many forms for habit deletion in both locales', () => {
+    for (const locale of [en, ptBR]) {
+      const [zero, one, many] = locale.habits.deleteListConfirmMessage.split(' | ')
+      expect(locale.habits.deleteListConfirmMessage.split(' | ')).toHaveLength(3)
+      expect(zero).toContain('{name}')
+      expect(zero).not.toContain('{count}')
+      expect(one).toContain('{count}')
+      expect(many).toContain('{count}')
+    }
+    expect(en.habits.deleteConfirmTitle).toBe('Delete this habit?')
+    expect(ptBR.habits.deleteConfirmTitle).toBe('Excluir este hábito?')
+    expect(en.habits.deleteHabit).toBe('Delete habit')
+  })
+
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
     expect(en.chat.limitReachedError).toContain('tomorrow')
     expect(ptBR.chat.limitReachedError).toContain('amanhã')

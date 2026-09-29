@@ -116,6 +116,7 @@ function DeferredConfirmDialogs(
 ) {
   const open =
     props.showDeleteConfirm ||
+    props.deletePending ||
     props.habitToSkip !== null ||
     props.duplicateHabitName !== null ||
     props.parentPrompt !== null
@@ -737,6 +738,7 @@ export function HabitList({
     showSubHabitModal ||
     showRescheduleSheet ||
     showDeleteConfirm ||
+    deletePending ||
     habitToSkip?.date === selectedDateStr ||
     habitToDuplicate ||
     parentPrompt ||

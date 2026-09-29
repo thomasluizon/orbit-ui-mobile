@@ -239,13 +239,19 @@ const mockDrillState = {
 }
 let capturedDrillOptions: HabitVisibilityOptions | undefined
 
-vi.mock('react-i18next', () => ({
+vi.mock('react-i18next', async () => {
+  const { default: messages } = await import('@orbit/shared/i18n/en.json')
+  return {
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
+    t: (key: string, params?: Record<string, unknown>) => key === 'habits.deleteListConfirmMessage'
+      ? messages.habits.deleteListConfirmMessage
+        .replaceAll('{name}', String(params?.name))
+        .replaceAll('{count}', String(params?.count))
+      : params ? `${key}(${JSON.stringify(params)})` : key,
     i18n: { language: 'en' },
   }),
-}))
+  }
+})
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
@@ -1166,7 +1172,7 @@ describe('HabitList', () => {
     const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
     expect(confirmation).toBeDefined()
     expect(flattenRenderedText(confirmation)).toContain(
-      'habits.deleteListConfirmMessage({"name":"Exercise","count":1})',
+      'Exercise and 1 item inside it leave your list. You can undo it from the message that appears.',
     )
 
     await TestRenderer.act(async () => {
@@ -1198,6 +1204,54 @@ describe('HabitList', () => {
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
     expect(deleteMutateAsync).toHaveBeenCalledTimes(1)
     expect(deleteMutateAsync).toHaveBeenCalledWith('future-delete')
+  })
+
+  it.each([
+    [0, 'Read leaves your list. You can undo it from the message that appears.'],
+    [1, 'Read and 1 item inside it leave your list. You can undo it from the message that appears.'],
+    [3, 'Read and 3 items inside it leave your list. You can undo it from the message that appears.'],
+  ])('names %i descendants in the delete confirmation', async (count, message) => {
+    const habit = createMockHabit({ id: 'read', title: 'Read' })
+    const children = Array.from({ length: count }, (_, index) =>
+      createMockHabit({ id: `child-${index}`, title: `Child ${index}`, parentId: habit.id }))
+    seedHabits([habit, ...children])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    const row = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'read')
+    await TestRenderer.act(async () => { row?.props.actions.onDelete(); await Promise.resolve() })
+    const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
+    expect(flattenRenderedText(confirmation)).toContain(message)
+    if (count === 0) expect(message).not.toMatch(/0|items/)
+  })
+
+  it('shows busy delete actions while dismissal and deletion are pending', async () => {
+    const habit = createMockHabit({ id: 'read', title: 'Read' })
+    seedHabits([habit])
+    deleteMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    sheetTestControls.defer(true)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    const row = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'read')
+    await TestRenderer.act(async () => { row?.props.actions.onDelete(); await Promise.resolve() })
+    TestRenderer.act(() => { pressConfirm(tree, 'habits.deleteHabit') })
+    const button = (label: string) => tree.root.findAll(
+      (node: any) => node.type === 'Pressable' && node.findAll(
+        (child: any) => child.type === 'Text' && child.props.children === label,
+      ).length > 0,
+    ).at(-1)
+    expect(button('habits.deleteHabit')?.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(button('common.cancel')?.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(deleteMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('omits the habit description from the canonical row', () => {
