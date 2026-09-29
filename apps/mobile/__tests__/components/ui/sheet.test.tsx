@@ -186,7 +186,7 @@ describe('Sheet (mobile)', () => {
 
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
     expect(tree.root.findByProps({ testID: 'sheet-virtualized-body' })).toBeDefined()
-    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(true)
+    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(false)
   })
 
   it('reveals a focused lower input through the sheet body scroller', async () => {
@@ -279,7 +279,7 @@ describe('Sheet (mobile)', () => {
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <Sheet open actions={<Text>Save</Text>}><Text>Body</Text></Sheet>,
+        <Sheet open title="Title" actions={<Text>Save</Text>}><Text>Body</Text></Sheet>,
       )
       await Promise.resolve()
     })
@@ -294,6 +294,16 @@ describe('Sheet (mobile)', () => {
     expect(contentStyle.flexGrow).toBeUndefined()
     const actions = nativeSheet.props.footer.props.children[1]
     expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingBottom: 40 })
+    expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
+    await TestRenderer.act(() => {
+      nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
+    })
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
+    await TestRenderer.act(() => {
+      nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
+    })
+    const measuredScroller = tree.root.findAllByType('ScrollView')[0]
+    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56)
   })
 })
 

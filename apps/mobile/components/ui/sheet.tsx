@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -75,6 +75,8 @@ export function Sheet({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height } = useWindowDimensions()
   const { bottom: bottomInset } = useSafeAreaInsets()
+  const [headerHeight, setHeaderHeight] = useState(0)
+  const [footerHeight, setFooterHeight] = useState(0)
   const { t } = useTranslation()
   const overlayId = useId()
   const sheetId = `sheet:${overlayId}`
@@ -132,7 +134,7 @@ export function Sheet({
   }, [onAttemptDismiss])
 
   const header = title || accessibleTitle || headerAccessory || onClose ? (
-    <View style={styles.header} accessibilityLabel={accessibleTitle}>
+    <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
       {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
@@ -152,12 +154,8 @@ export function Sheet({
   ) : undefined
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
-  const footer = actions || showSheetToast ? (
-    <View>
-      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
-      {actions ? <View style={[styles.actions, { paddingBottom: 16 + bottomInset }]}>{actions}</View> : null}
-    </View>
-  ) : undefined
+  const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)
+  const reservedFooterHeight = footer ? footerHeight : 0
 
   return (
     <TrueSheet
@@ -182,19 +180,23 @@ export function Sheet({
       insetAdjustment="automatic"
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
-      scrollable={virtualizedBody}
+      scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={styles.body}>{children}</View>
+        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight }]}>
+          {children}
+          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
+        </View>
       ) : (
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
-          style={{ maxHeight: height * MAX_HEIGHT_RATIO - 180 }}
+          style={{ maxHeight: height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight }}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {children}
+          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </KeyboardAwareSheetScrollView>
       )}
     </TrueSheet>
@@ -202,6 +204,23 @@ export function Sheet({
 }
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function renderSheetFooter(
+  actions: ReactNode,
+  showSheetToast: boolean,
+  sheetId: string,
+  styles: ReturnType<typeof createStyles>,
+  bottomInset: number,
+  setFooterHeight: (height: number) => void,
+) {
+  if (!actions && !showSheetToast) return undefined
+  return (
+    <View onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
+      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
+      {actions ? <View style={[styles.actions, { paddingBottom: 16 + bottomInset }]}>{actions}</View> : null}
+    </View>
+  )
+}
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({

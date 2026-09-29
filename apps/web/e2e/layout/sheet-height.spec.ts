@@ -11,6 +11,7 @@ async function measureSheet(panel: Locator) {
     const body = element.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
     const footer = element.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
     const panelBounds = element.getBoundingClientRect()
+    const panelBottomPadding = Number.parseFloat(getComputedStyle(element).paddingBottom)
     const bodyBounds = body.getBoundingClientRect()
     const footerBounds = footer.getBoundingClientRect()
     const stackedHeight = Array.from(element.children)
@@ -25,7 +26,7 @@ async function measureSheet(panel: Locator) {
     safeAreaProbe.remove()
     return {
       panelHeight: panelBounds.height,
-      stackedHeight,
+      stackedHeight: stackedHeight + panelBottomPadding,
       bodyHeight: bodyBounds.height,
       bodyContentHeight: lastChild.bottom - bodyBounds.top + bottomPadding,
       bodyScrollHeight: body.scrollHeight,
@@ -62,6 +63,7 @@ test('a short confirmation fits its content and keeps actions above the safe are
   expect(measured.bodyHeight).toBeCloseTo(measured.bodyContentHeight, 0)
   expect(measured.panelHeight).toBeCloseTo(measured.stackedHeight, 0)
   expect(measured.panelHeight).toBeLessThan(915 * 0.85)
+  expect(measured.footerDistance).toBeGreaterThanOrEqual(measured.bottomInset)
   expect(measured.actionDistance).toBeGreaterThanOrEqual(measured.bottomInset)
 })
 
@@ -77,5 +79,6 @@ test('a long creation sheet scrolls under its pinned safe area footer', async ({
   process.stdout.write(`habit creation: panel=${measured.panelHeight}px, footer inset distance=${measured.actionDistance}px\n`)
   expect(measured.panelHeight).toBeLessThanOrEqual(915 * 0.85 + 1)
   expect(measured.bodyScrollHeight).toBeGreaterThan(measured.bodyClientHeight)
+  expect(measured.footerDistance).toBeGreaterThanOrEqual(measured.bottomInset)
   expect(measured.actionDistance).toBeGreaterThanOrEqual(measured.bottomInset)
 })

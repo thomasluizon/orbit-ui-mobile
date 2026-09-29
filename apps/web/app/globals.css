@@ -50,6 +50,7 @@
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
   border-radius: 28px 28px 0 0;
   background: var(--bg-sheet);
   color: var(--fg-1);
@@ -250,7 +251,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 16px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 16px 24px 24px;
 }
 
 .orbit-sheet-actions > * {
