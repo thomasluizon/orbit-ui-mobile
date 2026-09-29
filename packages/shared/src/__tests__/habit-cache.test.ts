@@ -120,6 +120,26 @@ describe('getTodayHabitList', () => {
 
     expect(getTodayHabitList(queryClient, today)).toBeUndefined()
   })
+
+  it('keeps a dated list complete through removal, insertion and rollback', () => {
+    const queryClient = new QueryClient()
+    const key = habitKeys.list(todayFilters)
+    const countKey = habitKeys.listTotalCount(todayFilters)
+    const original = [scheduled('a'), scheduled('b')]
+    queryClient.setQueryData(key, original)
+    queryClient.setQueryData(countKey, 2)
+
+    updateHabitListsForDate(queryClient, today, (items) => optimisticRemoveHabits(items, ['a']))
+    expect(queryClient.getQueryData(countKey)).toBe(1)
+    expect(getTodayHabitList(queryClient, today)?.map((item) => item.id)).toEqual(['b'])
+
+    updateHabitListsForDate(queryClient, today, () => original)
+    expect(queryClient.getQueryData(countKey)).toBe(2)
+
+    updateHabitListsForDate(queryClient, today, (items) => [...items, scheduled('c')])
+    expect(queryClient.getQueryData(countKey)).toBe(3)
+    expect(getTodayHabitList(queryClient, today)?.map((item) => item.id)).toEqual(['a', 'b', 'c'])
+  })
 })
 
 describe('deduplicateHabitList', () => {

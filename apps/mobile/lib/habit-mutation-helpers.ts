@@ -4,7 +4,9 @@ import {
   goalKeys,
   habitKeys,
   profileKeys,
+  restoreCachedHabitLists,
   tagKeys,
+  updateCachedHabitLists,
 } from '@orbit/shared/query'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type {
@@ -35,21 +37,14 @@ export function restoreHabitLists(
   queryClient: QueryClient,
   snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
 ): void {
-  for (const [key, data] of snapshots) {
-    if (data) {
-      queryClient.setQueryData(key, data)
-    }
-  }
+  restoreCachedHabitLists(queryClient, snapshots)
 }
 
 export function updateHabitLists(
   queryClient: QueryClient,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
-    { queryKey: habitKeys.lists() },
-    (old) => (old ? updater(old) : old),
-  )
+  updateCachedHabitLists(queryClient, updater)
 }
 
 export function adjustHabitCount(queryClient: QueryClient, delta: number): void {
