@@ -1,9 +1,27 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { check, root, toolPath } from "./_harness.mjs"
+import { T, check, root, toolPath } from "./_harness.mjs"
 
 const declarations = `# Design\n\n<!-- surface-scope:start -->\n| on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |\n|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n| dark \`--fg-3\` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |\n| light \`--fg-3\` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |\n| dark \`--fg-4\` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |\n| light \`--fg-4\` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |\n| dark \`--primary-soft\` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |\n| light \`--primary-soft\` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |\n| dark \`--status-bad-text\` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |\n| light \`--status-bad-text\` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |\n| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n| light \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n<!-- surface-scope:end -->\n`
+
+/** Gives a motion paragraph opening tag one style attribute whose last member, and so its effective colour, is `color`. */
+function withParagraphColor(openingTag, color) {
+  const attribute = openingTag.indexOf("style={")
+  if (attribute < 0) return openingTag.replace("<motion.p", `<motion.p style={{ ${color} }}`)
+  const valueStart = attribute + "style={".length
+  let depth = 1
+  let end = valueStart
+  while (depth > 0 && end < openingTag.length) {
+    if (openingTag[end] === "{") depth++
+    else if (openingTag[end] === "}") depth--
+    end++
+  }
+  const value = openingTag.slice(valueStart, end - 1).trim()
+  const members = value.startsWith("{") ? value.slice(1, -1).trim().replace(/,$/, "") : `...(${value})`
+  const merged = members === "" ? `{ ${color} }` : `{ ${members}, ${color} }`
+  return `${openingTag.slice(0, attribute)}style={${merged}}${openingTag.slice(end)}`
+}
 
 function stageRepository(label, { web = "", mobile = "" }) {
   const repository = join(root, "surface-scope", label)
@@ -70,9 +88,17 @@ export const cases = () => {
   const spanPosition = alertParagraph.indexOf(coloredSpan)
   if (spanPosition < 0) throw new Error("wrapped share alert paragraph no longer colors its inner span")
   const openingTag = alertParagraph.slice(0, spanPosition)
-  const coloredOpeningTag = openingTag.includes("style={{")
-    ? openingTag.replace("style={{", `style={{ ${alertColor},`)
-    : openingTag.replace("<motion.p", `<motion.p style={{ ${alertColor} }}`)
+  const coloredOpeningTag = withParagraphColor(openingTag, alertColor)
+  for (const [form, tag, expected] of [
+    ["a literal style", "<motion.p style={{ fontSize: 13 }} role=\"alert\">", "style={{ fontSize: 13, color: 'var(--status-bad-text)' }}"],
+    ["a literal style with its own colour", "<motion.p style={{ color: 'var(--fg-2)', fontSize: 13, }} role=\"alert\">", "style={{ color: 'var(--fg-2)', fontSize: 13, color: 'var(--status-bad-text)' }}"],
+    ["a named style", "<motion.p style={captionStyle} role=\"alert\">", "style={{ ...(captionStyle), color: 'var(--status-bad-text)' }}"],
+    ["no style", "<motion.p role=\"alert\">", "<motion.p style={{ color: 'var(--status-bad-text)' }} role=\"alert\">"],
+  ]) {
+    const derived = withParagraphColor(tag, alertColor)
+    T(`wrapped alert fixture keeps one paragraph style whose last colour is the alert colour for ${form}`,
+      derived.split("style=").length === 2 && derived.includes(expected), derived)
+  }
   const coloredParagraph = coloredOpeningTag + alertParagraph.slice(spanPosition).replace(coloredSpan, "<span>")
   const motionText = stageRepository("motion-text", { web: `export function WrappedShareSlide(){return (${coloredParagraph})}` })
   check("check-surface-scope.mjs", "accepts the wrapped share alert color on its motion paragraph", ["--root", motionText], {
