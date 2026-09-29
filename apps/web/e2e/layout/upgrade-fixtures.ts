@@ -6,6 +6,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
 import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession } from './profile-session'
 
 const subscriptions = {
   free: subscriptionStatusSchema.parse({ ...profileFixture, source: null }),
@@ -100,7 +101,7 @@ export const test = base.extend<{
     const subscription = subscriptionFixtures[subscriptionState]
     const profile = profileSchema.parse({ ...profileFixture, ...subscription, language: appLocale })
     await context.addCookies([{ name: 'i18n_locale', value: appLocale, url: LAYOUT_ORIGIN }])
-    await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+    await setLayoutProfileSession(context, profile)
     await context.route(`${LAYOUT_ORIGIN}${API.subscription.status}`, (route) => route.fulfill({ json: subscription }))
     await context.route(
       (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.subscription.plans,
