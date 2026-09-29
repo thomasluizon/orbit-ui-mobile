@@ -1728,8 +1728,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    if (isLoading || (flatItems.length === 0 &&
-      !accountHabitCount.isLoaded && !accountHabitCount.isError)) {
+    if (isLoading) {
       return (
         <>
           <FlatList

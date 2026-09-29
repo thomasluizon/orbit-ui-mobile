@@ -295,16 +295,6 @@ function getDeleteConfirmation(
   }
 }
 
-function shouldShowListSkeleton(
-  isHabitListLoading: boolean,
-  hasDrillParent: boolean,
-  visibleCount: number,
-  accountCount: ReturnType<typeof useHabitCountLoaded>,
-): boolean {
-  return isHabitListLoading || (!hasDrillParent && visibleCount === 0 &&
-    !accountCount.isLoaded && !accountCount.isError)
-}
-
 // react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitList({
   ref,
@@ -1298,6 +1288,10 @@ export function HabitList({
     )
   }
 
+  if (habitsQuery.isLoading) {
+    return <HabitListSkeleton />
+  }
+
   if (habitsQuery.isError && !habitsQuery.data) {
     return (
       <HabitListEmptyState
@@ -1310,10 +1304,6 @@ export function HabitList({
         variant="secondary"
       />
     )
-  }
-
-  if (shouldShowListSkeleton(habitsQuery.isLoading, Boolean(drill.currentParent), habits.length, accountHabitCount)) {
-    return <HabitListSkeleton />
   }
 
   const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&

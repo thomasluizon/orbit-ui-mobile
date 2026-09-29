@@ -156,10 +156,10 @@ export function useTotalHabitCount(): number {
   return useHabitCountQuery().data ?? 0
 }
 
-/** Account habit count and query status for first-run decisions. */
-export function useHabitCountLoaded(): { count: number; isLoaded: boolean; isError: boolean } {
+/** Total habit count plus whether the count query has settled, for gating first-run decisions. */
+export function useHabitCountLoaded(): { count: number; isLoaded: boolean } {
   const query = useHabitCountQuery()
-  return { count: query.data ?? 0, isLoaded: query.isSuccess, isError: query.isError }
+  return { count: query.data ?? 0, isLoaded: query.isSuccess }
 }
 
 export {

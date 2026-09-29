@@ -17,7 +17,7 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
-const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true, isError: false }))
+const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitCountLoaded: () => accountHabitCount,
@@ -412,7 +412,6 @@ describe('HabitList', () => {
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 0
     accountHabitCount.isLoaded = true
-    accountHabitCount.isError = false
   })
 
   it('renders without crashing with no habits', () => {
@@ -442,17 +441,9 @@ describe('HabitList', () => {
 
   it('keeps the plain line visible if the account count cannot load', () => {
     accountHabitCount.isLoaded = false
-    accountHabitCount.isError = true
     renderWithProviders(<HabitList filters={defaultFilters} />)
     expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
     expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
-  })
-
-  it('shows a loading skeleton while the account count is pending', () => {
-    accountHabitCount.isLoaded = false
-    renderWithProviders(<HabitList filters={defaultFilters} />)
-    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull()
-    expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
   it('keeps first-run actions on another day when the account has no habits', () => {
