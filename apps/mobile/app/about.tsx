@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
 import Constants from 'expo-constants'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMark } from '@/components/ui/orbit-mark'
@@ -58,7 +58,7 @@ function ProfileAccountFact({
 
 export default function AboutScreen() {
   const { t } = useTranslation()
-  const clearance = useShellScrollerClearance()
+  const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -73,7 +73,7 @@ export default function AboutScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={pageEnd.safeAreaEdges}
     >
       <PageHeader
         onBack={() => goBackOrFallback('/profile')}
@@ -82,7 +82,7 @@ export default function AboutScreen() {
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
         <View testID="about-content" style={styles.content}>

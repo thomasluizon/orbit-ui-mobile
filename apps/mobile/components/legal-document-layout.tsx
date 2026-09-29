@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -25,13 +25,13 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
-  const clearance = useShellScrollerClearance()
+  const pageEnd = useShellPageEnd()
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={pageEnd.safeAreaEdges}>
       <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
-        <View testID="legal-document" style={[styles.document, clearance === 0 ? styles.documentEndInset : undefined]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]} showsVerticalScrollIndicator={false}>
+        <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{title}</Text>
             <Text style={[styles.updated, { color: tokens.fg3 }]}>{lastUpdated}</Text>
@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
   document: { alignSelf: 'center', width: '100%', maxWidth: 620, minWidth: 0, paddingHorizontal: 16, paddingTop: 16, gap: 24 },
-  documentEndInset: { paddingBottom: 24 },
   titleBlock: { minWidth: 0, gap: 8 },
   title: { minWidth: 0, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, letterSpacing: -0.44 },
   titleWide: { fontSize: 28, lineHeight: 32.2, letterSpacing: -0.56 },

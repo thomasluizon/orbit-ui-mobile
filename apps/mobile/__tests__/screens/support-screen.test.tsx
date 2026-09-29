@@ -2,9 +2,10 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
+import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import { i18n } from '@/lib/i18n'
 import { __resetTestHostConfig } from '../../test-mocks/react-native'
 import { focusHost, withFocusProvenance } from '../support/focus-provenance'
@@ -91,6 +92,11 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 })
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: (props: React.PropsWithChildren<{ edges?: readonly string[] }>) =>
+    React.createElement('SafeAreaView', props, props.children),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
 }))
@@ -691,4 +697,22 @@ describe('SupportScreen', () => {
     })
   })
 
+  it.each([
+    [0, 24, ['top', 'bottom']],
+    [96, 96, ['top']],
+  ] as const)('ends clear of the system bar or the pinned chrome at shell clearance %i', async (clearance, paddingBottom, edges) => {
+    let tree!: { root: TestNode }
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(withFocusProvenance(
+        <ShellScrollerClearanceContext.Provider value={clearance}>
+          <SupportScreen />
+        </ShellScrollerClearanceContext.Provider>,
+      ))
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node) => node.type === 'SafeAreaView')[0]!.props.edges).toEqual(edges)
+    const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({ paddingBottom })
+  })
 })
