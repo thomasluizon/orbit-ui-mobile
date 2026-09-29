@@ -502,13 +502,9 @@ function GlobalOverlays({
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
-      >
-        <div className="flex flex-col items-center text-center gap-6 py-2">
-          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
-            {t('onboarding.wizard.calendarDescription')}
-          </p>
+        actions={(
           <div className="flex flex-col gap-3 w-full">
-            <PillButton  onClick={onCalendarImport} >
+            <PillButton onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
             <button
@@ -519,20 +515,22 @@ function GlobalOverlays({
               {t('common.later')}
             </button>
           </div>
+        )}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
+            {t('onboarding.wizard.calendarDescription')}
+          </p>
         </div>
       </Sheet>) : null}
       {showImportPrompt && !showRetainedOnboarding ? (<Sheet
         open
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
-      >
-        <div className="flex flex-col items-center text-center gap-6 py-2">
-          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
-            {t('onboarding.wizard.importDescription')}
-          </p>
+        actions={(
           <div className="flex flex-col gap-3 w-full">
             {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-            <PillButton  onClick={onImportWithAstra} >
+            <PillButton onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
             <button
@@ -543,6 +541,12 @@ function GlobalOverlays({
               {t('onboarding.wizard.importNotNow')}
             </button>
           </div>
+        )}
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
+            {t('onboarding.wizard.importDescription')}
+          </p>
         </div>
       </Sheet>) : null}
     </div>

@@ -2,6 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const state = vi.hoisted(() => ({
   profile: undefined as {
@@ -85,11 +86,11 @@ vi.mock('@/stores/referral-prompt-store', () => ({
     armReferralPrompt: vi.fn(), armMilestoneSharePrompt: vi.fn(), armConsentPrompt: vi.fn(),
   }),
 }))
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ title, children }: { title?: string; children?: React.ReactNode }) =>
-    <div role="dialog">{title}{children}</div>,
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) =>
+    <button type="button" onClick={onClick}>{children}</button>,
 }))
-vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
@@ -147,6 +148,18 @@ describe('Today create during first load', () => {
 
     await act(async () => useUIStore.getState().setShowCreateModal(false))
     expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['calendar', { hasImportedCalendar: false }, ['onboarding.wizard.calendarButton', 'common.later']],
+    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importButton', 'onboarding.wizard.importNotNow']],
+  ] as const)('pins the %s import actions in the sheet footer, never in the scrolling body', async (_prompt, flags, footer) => {
+    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
+    render(<AppLayout><div>Today</div></AppLayout>)
+    await act(async () => {})
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(footer)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
   it('waits to offer calendar import while another sheet is open', async () => {
