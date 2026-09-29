@@ -1832,22 +1832,12 @@
       "errorGeneric": "Something went wrong. Please try again."
     },
     "deleteAccount": {
-      "button": "Delete account",
-      "title": "Delete Account",
       "headingAreYouSure": "This deletes your account",
-      "headingConfirmCode": "Confirm with code",
-      "headingDeactivated": "Account deactivated",
       "warning": "You have time to change your mind. After that, the deletion is permanent and cannot be undone.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
       "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
-      "sending": "Sending...",
-      "codeInstructions": "Enter the 6-digit code sent to your email to confirm account deactivation.",
-      "confirmDelete": "Deactivate my account",
-      "deleting": "Processing...",
-      "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
-      "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }
