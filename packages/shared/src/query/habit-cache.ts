@@ -23,8 +23,8 @@ function setCachedHabitList(
   previous: HabitScheduleItem[],
   next: HabitScheduleItem[],
 ): void {
-  const filters = key[2] as HabitListFilters
-  if (filters.completeDay === true && filters.dateFrom && filters.dateFrom === filters.dateTo) {
+  const filters = key[2] as HabitListFilters | undefined
+  if (filters?.completeDay === true && filters.dateFrom && filters.dateFrom === filters.dateTo) {
     const countKey = listTotalCountKey(filters)
     const count = queryClient.getQueryData<number>(countKey)
     if (count !== undefined) {

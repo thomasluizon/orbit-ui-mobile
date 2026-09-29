@@ -62,6 +62,8 @@ const mocks = vi.hoisted(() => {
 
       state.habits = apply(state.habits)
     }),
+    getQueryData: vi.fn((queryKey: readonly unknown[]) =>
+      [...state.tags, ...state.habits].find((entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey))?.value),
     setQueryData: vi.fn((queryKey: readonly unknown[], value: unknown) => {
       if (JSON.stringify(queryKey) === JSON.stringify(tagKeys.lists())) {
         const existing = state.tags.find((entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey))
