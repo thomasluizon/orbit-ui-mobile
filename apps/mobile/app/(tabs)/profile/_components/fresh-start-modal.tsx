@@ -185,6 +185,11 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
           </DialogActionPair>
         ) : (
           <DialogActionPair>
+            {resetError ? (
+              <Text accessibilityRole="alert" style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+                {resetError}
+              </Text>
+            ) : null}
             <PillButton
               variant="caution"
               matchedWidth
@@ -295,11 +300,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 }
               }}
             />
-            {resetError ? (
-              <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-                {resetError}
-              </Text>
-            ) : null}
           </View>
         )}
       </Sheet>) : null}
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   },
   errorTextSmall: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
   },
 })

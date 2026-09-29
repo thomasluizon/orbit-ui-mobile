@@ -248,6 +248,17 @@ describe('FreshStartModal', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
+  it('shows a failed reset in the pinned footer, beside Delete data', async () => {
+    mockResetAccount.mockRejectedValueOnce(new Error('Server error'))
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+  })
+
   it('shows error when resetAccount fails', async () => {
     mockResetAccount.mockRejectedValueOnce(new Error('Server error'))
 

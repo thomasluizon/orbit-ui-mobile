@@ -139,6 +139,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             step={step}
             isConfirmed={isConfirmed}
             loading={loading}
+            error={error}
             onCancel={() => closeSheet()}
             onContinue={() => setStep('confirm')}
             onReset={() => void handleReset()}
@@ -153,7 +154,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             onConfirmTextChange={setConfirmText}
             isConfirmed={isConfirmed}
             loading={loading}
-            error={error}
             onReset={() => void handleReset()}
           />
         )}
@@ -232,6 +232,7 @@ function FreshStartActions({
   step,
   isConfirmed,
   loading,
+  error,
   onCancel,
   onContinue,
   onReset,
@@ -239,6 +240,7 @@ function FreshStartActions({
   step: 'info' | 'confirm'
   isConfirmed: boolean
   loading: boolean
+  error: string
   onCancel: () => void
   onContinue: () => void
   onReset: () => void
@@ -260,6 +262,11 @@ function FreshStartActions({
 
   return (
     <DialogActionPair>
+      {error ? (
+        <p role="alert" className="m-0" style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad-text)', textAlign: 'center' }}>
+          {error}
+        </p>
+      ) : null}
       <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
         {t('profile.freshStart.deleteData')}
       </PillButton>
@@ -303,14 +310,12 @@ function FreshStartConfirmStep({
   onConfirmTextChange,
   isConfirmed,
   loading,
-  error,
   onReset,
 }: Readonly<{
   confirmText: string
   onConfirmTextChange: (value: string) => void
   isConfirmed: boolean
   loading: boolean
-  error: string
   onReset: () => void
 }>) {
   const t = useTranslations()
@@ -339,18 +344,6 @@ function FreshStartConfirmStep({
           if (isConfirmed && !loading) onReset()
         }}
       />
-      {error && (
-        <p
-          role="alert"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--status-bad-text)',
-          }}
-        >
-          {error}
-        </p>
-      )}
     </div>
   )
 }

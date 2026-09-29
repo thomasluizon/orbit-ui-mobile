@@ -395,6 +395,19 @@ await Promise.resolve()
     if (queued) expect(offlineQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ id: 'reset-1', type: 'resetProfile' }))
   })
 
+  it('shows a failed reset in the pinned footer, beside Delete data', async () => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    vi.mocked(offlineMutations.queueOrExecute).mockRejectedValueOnce(new Error('offline'))
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+    const alerts = (slot: string) => tree.root
+      .findAll((node) => node.type === slot)[0]!
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+
+    expect(alerts('SheetActions')).toHaveLength(1)
+    expect(alerts('SheetBody')).toHaveLength(0)
+  })
+
   it('surfaces a friendly error and keeps the modal open on failure', async () => {
     const onClose = vi.fn()
     const offlineMutations = await import('@/lib/offline-mutations')
