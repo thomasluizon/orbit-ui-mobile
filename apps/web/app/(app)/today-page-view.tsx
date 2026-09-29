@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -11,7 +12,6 @@ import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
@@ -91,17 +91,23 @@ function useTodayRefetchMotion(isRefetching: boolean) {
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
+  const router = useRouter()
   const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
 
   return (
     <div className="flex flex-col gap-6 pb-6">
+      <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
         {...view.nav.dateNav}
-        moreLabel={t('habits.actions.more')}
+        moreLabel={t('habits.listOptions')}
+        searchLabel={t('habits.search.title')}
+        onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={view.habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
         completedLabel={view.showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        showCompleted={view.showCompleted}
         isFetching={view.data.isFetching}
         onToggleSelect={view.toggleSelectMode}
         onToggleCollapse={() => {
@@ -111,7 +117,6 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         onRefresh={() => void view.data.refetch()}
         onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
       />
-      <TrialBanner />
       {key ? (
         <div className="px-4">
           <CapacityNotice message={t(key)} />

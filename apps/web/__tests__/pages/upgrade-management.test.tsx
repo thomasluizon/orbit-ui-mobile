@@ -67,7 +67,6 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
   useHasProAccess: () => mockHasProAccess,
   useTrialExpired: () => mockTrialExpired,
-  useTrialDaysLeft: () => mockTrialDaysLeft,
   useTrialUrgent: () => mockTrialUrgent,
 }))
 
@@ -224,6 +223,20 @@ describe('UpgradePage subscription management', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each(['offline', 'portal-opening'] as const)('exposes %s on the upgrade content measured by the layout guard', async (state) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, hasProAccess: true, subscriptionSource: 'stripe' }
+    mockIsOnline = state !== 'offline'
+    mockOpenCustomerPortal.mockReturnValue(new Promise(() => {}))
+    render(<main data-shell-scroller><UpgradePage /></main>)
+    if (state === 'portal-opening') {
+      fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+    }
+    await waitFor(() => expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', state))
+    expect(document.querySelectorAll('[data-upgrade-screen]')).toHaveLength(1)
+    expect(document.querySelector('[data-upgrade-screen]')?.closest('main')).toHaveAttribute('data-shell-scroller')
+  })
+
   it.each([
     ['stripe', 'stripe'], ['play', 'play'], ['lifetime', 'stripe'],
     ['canceled', 'stripe'], ['past-due', 'stripe'], ['lapsed', 'stripe'],
@@ -265,7 +278,7 @@ describe('UpgradePage subscription management', () => {
         name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
       }))
     }
-    await waitFor(() => expect(document.querySelector('main')).toHaveAttribute('data-state', state))
+    await waitFor(() => expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', state))
     const hasProviderGuidance = !['lifetime', 'lapsed', 'loading', 'load-failed'].includes(state)
     expect(screen.queryAllByText('upgrade.billing.actions.providerNote')).toHaveLength(Number(hasProviderGuidance))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
@@ -788,7 +801,7 @@ describe('UpgradePage subscription management', () => {
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('upgrade.billing.usage.title')).toBeInTheDocument()
-    expect(document.querySelector('main')).toHaveAttribute('data-state', 'portal-opening')
+    expect(document.querySelector('[data-upgrade-screen]')).toHaveAttribute('data-state', 'portal-opening')
   })
 
   it('does not substitute Stripe catalog pricing on the Play management panel', () => {

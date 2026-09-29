@@ -10,6 +10,7 @@ import {
 } from 'react-native-draggable-flatlist'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
+import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
 import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
@@ -63,6 +64,8 @@ import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hook
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -177,12 +180,13 @@ function RepairUnavailableCopy({ state, tokens }: Readonly<{
   return <Text style={[styles.body, { color: tokens.fg2 }]}>{message}</Text>
 }
 
-function StreakRepairPanel({ state, ceiling, repair, tokens, isWide }: Readonly<{
+function StreakRepairPanel({ state, ceiling, repair, tokens, isWide, hasGoals }: Readonly<{
   state: StreakRepairState
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   tokens: AppTokensV2
   isWide: boolean
+  hasGoals: boolean
 }>) {
   const { t, i18n } = useTranslation()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -200,7 +204,7 @@ function StreakRepairPanel({ state, ceiling, repair, tokens, isWide }: Readonly<
       <>
         <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
           <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapBody', { count: state.count })}</Text>
-          {state.canRepair ? <View style={styles.actionStart}><PillButton variant={isWide ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton></View> : null}
+          {state.canRepair ? <View style={styles.actionStart}><PillButton variant={isWide || !hasGoals ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton></View> : null}
           {!state.canRepair ? <RepairUnavailableCopy state={state} tokens={tokens} /> : null}
           {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBadText }]}>{t(getStreakRepairErrorMessageKey(repairStatus))}</Text> : null}
         </View>
@@ -223,8 +227,8 @@ function StreakRepairPanel({ state, ceiling, repair, tokens, isWide }: Readonly<
     : null
 }
 
-function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
-  accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
+function StreakSection({ accountProfile, canView, gamificationProfile, tokens, hasGoals }: Readonly<{
+  accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2; hasGoals: boolean
 }>) {
   const { t, i18n } = useTranslation()
   const { width } = useWindowDimensions()
@@ -258,7 +262,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} origin={freeze.streakInfo.lastFreezeCoveredOrigin} locale={i18n.language} tokens={tokens} /> : null}
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} /> : null}
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} hasGoals={hasGoals} /> : null}
     </View>
   )
 }
@@ -319,9 +323,25 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
   )
 }
 
+function GoalsEmptyState() {
+  const { t } = useTranslation()
+  const { width } = useWindowDimensions()
+  useEffect(() => () => {
+    clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
+  }, [])
+  const askAstraForGoal = () => {
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'progress-create-goal',
+      label: t('progressScreen.goals.createAction'),
+      prompt: t('progressScreen.goals.request'),
+    })
+    useUIStore.getState().setAstraConversationOpen(true)
+  }
+  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+}
+
 function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
   const { t } = useTranslation()
-  const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const announceReorderResult = (message: string) => {
@@ -360,7 +380,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
-      {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
+      {goals.length === 0 ? <GoalsEmptyState /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} />) : null}
@@ -373,7 +393,7 @@ function GoalSeparator() {
   return <View style={styles.goalSeparator} />
 }
 
-function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
+function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; hasGoals: boolean }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { width } = useWindowDimensions()
@@ -384,7 +404,7 @@ function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   if (hasNoHabits) {
     const emptyAction = (
       // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
-      <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>
+      <PillButton variant={width >= 768 || !hasGoals ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.window.emptyAction')}</PillButton>
     )
     return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={emptyAction} /></WindowFrame>
   }
@@ -560,11 +580,8 @@ export function ProgressContent() {
       </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
-      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={
-        // eslint-disable-next-line local/max-button-words -- Canvas-owned control copy.
-        <PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" accessibilityRole="link" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>
-      } /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {empty ? <View style={styles.empty}><GoalsEmptyState /></View> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )

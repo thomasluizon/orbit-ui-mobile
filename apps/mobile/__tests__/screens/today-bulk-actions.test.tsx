@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => ({
     toggleSelectMode: vi.fn(),
     selectAllHabits: vi.fn(),
     clearSelection: vi.fn(),
+    checkAllDoneCelebration: vi.fn(),
     todayFabHidden: false,
     setTodayFabHidden: vi.fn(),
   },
@@ -160,7 +161,10 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: typeof mocks.store) => unknown) => selector(mocks.store),
+  useUIStore: Object.assign(
+    (selector: (state: typeof mocks.store) => unknown) => selector(mocks.store),
+    { getState: () => mocks.store },
+  ),
 }))
 
 vi.mock('@/components/habit-list', () => ({

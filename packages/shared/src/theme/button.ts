@@ -6,6 +6,10 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 
 
 export type ButtonSize = 'sm' | 'md'
 
+/** A stacked dialog pair shares this width and stays within the overlay column. */
+export const MATCHED_PILL_WIDTH = '100%'
+export const MATCHED_PILL_MAX_WIDTH = 360
+
 export interface ButtonSizeSpec {
   /** Fixed pill height in px. */
   height: number

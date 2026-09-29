@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState, useSyncExternalStore } from 'react'
-import { hashKey } from '@tanstack/react-query'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { hashKey, useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
+import { habitListQueryFilters } from '@orbit/shared/utils'
 import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
@@ -73,7 +74,8 @@ export function useTodayHabitsData({
     [dateStr, isTodayDate, showGeneralOnToday],
   )
 
-  const queryKey = habitKeys.list(filters)
+  const queryKey = habitKeys.list(habitListQueryFilters(filters, true))
+  const queryClient = useQueryClient()
   /**
    * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the
    * server rendered this page. That serves the previous account's habit titles to the next
@@ -83,11 +85,18 @@ export function useTodayHabitsData({
   const [renderedAccountGeneration] = useState(accountGeneration)
   const accountHeldInitialHabits =
     accountGeneration === renderedAccountGeneration ? initialHabits : null
-  const initialItems =
+  const matchingInitialHabits =
     accountHeldInitialHabits && hashKey(accountHeldInitialHabits.queryKey) === hashKey(queryKey)
-      ? accountHeldInitialHabits.items
-      : undefined
-  const habitsQuery = useHabits(filters, initialItems)
+      ? accountHeldInitialHabits
+      : null
+  const initialItems = matchingInitialHabits?.items
+  const initialTotalCount = matchingInitialHabits?.totalCount
+  useEffect(() => {
+    if (initialTotalCount !== undefined) {
+      queryClient.setQueryData(habitKeys.listTotalCount(filters), initialTotalCount)
+    }
+  }, [filters, initialTotalCount, queryClient])
+  const habitsQuery = useHabits(filters, initialItems, { completeDay: true })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const childrenByParent = habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const habitsCount = habitsById.size

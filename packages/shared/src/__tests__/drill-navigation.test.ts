@@ -361,6 +361,7 @@ describe('getVisibleDrillChildren', () => {
     const listChild = createMockHabit({
       id: 'recurring', parentId: 'parent-1', frequencyUnit: 'Day',
       dueDate: '2025-01-10', scheduledDates: [date],
+      isLoggedInRange: true,
       instances: [{ date, status: 'Completed', logId: 'log-1' }],
       searchMatches: [{ field: 'title', value: 'Recurring' }],
     })
@@ -381,6 +382,7 @@ describe('getVisibleDrillChildren', () => {
     }, 'today', date)).toEqual([])
     expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
       ...options, selectedDate: '2025-01-03',
+      habitsById: new Map([[listChild.id, { ...listChild, isLoggedInRange: false, instances: [] }]]),
     }, 'today', date)).toEqual([])
   })
 

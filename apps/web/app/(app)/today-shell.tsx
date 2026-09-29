@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
+import { AdjustmentsHorizontal, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
+import { PillButton } from '@/components/ui/pill-button'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
   'icon-btn touch-target shrink-0 hover:bg-[var(--bg-hover)] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-fast)]'
@@ -17,17 +18,22 @@ export interface TodayDateControlProps {
   onGoToNextDay: () => void
   previousLabel: string
   todayLabel: string
+  goToTodayLabel: string
   nextLabel: string
   moreLabel: string
   selectLabel: string
   collapseLabel: string
+  allCollapsed: boolean
   refreshLabel: string
   completedLabel: string
+  showCompleted: boolean
   isFetching: boolean
   onToggleSelect: () => void
   onToggleCollapse: () => void
   onRefresh: () => void
   onToggleCompleted: () => void
+  searchLabel: string
+  onSearch: () => void
 }
 
 export function TodayDateControl({
@@ -40,29 +46,34 @@ export function TodayDateControl({
   onGoToNextDay,
   previousLabel,
   todayLabel,
+  goToTodayLabel,
   nextLabel,
   moreLabel,
   selectLabel,
   collapseLabel,
+  allCollapsed,
   refreshLabel,
   completedLabel,
+  showCompleted,
   isFetching,
   onToggleSelect,
   onToggleCollapse,
   onRefresh,
   onToggleCompleted,
+  searchLabel,
+  onSearch,
 }: Readonly<TodayDateControlProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const items = [
-    { id: 'select', label: selectLabel },
-    { id: 'collapse', label: collapseLabel },
-    { id: 'refresh', label: refreshLabel, disabled: isFetching },
-    { id: 'completed', label: completedLabel },
+    { id: 'select', label: selectLabel, icon: 'checkbox' },
+    { id: 'collapse', label: collapseLabel, icon: allCollapsed ? 'chevrons-down' : 'chevrons-up' },
+    { id: 'refresh', label: refreshLabel, icon: 'refresh', disabled: isFetching },
+    { id: 'completed', label: completedLabel, icon: showCompleted ? 'eye-off' : 'eye' },
   ]
 
   return (
-    <div className="flex min-h-[53px] items-center gap-2 px-4">
+    <div className="flex min-h-[53px] flex-wrap items-center justify-end gap-1 px-2">
       <button
         type="button"
         aria-label={previousLabel}
@@ -71,19 +82,10 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      <div className="min-w-0 flex-1 text-center">
-        <p className="m-0 truncate text-sm font-medium text-[var(--fg-1)]">{dayName}</p>
-        <p className="m-0 truncate font-mono text-xs text-[var(--fg-3)]">{numericDate}</p>
+      <div className="min-w-0 max-w-full flex-[1_0_auto] text-start" title={`${dayName}, ${numericDate}`}>
+        <p className="m-0 [overflow-wrap:anywhere] font-display text-[22px] font-medium tracking-[-0.02em] text-[var(--fg-1)]">{dayName}</p>
+        <p className="m-0 [overflow-wrap:anywhere] font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{numericDate}</p>
       </div>
-      {!isTodaySelected ? (
-        <button
-          type="button"
-          className="orbit-link-action min-h-11 appearance-none border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-2)]"
-          onClick={onGoToToday}
-        >
-          {todayLabel}
-        </button>
-      ) : null}
       <button
         type="button"
         aria-label={nextLabel}
@@ -93,6 +95,11 @@ export function TodayDateControl({
       >
         <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
+      {!isTodaySelected ? (
+        <PillButton variant="ghost" size="sm" accessibleName={goToTodayLabel} onClick={onGoToToday}>
+          {todayLabel}
+        </PillButton>
+      ) : null}
       <button
         ref={menuAnchorRef}
         type="button"
@@ -101,7 +108,11 @@ export function TodayDateControl({
         className={DATE_ICON_BUTTON_CLASS_NAME}
         onClick={() => setMenuOpen((open) => !open)}
       >
-        <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
+        <AdjustmentsHorizontal size={20} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      <button type="button" aria-label={searchLabel} onClick={onSearch}
+        className={`${DATE_ICON_BUTTON_CLASS_NAME} lg:hidden`}>
+        <Search size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <Menu
         open={menuOpen}

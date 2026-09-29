@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ChevronLeft, ChevronRight, MoreVertical } from '@/components/ui/icons'
+import { AdjustmentsHorizontal, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
+import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -11,12 +12,15 @@ interface TodayDateControlProps {
   nextDisabled: boolean
   previousLabel: string
   todayLabel: string
+  goToTodayLabel: string
   nextLabel: string
   moreLabel: string
   selectLabel: string
   collapseLabel: string
+  allCollapsed: boolean
   refreshLabel: string
   completedLabel: string
+  showCompleted: boolean
   isFetching: boolean
   onToggleSelect: () => void
   onToggleCollapse: () => void
@@ -25,6 +29,8 @@ interface TodayDateControlProps {
   onGoToPreviousDay: () => void
   onGoToToday: () => void
   onGoToNextDay: () => void
+  searchLabel: string
+  onSearch: () => void
 }
 
 export function TodayDateControl({
@@ -34,12 +40,15 @@ export function TodayDateControl({
   nextDisabled,
   previousLabel,
   todayLabel,
+  goToTodayLabel,
   nextLabel,
   moreLabel,
   selectLabel,
   collapseLabel,
+  allCollapsed,
   refreshLabel,
   completedLabel,
+  showCompleted,
   isFetching,
   onToggleSelect,
   onToggleCollapse,
@@ -48,11 +57,12 @@ export function TodayDateControl({
   onGoToPreviousDay,
   onGoToToday,
   onGoToNextDay,
+  searchLabel,
+  onSearch,
 }: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
-
   return (
     <View style={styles.row}>
       <Pressable
@@ -66,22 +76,10 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
-      <View style={styles.dateText}>
-        <Text numberOfLines={1} style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
-        <Text numberOfLines={1} style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
+      <View accessible accessibilityLabel={`${dayName}, ${numericDate}`} style={styles.dateText}>
+        <Text style={[styles.dayName, { color: tokens.fg1 }]}>{dayName}</Text>
+        <Text style={[styles.numericDate, { color: tokens.fg3 }]}>{numericDate}</Text>
       </View>
-      {!isTodaySelected ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onGoToToday}
-          style={({ pressed }) => [
-            styles.todayButton,
-            pressed ? { backgroundColor: tokens.bgHover } : null,
-          ]}
-        >
-          <Text style={[styles.todayText, { color: tokens.fg1 }]}>{todayLabel}</Text>
-        </Pressable>
-      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={nextLabel}
@@ -98,6 +96,11 @@ export function TodayDateControl({
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
       </Pressable>
+      {!isTodaySelected ? (
+        <PillButton variant="ghost" size="sm" accessibleName={goToTodayLabel} onClick={onGoToToday}>
+          {todayLabel}
+        </PillButton>
+      ) : null}
       <MenuAnchorHost anchorRef={menu.anchorRef}>
         <Pressable
           accessibilityRole="button"
@@ -109,18 +112,22 @@ export function TodayDateControl({
             pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
           ]}
         >
-          <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
+          <AdjustmentsHorizontal size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       </MenuAnchorHost>
+      <Pressable accessibilityRole="button" accessibilityLabel={searchLabel} onPress={onSearch}
+        style={({ pressed }) => [styles.iconButton, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <Search size={20} color={tokens.fg1} />
+      </Pressable>
       <Menu
         open={menu.visible}
         anchorRef={menu.anchorRef}
         title={moreLabel}
         items={[
-          { id: 'select', label: selectLabel },
-          { id: 'collapse', label: collapseLabel },
-          { id: 'refresh', label: refreshLabel, disabled: isFetching },
-          { id: 'completed', label: completedLabel },
+          { id: 'select', label: selectLabel, icon: 'checkbox' },
+          { id: 'collapse', label: collapseLabel, icon: allCollapsed ? 'chevrons-down' : 'chevrons-up' },
+          { id: 'refresh', label: refreshLabel, icon: 'refresh', disabled: isFetching },
+          { id: 'completed', label: completedLabel, icon: showCompleted ? 'eye-off' : 'eye' },
         ]}
         onClose={menu.close}
         onSelect={(id) => {
@@ -138,7 +145,9 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 4,
+    justifyContent: 'flex-end',
     minHeight: 53,
     paddingHorizontal: 0,
   },
@@ -150,28 +159,25 @@ const styles = StyleSheet.create({
     width: 44,
   },
   dateText: {
-    alignItems: 'center',
-    flex: 1,
+    alignItems: 'flex-start',
+    flexBasis: 'auto',
+    flexGrow: 1,
+    flexShrink: 0,
+    maxWidth: '100%',
     minWidth: 0,
   },
   dayName: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 22,
+    letterSpacing: -0.44,
+    textAlign: 'left',
   },
   numericDate: {
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
-  },
-  todayButton: {
-    borderRadius: 8,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 8,
-  },
-  todayText: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 14,
-    textDecorationLine: 'underline',
+    letterSpacing: 0.24,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'left',
   },
   disabled: {
     opacity: 0.5,

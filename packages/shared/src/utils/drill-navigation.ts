@@ -5,9 +5,9 @@ import type {
 } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
+import { isHabitLoggedOnDate } from './all-done'
 import {
   createHabitVisibilityHelpers,
-  isHabitLoggedOnDate,
   type HabitVisibilityOptions,
   type HabitVisibilityView,
 } from './habit-visibility'

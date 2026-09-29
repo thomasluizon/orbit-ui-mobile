@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const words = {
   placeholder: 'placeholder sentinel',
@@ -76,9 +78,29 @@ describe('Composer', () => {
     field.focus()
 
     expect(field).toHaveFocus()
-    expect(field.parentElement?.className.split(' ')).toContain('focus-within:outline-2')
+    expect(field.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:outline-2')
+    expect(field.parentElement?.className.split(' ')).not.toContain('focus-within:outline-2')
     expect(field).toHaveClass('focus-visible:outline-0')
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
+  })
+
+  it('gives each inner control its own shaped ring without the wrapper ring', () => {
+    render(<Composer {...props({
+      onAttachFile: vi.fn(),
+      onAttachImage: vi.fn(),
+      onVoice: vi.fn(),
+      attachWords,
+      voiceWords,
+    })} />)
+
+    for (const name of [attachWords.file, attachWords.image, voiceWords.start]) {
+      const control = screen.getByRole('button', { name })
+      control.focus()
+      expect(control).toHaveFocus()
+      expect(control.className.split(' ')).not.toContain('focus-visible:outline-0')
+      expect(control).toHaveClass('rounded-full')
+      expect(control.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:outline-2')
+    }
   })
 
   it.each(['', '   '])('does not send a blank value %j', (value) => {
@@ -93,6 +115,38 @@ describe('Composer', () => {
     render(<Composer {...props({ value: 'oi', onSend })} />)
     fireEvent.click(screen.getByRole('button', { name: words.send }))
     expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['idle with an empty field', { state: 'idle', value: '' }, false, true],
+    ['idle with text', { state: 'idle', value: 'oi' }, true, false],
+    ['idle with an image only', { state: 'idle', attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }] }, false, true],
+    ['idle with a file only', { state: 'idle', attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }] }, true, false],
+    ['sending', { state: 'sending', value: 'oi' }, true, true],
+    ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
+    ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
+    ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
+    ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
+  ] as const)('styles the send control for %s', (_case, overrides, accented, disabled) => {
+    render(<Composer {...props(overrides)} />)
+    const send = screen.getByRole('button', { name: words.send })
+    if (accented) expect(send).toHaveAttribute('data-accent', '')
+    else expect(send).not.toHaveAttribute('data-accent')
+    expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
+    if (_case === 'idle with an empty field' || _case === 'idle with text') {
+      expect(send).toHaveClass('duration-150')
+    }
+    const hoverFill = send.querySelector('span[aria-hidden="true"]')
+    if (_case === 'idle with text' || _case === 'idle with a file only') {
+      expect(hoverFill).not.toHaveAttribute('hidden')
+      expect(hoverFill).toHaveClass('bg-[var(--primary-hover)]', 'duration-[var(--dur-hover-control)]', 'pointer-fine:group-hover:opacity-100')
+    } else {
+      expect(hoverFill).toHaveAttribute('hidden')
+    }
+    if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
+    else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
+    if (disabled) expect(send).toBeDisabled()
+    else expect(send).toBeEnabled()
   })
 
   it('requires nonblank text when an image is attached', () => {
@@ -248,6 +302,15 @@ describe('Composer', () => {
   it('uses the placeholder word as both placeholder and accessible name', () => {
     render(<Composer {...props()} />)
     expect(screen.getByPlaceholderText(words.placeholder)).toHaveAccessibleName(words.placeholder)
+  })
+
+  it.each([
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça algo à Astra'],
+    ['en', en.shell.composer.placeholder, 'Ask Astra for something'],
+  ])('shows the %s composer placeholder', (_locale, placeholder, expected) => {
+    render(<Composer {...props({ words: { ...words, placeholder } })} />)
+    expect(placeholder).toBe(expected)
+    expect(screen.getByRole('textbox', { name: placeholder })).toHaveAttribute('placeholder', expected)
   })
 
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(

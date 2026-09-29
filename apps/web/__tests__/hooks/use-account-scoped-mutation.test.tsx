@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const heldAccount = { id: 'account-a' as string | null }
@@ -12,6 +12,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentEr
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => heldAccount.id,
+  useAuthStore: { getState: () => ({ isAuthenticated: heldAccount.id !== null }) },
 }))
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
@@ -145,6 +146,30 @@ describe('useAccountScopedMutation', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(queryClient.getQueryState(['goals'])?.isInvalidated).toBe(true)
+  })
+
+  it('reconciles a write that started before the first session check adopted the account', async () => {
+    heldAccount.id = null
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    let releaseWrite: (() => void) | undefined
+    let writeStarted: (() => void) | undefined
+    const writeFinished = new Promise<void>((resolve) => { releaseWrite = resolve })
+    const entered = new Promise<void>((resolve) => { writeStarted = resolve })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => { writeStarted?.(); await writeFinished },
+    }), { wrapper })
+
+    act(() => { result.current.mutate(undefined) })
+    await entered
+    heldAccount.id = 'account-a'
+    accountGeneration.current += 1
+    await act(async () => { releaseWrite?.() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(invalidate).toHaveBeenCalled()
   })
 
   it('removes optimistic account A cache when the cookie changed before this tab learned', async () => {

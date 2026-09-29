@@ -1,6 +1,6 @@
 import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import type { useQueryClient } from '@tanstack/react-query'
-import { goalKeys, habitKeys } from '@orbit/shared/query'
+import { goalKeys, habitKeys, restoreCachedHabitLists, updateCachedHabitLists } from '@orbit/shared/query'
 import type {
   HabitScheduleItem,
   HabitScheduleChild,
@@ -21,21 +21,14 @@ export function restoreHabitLists(
   queryClient: ReturnType<typeof useQueryClient>,
   snapshots: HabitListSnapshots,
 ): void {
-  for (const [key, data] of snapshots) {
-    if (data) {
-      queryClient.setQueryData(key, data)
-    }
-  }
+  restoreCachedHabitLists(queryClient, snapshots)
 }
 
 export function updateHabitLists(
   queryClient: ReturnType<typeof useQueryClient>,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
-    { queryKey: habitKeys.lists() },
-    (old) => (old ? updater(old) : old),
-  )
+  updateCachedHabitLists(queryClient, updater)
 }
 
 function applyPositionToChild(

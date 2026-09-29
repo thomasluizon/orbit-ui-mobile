@@ -10,7 +10,6 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { WifiOff } from '@/components/ui/icons'
-import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet } from '@/components/ui/sheet'
@@ -298,14 +297,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
-            onOpenConversation={() => setAstraConversationOpen(true, pathname === '/support' ? 'support' : undefined)}
+            inputId={chat.composerInputId}
+            onOpenConversation={() => setAstraConversationOpen(true)}
             conversationLabel={t('todayAstra.openConversation')}
-            onSend={() => {
-              if (pathname === '/support' && !astraConversationOpen) {
-                setAstraConversationOpen(true, 'support')
-              }
-              chat.composerProps.onSend()
-            }}
+            onSend={chat.composerProps.onSend}
           />
         }
         conversation={<AstraConversation chat={chat} />}
@@ -345,8 +340,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         className="hidden"
         onChange={handleFileSelect}
       />
-
-      <BackToTop />
 
       <GlobalOverlays
         profile={profile}

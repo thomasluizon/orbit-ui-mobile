@@ -48,7 +48,6 @@ describe('mobile back navigation helpers', () => {
   it('maps top-level app screens to deterministic Android fallbacks', () => {
     expect(getAndroidBackFallbackRoute('/chat')).toBe('/')
     expect(getAndroidBackFallbackRoute('/profile')).toBe('/')
-    expect(getAndroidBackFallbackRoute('/preferences')).toBe('/profile')
   })
 
   it('uses auth-aware privacy fallbacks', () => {

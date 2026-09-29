@@ -1,7 +1,9 @@
 export { achievementEmoji } from './achievement-emoji'
+export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
+export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 export {
   buildAccountScopedStorageKey,
   readAccountScopedFlag,
@@ -109,7 +111,9 @@ export { isFeatureEnabled } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
+  resolveShellChrome,
   SHELL_DESTINATION_ROUTES,
+  SHELL_ROOT_ROUTES,
 } from './shell-destinations'
 export type {
   ShellDestinationId,
@@ -524,6 +528,7 @@ export {
 export type { NormalizedDrillDetail } from './drill-navigation'
 export {
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,
@@ -687,6 +692,7 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
+export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,

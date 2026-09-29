@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryObserver } from '@tanstack/query-core'
+import { profileKeys } from '@orbit/shared/query'
+import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
@@ -32,6 +35,37 @@ vi.mock('@/lib/posthog', () => posthogMocks)
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
+
+describe('the first session check under a query in flight', () => {
+  it('settles a mounted observer after the account boundary', async () => {
+    const queryClient = getQueryClient()
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ expiresAt: null }) })
+    await useAuthStore.getState().checkSession()
+    let answer: (profile: { name: string }) => void = () => {}
+    const serverAnswer = new Promise<{ name: string }>((resolve) => { answer = resolve })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: profileKeys.detail(),
+      queryFn: () => serverAnswer,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('fetching'))
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'account-a' }),
+      })
+      await useAuthStore.getState().checkSession()
+      answer({ name: 'answered' })
+      await vi.waitFor(() => expect(observer.getCurrentResult()).toMatchObject({
+        status: 'success', fetchStatus: 'idle', data: { name: 'answered' },
+      }))
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+})
 
 
 describe('auth store', () => {

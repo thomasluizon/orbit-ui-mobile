@@ -3,9 +3,11 @@
 import { useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
-import { buildWeekStartOptions } from '@orbit/shared/utils'
+import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
+import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -14,12 +16,10 @@ import {
   Calendar,
   BarChart3,
   Clock,
-  CreditCard,
   Download,
   Languages,
   Lock,
   LogOut,
-  Moon,
   RotateCcw,
   User,
   UserX,
@@ -36,7 +36,6 @@ import {
   ProfileSettingsFrame,
   ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
-import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -44,13 +43,13 @@ import { Switch } from '@/components/ui/switch'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore } from '@/stores/ui-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
 import { getAnalyticsOptOut, setAnalyticsOptOut, subscribeAnalyticsOptOut } from '@/lib/posthog'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
-import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
+import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
+import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
@@ -79,30 +78,55 @@ const icon = (Icon: typeof User) => (
 const getServerAnalyticsOptOut = () => null
 
 function buildYouRows(
-  { profile, router, t }: RowContext,
+  { profile, t }: RowContext,
   exportError: string | null,
   isExporting: boolean,
   onEditName: () => void,
   onExport: () => void,
   onOpenTimeZone: () => void,
+  controls: ReturnType<typeof usePreferenceControls>,
 ) {
-  const planLabel = profile?.isTrialActive
-    ? t('profile.subscription.trial')
-    : profile?.hasProAccess
-      ? t('profile.subscription.pro')
-      : t('profile.subscription.free')
-  const timeZoneLabel = profile?.timeZone
-    ? t('profile.settingsRows.timezoneValue', { timeZone: profile.timeZone })
+  const { timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
+    profile,
+    selectedLanguage: controls.selectedLanguage,
+    weekStartOptions: buildWeekStartOptions(t),
+  })
+  const timeZoneLabel = timeZone
+    ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
+  const themeChoice = (
+    <div role="group" aria-label={t('profile.settingsRows.theme')} className="flex max-w-full flex-wrap gap-1">
+      {(['dark', 'light'] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          data-selected={controls.currentTheme === mode ? '' : undefined}
+          aria-pressed={controls.currentTheme === mode}
+          onClick={() => controls.handleThemeModeChange(mode)}
+          className="orbit-profile-theme-choice min-h-11 rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        >
+          {t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
+        </button>
+      ))}
+    </div>
+  )
 
   return [
     <ListRow key="account" icon={icon(User)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
-    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="timezone" icon={icon(Clock)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
-    <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="theme" icon={icon(Moon)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push('/upgrade')} />,
-    <ListRow key="export" icon={icon(Download)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
+    <ListRow key="week-start" icon={icon(Calendar)} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
+    <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
+    <div key="show-general" className="flex flex-col px-4 py-3" style={{ gap: 4 }}>
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
+        <Switch checked={controls.showGeneralOnToday} onChange={controls.toggleShowGeneral} label={t('settings.homeScreen.showGeneral')} />
+      </div>
+      <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
+    </div>,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */
+    <ListRow key="export" icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
   ]
 }
 
@@ -112,38 +136,29 @@ function buildAstraRows(
   apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push('/upgrade')
+  const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
-    <>
+    <div className="flex flex-col" style={{ gap: 32 }}>
+      <div className="flex flex-col" style={{ gap: 12 }}>
       {profile ? (
         <AstraAllowancePanel profile={profile} />
       ) : null}
       {profile ? (
         <RowList>
-          {profile.hasProAccess ? (
-            <>
-              <ProfileValueRow
-                label={t('profile.proactiveAstra.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
-                )}
-              />
-              <ProfileValueRow
-                label={t('profile.aiSummary.title')}
-                control={(
-                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
-                )}
-              />
-            </>
+          {astraFeatures.map((feature) => !feature.locked ? (
+            <ProfileValueRow
+              key={feature.key}
+              label={t(feature.labelKey)}
+              control={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
+            />
           ) : (
-            <>
-              <ListRow icon={icon(Lock)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-              <ListRow icon={icon(Lock)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-            </>
-          )}
+            <ListRow key={feature.key} icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+          ))}
         </RowList>
       ) : null}
+      </div>
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
-    </>
+    </div>
   )
 }
 
@@ -155,17 +170,7 @@ interface TimeZonePickerProps {
 }
 
 function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePickerProps>) {
-  const weekStartOptions = buildWeekStartOptions(t)
-  const themeModeOptions = [
-    { value: 'dark' as const, label: t('preferences.themeModeDark') },
-    { value: 'light' as const, label: t('preferences.themeModeLight') },
-  ]
-  const pickerTitles: Record<PreferencePicker, string> = {
-    language: t('profile.language.title'),
-    theme: t('preferences.themeMode'),
-    timeZone: t('profile.settingsRows.timezone'),
-    weekStart: t('settings.weekStartDay.title'),
-  }
+  const pickerLabels = buildProfilePickerLabels(t)
 
   return (
     <PreferencePickerSheet
@@ -175,16 +180,7 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
       currentTheme={controls.currentTheme}
       timeZone={profile?.timeZone}
       weekStartDay={profile?.weekStartDay}
-      themeModeOptions={themeModeOptions}
-      weekStartOptions={weekStartOptions}
-      pickerTitles={pickerTitles}
-      pickerDescriptions={{
-        language: t('profile.language.description'),
-        weekStart: t('settings.weekStartDay.description'),
-      }}
-      timeZoneSearchLabel={t('profile.timezonePicker.search')}
-      timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
-      timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
+      {...pickerLabels}
       onClose={() => controls.setActivePicker(null)}
       onLanguageChange={(locale) => void controls.handleLanguageChange(locale)}
       onThemeModeChange={controls.handleThemeModeChange}
@@ -194,7 +190,7 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
   )
 }
 
-function buildMoreRows({ profile, t }: RowContext, openSupport: () => void) {
+function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
   const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     const href = redirectsToUpgrade ? '/upgrade' : item.route ?? undefined
@@ -207,15 +203,12 @@ function buildMoreRows({ profile, t }: RowContext, openSupport: () => void) {
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
         href={href}
-        onClick={item.action === 'openSupport' ? openSupport : undefined}
+        onClick={item.action === 'openWidget' ? openWidget : undefined}
       />
     )
   })
 
-  return [
-    ...navigationRows,
-    <ShareCardEntryButton key="share" />,
-  ]
+  return navigationRows
 }
 
 interface EndingRowsOptions {
@@ -232,9 +225,12 @@ function buildEndingRows({
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
-    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
-    <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
+    <ListRow key="logout" icon={icon(LogOut)} title={t('profile.settingsRows.signOut')} chevron={false} onClick={onLogout} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */
+    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} chevron={false} onClick={onFreshStart} />,
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */
+    <ListRow key="delete" icon={icon(UserX)} title={t('profile.settingsRows.deleteAccount')} danger chevron={false} onClick={onDeleteAccount} />,
   ]
 }
 
@@ -247,8 +243,9 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const preferenceControls = usePreferenceControls()
+  const pushPreferences = usePushNotificationPreferences()
   const {
     isExporting,
     exportDone,
@@ -293,11 +290,11 @@ export function ProfileSettingsContent({
       () => setShowEditName(true),
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
+      preferenceControls,
     ),
     astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
-    notifications: [
+    notifications: <div className="flex flex-col" style={{ gap: 12 }}>
       <MarketingConsentSection
-        key="product-email"
         showSectionLabel={false}
         contained
         acceptVariant="secondary"
@@ -305,7 +302,7 @@ export function ProfileSettingsContent({
           <SettingsRow
             icon={BarChart3}
             label={t('profile.analytics.title')}
-            desc={t(analyticsSaveError ? 'profile.analytics.saveError' : 'profile.analytics.description')}
+            desc={analyticsSaveError ? t('profile.analytics.saveError') : undefined}
             accessory="none"
             divider={false}
           >
@@ -315,9 +312,22 @@ export function ProfileSettingsContent({
             </span>
           </SettingsRow>
         )}
-      />,
-    ],
-    more: buildMoreRows(context, () => setAstraConversationOpen(true, 'support')),
+      />
+      <PushNotificationSection
+        push={{
+          supported: pushPreferences.supported,
+          subscribed: pushPreferences.subscribed,
+          permission: pushPreferences.permission,
+          loading: pushPreferences.loading,
+          status: pushPreferences.status,
+          onToggle: () => void pushPreferences.togglePush(),
+        }}
+        showSectionLabel={false}
+        contained
+      />
+      <p className="m-0 text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
+    </div>,
+    more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
@@ -344,6 +354,7 @@ export function ProfileSettingsContent({
       <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
       <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} />
       <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} profile={profile} />
+      <WidgetInfoOverlay open={showWidgetInfo} onOpenChange={setShowWidgetInfo} t={t} />
       <TimeZonePicker
         controls={preferenceControls}
         mounted={mounted}

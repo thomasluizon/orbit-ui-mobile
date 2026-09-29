@@ -9,6 +9,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import { useFonts } from 'expo-font'
 import {
   Geist_400Regular,
@@ -136,7 +137,7 @@ function AuthInitializer({
         try { await restoreQueryCache() } catch {}
         syncWidgetDataSafely()
       } else {
-        queryClient.clear()
+        await resetAccountQueries(queryClient, 'signed-out')
         try { await clearPersistedQueryCache() } catch {}
       }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -78,7 +79,6 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
-vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
@@ -93,6 +93,11 @@ vi.mock('@tanstack/react-query', () => ({
     mutate: (value: unknown) => options.mutationFn?.(value),
     isPending: false,
   }),
+}))
+
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: vi.fn(async () => {}),
 }))
 
 vi.mock('@/lib/query-client', () => ({
@@ -131,7 +136,6 @@ import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
 import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
-import ProfilePage from '@/app/(app)/profile/page'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -240,7 +244,7 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.input).toBe('Keep this draft')
     expect(result.current.selectedTextFile?.name).toBe('notes.txt')
     const context = JSON.parse(formData.get('clientContext') as string)
-    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
+    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsHabitListDoneStatus: true, supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
   })
 
   beforeEach(() => {
@@ -309,25 +313,7 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
-  it('sends Support row intent with the first problem description', async () => {
-    mocks.pathname = '/profile'
-    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
-    render(<ProfilePage />)
-    const { result } = renderHook(() => useChatComposer())
-
-    fireEvent.click(screen.getByRole('button', { name: /profile\.support\.title/i }))
-    await act(async () => { await result.current.sendMessage('my streak reset after I travelled') })
-
-    const [, request] = mocks.fetch.mock.calls[0]!
-    const formData = request.body as FormData
-    expect(formData.get('message')).toBe('my streak reset after I travelled')
-    const context = JSON.parse(formData.get('clientContext') as string)
-    expect(context.entryPointIntent).toBe('support')
-  })
-
   it.each([
-    ['/support', 'open', 'support'],
-    ['/support', 'direct-send', 'support'],
     ['/profile', 'open', undefined],
     ['/profile', 'direct-send', undefined],
   ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
@@ -1112,6 +1098,30 @@ describe('web useChatComposer streaming send', () => {
     await waitFor(() => expect(result.current.composerProps.value).toBe('saved walk'))
   })
 
+  it('keeps text entered into the server rendered composer before hydration', async () => {
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'saved walk')
+
+    function ComposerHarness() {
+      const { composerProps, composerInputId } = useChatComposer()
+      return <Composer {...composerProps} inputId={composerInputId} />
+    }
+
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(<ComposerHarness />)
+    document.body.appendChild(container)
+    const field = container.querySelector('textarea')
+    if (!field) throw new Error('Expected server rendered composer textarea')
+    field.value = 'typed before hydration'
+
+    try {
+      render(<ComposerHarness />, { container, hydrate: true })
+      await waitFor(() => expect(field).toHaveValue('typed before hydration'))
+      await waitFor(() => expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('typed before hydration'))
+    } finally {
+      container.remove()
+    }
+  })
+
   it('shares a selected Today draft with a newly mounted conversation composer', () => {
     const todayComposer = renderHook(() => useChatComposer())
 
@@ -1345,6 +1355,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1359,6 +1370,7 @@ describe('web useChatComposer streaming send', () => {
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

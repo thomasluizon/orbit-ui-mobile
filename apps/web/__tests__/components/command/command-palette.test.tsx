@@ -21,6 +21,7 @@ const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
 const mockRegisterOpenOverlay = vi.fn()
 const mockUnregisterOpenOverlay = vi.fn()
+const mockLogHabitMutate = vi.fn()
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -79,7 +80,7 @@ vi.mock('@/stores/ui-store', () => ({
 
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
-  useLogHabit: () => ({ mutate: vi.fn() }),
+  useLogHabit: () => ({ mutate: mockLogHabitMutate }),
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
@@ -121,6 +122,7 @@ beforeEach(() => {
     isSuccess: true,
   }
   mockPush.mockClear()
+  mockLogHabitMutate.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
   mockRegisterOpenOverlay.mockClear()
@@ -189,6 +191,16 @@ describe('CommandPalette', () => {
     expect(mockPush).toHaveBeenCalledWith('/habits/h1')
   })
 
+  it('leaves a failed log to the mutation error toast', () => {
+    renderPalette()
+    fireEvent.click(screen.getByText('command.logHabit'))
+    fireEvent.click(screen.getByText('Run'))
+    expect(mockLogHabitMutate).toHaveBeenCalledWith(
+      { habitId: 'h1', intent: 'log' },
+      { onSuccess: expect.any(Function) },
+    )
+  })
+
   it('closes when Escape is pressed in the focused search input', async () => {
     const user = userEvent.setup()
     renderPalette()
@@ -202,7 +214,6 @@ describe('CommandPalette', () => {
     const user = userEvent.setup()
     renderPalette()
     await user.click(screen.getByText('command.logHabit'))
-    await user.click(screen.getByRole('combobox'))
 
     await user.keyboard('{Escape}')
 
@@ -211,6 +222,35 @@ describe('CommandPalette', () => {
     expect(screen.getByRole('combobox')).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each(['log', 'skip'] as const)('keeps the field focused after clicking %s', async (page) => {
+    const user = userEvent.setup()
+    renderPalette()
+    await user.click(screen.getByText(`command.${page}Habit`))
+    const input = screen.getByRole('combobox')
+    expect(input).toHaveFocus()
+    await user.keyboard('ab')
+    expect(input).toHaveValue('ab')
+  })
+
+  it('keeps the field focused after Enter opens the skip page', async () => {
+    const user = userEvent.setup()
+    renderPalette()
+    const input = screen.getByRole('combobox')
+    await waitFor(() => expect(input).toHaveFocus())
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}')
+    expect(screen.getByText('command.page.skip')).toBeInTheDocument()
+    expect(input).toHaveFocus()
+    await user.keyboard('ab')
+    expect(input).toHaveValue('ab')
+  })
+
+  it('renders one keycap per hint and the check command glyph', () => {
+    renderPalette()
+    expect(Array.from(document.querySelectorAll('kbd'), (key) => key.textContent)).toEqual(['↑↓', '↵', 'esc'])
+    expect(screen.getByText('command.hints.select')).toHaveClass('lowercase')
+    expect(screen.getByText('command.logHabit').closest('[cmdk-item]')?.querySelector('svg')).toHaveClass('tabler-icon-check')
   })
 
   it('shows the key-hint footer with the back hint only on a sub-page', () => {

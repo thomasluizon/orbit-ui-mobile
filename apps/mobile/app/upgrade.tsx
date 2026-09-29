@@ -27,7 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
-import { AppBar } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
@@ -80,9 +80,9 @@ function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
   const route = Array.isArray(from) ? from[0] : from
   const labels: Record<string, string> = {
     '/': 'nav.today', '/(tabs)': 'nav.today', '/calendar': 'nav.calendar',
-    '/progress': 'nav.progress', '/profile': 'nav.profile', '/advanced': 'advancedSettings.title',
-    '/ai-settings': 'aiSettings.title', '/calendar-sync': 'calendar.title',
-    '/preferences': 'preferences.title', '/about': 'about.title', '/wrapped': 'wrapped.title',
+    '/progress': 'nav.progress', '/profile': 'nav.profile',
+    '/calendar-sync': 'calendar.title',
+    '/about': 'about.title', '/wrapped': 'wrapped.title',
   }
   if (route?.startsWith('/habits/')) return 'habits.detail.screenTitle'
   return labels[route ?? '/profile'] ?? 'nav.profile'
@@ -282,7 +282,7 @@ export default function UpgradeScreen() {
       style={[styles.safe, { backgroundColor: tokens.bg }]}
       edges={['top', 'bottom']}
     >
-      <AppBar
+      <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={t('upgrade.title')}
         backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })}

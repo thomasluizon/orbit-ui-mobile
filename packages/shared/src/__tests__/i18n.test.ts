@@ -78,6 +78,11 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it('labels the Progresso streak tier tile in both locales', () => {
+    expect(en.streakDisplay.detail.tierTileLabel).toBe('Streak tier')
+    expect(ptBR.streakDisplay.detail.tierTileLabel).toBe('Nível da sequência')
+  })
+
   it.each([en, ptBR])('keeps both consent links in a valid complete template', (catalog) => {
     const template = catalog.auth.legalConsent
     const links = [...template.matchAll(/<([a-z]+)>([^<>]+)<\/\1>/g)]

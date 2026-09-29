@@ -14,7 +14,7 @@ interface AppToastStore {
   currentToast: AppToastItem | null
   queue: AppToastItem[]
   showToast: (toast: StoredToast) => void
-  showError: (message: string) => void
+  showError: (message: string, dismissLabel?: string) => void
   showSuccess: (message: string) => void
   showInfo: (message: string) => void
   showQueued: (message: string, actionLabel?: string, onAction?: () => void, onDismiss?: () => void) => void
@@ -75,9 +75,11 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
   currentToast: null,
   queue: [],
   showToast: (toast) => enqueueToast(set, toast),
-  showError: (message) => {
+  showError: (message, dismissLabel) => {
     void triggerHaptic('warning')
-    enqueueToast(set, { kind: 'neutral', message })
+    enqueueToast(set, dismissLabel
+      ? { kind: 'neutral', message, actionLabel: dismissLabel, onAction: () => {} }
+      : { kind: 'neutral', message })
   },
   showSuccess: (message) => {
     void triggerHaptic('success')

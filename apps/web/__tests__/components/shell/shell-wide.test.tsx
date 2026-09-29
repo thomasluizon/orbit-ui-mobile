@@ -51,7 +51,7 @@ describe('ShellWide', () => {
     )
 
     expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('w-[232px]')
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-notice]')).toHaveTextContent('Notice')
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
@@ -110,6 +110,21 @@ describe('ShellWide', () => {
     expect(account).not.toHaveTextContent('@')
   })
 
+  it('reserves the account row while its profile loads', () => {
+    const props = { items, activeId: 'hoje', navLabel: 'Main navigation', onCreate: vi.fn(), createLabel: 'Create' }
+    const { container, rerender } = render(<ShellWide {...props} />)
+    const create = screen.getByRole('button', { name: 'Create' })
+    const placeholder = container.querySelector('[data-shell-account]')
+    expect(placeholder).toHaveAttribute('data-loading', 'true')
+    expect(placeholder).toHaveClass('h-11')
+    expect(placeholder?.previousElementSibling).toBe(create)
+
+    rerender(<ShellWide {...props} account="Ada Lovelace" />)
+    const account = screen.getByRole('link', { name: 'Ada Lovelace' })
+    expect(account).toHaveClass('h-11')
+    expect(account.previousElementSibling).toBe(create)
+  })
+
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {
     const { container } = render(
       <ShellWide
@@ -150,7 +165,7 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
     expect(container.querySelector('[data-shell-scroller]')?.parentElement?.parentElement).not.toHaveClass('px-8')
   })
 

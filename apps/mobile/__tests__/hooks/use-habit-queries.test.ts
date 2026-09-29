@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
   return {
     captured: [] as CapturedQuery[],
     apiClient: vi.fn(),
+    setQueryData: vi.fn(),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
       mocks.captured.push(options)
@@ -40,6 +41,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
+  useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -70,6 +72,7 @@ function lastQuery(): CapturedQuery {
 beforeEach(() => {
   mocks.captured = []
   mocks.apiClient.mockReset()
+  mocks.setQueryData.mockReset()
   mocks.useQuery.mockClear()
   mocks.isAuthenticated = true
 })
@@ -94,6 +97,17 @@ describe('useHabits (mobile query hook)', () => {
 
     await lastQuery().queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?dateFrom=2025-01-01&dateTo=2025-01-01')
+  })
+
+  it('records the total for a complete Today query with one full page', async () => {
+    const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01', includeOverdue: true }
+    mocks.apiClient.mockResolvedValue({ items: Array.from({ length: 50 }, (_, index) => ({ id: `habit-${index}` })),
+      page: 1, pageSize: 50, totalCount: 50, totalPages: 1 })
+
+    renderHookCapture(() => useHabits(filters, { completeDay: true }))
+    await lastQuery().queryFn()
+
+    expect(mocks.setQueryData).toHaveBeenCalledWith(habitKeys.listTotalCount(filters), 50)
   })
 
   it('loads a detail parent on page two without changing ordinary day queries', async () => {

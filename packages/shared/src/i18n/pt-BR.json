@@ -64,6 +64,7 @@
     "markAsRead": "Marcar lida",
     "markRead": "Marcar {title} como lida",
     "deleteAll": "Limpar tudo",
+    "deleteAllAction": "Excluir notificações",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
     "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
     "delete": "Apagar",
@@ -113,7 +114,8 @@
     "dismiss": "Fechar",
     "confirm": "Confirmar",
     "discard": "Descartar",
-    "keepEditing": "Continuar",
+    "keepEditing": "Continuar editando",
+    "discardChangesAction": "Descartar alterações",
     "seeMore": "Ver mais",
     "seeLess": "Ver menos",
     "discardChangesTitle": "Descartar alterações?",
@@ -212,7 +214,7 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Pergunte para a Astra",
+      "placeholder": "Peça algo à Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
@@ -262,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navegar",
-      "select": "Selecionar",
+      "select": "Escolher",
       "back": "Voltar",
       "close": "Fechar"
     },
@@ -401,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
       "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
@@ -451,8 +454,8 @@
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
     "hideCompleted": "Ocultar concluídos",
-    "collapseAll": "Recolher todos",
-    "expandAll": "Expandir todos",
+    "collapseAll": "Recolher tudo",
+    "expandAll": "Expandir tudo",
     "refresh": "Atualizar",
     "noHabitsBody": "Comece com um hábito pequeno ou peça uma rotina à Astra.",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
@@ -499,33 +502,34 @@
     "backToHabits": "Hábitos",
     "completed": "concluídos",
     "drillProgress": "{done} de {total} feitos",
-    "skipConfirmTitle": "Pular hábito",
-    "skipConfirmMessage": "Isso adianta a data para a próxima vez, sem registrar como concluído.",
-    "skipConfirmMessageFlexible": "Isso reduz em 1 as conclusões necessárias neste período.",
+    "skipConfirmTitle": "Pular {name}?",
+    "skipConfirmMessage": "A data passa para a próxima ocorrência, sem registro.",
+    "skipConfirmMessageFlexible": "Pular usa uma das vagas da semana, sem registro.",
+    "skipConfirmMessageFlexibleMonth": "Pular usa uma das vagas do mês, sem registro.",
     "skipConfirmButton": "Pular",
-    "postponeConfirmTitle": "Adiar tarefa",
-    "postponeConfirmMessage": "Isso move a tarefa para amanhã.",
+    "postponeConfirmTitle": "Adiar {name}?",
+    "postponeConfirmMessage": "Passa para amanhã, sem registro.",
     "postponeConfirmButton": "Adiar",
     "deleteConfirmTitle": "Excluir hábito",
     "deleteConfirmMessage": "Isso remove o hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.",
     "deleteListConfirmMessage": "{name} e o {count} item dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece. | {name} e os {count} itens dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece.",
     "duplicateConfirmTitle": "Duplicar hábito?",
     "duplicateConfirmMessage": "Vamos criar uma cópia de \"{name}\" com tudo: frequência, tags, lembretes e checklist.",
-    "duplicateConfirm": "Duplicar",
+    "duplicateConfirm": "Duplicar hábito",
     "autoLogParentTitle": "Todos os sub-hábitos concluídos",
     "autoLogParentMessage": "Quer registrar \"{name}\" como concluído?",
-    "autoLogParentConfirm": "Registrar",
+    "autoLogParentConfirm": "Registrar hábito",
     "autoSkipParentTitle": "Todos os sub-hábitos pulados",
     "autoSkipParentMessage": "Quer pular \"{name}\" também?",
-    "autoSkipParentConfirm": "Pular",
+    "autoSkipParentConfirm": "Pular hábito",
     "checklistCompleteTitle": "Checklist concluído",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
-    "checklistCompleteConfirm": "Registrar",
+    "checklistCompleteConfirm": "Registrar hábito",
     "checklistClearTitle": "Limpar checklist?",
     "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
     "bulkDeleteTitle": "Excluir hábitos",
     "bulkDeleteMessage": "Isso remove {count} hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece. | Isso remove {count} hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.",
-    "bulkDeleteConfirm": "Excluir",
+    "bulkDeleteConfirm": "Excluir hábitos",
     "bulkLogTitle": "Registrar hábitos",
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
     "bulkLogConfirm": "Registrar",
@@ -745,7 +749,7 @@
       "saveTemplateError": "Não foi possível salvar o modelo. Tente de novo.",
       "deleteTemplateError": "Não foi possível excluir o modelo. Tente de novo.",
       "resetChecklist": "Reiniciar",
-      "clearChecklist": "Limpar tudo",
+      "clearChecklist": "Limpar checklist",
       "duplicateChecklistItem": "Duplicar item",
       "removeChecklistItem": "Remover item",
       "moveChecklistItemUp": "Subir item",
@@ -1094,11 +1098,27 @@
         "goals-delete": "Excluir metas",
         "tags-delete": "Excluir tags",
         "notifications-delete": "Excluir notificações",
+        "user-facts-delete": "Excluir memória",
         "calendar-sync-manage": "Gerenciar sincronização de agenda",
         "subscriptions-manage": "Gerenciar assinatura",
         "api-keys-manage": "Gerenciar chaves de API",
         "sync-write": "Gravar dados de sincronização",
         "account-manage": "Gerenciar conta"
+      },
+      "action": {
+        "habits-delete": "Excluir hábitos",
+        "habits-bulk-write": "Alterar hábitos",
+        "habits-bulk-delete": "Excluir hábitos",
+        "goals-delete": "Excluir metas",
+        "tags-delete": "Excluir tags",
+        "notifications-delete": "Excluir notificações",
+        "user-facts-delete": "Excluir memória",
+        "calendar-sync-manage": "Alterar sincronização",
+        "subscriptions-manage": "Alterar assinatura",
+        "api-keys-manage": "Alterar chaves",
+        "sync-write": "Sincronizar dados",
+        "account-manage": "Alterar conta",
+        "applyChanges": "Aplicar alterações"
       },
       "summary": "{name} solicitado via chat",
       "confirmed": "Confirmado. Concluído.",
@@ -1197,8 +1217,7 @@
         "today": "Hoje",
         "gamification": "Conquistas",
         "notifications": "Notificações",
-        "subscriptions": "Assinar",
-        "aiSettings": "Configurações de IA"
+        "subscriptions": "Assinar"
       }
     },
     "conflict": {
@@ -1561,7 +1580,6 @@
   "profile": {
     "analytics": {
       "title": "Análise de uso",
-      "description": "Permita que o Orbit colete dados de uso deste dispositivo.",
       "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
@@ -1576,9 +1594,16 @@
       "timezone": "Fuso horário",
       "timezoneValue": "Fuso {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
-      "apiKeysMcp": "Chaves API",
+      "apiKeysMcp": "Chaves de API e MCP",
+      "wrapped": "Orbit Wrapped",
+      "weekStart": "Semana começa em",
+      "theme": "Tema",
+      "export": "Exportar os meus dados",
+      "signOut": "Sair da conta",
+      "startOver": "Começar de novo",
+      "deleteAccount": "Apagar a conta",
       "reminders": "Lembretes dos hábitos",
-      "remindersNote": "Lembretes e alertas de deslize são configurados em cada hábito.",
+      "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "currentDevice": "Este aparelho",
       "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
     },
@@ -1589,12 +1614,12 @@
       "plan": "Plano",
       "free": "Grátis",
       "pro": "Pro",
-      "seePro": "Ver Pro",
+      "seePro": "Ver o Pro",
       "manageSubscription": "Gerir assinatura"
     },
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
-      "unlock": "Ver Pro",
+      "unlock": "Liberar com o Pro",
       "open": "Abrir as chaves",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
@@ -1620,12 +1645,10 @@
       "account": "Conta",
       "preferences": "Preferências",
       "communication": "Comunicação",
-      "aiFeatures": "Recursos de IA",
       "aboutHelp": "Sobre e Ajuda",
       "advanced": "Avançado",
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
-      "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
@@ -1639,6 +1662,7 @@
     },
     "language": {
       "title": "Idioma",
+      "brazilianPortuguese": "Português do Brasil",
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
@@ -1650,15 +1674,15 @@
       "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "marketingEmails": {
-      "title": "Novidades do produto por e-mail",
-      "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser.",
-      "question": "Podemos mandar e-mail sobre o produto?",
+      "title": "Email sobre o produto",
+      "question": "Podemos mandar email sobre o produto?",
       "questionDescription": "Novidades e mudanças, no máximo uma vez por mês.",
       "accept": "Pode mandar",
       "decline": "Não mandar"
     },
     "support": {
       "title": "Suporte",
+      "rowTitle": "Ajuda e suporte",
       "description": "Tem uma dúvida, encontrou um bug ou quer dar um feedback? É só escrever.",
       "name": "Nome",
       "email": "E-mail",
@@ -1710,8 +1734,13 @@
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",
     "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
-    "widgetTitle": "Widget na tela inicial",
-    "widgetHint": "Veja seus hábitos num relance",
+    "widgetTitle": "Widget do Android",
+    "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
+    "calendarSync": {
+      "title": "Sincronizar calendário",
+      "hint": "Eventos dos seus calendários aparecem no Calendário."
+    },
+    "aboutRow": "Sobre o Orbit",
     "widgetHow": {
       "title": "Como adicionar",
       "step1": "Toque e segure numa área vazia da tela inicial",
@@ -1737,6 +1766,8 @@
     },
     "freshStart": {
       "button": "Recomeçar",
+      "reviewDeletion": "Revisar exclusão",
+      "deleteData": "Excluir dados",
       "heading": "Recomeçar",
       "confirmHeading": "Isso apaga tudo",
       "willDelete": "O que será excluído",
@@ -1824,16 +1855,11 @@
     }
   },
   "shareCard": {
-    "title": "Compartilhe seu progresso",
-    "entry": "Compartilhar progresso",
     "share": "Compartilhar",
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
     "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo",
-    "loading": "Preparando seu card…",
-    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
-    "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",
@@ -1999,7 +2025,7 @@
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
-      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
+      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, no Perfil, e pode se opor ao processamento automatizado entrando em contato com a gente."
     },
     "minors": {
       "title": "Requisito de idade",
@@ -2024,12 +2050,6 @@
   },
   "trial": {
     "proBadge": "Período de teste",
-    "banner": {
-      "freeLine": "Plano gratuito",
-      "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje",
-      "upgrade": "Assinar"
-    },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",
@@ -2378,7 +2398,7 @@
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
-      "trialHeading": "As 50 por dia ficam, ou voltam a ser 5.",
+      "trialHeading": "Pro: 50 mensagens da Astra por dia.",
       "trialCta": "Manter o Pro",
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "Dez vezes mais Astra.",
@@ -2695,9 +2715,6 @@
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
-    "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",
@@ -2733,7 +2750,7 @@
       "repairAction": "Reparar {dates}",
       "repairConfirmTitle": "Reparar {dates}?",
       "repairConfirmBody": "{count, plural, one {Um congelamento será usado.} other {# congelamentos serão usados.}} Este reparo não pode ser desfeito.",
-      "repairConfirmAction": "Reparar",
+      "repairConfirmAction": "Reparar sequência",
       "repairEmpty": "A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.",
       "repairPartial": "A lacuna continua em aberto. Ela precisa de {needed, plural, one {# congelamento} other {# congelamentos}}, mas {banked, plural, one {só há # guardado} other {só há # guardados}}. Esta oferta de reparo termina hoje.",
       "repairCapped": "Esta lacuna precisa de {needed, plural, one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
@@ -2749,7 +2766,9 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "empty": "Uma meta acompanha o que você quer alcançar: crie a partir de um hábito ou peça à Astra.",
+      "createAction": "Criar meta",
+      "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Todas",
       "progress": "{current} / {target} {unit}",
@@ -2998,7 +3017,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank"
+      "tierTileLabel": "Nível da sequência"
     }
   },
   "stepUp": {
@@ -3052,7 +3071,7 @@
     "created": "Criada em",
     "lastUsed": "Último uso",
     "never": "Nunca",
-    "revoke": "Revogar",
+    "revoke": "Revogar chave",
     "revokeConfirm": "Toda ferramenta que usa esta chave perde o acesso.",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
@@ -3090,9 +3109,6 @@
     "themeMode": "Aparência",
     "themeModeLight": "Claro",
     "themeModeDark": "Escuro"
-  },
-  "aiSettings": {
-    "title": "Recursos de IA"
   },
   "about": {
     "title": "Sobre e Ajuda",

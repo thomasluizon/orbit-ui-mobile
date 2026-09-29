@@ -9,6 +9,7 @@ export const habitKeys = {
   searches: () => [...habitKeys.all, 'search'] as const,
   search: (filters: Record<string, unknown>) => [...habitKeys.searches(), filters] as const,
   list: (filters: Record<string, unknown>) => [...habitKeys.lists(), filters] as const,
+  listTotalCount: (filters: Record<string, unknown>) => [...habitKeys.all, 'listTotalCount', filters] as const,
   count: () => [...habitKeys.all, 'count'] as const,
   details: () => [...habitKeys.all, 'detail'] as const,
   detail: (id: string) => [...habitKeys.details(), id] as const,

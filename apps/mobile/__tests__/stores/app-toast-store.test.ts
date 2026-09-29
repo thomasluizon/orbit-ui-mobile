@@ -64,6 +64,19 @@ describe('app toast store', () => {
     expect(useAppToastStore.getState().queue).toEqual([])
   })
 
+  it('keeps a log error until its dismiss action advances the toast queue', () => {
+    const store = useAppToastStore.getState()
+    store.showError('Could not log', 'Dismiss')
+    store.showInfo('Back online')
+
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral', message: 'Could not log', actionLabel: 'Dismiss',
+    })
+    expect(useAppToastStore.getState().queue).toHaveLength(1)
+    store.triggerAction()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Back online')
+  })
+
   it('adapts legacy helpers to the closed kinds', () => {
     const store = useAppToastStore.getState()
     store.showSuccess('Saved')

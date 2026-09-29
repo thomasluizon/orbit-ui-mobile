@@ -22,9 +22,9 @@ function RowBody({ title, wrapTitle, description, icon, value, wrapValue, danger
       ) : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span className={wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
-        {description ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
+        {description ? <span style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
       </span>
-      {value ? <span className={`max-w-[50%] shrink-0 ${wrapValue ? 'break-words' : 'truncate'}`} style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}
+      {value ? <span className={`max-w-[50%] shrink-0 ${wrapValue ? 'break-words' : 'truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}
       {trailing ? <span className="flex shrink-0 items-center px-2">{trailing}</span> : null}
     </>
   )
@@ -34,11 +34,11 @@ export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const interactive = !readOnly && !disabled && (href || onClick)
-  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (
-    <div className="flex items-stretch" style={{ minHeight: 52 }}>
+    <div className={`orbit-list-row-shell flex items-stretch ${interactive ? 'orbit-list-row-interactive' : ''}`} style={{ minHeight: 52 }}>
       {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (

@@ -3,14 +3,18 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import {
   buildSelectionRefreshKey,
   TodayHabitsPanel,
   TodayHeaderRegion,
 } from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
+import { Icon } from '@/components/ui/icon'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   locale: string
@@ -36,13 +40,17 @@ vi.mock('@/components/ui/icons', async (importOriginal) => ({
   ChevronLeft: () => null,
   ChevronRight: () => null,
   MoreVertical: () => null,
+  AdjustmentsHorizontal: () => <svg data-testid="adjustments-icon" />,
 }))
 
 vi.mock('@/components/ui/menu', () => ({
-  Menu: ({ open, items, onSelect }: any) => open ? (
-    <div role="menu">
+  Menu: ({ open, items, onSelect, title }: any) => open ? (
+    <div role="menu" aria-label={title}>
       {items.map((item: any) => (
-        <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>{item.label}</button>
+        <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>
+          {item.icon ? <Icon name={item.icon} size={20} /> : null}
+          {item.label}
+        </button>
       ))}
     </div>
   ) : null,
@@ -104,9 +112,13 @@ vi.mock('motion/react', async (importOriginal) => {
   }
 })
 
+const planTestState = vi.hoisted(() => ({ plan: 'trial' }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { hasProAccess: true, isTrialActive: false } }),
-  useTrialDaysLeft: () => null,
+  useProfile: () => ({ profile: {
+    plan: planTestState.plan,
+    hasProAccess: planTestState.plan !== 'free',
+    isTrialActive: planTestState.plan === 'trial',
+  } }),
 }))
 
 vi.mock('@/components/habits/habit-list', () => ({
@@ -140,12 +152,17 @@ const baseProps = {
   onGoToNextDay: vi.fn(),
   previousLabel: 'Previous day',
   todayLabel: 'Today',
+  goToTodayLabel: 'Go to today',
   nextLabel: 'Next day',
-  moreLabel: 'More actions',
+  moreLabel: 'List options',
+  searchLabel: 'Search',
+  onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
+  allCollapsed: false,
   refreshLabel: 'Refresh',
   completedLabel: 'Show completed',
+  showCompleted: false,
   isFetching: false,
   onToggleSelect: vi.fn(),
   onToggleCollapse: vi.fn(),
@@ -224,15 +241,42 @@ describe('Hoje date control', () => {
 
   it('shows the day name over the numeric date', () => {
     render(<TodayDateControl {...baseProps} />)
-    expect(screen.getByText('Wednesday')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday')).not.toHaveClass('truncate')
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
+    expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
+    expect(screen.getByText('Wednesday').parentElement).not.toHaveClass('text-center')
+    expect(screen.getByText('Wednesday').parentElement).toHaveClass('flex-[1_0_auto]', 'max-w-full')
+    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).toHaveClass('flex-wrap')
+    expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[22px]')
+  })
+
+  it('opens search from the compact date row', () => {
+    const onSearch = vi.fn()
+    render(<TodayDateControl {...baseProps} onSearch={onSearch} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(onSearch).toHaveBeenCalledTimes(1)
   })
 
   it('shows the jump only away from today', () => {
     const onGoToToday = vi.fn()
     render(<TodayDateControl {...baseProps} isTodaySelected={false} onGoToToday={onGoToToday} />)
-    fireEvent.click(screen.getByText('Today'))
+    const jump = screen.getByRole('button', { name: 'Go to today' })
+    expect(jump.previousElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
+    expect(jump).toHaveAttribute('data-variant', 'ghost')
+    expect(jump).toHaveAttribute('data-size', 'sm')
+    fireEvent.click(jump)
     expect(onGoToToday).toHaveBeenCalledOnce()
+  })
+
+  it('lets an off-today date keep its preferred width as controls wrap at 400px and enlarged text', () => {
+    render(<TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} />)
+    const date = screen.getByText('Quarta-feira').parentElement
+    const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
+    expect(row).toHaveClass('flex-wrap')
+    expect(row).not.toHaveClass('max-[399px]:flex-wrap')
+    expect(date).toHaveClass('flex-[1_0_auto]', 'max-w-full')
+    expect(date).not.toHaveClass('max-[399px]:min-w-[150px]')
+    expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
   })
 
   it('disables the forward step at the instance horizon', () => {
@@ -248,6 +292,30 @@ describe('Hoje date control', () => {
       expect(className).toContain('hover:bg-[var(--bg-hover)]')
       expect(className).toContain('var(--dur-hover-control)')
     }
+  })
+
+  it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', (plan) => {
+    planTestState.plan = plan
+    const view = {
+      data: { isFetching: false, refetch: vi.fn() },
+      habitListAllCollapsed: false,
+      habitListRef: { current: null },
+      isSelectMode: false,
+      nav: {
+        dateStr: '2026-04-08',
+        today: '2026-04-08',
+        dateNav: { ...baseProps, dayName: 'Today' },
+      },
+      setShowCompleted: vi.fn(),
+      showCompleted: false,
+      toggleSelectMode: vi.fn(),
+    } as unknown as TodayView
+    const { container } = render(
+      <TestIntlProvider locale="en" messages={en}>
+        <TodayHeaderRegion view={view} />
+      </TestIntlProvider>,
+    )
+    expect(container.querySelector('[data-trial-line]')).toBeNull()
   })
 
   it('renders the resolved read-only boundary notice', () => {
@@ -439,11 +507,42 @@ describe('Hoje date control', () => {
 
   it('opens the four list actions from the date row', () => {
     render(<TodayDateControl {...baseProps} />)
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'List options' }))
 
+    expect(screen.getByTestId('adjustments-icon')).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'List options' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Collapse all' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Refresh' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Show completed' })).toBeInTheDocument()
+  })
+
+  it('renders the Portuguese list options labels and glyphs in both list states', () => {
+    const labels = ptBr.habits
+    expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
+    const controlProps = {
+      ...baseProps,
+      moreLabel: labels.listOptions,
+      selectLabel: ptBr.common.select,
+      collapseLabel: labels.collapseAll,
+      refreshLabel: labels.refresh,
+      completedLabel: labels.showCompleted,
+    }
+    const { rerender } = render(<TodayDateControl {...controlProps} />)
+    fireEvent.click(screen.getByRole('button', { name: labels.listOptions }))
+    const menu = screen.getByRole('menu', { name: labels.listOptions })
+    expect(menu).toBeInTheDocument()
+    for (const [label, glyph] of [
+      [ptBr.common.select, 'checkbox'],
+      [labels.collapseAll, 'chevrons-up'],
+      [labels.refresh, 'refresh'],
+      [labels.showCompleted, 'eye'],
+    ]) {
+      const item = screen.getByRole('menuitem', { name: label })
+      expect(item.querySelector(`[data-icon="${glyph}"] svg`)).toBeInTheDocument()
+    }
+    rerender(<TodayDateControl {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />)
+    expect(screen.getByRole('menuitem', { name: labels.expandAll }).querySelector('[data-icon="chevrons-down"] svg')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: labels.hideCompleted }).querySelector('[data-icon="eye-off"] svg')).toBeInTheDocument()
   })
 })

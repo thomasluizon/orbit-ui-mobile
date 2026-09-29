@@ -53,7 +53,7 @@ async function assertHeadingLeading(heading: Locator, context: string): Promise<
 }
 
 async function renderedLineCounts(page: Page, label: string): Promise<number[]> {
-  return page.locator('main').last().getByText(label, { exact: true }).evaluateAll((elements) =>
+  return page.locator('[data-upgrade-screen]').getByText(label, { exact: true }).evaluateAll((elements) =>
     elements.map((element) => {
       const range = document.createRange()
       range.selectNodeContents(element)
@@ -73,14 +73,14 @@ async function renderedLineCounts(page: Page, label: string): Promise<number[]> 
   )
 }
 
-async function assertSubscriptionOutcome(main: Locator, state: string, messages: typeof en): Promise<void> {
+async function assertSubscriptionOutcome(upgradeScreen: Locator, state: string, messages: typeof en): Promise<void> {
   if (state === 'playCanceled') {
-    await expect(main.getByText(messages.upgrade.billing.plan.canceledBadge, { exact: true })).toBeVisible()
-    await expect(main.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.plan.canceledBadge, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
   }
   if (state === 'lapsed') {
-    await expect(main.getByText(messages.upgrade.billing.lapsed.lostCalendar, { exact: true })).toBeVisible()
-    await expect(main.getByText(messages.upgrade.billing.lapsed.lostRetrospective, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostCalendar, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostRetrospective, { exact: true })).toBeVisible()
   }
 }
 
@@ -92,16 +92,16 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         test('keeps copy and actions inside the layout', async ({ page }) => {
           await page.goto('/upgrade')
-          const main = page.locator('main').last()
+          const upgradeScreen = page.locator('[data-upgrade-screen]')
           const heading = subscriptionState === 'trial'
             ? messages.upgrade.convert.trialHeading : messages.upgrade.convert.freeHeading
-          const pitchHeading = main.getByRole('heading', { level: 2, name: heading, exact: true })
+          const pitchHeading = upgradeScreen.getByRole('heading', { level: 2, name: heading, exact: true })
           await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
           await expect(pitchHeading, `${locale} ${subscriptionState}: pitch heading was not found`).toBeVisible({ timeout: 5000 })
-          await expect(main.getByText(messages.upgrade.convert.stayFree, { exact: true })).toBeVisible()
+          await expect(upgradeScreen.getByText(messages.upgrade.convert.stayFree, { exact: true })).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
 
-          const overflows = await main.evaluate((root) =>
+          const overflows = await upgradeScreen.evaluate((root) =>
             Array.from(root.querySelectorAll('p,h1,h2,h3,a,button,span'))
               .filter((element) => element.textContent.trim())
               .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)
@@ -117,7 +117,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             expect(documentWidth, `${locale} ${subscriptionState}: document width at 320px`)
               .toBeLessThanOrEqual(width)
 
-            const clippedActions = await main.locator('button, a').evaluateAll((actions) =>
+            const clippedActions = await upgradeScreen.locator('button, a').evaluateAll((actions) =>
               actions.filter((action) => action.checkVisibility()).filter((action) => {
                 const bounds = action.getBoundingClientRect()
                 return bounds.left < -0.5 || bounds.right > innerWidth + 0.5
@@ -151,7 +151,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
               expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
             }
             if (locale === 'en' && subscriptionState === 'free' && width === 412 && interval === 'monthly') {
-              const priceLabel = main.getByText(price, { exact: true })
+              const priceLabel = upgradeScreen.getByText(price, { exact: true })
               await priceLabel.evaluate((element) => { element.style.maxWidth = '80px' })
               expect(await renderedLineCounts(page, price), 'a wrapped price is counted as two lines').toEqual([2])
               await priceLabel.evaluate((element) => { element.style.removeProperty('max-width') })
@@ -160,9 +160,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           const equivalent = messages.upgrade.plans.yearly.equivalent
             .replace('{price}', formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
             .replace('{percent}', String(plans.savingsPercent))
-          await expect(main.getByText(equivalent, { exact: true })).toBeVisible()
+          await expect(upgradeScreen.getByText(equivalent, { exact: true })).toBeVisible()
 
-          const allowance = main.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
+          const allowance = upgradeScreen.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
             .getByText(messages.upgrade.convert.freeAllowance, { exact: true })
           await expect(allowance).toHaveCSS('font-size', width < 640 ? '34px' : '44px')
         })
@@ -177,27 +177,27 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
         test('keeps subscription management copy inside its box', async ({ page }) => {
           await page.goto('/upgrade')
-          const main = page.locator('main').last()
+          const upgradeScreen = page.locator('[data-upgrade-screen]')
           if (subscriptionState === 'loading') {
-            await expect(main.locator('[aria-busy="true"]').first()).toBeVisible()
+            await expect(upgradeScreen.locator('[aria-busy="true"]').first()).toBeVisible()
           } else if (subscriptionState === 'loadFailed') {
-            await expect(main.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
+            await expect(upgradeScreen.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
           } else {
-            await expect(main.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
-            await assertSubscriptionOutcome(main, subscriptionState, messages)
+            await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+            await assertSubscriptionOutcome(upgradeScreen, subscriptionState, messages)
             await page.evaluate(() => document.fonts.ready)
             if (subscriptionState === 'offline') {
               await page.context().setOffline(true)
-              await expect(main).toHaveAttribute('data-state', 'offline')
+              await expect(upgradeScreen).toHaveAttribute('data-state', 'offline')
             }
             if (subscriptionState === 'portalOpening' || subscriptionState === 'portalFailed') {
-              await main.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }).click()
-              await expect(main).toHaveAttribute('data-state', subscriptionState === 'portalOpening' ? 'portal-opening' : 'portal-failed')
+              await upgradeScreen.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }).click()
+              await expect(upgradeScreen).toHaveAttribute('data-state', subscriptionState === 'portalOpening' ? 'portal-opening' : 'portal-failed')
             }
           }
           await page.evaluate(() => document.fonts.ready)
 
-          const overflows = await main.evaluate((root) =>
+          const overflows = await upgradeScreen.evaluate((root) =>
             Array.from(root.querySelectorAll('p,h1,h2,a,button,span'))
               .filter((element) => element.textContent.trim())
               .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)

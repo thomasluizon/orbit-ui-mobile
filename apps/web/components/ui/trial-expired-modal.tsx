@@ -11,6 +11,7 @@ import { useHeldAccountId } from '@/stores/auth-store'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useUIStore } from '@/stores/ui-store'
@@ -91,9 +92,10 @@ export function TrialExpiredModal() {
       onClose={hide}
       title={t('trial.expired.heading')}
       actions={
-        <div className="flex w-full flex-col gap-2">
+        <DialogActionPair>
           <PillButton
             variant="primary"
+            matchedWidth
             onClick={() =>
               closeSheet(() => {
                 hide()
@@ -103,10 +105,10 @@ export function TrialExpiredModal() {
           >
             {t('trial.expired.subscribe')}
           </PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
+          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
             {t('trial.expired.continueFree')}
           </PillButton>
-        </div>
+        </DialogActionPair>
       }
     >
       <div className="flex flex-col gap-6">

@@ -10,6 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '../support/react-test-renderer'
 import SearchScreen from '@/app/search'
+import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 vi.unmock('react-i18next')
@@ -87,6 +88,19 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it('shows the initial for a habit without an emoji', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
+    await mount()
+    const resultRow = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')[0]!
+    expect(resultRow.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')).toHaveLength(1)
+    expect(resultRow.findAll((node) => node.type === Circle)).toHaveLength(0)
+  })
+
+  it('uses the check glyph for the log command', async () => {
+    await mount()
+    const command = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'Log a habit').length > 0)[0]!
+    expect(command.findAll((node) => node.type === Check)).toHaveLength(1)
+  })
   it('keeps the habit group before create, actions and destinations', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()
@@ -156,17 +170,30 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Nothing by that name.')
   })
 
-  it.each(['log', 'skip'] as const)('reports a rejected %s and lets the person retry', async (page) => {
+  it('leaves a rejected log to the mutation error toast and lets the person retry', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
-    mocks[page].mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    mocks.log.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
     await mount()
-    await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    await pressText('Log a habit')
+    await pressLabel('Walk')
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit', intent: 'log' }, { onSuccess: expect.any(Function) })
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.back).not.toHaveBeenCalled()
+    await pressLabel('Walk')
+    expect(mocks.log).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports a rejected skip and lets the person retry', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
+    mocks.skip.mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    await mount()
+    await pressText('Skip a habit')
     await pressLabel('Walk')
     expect(mocks.showError).toHaveBeenCalledWith(en.errors.updateHabit)
     expect(mocks.back).not.toHaveBeenCalled()
     expect(text()).not.toContain('Create habit')
     await pressLabel('Walk')
-    expect(mocks[page]).toHaveBeenCalledTimes(2)
+    expect(mocks.skip).toHaveBeenCalledTimes(2)
   })
 
   it.each(['log', 'skip'] as const)('opens the %s page, performs the selected action, and backs out first', async (page) => {

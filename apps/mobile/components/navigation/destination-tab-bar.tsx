@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { resolveShellDestination } from '@orbit/shared/utils'
+import { resolveShellChrome } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,10 +11,11 @@ import { BottomTabBar } from './bottom-tab-bar'
 export function DestinationTabBar({ pathname }: Readonly<{ pathname: string }>) {
   const router = useRouter()
   const setActiveView = useUIStore((s) => s.setActiveView)
+  const lastDestination = useUIStore((s) => s.lastDestination)
 
   const active = useMemo(
-    () => resolveShellDestination(pathname),
-    [pathname],
+    () => resolveShellChrome(pathname, lastDestination).activeId,
+    [pathname, lastDestination],
   )
 
   const handleTab = (id: string) => {
@@ -31,7 +32,7 @@ export function DestinationTabBar({ pathname }: Readonly<{ pathname: string }>) 
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <BottomTabBar activeId={active ?? ''} onSelect={handleTab} label={t('nav.mainNavigation')}
+  return <BottomTabBar activeId={active} onSelect={handleTab} label={t('nav.mainNavigation')}
     items={[
       { id: 'hoje', label: t('nav.today'), icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
       { id: 'calendario', label: t('nav.calendar'), icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
@@ -39,4 +40,3 @@ export function DestinationTabBar({ pathname }: Readonly<{ pathname: string }>) 
       { id: 'perfil', label: t('nav.profile'), icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
     ]} />
 }
-

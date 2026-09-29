@@ -18,6 +18,7 @@ type ExpectedButtonBase = {
   size?: 'md' | 'sm'
   loading?: boolean
   disabled?: boolean
+  matchedWidth?: boolean
   onClick?: () => void
   formId?: string
   hint?: string
@@ -25,6 +26,7 @@ type ExpectedButtonBase = {
 }
 type ExpectedLabelledVariant = ExpectedButtonBase & {
   children: string
+  leadingIcon?: React.ReactNode
   accessibleName?: string
   iconOnly?: never
   label?: never
@@ -34,6 +36,7 @@ type ExpectedIconOnlyVariant = ExpectedButtonBase & {
   iconOnly: true
   label: string
   accessibleName?: never
+  leadingIcon?: never
 }
 
 export type ButtonTypeContract = [
@@ -43,6 +46,7 @@ export type ButtonTypeContract = [
   Assert<IsExactWidth<ButtonProps['size'], ExpectedButtonBase['size']>>,
   Assert<IsExactWidth<ButtonProps['loading'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<ButtonProps['matchedWidth'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<ButtonProps['formId'], string | undefined>>,
   Assert<IsExactWidth<ButtonProps['children'], React.ReactNode>>,

@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
 import { Trans, useTranslation } from 'react-i18next'
-import { buildSearchMatchLines } from '@orbit/shared/utils'
+import { buildSearchMatchLines, habitInitial } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { ChevronRight, Circle } from '@/components/ui/icons'
+import { ChevronRight } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { createTokensV2, radius } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -51,7 +51,7 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
   const matches = buildSearchMatchLines(query, habit, t)
   const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
   return <Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
-    <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Circle size={20} color={tokens.fg3} />}</View>
+    <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg3 }]}>{habitInitial(habit.title)}</Text>}</View>
     <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
       {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg3} />
@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
   row: { minHeight: 44, padding: 12, gap: 12, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center' },
   well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
+  initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   name: { fontFamily: 'Geist_400Regular', fontSize: 18 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14 }, empty: { alignItems: 'flex-start', padding: 12, gap: 12 },
   loading: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 }, dots: { flexDirection: 'row', gap: 4 }, dot: { width: 4, height: 4, borderRadius: radius.full },

@@ -76,11 +76,9 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
-vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/toast', () => ({ Toast: () => null }))
-vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))

@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
+import { resetAccountQueries } from '@orbit/shared/query'
 import {
   buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
@@ -28,6 +29,7 @@ import { clearPersistedQueryCache } from '@/lib/query-client'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -134,13 +136,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         removeScopedTrialExpiredFlag(accountId),
       ])
       if (!isCurrentAccount()) return
-      queryClient.clear()
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentAccount()) return
       closeSheet(() => {
         if (!isCurrentAccount()) return
         onClose()
-        queryClient.clear()
+        void resetAccountQueries(queryClient, 'signed-in')
         router.replace('/')
       })
     } catch (err: unknown) {
@@ -154,9 +156,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
-  const confirmButtonLabel = resetLoading
-    ? t('profile.freshStart.processing')
-    : t('profile.freshStart.button')
+  const confirmButtonLabel = t('profile.freshStart.deleteData')
 
   return (
     <>
@@ -231,17 +231,20 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               </View>
             </View>
 
-            <View style={styles.modalActions}>
-              <PillButton
-                variant="caution"
-                accessibleName={t('common.continue')}
-                onClick={() => setResetStep('confirm')}
-              >
-                {t('common.continue')}
-              </PillButton>
-              <PillButton variant="ghost" onClick={() => closeSheet()}>
-                {t('common.cancel')}
-              </PillButton>
+            <View style={styles.actionInset}>
+              <DialogActionPair>
+                <PillButton
+                  variant="caution"
+                  matchedWidth
+                  accessibleName={t('profile.freshStart.reviewDeletion')}
+                  onClick={() => setResetStep('confirm')}
+                >
+                  {t('profile.freshStart.reviewDeletion')}
+                </PillButton>
+                <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
+              </DialogActionPair>
             </View>
           </View>
         ) : (
@@ -279,20 +282,24 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 {resetError}
               </Text>
             ) : null}
-            <View style={styles.modalActions}>
-              <PillButton
-                variant="caution"
-                accessibleName={confirmButtonLabel}
-                disabled={!isResetConfirmed || resetLoading}
-                onClick={() => {
-                  void handleResetAccount()
-                }}
-              >
-                {confirmButtonLabel}
-              </PillButton>
-              <PillButton variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>
-                {t('common.cancel')}
-              </PillButton>
+            <View style={styles.actionInset}>
+              <DialogActionPair>
+                <PillButton
+                  variant="caution"
+                  matchedWidth
+                  accessibleName={confirmButtonLabel}
+                  disabled={!isResetConfirmed || resetLoading}
+                  loading={resetLoading}
+                  onClick={() => {
+                    void handleResetAccount()
+                  }}
+                >
+                  {confirmButtonLabel}
+                </PillButton>
+                <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
+              </DialogActionPair>
             </View>
           </View>
         )}
@@ -312,10 +319,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  modalActions: {
-    gap: 12,
-    paddingTop: 8,
-  },
+  actionInset: { paddingTop: 8 },
 
   listRow: {
     flexDirection: 'row',

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { AppBar } from '@/components/ui/app-bar'
+import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -24,7 +24,7 @@ export default function ProfileScreen() {
       edges={['left', 'right', 'bottom']}
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
     >
-      <AppBar title={t('nav.profile')} />
+      <ScreenReaderHeading title={t('nav.profile')} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

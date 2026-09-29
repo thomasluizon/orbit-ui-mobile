@@ -243,6 +243,7 @@ function ApiKeyAccessContent({
   if (!hasProAccess) {
     return (
       <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
         <ListRow
           icon={<Lock size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.unlock')}
@@ -394,7 +395,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg2 }]}>
           {t('profile.settingsRows.apiKeysMcp')}
         </Text>
-        <ProBadge alwaysVisible />
+        <ProBadge alwaysVisible variant="outline" />
       </View>
       <Text style={[styles.description, { color: tokens.fg3 }]}>{t('profile.apiKeys.description')}</Text>
 

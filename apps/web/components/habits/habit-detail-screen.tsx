@@ -34,7 +34,8 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
-import { FlowShell } from '@/components/shell/flow-shell'
+import { publishContextualSuggestion } from '@orbit/shared/stores'
+import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -59,6 +60,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
@@ -136,7 +138,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
       <div className="min-w-0 flex-1 pt-1">
         {editing ? (
-          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
+          <input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" />
         ) : (
           <button type="button" onClick={() => setEditing(true)} className="block max-w-full border-0 bg-transparent p-0 text-left">
             <h1 className="truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">{habit.title}</h1>
@@ -260,12 +262,20 @@ function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: strin
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
+function HabitDetailFrame({ header, navigationKey, children }: Readonly<{ header: React.ReactNode; navigationKey: string; children: React.ReactNode }>) {
+  const hosted = useShellHeaderSlot(() => header, navigationKey)
+  return <>
+    {hosted ? null : header}
+    <div data-habit-detail-content="" className="mx-auto flex min-h-full w-full max-w-[740px] flex-col gap-6 px-4 py-6">{children}</div>
+  </>
+}
+
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
-    return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={() => {
+    return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${date ?? ''}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={() => {
       if (parentId || fromToday) router.back()
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
@@ -276,7 +286,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
             <Skeleton variant="stat-tile" grouped />
             <Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} grouped />
           </div>}
-    </FlowShell>
+    </HabitDetailFrame>
   }
   return <HabitDetailContent habitId={habitId} date={date} fromToday={fromToday} parentId={parentId} profile={profile} />
 }
@@ -284,6 +294,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 function HabitDetailContent({ habitId, date, fromToday = false, parentId, profile }: Readonly<HabitDetailScreenProps & { profile: NonNullable<ReturnType<typeof useProfile>['profile']> }>) {
   const t = useTranslations()
   const locale = useLocale()
+  const { displayTime } = useTimeFormat()
   const router = useRouter()
   const todayStr = useToday(profile.timeZone)
   const today = useMemo(() => parseAPIDate(todayStr), [todayStr])
@@ -332,7 +343,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasProAccess = profile.hasProAccess
-  const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
+  const dueTime = displayTime(habit?.dueTime)
+  const headerSummary = dueTime && !summary.includes(dueTime) ? `${summary} · ${dueTime}` : summary
   const boundary = getTodayBoundary(dateStr, todayStr)
   const completionDisabled = boundary === 'read-only'
     || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, dateStr, todayStr)))
@@ -345,10 +357,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       label: t('habits.detail.askAstra'),
       prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
     }
-    useChatStore.getState().setContextualSuggestion(contextualSuggestion)
-    return () => {
-      if (useChatStore.getState().contextualSuggestion?.id === contextualSuggestion.id) useChatStore.getState().setContextualSuggestion(null)
-    }
+    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
   }, [habit, t])
 
   const goBack = useCallback(() => {
@@ -356,13 +365,13 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     else if (fromToday) router.back()
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
-  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+  const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string, reportError = true): Promise<boolean> => {
     const accountGeneration = getAccountGeneration()
     try {
       await write()
       return getAccountGeneration() === accountGeneration
     } catch {
-      if (getAccountGeneration() === accountGeneration) showError(errorMessage)
+      if (reportError && getAccountGeneration() === accountGeneration) showError(errorMessage)
       return false
     }
   }, [showError])
@@ -398,6 +407,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       return await runWrite(
         () => logHabit.mutateAsync({ habitId: targetHabitId, date: dateStr, intent }),
         t('habits.detail.logError'),
+        false,
       )
     } finally {
       pendingToggleKeys.delete(toggleKey)
@@ -437,8 +447,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   )
   const childUnavailableReason = t(childUnavailableReasonKey)
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></FlowShell>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
     .childrenByParent.get(habit.id) ?? [])
@@ -454,12 +464,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
 
   return (
-    <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
+    <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       <RescheduleBlock habit={habit} slipping={slipping} overdue={overdue} hasProAccess={hasProAccess} locale={profile.language ?? locale} />
-      {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div><div className="mt-4"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></Surface> : null}
+      {strip ? <section className="habit-detail-strip flex flex-col gap-2 pt-6" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><div className="pt-2"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></section> : null}
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? locale} weekStartsOn={profile.weekStartDay} />
       <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
       <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={profile.language ?? locale} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
@@ -474,6 +484,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
-    </FlowShell>
+    </HabitDetailFrame>
   )
 }

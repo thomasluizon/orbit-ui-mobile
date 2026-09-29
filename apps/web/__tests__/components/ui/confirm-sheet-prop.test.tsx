@@ -9,6 +9,11 @@ vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-d
 afterEach(() => sheetTestControls.defer(false))
 
 describe('ConfirmSheet controlled close', () => {
+  it('keeps both confirmation pills matched when stacked', () => {
+    render(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveStyle({ width: '100%' })
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveStyle({ width: '100%' })
+  })
   it('finishes sheet dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)
     const props = {

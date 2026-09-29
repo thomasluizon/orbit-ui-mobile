@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
-import { Shell412 } from '@/components/shell/shell-412'
+import { ShellWide } from '@/components/shell/shell-wide'
 
 const motion = vi.hoisted(() => ({ reduced: false }))
 const selectPlural = vi.hoisted(() => vi.fn((text: string) => `selected:${text}`))
@@ -16,6 +16,11 @@ vi.mock('next-intl', () => ({
 
 describe('CelebrationPanel', () => {
   beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })))
     motion.reduced = false
     selectPlural.mockClear()
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
@@ -62,13 +67,16 @@ describe('CelebrationPanel', () => {
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     const user = userEvent.setup()
     const { container } = render(
-      <Shell412
+      <ShellWide
+        items={[{ id: 'hoje', label: 'Today', icon: 'home' }]}
+        activeId="hoje"
+        navLabel="Main navigation"
         notice={<CelebrationPanel />}
         composer={<button type="button">Open Astra</button>}
         tabBar={<div>Tabs</div>}
       >
         <button type="button">Log habit</button>
-      </Shell412>,
+      </ShellWide>,
     )
 
     const panel = container.querySelector('[data-celebration-panel]')

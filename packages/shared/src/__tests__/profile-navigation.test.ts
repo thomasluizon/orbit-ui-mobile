@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SETTINGS_GROUPS,
@@ -27,19 +29,26 @@ describe('profile-navigation', () => {
 
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/wrapped',
-      '/advanced',
-      '/calendar-sync',
       null,
+      '/calendar-sync',
+      '/support',
       '/about',
     ])
-    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'support')?.action).toBe('openSupport')
+    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'android-widget')?.action).toBe('openWidget')
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
-      ['profile.wrappedTitle', null],
+      ['profile.settingsRows.wrapped', null],
       ['profile.widgetTitle', 'profile.widgetHint'],
-      ['calendar.profileButton', 'calendar.profileHint'],
-      ['profile.support.title', 'profile.support.description'],
-      ['profile.sections.aboutHelp', null],
+      ['profile.calendarSync.title', 'profile.calendarSync.hint'],
+      ['profile.support.rowTitle', null],
+      ['profile.aboutRow', null],
     ])
+  })
+
+  it('keeps Wrapped copy scoped to Perfil without changing Progress or notifications', () => {
+    expect(en.profile.settingsRows.wrapped).toBe('Orbit Wrapped')
+    expect(ptBR.profile.settingsRows.wrapped).toBe('Orbit Wrapped')
+    expect(en.profile.wrappedTitle).toBe('Your Wrapped')
+    expect(ptBR.profile.wrappedTitle).toBe('Seu Wrapped')
   })
 
   it('exposes Wrapped as a free, ungated feature entry', () => {

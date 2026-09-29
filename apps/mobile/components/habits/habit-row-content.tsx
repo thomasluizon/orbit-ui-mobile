@@ -15,7 +15,6 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
-  isDoneForRange: boolean
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
 }
@@ -24,7 +23,6 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
-  isDoneForRange,
   metaParts,
   tokens,
 }: Readonly<HabitRowContentProps>) {
@@ -39,8 +37,6 @@ export function HabitRowContent({
           {
             fontSize: titleSize,
             color: titleColor,
-            textDecorationLine: isDoneForRange ? 'line-through' : 'none',
-            textDecorationColor: tokens.fg3,
           },
         ]}
       >

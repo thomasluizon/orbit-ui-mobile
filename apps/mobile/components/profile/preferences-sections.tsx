@@ -1,7 +1,5 @@
 import { useMemo, useRef, useState, type Ref } from 'react'
 import { View, Text, Pressable } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Calendar, Languages, Moon } from '@/components/ui/icons'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getNativePushStatusPresentation,
@@ -19,7 +17,6 @@ import { RadioGroup } from '@/components/ui/radio-row'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
-import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
 export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
@@ -134,12 +131,6 @@ function TimeZoneOptions({
 }
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
-
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 50)
-    .reduceMotion(ReduceMotion.System)
-}
 
 interface PushNotificationSectionProps {
   tokens: Tokens
@@ -305,19 +296,12 @@ export function PushNotificationSection({
   )
 }
 
-interface PersistentReminderControls {
-  isSupported: boolean
-  enabled: boolean
-  isLoading: boolean
-  onToggle: () => void
-}
-
-function PersistentReminderRow({
+export function PersistentReminderRow({
   t,
   enabled,
   isLoading,
   onToggle,
-}: Readonly<{ t: TranslationFn } & Omit<PersistentReminderControls, 'isSupported'>>) {
+}: Readonly<{ t: TranslationFn; enabled: boolean; isLoading: boolean; onToggle: () => void }>) {
   return (
     <SettingsRow
       label={t('persistentReminder.label')}
@@ -344,93 +328,6 @@ function PersistentReminderRow({
         </View>
       </View>
     </SettingsRow>
-  )
-}
-
-interface PreferenceSettingsListProps {
-  tokens: Tokens
-  t: TranslationFn
-  languageLabel?: string
-  themeLabel?: string
-  weekStartLabel?: string
-  showGeneralOnToday: boolean
-  onOpenPicker: (picker: PreferencePicker) => void
-  onToggleShowGeneral: () => void
-  push: Omit<PushNotificationSectionProps, 'tokens' | 't'>
-  persistentReminder: PersistentReminderControls
-}
-
-export function PreferenceSettingsList({
-  tokens,
-  t,
-  languageLabel,
-  themeLabel,
-  weekStartLabel,
-  showGeneralOnToday,
-  onOpenPicker,
-  onToggleShowGeneral,
-  push,
-  persistentReminder,
-}: Readonly<PreferenceSettingsListProps>) {
-  return (
-    <>
-      <Animated.View entering={sectionEntrance(0)}>
-        <SectionLabel>{t('preferences.general')}</SectionLabel>
-        <SettingsRow
-          icon={Languages}
-          label={t('profile.language.title')}
-          value={languageLabel}
-          onPress={() => onOpenPicker('language')}
-          divider={false}
-        />
-        <SettingsRow
-          icon={Moon}
-          label={t('preferences.themeMode')}
-          value={themeLabel}
-          onPress={() => onOpenPicker('theme')}
-          divider={false}
-        />
-        <SettingsRow
-          icon={Calendar}
-          label={t('settings.weekStartDay.title')}
-          value={weekStartLabel}
-          onPress={() => onOpenPicker('weekStart')}
-          divider={false}
-        />
-      </Animated.View>
-
-      <Animated.View entering={sectionEntrance(1)}>
-        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <SettingsRow
-          label={t('settings.homeScreen.showGeneral')}
-          desc={t('settings.homeScreen.showGeneralDesc')}
-          accessory="none"
-          divider={false}
-        >
-          <Switch
-            checked={showGeneralOnToday}
-            onChange={onToggleShowGeneral}
-            label={t('settings.homeScreen.showGeneral')}
-          />
-        </SettingsRow>
-      </Animated.View>
-
-      <Animated.View entering={sectionEntrance(2)}>
-        <PushNotificationSection tokens={tokens} t={t} {...push} />
-        {persistentReminder.isSupported ? (
-          <PersistentReminderRow
-            t={t}
-            enabled={persistentReminder.enabled}
-            isLoading={persistentReminder.isLoading}
-            onToggle={persistentReminder.onToggle}
-          />
-        ) : null}
-      </Animated.View>
-
-      <Animated.View entering={sectionEntrance(3)}>
-        <MarketingConsentSection />
-      </Animated.View>
-    </>
   )
 }
 

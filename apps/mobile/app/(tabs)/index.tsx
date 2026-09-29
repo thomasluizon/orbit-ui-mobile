@@ -11,6 +11,7 @@ import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { TodayDateControl } from '@/components/today/today-date-control'
+import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import { TodayModals } from '@/components/today/today-modals'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,7 +19,6 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { useTodayMotion } from './use-today-motion'
 import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
@@ -41,13 +41,13 @@ export default function TodayScreen() {
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
     return isError
-      ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} />
-      : <View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
+      ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
+      : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
           <Skeleton variant="habit-row" grouped />
           <Skeleton variant="habit-row" grouped />
           <Skeleton variant="habit-row" grouped />
-        </View>
+        </View></>
   }
   return <TodayScreenContent />
 }
@@ -83,7 +83,7 @@ function TodayScreenContent() {
     includeOverdue: date.dateStr === date.today,
     includeGeneral: showGeneralOnToday || undefined,
   }), [date.dateStr, date.today, showGeneralOnToday])
-  const habitsQuery = useHabits(filters)
+  const habitsQuery = useHabits(filters, { completeDay: true })
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,
@@ -170,6 +170,7 @@ function TodayScreenContent() {
 
   const listHeader = (
     <View style={styles.header}>
+      <ScreenReaderHeading title={t('nav.today')} />
       {todayFocused ? (
         <TodayAstra
           isTodaySelected={date.dateStr === date.today}
@@ -177,18 +178,23 @@ function TodayScreenContent() {
         />
       ) : null}
       <TodayDateControl
+        searchLabel={t('habits.search.title')}
+        onSearch={() => router.push('/search')}
         dayName={date.dayName}
         numericDate={date.numericDate}
         isTodaySelected={date.dateStr === date.today}
         nextDisabled={date.nextDisabled}
         previousLabel={t('dates.previousDay')}
-        todayLabel={t('dates.goToToday')}
+        todayLabel={t('dates.today')}
+        goToTodayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
-        moreLabel={t('habits.actions.more')}
+        moreLabel={t('habits.listOptions')}
         selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
         completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         onToggleSelect={selection.handleToggleSelectMode}
         onToggleCollapse={() => {
@@ -201,7 +207,6 @@ function TodayScreenContent() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
-      <TrialBanner />
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

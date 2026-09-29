@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Geist_500Medium',
     fontSize: 20,
+    lineHeight: 28,
     textAlign: 'center',
   },
 })

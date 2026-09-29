@@ -14,6 +14,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal } from '@orbit/shared/types/goal'
+import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
 import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
@@ -68,6 +69,8 @@ import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
@@ -191,11 +194,13 @@ function StreakRepairPanel({
   ceiling,
   repair,
   isDesktop,
+  hasGoals,
 }: Readonly<{
   state: StreakRepairState
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   isDesktop: boolean
+  hasGoals: boolean
 }>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -214,7 +219,7 @@ function StreakRepairPanel({
       <>
         <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
           <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
-          {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
+          {state.canRepair ? <PillButton variant={isDesktop || !hasGoals ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
           {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
           {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
         </div>
@@ -237,10 +242,11 @@ function StreakRepairPanel({
     : null
 }
 
-function StreakSection({ accountProfile, canView, gamificationProfile }: Readonly<{
+function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']
   canView: boolean
   gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']
+  hasGoals: boolean
 }>) {
   const headingId = useId()
   const t = useTranslations()
@@ -326,7 +332,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           }}
         />
       ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
-      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} /> : null}
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} hasGoals={hasGoals} /> : null}
     </section>
   )
 }
@@ -391,6 +397,23 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   )
 }
 
+function GoalsEmptyState() {
+  const t = useTranslations()
+  const isDesktop = useIsDesktop()
+  useEffect(() => () => {
+    clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
+  }, [])
+  const askAstraForGoal = () => {
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'progress-create-goal',
+      label: t('progressScreen.goals.createAction'),
+      prompt: t('progressScreen.goals.request'),
+    })
+    useUIStore.getState().setAstraConversationOpen(true)
+  }
+  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+}
+
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const headingId = useId()
   const t = useTranslations()
@@ -429,7 +452,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
-      {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillLink href="/" variant="ghost">{t('progressScreen.startHabit')}</PillLink>} /> : null}
+      {goals.length === 0 ? <GoalsEmptyState /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
@@ -447,7 +470,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   )
 }
 
-function WindowSection() {
+function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
   const t = useTranslations()
   const locale = useLocale()
   const isDesktop = useIsDesktop()
@@ -455,7 +478,7 @@ function WindowSection() {
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.loading')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
+  if (hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} statusText={t('progressScreen.window.empty')}><EmptyState title={t('progressScreen.window.empty')} action={<PillLink href="/" variant={isDesktop || !hasGoals ? 'secondary' : 'primary'} size="sm">{t('progressScreen.window.emptyAction')}</PillLink>} /></WindowFrame>
   if (retrospective.isError) {
     return (
       <WindowFrame title={t('progressScreen.sections.window')}>
@@ -573,7 +596,7 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <main className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 py-4 md:px-0">
+    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 py-4 md:px-0">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
@@ -588,9 +611,9 @@ export function ProgressContent() {
       </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
-      {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.emptyAction')}</PillLink>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      {empty ? <div className="pt-12"><GoalsEmptyState /></div> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
-    </main>
+    </div>
   )
 }

@@ -53,7 +53,7 @@ interface ProfileNavItemBase {
 
 export type ProfileNavItem = ProfileNavItemBase & (
   | { route: string; action?: never }
-  | { route: null; action: 'openSupport' }
+  | { route: null; action: 'openWidget' }
 )
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
@@ -62,7 +62,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     section: 'features',
     route: '/wrapped',
     iconKey: 'wrapped',
-    titleKey: 'profile.wrappedTitle',
+    titleKey: 'profile.settingsRows.wrapped',
     hintKey: null,
     variant: 'primary',
     proBadge: false,
@@ -73,7 +73,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'android-widget',
     section: 'features',
-    route: '/advanced',
+    route: null,
+    action: 'openWidget',
     iconKey: 'widget',
     titleKey: 'profile.widgetTitle',
     hintKey: 'profile.widgetHint',
@@ -88,8 +89,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     section: 'features',
     route: '/calendar-sync',
     iconKey: 'calendar',
-    titleKey: 'calendar.profileButton',
-    hintKey: 'calendar.profileHint',
+    titleKey: 'profile.calendarSync.title',
+    hintKey: 'profile.calendarSync.hint',
     variant: 'primary',
     proBadge: true,
     hintMode: 'static',
@@ -99,11 +100,10 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'support',
     section: 'features',
-    route: null,
-    action: 'openSupport',
+    route: '/support',
     iconKey: 'support',
-    titleKey: 'profile.support.title',
-    hintKey: 'profile.support.description',
+    titleKey: 'profile.support.rowTitle',
+    hintKey: null,
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
@@ -115,7 +115,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     section: 'features',
     route: '/about',
     iconKey: 'info',
-    titleKey: 'profile.sections.aboutHelp',
+    titleKey: 'profile.aboutRow',
     hintKey: null,
     variant: 'default',
     proBadge: false,
