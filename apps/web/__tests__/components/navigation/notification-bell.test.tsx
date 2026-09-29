@@ -28,15 +28,14 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    const messages = state.locale === 'en' ? en : pt
-    const [namespace, name = ''] = key.split('.')
-    const group = messages[namespace as keyof typeof messages]
-    const value = typeof group === 'object' ? Reflect.get(group, name) as unknown : undefined
-    return typeof value === 'string' ? value.replace(/\{(\w+)\}/g, (_, token: string) => String(values?.[token])) : key
-  },
-}))
+vi.mock('next-intl', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const translators = {
+    en: createTranslator({ locale: 'en', messages: (await import('@orbit/shared/i18n/en.json')).default }),
+    'pt-BR': createTranslator({ locale: 'pt-BR', messages: (await import('@orbit/shared/i18n/pt-BR.json')).default }),
+  }
+  return { useTranslations: () => translators[state.locale === 'pt-BR' ? 'pt-BR' : 'en'] }
+})
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ ...state }),
   useMarkNotificationRead: () => ({ mutate: state.mark }),
@@ -224,8 +223,8 @@ describe('alerts', () => {
   })
 
   it.each([
-    ['en', 'Mark all', 'Mark read'],
-    ['pt-BR', 'Marcar todas', 'Marcar lida'],
+    ['en', 'Mark all read', 'Mark as read'],
+    ['pt-BR', 'Marcar tudo como lido', 'Marcar como lido'],
   ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
     state.locale = locale
     seed(1)
@@ -342,12 +341,12 @@ describe('alerts', () => {
     expect(row.querySelector('[data-unread-dot]')).not.toBeNull()
     expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 500 })
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
-    const detailAction = within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' })
+    const detailAction = within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark as read' })
     expect(detailAction).toBeInTheDocument()
     expect(state.mark).not.toHaveBeenCalled()
     fireEvent.click(detailAction)
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
-    expect(screen.queryByRole('button', { name: 'Mark read' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mark as read' })).toBeNull()
     expect(row.querySelector('[data-unread-dot]')).toBeNull()
     expect(row.querySelector('[data-unread-column]')).not.toBeNull()
     expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 400 })
@@ -395,13 +394,16 @@ describe('alerts', () => {
     expect(state.remove).toHaveBeenCalledOnce()
   })
 
-  it.each(['en', 'pt-BR'])('confirms the full scope and irreversible clear in %s, asks first, and clears pending undo', (locale) => {
+  it.each([
+    ['en', 'All 50 alerts leave the list. There is no way to undo this.'],
+    ['pt-BR', 'Os 50 avisos saem da lista. Não há como desfazer.'],
+  ])('confirms the full scope and irreversible clear in %s, asks first, and clears pending undo', (locale, confirmBody) => {
     state.locale = locale
     seed(50)
     const messages = locale === 'en' ? en : pt
     const view = showInbox()
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
-    expect(screen.getByText(locale === 'en' ? 'All alerts leave the list. There is no way to undo this.' : 'Todos os avisos saem da lista. Não há como desfazer.')).toBeInTheDocument()
+    expect(screen.getByText(confirmBody)).toBeInTheDocument()
     expect(state.clear).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
     expect(screen.getAllByRole('listitem')).toHaveLength(50)
@@ -413,6 +415,35 @@ describe('alerts', () => {
     expect(screen.queryByRole('button', { name: messages.notifications.deleteUndo })).toBeNull()
     void act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['en', 'The alert leaves the list. There is no way to undo this.'],
+    ['pt-BR', 'O aviso sai da lista. Não há como desfazer.'],
+  ])('names the one visible alert in the clear confirmation in %s', (locale, confirmBody) => {
+    state.locale = locale
+    seed(1)
+    const messages = locale === 'en' ? en : pt
+    showInbox()
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    expect(screen.getByText(confirmBody)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['achievement', 'New achievement: First Orbit', 'Create your first habit (+25 XP)'],
+    ['level up', 'You reached level 3', 'Keep the streak going.'],
+  ])('leads the %s row to Progress and opens it from the sheet', (_kind, title, body) => {
+    state.notifications = [createMockNotification({ title, body, url: '/progress', habitId: null, isRead: false })]
+    state.unreadCount = 1
+    showInbox()
+    const row = screen.getByRole('button', { name: `${title}. unread. Progress` })
+    expect(within(row).getByText('Progress')).toBeInTheDocument()
+    const expected = document.createElement('div')
+    expected.innerHTML = renderToStaticMarkup(<ChartLine size={16} />)
+    expect(row.querySelector('svg')!.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
+    fireEvent.click(row)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in Progress' }))
+    expect(state.push).toHaveBeenCalledWith('/progress')
   })
 
   it.each([

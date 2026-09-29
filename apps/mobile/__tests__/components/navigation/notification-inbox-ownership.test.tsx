@@ -113,8 +113,8 @@ afterEach(() => {
 })
 
 it.each([
-  ['mark one read', 'Mark read', "Couldn't mark that alert read. Try again."],
-  ['mark all read', 'Mark all', "Couldn't mark the alerts read. Try again."],
+  ['mark one read', 'Mark as read', "Couldn't mark that alert read. Try again."],
+  ['mark all read', 'Mark all read', "Couldn't mark the alerts read. Try again."],
   ['clear all', 'Clear all', "Couldn't clear the alerts. Try again."],
 ] as const)('announces a rejected %s action and restores the unread cache', async (_name, label, message) => {
   const deferred = deferredFailure()
@@ -124,7 +124,7 @@ it.each([
   ))
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
-  if (label === 'Mark read') {
+  if (label === 'Mark as read') {
     pressStarting('Reminder.')
     press(label)
   } else if (label === 'Clear all') {
