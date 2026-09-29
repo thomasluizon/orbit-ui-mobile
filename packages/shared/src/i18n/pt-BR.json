@@ -3009,7 +3009,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank"
+      "tierTileLabel": "Nível da sequência"
     }
   },
   "stepUp": {
