@@ -70,7 +70,7 @@ export function useCurrentDate(timeZone?: string | null): string {
 }
 
 export function useTodayDate(): TodayDate {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const router = useRouter()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
@@ -92,13 +92,23 @@ export function useTodayDate(): TodayDate {
   }, [router, selectedDate, selectedDateStr, today])
   const goToToday = useCallback(() => router.navigate('/'), [router])
 
+  const todayDate = new Date(`${today}T00:00:00`)
+  const weekday = formatLocaleDate(selectedDate, i18n.language, { weekday: 'long' })
+  const dayName = selectedDateStr === today
+    ? t('dates.today')
+    : selectedDateStr === formatAPIDate(subDays(todayDate, 1))
+      ? t('dates.yesterday')
+      : selectedDateStr === formatAPIDate(addDays(todayDate, 1))
+        ? t('dates.tomorrow')
+        : weekday.charAt(0).toLocaleUpperCase(i18n.language) + weekday.slice(1)
+
   return {
     pinnedDateStr,
     today,
     selectedDateStr,
     selectedDate,
     dateStr: formatAPIDate(selectedDate),
-    dayName: formatLocaleDate(selectedDate, i18n.language, { weekday: 'long' }),
+    dayName,
     numericDate: formatLocaleDate(selectedDate, i18n.language, {
       day: '2-digit',
       month: '2-digit',

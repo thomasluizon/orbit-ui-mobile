@@ -1381,6 +1381,7 @@ describe('mobile useChatComposer', () => {
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1393,6 +1394,7 @@ describe('mobile useChatComposer', () => {
 
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
     appendFormPart.mockRestore()
   })
 

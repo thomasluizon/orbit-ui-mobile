@@ -264,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navegar",
-      "select": "Selecionar",
+      "select": "Escolher",
       "back": "Voltar",
       "close": "Fechar"
     },
@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
       "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
@@ -2041,12 +2042,6 @@
   },
   "trial": {
     "proBadge": "Período de teste",
-    "banner": {
-      "freeLine": "Plano gratuito",
-      "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje",
-      "upgrade": "Assinar"
-    },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",
@@ -2712,9 +2707,6 @@
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
-    "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",
@@ -2766,7 +2758,9 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "empty": "Uma meta acompanha o que você quer alcançar: crie a partir de um hábito ou peça à Astra.",
+      "createAction": "Criar meta",
+      "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Todas",
       "progress": "{current} / {target} {unit}",

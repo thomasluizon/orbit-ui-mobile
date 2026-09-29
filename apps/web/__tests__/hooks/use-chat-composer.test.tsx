@@ -78,7 +78,6 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
-vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
@@ -1331,6 +1330,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1345,6 +1345,7 @@ describe('web useChatComposer streaming send', () => {
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

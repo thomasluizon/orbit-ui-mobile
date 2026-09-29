@@ -2,7 +2,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 
 /**
  * Every overlay gate is set to its "already seen / not applicable" value so the shell
- * renders clean: free plan (no trial banner), onboarding+tour+import all completed,
+ * renders clean: free plan, onboarding+tour+import all completed,
  * marketing consent resolved (non-null), gamification off. timeZone is UTC to use UTC so no
  * timezone-sync PATCH fires.
  */

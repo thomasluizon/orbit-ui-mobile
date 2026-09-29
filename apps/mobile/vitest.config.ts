@@ -87,7 +87,6 @@ export default defineConfig({
         'components/ui/expiry-warning.tsx',
         'components/ui/tag-chip.tsx',
         'components/ui/theme-toggle.tsx',
-        'components/ui/trial-banner.tsx',
         'components/ui/trial-expired-modal.tsx',
         'components/ui/year-picker.tsx',
         'components/upgrade/plan-summary-card.tsx',

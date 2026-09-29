@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
@@ -37,12 +37,12 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
         <kbd
           key={key}
           className="t-meta flex h-6 min-w-6 items-center justify-center rounded-[8px] px-1"
-          style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+          style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
         >
           {key}
         </kbd>
       ))}
-      <span className="t-meta">{label}</span>
+      <span className="t-meta lowercase">{label}</span>
     </span>
   )
 }
@@ -50,6 +50,9 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
 export function CommandSearchField({ search, setSearch, activePageLabel, onBack }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void }>) {
   const t = useTranslations()
   const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (activePageLabel !== null) inputRef.current?.focus()
+  }, [activePageLabel])
   return (
       <div className="flex items-center gap-2 p-4 shadow-[inset_0_-1px_0_var(--hairline)]">
       {activePageLabel !== null && (
