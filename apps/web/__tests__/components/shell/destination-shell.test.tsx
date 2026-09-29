@@ -506,11 +506,16 @@ describe('DestinationShell', () => {
   })
 
   it('focuses the object heading after navigating to a detail route', async () => {
+    function Detail() {
+      useShellHeaderSlot(() => <AppBar title="Habit" titleIsHeading={false} />, 'habit-1')
+      return <h1 tabIndex={-1}>Read</h1>
+    }
     const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
     mocks.pathname = '/habits/h1'
-    view.rerender(<DestinationShell onCreate={() => {}}><AppBar title="Habit" titleIsHeading={false} /><h1 tabIndex={-1}>Read</h1></DestinationShell>)
+    view.rerender(<DestinationShell onCreate={() => {}}><Detail /></DestinationShell>)
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Read' })).toHaveFocus())
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByText('Habit').closest('[data-shell-header]')).toBeInTheDocument()
   })
 
   it.each([false, true])('pins pushed headers outside the scroller at wide=%s', async (wide) => {

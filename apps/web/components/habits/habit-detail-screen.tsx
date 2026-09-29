@@ -144,7 +144,8 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   const [title, setTitle] = useAccountScopedState(habit.title)
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
-    if (document.activeElement === document.body) headingRef.current?.focus({ preventScroll: true })
+    const focusedHeader = document.activeElement?.matches('[data-shell-header] h1')
+    if (document.activeElement === document.body || focusedHeader) headingRef.current?.focus({ preventScroll: true })
   }, [habit.id])
   const save = async () => {
     const next = title.trim()

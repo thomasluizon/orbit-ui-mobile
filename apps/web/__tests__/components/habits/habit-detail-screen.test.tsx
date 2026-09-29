@@ -443,13 +443,13 @@ describe('HabitDetailScreen', () => {
     mocks.detailLoading = true
     const view = render(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'habits.detail.screenTitle' })).toBeInTheDocument()
+    screen.getByRole('heading', { level: 1, name: 'habits.detail.screenTitle' }).focus()
 
     mocks.detailLoading = false
     view.rerender(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
 
   it('distinguishes an absent child from unavailable day habits and restores completion after retry', () => {
