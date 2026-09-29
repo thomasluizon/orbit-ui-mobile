@@ -60,7 +60,14 @@ async function expectOneFieldIndicator(page: Page, targetSelector: string, rootS
     const activeCell = root.querySelector('[data-otp-cell][data-active]')
     if (activeCell) perimeter.add(activeCell)
     if (options.includeDescendants) root.querySelectorAll('*').forEach((element) => perimeter.add(element))
+    const paintsNothing = (element: Element) => {
+      for (let node: Element | null = element; node; node = node.parentElement) {
+        if (Number.parseFloat(getComputedStyle(node).opacity) === 0) return true
+      }
+      return false
+    }
     return [...perimeter].flatMap((element) => {
+      if (paintsNothing(element)) return []
       const style = getComputedStyle(element)
       const label = element.tagName.toLowerCase()
       const visible: string[] = []
@@ -215,7 +222,7 @@ for (const width of [412, 1280] as const) {
       await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
       await page.goto('/login')
       await page.locator('input[name="email"]').fill('focus@example.com')
-      await page.getByRole('button', { name: messages.auth.sendCode }).click()
+      await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const code = page.locator('input[name="verificationCode"]')
       await expect(code).toBeVisible()
       await expectOneFieldIndicator(page, 'input[name="verificationCode"]', 'form', `sign-in code ${width}px`)
