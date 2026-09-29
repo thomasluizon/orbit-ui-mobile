@@ -37,7 +37,7 @@ export function HabitRowLeading({
             }),
       }}
     >
-      {emoji ?? habitInitial(title)}
+      {emoji || habitInitial(title)}
     </span>
   )
 }

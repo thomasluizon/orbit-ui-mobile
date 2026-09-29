@@ -9,6 +9,10 @@ describe('habitInitial', () => {
     ['  👩‍🚀 mission', '👩‍🚀'],
     ['🇧🇷 Brasil', '🇧🇷'],
     ['👍🏽 Good', '👍🏽'],
+    ['कि पाठ', 'कि'],
+    ['क्ष अभ्यास', 'क्ष'],
+    ['क्‍षब अभ्यास', 'क्‍ष'],
+    ['กิ วิ่ง', 'กิ'],
     ['', ''],
   ])('returns the first grapheme of %s', (title, initial) => {
     expect(habitInitial(title)).toBe(initial)
