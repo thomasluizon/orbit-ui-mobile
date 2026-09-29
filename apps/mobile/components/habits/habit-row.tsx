@@ -16,7 +16,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
-import { SelectCheck } from '@/components/ui/select-check'
+import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRowContent } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -98,6 +98,7 @@ export interface HabitRowProps {
   today?: string
   /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
   depth?: 0 | 1
+  structuralColumn?: boolean
   isSelectMode?: boolean
   isSelected?: boolean
   hasChildren?: boolean
@@ -115,9 +116,6 @@ export interface HabitRowProps {
 }
 
 function HabitRowStructuralColumn({
-  selectMode,
-  selected,
-  title,
   hasChildren,
   expanded,
   actions,
@@ -125,9 +123,6 @@ function HabitRowStructuralColumn({
   collapseLabel,
   expandLabel,
 }: Readonly<{
-  selectMode: boolean
-  selected: boolean
-  title: string
   hasChildren: boolean
   expanded: boolean
   actions: HabitRowActions
@@ -135,18 +130,6 @@ function HabitRowStructuralColumn({
   collapseLabel: string
   expandLabel: string
 }>) {
-  if (selectMode) {
-    return (
-      <View style={styles.structuralColumn}>
-        <SelectCheck
-          selected={selected}
-          onPress={actions.onToggleSelection}
-          accessibilityLabel={title}
-          habitRowControl
-        />
-      </View>
-    )
-  }
   if (!hasChildren) return <View style={styles.structuralColumn} />
   return (
     <Pressable
@@ -212,7 +195,6 @@ function buildRowStyle({
   return {
     minHeight: child ? 52 : 68,
     marginBottom: panelEnd ? 12 : 0,
-    paddingLeft: child ? 24 : 0,
     backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
     borderColor: tokens.hairline,
     borderTopWidth: panelStart ? StyleSheet.hairlineWidth : 0,
@@ -235,6 +217,7 @@ export const HabitRow = memo(function HabitRow({
   selectedDate,
   today,
   depth = 0,
+  structuralColumn = false,
   isSelectMode = false,
   isSelected = false,
   hasChildren = false,
@@ -364,17 +347,24 @@ export const HabitRow = memo(function HabitRow({
           style,
         ]}
       >
-        <HabitRowStructuralColumn
-          selectMode={isSelectMode}
-          selected={isSelected}
-          title={habit.title}
-          hasChildren={hasChildren}
-          expanded={isExpanded}
-          actions={actions}
-          tokens={tokens}
-          collapseLabel={t('common.collapse')}
-          expandLabel={t('common.expand')}
-        />
+        {structuralColumn && isSelectMode ? (
+          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
+            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
+            style={({ pressed }) => [styles.structuralColumn,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
+          </Pressable>
+        ) : null}
+        {structuralColumn ? (
+          <HabitRowStructuralColumn
+            hasChildren={hasChildren}
+            expanded={isExpanded}
+            actions={actions}
+            tokens={tokens}
+            collapseLabel={t('common.collapse')}
+            expandLabel={t('common.expand')}
+          />
+        ) : null}
 
         <Pressable
           onPress={handlePress}
@@ -386,7 +376,7 @@ export const HabitRow = memo(function HabitRow({
           accessibilityLabel={rowAccessibilityLabel}
           style={({ pressed }) => [
             styles.bodyButton,
-            { paddingVertical: isChild ? 4 : 8 },
+            { paddingVertical: isChild ? 4 : 8, paddingLeft: isChild ? 24 : 0 },
             pressed ? styles.bodyButtonPressed : null,
           ]}
         >
@@ -424,6 +414,7 @@ export const HabitRow = memo(function HabitRow({
           tokens={tokens}
           onToggleStatus={handleToggleStatus}
           onOpenMenu={openMenu}
+          menuVisible={menuVisible}
           completionReadOnly={completionReadOnly}
           completionReason={completionReason}
           completionStatusUnavailable={completionStatusUnavailable}

@@ -9,6 +9,7 @@ export interface MenuItem {
 }
 
 interface MenuBaseProps {
+  id?: string
   open?: boolean
   items?: readonly MenuItem[]
   onSelect?: (id: string) => void

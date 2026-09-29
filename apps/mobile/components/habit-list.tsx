@@ -1531,6 +1531,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           <ActionRow
             key={habit.id}
             habit={habit}
+            structuralColumn
             selectedDate={selectedDate}
             today={todayStr}
             depth={depth === 0 ? 0 : 1}

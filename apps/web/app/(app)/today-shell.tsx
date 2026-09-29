@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { AdjustmentsHorizontal, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
@@ -64,6 +64,7 @@ export function TodayDateControl({
   onSearch,
 }: Readonly<TodayDateControlProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const items = [
     { id: 'select', label: selectLabel, icon: 'checkbox' },
@@ -105,6 +106,7 @@ export function TodayDateControl({
         type="button"
         aria-label={moreLabel}
         aria-expanded={menuOpen}
+        aria-controls={menuId}
         className={DATE_ICON_BUTTON_CLASS_NAME}
         onClick={() => setMenuOpen((open) => !open)}
       >
@@ -115,6 +117,7 @@ export function TodayDateControl({
         <Search size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <Menu
+        id={menuId}
         open={menuOpen}
         anchorRef={menuAnchorRef}
         title={moreLabel}
