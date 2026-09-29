@@ -7,6 +7,7 @@ import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -90,7 +91,7 @@ export function CalendarImportPrompt() {
       }}
       title={t('onboarding.wizard.calendarTitle')}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton onClick={handleImport}>
             {t('onboarding.wizard.calendarButton')}
           </PillButton>
@@ -106,7 +107,7 @@ export function CalendarImportPrompt() {
           >
             <Text style={styles.quietText}>{t('common.later')}</Text>
           </Pressable>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.content}>
@@ -123,10 +124,6 @@ function createStyles(tokens: AppTokensV2) {
     content: {
       paddingHorizontal: 24,
       paddingTop: 8,
-    },
-    actions: {
-      width: '100%',
-      gap: 16,
     },
     description: {
       fontFamily: 'Geist_400Regular',

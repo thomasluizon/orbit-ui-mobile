@@ -10,6 +10,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -108,7 +109,7 @@ export function AstraImportPrompt() {
       }}
       title={t('onboarding.wizard.importTitle')}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
           <PillButton onClick={() => void handleImport()}>
             {t('onboarding.wizard.importButton')}
@@ -125,7 +126,7 @@ export function AstraImportPrompt() {
           >
             <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
           </Pressable>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.content}>
@@ -142,10 +143,6 @@ function createStyles(tokens: AppTokensV2) {
     content: {
       paddingHorizontal: 24,
       paddingTop: 8,
-    },
-    actions: {
-      width: '100%',
-      gap: 12,
     },
     description: {
       fontFamily: 'Geist_400Regular',

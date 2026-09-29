@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -153,6 +153,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await settle()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.cta', 'reviewMoment.notNow'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

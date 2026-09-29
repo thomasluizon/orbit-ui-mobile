@@ -8,6 +8,7 @@ import {
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { AstraAvatar } from '@/components/ui/astra-avatar'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -130,7 +131,7 @@ export function ReviewMomentSheet() {
       onClose={hideAndSnooze}
       title={title}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton loading={isRequesting} disabled={isRequesting} onClick={() => void rate()}>
             {t('reviewMoment.cta')}
           </PillButton>
@@ -149,7 +150,7 @@ export function ReviewMomentSheet() {
               </Text>
             )}
           </Pressable>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.content}>
@@ -178,10 +179,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      width: '100%',
-      gap: 8,
     },
     notNowButton: {
       alignItems: 'center',

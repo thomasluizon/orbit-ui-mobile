@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -122,6 +122,7 @@ describe('ReferralPrompt (mobile)', () => {
     })
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.prompt.cta', 'referral.prompt.later'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

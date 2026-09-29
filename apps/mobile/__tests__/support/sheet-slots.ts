@@ -28,3 +28,10 @@ export function sheetSlotButtons(root: unknown, slot: 'SheetBody' | 'SheetAction
     .findAll(isButton)
     .map((node) => (typeof node.props.accessibilityLabel === 'string' ? node.props.accessibilityLabel : textOf(node)))
 }
+
+/** Whether the footer stacks its actions in the capped, centred `DialogActionPair`. */
+export function sheetActionsUseActionPair(root: unknown): boolean {
+  const container = (root as SlotNode).findAll((node) => node.type === 'SheetActions')[0]
+  if (!container) throw new Error('Expected the SheetActions slot')
+  return container.findAll((node) => typeof node.type === 'string' && node.props.testID === 'dialog-action-pair').length === 1
+}

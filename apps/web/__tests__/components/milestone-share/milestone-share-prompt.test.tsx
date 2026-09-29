@@ -40,7 +40,7 @@ import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-sha
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useEngagementPromptStore.setState({
@@ -122,6 +122,7 @@ describe('MilestoneSharePrompt', () => {
     await settle()
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.download', 'milestoneShare.later'])
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

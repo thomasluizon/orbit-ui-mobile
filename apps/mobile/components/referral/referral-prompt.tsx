@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/stores'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -119,7 +120,7 @@ export function ReferralPrompt() {
           title={title}
           key={visibleKey}
           actions={(
-            <View style={styles.actions}>
+            <DialogActionPair>
               <PillButton onClick={openDrawer}>
                 {t('referral.prompt.cta')}
               </PillButton>
@@ -134,7 +135,7 @@ export function ReferralPrompt() {
               >
                 <Text style={styles.laterText}>{t('referral.prompt.later')}</Text>
               </Pressable>
-            </View>
+            </DialogActionPair>
           )}
         >
           <View style={styles.content}>
@@ -160,10 +161,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      width: '100%',
-      gap: 8,
     },
     laterButton: {
       minHeight: 44,

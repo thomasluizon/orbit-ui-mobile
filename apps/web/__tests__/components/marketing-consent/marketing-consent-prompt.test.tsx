@@ -50,7 +50,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function renderPrompt() {
   const client = new QueryClient({
@@ -132,6 +132,7 @@ describe('MarketingConsentPrompt', () => {
     await settle()
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(['marketingConsent.prompt.accept', 'marketingConsent.prompt.decline'])
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

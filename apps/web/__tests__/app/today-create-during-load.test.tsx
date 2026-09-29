@@ -2,7 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const state = vi.hoisted(() => ({
   profile: undefined as {
@@ -159,6 +159,7 @@ describe('Today create during first load', () => {
     await act(async () => {})
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(footer)
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

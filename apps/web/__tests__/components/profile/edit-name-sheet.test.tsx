@@ -2,7 +2,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('next-intl', () => ({
@@ -70,6 +70,7 @@ describe('EditNameSheet', () => {
   it('pins Save in the sheet footer, never in the scrolling body', () => {
     renderSheet()
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.save'])
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

@@ -6,6 +6,7 @@ import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -89,11 +90,11 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       onClose={onClose}
       title={t('profile.editName.title')}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.body}>
@@ -139,8 +140,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 18,
-  },
-  actions: {
-    width: '100%',
   },
 })

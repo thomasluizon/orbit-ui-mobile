@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -144,6 +144,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
     })
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.share', 'milestoneShare.later'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { MATCHED_PILL_MAX_WIDTH } from '@orbit/shared/theme'
 
-/** Shared layout for the two matched PillButtons in a dialog. */
+/** Shared layout for a dialog's stacked actions: full width, capped at the matched pill width, centred. */
 export function DialogActionPair({ children, inline = false }: Readonly<{ children: ReactNode; inline?: boolean }>) {
   return <View testID="dialog-action-pair" style={[styles.pair, inline && styles.inline]}>{children}</View>
 }

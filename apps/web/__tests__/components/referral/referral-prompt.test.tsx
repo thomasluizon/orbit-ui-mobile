@@ -31,7 +31,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useReferralPromptStore.setState({
@@ -101,6 +101,7 @@ describe('ReferralPrompt', () => {
     await settle()
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.prompt.cta', 'referral.prompt.later'])
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

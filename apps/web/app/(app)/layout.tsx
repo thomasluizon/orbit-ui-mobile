@@ -13,6 +13,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
@@ -503,7 +504,7 @@ function GlobalOverlays({
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
         actions={(
-          <div className="flex flex-col gap-3 w-full">
+          <DialogActionPair>
             <PillButton onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
@@ -514,7 +515,7 @@ function GlobalOverlays({
             >
               {t('common.later')}
             </button>
-          </div>
+          </DialogActionPair>
         )}
       >
         <div className="flex flex-col items-center text-center py-2">
@@ -528,7 +529,7 @@ function GlobalOverlays({
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
         actions={(
-          <div className="flex flex-col gap-3 w-full">
+          <DialogActionPair>
             {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
             <PillButton onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
@@ -540,7 +541,7 @@ function GlobalOverlays({
             >
               {t('onboarding.wizard.importNotNow')}
             </button>
-          </div>
+          </DialogActionPair>
         )}
       >
         <div className="flex flex-col items-center text-center py-2">

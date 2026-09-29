@@ -10,6 +10,7 @@ import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareK
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -141,7 +142,7 @@ export function MilestoneSharePrompt() {
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
       actions={(
-        <div className="flex w-full flex-col" style={{ gap: 16, maxWidth: 360, marginInline: 'auto' }}>
+        <DialogActionPair>
           <div className="flex w-full" style={{ gap: 8 }}>
             {canShareFiles && (
               <PillButton loading={isSharing} disabled={isSharing} onClick={handleShare}>
@@ -171,7 +172,7 @@ export function MilestoneSharePrompt() {
           >
             {t('milestoneShare.later')}
           </button>
-        </div>
+        </DialogActionPair>
       )}
     >
       <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>

@@ -12,6 +12,7 @@ import {
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -127,7 +128,7 @@ export function ReferralPrompt() {
           onClose={() => setVisibleKey(null)}
           title={title}
           actions={(
-            <div className="flex w-full flex-col gap-2">
+            <DialogActionPair>
               <PillButton onClick={openDrawer}>
                 {t('referral.prompt.cta')}
               </PillButton>
@@ -138,7 +139,7 @@ export function ReferralPrompt() {
               >
                 {t('referral.prompt.later')}
               </button>
-            </div>
+            </DialogActionPair>
           )}
         >
           <div className="flex flex-col items-center px-6 text-center">

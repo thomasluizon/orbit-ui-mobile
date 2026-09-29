@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -113,7 +114,7 @@ export function MarketingConsentPrompt() {
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
@@ -130,7 +131,7 @@ export function MarketingConsentPrompt() {
               {t('marketingConsent.prompt.decline')}
             </Text>
           </Pressable>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.content}>
@@ -155,10 +156,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      width: '100%',
-      gap: 8,
     },
     laterButton: {
       alignItems: 'center',

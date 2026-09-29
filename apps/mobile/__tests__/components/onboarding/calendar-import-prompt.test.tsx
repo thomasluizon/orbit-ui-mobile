@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 const renderedTrees: any[] = []
@@ -138,6 +138,7 @@ describe('CalendarImportPrompt gating', () => {
     const tree = renderPrompt()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.calendarButton', 'common.later'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

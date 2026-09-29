@@ -8,6 +8,7 @@ import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
@@ -127,7 +128,7 @@ export function MilestoneSharePrompt() {
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
       actions={(
-        <View style={styles.actions}>
+        <DialogActionPair>
           <PillButton
             loading={isSharing}
             disabled={isSharing}
@@ -154,7 +155,7 @@ export function MilestoneSharePrompt() {
               </Text>
             )}
           </Pressable>
-        </View>
+        </DialogActionPair>
       )}
     >
       <View style={styles.content}>
@@ -195,10 +196,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusBadText,
-    },
-    actions: {
-      width: '100%',
-      gap: 8,
     },
     laterButton: {
       alignItems: 'center',
