@@ -12,6 +12,8 @@ import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
@@ -468,7 +470,7 @@ describe('mobile ProgressContent', () => {
     const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-completed-unselected-enabled')[0]!
     await TestRenderer.act(() => (tab.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.filterEmpty').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty')).toHaveLength(0)
     await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onPress as () => void)())
     expect(findGoalCard(tree.root, 'Read 12 Books')).toBeDefined()
   })
@@ -525,6 +527,8 @@ describe('mobile ProgressContent', () => {
 
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    useChatStore.setState({ draft: '', contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
     theme.mode = 'dark'
     mocks.dragActive = false
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
@@ -665,30 +669,55 @@ describe('mobile ProgressContent', () => {
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
     expect(pillButtons(tree.root)).toHaveLength(1)
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onPress as () => void)()
+      ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
     })
-    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
-  it.each([[412, 'primary'], [768, 'secondary']] as const)('renders the global empty action as a %ipx %s button', async (width, variant) => {
+  it.each([[412, 'button-primary-md'], [768, 'button-secondary-md']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const tree = await renderProgress()
 
-    expect(findPill(tree.root, 'progressScreen.emptyAction').props.testID).toBe(`button-${variant}-sm`)
+    expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe(testID)
     dimensions.mockRestore()
   })
 
-  it('keeps the in-section goals-empty action ghost', async () => {
+  it('starts a goal request from the in-section goals-empty action', async () => {
     const tree = await renderProgress()
 
-    expect(findPill(tree.root, 'progressScreen.startHabit').props.testID).toBe('button-ghost-md')
+    const action = findPill(tree.root, 'progressScreen.goals.createAction')
+    expect(action.props.testID).toBe('button-primary-md')
+    ;(action.props.onPress as () => void)()
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('keeps an unsent Astra draft when starting a goal', async () => {
+    useChatStore.getState().setDraft('Unsent note')
+    const tree = await renderProgress()
+
+    ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'progress-create-goal',
+      label: 'progressScreen.goals.createAction',
+      prompt: 'progressScreen.goals.request',
+    })
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    mocks.goals.data.allGoals = [createMockGoal()]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {
@@ -699,7 +728,7 @@ describe('mobile ProgressContent', () => {
     if (record === 'xp') mocks.account.profile.totalXp = 150
     if (record === 'achievement') mocks.gamification.profile.achievementsEarned = 1
     const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty').length > 0).toBe(record !== 'goal')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
   })
 
@@ -953,6 +982,18 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
+  it('keeps the goal action as the only filled action when streak repair is available', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe('button-primary-md')
+    expect(findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').props.testID).toBe('button-secondary-sm')
+  })
+
   it('shows the date and remaining bank after a freeze spend', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
@@ -1183,18 +1224,19 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
-    expect(text).toContain('progressScreen.empty')
+    expect(text).toContain('progressScreen.goals.empty')
     expect(text).not.toContain('progressScreen.window.empty')
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
     expect(mocks.retrospectiveHook).not.toHaveBeenCalled()
     expect(mocks.retrospective.refetch).not.toHaveBeenCalled()
-    expect(findPill(tree.root, 'progressScreen.emptyAction').props.accessibilityRole).toBe('link')
+    expect(findPill(tree.root, 'progressScreen.goals.createAction').props.accessibilityRole).toBe('button')
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onPress as () => void)()
+      ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
     })
-    expect(mocks.router.push).toHaveBeenCalledWith('/')
-    expect(ptBR.progressScreen.emptyAction).toBe('Começar um hábito')
-    expect(en.progressScreen.emptyAction).toBe('Start a habit')
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(ptBR.progressScreen.goals.createAction).toBe('Criar meta')
+    expect(en.progressScreen.goals.createAction).toBe('Create goal')
   })
 
   it('shows the window empty state when an account with progress has no habits in the period', async () => {
@@ -1211,6 +1253,7 @@ describe('mobile ProgressContent', () => {
         'progressScreen.sections.goals',
       ]))
       expect(text).toContain('progressScreen.window.empty')
+      expect(findPill(tree.root, 'progressScreen.window.emptyAction').props.testID).toBe('button-secondary-sm')
       expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
       expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
       const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
@@ -1476,7 +1519,7 @@ describe('mobile ProgressContent', () => {
       tree.update(<ProgressScreen />)
       await Promise.resolve()
     })
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty').length).toBeGreaterThan(0)
     const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
     TestRenderer.act(() => (detail.props.onClose as () => void)())
     const pageHeadingTarget = findProgressHeadingFocusTarget(tree.root)

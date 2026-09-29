@@ -34,6 +34,7 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
+import { publishContextualSuggestion } from '@orbit/shared/stores'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -356,10 +357,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       label: t('habits.detail.askAstra'),
       prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
     }
-    useChatStore.getState().setContextualSuggestion(contextualSuggestion)
-    return () => {
-      if (useChatStore.getState().contextualSuggestion?.id === contextualSuggestion.id) useChatStore.getState().setContextualSuggestion(null)
-    }
+    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
   }, [habit, t])
 
   const goBack = useCallback(() => {
