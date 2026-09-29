@@ -28,6 +28,15 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
+const mockLocale = vi.hoisted(() => ({ value: 'en' }))
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => {} },
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: mockLocale.value },
+  }),
+}))
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -149,7 +158,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode) }) =>
+  HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode); onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void }) =>
     React.createElement(
       'HabitFormFields',
       props,
@@ -207,6 +216,7 @@ describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.hasProAccess = true
+    mockLocale.value = 'en'
     mockCreateMutateAsync.mockReset()
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockReset()
@@ -215,7 +225,7 @@ describe('CreateHabitModal (mobile)', () => {
     mockValidateAll.mockReset()
     mockValidateAll.mockReturnValue(null)
     mockGetValues.mockReset()
-    mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({}))
+    mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({ title: 'Test Habit' }))
     useWatchMock.mockImplementation(({ name }: { name: string }) => {
       switch (name) {
         case 'title':
@@ -920,8 +930,32 @@ await Promise.resolve()
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
+  it('sends a title without the schedule applied from a Portuguese phrase', async () => {
+    const phrase = 'Alongar 3 vezes por semana'
+    mockLocale.value = 'pt-BR'
+    mockGetValues.mockReturnValue({
+      title: phrase,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      isFlexible: true,
+      dueTime: '',
+    })
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+
+    TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]?.props.onPhraseOwnershipChange?.({ cadence: true, dueTime: false })
+    })
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
+  })
+
   it('omits nested sub-habits from a Free create request', async () => {
-    mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Run' : field === 'checklistItems' ? [] : {})
+    mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Run' : field === 'checklistItems' ? [] : { title: 'Run' })
     mockSuggestMutateAsync.mockResolvedValue({
       emoji: null,
       frequencyUnit: null,

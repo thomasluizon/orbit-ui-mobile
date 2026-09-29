@@ -29,6 +29,7 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
+const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
   onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
   onSuggestionContextChange: undefined as undefined | (() => void),
@@ -44,7 +45,7 @@ vi.mock('next-intl', () => ({
     }
     return t
   },
-  useLocale: () => 'en',
+  useLocale: () => mockLocale.value,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -165,11 +166,13 @@ vi.mock('./habit-form-fields', () => ({
     children,
     onSuggestSetup,
     onSuggestionContextChange,
+    onPhraseOwnershipChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
     onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestionContextChange?: () => void
+    onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
     onToggleGoal: (goalId: string) => void
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
@@ -184,6 +187,9 @@ vi.mock('./habit-form-fields', () => ({
         <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
           goal
         </button>
+        <button type="button" data-testid="apply-phrase" onClick={() => onPhraseOwnershipChange?.({ cadence: true, dueTime: false })}>
+          apply phrase
+        </button>
         {typeof children === 'function' ? children(0) : children}
       </div>
     )
@@ -195,11 +201,13 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     children,
     onSuggestSetup,
     onSuggestionContextChange,
+    onPhraseOwnershipChange,
     onToggleGoal,
   }: {
     children?: React.ReactNode | ((proposedItems: number) => React.ReactNode)
     onSuggestSetup?: () => HabitFormProposal | null | Promise<HabitFormProposal | null>
     onSuggestionContextChange?: () => void
+    onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void
     onToggleGoal: (goalId: string) => void
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
@@ -213,6 +221,9 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
         )}
         <button type="button" data-testid="goal-trigger" onClick={() => onToggleGoal('goal-free')}>
           goal
+        </button>
+        <button type="button" data-testid="apply-phrase" onClick={() => onPhraseOwnershipChange?.({ cadence: true, dueTime: false })}>
+          apply phrase
         </button>
         {typeof children === 'function' ? children(0) : children}
       </div>
@@ -236,6 +247,7 @@ describe('CreateHabitModal', () => {
     vi.clearAllMocks()
     mockHabitFormFieldsState.onSuggestSetup = undefined
     mockProfileState.hasProAccess = true
+    mockLocale.value = 'en'
     mockCreateMutateAsync.mockResolvedValue({})
     mockCreateSubMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
@@ -398,6 +410,26 @@ describe('CreateHabitModal', () => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
     })
     expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('sends a title without the schedule applied from a Portuguese phrase', async () => {
+    const phrase = 'Alongar 3 vezes por semana'
+    mockLocale.value = 'pt-BR'
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? phrase : undefined)
+    mockFormGetValues.mockReturnValue({
+      title: phrase,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      isFlexible: true,
+      dueTime: '',
+    })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('apply-phrase'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
   })
 
   it('omits nested sub-habits from a Free create request', async () => {
