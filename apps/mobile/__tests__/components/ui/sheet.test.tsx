@@ -59,7 +59,8 @@ describe('Sheet (mobile)', () => {
     })
     const header = tree!.root.findByType(TrueSheet).props.header
     expect(header.props.accessibilityLabel).toBe('Reschedule with AI')
-    expect(header.props.children[0].props.style).toBeDefined()
+    expect(header.props.children[0].props.accessible).toBe(true)
+    expect(header.props.children[0].props.accessibilityLabel).toBe('Reschedule with AI')
   })
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [] })

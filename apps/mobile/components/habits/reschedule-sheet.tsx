@@ -222,7 +222,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     bodyText: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      lineHeight: 20,
+      lineHeight: 22,
       color: tokens.fg2,
     },
     suggestionBlock: {

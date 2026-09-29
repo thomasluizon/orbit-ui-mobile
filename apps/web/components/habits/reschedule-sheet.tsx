@@ -154,7 +154,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <p
           data-testid="reschedule-free-prompt"
-          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}
         >
           {t('habits.reschedule.freePrompt')}
         </p>
@@ -163,7 +163,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (isLoading) {
       return (
         <div className="flex flex-col" style={{ gap: 12 }}>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
             {t('habits.reschedule.loading')}
           </p>
           <div data-testid="reschedule-loading-skeleton" className="flex flex-col" style={{ gap: 8 }}>
@@ -177,7 +177,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <p
           data-testid="reschedule-error"
-          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}
         >
           {t('habits.reschedule.error')}
         </p>
