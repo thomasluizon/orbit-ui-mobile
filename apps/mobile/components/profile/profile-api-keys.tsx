@@ -255,7 +255,7 @@ function ApiKeyAccessContent({
           icon={<Lock size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.unlock')}
           accessibilityLabel={t('profile.apiKeys.unlock')}
-          trailing={<ProBadge alwaysVisible />}
+          trailing={<ProBadge alwaysVisible label={t('common.proBadge')} />}
           chevron={false}
           onClick={onUpgrade}
         />

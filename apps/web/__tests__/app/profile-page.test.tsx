@@ -298,7 +298,8 @@ describe('ProfilePage', () => {
     expect(apiKeys.queryByText('Período de teste')).not.toBeInTheDocument()
     inOrder('notifications', [
       'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
-      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
+      'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     inOrder('more', [
       'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
@@ -439,7 +440,7 @@ describe('ProfilePage', () => {
 
   it('uses the current device switch to enable browser push', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' }))
     expect(mockTogglePush).toHaveBeenCalledWith(true)
   })
 
@@ -456,7 +457,7 @@ describe('ProfilePage', () => {
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
     render(<ProfilePage />)
-    const control = screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
     expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
@@ -476,7 +477,7 @@ describe('ProfilePage', () => {
     mockDeviceState.current.count = 5
     render(<ProfilePage />)
     expect(screen.getByText('profile.settingsRows.pushDeviceLimit')).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
   })
 
   it('offers retry when the device list fails', () => {
@@ -638,6 +639,19 @@ describe('ProfilePage', () => {
 
     fireEvent.click(upgradeRow)
     expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('badges the locked API keys section Pro, never with the trial label', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: true }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getAllByText('common.proBadge')).toHaveLength(2)
+    expect(apiKeys.queryByText('trial.proBadge')).not.toBeInTheDocument()
   })
 
   it('keeps every free API key state on the enabled lock route', () => {
@@ -1004,7 +1018,7 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
     expect(
       within(notificationsGroup).getByRole('switch', {
-        name: 'profile.settingsRows.currentDevice',
+        name: 'profile.settingsRows.alertsOnThisDevice',
       }),
     ).toBeInTheDocument()
   })

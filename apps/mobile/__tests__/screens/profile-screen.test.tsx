@@ -475,6 +475,7 @@ vi.mock('@/components/ui/list-row', () => ({
       accessibilityLabel: action.label,
       onPress: action.onPress,
     }) : null,
+    trailing ?? null,
   ),
 }))
 
@@ -633,7 +634,8 @@ describe('ProfileScreen', () => {
     expect(groupText(apiKeys)).toContain('Pro')
     expect(groupText(apiKeys)).not.toContain('Período de teste')
     inOrder('notifications', [
-      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
+      'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     expect(tree.root.findAll((node: { props: { testID?: string } }) =>
       node.props.testID === 'marketing-consent-section')).toHaveLength(1)
@@ -896,6 +898,19 @@ describe('ProfileScreen', () => {
       expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile' } })
       expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile' } })
     }
+  })
+
+  it('badges the locked API keys section Pro, never with the trial label', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+
+    const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
+    expect(nodeText(apiKeys)).toContain('common.proBadge')
+    expect(nodeText(apiKeys)).not.toContain('trial.proBadge')
   })
 
   it('shows only the API key description and upgrade row to free accounts', async () => {
@@ -1446,7 +1461,7 @@ describe('ProfileScreen', () => {
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
           node.props.accessibilityRole === 'switch' &&
-          node.props.accessibilityLabel === 'profile.settingsRows.currentDevice',
+          node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice',
       ),
     ).not.toHaveLength(0)
   })
@@ -1621,7 +1636,7 @@ describe('ProfileScreen', () => {
     mockReminderSupported.current = true
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      for (const label of ['profile.settingsRows.currentDevice', 'persistentReminder.label']) {
+      for (const label of ['profile.settingsRows.alertsOnThisDevice', 'persistentReminder.label']) {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').props.onPress()
       }
@@ -1645,7 +1660,7 @@ describe('ProfileScreen', () => {
     mockDeviceState.current.isCurrentDeviceRegistered = true
     const tree = await renderProfileScreen()
     const control = tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function')
+      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function')
     expect(control.props.accessibilityState?.checked).toBe(true)
     expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
     expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
@@ -1696,7 +1711,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()
     })
     expect(mockDisablePushNotifications).toHaveBeenCalledOnce()
@@ -1710,7 +1725,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
       tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void }; children: unknown[] }) =>
         node.props.accessibilityRole === 'button' && nodeText(node) === 'settings.notifications.openSettings' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()

@@ -120,10 +120,10 @@ export function PushDevicesRow({
           {t('profile.settingsRows.currentDevice')}
         </Text>
         <View pointerEvents={disabled ? 'none' : 'auto'} accessible={disabled} accessibilityRole={disabled ? 'switch' : undefined}
-          accessibilityLabel={disabled ? t('profile.settingsRows.currentDevice') : undefined}
+          accessibilityLabel={disabled ? t('profile.settingsRows.alertsOnThisDevice') : undefined}
           accessibilityState={disabled ? { checked: currentDeviceRegistered, disabled: true } : undefined}>
           <View accessibilityElementsHidden={disabled} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-            <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.currentDevice')} />
+            <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
           </View>
         </View>
       </View>
