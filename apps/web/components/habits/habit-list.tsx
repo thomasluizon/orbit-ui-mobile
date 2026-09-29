@@ -16,6 +16,7 @@ import {
   computeParentPromptProgress,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAllDoneOnDate,
   getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
@@ -317,7 +318,7 @@ export function HabitList({
   const { displayTime } = useTimeFormat()
   const dndContextId = useId()
 
-  const habitsQuery = useHabits(filters)
+  const habitsQuery = useHabits(filters, undefined, { completeDay: true })
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const deleteHabitMut = useDeleteHabit()
@@ -1315,7 +1316,8 @@ export function HabitList({
       )
     }
 
-    if (habits.length === 0 && (data?.totalCount ?? 0) > 0) {
+    if (habits.length === 0 &&
+      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone) {
       return (
         <HabitListEmptyState
           title={t('habits.allDoneToday')}
@@ -1391,11 +1393,24 @@ export function HabitList({
     )
   }
 
+  const showAllDoneWithAnytime = !drill.currentParent && !showCompleted &&
+    dragItems.length > 0 && dragItems.every((item) => item.habit.isGeneral) &&
+    getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
+
   return (
     <div
       ref={listContainerRef}
       className="px-4 pb-24"
     >
+      {showAllDoneWithAnytime ? (
+        <HabitListEmptyState
+          title={t('habits.allDoneToday')}
+          description={t('habits.allDoneHint')}
+          actionLabel={onSeeUpcoming ? t('habits.seeUpcoming') : undefined}
+          onAction={onSeeUpcoming}
+          variant="secondary"
+        />
+      ) : null}
       {renderMainContent()}
 
       <DeferredEditHabitModal

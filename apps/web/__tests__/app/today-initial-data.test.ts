@@ -33,11 +33,13 @@ describe('Today initial habits', () => {
         {
           dateFrom: '2026-08-29',
           dateTo: '2026-08-29',
+          completeDay: true,
           includeOverdue: true,
           includeGeneral: undefined,
         },
       ],
       items: [],
+      totalCount: 0,
     })
     expect(serverAuthFetch).toHaveBeenCalledWith(
       '/api/habits?dateFrom=2026-08-29&dateTo=2026-08-29&includeOverdue=true',
@@ -62,6 +64,23 @@ describe('Today initial habits', () => {
       { cache: 'no-store' },
       expect.anything(),
     )
+  })
+
+  it('preloads every page before marking Today complete', async () => {
+    const first = { id: 'first' }
+    const second = { id: 'second' }
+    serverAuthFetch.mockImplementation((url: string) => Promise.resolve(
+      url.includes('page=2')
+        ? { items: [second], page: 2, pageSize: 50, totalCount: 2, totalPages: 2 }
+        : { items: [first], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 },
+    ))
+
+    const initial = await loadTodayInitialHabits(undefined)
+
+    expect(initial?.queryKey[2]).toMatchObject({ completeDay: true })
+    expect(initial?.items).toEqual([first, second])
+    expect(initial?.totalCount).toBe(2)
+    expect(serverAuthFetch).toHaveBeenCalledTimes(2)
   })
 
   it('leaves the client query in charge when the preload fails', async () => {

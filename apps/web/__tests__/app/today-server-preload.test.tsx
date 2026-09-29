@@ -10,7 +10,7 @@ import { habitKeys } from '@orbit/shared/query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitScheduleItemSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, habitListQueryFilters } from '@orbit/shared/utils'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 import { getQueryClient } from '@/lib/query-client'
@@ -72,7 +72,7 @@ function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], a
         <TodayProvider>
           <TodayPageClient
             initialToday={initialToday}
-            initialHabits={{ queryKey: habitKeys.list(filters), items }}
+            initialHabits={{ queryKey: habitKeys.list(habitListQueryFilters(filters, true)), items, totalCount: items.length }}
             initialProfile={profileFixture}
           />
         </TodayProvider>

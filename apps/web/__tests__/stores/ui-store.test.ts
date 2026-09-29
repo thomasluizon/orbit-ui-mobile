@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { collectSelectableDescendantIds, formatAPIDate } from '@orbit/shared/utils'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -143,106 +144,46 @@ describe('ui store', () => {
     })
 
     describe('checkAllDoneCelebration', () => {
-      it('does nothing when filters are not for today', () => {
-        useUIStore.setState({
-          activeFilters: { dateFrom: '2025-01-01', dateTo: '2025-01-01' },
-        })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        const habits = new Map([
-          ['h1', { parentId: null, isCompleted: true }],
-        ])
-        checkAllDoneCelebration(habits)
-
+      it('ignores a log for another day', () => {
+        const today = formatAPIDate(new Date())
+        const habit = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })
+        useUIStore.getState().checkAllDoneCelebration(new Map([[habit.id, habit]]), new Map(), '2000-01-01')
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
 
-      it('does nothing when habitsById is empty', () => {
-        const today = formatAPIDate(new Date())
-        useUIStore.setState({
-          activeFilters: { dateFrom: today, dateTo: today },
-        })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        checkAllDoneCelebration(new Map())
-
+      it('ignores an empty day', () => {
+        useUIStore.getState().checkAllDoneCelebration(new Map(), new Map(), formatAPIDate(new Date()))
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
 
-      it('triggers celebration when all top-level habits are completed', () => {
+      it('celebrates once with the due item count', () => {
         const today = formatAPIDate(new Date())
-        useUIStore.setState({
-          activeFilters: { dateFrom: today, dateTo: today },
-          allDoneCelebratedDate: '',
-        })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        const habits = new Map([
-          ['h1', { parentId: null, isCompleted: true }],
-          ['h2', { parentId: null, isCompleted: true }],
-          ['h3', { parentId: 'h1', isCompleted: false }],
-        ])
-        checkAllDoneCelebration(habits)
-
-        expect(useUIStore.getState().allDoneCelebration).toBe(true)
-        expect(useUIStore.getState().allDoneCelebratedDate).toBe(today)
+        const first = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })
+        const second = createMockHabit({ id: 'h2', scheduledDates: [today], isLoggedInRange: true })
+        const habits = new Map([[first.id, first], [second.id, second]])
+        const check = useUIStore.getState().checkAllDoneCelebration
+        check(habits, new Map(), today)
+        check(habits, new Map(), today)
+        expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+        expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+        expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
       })
 
-      it('does not trigger when already celebrated today', () => {
+      it('queues all-done behind an active streak celebration', () => {
         const today = formatAPIDate(new Date())
-        useUIStore.setState({
-          activeFilters: { dateFrom: today, dateTo: today },
-          allDoneCelebratedDate: today,
-          allDoneCelebration: false,
-        })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        const habits = new Map([
-          ['h1', { parentId: null, isCompleted: true }],
-        ])
-        checkAllDoneCelebration(habits)
-
-        expect(useUIStore.getState().allDoneCelebration).toBe(false)
-      })
-
-      it('queues allDone celebration behind an active streak celebration', () => {
-        const today = formatAPIDate(new Date())
-        useUIStore.setState({
-          activeFilters: { dateFrom: today, dateTo: today },
-          allDoneCelebratedDate: '',
-        })
+        const habit = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })
         useUIStore.getState().setStreakCelebration({ streak: 7 })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        const habits = new Map([
-          ['h1', { parentId: null, isCompleted: true }],
-        ])
-        checkAllDoneCelebration(habits)
-
-        expect(useUIStore.getState().streakCelebration).toEqual({ streak: 7 })
-        expect(useUIStore.getState().allDoneCelebration).toBe(false)
+        useUIStore.getState().checkAllDoneCelebration(new Map([[habit.id, habit]]), new Map(), today)
         expect(useUIStore.getState().queuedCelebrations).toHaveLength(1)
-        expect(useUIStore.getState().queuedCelebrations[0]?.kind).toBe('all-done')
-
         useUIStore.getState().completeActiveCelebration()
-        expect(useUIStore.getState().allDoneCelebration).toBe(true)
-        expect(useUIStore.getState().streakCelebration).toBeNull()
+        expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
       })
 
-      it('does not trigger when some habits are incomplete', () => {
+      it('waits while another due habit is open', () => {
         const today = formatAPIDate(new Date())
-        useUIStore.setState({
-          activeFilters: { dateFrom: today, dateTo: today },
-          allDoneCelebratedDate: '',
-        })
-
-        const { checkAllDoneCelebration } = useUIStore.getState()
-        const habits = new Map([
-          ['h1', { parentId: null, isCompleted: true }],
-          ['h2', { parentId: null, isCompleted: false }],
-        ])
-        checkAllDoneCelebration(habits)
-
+        const logged = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })
+        const open = createMockHabit({ id: 'h2', scheduledDates: [today] })
+        useUIStore.getState().checkAllDoneCelebration(new Map([[logged.id, logged], [open.id, open]]), new Map(), today)
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
     })

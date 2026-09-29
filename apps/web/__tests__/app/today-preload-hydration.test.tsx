@@ -88,7 +88,7 @@ function todayQueryKey(dateStr: string, includeOverdue: boolean) {
     selectedTagIds: [],
     showGeneralOnToday: false,
   })
-  return habitKeys.list(filters)
+  return habitKeys.list({ ...filters, completeDay: true })
 }
 
 function TodayHydrationSurface({
@@ -207,6 +207,7 @@ describe('Today preload hydration', () => {
     const initialHabits = {
       queryKey: todayQueryKey('2026-08-30', true),
       items: [serverHabit],
+      totalCount: 1,
     }
 
     const hydrated = await hydrateAcrossDays({
@@ -238,6 +239,7 @@ describe('Today preload hydration', () => {
     const initialHabits = {
       queryKey: todayQueryKey('2026-08-29', true),
       items: [overdueSeed],
+      totalCount: 1,
     }
 
     const hydrated = await hydrateAcrossDays({
@@ -265,6 +267,7 @@ describe('Today preload hydration', () => {
     const initialHabits = {
       queryKey: todayQueryKey('2026-08-29', true),
       items: [],
+      totalCount: 0,
     }
 
     const hydrated = await hydrateAcrossDays({
@@ -276,7 +279,10 @@ describe('Today preload hydration', () => {
 
     expect(hydrated.recoverableError).not.toHaveBeenCalled()
     expect(hydrated.serverHtml).toContain(en.habits.noHabitsBody)
-    expect(hydrated.queryClient.getQueryCache().getAll()).toHaveLength(1)
+    expect(hydrated.queryClient.getQueriesData({ queryKey: habitKeys.lists() })).toHaveLength(1)
+    expect(hydrated.queryClient.getQueryData(habitKeys.listTotalCount({
+      dateFrom: '2026-08-29', dateTo: '2026-08-29', includeOverdue: true, includeGeneral: undefined,
+    }))).toBe(0)
     expect(fetchMock).not.toHaveBeenCalled()
 
     await act(async () => hydrated.root.unmount())

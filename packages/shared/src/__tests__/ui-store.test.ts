@@ -5,6 +5,7 @@ import {
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
+import { createMockHabit } from './factories';
 
 function createStoreHarness() {
   let state = {} as UIStoreState;
@@ -52,7 +53,7 @@ describe("shared ui store", () => {
     vi.useRealTimers();
   });
 
-  it("merges filters and updates view/search state", () => {
+  it("merges filters and updates view and search state", () => {
     const store = createStoreHarness();
     const { setFilters, setSearchQuery, setActiveView } = store.getState();
 
@@ -90,21 +91,16 @@ describe("shared ui store", () => {
     expect(store.getState().selectedHabitIds.size).toBe(0);
   });
 
-  it("shows all-done celebration for completed top-level habits on today filters", () => {
+  it("shows all-done celebration for a logged habit due today", () => {
     const store = createStoreHarness();
-    store.setState({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
-    });
-
+    const habit = createMockHabit({ id: 'habit', isCompleted: false, isLoggedInRange: true, scheduledDates: ['2026-04-06'] });
     store.getState().checkAllDoneCelebration(
-      new Map([
-        ["parent-1", { parentId: null, isCompleted: true }],
-        ["child-1", { parentId: "parent-1", isCompleted: false }],
-      ]),
+      new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );
 
     expect(store.getState().allDoneCelebration).toBe(true);
     expect(store.getState().allDoneCelebratedDate).toBe("2026-04-06");
+    expect(store.getState().activeCelebration?.payload).toEqual({ count: 1 });
   });
 
   it("clears the last created habit id after the timeout", async () => {

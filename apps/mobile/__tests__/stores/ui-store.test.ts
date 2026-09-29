@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockHabit } from "@orbit/shared/__tests__/factories";
 import {
   getPersistedUIState,
 } from "@orbit/shared/stores";
@@ -148,19 +149,14 @@ describe("mobile ui store", () => {
     );
   });
 
-  it("shows all-done celebration only for completed top-level habits on today filters", () => {
-    useUIStore.setState({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
-    });
-
+  it("shows all-done celebration for a logged habit due today", () => {
+    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], isLoggedInRange: true });
     useUIStore.getState().checkAllDoneCelebration(
-      new Map([
-        ["parent-1", { parentId: null, isCompleted: true }],
-        ["child-1", { parentId: "parent-1", isCompleted: false }],
-      ]),
+      new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );
 
     expect(useUIStore.getState().allDoneCelebration).toBe(true);
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 });
   });
 
   it("clears the last created habit id after the timeout", async () => {

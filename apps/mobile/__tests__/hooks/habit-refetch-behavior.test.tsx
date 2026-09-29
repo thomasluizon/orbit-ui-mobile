@@ -35,7 +35,7 @@ describe('habit request budget on mobile', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
     function Today() {
-      useHabits(filters)
+      useHabits(filters, { completeDay: true })
       useTotalHabitCount()
       return null
     }
@@ -48,31 +48,31 @@ describe('habit request budget on mobile', () => {
       await Promise.resolve()
     })
     try {
-      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
 
       now += 60_000
       await TestRenderer.act(async () => { focusManager.setFocused(false); focusManager.setFocused(true); await Promise.resolve() })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
 
       now += 9 * 60_000
       await TestRenderer.act(async () => { focusManager.setFocused(false); focusManager.setFocused(true); await Promise.resolve() })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(8)
       await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0))
 
       await TestRenderer.act(async () => { onlineManager.setOnline(false); onlineManager.setOnline(true); await Promise.resolve() })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(8)
 
       await TestRenderer.act(async () => {
         finalizeHabitMutation(queryClient, { logId: 'log-1' }, null, { habitId: 'h-1', includeCount: false })
         await Promise.resolve()
       })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(5)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(11)
 
       await TestRenderer.act(async () => {
         finalizeHabitMutation(queryClient, undefined, null, { habitId: 'h-1', includeCount: false })
         await Promise.resolve()
       })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(6)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(14)
     } finally {
       renderer?.unmount()
       queryClient.clear()

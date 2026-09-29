@@ -5,9 +5,9 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
-import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
-import { buildCalendarDayMap, getReturningInterval, hasHabitScheduleOnDate } from '@orbit/shared/utils'
+import { buildCalendarDayMap, formatAPIDate, getReturningInterval, hasHabitScheduleOnDate } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -101,24 +101,25 @@ vi.mock('@/lib/actions/habits', () => ({
   bulkSkipHabits: vi.fn(),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: Object.assign(
+vi.mock('@/stores/ui-store', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+  return { useUIStore: Object.assign(
     () => ({
       activeFilters: {},
       setStreakCelebration: mockSetStreakCelebration,
-      checkAllDoneCelebration: vi.fn(),
+      checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
       setLastCreatedHabitId: vi.fn(),
     }),
     {
       getState: () => ({
         activeFilters: {},
         setStreakCelebration: mockSetStreakCelebration,
-        checkAllDoneCelebration: vi.fn(),
+        checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
         setLastCreatedHabitId: vi.fn(),
       }),
     },
-  ),
-}))
+  )}
+})
 
 vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn() }))
 
@@ -277,6 +278,41 @@ describe('useHabits', () => {
     expect(result.current.data!.topLevelHabits[1]!.id).toBe('h-1')
   })
 
+  it('loads every dated page and records the complete item count', async () => {
+    const date = formatAPIDate(new Date())
+    const firstPage = Array.from({ length: 50 }, (_, index) =>
+      makeScheduleItem({ id: `habit-${index}`, dueDate: date, scheduledDates: [date] }))
+    const general = makeScheduleItem({ id: 'general', isGeneral: true, scheduledDates: [] })
+    const lastPage = [makeScheduleItem({ id: 'habit-50', dueDate: date, scheduledDates: [date] })]
+    mockFetch.mockImplementation(async (url: string) => ({ ok: true, json: async () =>
+      url.includes('page=2')
+        ? { ...makePaginatedResponse([...lastPage, general]), page: 2, totalCount: 51, totalPages: 2 }
+        : { ...makePaginatedResponse([...firstPage, general]), totalCount: 51, totalPages: 2 },
+    }))
+    const queryClient = createQueryClient()
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: true, includeGeneral: true }
+    const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.habitsById.size).toBe(52)
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(51)
+    expect(getTodayHabitList(queryClient, date)).toHaveLength(52)
+  })
+
+  it('records the total for a complete Today query with one full page', async () => {
+    const date = formatAPIDate(new Date())
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
+    const items = Array.from({ length: 50 }, (_, index) =>
+      makeScheduleItem({ id: `habit-${index}`, dueDate: date, scheduledDates: [date] }))
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ ...makePaginatedResponse(items), totalCount: 50, totalPages: 1 }) })
+    const queryClient = createQueryClient()
+
+    const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(50)
+    expect(getTodayHabitList(queryClient, date)).toHaveLength(50)
+  })
+
   it('normalizes children into flat map', async () => {
     const items = [
       makeScheduleItem({
@@ -369,6 +405,193 @@ describe('useLogHabit', () => {
     mockShowError.mockClear()
   })
 
+  it('celebrates the last Today log once with both due habits counted', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
+      makeScheduleItem({ id: 'h-1', dueDate: today, scheduledDates: [today], isCompleted: false, isLoggedInRange: true }),
+      makeScheduleItem({ id: 'h-2', dueDate: today, scheduledDates: [today], isCompleted: false, isLoggedInRange: false }),
+    ])
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'h-2', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+  })
+
+  it('celebrates once after deleting a due habit before logging the last one', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit, deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [
+      makeScheduleItem({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
+      makeScheduleItem({ id: 'last', dueDate: today, scheduledDates: [today] }),
+    ])
+    queryClient.setQueryData(habitKeys.listTotalCount(filters), 2)
+    const { result } = renderHook(() => ({ remove: useDeleteHabit(), log: useLogHabit() }),
+      { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await result.current.remove.mutateAsync('deleted') })
+    expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(1)
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'last', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+  })
+
+  it('restores the Today count when deleting a due habit fails', async () => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockRejectedValue(new Error('Delete failed'))
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
+    const queryClient = createQueryClient()
+    const key = habitKeys.list({ ...filters, completeDay: true })
+    const countKey = habitKeys.listTotalCount(filters)
+    queryClient.setQueryData(key, [
+      makeScheduleItem({ id: 'deleted', dueDate: today, scheduledDates: [today] }),
+      makeScheduleItem({ id: 'kept', dueDate: today, scheduledDates: [today] }),
+    ])
+    queryClient.setQueryData(countKey, 2)
+    const { result } = renderHook(() => useDeleteHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await expect(result.current.mutateAsync('deleted')).rejects.toThrow('Delete failed') })
+    expect(queryClient.getQueryData(countKey)).toBe(2)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.map((item) => item.id)).toEqual(['deleted', 'kept'])
+  })
+
+  it('rechecks an incomplete Today list when the log refetch settles', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
+    const queryClient = createQueryClient()
+    let fetches = 0
+    await queryClient.fetchQuery({ queryKey: habitKeys.list({ ...filters, completeDay: true }), queryFn: async () => {
+      fetches += 1
+      if (fetches > 1) queryClient.setQueryData(habitKeys.listTotalCount(filters), 1)
+      return [makeScheduleItem({ id: 'last', dueDate: today, scheduledDates: [today], isLoggedInRange: fetches > 1 })]
+    } })
+    queryClient.setQueryData(habitKeys.listTotalCount(filters), 2)
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await result.current.mutateAsync({ habitId: 'last', intent: 'log' }) })
+    expect(fetches).toBeGreaterThan(1)
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+  })
+
+  it('celebrates once after creating and logging a due habit before the create refetch settles', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { createHabit, logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(createHabit).mockResolvedValue({ id: 'created' })
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-created', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true }
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [
+      makeScheduleItem({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+    ])
+    queryClient.setQueryData(habitKeys.listTotalCount(filters), 1)
+    let releaseCreateRefetch: (() => void) | undefined
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => {
+      releaseCreateRefetch = () => resolve({ ok: true, json: async () => makePaginatedResponse([]) })
+    }))
+    mockFetch.mockResolvedValue({ ok: true, json: async () => makePaginatedResponse([
+      makeScheduleItem({ id: 'original', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+      makeScheduleItem({ id: 'created', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+    ]) })
+    const { result } = renderHook(() => ({ habits: useHabits(filters, undefined, { completeDay: true }), create: useCreateHabit(), log: useLogHabit() }),
+      { wrapper: createWrapper(queryClient) })
+
+    try {
+      await act(async () => { await result.current.create.mutateAsync({ title: 'Created', dueDate: today }) })
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+      await act(async () => { await result.current.log.mutateAsync({ habitId: 'created', intent: 'log' }) })
+      expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+      expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    } finally {
+      releaseCreateRefetch?.()
+    }
+  })
+
+  it('keeps a flexible habit open after its first of two required logs', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
+      makeScheduleItem({ id: 'flexible', dueDate: today, scheduledDates: [today],
+        isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 }),
+    ])
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'flexible', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+  })
+
+  it('does not celebrate from a first page with an unseen due habit', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-50', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }),
+      Array.from({ length: 50 }, (_, index) => makeScheduleItem({ id: `habit-${index}`,
+        dueDate: today, scheduledDates: [today], isLoggedInRange: index < 49 })))
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-49', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+  })
+
+  it('celebrates after the final log in a complete 51-item Today list', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-51', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const filters = { dateFrom: today, dateTo: today, includeOverdue: true, includeGeneral: true }
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ ...filters, completeDay: true }), [...Array.from({ length: 51 }, (_, index) =>
+      makeScheduleItem({ id: `habit-${index}`, dueDate: today, scheduledDates: [today],
+        isLoggedInRange: index < 50 })), makeScheduleItem({ id: 'general', isGeneral: true, scheduledDates: [] })])
+    queryClient.setQueryData(habitKeys.listTotalCount(filters), 51)
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'habit-50', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 51 })
+  })
+
+  it('does not count a skipped occurrence when another log finishes Today', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true }), [
+      makeScheduleItem({ id: 'logged', dueDate: today, scheduledDates: [today], isLoggedInRange: true }),
+      makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today],
+        instances: [{ date: today, status: 'Completed', logId: 'skip-log' }] }),
+      makeScheduleItem({ id: 'open', dueDate: today, scheduledDates: [today] }),
+    ])
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync({ habitId: 'open', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+  })
+
   it('calls logHabit action and invalidates caches on settled', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
@@ -459,7 +682,8 @@ describe('useLogHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists(), refetchType: 'all' })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),

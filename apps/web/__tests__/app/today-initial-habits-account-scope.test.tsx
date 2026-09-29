@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { habitKeys } from '@orbit/shared/query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { habitListQueryFilters } from '@orbit/shared/utils'
 import {
   habitScheduleItemSchema,
   type HabitScheduleItem,
@@ -52,7 +53,7 @@ function initialHabitsFor(item: HabitScheduleItem) {
     selectedTagIds: [],
     showGeneralOnToday: false,
   })
-  return { queryKey: habitKeys.list(filters), items: [item] }
+  return { queryKey: habitKeys.list(habitListQueryFilters(filters, true)), items: [item], totalCount: 1 }
 }
 
 function renderToday() {
