@@ -5,19 +5,18 @@ import { useTranslations } from 'next-intl'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { NotificationRow } from './notification-row'
 
-export function NotificationList({ items, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<{
+export function NotificationList({ items, isLoading, isError, onRetry, onOpen }: Readonly<{
   items: NotificationItem[]
   isLoading: boolean
   isError: boolean
   onRetry: () => void
   onOpen: (item: NotificationItem) => void
-  onDelete: (item: NotificationItem) => void
 }>) {
   const t = useTranslations()
   return (
     <ul aria-label={t('notifications.title')} aria-busy={isLoading}
-      className="m-0 flex list-none flex-col gap-2 p-4">
-      {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
+      className="m-0 flex list-none flex-col gap-2 p-4 lg:max-w-[560px] lg:px-0">
+      {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} />)
         : isLoading ? Array.from({ length: 5 }, (_, index) => (
           <li key={index} aria-hidden="true" className="flex gap-3 rounded-[var(--r-well)] p-4">
             <span className="w-2 shrink-0" />
