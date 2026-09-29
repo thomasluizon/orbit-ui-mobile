@@ -36,6 +36,26 @@ describe('Shell412 mobile', () => {
     safeArea.bottom = 24
   })
 
+  it.each([true, false])('keeps content clear of pinned chrome with navigation=%s', async (navigationEnabled) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(navigationEnabled ? (
+        <Shell412 tabBar={React.createElement('TabBar')} fab={React.createElement('Fab')}>
+          {React.createElement('DestinationList')}
+        </Shell412>
+      ) : (
+        <Shell412 nav={false} action={React.createElement('Action')}>
+          {React.createElement('FlowContent')}
+        </Shell412>
+      ))
+    })
+
+    const scroller = findByTestId(tree, 'shell-scroller')[0]
+    expect(StyleSheet.flatten(scroller?.props.style)).toMatchObject({ paddingBottom: 96 })
+    expect(findByTestId(tree, 'shell-bottom')).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it.each([0, 24])('handles a %s pixel navigation inset as the keyboard opens and closes', async (bottom) => {
     safeArea.bottom = bottom
     let tree!: ReactTestRenderer

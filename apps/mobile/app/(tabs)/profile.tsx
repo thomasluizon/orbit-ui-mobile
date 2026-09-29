@@ -21,7 +21,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView
-      edges={['left', 'right', 'bottom']}
+      edges={['left', 'right']}
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
     >
       <ScreenReaderHeading title={t('nav.profile')} />

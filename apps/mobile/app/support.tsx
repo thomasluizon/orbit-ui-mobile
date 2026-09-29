@@ -419,7 +419,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
   formBlock: {
     gap: 24,
   },

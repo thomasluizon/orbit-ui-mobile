@@ -295,7 +295,7 @@ function CalendarProfileState({
   const styles = useMemo(() => createStyles(), []);
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <ScrollView style={styles.profileStateWrap} contentContainerStyle={styles.profileScrollContent}>
         {failed ? (
@@ -885,12 +885,11 @@ function CalendarScreenContent({
         emptyLabel={t('calendar.emptyStat')}
       />
 
-      <View style={{ height: 24 }} />
     </View>
   );
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarHeader
         monthLabel={monthLabel}
@@ -951,7 +950,6 @@ function CalendarScreenContent({
       {!activeError && view !== "month" && (
         <ScrollView
           style={styles.container}
-          contentContainerStyle={styles.viewScrollContent}
           showsVerticalScrollIndicator={false}
         >
           {view === "week" ? (
@@ -1061,10 +1059,6 @@ function createStyles() {
     container: { flex: 1 },
 
 
-    viewScrollContent: {
-      paddingBottom: 24,
-    },
-
     agendaView: {
       alignSelf: "flex-start",
       gap: 16,
@@ -1103,7 +1097,7 @@ function createStyles() {
       flex: 1,
     },
     profileScrollContent: {
-      paddingVertical: 12,
+      paddingTop: 12,
     },
     profileLoading: {
       gap: 0,

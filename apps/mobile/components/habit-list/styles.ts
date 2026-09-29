@@ -39,7 +39,6 @@ export function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     skeletonContainer: {
       paddingTop: 8,
-      paddingBottom: 96,
       paddingHorizontal: 16,
       gap: 12,
     },
@@ -85,11 +84,10 @@ export function createStyles(tokens: AppTokens) {
 
     sectionInset: {},
     listContent: {
-      paddingBottom: 96,
       paddingHorizontal: 16,
     },
     listContentWithBulkBar: {
-      paddingBottom: 96 + 96 + 24,
+      paddingBottom: 96 + 24,
     },
     drillHeader: {
       flexDirection: 'row',

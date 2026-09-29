@@ -282,7 +282,7 @@ export default function UpgradeScreen() {
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: tokens.bg }]}
-      edges={['top', 'bottom']}
+      edges={['top']}
     >
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
@@ -313,7 +313,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     paddingTop: 16,
-    paddingBottom: 32,
   },
   usagePad: { paddingHorizontal: 16, paddingTop: 24 },
   padBlock: {

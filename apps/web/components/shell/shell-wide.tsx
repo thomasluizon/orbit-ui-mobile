@@ -235,7 +235,7 @@ function ShellWideBackground({
           <main
             ref={registerScroller}
             data-shell-scroller=""
-            className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+            className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-24 lg:pb-8"
           >
             <span
               aria-hidden="true"

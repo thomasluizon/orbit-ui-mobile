@@ -26,7 +26,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
   const { width } = useWindowDimensions()
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
       <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View testID="legal-document" style={styles.document}>
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   scroll: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
-  document: { alignSelf: 'center', width: '100%', maxWidth: 620, minWidth: 0, padding: 16, paddingBottom: 24, gap: 24 },
+  document: { alignSelf: 'center', width: '100%', maxWidth: 620, minWidth: 0, paddingHorizontal: 16, paddingTop: 16, gap: 24 },
   titleBlock: { minWidth: 0, gap: 8 },
   title: { minWidth: 0, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, letterSpacing: -0.44 },
   titleWide: { fontSize: 28, lineHeight: 32.2, letterSpacing: -0.56 },

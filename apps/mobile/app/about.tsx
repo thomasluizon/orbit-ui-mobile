@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
-  content: { minWidth: 0, gap: 24, padding: 16, paddingBottom: 24 },
+  content: { minWidth: 0, gap: 24, paddingHorizontal: 16, paddingTop: 16 },
   identity: { minWidth: 0, alignItems: 'flex-start', gap: 12 },
   appName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

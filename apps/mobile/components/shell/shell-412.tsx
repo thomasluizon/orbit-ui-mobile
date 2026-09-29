@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
+    paddingBottom: 96,
   },
   bottomChrome: {
     borderTopWidth: 1,

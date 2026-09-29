@@ -573,7 +573,7 @@ export function ProgressContent() {
 
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
+  root: { flex: 1 }, content: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
   loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
