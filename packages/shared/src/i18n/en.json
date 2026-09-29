@@ -1241,7 +1241,7 @@
     "habitList": {
       "title": "Today's habits",
       "allTitle": "All habits",
-      "todayEmpty": "No habits for today",
+      "todayEmpty": "No habits to show today",
       "allEmpty": "No habits to show",
       "count": "{shown} of {total}",
       "open": "Open {name}",
