@@ -3,7 +3,6 @@ import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -26,7 +25,7 @@ for (const width of [412, 1280] as const) {
     test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
 
     test('keeps habit and list menu rows at their presentation height', async ({ page, context }) => {
-      await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
+      await context.route(new RegExp(`${API.habits.list}[?]`),
         (route) => route.fulfill({ json: habitsPage }))
       await page.goto('/?date=2026-09-03')
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
