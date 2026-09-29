@@ -52,8 +52,7 @@ const styles = StyleSheet.create({
     minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+    padding: 24,
   },
   value: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

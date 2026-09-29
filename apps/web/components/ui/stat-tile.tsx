@@ -11,7 +11,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <div
-      className="flex flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] px-4 py-6 text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-6 text-center"
       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minHeight: STAT_TILE_MIN_HEIGHT }}
       data-state={state}
       role={isLoading ? 'status' : undefined}
