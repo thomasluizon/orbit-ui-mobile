@@ -756,7 +756,7 @@ describe('CalendarSyncPage', () => {
       expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
 
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
@@ -795,7 +795,7 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
     })
