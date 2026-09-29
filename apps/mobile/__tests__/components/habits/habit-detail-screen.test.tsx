@@ -1,4 +1,5 @@
 import React from 'react'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -285,7 +286,7 @@ vi.mock('@/components/dates/day-cell', () => ({
     return React.createElement('DayCell', { testID: `history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`, outcome, accessibilityLabel: label })
   },
 }))
-vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
+vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => React.createElement('DayStrip', { testID: 'detail-strip', size, dayCount: days.length }) }))
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('MonthGrid', { label }, children),
 }))
@@ -486,6 +487,7 @@ describe('HabitDetailScreen', () => {
   })
 
   afterEach(() => {
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.useRealTimers()
   })
 
@@ -964,6 +966,32 @@ describe('HabitDetailScreen', () => {
     const closedDisclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
     TestRenderer.act(() => closedDisclosure!.props.onPress())
     expect(tree!.root.findByProps({ title: 'habits.detail.slipAlert' })).toBeDefined()
+  })
+
+  it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const strip = tree!.root.findByProps({ testID: 'detail-strip' })
+    expect(strip.props.dayCount).toBe(30)
+    expect(strip.props.size).toBe(8)
+    expect(strip.parent.type).not.toBe('ScrollView')
+    __setWindowDimensions({ width: 1024, height: 892, scale: 1, fontScale: 1 })
+    TestRenderer.act(() => { tree!.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(8)
+    const section = tree!.root.findByProps({ testID: 'habit-detail-strip-section' })
+    TestRenderer.act(() => { section.props.onLayout({ nativeEvent: { layout: { width: 380 } } }) })
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(8)
+    TestRenderer.act(() => { section.props.onLayout({ nativeEvent: { layout: { width: 740 } } }) })
+    expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(16)
+  })
+
+  it('formats the due time in the header without seconds', () => {
+    mocks.detail = { ...makeDetail(), dueTime: '08:00:00' }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const header = JSON.stringify(tree!.root.findByProps({ testID: 'header-log' }).parent.parent.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))
+    expect(header).toContain('8:00')
+    expect(header).not.toContain('08:00:00')
   })
 
   it('persists each inline detail editor through its dedicated patch', async () => {

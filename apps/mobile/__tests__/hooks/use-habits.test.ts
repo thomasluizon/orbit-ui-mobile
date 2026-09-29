@@ -4,7 +4,7 @@ import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
 import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import { buildCalendarDayMap, buildHabitHistoryMonth, isHabitCompletedOnDate } from '@orbit/shared/utils'
+import { buildCalendarDayMap, buildHabitHistoryMonth, hasHabitScheduleOnDate, isHabitCompletedOnDate } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -1871,8 +1871,13 @@ describe('mobile habit hooks', () => {
     expect(captureHabitLogged).not.toHaveBeenCalled()
   })
 
-  it('optimistically completes a recurring skip and rolls it back on failure', async () => {
-    seedHabitState([makeHabit({ id: 'habit-1', frequencyUnit: 'Day', isCompleted: false })], 1)
+  it('optimistically removes a recurring skip from the day and rolls it back on failure', async () => {
+    const today = '2026-09-12'
+    seedHabitState([makeHabit({
+      id: 'habit-1', frequencyUnit: 'Day', isCompleted: false,
+      dueDate: today, scheduledDates: [today],
+      instances: [{ date: today, status: 'Pending', logId: null }],
+    })], 1)
 
     const mutation = useSkipHabit() as unknown as MutationConfig<
       unknown,
@@ -1881,10 +1886,15 @@ describe('mobile habit hooks', () => {
     >
 
     const context = await mutation.onMutate?.({ habitId: 'habit-1' })
-    expect(getHabitList()[0]?.isCompleted).toBe(true)
+    expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(getHabitList()[0]?.scheduledDates).toEqual([])
+    expect(getHabitList()[0]?.instances).toEqual([])
+    expect(hasHabitScheduleOnDate(getHabitList()[0]!, today)).toBe(false)
 
     mutation.onError?.(new Error('Skip failed'), { habitId: 'habit-1' }, context)
     expect(getHabitList()[0]?.isCompleted).toBe(false)
+    expect(getHabitList()[0]?.scheduledDates).toEqual([today])
+    expect(hasHabitScheduleOnDate(getHabitList()[0]!, today)).toBe(true)
   })
 
   it('patches a habit optimistically, invalidates its detail online, and restores it on failure', async () => {

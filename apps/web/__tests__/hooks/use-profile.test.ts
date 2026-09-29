@@ -5,7 +5,7 @@ import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { hydrateRoot } from 'react-dom/client'
 import { profileKeys } from '@orbit/shared/query'
-import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
+import { useProfile, useHasProAccess, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
 import { ApiError } from '@/lib/api-fetch'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -337,54 +337,6 @@ describe('useHasProAccess', () => {
     })
 
     await waitFor(() => expect(result.current).toBe(true))
-  })
-})
-
-describe('useTrialDaysLeft', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
-  it('returns null when not in trial', async () => {
-    mockProfileResponse(createMockProfile({ trialEndsAt: null }))
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => expect(result.current).toBeNull())
-  })
-
-  it('returns positive days when trial is active', async () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 5)
-    mockProfileResponse(
-      createMockProfile({ trialEndsAt: futureDate.toISOString(), isTrialActive: true }),
-    )
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => {
-      expect(result.current).not.toBeNull()
-      expect(result.current).toBeGreaterThanOrEqual(4)
-      expect(result.current).toBeLessThanOrEqual(5)
-    })
-  })
-
-  it('returns 0 when trial has expired', async () => {
-    const pastDate = new Date()
-    pastDate.setDate(pastDate.getDate() - 5)
-    mockProfileResponse(
-      createMockProfile({ trialEndsAt: pastDate.toISOString(), isTrialActive: false }),
-    )
-
-    const { result } = renderHook(() => useTrialDaysLeft(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => expect(result.current).toBe(0))
   })
 })
 

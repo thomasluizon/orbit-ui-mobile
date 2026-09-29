@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { ChatStoreState } from '../stores/chat-store'
-import { createChatStoreState } from '../stores/chat-store'
+import {
+  clearContextualSuggestionIfCurrent,
+  createChatStoreState,
+  prepareChatRequest,
+  publishContextualSuggestion,
+} from '../stores/chat-store'
 
 function createStoreHarness() {
   let state = {} as ChatStoreState
@@ -111,17 +116,58 @@ describe('shared chat store', () => {
     expect(store.getState().contextualSuggestion).toBeNull()
   })
 
-  it('updates a draft with its latest value and preserves local text during hydration', () => {
+  it('prefers pre-hydration text, then a live draft, then the stored draft', () => {
     const store = createStoreHarness()
     store.getState().setDraft('Read')
     store.getState().setDraft((current) => `${current} today`)
-    store.getState().hydrateDraft('stale saved draft')
+    store.getState().hydrateDraft('stale saved draft', 'Typed early')
     expect(store.getState()).toMatchObject({
-      draft: 'Read today', draftRevision: 2, draftHydrated: true,
+      draft: 'Typed early', draftRevision: 2, draftHydrated: true,
     })
 
     const emptyStore = createStoreHarness()
-    emptyStore.getState().hydrateDraft('saved draft')
+    emptyStore.getState().hydrateDraft('saved draft', '')
     expect(emptyStore.getState().draft).toBe('saved draft')
+
+    const liveStore = createStoreHarness()
+    liveStore.getState().setDraft('Live draft')
+    liveStore.getState().hydrateDraft('stale saved draft', '')
+    expect(liveStore.getState().draft).toBe('Live draft')
+  })
+
+  it('keeps an existing draft and offers a contextual request', () => {
+    const store = createStoreHarness()
+    const request = { id: 'progress-create-goal', label: 'Create goal', prompt: 'Help me set a goal' }
+    store.getState().setDraft('My own text')
+
+    prepareChatRequest(store.getState(), request)
+
+    expect(store.getState().draft).toBe('My own text')
+    expect(store.getState().contextualSuggestion).toEqual(request)
+  })
+
+  it('places a request in an empty draft without replacing another suggestion', () => {
+    const store = createStoreHarness()
+    const existing = { id: 'habit-1', label: 'Ask Astra', prompt: 'Help with this habit' }
+    store.getState().setContextualSuggestion(existing)
+
+    prepareChatRequest(store.getState(), { id: 'progress-create-goal', label: 'Create goal', prompt: 'Help me set a goal' })
+
+    expect(store.getState().draft).toBe('Help me set a goal')
+    expect(store.getState().contextualSuggestion).toEqual(existing)
+  })
+
+  it('clears a scoped suggestion only while it is still current', () => {
+    const store = createStoreHarness()
+    const suggestion = { id: 'habit-1', label: 'Ask Astra', prompt: 'Help with this habit' }
+    const cleanup = publishContextualSuggestion(store.getState, suggestion)
+    expect(store.getState().contextualSuggestion).toEqual(suggestion)
+
+    store.getState().setContextualSuggestion({ id: 'habit-2', label: 'Ask Astra', prompt: 'Another habit' })
+    cleanup()
+    expect(store.getState().contextualSuggestion?.id).toBe('habit-2')
+
+    clearContextualSuggestionIfCurrent(store.getState(), 'habit-2')
+    expect(store.getState().contextualSuggestion).toBeNull()
   })
 })

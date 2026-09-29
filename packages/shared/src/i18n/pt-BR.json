@@ -214,7 +214,7 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Pergunte para a Astra",
+      "placeholder": "Peça algo à Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
@@ -264,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navegar",
-      "select": "Selecionar",
+      "select": "Escolher",
       "back": "Voltar",
       "close": "Fechar"
     },
@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
       "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
@@ -453,8 +454,8 @@
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
     "hideCompleted": "Ocultar concluídos",
-    "collapseAll": "Recolher todos",
-    "expandAll": "Expandir todos",
+    "collapseAll": "Recolher tudo",
+    "expandAll": "Expandir tudo",
     "refresh": "Atualizar",
     "noHabitsBody": "Comece com um hábito pequeno ou peça uma rotina à Astra.",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
@@ -501,12 +502,13 @@
     "backToHabits": "Hábitos",
     "completed": "concluídos",
     "drillProgress": "{done} de {total} feitos",
-    "skipConfirmTitle": "Pular hábito",
-    "skipConfirmMessage": "Isso adianta a data para a próxima vez, sem registrar como concluído.",
-    "skipConfirmMessageFlexible": "Isso reduz em 1 as conclusões necessárias neste período.",
+    "skipConfirmTitle": "Pular {name}?",
+    "skipConfirmMessage": "A data passa para a próxima ocorrência, sem registro.",
+    "skipConfirmMessageFlexible": "Pular usa uma das vagas da semana, sem registro.",
+    "skipConfirmMessageFlexibleMonth": "Pular usa uma das vagas do mês, sem registro.",
     "skipConfirmButton": "Pular",
-    "postponeConfirmTitle": "Adiar tarefa",
-    "postponeConfirmMessage": "Isso move a tarefa para amanhã.",
+    "postponeConfirmTitle": "Adiar {name}?",
+    "postponeConfirmMessage": "Passa para amanhã, sem registro.",
     "postponeConfirmButton": "Adiar",
     "deleteConfirmTitle": "Excluir hábito",
     "deleteConfirmMessage": "Isso remove o hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.",
@@ -2048,12 +2050,6 @@
   },
   "trial": {
     "proBadge": "Período de teste",
-    "banner": {
-      "freeLine": "Plano gratuito",
-      "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje",
-      "upgrade": "Assinar"
-    },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",
@@ -2719,9 +2715,6 @@
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
-    "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",
@@ -2773,7 +2766,9 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "empty": "Uma meta acompanha o que você quer alcançar: crie a partir de um hábito ou peça à Astra.",
+      "createAction": "Criar meta",
+      "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Todas",
       "progress": "{current} / {target} {unit}",
@@ -3022,7 +3017,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank"
+      "tierTileLabel": "Nível da sequência"
     }
   },
   "stepUp": {

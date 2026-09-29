@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   composerEnabled: [] as boolean[],
   astraOwnership: [] as boolean[],
   profileReady: true,
+  plan: 'trial',
   habitFilters: [] as { includeGeneral?: boolean }[],
   date: {
     today: '2026-04-08',
@@ -39,7 +40,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC' } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -161,10 +162,6 @@ vi.mock('@/components/today/today-astra', () => ({
   },
 }))
 
-vi.mock('@/components/ui/trial-banner', () => ({
-  TrialBanner: () => React.createElement('TrialBanner'),
-}))
-
 vi.mock('@/app/(tabs)/use-today-motion', () => ({
   useTodayMotion: () => ({
     dayAnimatedStyle: { transform: [{ translateY: 0 }] },
@@ -236,6 +233,7 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.plan = 'trial'
     mocks.habitFilters.length = 0
     setAccountId(null)
     asyncStorageState.values.clear()
@@ -249,6 +247,13 @@ describe('Hoje date boundaries', () => {
     mocks.date.nextDisabled = false
   })
 
+  it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', async (plan) => {
+    mocks.plan = plan
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(tree.root.findAll((node) => node.props.testID === 'trial-banner')).toHaveLength(0)
+  })
+
   it('withholds Today actions until the account day is known', async () => {
     mocks.profileReady = false
     let tree!: import('react-test-renderer').ReactTestRenderer
@@ -259,6 +264,7 @@ describe('Hoje date boundaries', () => {
     expect(headings).toHaveLength(1)
     expect(progressbar?.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
     mocks.profileReady = true
+    mocks.plan = 'trial'
     await TestRenderer.act(() => { tree.update(<TodayScreen />) })
     expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(1)
   })

@@ -132,7 +132,6 @@ vi.mock('@/hooks/use-subscription-status', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile }),
   useHasProAccess: () => mocks.hasProAccess,
-  useTrialDaysLeft: () => mocks.trialDaysLeft,
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showSuccess: mocks.showSuccess }),

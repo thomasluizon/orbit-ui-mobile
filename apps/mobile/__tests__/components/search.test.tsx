@@ -10,6 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '../support/react-test-renderer'
 import SearchScreen from '@/app/search'
+import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 vi.unmock('react-i18next')
@@ -87,6 +88,19 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it('shows the initial for a habit without an emoji', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
+    await mount()
+    const resultRow = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')[0]!
+    expect(resultRow.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')).toHaveLength(1)
+    expect(resultRow.findAll((node) => node.type === Circle)).toHaveLength(0)
+  })
+
+  it('uses the check glyph for the log command', async () => {
+    await mount()
+    const command = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'Log a habit').length > 0)[0]!
+    expect(command.findAll((node) => node.type === Check)).toHaveLength(1)
+  })
   it('keeps the habit group before create, actions and destinations', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()

@@ -13,6 +13,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
+  inputId?: string
 }
 
 function AttachmentIcon({ kind }: Readonly<Pick<ComposerAttachment, 'kind'>>) {
@@ -117,7 +118,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = props.state === 'idle'
+  const sendIsAccent = canSend || props.state === 'sending'
   const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
 
   return (
@@ -132,8 +133,9 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           <AstraGlyph size={20} color="currentColor" />
         </button>
       ) : null}
-      <div data-composer-input-row className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:outline has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:-outline-offset-2 has-[textarea:focus-visible]:outline-[var(--primary)]">
+      <div data-composer-input-row className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:outline has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:-outline-offset-2 has-[textarea:focus-visible]:outline-[var(--primary)] @max-[400px]:flex-wrap @max-[400px]:justify-end">
         <textarea
+          id={props.inputId}
           rows={1}
           data-composer-input
           aria-label={props.words.placeholder}
@@ -143,7 +145,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onChange={(event) => props.onChangeValue(event.target.value)}
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
-          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 @max-[400px]:basis-full @max-[400px]:[field-sizing:content]"
         />
 
         {props.onAttachFile ? (
@@ -195,9 +197,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`flex size-12 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,opacity,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
+        className={`group relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity,transform] duration-150 ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
+        <span aria-hidden="true" hidden={!canSend} className="pointer-events-none absolute inset-0 rounded-full bg-[var(--primary-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] pointer-fine:group-hover:opacity-100" />
+        <span className="relative"><ArrowUp size={20} strokeWidth={2} aria-hidden="true" /></span>
       </button>
     </div>
   )
@@ -227,7 +230,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
       data-state={props.state}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
+      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
     >
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
         <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />

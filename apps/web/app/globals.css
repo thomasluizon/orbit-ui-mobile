@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+.habit-detail-strip [data-scope='habit'] {
+  --habit-strip-cell-size: 8px;
+}
+
+@container (min-width: 480px) {
+  .habit-detail-strip [data-scope='habit'] {
+    --habit-strip-cell-size: 16px;
+  }
+}
+
 .orbit-sheet-portal {
   position: fixed;
   inset: 0;

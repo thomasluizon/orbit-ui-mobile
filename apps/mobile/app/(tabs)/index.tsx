@@ -19,7 +19,6 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { useTodayMotion } from './use-today-motion'
 import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
@@ -186,13 +185,16 @@ function TodayScreenContent() {
         isTodaySelected={date.dateStr === date.today}
         nextDisabled={date.nextDisabled}
         previousLabel={t('dates.previousDay')}
-        todayLabel={t('dates.goToToday')}
+        todayLabel={t('dates.today')}
+        goToTodayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
-        moreLabel={t('habits.actions.more')}
+        moreLabel={t('habits.listOptions')}
         selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
         completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         onToggleSelect={selection.handleToggleSelectMode}
         onToggleCollapse={() => {
@@ -205,7 +207,6 @@ function TodayScreenContent() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
-      <TrialBanner />
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />

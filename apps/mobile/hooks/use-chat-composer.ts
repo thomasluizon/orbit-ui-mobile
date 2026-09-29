@@ -735,8 +735,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const sendMessage = useCallback(
     async (content?: string, messageOrigin?: 'followUp') => {
+      const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp';
       const typedContent = content?.trim() ?? input.trim();
-      const messageContent = selectedTextFile && messageOrigin !== 'followUp'
+      const messageContent = selectedTextFile && sendsComposerDraft
         ? buildChatMessageWithFileContent({
             message: typedContent,
             fileLabel: t("chat.fileAttached", { name: selectedTextFile.name }),
@@ -744,7 +745,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           })
         : typedContent;
       const sendState = useChatStore.getState();
-      if (!hasComposerContent(typedContent, attachments)) return;
+      if (!hasComposerContent(typedContent, sendsComposerDraft ? attachments : [])) return;
       if (sendState.isTyping || sendState.streamingMessageId !== null) {
         setSendError(t("shell.composer.busy.reason"));
         return;
@@ -768,15 +769,15 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const attempted: AttemptedSend = {
         content: messageContent,
         draftContent: typedContent,
-        image: messageOrigin === 'followUp' ? null : selectedImage,
-        preview: messageOrigin === 'followUp' ? null : imagePreview,
+        image: sendsComposerDraft ? selectedImage : null,
+        preview: sendsComposerDraft ? imagePreview : null,
         restoreDraftOnFailure: content === undefined,
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
       };
 
-      if (messageOrigin !== 'followUp') {
+      if (sendsComposerDraft) {
         setInput("");
         setSelectedImage(null);
         setImagePreview(null);

@@ -5,14 +5,20 @@ import {
   AdjustmentsHorizontal,
   AlertTriangle,
   ArrowLeft,
+  Checkbox,
+  ChevronsDown,
+  ChevronsUp,
   ChevronLeft,
   ChevronRight,
   ArrowUpRight,
   CreditCard,
   Download,
+  Eye,
+  EyeOff,
   Home,
   Minus,
   Plus,
+  RefreshCw,
   Satellite,
   Snowflake,
   Target,
@@ -27,14 +33,20 @@ const ICON_COMPONENTS: Readonly<Record<string, TablerIcon>> = {
   'adjustments-horizontal': AdjustmentsHorizontal,
   'alert-triangle': AlertTriangle,
   'arrow-left': ArrowLeft,
+  checkbox: Checkbox,
+  'chevrons-down': ChevronsDown,
+  'chevrons-up': ChevronsUp,
   'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight,
   'credit-card': CreditCard,
   download: Download,
+  eye: Eye,
+  'eye-off': EyeOff,
   'external-link': ArrowUpRight,
   home: Home,
   minus: Minus,
   plus: Plus,
+  refresh: RefreshCw,
   satellite: Satellite,
   snowflake: Snowflake,
   target: Target,
@@ -42,7 +54,7 @@ const ICON_COMPONENTS: Readonly<Record<string, TablerIcon>> = {
   x: X,
 }
 
-export function Icon({ name, size = 24, filled = false, color, label }: Readonly<IconProps>) {
+export function Icon({ name, size = 24, strokeWidth = 1.5, filled = false, color, label }: Readonly<IconProps>) {
   const Glyph = ICON_COMPONENTS[name]
 
   return (
@@ -66,7 +78,7 @@ export function Icon({ name, size = 24, filled = false, color, label }: Readonly
           color={color}
           fill={filled ? color ?? 'currentColor' : 'none'}
           size={size}
-          strokeWidth={filled ? 2 : 1.5}
+          strokeWidth={filled ? 2 : strokeWidth}
         />
       )}
     </View>
