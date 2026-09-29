@@ -7,6 +7,7 @@ import {
   computeHabitFrequencyLabel,
   formatAPIDate,
   getTodayBoundary,
+  isHabitDoneForRange,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
@@ -245,7 +246,7 @@ export const HabitRow = memo(function HabitRow({
   const todayStr = today ?? formatAPIDate(new Date())
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
-  const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
+  const isDoneForRange = isHabitDoneForRange(habit)
   const status = useMemo(
     () => computeHabitCardStatus(habit, selectedDate),
     [habit, selectedDate],

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
@@ -69,6 +69,7 @@ export function useApiKeyManagement({
       setRevokingKeyId(null)
       if (isOnline) {
         void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
     },
   })
@@ -94,6 +95,7 @@ export function useApiKeyManagement({
       consumeApiKeyCreationGrant()
       setCreateGrantAvailable(false)
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      await queryClient.invalidateQueries({ queryKey: profileKeys.all })
       return result
     } catch (caught: unknown) {
       if (

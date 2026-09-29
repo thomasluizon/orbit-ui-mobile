@@ -5,6 +5,12 @@ import { isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 
 export type HabitVisibilityView = 'today' | 'all' | 'general'
 
+export function isHabitDoneForRange(
+  habit: Pick<NormalizedHabit, 'isCompleted' | 'isLoggedInRange'>,
+): boolean {
+  return habit.isCompleted || habit.isLoggedInRange
+}
+
 export interface HabitVisibilityOptions {
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>

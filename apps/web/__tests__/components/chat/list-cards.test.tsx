@@ -25,12 +25,13 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
   useLogHabit: () => ({ mutate: mocks.mutate }),
 }))
-vi.mock('@/components/ui/status-ring', () => ({ StatusRing: () => <span /> }))
+vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <span data-ring-status={status}>{label}</span> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <span /> }))
 vi.mock('@/components/ui/block-frame', () => ({
-  BlockFrame: ({ title, count, items, actions }: BlockFrameProps) => <section>
+  BlockFrame: ({ title, count, items, body, actions }: BlockFrameProps) => <section>
     <h2>{title}</h2>
     <p>{count}</p>
+    {body}
     {items.map((item) => <div key={item.id}>{item.label}{item.meta}{item.control}</div>)}
     {actions}
   </section>,
@@ -60,12 +61,23 @@ describe('Astra list cards on web', () => {
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
   })
 
-  it('announces unlog for an already-completed occurrence', () => {
-    mocks.occurrencesById.set('habit-1', { isCompleted: true, isLoggedInRange: true })
+  it('shows a logged recurring occurrence as done and unlogs it', () => {
+    mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     render(<HabitListCard habitList={habits} />)
 
+    expect(screen.getByText('chat.habitList.logged')).toHaveAttribute('data-ring-status', 'done')
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
     expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', intent: 'unlog' })
+  })
+
+  it('titles the all scope and explains an empty scope', () => {
+    const view = render(<HabitListCard habitList={{ scope: 'all', items: [] }} />)
+    expect(screen.getByRole('heading', { name: 'chat.habitList.allTitle' })).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.allEmpty')).toBeInTheDocument()
+    expect(screen.queryByText(/chat\.habitList\.count/)).not.toBeInTheDocument()
+    view.rerender(<HabitListCard habitList={{ scope: 'today', items: [] }} />)
+    expect(screen.getByRole('heading', { name: 'chat.habitList.title' })).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.todayEmpty')).toBeInTheDocument()
   })
 
   it('withholds the toggle when the occurrence is not authoritative', () => {

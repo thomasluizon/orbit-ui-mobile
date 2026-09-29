@@ -32,7 +32,7 @@ const overlays: OverlayGuard[] = [
     name: 'reschedule sheet',
     sourcePath: 'components/habits/reschedule-sheet.tsx',
     mount: /<Sheet\b/,
-    firstLine: "title={t('habits.reschedule.title')}",
+    firstLine: "accessibleTitle={t('habits.reschedule.title')}",
   },
   {
     name: 'delete confirmation',
@@ -53,7 +53,7 @@ function source(relativePath: string) {
 }
 
 describe('habit list overlay caller guards', () => {
-  it.each(overlays)('$name mounts at its title without a nested scroller', (overlay) => {
+  it.each(overlays)('$name mounts with an accessible name without a nested scroller', (overlay) => {
     const caller = source(overlay.sourcePath)
     const sheet = source('components/ui/sheet.tsx')
     const habitList = source('components/habit-list.tsx')

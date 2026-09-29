@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { retireHeldAccount } from '@/__tests__/support/account-change'
@@ -50,6 +53,31 @@ let queryClient: QueryClient
 function proProfile(): Profile {
   return { hasProAccess: true } as Profile
 }
+
+it.each([
+  [0, 'No keys yet'],
+  [1, '1 active key'],
+  [3, '3 active keys'],
+])('shows the count before key step-up for %i active keys', (count, expected) => {
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ProfileApiKeys profile={{ ...proProfile(), activeApiKeyCount: count }} unlocked={false} />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.getByText('Open the keys')).toBeInTheDocument()
+  expect(screen.getByText(expected)).toBeInTheDocument()
+})
+
+it.each([
+  ['en', en, ['No keys yet', '1 active key', '3 active keys']],
+  ['pt-BR', ptBR, ['Nenhuma chave ainda', '1 chave ativa', '3 chaves ativas']],
+] as const)('formats active key counts in %s', (locale, messages, expected) => {
+  const t = createTranslator({ locale, messages })
+  expect(t('profile.apiKeys.noKeys')).toBe(expected[0])
+  expect(t('profile.apiKeys.activeCount', { count: 1 })).toBe(expected[1])
+  expect(t('profile.apiKeys.activeCount', { count: 3 })).toBe(expected[2])
+})
 
 function respondWithAccount(userId: string) {
   vi.mocked(globalThis.fetch).mockResolvedValue({

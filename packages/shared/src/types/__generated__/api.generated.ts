@@ -665,7 +665,8 @@ export const PostApiChatResponse = zod.object({
 })),
   "stateFingerprint": zod.string()
 })).nullish(),
-  "previewFingerprint": zod.string().nullish()
+  "previewFingerprint": zod.string().nullish(),
+  "actionKey": zod.string().nullish()
 })).nullish(),
   "policyDenials": zod.array(zod.object({
   "operationId": zod.string(),
@@ -1929,6 +1930,13 @@ export const PutApiProfileWeekStartDayBody = zod.object({
 })
 
 export const PutApiProfileWeekStartDayResponse = zod.void()
+
+
+export const PutApiProfileClockFormatBody = zod.object({
+  "uses24HourClock": zod.boolean()
+})
+
+export const PutApiProfileClockFormatResponse = zod.void()
 
 
 export const PutApiProfileThemePreferenceBody = zod.object({
