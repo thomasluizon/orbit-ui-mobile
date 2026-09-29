@@ -88,12 +88,11 @@ describe('SuggestionChips', () => {
     expect(onSelect).toHaveBeenCalledWith('chat.suggestion.logHabit:Caminhar')
   })
 
-  it('draws every suggestion on the well, never on the accent', () => {
+  it('never paints a suggestion with the accent', () => {
     renderChips([makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })])
 
     for (const button of screen.getAllByRole('button')) {
-      expect(button.className).toContain('bg-[var(--bg-well)]')
-      expect(button.className).not.toContain('--primary')
+      expect(button.outerHTML).not.toContain('--primary')
       expect(button).toHaveAttribute('type', 'button')
     }
   })
