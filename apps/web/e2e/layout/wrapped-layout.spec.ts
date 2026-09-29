@@ -130,7 +130,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           const pager = page.getByTestId('wrapped-pager')
           for (let index = 0; index < finalSlideIndex; index += 1) {
             await pager.getByRole('button', { name: messages.wrapped.next, exact: true }).click()
-            const padding = await page.locator('[data-testid^="wrapped-slide-"]:visible').evaluate((element) => {
+            const padding = await page.locator('[data-testid^="wrapped-slide-"]').evaluate((element) => {
               const style = getComputedStyle(element)
               return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]
             })
