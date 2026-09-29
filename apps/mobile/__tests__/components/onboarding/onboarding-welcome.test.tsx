@@ -7,7 +7,6 @@ import {
   ONBOARDING_STARTERS,
 } from '@orbit/shared/utils'
 import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
-import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -58,12 +57,12 @@ describe('OnboardingWelcome', () => {
     expect(tree.root.findByType('Input').props.marksLabel).toBe('onboarding.flow.what.marksLabel')
   })
 
-  it('keeps the account link neutral', () => {
+  it('keeps the account action out of the content', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} onHaveAccount={vi.fn()} />)
+      tree = TestRenderer.create(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />)
     })
-    const link = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === 'Text' && node.props.accessibilityRole === 'link')[0]
-    expect(Reflect.get(link.props as object, 'style')).toContainEqual({ color: createTokensV2('purple', 'dark').fg3 })
+    const links = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === 'Text' && node.props.accessibilityRole === 'link')
+    expect(links).toHaveLength(0)
   })
 })

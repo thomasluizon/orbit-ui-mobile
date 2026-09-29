@@ -2102,7 +2102,8 @@
           "read": "Read before bed",
           "tidy": "Tidy the house on Saturday"
         },
-        "haveAccount": "I already have an account"
+        "haveAccount": "I already have an account",
+        "continueReason": "Write what you want to keep up."
       },
       "when": {
         "astraRead": "This is how I read it. Tap to correct it.",

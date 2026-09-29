@@ -2102,7 +2102,8 @@
           "read": "Ler antes de dormir",
           "tidy": "Arrumar a casa no sábado"
         },
-        "haveAccount": "Já tenho uma conta"
+        "haveAccount": "Já tenho uma conta",
+        "continueReason": "Escreva o que você quer acompanhar."
       },
       "when": {
         "astraRead": "Entendi assim. Toque para corrigir.",
