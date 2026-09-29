@@ -18,40 +18,37 @@ Every issue from the owner's staging review gets fixed, plus many sweeps until n
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff time the board had 175 open tickets, all 175 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run ends only when the spec is done or for an external cause (allowance exhausted, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff time the board had 178 open tickets, all 178 placed in the spec's `## The order` (0 unplaced, 0 placed twice).
 
 ## In flight (verify each first)
 
 | item | disposition |
 |---|---|
-| `ui#1271` Layout Guard fix (`#909`) | at `3c1a8d57`, waiting for CI and Pullfrog; the full hermetic layout project passed locally (115). Merge first: `redesign/main`'s Layout Guard is red without it, so every other `redesign/main` pull request carries that red check |
-| `ui#1268` `#556` carry of `main`'s all-done fix | approved at `7677c71e`; after `ui#1271` merges, merge `redesign/main` into it, push, merge on the fresh green run |
-| `ui#1266` composer fit (`#896`) | approved at `3f49b4aa`; same merge-forward, then merge |
-| `ui#1267` neutral send (`#858`) | approved at `c40daf91`, copy approved; shares `composer.tsx` with `ui#1266`: merge-forward after it, then merge |
-| `ui#1269` empty goals and no back-to-top (`#891`) | approved at `a95b2e0f`, copy approved; same merge-forward, then merge |
-| `ui#1263` Hoje date row (`#865`) | at `e8a33998` after a merge-forward, waiting for Pullfrog; clear the review, merge |
-| `ui#1264` habit detail strip (`#901`) | at `d9cd23c0`, review fix pushed, waiting for Pullfrog; merge-forward after `ui#1271`, merge |
-| `ui#1270` palette focus and Busca (`#887`) | at `189eff9c`, waiting for CI and Pullfrog; copy approved |
-| `ui#1265` Chromium carve-out (`#904`, `main`) | at `5d03b2df`, both threads fixed and resolved, waiting for Pullfrog; merge to `main`, then carry with `#556` |
-| `ui#1262` row skip asks first (`#883`) | one P1 thread open; its API fix `#905` is merged on `orbit-api` `main` and live in production: carry it with `#746`, release the staging API, answer the thread, merge |
-| `#746` carry of `orbit-api` `main` `8ccf2278` | not started (admission was full); start it as soon as a slot frees |
-| `#890` tier tile label | worktree `ticket-890-tier-tile-label` and order ready, not launched |
-| `#879` Hoje day states | commit `cbbac9ee` on `fix/ticket-879-hoje-day-states`, no pull request; open it after `ui#1268` merges |
+| `ui#1275` (`#916`, `main`) all-done count survives an optimistic add or remove | CI running; merge to `main` on the bar, release production web, then cherry-pick it with `-x` into `ui#1268` |
+| `ui#1268` (`#556` carry of `#878`) | CI green, one open P1 thread (the `#916` finding); after the cherry-pick, answer and resolve the thread, push, merge on a fresh approval; then open `#879`'s pull request (commit `cbbac9ee` on `fix/ticket-879-hoje-day-states`) |
+| `ui#1272` (`#908` list options labels and glyphs) | its CI waiter finished at handoff; read the result and the Pullfrog verdict, merge on the bar; copy approved |
+| `ui#1267` (`#858` neutral send) | merged forward to `a806a4ec`, CI green, a Pullfrog review of that head was requested; merge on approval; copy approved |
+| `ui#1273` (`#890` streak tier label) | CI running; copy approved; merge on the bar |
+| `ui#1262` (`#883` row skip asks first) | merged forward to `4735acd7`, P1 thread answered and resolved with the `#905` API evidence; needs a fresh approval; merge on the bar, then sweep the skip confirmation with the staging test habit "Alongar 3 vezes por semana" |
+| `ui#1274` contract snapshot rebaseline (push device endpoint `#915`) | CI running; merge on green and approval |
+| `orbit-api#650` (`#910`, `main`) Astra's today list counts done habits | opened at handoff; before merging, confirm its new `done` status does not reach a client that rejects it: `#921` (shared schema accepts `done`) ships first, or the API sends it only to clients that declare support; then release production API and carry with `#746` |
+| `#906` Perfil groups | a worker (launcher pid 91777, worktree `ticket-906-perfil-groups-rows`) was opening its pull request at handoff, outcome unknown; its questions are decided on the ticket; approve its copy with `/second-opinion` before merge |
+| `#907` compact menu rows | worktree `ticket-907-menu-row-height` and order ready; start after `ui#1272` merges (both edit the menu primitive) |
 | `ui#1217` privacy (`#805`, `main`) | held until email runs on SES; worktree `ticket-805-privacy-processors` has 1 unpushed commit |
-| Staging | web runs `15f5b183` (no `#881` yet); API runs `64643afe`; release both after the merges above, then sweep at both widths starting with Astra's thread and every surface the merges change |
-| Production | API `8ccf2278`, web `94bf8f66`, Android 1.3.40 (99) on the open track |
+| Staging | web runs `00e3a7ba`, API runs `e009378f`; `orbit-api` `redesign/main` is at `106de867` (`#915`), unreleased: release the staging API before `#917` |
+| Production | API `a624edac`, web `94bf8f66`, Android 1.3.40 (99) on the open track; `main` `1585e1eb` changed tools only |
 | SES production access | case `179056896000159`: AWS owes the reply |
-| Running workers | none; CI waiters from this session exit on their own |
+| Running workers | `#906` only (above) |
 | Stashes | none in any of the three repositories |
-| Uncommitted work | none in any worktree |
-| Unpushed commits | `ticket-805-privacy-processors` (1) only |
-| Ignored files | `orbit-api/infra/local.tfvars` (web digests, database choice, storage providers); Playwright Chromium in `~/Library/Caches/ms-playwright` for local guard runs |
-| Other worktrees | merged ticket worktrees listed in the spec's `## Current state`; a detached scratch worktree `integ` outside the repository and the detached `ticket-822-web-health-retry` are removable |
+| Uncommitted work | none found in the worktrees this run touched |
+| Unpushed commits | `ticket-805-privacy-processors` (1) |
+| Ignored files | `orbit-api/infra/local.tfvars`; Playwright Chromium in `~/Library/Caches/ms-playwright`; the scratch integration worktree `integ` in the previous session's scratchpad (removable) |
+| Other worktrees | merged ticket worktrees listed in the spec's `## Current state`, removable with `node tools/teardown-worktree.mjs` |
 
 ## Then, in order
 
-1. The in-flight rows above, top to bottom: merge `ui#1271`, merge-forward and merge the approved pull requests, clear the pending reviews, start the `#746` carry, release `redesign/main` of both repositories to staging, then sweep at desktop and phone width.
-2. The spec's `### Batch R`: its filed tickets in the listed order (`#906`, `#907` and `#908` first, from the latest sweep) within the local cap, the CPU load (load average above 20 on 18 cores means no new worker) and the admission gate; start a ticket whose files overlap an open pull request only after that one merges; file what each sweep finds into Batch R; repeat.
+1. The in-flight rows above, top to bottom; merge each on the bar, release `redesign/main` web (and the staging API for `#915`) to staging after each merged batch, then sweep at desktop and phone width.
+2. The spec's `### Batch R` filed tickets in their listed order (`#907`, `#921` then `#911`, `#912`, `#914`, `#918`, `#917`, `#919` then `#920`, and on), within the local cap, the one-minute load average (above 20 on 18 cores means no new worker) and the admission gate; start a ticket whose files overlap an open pull request only after that one merges; file what each sweep finds into Batch R, including the decided habit name ticket the spec lists last; repeat.
 3. The rest of `### Batch M` (the SES switch, then Resend, then `#805`).
 4. THE REDESIGN GATE stays open for the owner; do not merge `redesign/main` to `main`.
 5. Everything else in the spec's order: `#903` and the rest of Batch 0c, the rest of Batch E, Batch 0b.
@@ -59,8 +56,8 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 ## Previous prompt, disposition
 
 - Opening, entry point, sleep contract, authorization and the owner's instruction: carried.
-- Goal: carried, with fresh counts (175 open, 175 placed).
-- In flight, `ui#1256`: done (merged; the palette field draws one ring on staging). `ui#1247`: done (merged). `ui#1257`: done (merged after a type-test fix). `ui#1258`: done (merged; `#855` closed). `ui#1262`: carried (waits on the `#746` carry of `#905`). `ui#1263`: carried (review fix and merge-forward pushed). `ui#1264`: carried (review fix pushed). `ui#1261`: done (merged to `main`, production web released). `api#645`: done (merged, staging API released). `ui#1217`: carried. `#879`: carried. Staging: done for `15f5b183` and swept; carried for the next release. Production: carried with fresh values. SES, stashes, uncommitted work, unpushed commits, ignored files, other worktrees: carried with fresh results. Running workers: done (none).
-- Step 1 (in-flight rows): carried, rewritten for the new rows. Step 2 (`#904`): carried as `ui#1265`. Steps 3 to 6: carried.
+- Goal: carried, with fresh counts (178 open, 178 placed).
+- In flight: `ui#1271` done (merged `9cbd6362`). `ui#1268` carried (new P1, fix via `#916`). `ui#1266` done (merged `f7b36305`). `ui#1267` carried (merged forward, review requested). `ui#1269` done (merged `00e3a7ba` after a shared chat-store fix and a wide-width fix). `ui#1263` done (merged `1c0cfa9a`, copy approved). `ui#1264` done (merged `6a8e7a25`). `ui#1270` done (merged `9c331bca` after a zero-width non-joiner fix). `ui#1265` done (merged to `main` `1585e1eb`). `ui#1262` carried (thread answered, merged forward). `#746` carry done (`orbit-api#647` merged `e009378f`, carrying `#905` and `#913`). `#890` carried as `ui#1273`. `#879` carried. `ui#1217` carried. Staging carried with fresh values. Production carried with fresh values (API `a624edac`). SES, stashes, uncommitted work, unpushed commits, ignored files, other worktrees: carried with fresh results. Running workers: carried (`#906`).
+- Step 1 (in-flight rows): carried, rewritten for the new rows. Step 2 (Batch R filed tickets): carried; `#906` in flight, `#908` as `ui#1272`, `#907` next. Steps 3 to 5: carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
