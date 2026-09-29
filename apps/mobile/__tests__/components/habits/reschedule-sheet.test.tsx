@@ -4,6 +4,8 @@ import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/_
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -68,16 +70,13 @@ function pressButton(root: TestNode, label: string) {
 }
 
 describe('RescheduleSheet (mobile)', () => {
-  it.each(['free', 'error', 'accept'] as const)('matches action widths in the %s footer', (state) => {
+  it.each(['free', 'error', 'accept'] as const)('renders small actions in the %s sheet footer', (state) => {
     if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
     if (state === 'error') mockReschedule.error = new Error('unavailable')
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
-    const buttons = tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && /^button-(primary|ghost)-md$/.test(node.props.testID))
-    expect(buttons).toHaveLength(2)
-    for (const button of buttons) {
-      const style = button.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
-      expect(Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width).toBe('100%')
-    }
+    const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
+    expect(actions).toBeDefined()
+    expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
     if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
@@ -93,6 +92,7 @@ describe('RescheduleSheet (mobile)', () => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }
     mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
+    __setWindowDimensions({ width: 390, height: 892, scale: 1, fontScale: 1 })
   })
 
   afterEach(() => {
@@ -227,5 +227,31 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.reschedule.loading')).toBe(true)
     const skeletons = tree.root.findAll((node) => node.type === 'AnimatedView')
     expect(skeletons.length).toBeGreaterThanOrEqual(1)
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(2)
+    expect(tree.root.findAll((node) => node.props.testID === 'button-primary-md')).toHaveLength(0)
+  })
+
+  it('keeps the title accessible without showing it and labels the proposal with Astra', () => {
+    mockReschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
+    expect(sheet.props.accessibleTitle).toBe('habits.reschedule.title')
+    expect(sheet.props.title).toBeUndefined()
+    expect(hasText(tree.root, 'habits.reschedule.title')).toBe(false)
+    expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
+    const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
+    expect(JSON.stringify(date.props.children)).not.toContain('2026')
+    const glyph = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')[0]!
+    expect(glyph.props.color).toBe(createTokensV2().fg1)
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
+    expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
+  })
+
+  it('uses a neutral filled action at wide width', () => {
+    __setWindowDimensions({ width: 900, height: 892, scale: 1, fontScale: 1 })
+    mockReschedule.suggestion = createMockRescheduleSuggestion({})
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
+    expect(actions.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-secondary-sm')).toHaveLength(1)
   })
 })

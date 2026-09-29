@@ -51,6 +51,16 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it('labels an untitled header for accessibility', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open accessibleTitle="Reschedule with AI" onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const header = tree!.root.findByType(TrueSheet).props.header
+    expect(header.props.accessibilityLabel).toBe('Reschedule with AI')
+    expect(header.props.children[0].props.style).toBeDefined()
+  })
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [] })
     present.mockReset()

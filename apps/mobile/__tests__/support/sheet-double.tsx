@@ -52,7 +52,7 @@ export const sheetTestControls = {
 
 
 
-export function Sheet({ title, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
+export function Sheet({ title, accessibleTitle, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
   const [presented, setPresented] = useState(true)
   const requestClose = useCallback(
     (exitAction?: () => void, onRejected?: () => void) => {
@@ -81,7 +81,7 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
 
   return createElement(
     'Sheet',
-    { title, open: presented },
+    { title, accessibleTitle, open: presented },
     title ? createElement('Text', null, title) : null,
     createElement('Pressable', {
       accessibilityLabel: 'attempt-dismiss',
