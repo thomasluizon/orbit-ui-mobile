@@ -8,6 +8,7 @@ import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 import { calendarKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 
 import {
   buildQueuedMutation,
@@ -126,7 +127,7 @@ const mocks = vi.hoisted(() => {
 
   const persistQueryCache = vi.fn(() => Promise.resolve())
   const cancelQueries = vi.fn(() => Promise.resolve())
-  const invalidateQueries = vi.fn(() => Promise.resolve())
+  const invalidateQueries = vi.fn((_filters?: { queryKey?: readonly unknown[]; refetchType?: 'none' }) => Promise.resolve())
   const setQueryData = vi.fn()
 
   const apiClient = vi.fn((endpoint: string, _options?: { idempotencyKey?: string }): Promise<unknown> => {
@@ -1502,6 +1503,99 @@ describe('offline mutations', () => {
       [{ queryKey: ['gamification'], refetchType: 'none' }],
     ])
     expect(mocks.setQueryData).toHaveBeenCalledWith(['profile', 'detail'], expect.any(Function))
+  })
+
+  it.each([
+    ['setName', API.profile.name, { name: 'New name' }, { name: 'Old name' }, { name: 'New name' }],
+    ['setLanguage', API.profile.language, { language: 'pt-BR' }, { language: 'en' }, { language: 'pt-BR' }],
+    ['setWeekStartDay', API.profile.weekStartDay, { weekStartDay: 1 }, { weekStartDay: 0 }, { weekStartDay: 1 }],
+    ['setClockFormat', API.profile.clockFormat, { uses24HourClock: false }, { uses24HourClock: true }, { uses24HourClock: false }],
+    ['setThemePreference', API.profile.themePreference, { themePreference: 'dark' }, { themePreference: 'light' }, { themePreference: 'dark' }],
+    ['setTimeZone', API.profile.timezone, { timeZone: 'Pacific/Kiritimati' }, { timeZone: 'UTC' }, { timeZone: 'Pacific/Kiritimati' }],
+    ['setAiSummary', API.profile.aiSummary, { enabled: true }, { aiSummaryEnabled: false }, { aiSummaryEnabled: true }],
+    ['setProactiveAstra', API.profile.proactiveAstra, { enabled: true }, { proactiveAstraEnabled: false }, { proactiveAstraEnabled: true }],
+    ['setMarketingConsent', API.profile.marketingConsent, { enabled: true }, { marketingEmailConsent: false }, { marketingEmailConsent: true }],
+  ] as const)('reconciles %s after a stale reconnect profile refetch', async (type, endpoint, payload, staleFields, expectedFields) => {
+    let cachedProfile: Record<string, unknown> = { name: 'Existing name', ...expectedFields }
+    mocks.setQueryData.mockImplementation((_key, updater: (profile: Record<string, unknown>) => Record<string, unknown>) => {
+      cachedProfile = updater(cachedProfile)
+    })
+    mocks.setOnline(true)
+    let completeWrite!: () => void
+    mocks.apiClient.mockReturnValueOnce(new Promise((resolve) => {
+      completeWrite = () => resolve(null)
+    }))
+    mocks.queued.push(buildQueuedMutation({
+      type,
+      scope: 'profile',
+      endpoint,
+      method: 'PUT',
+      payload,
+    }))
+
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    cachedProfile = { ...cachedProfile, ...staleFields }
+    expect(cachedProfile).toMatchObject(staleFields)
+    completeWrite()
+    await flush
+
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(cachedProfile).toMatchObject(expectedFields)
+  })
+
+  it('keeps a replayed clock choice after late reconnect data and a failed final refetch', async () => {
+    const profileClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    profileClient.setQueryData(profileKeys.detail(), { uses24HourClock: false })
+    mocks.setQueryData.mockImplementation((key, updater) => profileClient.setQueryData(key, updater))
+    mocks.invalidateQueries.mockImplementation((filters) => profileClient.invalidateQueries(filters))
+
+    let completeLateGet!: (profile: { uses24HourClock: boolean }) => void
+    const lateGet = new Promise<{ uses24HourClock: boolean }>((resolve) => {
+      completeLateGet = resolve
+    })
+    const fetchProfile = vi.fn()
+      .mockResolvedValueOnce({ uses24HourClock: true })
+      .mockReturnValueOnce(lateGet)
+      .mockRejectedValueOnce(new Error('Profile refetch failed'))
+    const observer = new QueryObserver(profileClient, {
+      queryKey: profileKeys.detail(),
+      queryFn: fetchProfile,
+    })
+    const unsubscribe = observer.subscribe(() => undefined)
+
+    try {
+      await vi.waitFor(() => expect(profileClient.getQueryData(profileKeys.detail())).toEqual({ uses24HourClock: true }))
+      void observer.refetch()
+      await vi.waitFor(() => expect(fetchProfile).toHaveBeenCalledTimes(2))
+
+      mocks.setOnline(true)
+      let completeWrite!: () => void
+      mocks.apiClient.mockReturnValueOnce(new Promise((resolve) => {
+        completeWrite = () => resolve(null)
+      }))
+      mocks.queued.push(buildQueuedMutation({
+        type: 'setClockFormat',
+        scope: 'profile',
+        endpoint: API.profile.clockFormat,
+        method: 'PUT',
+        payload: { uses24HourClock: false },
+      }))
+
+      const flush = flushQueuedMutations()
+      await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+      completeWrite()
+      await flush
+      await vi.waitFor(() => expect(observer.getCurrentResult().isError).toBe(true))
+      completeLateGet({ uses24HourClock: true })
+      await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+
+      expect(fetchProfile).toHaveBeenCalledTimes(3)
+      expect(profileClient.getQueryData(profileKeys.detail())).toEqual({ uses24HourClock: false })
+    } finally {
+      unsubscribe()
+      profileClient.clear()
+    }
   })
 
   it('drops a rejected retired operation without classifying it as a current scope', async () => {
