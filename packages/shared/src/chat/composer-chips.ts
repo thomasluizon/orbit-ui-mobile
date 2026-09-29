@@ -66,7 +66,7 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
       chip('today.logLastDays'), chip('today.resumeHabits'), chip('today.cutToTwo'),
       chip('today.changeTimes'), chip('today.pauseWhatDoesNotFit'),
       ...(firstHabit ? [chip('today.keepOnlyHabit', { title: firstHabit.title })] : []),
-    ].slice(0, 4)
+    ]
   }
   const pending = habits.find((habit) => !habit.isCompleted && !habit.isOverdue)
     ?? habits.find((habit) => !habit.isCompleted)
@@ -86,7 +86,7 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
     ...(parent ? [chip('today.trimHabit', { title: parent.title })] : []),
     chip('today.createMorningHabit'),
   ]
-  return candidates.slice(0, 4)
+  return candidates
 }
 
 function progressChips(state: ComposerChipState): ComposerChip[] {

@@ -33,17 +33,58 @@ describe('composer chips', () => {
     ])
     expect(ids({ profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) })).toEqual([
       'today.logLastDays', 'today.resumeHabits', 'today.cutToTwo', 'today.changeTimes',
+      'today.pauseWhatDoesNotFit', 'today.keepOnlyHabit',
     ])
     expect(ids({ habits: [createMockHabit({ isCompleted: true, hasSubHabits: true })] })).toEqual([
       'today.logYesterday', 'today.createEveningHabit', 'today.changeTimes', 'today.reviewHabit',
     ])
-    expect(ids()).toEqual(['today.moveOverdue', 'today.logHabit', 'today.logYesterday', 'today.pushTomorrow'])
+    expect(ids()).toEqual([
+      'today.moveOverdue', 'today.logHabit', 'today.logYesterday', 'today.pushTomorrow',
+      'today.trimHabit', 'today.createMorningHabit',
+    ])
     expect(buildComposerChips(state())[0]!.params).toEqual({ title: 'Walking' })
     expect(buildComposerChips(state())[1]!.params).toEqual({ title: 'Reading' })
   })
 
   it('puts a pending log first when a streak is at risk', () => {
     expect(ids({ habits: [pending], profile: createMockProfile({ currentStreak: 5, lastCompletionDate: null }) })[0]).toBe('today.logHabit')
+  })
+
+  it('offers trimming a pending parent on Today', () => {
+    const chips = buildComposerChips(state())
+    expect(chips.find((chip) => chip.id === 'today.trimHabit')?.params).toEqual({ title: 'House routine' })
+  })
+
+  it('offers creating a morning habit alongside a pending parent on Today', () => {
+    expect(ids()).toContain('today.createMorningHabit')
+  })
+
+  it('offers pausing what does not fit to a returning account', () => {
+    expect(ids({ profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) })).toContain('today.pauseWhatDoesNotFit')
+  })
+
+  it('offers keeping one named habit to a returning account', () => {
+    const chips = buildComposerChips(state({ profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) }))
+    expect(chips.find((chip) => chip.id === 'today.keepOnlyHabit')?.params).toEqual({ title: 'Walking' })
+  })
+
+  it('keeps every Today variant within the drawn three-to-six-chip range', () => {
+    const returning = createMockProfile({ lastCompletionDate: '2026-09-08' })
+    const variants = [
+      state(),
+      state({ habits: [pending], totalHabitCount: 1 }),
+      state({ habits: [parent], totalHabitCount: 1 }),
+      state({ habits: [], totalHabitCount: 3 }),
+      state({ profile: returning }),
+      state({ habits: [], profile: returning }),
+      state({ habits: [], totalHabitCount: 0 }),
+      state({ habits: [createMockHabit({ isCompleted: true })] }),
+    ]
+    for (const variant of variants) {
+      const count = buildComposerChips(variant).length
+      expect(count).toBeGreaterThanOrEqual(3)
+      expect(count).toBeLessThanOrEqual(6)
+    }
   })
 
   it('does not treat a historical selected day as a streak at risk', () => {
