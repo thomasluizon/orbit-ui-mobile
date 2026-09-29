@@ -117,7 +117,7 @@ jobs:
             git switch --create "$branch"
           fi
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: contract-snapshot-redesign
           path: packages/shared/src/types/__generated__
