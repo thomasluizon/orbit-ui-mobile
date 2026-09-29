@@ -584,6 +584,7 @@ function createStyles(tokens: AppTokens) {
   addItemRow: {
     flexDirection: 'row',
     minHeight: 44,
+    gap: 4,
   },
   addItemInput: {
     flex: 1,
@@ -594,16 +595,13 @@ function createStyles(tokens: AppTokens) {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: tokens.hairline,
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-    borderRightWidth: 0,
+    borderColor: tokens.borderControl,
+    borderRadius: 14,
   },
   addItemButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
+    borderRadius: 14,
     backgroundColor: tokens.primary,
     alignItems: 'center',
     justifyContent: 'center',
