@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 197,
-  "cellCount": 844,
+  "surfaceCount": 195,
+  "cellCount": 836,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -580,8 +580,7 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/share/share-card-entry-button.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -603,8 +602,7 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/share/share-card-entry-button.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -626,8 +624,7 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/share/share-card-entry-button.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -649,8 +646,7 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/share/share-card-entry-button.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -992,6 +988,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/share/share-card.tsx",
         "apps/web/components/ui/columns.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
@@ -1011,6 +1008,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/share/share-card.tsx",
         "apps/web/components/ui/columns.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
@@ -1030,6 +1028,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/share/share-card.tsx",
         "apps/web/components/ui/columns.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
@@ -1049,6 +1048,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/share/share-card.tsx",
         "apps/web/components/ui/columns.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
@@ -5429,58 +5429,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-share-share-card-panel",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-share-share-card-panel",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-share-share-card-panel",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-share-share-card-panel",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-ui-confirm-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -7305,6 +7253,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
@@ -7324,6 +7273,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
@@ -7343,6 +7293,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
@@ -7362,6 +7313,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/share/share-card.tsx",
         "apps/mobile/components/ui/columns.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
@@ -11147,58 +11099,6 @@
       "ownedFiles": [
         "apps/mobile/components/review-moment/review-moment-sheet.tsx",
         "apps/mobile/hooks/use-review-reminder.ts"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-share-share-card-panel",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-share-share-card-panel",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-share-share-card-panel",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/share/share-card-panel.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-share-share-card-panel",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/share/share-card-panel.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/share/share-card-panel.tsx"
       ],
       "state": "default",
       "theme": "dark",

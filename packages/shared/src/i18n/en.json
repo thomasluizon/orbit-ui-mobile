@@ -1580,7 +1580,6 @@
   "profile": {
     "analytics": {
       "title": "Usage analytics",
-      "description": "Allow Orbit to collect usage data from this device.",
       "saveError": "Change not saved. Try again."
     },
     "groups": {
@@ -1595,9 +1594,16 @@
       "timezone": "Timezone",
       "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
-      "apiKeysMcp": "API keys",
+      "apiKeysMcp": "API keys and MCP",
+      "wrapped": "Orbit Wrapped",
+      "weekStart": "Week starts on",
+      "theme": "Theme",
+      "export": "Export my data",
+      "signOut": "Sign out",
+      "startOver": "Fresh start",
+      "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
-      "remindersNote": "Habit reminders and slip alerts are set on each habit.",
+      "remindersNote": "Each habit's reminders live on the habit itself.",
       "currentDevice": "This device",
       "pushDeviceLimit": "Up to 5 devices can receive alerts."
     },
@@ -1614,7 +1620,7 @@
     "apiKeys": {
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
-      "open": "Manage API keys",
+      "open": "Open the keys",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",
@@ -1656,6 +1662,7 @@
     },
     "language": {
       "title": "Language",
+      "brazilianPortuguese": "Brazilian Portuguese",
       "description": "Select your preferred language"
     },
     "aiSummary": {
@@ -1667,15 +1674,15 @@
       "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
     },
     "marketingEmails": {
-      "title": "Product updates by email",
-      "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime.",
+      "title": "Product email",
       "question": "May we email you about the product?",
       "questionDescription": "What is new and what changed, once a month at most.",
-      "accept": "Email me",
+      "accept": "Yes, email me",
       "decline": "No email"
     },
     "support": {
       "title": "Support",
+      "rowTitle": "Help and support",
       "description": "Have a question, bug report, or feedback? Send us a message.",
       "name": "Name",
       "email": "Email",
@@ -1726,8 +1733,13 @@
     },
     "logout": "Log Out",
     "wrappedTitle": "Your Wrapped",
-    "widgetTitle": "Home Screen Widget",
-    "widgetHint": "See your habits at a glance",
+    "widgetTitle": "Android widget",
+    "widgetHint": "Today's habits on the device's home screen.",
+    "calendarSync": {
+      "title": "Calendar sync",
+      "hint": "Events from your calendars show on Calendar."
+    },
+    "aboutRow": "About Orbit",
     "widgetHow": {
       "title": "How to Add",
       "step1": "Long-press on an empty area of your home screen",
@@ -1842,16 +1854,11 @@
     }
   },
   "shareCard": {
-    "title": "Share your progress",
-    "entry": "Share progress",
     "share": "Share",
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
     "shareText": "I'm building better habits with Orbit. Join me",
-    "loading": "Preparing your card…",
-    "empty": "Log a few habits first to build a card worth sharing.",
-    "error": "Couldn't load your recap. Please try again.",
     "shareError": "Couldn't share your card. Please try again.",
     "saved": "Saved as {file}",
     "weeklyBarLabel": "Completion on {day}: {percent}%",

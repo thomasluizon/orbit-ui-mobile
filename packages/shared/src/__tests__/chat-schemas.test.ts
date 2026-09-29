@@ -58,6 +58,25 @@ describe('actionResultSchema superRefine', () => {
 })
 
 describe('chatStreamEventSchema discriminatedUnion', () => {
+  it.each(['today', 'overdue', 'general', 'none', 'done'])(
+    'parses a habit list card item with status %s',
+    (status) => {
+      const parsed = chatStreamEventSchema.parse({
+        type: 'final',
+        response: {
+          actions: [],
+          habitList: {
+            scope: 'today',
+            items: [{ id: 'habit-1', title: 'Walk', emoji: null, depth: 0, isBadHabit: false, status }],
+          },
+        },
+      })
+      expect(parsed.type).toBe('final')
+      if (parsed.type !== 'final') return
+      expect(parsed.response.habitList?.items[0]?.status).toBe(status)
+    },
+  )
+
   it('keeps status card payloads in final responses', () => {
     const parsed = chatStreamEventSchema.parse({ type: 'final', response: {
       actions: [],

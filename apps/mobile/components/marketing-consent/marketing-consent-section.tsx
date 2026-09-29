@@ -44,6 +44,7 @@ function MarketingConsentContent({
           {t('profile.marketingEmails.questionDescription')}
         </Text>
         <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}>
+          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
           <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
             {t('profile.marketingEmails.accept')}
           </PillButton>
@@ -64,7 +65,6 @@ function MarketingConsentContent({
     <SettingsRow
       icon={Mail}
       label={t('profile.marketingEmails.title')}
-      desc={t('profile.marketingEmails.description')}
       accessory="none"
       divider={false}
     >

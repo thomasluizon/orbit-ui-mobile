@@ -244,7 +244,7 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.input).toBe('Keep this draft')
     expect(result.current.selectedTextFile?.name).toBe('notes.txt')
     const context = JSON.parse(formData.get('clientContext') as string)
-    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
+    expect(context).toMatchObject({ messageOrigin: 'followUp', supportsHabitListDoneStatus: true, supportsPendingOperationChanges: true, supportsToolSteps: true, supportsFollowUps: true })
   })
 
   beforeEach(() => {
