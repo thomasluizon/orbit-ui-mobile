@@ -1,38 +1,68 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+vi.mock('@/components/chat/suggestion-chips', () => ({
+  SuggestionChips: ({ onSelect, contextualAction }: {
+    onSelect: (suggestion: string) => void
+    contextualAction?: { label: string; onSelect: () => void }
+  }) => (
+    <div>
+      {contextualAction ? <button type="button" onClick={contextualAction.onSelect}>{contextualAction.label}</button> : null}
+      <button type="button" onClick={() => onSelect('Como foi a semana')}>Como foi a semana</button>
+    </div>
+  ),
+}))
+
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 
 describe('ChatEmptyState', () => {
-  it('renders the empty-state title and prompt copy', () => {
-    render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
-    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
-    expect(screen.getByText('chat.suggestion.prompt')).toBeInTheDocument()
+  afterEach(cleanup)
+
+  it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
+    const { container } = render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
+
+    const mark = container.querySelector('[data-mark="astra"]')
+    expect(mark).not.toBeNull()
+    expect(mark?.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
+    for (const element of container.querySelectorAll<HTMLElement>('*')) {
+      expect(element.getAttribute('style') ?? '').not.toContain('--primary')
+      expect(element.className.toString()).not.toContain('--primary')
+    }
   })
 
-  it('renders the medical-advice disclosure', () => {
+  it('renders the drawn title and the prompt over the suggestions', () => {
     render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
-    expect(
-      screen.getByText('aiDisclosure.notMedicalAdvice'),
-    ).toBeInTheDocument()
+
+    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+    expect(screen.getByText('chat.suggestion.prompt')).toHaveStyle({ fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' })
+  })
+
+  it('sets the medical-advice disclosure on the type scale', () => {
+    render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
+
+    expect(screen.getByText('aiDisclosure.notMedicalAdvice')).toHaveStyle({ fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' })
   })
 
   it('forwards a chosen suggestion to onSelectSuggestion', () => {
     const onSelectSuggestion = vi.fn()
     render(<ChatEmptyState onSelectSuggestion={onSelectSuggestion} />)
-    fireEvent.click(screen.getByText('chat.suggestion.meditated'))
-    expect(onSelectSuggestion).toHaveBeenCalledWith('chat.suggestion.meditated')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Como foi a semana' }))
+
+    expect(onSelectSuggestion).toHaveBeenCalledWith('Como foi a semana')
   })
 
-  it('shows a requested contextual action beside the existing suggestions', () => {
+  it('shows a requested contextual action beside the suggestions', () => {
     const onSelect = vi.fn()
     render(<ChatEmptyState onSelectSuggestion={vi.fn()} contextualAction={{ label: 'Create a goal', onSelect }} />)
+
     fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+
     expect(onSelect).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: 'chat.suggestion.meditated' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Como foi a semana' })).toBeInTheDocument()
   })
 })

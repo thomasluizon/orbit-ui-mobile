@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { ReactNode } from 'react'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 
@@ -69,7 +70,7 @@ vi.mock('@/stores/ui-store', () => ({
     selector({ setAstraConversationOpen: mocks.setOpen }),
 }))
 vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ onBack }: { onBack: () => void }) => <button onClick={onBack}>back sentinel</button>,
+  AppBar: ({ action }: { action?: ReactNode }) => <div data-testid="app-bar">{action}</div>,
 }))
 vi.mock('@/components/chat/message-bubble', () => ({
   MessageBubble: ({ onActionChipClick }: { onActionChipClick: ActionChipHandler }) => {
@@ -168,10 +169,10 @@ describe('ChatPage', () => {
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Plan today')
   })
 
-  it('uses the visible app-bar back control', () => {
+  it('closes from the app-bar trailing control', () => {
     render(<ChatPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'back sentinel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
 
     expect(mocks.setOpen).toHaveBeenCalledWith(false)
   })

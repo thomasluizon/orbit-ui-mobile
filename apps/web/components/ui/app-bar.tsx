@@ -4,8 +4,9 @@ import type { Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
 import { ChevronLeft } from '@/components/ui/icons'
 
-export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true, titleRef }: Readonly<NavHeaderProps & { titleIsHeading?: boolean; titleRef?: Ref<HTMLHeadingElement> }>) {
+export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true, titleIsBrandName = false, titleRef }: Readonly<NavHeaderProps & { titleIsHeading?: boolean; titleIsBrandName?: boolean; titleRef?: Ref<HTMLHeadingElement> }>) {
   const titleClassName = 'min-w-0 text-center font-mono text-[13px] font-medium uppercase tracking-[0.09em] text-[var(--fg-1)]'
+  const titleTranslate = titleIsBrandName ? 'no' : undefined
   return (
     <header data-back={onBack ? true : undefined} className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-1 px-4">
       <div className="flex min-w-11 justify-start">
@@ -15,7 +16,7 @@ export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true
           </button>
         )}
       </div>
-      {titleIsHeading ? <h1 ref={titleRef} tabIndex={-1} className={titleClassName}>{title}</h1> : <span className={titleClassName}>{title}</span>}
+      {titleIsHeading ? <h1 ref={titleRef} tabIndex={-1} translate={titleTranslate} className={titleClassName}>{title}</h1> : <span translate={titleTranslate} className={titleClassName}>{title}</span>}
       <div className="flex min-w-11 items-center justify-end gap-3">{action}</div>
     </header>
   )

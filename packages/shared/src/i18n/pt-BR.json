@@ -1191,7 +1191,7 @@
       }
     },
     "empty": {
-      "title": "Como foi seu dia?"
+      "title": "Fale com a Astra sobre a sua rotina"
     },
     "placeholder": "Pergunte à Astra",
     "copy": "Copiar",
@@ -1219,10 +1219,11 @@
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
     "suggestion": {
-      "prompt": "Posso resumir, planejar ou te ajudar a ajustar um hábito.",
-      "meditated": "Meditei hoje",
-      "exercise": "Criar um hábito de exercício toda manhã",
-      "groceries": "Preciso fazer compras amanhã"
+      "prompt": "Algumas coisas que dá para pedir",
+      "logHabit": "Registrar {habit}",
+      "week": "Como foi a semana",
+      "splitHabit": "Dividir {habit}",
+      "goals": "Como estão as metas"
     },
     "action": {
       "changes": "Alterações",

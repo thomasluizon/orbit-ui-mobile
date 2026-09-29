@@ -1,7 +1,8 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
+import { useAstraSuggestionHabits } from "@/hooks/use-astra-suggestions";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -12,6 +13,8 @@ interface SuggestionChipsProps {
   contextualAction?: { label: string; onSelect: () => void };
 }
 
+/** The four drawn openers for an empty thread. Each one asks for a different kind
+ *  of answer, and the two that name a habit drop out when no habit qualifies. */
 export function SuggestionChips({ onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -21,19 +24,20 @@ export function SuggestionChips({ onSelect, contextualAction }: Readonly<Suggest
   );
 
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const suggestionsRef = useRef<View>(null);
+  const { logHabitTitle, splitHabitTitle } = useAstraSuggestionHabits();
 
   const suggestions = useMemo(
     () => [
-      t("chat.suggestion.meditated"),
-      t("chat.suggestion.exercise"),
-      t("chat.suggestion.groceries"),
+      ...(logHabitTitle === null ? [] : [t("chat.suggestion.logHabit", { habit: logHabitTitle })]),
+      t("chat.suggestion.week"),
+      ...(splitHabitTitle === null ? [] : [t("chat.suggestion.splitHabit", { habit: splitHabitTitle })]),
+      t("chat.suggestion.goals"),
     ],
-    [t],
+    [logHabitTitle, splitHabitTitle, t],
   );
 
   return (
-    <View ref={suggestionsRef} style={styles.container}>
+    <View style={styles.container}>
       {contextualAction ? (
         <Pressable
           style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
@@ -51,7 +55,7 @@ export function SuggestionChips({ onSelect, contextualAction }: Readonly<Suggest
             .delay(index * 60)
             .reduceMotion(ReduceMotion.System)}
         >
-          {/* eslint-disable-next-line local/max-button-words -- D69 replaces this pre-redesign chip surface. */}
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas suggestions, Orbit Astra Conversation.dc.html:177 (D42) */}
           <Pressable
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
             onPress={() => onSelect(suggestion)}
@@ -75,21 +79,21 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     chip: {
-      minHeight: 44,
+      height: 44,
       justifyContent: "center",
       paddingHorizontal: 16,
       borderRadius: 999,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgWell,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
     chipPressed: {
-      backgroundColor: tokens.bgElev2,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     chipText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
   });

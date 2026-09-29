@@ -10,7 +10,7 @@ import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { ChevronDown, RefreshCw } from '@/components/ui/icons'
+import { ChevronDown, RefreshCw, X } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
@@ -129,9 +129,18 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     <div className="relative flex h-full flex-col">
       <div className="relative z-10 shrink-0">
         <AppBar
-          backLabel={t('common.closeConversation')}
-          onBack={close}
           title={t('chat.title')}
+          titleIsBrandName
+          action={
+            <button
+              type="button"
+              aria-label={t('common.closeConversation')}
+              onClick={close}
+              className="flex size-11 items-center justify-center rounded-full text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <X size={20} strokeWidth={2} aria-hidden="true" />
+            </button>
+          }
         />
       </div>
       <span role="status" aria-live="polite" className="sr-only">{activeSteps.length > 0 ? t('chat.trace.working') : ''}</span>
