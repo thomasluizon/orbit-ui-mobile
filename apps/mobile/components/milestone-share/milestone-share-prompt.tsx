@@ -126,6 +126,36 @@ export function MilestoneSharePrompt() {
       open
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
+      actions={(
+        <View style={styles.actions}>
+          <PillButton
+            loading={isSharing}
+            disabled={isSharing}
+            onClick={() => void share({
+              shareTitle: t('milestoneShare.shareTitle'),
+              shareText: t('milestoneShare.shareText'),
+              url: referralUrl,
+            })}
+          >
+            {t('milestoneShare.share')}
+          </PillButton>
+          <Pressable
+            onPress={dismiss}
+            accessibilityRole="button"
+            accessibilityLabel={t('milestoneShare.later')}
+            style={({ pressed }) => [
+              styles.laterButton,
+              pressed ? styles.laterButtonPressed : null,
+            ]}
+          >
+            {({ pressed }) => (
+              <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
+                {t('milestoneShare.later')}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      )}
     >
       <View style={styles.content}>
           <View style={styles.cardWrap}>
@@ -137,38 +167,6 @@ export function MilestoneSharePrompt() {
           {hasError ? (
             <Text style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
           ) : null}
-
-          <View style={styles.actions}>
-            <PillButton
-
-              loading={isSharing}
-              disabled={isSharing}
-              onClick={() => void share({
-                shareTitle: t('milestoneShare.shareTitle'),
-                shareText: t('milestoneShare.shareText'),
-                url: referralUrl,
-              })}
-
-
-            >
-              {t('milestoneShare.share')}
-            </PillButton>
-            <Pressable
-              onPress={dismiss}
-              accessibilityRole="button"
-              accessibilityLabel={t('milestoneShare.later')}
-              style={({ pressed }) => [
-                styles.laterButton,
-                pressed ? styles.laterButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
-                  {t('milestoneShare.later')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
       </View>
     </Sheet>) : null
   )
@@ -179,7 +177,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 24,
       gap: 16,
       alignItems: 'center',
     },
@@ -200,9 +197,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.statusBadText,
     },
     actions: {
-      alignSelf: 'stretch',
+      width: '100%',
       gap: 8,
-      paddingTop: 4,
     },
     laterButton: {
       alignItems: 'center',

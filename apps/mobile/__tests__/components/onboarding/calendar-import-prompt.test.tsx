@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 const renderedTrees: any[] = []
@@ -130,6 +131,14 @@ describe('CalendarImportPrompt gating', () => {
   it('shows the sheet once onboarding is complete', () => {
     mocks.profile = baseProfile()
     expect(sheetCount(renderPrompt())).toBe(1)
+  })
+
+  it('pins Import and Later in the sheet footer, never in the scrolling body', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.calendarButton', 'common.later'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('does not wait for the retired tour state', () => {

@@ -23,9 +23,7 @@ interface LoadedContentProps {
   referralUrl: string
   copied: boolean
   interactionError: boolean
-  canShare: boolean
   onCopy: () => void
-  onShare: () => void
 }
 
 function LoadedContent({
@@ -33,9 +31,7 @@ function LoadedContent({
   referralUrl,
   copied,
   interactionError,
-  canShare,
   onCopy,
-  onShare,
 }: Readonly<LoadedContentProps>) {
   const t = useTranslations()
   const progress = stats && stats.maxReferrals > 0
@@ -43,7 +39,7 @@ function LoadedContent({
     : 0
 
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    <div className="flex flex-col gap-4">
       <div>
         <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
         <div className="px-4">
@@ -69,14 +65,6 @@ function LoadedContent({
           </div>
         </div>
       </div>
-
-      {canShare ? (
-        <div className="px-4 sm:flex sm:justify-center">
-          <PillButton onClick={onShare}>
-            {t('referral.drawer.share')}
-          </PillButton>
-        </div>
-      ) : null}
 
       {interactionError ? (
         <p role="alert" className="px-4 text-sm text-[var(--fg-2)]">
@@ -146,6 +134,7 @@ function ReferralDrawerContent({
   const [canShare] = useState(() =>
     typeof navigator !== 'undefined' && typeof navigator.share === 'function',
   )
+  const isLoaded = !isLoading && !isError
 
   async function copyLink() {
     if (!referralUrl) return
@@ -176,7 +165,16 @@ function ReferralDrawerContent({
   }
 
   return (
-    <Sheet open onClose={() => onOpenChange(false)} title={t('referral.drawer.title')}>
+    <Sheet
+      open
+      onClose={() => onOpenChange(false)}
+      title={t('referral.drawer.title')}
+      actions={isLoaded && canShare ? (
+        <PillButton onClick={() => void shareLink()}>
+          {t('referral.drawer.share')}
+        </PillButton>
+      ) : undefined}
+    >
       <div className="overlay-bleed">
         {isLoading ? (
           <output
@@ -190,15 +188,13 @@ function ReferralDrawerContent({
           </output>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
-        {!isLoading && !isError ? (
+        {isLoaded ? (
           <LoadedContent
             stats={stats}
             referralUrl={referralUrl}
             copied={copied}
             interactionError={interactionError}
-            canShare={canShare}
             onCopy={() => void copyLink()}
-            onShare={() => void shareLink()}
           />
         ) : null}
       </div>

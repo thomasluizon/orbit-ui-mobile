@@ -6,6 +6,7 @@ import {
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
 import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -38,14 +39,6 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
 }))
 
-function flattenText(node: unknown): string {
-  if (node == null) return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(flattenText).join('')
-  if (typeof node === 'object' && 'props' in node) return flattenText((node as { props: { children?: unknown } }).props.children)
-  return ''
-}
-
 describe('create goal from habit helpers', () => {
   it('parses numeric target values and rejects invalid input', () => {
     expect(parseGoalTargetValue('10')).toBe(10)
@@ -71,12 +64,9 @@ describe('CreateGoalFromHabitSheet (mobile)', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CreateGoalFromHabitSheet open onClose={vi.fn()} />)
     })
-    const slotText = (slot: string) => tree.root.findAll((node: any) => node.type === slot)[0]
-      .findAll((node: any) => node.type === 'Text')
-      .map(flattenText)
 
-    expect(slotText('SheetActions')).toEqual(['common.cancel', 'goals.create'])
-    expect(slotText('SheetBody')).not.toContain('common.cancel')
-    expect(slotText('SheetBody')).not.toContain('goals.create')
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'goals.create'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('goals.create')
   })
 })

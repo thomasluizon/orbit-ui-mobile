@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -133,6 +134,17 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('pins Share and Later in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.share', 'milestoneShare.later'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

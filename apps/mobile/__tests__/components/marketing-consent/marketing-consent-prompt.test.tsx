@@ -5,6 +5,7 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -160,6 +161,14 @@ describe('MarketingConsentPrompt (mobile)', () => {
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       MARKETING_CONSENT_MILESTONE_KEY,
     )
+  })
+
+  it('pins Accept and Decline in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderArmed()
+    await settle()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.accept', 'marketingConsent.prompt.decline'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

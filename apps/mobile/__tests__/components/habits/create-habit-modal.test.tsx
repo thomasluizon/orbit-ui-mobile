@@ -10,6 +10,7 @@ import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/sh
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -325,29 +326,15 @@ describe('CreateHabitModal (mobile)', () => {
         ).length > 0,
     )[0]
 
-  const findButtonsLabelled = (
-    root: { findAll: (predicate: (node: any) => boolean) => any[] },
-    label: string,
-  ) =>
-    root.findAll(
-      (node: any) =>
-        node.type === 'Pressable' &&
-        node.props.accessibilityRole === 'button' &&
-        node.findAll((child: any) => child.type === 'Text' && child.props.children === label).length > 0,
-    )
-
   it.each([
     ['habit', undefined],
     ['sub-habit', createMockHabit({ id: 'parent-1', title: 'Parent' })],
   ])('pins Cancel and Create in the %s sheet footer, never in the scrolling body', (_mode, parentHabit) => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />)
-    const [actions] = tree.root.findAll((node: any) => node.type === 'SheetActions')
-    const [body] = tree.root.findAll((node: any) => node.type === 'SheetBody')
 
-    for (const label of ['common.cancel', 'common.create']) {
-      expect(findButtonsLabelled(actions, label)).toHaveLength(1)
-      expect(findButtonsLabelled(body, label)).toHaveLength(0)
-    }
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.create'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.create')
   })
 
   it('disables the submit button until a title is entered', () => {

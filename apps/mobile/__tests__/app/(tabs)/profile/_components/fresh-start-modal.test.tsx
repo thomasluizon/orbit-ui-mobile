@@ -9,6 +9,7 @@ import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-ep
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -167,15 +168,12 @@ describe('FreshStartModal', () => {
 
   it('pins both steps\' actions in the sheet footer, never in the scrolling body', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
-    const slotButtons = (slot: string) => tree.root.findAll((node) => node.type === slot)[0]!
-      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      .map((node) => node.props.testID)
 
-    expect(slotButtons('SheetActions')).toEqual(['button-caution-md', 'button-ghost-md'])
-    expect(slotButtons('SheetBody')).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['profile.freshStart.reviewDeletion', 'common.cancel'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    expect(slotButtons('SheetActions')).toEqual(['button-caution-md', 'button-ghost-md'])
-    expect(slotButtons('SheetBody')).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['profile.freshStart.deleteData', 'common.cancel'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('names the deletion review and gives both actions one width in each step', async () => {

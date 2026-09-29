@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -144,6 +145,15 @@ describe('ReviewMomentSheet (mobile)', () => {
       'review-streak-7',
     )
     expect(useEngagementPromptStore.getState().lastPromptedAtIso).not.toBeNull()
+  })
+
+  it('pins Rate and Not now in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render()
+    await armReview('review-streak-7')
+    await settle()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.cta', 'reviewMoment.notNow'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('shows the level variant for a level key', async () => {

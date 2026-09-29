@@ -118,9 +118,7 @@ export function ReferralPrompt() {
           onClose={() => setVisibleKey(null)}
           title={title}
           key={visibleKey}
-        >
-          <View style={styles.content}>
-            <Text style={styles.body}>{body}</Text>
+          actions={(
             <View style={styles.actions}>
               <PillButton onClick={openDrawer}>
                 {t('referral.prompt.cta')}
@@ -137,6 +135,10 @@ export function ReferralPrompt() {
                 <Text style={styles.laterText}>{t('referral.prompt.later')}</Text>
               </Pressable>
             </View>
+          )}
+        >
+          <View style={styles.content}>
+            <Text style={styles.body}>{body}</Text>
           </View>
         </Sheet>
       ) : null}
@@ -150,8 +152,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       alignItems: 'center',
       paddingHorizontal: 24,
-      paddingBottom: 24,
-      gap: 16,
     },
     body: {
       maxWidth: 420,
@@ -162,7 +162,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     actions: {
-      alignSelf: 'stretch',
+      width: '100%',
       gap: 8,
     },
     laterButton: {

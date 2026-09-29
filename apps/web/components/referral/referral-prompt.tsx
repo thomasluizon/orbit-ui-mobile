@@ -126,11 +126,7 @@ export function ReferralPrompt() {
           open
           onClose={() => setVisibleKey(null)}
           title={title}
-        >
-          <div className="flex flex-col items-center gap-4 px-6 pb-6 text-center">
-            <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
-              {body}
-            </p>
+          actions={(
             <div className="flex w-full flex-col gap-2">
               <PillButton onClick={openDrawer}>
                 {t('referral.prompt.cta')}
@@ -143,6 +139,12 @@ export function ReferralPrompt() {
                 {t('referral.prompt.later')}
               </button>
             </div>
+          )}
+        >
+          <div className="flex flex-col items-center px-6 text-center">
+            <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
+              {body}
+            </p>
           </div>
         </Sheet>
       ) : null}

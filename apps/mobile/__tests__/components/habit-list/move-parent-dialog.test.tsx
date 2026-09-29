@@ -7,6 +7,7 @@ import {
 } from '@/components/habit-list/move-parent-dialog'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -169,15 +170,9 @@ describe('MoveParentDialog', () => {
 
   it('pins Cancel and Move in the sheet footer, never in the scrolling body', () => {
     const { tree } = renderDialog()
-    const [actions] = tree.root.findAll((node) => node.type === 'SheetActions')
-    const [body] = tree.root.findAll((node) => node.type === 'SheetBody')
-    const pillLabels = (slot: RenderedNode | undefined) =>
-      (slot as unknown as RenderedTree['root']).findAll(
-        (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
-      ).map(flattenInstanceText)
 
-    expect(pillLabels(actions)).toEqual(['common.cancel', 'habits.moveParent.confirm'])
-    expect(pillLabels(body)).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('confirms the move from the footer pill', () => {

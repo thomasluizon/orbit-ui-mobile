@@ -112,11 +112,7 @@ export function MarketingConsentPrompt() {
       open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
-    >
-      <View style={styles.content}>
-        <Text style={styles.body}>
-          {t('marketingConsent.prompt.body')}
-        </Text>
+      actions={(
         <View style={styles.actions}>
           <PillButton onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
@@ -135,6 +131,12 @@ export function MarketingConsentPrompt() {
             </Text>
           </Pressable>
         </View>
+      )}
+    >
+      <View style={styles.content}>
+        <Text style={styles.body}>
+          {t('marketingConsent.prompt.body')}
+        </Text>
       </View>
     </Sheet>) : null
   )
@@ -145,8 +147,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       alignItems: 'center',
       paddingHorizontal: 24,
-      paddingBottom: 24,
-      gap: 16,
     },
     body: {
       maxWidth: 420,
@@ -157,7 +157,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     actions: {
-      alignSelf: 'stretch',
+      width: '100%',
       gap: 8,
     },
     laterButton: {

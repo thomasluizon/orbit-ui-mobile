@@ -129,6 +129,28 @@ export function ReviewMomentSheet() {
       open
       onClose={hideAndSnooze}
       title={title}
+      actions={(
+        <View style={styles.actions}>
+          <PillButton loading={isRequesting} disabled={isRequesting} onClick={() => void rate()}>
+            {t('reviewMoment.cta')}
+          </PillButton>
+          <Pressable
+            onPress={requestSnooze}
+            accessibilityRole="button"
+            accessibilityLabel={t('reviewMoment.notNow')}
+            style={({ pressed }) => [
+              styles.notNowButton,
+              pressed ? styles.notNowButtonPressed : null,
+            ]}
+          >
+            {({ pressed }) => (
+              <Text style={[styles.notNowText, pressed ? styles.notNowTextPressed : null]}>
+                {t('reviewMoment.notNow')}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      )}
     >
       <View style={styles.content}>
           <AstraAvatar size={48} label={t('reviewMoment.eyebrow')} />
@@ -137,35 +159,6 @@ export function ReviewMomentSheet() {
               ? t('reviewMoment.streakBody', { count: variant.value })
               : t('reviewMoment.levelBody', { level: variant.value })}
           </Text>
-
-          <View style={styles.actions}>
-            <PillButton
-
-              loading={isRequesting}
-              disabled={isRequesting}
-              onClick={() => void rate()}
-
-            >
-              {t('reviewMoment.cta')}
-            </PillButton>
-            <Pressable
-              onPress={requestSnooze}
-              accessibilityRole="button"
-              accessibilityLabel={t('reviewMoment.notNow')}
-              style={({ pressed }) => [
-                styles.notNowButton,
-                pressed ? styles.notNowButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text
-                  style={[styles.notNowText, pressed ? styles.notNowTextPressed : null]}
-                >
-                  {t('reviewMoment.notNow')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
       </View>
     </Sheet>) : null
   )
@@ -175,7 +168,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       paddingHorizontal: 24,
-      paddingBottom: 24,
       gap: 16,
       alignItems: 'center',
     },
@@ -188,7 +180,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     actions: {
-      alignSelf: 'stretch',
+      width: '100%',
       gap: 8,
     },
     notNowButton: {

@@ -40,6 +40,7 @@ import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-sha
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useEngagementPromptStore.setState({
@@ -113,6 +114,15 @@ describe('MilestoneSharePrompt', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('pins Download and Later in the sheet footer, never in the scrolling body', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.download', 'milestoneShare.later'])
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

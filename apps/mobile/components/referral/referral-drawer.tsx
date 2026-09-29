@@ -36,7 +36,6 @@ interface LoadedContentProps {
   tokens: ReturnType<typeof createTokensV2>
   styles: ReturnType<typeof createStyles>
   onCopy: () => void
-  onShare: () => void
 }
 
 function LoadedContent({
@@ -47,7 +46,6 @@ function LoadedContent({
   tokens,
   styles,
   onCopy,
-  onShare,
 }: Readonly<LoadedContentProps>) {
   const { t } = useTranslation()
   const progress = stats && stats.maxReferrals > 0
@@ -80,12 +78,6 @@ function LoadedContent({
             )}
           </Pressable>
         </View>
-      </View>
-
-      <View style={styles.gutter}>
-        <PillButton onClick={onShare}>
-          {t('referral.drawer.share')}
-        </PillButton>
       </View>
 
       {interactionError ? (
@@ -161,6 +153,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
   const [interactionError, setInteractionError] = useState(false)
+  const isLoaded = !isLoading && !isError
 
   const shareLink = useCallback(async () => {
     if (!referralUrl) return
@@ -192,7 +185,16 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   }, [referralUrl, t])
 
   return (
-    <Sheet open onClose={onClose} title={t('referral.drawer.title')}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={t('referral.drawer.title')}
+      actions={isLoaded ? (
+        <PillButton onClick={() => void shareLink()}>
+          {t('referral.drawer.share')}
+        </PillButton>
+      ) : undefined}
+    >
       <View style={styles.content}>
         {isLoading ? (
           <View style={styles.loadingContainer} accessibilityRole="progressbar">
@@ -200,7 +202,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
           </View>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
-        {!isLoading && !isError ? (
+        {isLoaded ? (
           <LoadedContent
             stats={stats}
             referralUrl={referralUrl}
@@ -209,7 +211,6 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
             tokens={tokens}
             styles={styles}
             onCopy={copyLink}
-            onShare={() => void shareLink()}
           />
         ) : null}
       </View>
@@ -226,7 +227,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       gap: 16,
-      paddingBottom: 24,
     },
     gutter: {
       paddingHorizontal: 16,

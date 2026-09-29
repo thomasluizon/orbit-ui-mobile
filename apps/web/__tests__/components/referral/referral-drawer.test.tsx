@@ -29,6 +29,7 @@ vi.mock('@/hooks/use-referral', () => ({
 }))
 
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
@@ -151,6 +152,25 @@ describe('ReferralDrawer', () => {
       text: undefined,
       url: mockReferralUrl,
     })
+  })
+
+  it('pins Share in the sheet footer and keeps only the copy control in the body', () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.drawer.share'])
+    expect(sheetSlotButtons('sheet-body')).toEqual(['referral.drawer.copyLink'])
+  })
+
+  it.each([
+    ['loading', () => { mockIsLoading = true }],
+    ['failed', () => { mockIsError = true; mockError = { message: 'unavailable' } }],
+  ])('offers no Share while the referral is %s', (_state, arrange) => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    arrange()
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    expect(document.querySelector('[data-slot="sheet-actions"]')).toBeNull()
   })
 
   it('does not invent discount copy before stats load', () => {

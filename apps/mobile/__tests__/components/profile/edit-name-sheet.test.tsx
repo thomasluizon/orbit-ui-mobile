@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 interface TestNode {
   type: unknown
@@ -124,12 +125,9 @@ describe('EditNameSheet', () => {
 
   it('pins Save in the sheet footer, never in the scrolling body', async () => {
     const { tree } = await renderSheet()
-    const slotButtons = (slot: string) => (tree.root.findAll((node) => node.type === slot)[0] as TestTreeRoot)
-      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      .map((node) => flattenText(node.props.children))
 
-    expect(slotButtons('SheetActions')).toEqual(['common.save'])
-    expect(slotButtons('SheetBody')).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.save'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('shows the required error and skips the mutation for a whitespace-only name', async () => {

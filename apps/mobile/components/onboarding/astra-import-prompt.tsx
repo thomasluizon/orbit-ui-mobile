@@ -107,28 +107,31 @@ export function AstraImportPrompt() {
         void markSeen()
       }}
       title={t('onboarding.wizard.importTitle')}
+      actions={(
+        <View style={styles.actions}>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+          <PillButton onClick={() => void handleImport()}>
+            {t('onboarding.wizard.importButton')}
+          </PillButton>
+          <Pressable
+            style={styles.quietRow}
+            onPress={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void markSeen()
+              })
+            }
+            accessibilityRole="button"
+          >
+            <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
+          </Pressable>
+        </View>
+      )}
     >
       <View style={styles.content}>
         <Text style={styles.description}>
           {t('onboarding.wizard.importDescription')}
         </Text>
-        <View style={styles.spacer} />
-        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-        <PillButton  onClick={() => void handleImport()}>
-          {t('onboarding.wizard.importButton')}
-        </PillButton>
-        <Pressable
-          style={styles.quietRow}
-          onPress={() =>
-            closeSheet(() => {
-              unregisterOpenOverlay(promptId)
-              void markSeen()
-            })
-          }
-          accessibilityRole="button"
-        >
-          <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
-        </Pressable>
       </View>
     </Sheet>) : null
   )
@@ -137,19 +140,18 @@ export function AstraImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      gap: 12,
       paddingHorizontal: 24,
       paddingTop: 8,
-      paddingBottom: 8,
+    },
+    actions: {
+      width: '100%',
+      gap: 12,
     },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
-    },
-    spacer: {
-      height: 16,
     },
     quietRow: {
       minHeight: 44,

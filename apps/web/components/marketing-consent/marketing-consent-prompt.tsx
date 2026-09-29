@@ -110,23 +110,25 @@ export function MarketingConsentPrompt() {
       open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
+      actions={(
+        <div className="flex w-full flex-col gap-2">
+          <PillButton onClick={() => answer(true)}>
+            {t('marketingConsent.prompt.accept')}
+          </PillButton>
+          <button
+            type="button"
+            onClick={() => answer(false)}
+            className="touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-out hover:text-[var(--fg-1)] active:scale-[0.96]"
+          >
+            {t('marketingConsent.prompt.decline')}
+          </button>
+        </div>
+      )}
     >
-        <div className="flex flex-col items-center gap-4 px-6 pb-6 text-center">
+        <div className="flex flex-col items-center px-6 text-center">
           <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
             {t('marketingConsent.prompt.body')}
           </p>
-          <div className="flex w-full flex-col gap-2">
-            <PillButton onClick={() => answer(true)}>
-              {t('marketingConsent.prompt.accept')}
-            </PillButton>
-            <button
-              type="button"
-              onClick={() => answer(false)}
-              className="touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-out hover:text-[var(--fg-1)] active:scale-[0.96]"
-            >
-              {t('marketingConsent.prompt.decline')}
-            </button>
-          </div>
         </div>
     </Sheet>) : null
   )

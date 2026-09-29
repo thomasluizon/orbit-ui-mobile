@@ -89,27 +89,30 @@ export function CalendarImportPrompt() {
         void dismissPrompt()
       }}
       title={t('onboarding.wizard.calendarTitle')}
+      actions={(
+        <View style={styles.actions}>
+          <PillButton onClick={handleImport}>
+            {t('onboarding.wizard.calendarButton')}
+          </PillButton>
+          <Pressable
+            style={styles.quietRow}
+            onPress={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void dismissPrompt()
+              })
+            }
+            accessibilityRole="button"
+          >
+            <Text style={styles.quietText}>{t('common.later')}</Text>
+          </Pressable>
+        </View>
+      )}
     >
       <View style={styles.content}>
         <Text style={styles.description}>
           {t('onboarding.wizard.calendarDescription')}
         </Text>
-        <View style={styles.spacer} />
-        <PillButton  onClick={handleImport}>
-          {t('onboarding.wizard.calendarButton')}
-        </PillButton>
-        <Pressable
-          style={styles.quietRow}
-          onPress={() =>
-            closeSheet(() => {
-              unregisterOpenOverlay(promptId)
-              void dismissPrompt()
-            })
-          }
-          accessibilityRole="button"
-        >
-          <Text style={styles.quietText}>{t('common.later')}</Text>
-        </Pressable>
       </View>
     </Sheet>) : null
   )
@@ -118,19 +121,18 @@ export function CalendarImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      gap: 16,
       paddingHorizontal: 24,
       paddingTop: 8,
-      paddingBottom: 8,
+    },
+    actions: {
+      width: '100%',
+      gap: 16,
     },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
-    },
-    spacer: {
-      height: 16,
     },
     quietRow: {
       minHeight: 44,

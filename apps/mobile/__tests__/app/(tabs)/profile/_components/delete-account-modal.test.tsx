@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const TestRenderer = require('react-test-renderer')
@@ -117,18 +118,14 @@ describe('DeleteAccountModal', () => {
   })
 
   it.each([
-    ['online', true, ['button-destructive-md', 'button-ghost-md']],
+    ['online', true, ['profile.deleteAccount.sendCode', 'common.cancel']],
     ['offline', false, []],
   ] as const)('pins the %s actions in the sheet footer, never in the scrolling body', async (_state, isOnline, footer) => {
     mocks.isOnline.current = isOnline
     const tree = await renderModal()
-    const slotButtons = (slot: string) => tree.root.findAll((node: { type: unknown }) => node.type === slot)[0]!
-      .findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      .map((node: { props: Record<string, unknown> }) => node.props.testID)
 
-    expect(slotButtons('SheetActions')).toEqual(footer)
-    expect(slotButtons('SheetBody')).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(footer)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('cancels before requesting an account deletion code', async () => {
