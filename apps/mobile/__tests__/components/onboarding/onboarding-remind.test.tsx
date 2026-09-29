@@ -3,7 +3,9 @@ import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { OnboardingRemind } from '@/components/onboarding/onboarding-remind'
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: clockState.language } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: clockState.uses24HourClock } }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -18,6 +20,18 @@ function hasText(node: TestNode, text: string): boolean {
 }
 
 describe('OnboardingRemind', () => {
+  it.each([
+    ['pt-BR', false, '5:45 PM', '17:45'],
+    ['en', true, '17:45', '5:45 PM'],
+  ])('shows the reminder preview with %s and the saved clock', async (language, uses24HourClock, expected, excluded) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingRemind state="ask" title="Walk" dueTime="18:00" isLive />) })
+    expect(hasText(tree.root, expected)).toBe(true)
+    expect(hasText(tree.root, excluded)).toBe(false)
+  })
+
   it('uses gap for the ask heading and body', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

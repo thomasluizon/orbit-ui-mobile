@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +15,6 @@ const mocks = vi.hoisted(() => ({
   refreshPendingOperation: vi.fn(),
 }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -51,7 +50,7 @@ describe('useChatPendingOperations', () => {
   beforeEach(() => {
     setAccountEventOrigin('chat-connection')
     setApiFetchTranslate((key) => key)
-    vi.mocked(toast.error).mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     mocks.confirmPendingOperation.mockReset()
     mocks.executePendingOperation.mockReset()
     mocks.issuePendingOperationStepUp.mockReset()
@@ -190,11 +189,9 @@ describe('useChatPendingOperations', () => {
     void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(toast.error).toHaveBeenCalledWith('errors.api.appUpdated', expect.objectContaining({
-      id: 'app-updated',
-      duration: Infinity,
-      action: expect.objectContaining({ label: 'errors.api.reload', onClick: expect.any(Function) }),
-    }))
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
+      kind: 'neutral', message: 'errors.api.appUpdated', actionLabel: 'errors.api.reload', onAction: expect.any(Function),
+    })
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(onUnexpectedOutcome).not.toHaveBeenCalled()

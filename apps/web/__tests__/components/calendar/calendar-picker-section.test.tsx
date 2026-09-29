@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
-import { toast } from 'sonner'
+const toastError = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -19,7 +19,7 @@ vi.mock('@/hooks/use-calendars', () => ({
   useSetSelectedCalendars: () => ({ mutateAsync }),
 }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError }) }))
 
 import { CalendarPickerSection } from '@/app/(app)/calendar-sync/_components/calendar-picker-section'
 
@@ -91,7 +91,7 @@ describe('CalendarPickerSection', () => {
 
     fireEvent.click(screen.getByRole('switch'))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('shows the loading state', () => {

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { StepUpTimingRecord } from '@orbit/shared/utils'
@@ -429,6 +430,8 @@ vi.mock('@/components/ui/sheet', () => ({
 
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({
+    icon,
+    danger,
     title,
     description,
     value,
@@ -440,6 +443,8 @@ vi.mock('@/components/ui/list-row', () => ({
     action,
     readOnly = false,
   }: {
+    icon?: React.ReactNode
+    danger?: boolean
     title: string
     description?: string
     value?: string
@@ -454,6 +459,8 @@ vi.mock('@/components/ui/list-row', () => ({
     'SettingsRowStub',
     {
       label: title,
+      icon,
+      danger,
       hint: description,
       value,
       hasTrailing: Boolean(trailing),
@@ -713,6 +720,7 @@ describe('ProfileScreen', () => {
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
       'profile.settingsRows.weekStart',
+      'settings.clock.title',
       'profile.settingsRows.wrapped',
       'profile.widgetTitle',
       'profile.calendarSync.title',
@@ -784,6 +792,17 @@ describe('ProfileScreen', () => {
     ])
   })
 
+  it('passes ordinary and danger Perfil icons without a fixed color', async () => {
+    const tree = await renderProfileScreen()
+    for (const label of ['profile.settingsRows.signOut', 'profile.settingsRows.deleteAccount']) {
+      const row = findRowByLabel(tree, label) as SettingsRowStubNode & {
+        props: { icon?: React.ReactElement<{ color?: string }>; danger?: boolean }
+      }
+      expect(row.props.icon?.props.color).toBeUndefined()
+      expect(Boolean(row.props.danger)).toBe(label === 'profile.settingsRows.deleteAccount')
+    }
+  })
+
   it('shows the free daily allowance as an enabled route to Pro', async () => {
     const tree = await renderProfileScreen()
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
@@ -833,6 +852,46 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
+  })
+
+  it.each([
+    ['pt-BR', false, 'Astra avisa quando algo escapa', 'Resumo do dia pela Astra'],
+    ['pt-BR', true, 'Astra avisa quando algo escapa', 'Resumo do dia pela Astra'],
+    ['en', false, 'Astra tells you when something slips', 'Daily summary from Astra'],
+    ['en', true, 'Astra tells you when something slips', 'Daily summary from Astra'],
+  ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
+    mockLocale.current = locale
+    const messages = locale === 'pt-BR' ? ptBR : en
+    mockTranslate.current = (key) => {
+      let message: unknown = messages
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string' ? message : key
+    }
+    mockProfileState.current.profile = createMockProfile({
+      plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
+    })
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+
+    if (hasProAccess) {
+      expect(astra.findByProps({ accessibilityRole: 'switch', accessibilityLabel: proactive })).toBeDefined()
+      expect(astra.findByProps({ accessibilityRole: 'switch', accessibilityLabel: summary })).toBeDefined()
+    } else {
+      for (const label of [proactive, summary]) {
+        const row = findRowByLabel(tree, label)
+        expect(row.props.accessibilityRole).toBe('button')
+        expect(row.props.hasTrailing).toBe(true)
+        expect(row.props.chevron).toBe(false)
+        expect(row.props.hint).toBeUndefined()
+        TestRenderer.act(() => row.props.onPress?.())
+      }
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile' } })
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile' } })
+    }
   })
 
   it('shows only the API key description and upgrade row to free accounts', async () => {
@@ -1462,9 +1521,19 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
+  it('places the clock choice between week start and language', async () => {
+    mockProfileState.current = { ...mockProfileState.current, profile: createMockProfile({ uses24HourClock: true }) }
+    const tree = await renderProfileScreen()
+    const rows = tree.root.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
+    const labels = rows.map((row: SettingsRowStubNode) => row.props.label)
+    expect(labels.indexOf('profile.settingsRows.weekStart')).toBeLessThan(labels.indexOf('settings.clock.title'))
+    expect(labels.indexOf('settings.clock.title')).toBeLessThan(labels.indexOf('profile.language.title'))
+    expect(findRowByLabel(tree, 'settings.clock.title').props.value).toBe('settings.clock.hour24')
+  })
+
   it('opens each inline preference directly and sends Support to its form', async () => {
     const tree = await renderProfileScreen()
-    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart']) {
+    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart', 'settings.clock.title']) {
       mockRouterPush.mockClear()
       await TestRenderer.act(async () => {
         findRowByLabel(tree, label).props.onPress?.()

@@ -18,7 +18,7 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 import {
   formatAPIDate,
   parseAPIDate,
@@ -303,6 +303,7 @@ function CalendarPageContent({
 }: Readonly<CalendarPageContentProps>) {
   const router = useRouter()
   const t = useTranslations()
+  const { showError } = useAppToast()
   const { sheetRef, closeSheet } = useSheetHost()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -350,14 +351,14 @@ function CalendarPageContent({
       await setCalendarAutoSync.mutateAsync({ enabled })
     } catch (error: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(
+      showError(getFriendlyErrorMessage(
         error,
         t,
         'calendar.autoSync.syncFailed',
         'generic',
       ))
     }
-  }, [setCalendarAutoSync, t])
+  }, [setCalendarAutoSync, showError, t])
 
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {

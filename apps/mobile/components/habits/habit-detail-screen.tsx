@@ -143,6 +143,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   const { t } = useTranslation()
   const [month, setMonth] = useState(startOfMonth(today))
   const [monthOpacity] = useState(() => new Animated.Value(1))
+  const { displayClock } = useTimeFormat()
   const loaded = isHabitHistoryMonthLoaded(month, today)
   const days = buildHabitHistoryMonth(habit, loaded ? logs ?? [] : [], month, today, weekStartsOn)
   const label = formatLocaleDate(month, locale, { month: 'long', year: 'numeric' })
@@ -161,7 +162,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
         const cellLabel = day.loggedAt
           ? t('habits.detail.loggedAt', {
               date: dateLabel,
-              time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
+              time: displayClock(day.loggedAt),
             })
           : dateLabel
         if (day.outcome === 'future' || day.outcome === 'unavailable') {
@@ -319,7 +320,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasPro = profile.hasProAccess
   const dueTime = displayTime(habit?.dueTime)
-  const headerSummary = summary && dueTime && !summary.includes(dueTime)
+  const headerSummary = summary && dueTime && !summary.includes(habit?.dueTime ?? '')
     ? `${summary} · ${dueTime}`
     : summary || dueTime || ''
   const boundary = getTodayBoundary(dateStr, todayStr)

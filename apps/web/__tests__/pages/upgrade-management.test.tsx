@@ -670,7 +670,7 @@ describe('UpgradePage subscription management', () => {
     mockAccount.held = 'account-b'
     finish?.({ url: 'https://billing.example/portal' })
     await waitFor(() => expect(mockShowPersistentError).toHaveBeenCalledWith(
-      'errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload',
+      'errors.api.accountChanged', 'errorScreen.reload',
     ))
     expect(location.href).toBe('')
     expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
@@ -684,7 +684,7 @@ describe('UpgradePage subscription management', () => {
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
     await waitFor(() => expect(mockShowPersistentError).toHaveBeenCalledWith(
-      'errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload',
+      'errors.api.accountChanged', 'errorScreen.reload',
     ))
     expect(screen.queryByText('upgrade.billing.portalFailed')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })).toBeEnabled()

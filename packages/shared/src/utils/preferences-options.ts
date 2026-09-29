@@ -20,3 +20,12 @@ export function buildWeekStartOptions(
     { value: 0, label: translate('settings.weekStartDay.sunday') },
   ]
 }
+
+export function buildClockFormatOptions(
+  translate: PreferencesTranslationAdapter,
+): LabeledOption<'24h' | '12h'>[] {
+  return [
+    { value: '24h', label: translate('settings.clock.hour24') },
+    { value: '12h', label: translate('settings.clock.hour12') },
+  ]
+}

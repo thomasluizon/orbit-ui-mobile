@@ -72,6 +72,7 @@ const mocks = vi.hoisted(() => {
     showError: vi.fn(),
     startGoogleAuth: vi.fn(),
     autoSyncStatus: "Idle",
+    language: 'en',
   };
 });
 
@@ -89,6 +90,7 @@ vi.mock("expo-router", async () => {
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: mocks.language },
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}(${JSON.stringify(params)})` : key,
   }),
@@ -249,6 +251,7 @@ describe("CalendarSyncScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.profile = createMockProfile({ hasProAccess: true });
+    mocks.language = 'en';
     mocks.apiClient.mockResolvedValue([]);
     mocks.eventsQuery.data = { status: "connected", events: [] };
     mocks.eventsQuery.isLoading = false;
@@ -377,6 +380,22 @@ describe("CalendarSyncScreen", () => {
       calendarName: "Work",
     }));
   }
+
+  it.each([
+    ['pt-BR', false, '7:30 PM - 8:15 PM'],
+    ['en', true, '19:30 - 20:15'],
+  ])('shows imported event times with %s and the saved clock', async (language, uses24HourClock, expected) => {
+    mocks.language = language;
+    mocks.profile = createMockProfile({ hasProAccess: true, uses24HourClock });
+    mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(1)[0]!, startTime: '19:30', endTime: '20:15' }] };
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(tree.root.findAll((node: TestNode) => node.props.children === expected).length).toBeGreaterThan(0);
+  });
 
   function countEventTitles(root: {
     findAll: (

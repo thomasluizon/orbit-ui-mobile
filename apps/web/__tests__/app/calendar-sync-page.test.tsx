@@ -5,14 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
-import { toast } from 'sonner'
+const toastError = vi.hoisted(() => vi.fn())
 
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
 const dismissMutateMock = vi.fn()
 const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[] }))
+const clockState = vi.hoisted(() => ({ language: 'en', uses24HourClock: true }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => clockState.language,
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}(${JSON.stringify(params)})` : key,
 }))
@@ -27,7 +29,7 @@ vi.mock('next/link', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: createMockProfile({ hasProAccess: true }) }),
+  useProfile: () => ({ profile: createMockProfile({ hasProAccess: true, uses24HourClock: clockState.uses24HourClock }) }),
   useHasProAccess: () => true,
 }))
 
@@ -58,7 +60,7 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: vi.fn() }) }))
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
 
@@ -95,9 +97,11 @@ describe('CalendarSyncPage pagination', () => {
     useCalendarEventsMock.mockReset()
     bulkMutateMock.mockReset()
     dismissMutateMock.mockReset()
-    vi.mocked(toast.error).mockReset()
+    vi.mocked(toastError).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
+    clockState.language = 'en'
+    clockState.uses24HourClock = true
   })
 
   it('renders only the first page of events and reveals more on demand', () => {
@@ -153,6 +157,22 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
 
     expect(screen.getByText('Work')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM - 8:15 PM'],
+    ['en', true, '19:30 - 20:15'],
+  ])('shows imported event times with %s and the saved clock', (language, uses24HourClock, expected) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    useCalendarEventsMock.mockReturnValue({
+      data: { status: 'connected', events: [{ ...buildEvents(1)[0]!, startTime: '19:30', endTime: '20:15' }] },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+    renderPage()
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it('shows text-bearing recovery when importing an event is blocked', async () => {
@@ -238,7 +258,7 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
     expect(dismissMutateMock).toHaveBeenCalledWith({ id: 'suggestion-1' })
   })
 })

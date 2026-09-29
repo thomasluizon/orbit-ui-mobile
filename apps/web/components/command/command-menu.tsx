@@ -93,9 +93,9 @@ export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex min-h-0 flex-1 flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
-    <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'p-2' : 'h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
+    <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'p-2' : 'h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
       {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />

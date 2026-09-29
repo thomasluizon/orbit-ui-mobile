@@ -6,7 +6,7 @@ import { createTokensV2 } from "@/lib/theme";
 import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 
-const pushPermission = vi.hoisted(() => ({ status: "granted" }));
+const pushPermission = vi.hoisted(() => ({ status: "granted", includeTime: false, language: 'pt-BR', uses24HourClock: false }));
 vi.mock("@/hooks/use-push-notifications", () => ({
   usePushNotifications: () => ({
     isSupported: true,
@@ -16,14 +16,16 @@ vi.mock("@/hooks/use-push-notifications", () => ({
   }),
 }));
 
-afterEach(() => { pushPermission.status = "granted"; });
+afterEach(() => { pushPermission.status = "granted"; pushPermission.includeTime = false; pushPermission.language = 'pt-BR'; pushPermission.uses24HourClock = false; });
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: "en" },
+    t: (key: string, params?: Record<string, unknown>) => pushPermission.includeTime && params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: pushPermission.language },
   }),
 }));
+
+vi.mock("@/hooks/use-profile", () => ({ useProfile: () => ({ profile: { uses24HourClock: pushPermission.uses24HourClock } }) }));
 
 vi.mock("@/components/ui/time-field", () => ({
   TimeField: (props: Record<string, unknown>) =>
@@ -126,6 +128,18 @@ describe("ScheduledReminderSection", () => {
     });
     expect(texts(tree)).toContain("habits.form.scheduledReminderSameDayAt");
     expect(texts(tree)).toContain("habits.form.scheduledReminderDayBeforeAt");
+  });
+
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])("shows fixed reminder times with %s and the saved clock", (language, uses24HourClock, expected, excluded) => {
+    pushPermission.language = language;
+    pushPermission.uses24HourClock = uses24HourClock;
+    pushPermission.includeTime = true;
+    const { tree } = render({ scheduledReminders: [{ when: "same_day", time: "19:30" }] });
+    expect(JSON.stringify(texts(tree))).toContain(expected);
+    expect(JSON.stringify(texts(tree))).not.toContain(excluded);
   });
 
   it("removes a scheduled reminder by index", () => {

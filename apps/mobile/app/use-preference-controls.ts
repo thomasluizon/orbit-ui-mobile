@@ -82,6 +82,25 @@ export function usePreferenceControls() {
     },
   })
 
+  const clockFormatMutation = useMutation({
+    mutationFn: (uses24HourClock: boolean) => performQueuedApiMutation({
+      type: 'setClockFormat',
+      scope: 'profile',
+      endpoint: API.profile.clockFormat,
+      method: 'PUT',
+      payload: { uses24HourClock },
+      dedupeKey: 'profile-clock-format',
+    }),
+    onMutate: (uses24HourClock) => {
+      const previous = profile?.uses24HourClock
+      patchProfile({ uses24HourClock })
+      return { previous }
+    },
+    onError: (_error, _value, context) => {
+      patchProfile({ uses24HourClock: context?.previous })
+    },
+  })
+
   const timeZoneMutation = useMutation({
     mutationFn: (timeZone: string) =>
       performQueuedApiMutation({
@@ -150,5 +169,6 @@ export function usePreferenceControls() {
     handleShowGeneralToggle,
     timeZoneMutation,
     weekStartMutation,
+    clockFormatMutation,
   }
 }

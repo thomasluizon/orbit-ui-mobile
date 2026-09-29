@@ -7,6 +7,7 @@ import { hydrateRoot } from 'react-dom/client'
 import { profileKeys } from '@orbit/shared/query'
 import { useProfile, useHasProAccess, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
 import { ApiError } from '@/lib/api-fetch'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -25,13 +26,6 @@ const boundaryMocks = vi.hoisted(() => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    error: boundaryMocks.toastError,
-    success: vi.fn(),
-    dismiss: vi.fn(),
-  }),
-}))
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
@@ -140,6 +134,7 @@ describe('useProfile', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     boundaryMocks.toastError.mockClear()
+    useAppToastStore.setState({ showError: boundaryMocks.toastError, currentToast: null, queue: [] })
     boundaryMocks.logout.mockClear()
     boundaryMocks.confirmSessionRefreshFailure.mockClear()
     boundaryMocks.recoverSessionRefreshFailure.mockClear()
@@ -220,8 +215,7 @@ describe('useProfile', () => {
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(404)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Not found',
-      expect.objectContaining({ description: 'Profile not found' }),
+      'Not found: Profile not found',
     )
     expect(boundaryMocks.logout).not.toHaveBeenCalled()
   })
@@ -239,8 +233,7 @@ describe('useProfile', () => {
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(500)
     expect(boundaryMocks.toastError).toHaveBeenCalledWith(
-      'Server error',
-      expect.anything(),
+      'Server error: Internal error',
     )
   })
 
@@ -254,7 +247,7 @@ describe('useProfile', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(apiErrorFrom(result.current.error).status).toBe(503)
-    expect(boundaryMocks.toastError).toHaveBeenCalledWith('Server error', expect.anything())
+    expect(boundaryMocks.toastError).toHaveBeenCalledWith('Server error')
   })
 
   it('exposes invalidate helper', async () => {

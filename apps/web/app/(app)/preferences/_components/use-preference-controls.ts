@@ -14,6 +14,7 @@ import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
+  updateClockFormat,
   updateLanguage,
   updateTimezone,
 } from '@/lib/actions/profile'
@@ -60,7 +61,7 @@ export function usePreferenceControls() {
           await updateLanguage({ language: nextLocale }, intendedAccountId)
         } catch (error) {
           if (reportsAccountChanged(error)) {
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+            showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
             return
           }
           if (getHeldAccountId() !== intendedAccountId) return
@@ -91,6 +92,19 @@ export function usePreferenceControls() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    },
+  })
+
+  const clockFormatMutation = useAccountScopedMutation({
+    mutationFn: (uses24HourClock: boolean, intendedAccountId) =>
+      updateClockFormat({ uses24HourClock }, intendedAccountId),
+    onMutate: (uses24HourClock) => {
+      const previous = profile?.uses24HourClock
+      patchProfile({ uses24HourClock })
+      return { previous }
+    },
+    onError: (_error, _value, context) => {
+      patchProfile({ uses24HourClock: context?.previous })
     },
   })
 
@@ -144,5 +158,6 @@ export function usePreferenceControls() {
     toggleShowGeneral,
     timeZoneMutation,
     weekStartMutation,
+    clockFormatMutation,
   }
 }

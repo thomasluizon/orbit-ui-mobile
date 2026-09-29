@@ -1040,7 +1040,6 @@ describe('useDeleteHabit', () => {
       'undo.action',
       expect.any(Function),
       expect.any(Function),
-      Infinity,
     )
 
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
@@ -1892,7 +1891,7 @@ describe('useBulkDeleteHabits', () => {
     })
 
     expect(mockShowQueued).toHaveBeenCalledWith(
-      'undo.habitsDeleted:{"count":2}', 'undo.action', expect.any(Function), expect.any(Function), Infinity,
+      'undo.habitsDeleted:{"count":2}', 'undo.action', expect.any(Function), expect.any(Function),
     )
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
     await act(async () => { performUndo() })
@@ -1934,7 +1933,7 @@ describe('useBulkDeleteHabits', () => {
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
     await act(async () => { await result.current.mutateAsync(['h-1']) })
     expect(mockShowQueued).toHaveBeenCalledWith(
-      'undo.habitsDeleted:{"count":1}', 'undo.action', expect.any(Function), expect.any(Function), Infinity,
+      'undo.habitsDeleted:{"count":1}', 'undo.action', expect.any(Function), expect.any(Function),
     )
   })
 })

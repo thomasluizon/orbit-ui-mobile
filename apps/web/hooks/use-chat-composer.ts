@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ChatClientContext, ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
@@ -25,6 +25,8 @@ import {
 } from '@orbit/shared/contracts/composer'
 import {
   buildChatMessageWithFileContent,
+  buildChatClientContext,
+  buildChatFinalMessageFields,
   buildComposerChips,
   resolveComposerChipStatus,
   resolveComposerChipSurface,
@@ -41,7 +43,6 @@ import {
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import {
   buildRecentChatHistory,
-  detectDefaultTimeFormat,
   getFriendlyErrorMessage,
   formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
@@ -354,26 +355,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     activeStepsRef.current = []
     setActiveSteps([])
 
-    const finalFields = {
-      content: response.aiMessage || '',
-      actions: response.actions,
-      operations: response.operations,
-      pendingOperations: response.pendingOperations,
-      policyDenials: response.policyDenials,
-      correlationId: response.correlationId,
-      relatedSurfaces: response.relatedSurfaces,
-      habitList: response.habitList,
-      goalList: response.goalList,
-      metricsCard: response.metricsCard,
-      periodInsight: response.periodInsight,
-      daySummary: response.daySummary,
-      streakCard: response.streakCard,
-      calendarCard: response.calendarCard,
-      recordList: response.recordList,
-      accountRows: response.accountRows,
-      followUps: response.followUps,
-      toolSteps,
-    }
+    const finalFields = buildChatFinalMessageFields(response, toolSteps)
     if (draftMessageId) {
       updateMessage(draftMessageId, finalFields)
     } else {
@@ -456,30 +438,16 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
     formData.append('history', JSON.stringify(recentHistory))
     const entryPointIntent = useUIStore.getState().astraEntryPointIntent
-    const clientContext = {
+    const clientContext = buildChatClientContext({
       platform: 'web',
       locale,
-      timeFormat: detectDefaultTimeFormat(locale),
-      currentAppArea: 'chat',
-      supportsHabitListCard: true,
-      supportsHabitListDoneStatus: true,
-      supportsGoalListCard: true,
-      supportsMetricsCard: true,
-      supportsPeriodInsightCard: true,
-      supportsDaySummaryCard: true,
-      supportsStreakCard: true,
-      supportsCalendarCard: true,
-      supportsRecordListCard: true,
-      supportsAccountRowsCard: true,
-      supportsPendingOperationChanges: true,
-      supportsToolSteps: true,
-      supportsFollowUps: true,
-      ...(attempted.messageOrigin ? { messageOrigin: attempted.messageOrigin } : {}),
-      ...(entryPointIntent ? { entryPointIntent } : {}),
-    } satisfies ChatClientContext
+      uses24HourClock: profile?.uses24HourClock,
+      messageOrigin: attempted.messageOrigin,
+      entryPointIntent,
+    })
     formData.append('clientContext', JSON.stringify(clientContext))
     return formData
-  }, [locale])
+  }, [locale, profile?.uses24HourClock])
 
   const runStreamingSend = useCallback(async (attempted: AttemptedSend) => {
     const startingAccountGeneration = getAccountGeneration()

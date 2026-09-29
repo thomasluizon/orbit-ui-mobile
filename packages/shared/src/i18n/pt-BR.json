@@ -34,6 +34,11 @@
       "showGeneral": "Hábitos sem dia certo no Hoje",
       "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
     },
+    "clock": {
+      "title": "Relógio",
+      "hour24": "24 horas",
+      "hour12": "12 horas"
+    },
     "weekStartDay": {
       "title": "Primeiro dia",
       "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
@@ -1707,12 +1712,10 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo diário",
-      "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
+      "title": "Resumo do dia pela Astra"
     },
     "proactiveAstra": {
-      "title": "Alertas Astra",
-      "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
+      "title": "Astra avisa quando algo escapa"
     },
     "marketingEmails": {
       "title": "Email sobre o produto",
