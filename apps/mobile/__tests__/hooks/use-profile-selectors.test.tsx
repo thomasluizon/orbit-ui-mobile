@@ -7,7 +7,6 @@ import {
   useHasProAccess,
   useIsYearlyPro,
   useProfile,
-  useTrialDaysLeft,
   useTrialExpired,
   useTrialUrgent,
 } from '@/hooks/use-profile'
@@ -121,7 +120,6 @@ describe('mobile useProfile selectors', () => {
 
     expect(await renderHookValue(() => useHasProAccess())).toBe(true)
     expect(await renderHookValue(() => useCurrentPlan())).toBe('Pro')
-    expect(await renderHookValue(() => useTrialDaysLeft())).toBeNull()
     expect(await renderHookValue(() => useTrialExpired())).toBe(false)
     expect(await renderHookValue(() => useTrialUrgent())).toBe(false)
     expect(await renderHookValue(() => useIsYearlyPro())).toBe(false)
@@ -136,9 +134,6 @@ describe('mobile useProfile selectors', () => {
     })
 
     expect(await renderHookValue(() => useCurrentPlan())).toBe('Trial')
-    const daysLeft = await renderHookValue(() => useTrialDaysLeft())
-    expect(daysLeft).not.toBeNull()
-    expect(daysLeft).toBeGreaterThanOrEqual(0)
     expect(await renderHookValue(() => useTrialUrgent())).toBe(true)
     expect(await renderHookValue(() => useTrialExpired())).toBe(false)
   })

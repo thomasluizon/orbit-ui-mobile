@@ -7,7 +7,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 import {
   getCurrentPlan,
   getIsYearlyPro,
-  getTrialDaysLeft,
   getTrialExpired,
   getTrialUrgent,
 } from '@orbit/shared/utils'
@@ -71,12 +70,6 @@ export function useHasProAccess(): boolean {
 export function useCanViewGamification(): boolean {
   const { profile } = useProfile()
   return profile?.canViewGamification ?? false
-}
-
-/** Computed: how many trial days remain (null if not in trial). */
-export function useTrialDaysLeft(): number | null {
-  const { profile } = useProfile()
-  return useMemo(() => getTrialDaysLeft(profile), [profile])
 }
 
 /** Computed: readable plan label. */

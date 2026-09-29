@@ -12,7 +12,6 @@ import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
@@ -100,7 +99,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
         {...view.nav.dateNav}
-        moreLabel={t('habits.actions.more')}
+        moreLabel={t('habits.listOptions')}
         searchLabel={t('habits.search.title')}
         onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
@@ -116,7 +115,6 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         onRefresh={() => void view.data.refetch()}
         onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
       />
-      <TrialBanner />
       {key ? (
         <div className="px-4">
           <CapacityNotice message={t(key)} />

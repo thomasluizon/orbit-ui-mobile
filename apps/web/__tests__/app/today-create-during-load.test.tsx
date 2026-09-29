@@ -76,7 +76,6 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
-vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/toast', () => ({ Toast: () => null }))

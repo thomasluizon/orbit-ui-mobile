@@ -78,7 +78,6 @@ vi.mock('@/components/today/today-astra', async (importOriginal) => {
       ),
   }
 })
-vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
 vi.mock('@/app/(tabs)/use-today-motion', () => ({
   useTodayMotion: () => ({
     dayAnimatedStyle: {},
