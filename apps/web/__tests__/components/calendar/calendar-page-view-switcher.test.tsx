@@ -1,7 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
-import { toast } from 'sonner'
+const toastError = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
@@ -112,7 +112,7 @@ let rangeLoading = false
 let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError }) }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -909,7 +909,7 @@ describe('CalendarPage view switcher', () => {
     await act(async () => { await calendarDayDetailProps.onCalendarAutoSyncChange!(true) })
     expect(setAutoSync).toHaveBeenCalledTimes(2)
     await act(async () => { failFirst(new Error('old failure')); await first })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {

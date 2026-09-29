@@ -54,7 +54,7 @@ export function useColorScheme() {
     if (persistToDb) {
       updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((error: unknown) => {
         if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+          showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
           return
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
@@ -101,7 +101,7 @@ export function useColorScheme() {
     applyThemeTokensToDOM(currentScheme, detected)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
       if (reportsAccountChanged(error)) {
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
       }
     })
   }, [currentScheme, showPersistentError, t])

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { act } from '@testing-library/react'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import {
   useShellScroller,
   useShellScrollerRegistration,
@@ -10,8 +12,8 @@ const mocks = vi.hoisted(() => ({ wide: false }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ action, children, nav }: { action?: ReactNode; children: ReactNode; nav: false }) => (
-    <div data-testid="wide-flow" data-nav={String(nav)}>{children}{action}</div>
+  ShellWide: ({ action, children, nav, notice }: { action?: ReactNode; children: ReactNode; nav: false; notice?: ReactNode }) => (
+    <div data-testid="wide-flow" data-nav={String(nav)}>{children}<div data-shell-notice="">{notice}</div>{action}</div>
   ),
 }))
 
@@ -35,6 +37,7 @@ function RegisteredFullFlow() {
 describe('FlowShell', () => {
   beforeEach(() => {
     mocks.wide = false
+    useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
   it('uses the compact nav false contract and forwards the action slot', () => {
@@ -47,6 +50,14 @@ describe('FlowShell', () => {
     expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-nav', 'false')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('renders queued feedback in the notice slot above the action', () => {
+    const { container } = render(<FlowShell action={<button type="button">Continue</button>}>Content</FlowShell>)
+    act(() => { useAppToastStore.getState().showError('Try again') })
+    const notice = container.querySelector('[data-shell-notice]')
+    expect(notice?.querySelector('[data-kind="neutral"]')).toBeInTheDocument()
+    expect(notice?.nextElementSibling).toHaveTextContent('Continue')
   })
 
   it('uses the wide nav false contract at 1024 and above', () => {

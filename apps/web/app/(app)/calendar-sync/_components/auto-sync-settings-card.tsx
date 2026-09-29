@@ -22,7 +22,7 @@ import {
   getFriendlyErrorMessage,
   isCalendarAutoSyncStatusReconnectRequired,
 } from '@orbit/shared/utils'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { QuietActionButton } from './quiet-action-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { connectGoogle } from './connect-google'
@@ -30,6 +30,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 
 export function AutoSyncSettingsCard() {
   const t = useTranslations()
+  const { showError, showSuccess } = useAppToast()
   const { data: state, isLoading } = useCalendarAutoSyncState()
   const setAutoSync = useSetCalendarAutoSync()
   const runSyncNow = useRunCalendarSyncNow()
@@ -52,7 +53,7 @@ export function AutoSyncSettingsCard() {
 
   async function handleToggle() {
     if (!isOnline) {
-      toast.error(t('errors.offline'))
+      showError(t('errors.offline'))
       return
     }
     if (toggleDisabled) return
@@ -61,10 +62,10 @@ export function AutoSyncSettingsCard() {
     try {
       await setAutoSync.mutateAsync({ enabled: next })
       if (getAccountGeneration() !== requestAccount) return
-      toast.success(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
+      showSuccess(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 
@@ -75,7 +76,7 @@ export function AutoSyncSettingsCard() {
       await runSyncNow.mutateAsync()
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 
@@ -85,7 +86,7 @@ export function AutoSyncSettingsCard() {
     try {
       await connectGoogle()
     } catch {
-      toast.error(t('auth.googleError'))
+      showError(t('auth.googleError'))
     } finally {
       setIsConnecting(false)
     }

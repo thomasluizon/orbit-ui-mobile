@@ -5,7 +5,6 @@ import type { ReactNode } from 'react'
 
 const { resolveClarification } = vi.hoisted(() => ({ resolveClarification: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ resolveClarification }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
 

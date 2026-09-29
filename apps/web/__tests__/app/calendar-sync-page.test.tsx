@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
-import { toast } from 'sonner'
+const toastError = vi.hoisted(() => vi.fn())
 
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
@@ -58,7 +58,7 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: vi.fn() }) }))
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
 
@@ -95,7 +95,7 @@ describe('CalendarSyncPage pagination', () => {
     useCalendarEventsMock.mockReset()
     bulkMutateMock.mockReset()
     dismissMutateMock.mockReset()
-    vi.mocked(toast.error).mockReset()
+    vi.mocked(toastError).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
   })
@@ -238,7 +238,7 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
     expect(dismissMutateMock).toHaveBeenCalledWith({ id: 'suggestion-1' })
   })
 })

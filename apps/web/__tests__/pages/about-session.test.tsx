@@ -37,7 +37,6 @@ vi.mock('next/dynamic', () => ({
   default: () => (props: { initialDate?: string | null }) =>
     'initialDate' in props ? <div data-testid="create-habit-modal">{props.initialDate}</div> : null,
 }))
-vi.mock('sonner', () => ({ Toaster: () => null }))
 vi.mock('@vercel/analytics/next', () => ({ Analytics: () => null }))
 vi.mock('@vercel/speed-insights/next', () => ({ SpeedInsights: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))

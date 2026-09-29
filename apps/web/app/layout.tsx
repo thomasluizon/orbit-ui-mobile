@@ -4,8 +4,6 @@ import { Suspense, type CSSProperties } from 'react'
 import { geist, geistMono, spaceGrotesk } from './fonts'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
-import { Bell, Check, X } from '@/components/ui/icons'
-import { Toaster } from 'sonner'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
@@ -146,29 +144,6 @@ export default async function RootLayout({
               <NavigationHistoryTracker />
             </Suspense>
             {children}
-            <Toaster
-              theme="dark"
-              position="top-center"
-              icons={{
-                success: <Check size={16} strokeWidth={2.4} />,
-                error: <X size={16} strokeWidth={2.4} />,
-                info: <Bell size={16} strokeWidth={2.4} />,
-              }}
-              toastOptions={{
-                style: {
-                  background: 'var(--bg-sheet)',
-                  boxShadow:
-                    '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
-                  border: 'none',
-                  color: 'var(--fg-1)',
-                  borderRadius: 18,
-                  padding: '14px 16px',
-                  gap: 12,
-                  alignItems: 'center',
-                  fontFamily: 'var(--font-sans)',
-                },
-              }}
-            />
             <ThrottleScreen />
           </NextIntlClientProvider>
         </PostHogProvider>

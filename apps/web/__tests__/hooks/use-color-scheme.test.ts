@@ -148,7 +148,7 @@ describe('useColorScheme', () => {
     await act(async () => rejectUpdate?.({ code: 'ACCOUNT_CHANGED', status: 409 }))
 
     expect(mockCookies['orbit_theme_mode']).toBe('light')
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'errorScreen.reload')
   })
 
   it('does not restore an old theme after re-login to the same account', async () => {

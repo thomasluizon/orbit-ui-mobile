@@ -116,7 +116,7 @@ export function useAccountScopedMutation<
       if (getHeldAccountId() === variables.intendedAccountId && getAccountGeneration() === variables.accountGeneration) {
         void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
       }
-      showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
       return
     }
     if (stillHeld(variables)) return onError?.(error, variables.input, onMutateResult, context)

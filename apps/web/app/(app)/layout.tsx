@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -236,7 +237,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
   }, [setShowCalendarPrompt, showPersistentError, t])
 
@@ -244,7 +245,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     setRouteTransitionIntent('forward')
     router.push('/calendar-sync')
@@ -263,7 +264,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissImportPrompt = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
   }, [patchProfile, setShowImportPrompt, showPersistentError, t])
@@ -272,7 +273,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
     if ('localStorage' in globalThis) {
@@ -322,6 +323,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             <CelebrationPanel />
             <UpdateAvailableBanner />
             <NotificationDeleteNotice />
+            <AppToastHost />
           </>
         )}
       >

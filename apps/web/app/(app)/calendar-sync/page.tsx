@@ -48,7 +48,7 @@ import {
   getFriendlyErrorMessage,
   isCalendarSyncEventImportable,
 } from '@orbit/shared/utils'
-import { toast } from 'sonner'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 interface ImportResult {
   imported: number
@@ -70,6 +70,7 @@ export default function CalendarSyncPage() {
 // react-doctor-disable-next-line no-giant-component -- step-based import wizard with six mutually-exclusive render branches; extraction deferred to avoid regression in the import flow without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarSyncPageContent() {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const goBackOrFallback = useGoBackOrFallback()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -194,7 +195,7 @@ function CalendarSyncPageContent() {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
+      showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 
@@ -206,7 +207,7 @@ function CalendarSyncPageContent() {
       await connectGoogle()
     } catch {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(t('auth.googleError'))
+      showError(t('auth.googleError'))
     } finally {
       if (getAccountGeneration() === requestAccount) setIsConnecting(false)
     }
@@ -239,7 +240,7 @@ function CalendarSyncPageContent() {
               return
             }
             if (failedItems.length > 0) {
-              toast.error(
+              showError(
                 plural(
                   t('calendar.importPartialFailure', { count: failedItems.length }),
                   failedItems.length,
