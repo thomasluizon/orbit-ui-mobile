@@ -1,6 +1,8 @@
 import React from 'react'
 import { expect, it, vi } from 'vitest'
 import type { Profile } from '@orbit/shared/types/profile'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { ListRow } from '@/components/ui/list-row'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -25,9 +27,6 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => null }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-
-import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
-import { ListRow } from '@/components/ui/list-row'
 
 it.each([0, 1, 3])('shows the count before key step-up for %i active keys', (count) => {
   let tree!: ReturnType<typeof TestRenderer.create>
