@@ -181,7 +181,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
             onPress={props.onOpenConversation}
             onPressIn={() => animatePressScale(openConversationScale, mobileMotion.orbital.press.scale)}
             onPressOut={() => animatePressScale(openConversationScale, 1)}
-            style={styles.openConversation}
+            style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <AstraGlyph size={20} color={tokens.fg3} />
           </Pressable>

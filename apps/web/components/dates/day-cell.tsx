@@ -89,7 +89,6 @@ export function DayCell(props: Readonly<DayCellProps>) {
     style: {
       width: size,
       height: size,
-      background: 'transparent',
       boxShadow: props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
       opacity: props.outsideMonth ? 0 : 1,
     },
@@ -101,7 +100,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
         {...commonProps}
         type="button"
         onClick={props.onPress}
-        className="inline-flex shrink-0 items-center justify-center rounded-full border-0 p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        className="inline-flex shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
         {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} /> : <DayCellContents props={props} outcome={outcome} size={size} />}
       </button>
