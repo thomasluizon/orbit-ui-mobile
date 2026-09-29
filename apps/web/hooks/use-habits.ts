@@ -9,7 +9,9 @@ import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDependents,
+  checkTodayAllDoneOrDefer,
   getTodayHabitList,
+  getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
@@ -107,6 +109,7 @@ export function useLogHabit() {
     }) => logHabitAction(habitId, date ? { date } : undefined),
 
     onMutate: ({ habitId, date }) => {
+      const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
@@ -119,7 +122,7 @@ export function useLogHabit() {
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists }
+      return { previousLists, hadPendingListRefetch, retryAllDoneDate: null as string | null }
     },
 
     onError: (error, _vars, context) => {
@@ -133,7 +136,7 @@ export function useLogHabit() {
       showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
     },
 
-    onSuccess: (response, variables) => {
+    onSuccess: (response, variables, context: { hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
       captureHabitLogged()
       const loggedHabit = findHabitInList(
         queryClient
@@ -181,16 +184,24 @@ export function useLogHabit() {
           return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
         })
       }
-      const habitsData = getTodayHabitList(queryClient, today)
-      if (habitsData && (!variables.date || variables.date === today)) {
-        const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
-      }
+      const shouldRetryAllDone = checkTodayAllDoneOrDefer(queryClient, today, variables.date,
+        context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)
+      if (context && shouldRetryAllDone) context.retryAllDoneDate = today
     },
 
-    onSettled: (_response, error, { habitId }) => {
+    onSettled: (_response, error, { habitId }, context) => {
       if (error) return
-      invalidateHabitDependents(queryClient, habitId)
+      if (!context?.retryAllDoneDate) {
+        invalidateHabitDependents(queryClient, habitId)
+        return
+      }
+      const today = context.retryAllDoneDate
+      invalidateHabitDependents(queryClient, habitId, false)
+      return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
+        if (!habitsData) return
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+      })
     },
   })
 }

@@ -23,7 +23,11 @@ export {
 
 export {
   updateHabitListsForDate,
+  updateCachedHabitLists,
+  restoreCachedHabitLists,
   getTodayHabitList,
+  getTodayHabitListAfterRefetch,
+  checkTodayAllDoneOrDefer,
   deduplicateHabitList,
   invalidateHabitDependents,
 } from './habit-cache'
