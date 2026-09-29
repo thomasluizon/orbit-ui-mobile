@@ -7,8 +7,6 @@ const noopModule: OrbitWidgetModuleType = {
   async clearToken() {},
   async syncTheme() {},
   async syncWidgetData() {},
-  async postPersistentReminder() {},
-  async cancelPersistentReminder() {},
 }
 
 let orbitWidgetModule: OrbitWidgetModuleType | null = null
@@ -21,5 +19,4 @@ if (Platform.OS === 'android') {
   }
 }
 
-export const nativeOrbitWidgetModule = orbitWidgetModule
 export default orbitWidgetModule ?? noopModule

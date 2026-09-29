@@ -7,7 +7,6 @@ import type {
   WidgetThemeColors,
   WidgetThemePreferences,
 } from '../modules/orbit-widget/src/OrbitWidget.types'
-import { refreshPersistentReminder } from './persistent-reminder'
 import { createTokensV2, type AppTokensV2 } from './theme'
 import { widgetColorPalette } from './widget-colors.generated'
 
@@ -101,15 +100,11 @@ export async function syncWidgetData(): Promise<void> {
 
   const { getToken } = await import('./secure-store')
   const token = await getToken()
-  if (!token) {
-    await refreshPersistentReminder(null, null)
-    return
-  }
+  if (!token) return
 
   const { apiClientWithAuthorizingToken } = await import('./api-client')
   const { data, authorizingToken } = await apiClientWithAuthorizingToken<unknown>(API.habits.widget)
   if (authorizingToken) {
     await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
   }
-  await refreshPersistentReminder(data, authorizingToken)
 }

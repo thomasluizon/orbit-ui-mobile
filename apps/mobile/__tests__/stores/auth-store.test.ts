@@ -94,7 +94,6 @@ const {
   cancelScheduledFlushMock,
   clearCompactedCreatesForUndoMock,
   resumeOfflineReplayMock,
-  cancelPersistentReminderMock,
   cancelQueriesMock,
   getQueryDataMock,
   invalidateQueriesMock,
@@ -126,7 +125,6 @@ const {
   cancelScheduledFlushMock: vi.fn(),
   clearCompactedCreatesForUndoMock: vi.fn(),
   resumeOfflineReplayMock: vi.fn(),
-  cancelPersistentReminderMock: vi.fn(),
   cancelQueriesMock: vi.fn(async () => {}),
   getQueryDataMock: vi.fn((queryKey: readonly unknown[]) => queryCache.get(JSON.stringify(queryKey))),
   invalidateQueriesMock: vi.fn(async () => {}),
@@ -171,10 +169,6 @@ vi.mock('@/lib/secure-store', () => ({
 vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: clearWidgetTokenMock,
   saveWidgetToken: saveWidgetTokenMock,
-}))
-
-vi.mock('@/lib/persistent-reminder', () => ({
-  cancelPersistentReminder: cancelPersistentReminderMock,
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -348,7 +342,6 @@ describe('mobile auth store security paths', () => {
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
     resumeOfflineReplayMock.mockReset()
-    cancelPersistentReminderMock.mockReset()
     cancelQueriesMock.mockClear()
     getQueryDataMock.mockClear()
     invalidateQueriesMock.mockClear()
@@ -362,7 +355,6 @@ describe('mobile auth store security paths', () => {
       const current = queryCache.get(cacheKey)
       queryCache.set(cacheKey, typeof updater === 'function' ? updater(current) : updater)
     })
-    cancelPersistentReminderMock.mockResolvedValue(undefined)
     setQueryCacheScopeMock.mockResolvedValue(undefined)
 
     clearWidgetTokenMock.mockResolvedValue(undefined)
@@ -1238,20 +1230,6 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
-  it('dismisses the persistent reminder on logout so a signed-out tray shows no streak data', async () => {
-    getRefreshTokenMock.mockResolvedValue(null)
-    useAuthStore.setState({
-      isAuthenticated: true,
-      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
-      isLoading: false,
-      expiresAt: Date.now() + 3600_000,
-    })
-
-    await useAuthStore.getState().logout()
-
-    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
-  })
-
   it('does not let an in-flight refresh restore credentials after logout completes', async () => {
     const rotatedToken = makeJwtWithClaims(
       Math.floor(Date.now() / 1000) + 3600,
@@ -1584,15 +1562,6 @@ describe('mobile auth store security paths', () => {
       isAuthenticated: true,
       user: { userId: 'replacement-user' },
     })
-  })
-
-  it('dismisses the persistent reminder when checkAuth finds no token', async () => {
-    getTokenMock.mockResolvedValue(null)
-
-    const isValid = await useAuthStore.getState().checkAuth()
-
-    expect(isValid).toBe(false)
-    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
   })
 
   it('filters queue ownership and clears offline state before establishing a new session on login', async () => {
