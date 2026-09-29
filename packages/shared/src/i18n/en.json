@@ -1733,7 +1733,6 @@
     },
     "logout": "Log Out",
     "wrappedTitle": "Your Wrapped",
-    "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Android widget",
     "widgetHint": "Today's habits on the device's home screen.",
     "calendarSync": {
@@ -2726,9 +2725,9 @@
       "stripWindow": "Activity over the last {count, plural, one {# day} other {# days}}",
       "frozenToday": "Today is frozen. The streak does not break today.",
       "longest": "Longest streak",
-      "active": "Day active",
-      "frozen": "Day frozen",
-      "missed": "Day with nothing logged",
+      "active": "day active",
+      "frozen": "day frozen",
+      "missed": "day missed",
       "today": "Today",
       "legend": "Streak day legend",
       "banked": "Banked",
@@ -2829,7 +2828,7 @@
   },
   "gamification": {
     "categories": {
-      "GettingStarted": "Getting Started",
+      "GettingStarted": "Getting started",
       "Consistency": "Consistency",
       "Volume": "Volume",
       "Goals": "Goals",
