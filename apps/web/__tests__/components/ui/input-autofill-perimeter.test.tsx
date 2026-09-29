@@ -25,8 +25,8 @@ const RINGS: Record<FieldState, { width: number; token: `--${string}` }> = {
 
 const CHROME_AUTOFILL_FILL = { light: 'rgb(232, 240, 254)', dark: 'rgba(70, 90, 126, 0.4)' } as const
 
-async function readRow(page: Page, x: number, y: number, width: number): Promise<Pixel[]> {
-  const shot = await page.screenshot({ clip: { x, y, width, height: 1 } })
+async function readStrip(page: Page, clip: { x: number; y: number; width: number; height: number }): Promise<Pixel[]> {
+  const shot = await page.screenshot({ clip })
   const channels = await page.evaluate(async (source) => {
     const image = new Image()
     image.src = `data:image/png;base64,${source}`
@@ -124,10 +124,12 @@ describe('Input perimeter over an autofilled control in Chromium', () => {
       const fill = await page.$eval('input', (input) => getComputedStyle(input).backgroundColor)
       expect(fill).toBe(autofilled ? CHROME_AUTOFILL_FILL[mode] : 'rgba(0, 0, 0, 0)')
       const box = await page.$eval('[data-focus-perimeter]', (field) => field.getBoundingClientRect().toJSON() as DOMRect)
-      const middle = Math.floor(box.top + box.height / 2)
-      await expectOnePerimeterEdge(page, await readRow(page, box.left, middle, 10), state, 'left')
-      const right = await readRow(page, box.right - 10, middle, 10)
-      await expectOnePerimeterEdge(page, right.reverse(), state, 'right')
+      const row = Math.floor(box.top + box.height / 2)
+      const column = Math.floor(box.left + box.width / 2)
+      await expectOnePerimeterEdge(page, await readStrip(page, { x: box.left, y: row, width: 10, height: 1 }), state, 'left')
+      await expectOnePerimeterEdge(page, (await readStrip(page, { x: box.right - 10, y: row, width: 10, height: 1 })).reverse(), state, 'right')
+      await expectOnePerimeterEdge(page, await readStrip(page, { x: column, y: box.top, width: 1, height: 10 }), state, 'top')
+      await expectOnePerimeterEdge(page, (await readStrip(page, { x: column, y: box.bottom - 10, width: 1, height: 10 })).reverse(), state, 'bottom')
     } finally {
       await page.close()
     }
