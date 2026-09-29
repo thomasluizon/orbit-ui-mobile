@@ -2007,7 +2007,7 @@
   "privacy": {
     "close": "Close privacy policy",
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: August 2026",
+    "lastUpdated": "Last updated: September 2026",
     "intro": {
       "title": "Introduction",
       "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
@@ -2033,16 +2033,18 @@
     "thirdParty": {
       "title": "Third-Party Services",
       "intro": "We use the following services to operate Orbit:",
-      "google": "Google OAuth - for authentication",
+      "google": "Google OAuth: for sign-in directly with Google",
       "stripe": "Stripe - for subscription payment processing",
       "firebase": "Firebase Cloud Messaging - for push notifications",
       "openai": "OpenAI - for AI chat features and daily summaries",
-      "resend": "Resend - for transactional emails",
+      "ses": "Amazon SES (us-east-2): for transactional and marketing emails",
       "googlePlay": "Google Play Billing - for subscription purchases on Android",
       "admob": "Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.",
       "sentry": "Sentry - for crash and error diagnostics, with personal identifiers removed",
-      "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details; we do not send habit or chat content",
-      "vercel": "Vercel: for web hosting, traffic analytics, and performance measurement"
+      "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details, plus web traffic and performance analytics; we do not send habit or chat content",
+      "render": "Render (Ohio, United States): for web and API hosting and the database",
+      "s3": "Amazon S3 (us-east-2): for file uploads",
+      "turnstile": "Cloudflare Turnstile: for bot protection during sign-in"
     },
     "noSell": {
       "title": "We Do Not Sell Your Data",
@@ -2073,7 +2075,7 @@
     },
     "dataResidency": {
       "title": "Where Your Data Is Stored",
-      "body": "Orbit's database is hosted with Supabase on Amazon Web Services in the United States, and its backend application servers are hosted with Render. Vercel hosts the web application on its global network. These providers may process hosting and performance data in the United States and other countries outside Brazil. Product analytics through PostHog is processed in the United States. Other subprocessors, including OpenAI, Stripe, and Google, may process data outside Brazil. International transfers to Supabase, Render, Vercel, and other subprocessors rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
+      "body": "Render hosts the web application, API, and database in Ohio, United States. Orbit uses Amazon SES for transactional and marketing emails and Amazon S3 for file uploads in us-east-2 (Ohio, United States). PostHog processes product, web traffic, and performance analytics in its US Cloud. Other processors, including OpenAI, Stripe, Google, and Cloudflare Turnstile, may process data outside Brazil. International transfers to these providers rely on the safeguards the LGPD allows for international transfers, including contractual commitments from each provider."
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
