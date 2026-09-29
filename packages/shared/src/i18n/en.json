@@ -202,7 +202,7 @@
     "createHabit": "Create habit",
     "profile": "Profile",
     "astra": "Astra",
-    "create": "Create",
+    "search": "Search",
     "today": "Today",
     "progress": "Progress",
     "mainNavigation": "Main navigation"
@@ -496,14 +496,13 @@
     },
     "reschedule": {
       "title": "Reschedule with AI",
-      "loading": "Finding a realistic new plan…",
-      "error": "Couldn't suggest a new plan.",
+      "loading": "Looking for a realistic plan.",
+      "error": "No plan could be suggested.",
       "retry": "Try again",
-      "accept": "Use plan",
+      "accept": "Use this plan",
       "dismiss": "Not now",
-      "proposedScheduleLabel": "Suggested schedule",
-      "freePrompt": "Pro turns a missed habit into a realistic plan to get back on track.",
-      "upgrade": "Upgrade"
+      "freePrompt": "With Pro, Astra turns a missed habit into a realistic plan.",
+      "upgrade": "See Pro"
     },
     "backToHabits": "All habits",
     "completed": "completed",
@@ -516,9 +515,9 @@
     "postponeConfirmTitle": "Postpone {name}?",
     "postponeConfirmMessage": "It moves to tomorrow, with nothing logged.",
     "postponeConfirmButton": "Postpone",
-    "deleteConfirmTitle": "Delete Habit",
+    "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
-    "deleteListConfirmMessage": "{name} and {count} item inside it leave your list. You can undo it from the message that appears. | {name} and {count} items inside it leave your list. You can undo it from the message that appears.",
+    "deleteListConfirmMessage": "{name} leaves your list. You can undo it from the message that appears. | {name} and {count} item inside it leave your list. You can undo it from the message that appears. | {name} and {count} items inside it leave your list. You can undo it from the message that appears.",
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate habit",
@@ -1243,6 +1242,9 @@
     },
     "habitList": {
       "title": "Today's habits",
+      "allTitle": "All habits",
+      "todayEmpty": "No habits to show today",
+      "allEmpty": "No habits to show",
       "count": "{shown} of {total}",
       "open": "Open {name}",
       "log": "Log {name}",
@@ -1252,8 +1254,7 @@
       "more": "Show more",
       "today": "Today",
       "overdue": "Overdue",
-      "general": "General",
-      "empty": "No habits to show"
+      "general": "General"
     },
     "metrics": {
       "title": "Your progress",
@@ -1631,6 +1632,8 @@
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
       "open": "Open the keys",
+      "noKeys": "No keys yet",
+      "activeCount": "{count, plural, one {# active key} other {# active keys}}",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",

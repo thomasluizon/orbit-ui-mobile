@@ -11,12 +11,15 @@ for (const width of [412, 1024, 1280]) {
 
     const dateRowSearch = page.locator(`button[aria-label="${ptBr.habits.search.title}"]`)
     const sidebarSearch = page.locator('[data-shell-sidebar]').getByRole('button', {
-      name: ptBr.command.title,
+      name: ptBr.nav.search,
     })
     await expect(dateRowSearch).toHaveCount(1)
     if (width >= 1024) {
       await expect(dateRowSearch).toBeHidden()
       await expect(sidebarSearch).toBeVisible()
+      const searchLabel = sidebarSearch.locator('span').first()
+      await expect(searchLabel).toHaveText(ptBr.nav.search)
+      expect(await searchLabel.evaluate((label) => label.scrollWidth <= label.clientWidth)).toBe(true)
     } else {
       await expect(dateRowSearch).toBeVisible()
     }

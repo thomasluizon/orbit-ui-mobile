@@ -38,6 +38,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
+  useParams: () => ({}),
   useRouter: () => ({ push: vi.fn() }),
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({

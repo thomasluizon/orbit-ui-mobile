@@ -231,7 +231,6 @@ vi.mock("@/components/ui/switch", () => ({
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
-  SelectCheck: () => null,
   RadioGlyph: () => null,
 }));
 

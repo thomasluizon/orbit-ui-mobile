@@ -1,21 +1,9 @@
-'use client'
-
-import { useTranslations } from 'next-intl'
-import { PillLink } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { NotFoundContent } from '@/components/ui/not-found-content'
 
 export default function NotFound() {
-  const t = useTranslations()
   return (
     <main className="min-h-dvh bg-[var(--bg)]">
-      <section className="error-surface" data-state="not-found">
-        <OrbitMark size={40} />
-        <h1 className="error-surface-title">{t('notFoundPage.title')}</h1>
-        <p className="error-surface-body">{t('notFoundPage.description')}</p>
-        <div className="error-surface-action">
-          <PillLink href="/">{t('notFoundPage.action')}</PillLink>
-        </div>
-      </section>
+      <NotFoundContent />
     </main>
   )
 }

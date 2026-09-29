@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import type {
   ApiKey,
   ApiKeyCreateRequest,
@@ -204,6 +204,9 @@ describe('useApiKeyManagement', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: apiKeyKeys.all,
     })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: profileKeys.all,
+    })
     expect(hook.current.createKeyError).toBeNull()
   })
 
@@ -255,6 +258,9 @@ describe('useApiKeyManagement', () => {
     expect(hook.current.revokingKeyId).toBeNull()
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: apiKeyKeys.all,
+    })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: profileKeys.all,
     })
   })
 })

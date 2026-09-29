@@ -311,6 +311,11 @@ describe('goal schemas', () => {
 
 
 describe('profile schema', () => {
+  it.each([0, 1, 3])('preserves an active API key count of %i', (count) => {
+    const profile = profileSchema.parse(createMockProfile({ activeApiKeyCount: count }))
+    expect(profile.activeApiKeyCount).toBe(count)
+  })
+
   it('parses a valid Profile', () => {
     const profile = createMockProfile()
     const result = profileSchema.safeParse(profile)

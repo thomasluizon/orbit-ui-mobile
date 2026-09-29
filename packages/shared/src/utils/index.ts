@@ -564,6 +564,7 @@ export {
   createHabitVisibilityHelpers,
   filterMoveTargetsBySearch,
   getChildrenFromIndex,
+  isHabitDoneForRange,
   isCompletedOneTimeHabit,
   isHabitSelectableAsMoveTarget,
   isHabitVisibleInAllView,

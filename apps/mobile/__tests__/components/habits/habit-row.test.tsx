@@ -60,6 +60,54 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
 }
 
 describe('HabitRow canonical content (mobile)', () => {
+  it('omits the structural column by default and indents only a child body', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    expect(row.children[0].children[0].props.delayLongPress).toBe(500)
+    expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(24)
+  })
+
+  it('keeps separate selection and structural columns with a neutral checkbox', () => {
+    const onToggleExpand = vi.fn()
+    const onToggleSelection = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Parent' })}
+        structuralColumn isSelectMode isSelected hasChildren isExpanded childrenDone={1} childrenTotal={2}
+        actions={{ onToggleExpand, onToggleSelection }} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const [selection, disclosureColumn, body] = row.children[0].children
+    expect(selection.props.accessibilityState).toMatchObject({ checked: true })
+    const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(body.props.delayLongPress).toBe(500)
+    const checkbox = selection.findAll((node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none')[0]
+    expect(StyleSheet.flatten(checkbox.props.style).backgroundColor).toBe(createTokensV2('purple', 'dark').fg1)
+    TestRenderer.act(() => disclosure.props.onPress())
+    expect(onToggleExpand).toHaveBeenCalledOnce()
+    expect(onToggleSelection).not.toHaveBeenCalled()
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.statusDot.empty, 1/2' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAll((node: { props: { accessibilityLabel?: string; accessibilityRole?: string } }) =>
+      node.props.accessibilityLabel?.startsWith('habits.statusDot.empty') && node.props.accessibilityRole === 'button')).toHaveLength(0)
+  })
+
+  it('keeps the leaf spacer and status glyph while selecting', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const [selection, spacer, body] = row.children[0].children
+    expect(selection.props.accessibilityState).toMatchObject({ checked: false })
+    expect(spacer.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(body.props.delayLongPress).toBe(500)
+    expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+  })
   it('omits descriptions and tags from the canonical row', () => {
     const texts = renderRowText(
       createMockHabit({
@@ -116,6 +164,19 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('reports the row overflow menu state through open and close', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />)
+    })
+    const button = () => renderer!.root.findAll((node: { props: { accessibilityLabel?: string } }) =>
+      node.props.accessibilityLabel === 'habits.actions.more')[0]
+    expect(button().props.accessibilityState).toMatchObject({ expanded: false })
+    TestRenderer.act(() => button().props.onPress())
+    expect(button().props.accessibilityState).toMatchObject({ expanded: true })
+    TestRenderer.act(() => renderer!.root.findByType(Menu).props.onClose())
+    expect(button().props.accessibilityState).toMatchObject({ expanded: false })
+  })
   it('announces why child completion is unavailable while keeping its body openable', () => {
     const onDetail = vi.fn()
     let renderer: ReturnType<typeof TestRenderer.create>
@@ -160,6 +221,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer = TestRenderer.create(
         <HabitRow
           habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
           hasChildren
           childrenDone={0}
           childrenTotal={1}
@@ -201,6 +263,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer = TestRenderer.create(
         <HabitRow
           habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
           hasChildren
           actions={{ onToggleExpand: vi.fn() }}
         />,
@@ -225,6 +288,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer = TestRenderer.create(
         <HabitRow
           habit={createMockHabit({ title: 'Meditate' })}
+          structuralColumn
           isSelectMode
           actions={{ onToggleSelection: vi.fn() }}
         />,

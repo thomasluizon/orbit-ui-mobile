@@ -55,7 +55,7 @@ async function inspectTabStops(page: Page, surface: string) {
 
 async function openCreateForm(page: Page, width: number) {
   const create = width === 1280
-    ? page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.create })
+    ? page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.createHabit })
     : page.getByRole('button', { name: messages.habits.createManually })
   await create.click()
 }
@@ -91,11 +91,12 @@ for (const width of [412, 1280] as const) {
       await page.goto('/')
       await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
       if (width === 1280) {
-        await page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.command.title }).click()
+        await page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.search }).click()
       } else {
         await page.keyboard.press('Control+k')
       }
       const field = page.locator('[cmdk-input]')
+      await expect(page.getByRole('dialog', { name: messages.command.title })).toBeVisible()
       await expect(field).toBeVisible()
       await field.focus()
       await page.keyboard.press('Shift+Tab')

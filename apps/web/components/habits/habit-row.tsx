@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronDown } from '@/components/ui/icons'
-import { SelectCheck } from '@/components/ui/select-check'
+import { Checkbox } from '@/components/ui/checkbox'
 import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
@@ -53,6 +53,7 @@ interface HabitRowProps {
   child?: boolean
   /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
   depth?: 0 | 1
+  structuralColumn?: boolean
   selectMode?: boolean
   selected?: boolean
   /** Parent expand/collapse. Caller is responsible for managing expanded state. */
@@ -88,38 +89,18 @@ function hasHabitMenuActions(
 }
 
 function HabitRowStructuralColumn({
-  selectMode,
-  selected,
-  title,
   hasChildren,
   expanded,
-  onToggleSelection,
   onToggleExpand,
   collapseLabel,
   expandLabel,
 }: Readonly<{
-  selectMode: boolean
-  selected: boolean
-  title: string
   hasChildren: boolean
   expanded: boolean
-  onToggleSelection?: () => void
   onToggleExpand?: () => void
   collapseLabel: string
   expandLabel: string
 }>) {
-  if (selectMode) {
-    return (
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-        <SelectCheck
-          selected={selected}
-          onClick={onToggleSelection}
-          ariaLabel={title}
-          habitRowControl
-        />
-      </span>
-    )
-  }
   if (!hasChildren) return <span aria-hidden="true" className="h-11 w-11 shrink-0" />
   return (
     <button
@@ -150,6 +131,7 @@ export function HabitRow({
   completionStatusUnavailable = false,
   child = false,
   depth = 0,
+  structuralColumn = false,
   selectMode = false,
   selected = false,
   hasChildren = false,
@@ -206,27 +188,31 @@ export function HabitRow({
       className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
-        paddingInlineStart: isChild ? 24 : 0,
       }}
     >
-      <HabitRowStructuralColumn
-        selectMode={selectMode}
-        selected={selected}
-        title={habit.title}
-        hasChildren={hasChildren}
-        expanded={expanded}
-        onToggleSelection={onToggleSelection}
-        onToggleExpand={onToggleExpand}
-        collapseLabel={t('common.collapse')}
-        expandLabel={t('common.expand')}
-      />
+      {structuralColumn && selectMode ? (
+        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
+          aria-pressed={selected} onClick={() => onToggleSelection?.()}
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
+          <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
+        </button>
+      ) : null}
+      {structuralColumn ? (
+        <HabitRowStructuralColumn
+          hasChildren={hasChildren}
+          expanded={expanded}
+          onToggleExpand={onToggleExpand}
+          collapseLabel={t('common.collapse')}
+          expandLabel={t('common.expand')}
+        />
+      ) : null}
 
       <button
         type="button"
         onClick={handleRowClick}
         data-habit-row-body=""
         className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-transform duration-[150ms] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
-        style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
+        style={{ gap: 12, paddingBlock: isChild ? 4 : 8, paddingInlineStart: isChild ? 24 : 0 }}
       >
         <HabitRowLeading
           title={habit.title}
