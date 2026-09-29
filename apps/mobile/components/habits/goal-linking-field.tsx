@@ -84,10 +84,10 @@ function createStyles(tokens: Tokens) {
     list: { gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
     search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 44, paddingHorizontal: 12 },
     virtualList: { maxHeight: 360 },
-    row: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 12, minHeight: 48, paddingHorizontal: 12 },
+    row: { alignItems: 'center', borderRadius: 12, overflow: 'hidden', flexDirection: 'row', gap: 12, minHeight: 48, paddingHorizontal: 12 },
     rowTitle: { color: tokens.fg1, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16 },
     rowValue: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
     empty: { alignItems: 'center', gap: 16, padding: 32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
-    action: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    action: { backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
   })
 }

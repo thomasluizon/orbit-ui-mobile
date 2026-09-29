@@ -39,5 +39,5 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
 }
 
 const styles = StyleSheet.create({
-  button: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  button: { width: 44, height: 44, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })

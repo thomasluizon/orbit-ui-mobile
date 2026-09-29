@@ -109,6 +109,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     minHeight: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   iconSlot: {
     width: 26,

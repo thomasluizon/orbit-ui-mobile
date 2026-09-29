@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  row: { minHeight: 52, paddingRight: 16, paddingVertical: 8, borderWidth: 1.5, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { minHeight: 52, paddingRight: 16, paddingVertical: 8, borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
   leading: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 20.8 },

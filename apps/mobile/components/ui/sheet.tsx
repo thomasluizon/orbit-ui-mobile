@@ -221,7 +221,8 @@ function createStyles(tokens: Tokens) {
     },
     close: {
       alignItems: 'center',
-      borderRadius: 22,
+      borderRadius: 999,
+      overflow: 'hidden',
       height: 44,
       justifyContent: 'center',
       width: 44,

@@ -30,7 +30,7 @@ export function CheckRow({
       data-error={error ? '' : undefined}
       style={({ pressed }) => [
         styles.row,
-        pressed ? { backgroundColor: tokens.bgElev } : null,
+        pressed ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
       ]}
     >
@@ -58,7 +58,7 @@ export function CheckRow({
 }
 
 const styles = StyleSheet.create({
-  row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8 },
+  row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },

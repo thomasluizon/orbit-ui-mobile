@@ -125,7 +125,7 @@ export function SettingsGroupRow({
         onClick={onClick}
         aria-label={ariaLabel}
         data-testid={dataTestId}
-        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
+        className="w-full text-left flex items-center justify-between cursor-pointer rounded-[12px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
         style={{
           ...SETTINGS_ROW_STYLE,
           appearance: 'none',

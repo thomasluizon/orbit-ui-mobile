@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

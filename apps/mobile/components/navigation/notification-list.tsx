@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
   skeletonTarget: { width: '32%', height: 16, borderRadius: 999 },
   empty: { padding: 32, gap: 16, borderRadius: 20, alignItems: 'center' },
   copy: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-  retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+  retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden' },
 })
