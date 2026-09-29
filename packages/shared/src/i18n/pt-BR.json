@@ -461,8 +461,9 @@
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
     "loadError": "Não foi possível carregar seus hábitos.",
     "allDoneToday": "Por hoje é isso",
-    "allDoneHint": "Tudo que vencia hoje está feito.",
-    "seeUpcoming": "Ver hábitos de amanhã",
+    "allDoneHint": "Tudo que era para hoje está feito.",
+    "seeUpcoming": "Ver amanhã",
+    "nothingOpen": "Nada em aberto neste dia.",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "filterEmptySubHabits": "Nenhum sub-hábito corresponde a esta visualização.",
     "moveParent": {
@@ -1731,7 +1732,6 @@
     },
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",
-    "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
     "widgetTitle": "Widget do Android",
     "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
     "calendarSync": {
@@ -2724,9 +2724,9 @@
       "stripWindow": "Atividade nos últimos {count, plural, one {# dia} other {# dias}}",
       "frozenToday": "Hoje está congelado. A sequência não quebra hoje.",
       "longest": "Maior sequência",
-      "active": "Dia ativo",
-      "frozen": "Dia congelado",
-      "missed": "Dia sem registro",
+      "active": "dia ativo",
+      "frozen": "dia congelado",
+      "missed": "dia sem registro",
       "today": "Hoje",
       "legend": "Legenda dos dias da sequência",
       "banked": "No banco",
@@ -2827,7 +2827,7 @@
   },
   "gamification": {
     "categories": {
-      "GettingStarted": "Primeiros Passos",
+      "GettingStarted": "Primeiros passos",
       "Consistency": "Consistência",
       "Volume": "Volume",
       "Goals": "Metas",
@@ -2835,7 +2835,7 @@
       "Special": "Especial",
       "Social": "Social",
       "Sharing": "Compartilhamento",
-      "Together": "Em Grupo"
+      "Together": "Em grupo"
     },
     "achievements": {
       "first_orbit": {

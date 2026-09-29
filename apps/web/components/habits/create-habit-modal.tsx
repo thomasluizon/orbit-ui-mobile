@@ -36,12 +36,14 @@ import {
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
+  getHabitPhraseTitle,
   hasHabitFormProposal,
   isFeatureEnabled,
   resolveAutoManagedReminderEnabled,
+  resolveSupportedLocale,
   toggleSelectedId,
 } from '@orbit/shared/utils'
-import type { HabitFormProposal } from '@orbit/shared/utils'
+import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
@@ -134,6 +136,13 @@ export function CreateHabitModal({
     setSubHabits(nextSubHabits)
   }, [])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const phraseOwnershipRef = useRef<HabitPhraseFormOwnership>({ cadence: false, dueTime: false })
+  useLayoutEffect(() => {
+    if (open) phraseOwnershipRef.current = { cadence: false, dueTime: false }
+  }, [open])
+  const handlePhraseOwnershipChange = useCallback((ownership: HabitPhraseFormOwnership) => {
+    phraseOwnershipRef.current = ownership
+  }, [])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
@@ -299,7 +308,8 @@ export function CreateHabitModal({
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
+          const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(locale), phraseOwnershipRef.current)
+          const request = buildCreateHabitRequest({ ...data, title }, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
         if (getAccountGeneration() !== submittingAccount) return
@@ -318,7 +328,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -495,6 +505,7 @@ export function CreateHabitModal({
             onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             onReminderEnabledChange={handleReminderEnabledChange}
             onSuggestionContextChange={suggestionRevision.advance}
+            onPhraseOwnershipChange={handlePhraseOwnershipChange}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
             onSuggestEmoji={() => void handleSuggestEmoji()}

@@ -24,10 +24,11 @@ export function getAllDoneOnDate(
       (hasHabitScheduleOnDate(habit, date) || habit.isOverdue)) {
       const logged = isHabitLoggedOnDate(habit, date)
       const skipped = isHabitSkippedOnDate(habit, date)
-      const done = habit.isFlexible
+      const completed = habit.isCompleted || logged
+      const done = !skipped && (habit.isFlexible
         ? habit.flexibleTarget !== null && habit.flexibleCompleted !== null &&
-          habit.flexibleCompleted >= habit.flexibleTarget && logged
-        : logged
+          habit.flexibleCompleted >= habit.flexibleTarget && completed
+        : completed)
       if (!done && !skipped) openCount++
       if (done) count++
     }
