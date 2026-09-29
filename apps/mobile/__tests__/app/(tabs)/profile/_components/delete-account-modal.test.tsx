@@ -175,6 +175,23 @@ describe('DeleteAccountModal', () => {
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
   })
 
+  it('shows a failed send in the pinned footer, beside Send code', async () => {
+    mocks.apiClient.mockRejectedValueOnce(new Error('private backend detail'))
+    const tree = await renderModal()
+
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const alerts = (slot: string) => tree.root
+      .findAll((node: { type: unknown }) => node.type === slot)[0]!
+      .findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+
+    expect(alerts('SheetActions')).toHaveLength(1)
+    expect(alerts('SheetBody')).toHaveLength(0)
+  })
+
   it('enters the deletion step up only after the sheet dismisses', async () => {
     sheetTestControls.defer(true)
     const tree = await renderModal()

@@ -102,6 +102,11 @@ export function DeleteAccountModal({
       title={t('profile.deleteAccount.headingAreYouSure')}
       actions={isOnline ? (
         <DialogActionPair>
+          {error ? (
+            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
+              {error}
+            </Text>
+          ) : null}
           <PillButton
             variant="destructive"
             matchedWidth
@@ -120,31 +125,24 @@ export function DeleteAccountModal({
       {!isOnline ? (
         <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
       ) : (
-        <View style={styles.body}>
-          <View style={styles.hero}>
-            <View
-              style={[
-                styles.heroCircle,
-                { backgroundColor: `${tokens.statusBad}24` },
-              ]}
-            >
-              <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.8} />
-            </View>
-            <View style={styles.copy}>
-              <Text style={[styles.title, { color: tokens.statusBadText }]}>
-                {t('profile.deleteAccount.warning')}
-              </Text>
-              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
-              <Text style={[styles.description, { color: tokens.fg2 }]}>
-                {t('profile.deleteAccount.warningDetail')}
-              </Text>
-            </View>
+        <View style={styles.hero}>
+          <View
+            style={[
+              styles.heroCircle,
+              { backgroundColor: `${tokens.statusBad}24` },
+            ]}
+          >
+            <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.8} />
           </View>
-          {error ? (
-            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
-              {error}
+          <View style={styles.copy}>
+            <Text style={[styles.title, { color: tokens.statusBadText }]}>
+              {t('profile.deleteAccount.warning')}
             </Text>
-          ) : null}
+            <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
+            <Text style={[styles.description, { color: tokens.fg2 }]}>
+              {t('profile.deleteAccount.warningDetail')}
+            </Text>
+          </View>
         </View>
       )}
     </Sheet>
@@ -152,9 +150,6 @@ export function DeleteAccountModal({
 }
 
 const styles = StyleSheet.create({
-  body: {
-    gap: 16,
-  },
   hero: {
     alignItems: 'center',
     gap: 16,
@@ -186,5 +181,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
+    textAlign: 'center',
   },
 })

@@ -219,6 +219,15 @@ describe('DeleteAccountModal', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it('shows a failed send in the pinned footer, beside Send code', async () => {
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+  })
+
   it('renders nothing while closed', () => {
     const { container } = render(
       <DeleteAccountModal open={false} onOpenChange={mocks.onOpenChange} profile={profile} />,
