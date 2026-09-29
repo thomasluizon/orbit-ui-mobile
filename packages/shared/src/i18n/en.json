@@ -1182,7 +1182,7 @@
       }
     },
     "empty": {
-      "title": "How did the day land?"
+      "title": "Talk to Astra about your routine"
     },
     "placeholder": "Ask Astra",
     "copy": "Copy",
@@ -1210,10 +1210,11 @@
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
     "suggestion": {
-      "prompt": "I can recap, plan, or help you adjust a habit.",
-      "meditated": "I meditated today",
-      "exercise": "Create a habit to exercise every morning",
-      "groceries": "I need to buy groceries tomorrow"
+      "prompt": "Some things you can ask",
+      "logHabit": "Log {habit}",
+      "week": "How the week went",
+      "splitHabit": "Split {habit}",
+      "goals": "How are my goals"
     },
     "action": {
       "changes": "Changes",

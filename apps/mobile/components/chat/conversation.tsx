@@ -23,7 +23,8 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
-import { ChevronDown, RefreshCw } from "@/components/ui/icons";
+import { MotionPressable } from "@/components/ui/motion-pressable";
+import { ChevronDown, RefreshCw, X } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -187,9 +188,20 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       <View style={styles.content}>
         <AppBar
           titleRef={titleRef}
-          onBack={closeConversation}
-          backLabel={t("common.closeConversation")}
           title={t("chat.title")}
+          action={
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={t("common.closeConversation")}
+              onPress={closeConversation}
+              style={({ pressed }) => [
+                styles.headerClose,
+                { backgroundColor: pressed ? tokens.bgHover : "transparent" },
+              ]}
+            >
+              <X size={20} strokeWidth={2} color={tokens.fg1} />
+            </MotionPressable>
+          }
         />
 
         {showSuggestions ? (

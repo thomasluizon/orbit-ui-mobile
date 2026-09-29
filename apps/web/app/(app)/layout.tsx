@@ -344,7 +344,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         }
         conversation={<AstraConversation chat={chat} notice={toastInConversation ? <AppToastHost /> : undefined} />}
         conversationOpen={astraConversationOpen}
-        conversationLabel={t('todayAstra.openConversation')}
+        conversationLabel={t('chat.title')}
         notice={(
           <>
             <CelebrationPanel />
