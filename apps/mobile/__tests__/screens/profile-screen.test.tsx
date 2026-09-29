@@ -430,6 +430,8 @@ vi.mock('@/components/ui/sheet', () => ({
 
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({
+    icon,
+    danger,
     title,
     description,
     value,
@@ -441,6 +443,8 @@ vi.mock('@/components/ui/list-row', () => ({
     action,
     readOnly = false,
   }: {
+    icon?: React.ReactNode
+    danger?: boolean
     title: string
     description?: string
     value?: string
@@ -455,6 +459,8 @@ vi.mock('@/components/ui/list-row', () => ({
     'SettingsRowStub',
     {
       label: title,
+      icon,
+      danger,
       hint: description,
       value,
       hasTrailing: Boolean(trailing),
@@ -784,6 +790,17 @@ describe('ProfileScreen', () => {
       'profile.settingsRows.startOver',
       'profile.settingsRows.deleteAccount',
     ])
+  })
+
+  it('passes ordinary and danger Perfil icons without a fixed color', async () => {
+    const tree = await renderProfileScreen()
+    for (const label of ['profile.settingsRows.signOut', 'profile.settingsRows.deleteAccount']) {
+      const row = findRowByLabel(tree, label) as SettingsRowStubNode & {
+        props: { icon?: React.ReactElement<{ color?: string }>; danger?: boolean }
+      }
+      expect(row.props.icon?.props.color).toBeUndefined()
+      expect(Boolean(row.props.danger)).toBe(label === 'profile.settingsRows.deleteAccount')
+    }
   })
 
   it('shows the free daily allowance as an enabled route to Pro', async () => {

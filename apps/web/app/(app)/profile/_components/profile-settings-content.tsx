@@ -74,7 +74,7 @@ interface RowContext {
 }
 
 const icon = (Icon: typeof User) => (
-  <Icon size={24} strokeWidth={1.8} color="var(--fg-1)" />
+  <Icon size={24} strokeWidth={1.8} />
 )
 
 const getServerAnalyticsOptOut = () => null

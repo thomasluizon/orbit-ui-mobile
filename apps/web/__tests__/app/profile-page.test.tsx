@@ -511,6 +511,20 @@ describe('ProfilePage', () => {
     ])
   })
 
+  it('lets Perfil rows set the stroke color of ordinary and danger icons', () => {
+    render(<ProfilePage />)
+    const ending = within(screen.getByTestId('profile-settings-group-ending'))
+    for (const [label, color] of [
+      ['profile.settingsRows.signOut', 'var(--fg-1)'],
+      ['profile.settingsRows.deleteAccount', 'var(--status-bad)'],
+    ]) {
+      const row = ending.getByRole('button', { name: label })
+      const icon = row.querySelector('svg')
+      expect(icon).toHaveAttribute('stroke', 'currentColor')
+      expect(icon?.parentElement).toHaveStyle({ color })
+    }
+  })
+
   it('routes every More of Orbit row', () => {
     const view = render(<ProfilePage />)
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
