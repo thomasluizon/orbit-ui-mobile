@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
-import { AdjustmentsHorizontal } from '@/components/ui/icons'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { AdjustmentsHorizontal, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
+import { Icon } from '@/components/ui/icon'
 import { Menu } from '@/components/ui/menu'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { createStyles } from '@/components/habit-list/styles'
@@ -35,8 +37,10 @@ const props = {
   onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
+  allCollapsed: false,
   refreshLabel: 'Refresh',
   completedLabel: 'Show completed',
+  showCompleted: false,
   isFetching: false,
   ...callbacks,
 }
@@ -109,6 +113,50 @@ describe('Today date control feedback (mobile)', () => {
     const menu = renderer.root.findByType(Menu)
     expect(menu.props.title).toBe('List options')
     expect(menu.props.open).toBe(true)
+  })
+
+  it('renders the Portuguese list options labels and glyphs in both list states', () => {
+    const labels = ptBr.habits
+    expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
+    const controlProps = {
+      moreLabel: labels.listOptions,
+      selectLabel: ptBr.common.select,
+      collapseLabel: labels.collapseAll,
+      refreshLabel: labels.refresh,
+      completedLabel: labels.showCompleted,
+    }
+    const renderer = renderControl(controlProps)
+    const control = button(renderer, labels.listOptions)
+    if (!control) throw new Error('List options control did not render')
+    TestRenderer.act(() => control.props.onPress())
+    const menu = renderer.root.findByType(Menu)
+    expect(menu.props.title).toBe(labels.listOptions)
+    expect(menu.props.open).toBe(true)
+    expect(menu.props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
+      [ptBr.common.select, 'checkbox'],
+      [labels.collapseAll, 'chevrons-up'],
+      [labels.refresh, 'refresh'],
+      [labels.showCompleted, 'eye'],
+    ])
+    TestRenderer.act(() => renderer.update(<TodayDateControl {...props} {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />))
+    expect(renderer.root.findByType(Menu).props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
+      [ptBr.common.select, 'checkbox'],
+      [labels.expandAll, 'chevrons-down'],
+      [labels.refresh, 'refresh'],
+      [labels.hideCompleted, 'eye-off'],
+    ])
+    for (const [name, Glyph] of [
+      ['checkbox', Checkbox],
+      ['chevrons-up', ChevronsUp],
+      ['chevrons-down', ChevronsDown],
+      ['refresh', RefreshCw],
+      ['eye', Eye],
+      ['eye-off', EyeOff],
+    ] as const) {
+      let glyphRenderer: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { glyphRenderer = TestRenderer.create(<Icon name={name} />) })
+      expect(glyphRenderer!.root.findAllByType(Glyph)).toHaveLength(1)
+    }
   })
 
   it('uses display type and leading alignment for the date', () => {

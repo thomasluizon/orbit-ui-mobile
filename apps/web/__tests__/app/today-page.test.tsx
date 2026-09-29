@@ -3,12 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import {
   buildSelectionRefreshKey,
   TodayHabitsPanel,
   TodayHeaderRegion,
 } from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
+import { Icon } from '@/components/ui/icon'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -45,7 +47,10 @@ vi.mock('@/components/ui/menu', () => ({
   Menu: ({ open, items, onSelect, title }: any) => open ? (
     <div role="menu" aria-label={title}>
       {items.map((item: any) => (
-        <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>{item.label}</button>
+        <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>
+          {item.icon ? <Icon name={item.icon} size={20} /> : null}
+          {item.label}
+        </button>
       ))}
     </div>
   ) : null,
@@ -154,8 +159,10 @@ const baseProps = {
   onSearch: vi.fn(),
   selectLabel: 'Select',
   collapseLabel: 'Collapse all',
+  allCollapsed: false,
   refreshLabel: 'Refresh',
   completedLabel: 'Show completed',
+  showCompleted: false,
   isFetching: false,
   onToggleSelect: vi.fn(),
   onToggleCollapse: vi.fn(),
@@ -508,5 +515,34 @@ describe('Hoje date control', () => {
     expect(screen.getByRole('menuitem', { name: 'Collapse all' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Refresh' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Show completed' })).toBeInTheDocument()
+  })
+
+  it('renders the Portuguese list options labels and glyphs in both list states', () => {
+    const labels = ptBr.habits
+    expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
+    const controlProps = {
+      ...baseProps,
+      moreLabel: labels.listOptions,
+      selectLabel: ptBr.common.select,
+      collapseLabel: labels.collapseAll,
+      refreshLabel: labels.refresh,
+      completedLabel: labels.showCompleted,
+    }
+    const { rerender } = render(<TodayDateControl {...controlProps} />)
+    fireEvent.click(screen.getByRole('button', { name: labels.listOptions }))
+    const menu = screen.getByRole('menu', { name: labels.listOptions })
+    expect(menu).toBeInTheDocument()
+    for (const [label, glyph] of [
+      [ptBr.common.select, 'checkbox'],
+      [labels.collapseAll, 'chevrons-up'],
+      [labels.refresh, 'refresh'],
+      [labels.showCompleted, 'eye'],
+    ]) {
+      const item = screen.getByRole('menuitem', { name: label })
+      expect(item.querySelector(`[data-icon="${glyph}"] svg`)).toBeInTheDocument()
+    }
+    rerender(<TodayDateControl {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />)
+    expect(screen.getByRole('menuitem', { name: labels.expandAll }).querySelector('[data-icon="chevrons-down"] svg')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: labels.hideCompleted }).querySelector('[data-icon="eye-off"] svg')).toBeInTheDocument()
   })
 })
