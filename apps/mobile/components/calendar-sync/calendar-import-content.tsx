@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from 'react'
 import {
   Pressable,
   Text,
@@ -35,7 +35,7 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { WebBrowserResultType } from 'expo-web-browser'
 import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
@@ -60,6 +60,15 @@ import { createStyles } from './calendar-import-styles'
 
 const EVENTS_PAGE_SIZE = 20
 
+export interface CalendarImportActionHandle {
+  importSelected: () => void
+}
+
+export interface CalendarImportActionState {
+  count: number
+  disabled: boolean
+}
+
 function rgbaFromHex(hex: string, alpha: number): string {
   const normalized = hex.replace('#', '')
   const r = Number.parseInt(normalized.slice(0, 2), 16)
@@ -76,7 +85,7 @@ interface ImportResult {
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void }>) {
+export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const router = useRouter()
   const isReviewMode = reviewMode
   const { t } = useTranslation()
@@ -87,6 +96,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     [currentScheme, currentTheme],
   )
   const { isOnline } = useOffline()
+  const accountGeneration = useAccountGeneration()
   const styles = useMemo(() => createStyles(), [])
   const chipTint = useMemo(
     () => ({ backgroundColor: tokens.bgElev, borderColor: tokens.hairline }),
@@ -353,6 +363,14 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     weekStartDay,
   ])
 
+  useImperativeHandle(actionRef, () => ({ importSelected: () => void handleImportSelected() }), [handleImportSelected])
+  useEffect(() => {
+    onActionStateChange(step === 'select' && events.length > 0
+      ? { count: selectedCount, disabled: selectedCount === 0 || !isOnline }
+      : null)
+  }, [step, events.length, selectedCount, isOnline, accountGeneration, onActionStateChange])
+  useEffect(() => () => onActionStateChange(null), [onActionStateChange])
+
   const handleRetry = useCallback(() => {
     if (!isOnline) {
       return
@@ -536,20 +554,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                     </Text>
                   </View>
                 ) : null}
-                <View style={styles.actionPad}>
-                  <PillButton
-
-                    onClick={() => {
-                      void handleImportSelected()
-                    }}
-                    disabled={selectedCount === 0 || !isOnline}
-                  >
-                    {plural(
-                      t('calendar.importButton', { count: selectedCount }),
-                      selectedCount,
-                    )}
-                  </PillButton>
-                </View>
               </>
             )}
           </>

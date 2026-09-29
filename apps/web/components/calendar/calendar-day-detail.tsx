@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -25,6 +25,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
+import { Input } from '@/components/ui/input'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -50,6 +51,52 @@ interface CalendarDayDetailProps {
   showTitle?: boolean
 }
 
+function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  onOpenImport: (eventId: string | null) => void
+}>) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+  const [eventQuery, setEventQuery] = useState('')
+  const [eventPage, setEventPage] = useState(0)
+  const matchingEvents = useMemo(() => calendarEvents.filter((event) =>
+    event.title.toLocaleLowerCase().includes(eventQuery.trim().toLocaleLowerCase()),
+  ), [calendarEvents, eventQuery])
+  const currentPage = Math.min(eventPage, Math.max(0, Math.ceil(matchingEvents.length / 20) - 1))
+  const visibleEvents = matchingEvents.slice(currentPage * 20, (currentPage + 1) * 20)
+
+  return <div className="flex flex-col" style={{ gap: 4 }}>
+    {calendarEvents.length > 20 ? (
+      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" />
+    ) : null}
+    {visibleEvents.map((event) => (
+      <div key={event.id} className="flex flex-col gap-2">
+        {event.startTime ? (
+          <EventRow time={displayTime(event.startTime)} title={event.title} source={t('calendar.title')} />
+        ) : (
+          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={t('calendar.title')} />
+        )}
+        <div className="self-end">
+          <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
+            {plural(t('calendar.importButton', { count: 1 }), 1)}
+          </PillButton>
+        </div>
+      </div>
+    ))}
+    {matchingEvents.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('calendar.noEvents')}</p> : null}
+    {calendarEvents.length > 20 ? (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</span>
+        {matchingEvents.length > 20 ? <div className="flex gap-2">
+          <PillButton variant="ghost" size="sm" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
+          <PillButton variant="ghost" size="sm" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
+        </div> : null}
+      </div>
+    ) : null}
+    <div className="self-end"><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton></div>
+  </div>
+}
+
 function CalendarEventsSection({
   calendarEvents,
   state,
@@ -68,7 +115,6 @@ function CalendarEventsSection({
   proActionVariant: 'primary' | 'secondary'
 }>) {
   const t = useTranslations()
-  const { displayTime } = useTimeFormat()
   const { isOnline } = useOffline()
 
   if (state === 'pro-boundary') {
@@ -129,23 +175,7 @@ function CalendarEventsSection({
         </div>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (
-        <div className="flex flex-col" style={{ gap: 4 }}>
-          {calendarEvents.map((event) => (
-            <div key={event.id} className="flex flex-col gap-2">
-              {event.startTime ? (
-                <EventRow time={displayTime(event.startTime)} title={event.title} source={t('calendar.title')} />
-              ) : (
-                <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={t('calendar.title')} />
-              )}
-              <div className="self-end">
-                <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
-                  {plural(t('calendar.importButton', { count: 1 }), 1)}
-                </PillButton>
-              </div>
-            </div>
-          ))}
-          <div className="self-end"><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton></div>
-        </div>
+        <CalendarReadyEvents calendarEvents={calendarEvents} onOpenImport={onOpenImport} />
       ) : null}
     </div>
   )
@@ -378,6 +408,7 @@ export function CalendarDayDetail({
       ) : null}
       {goToDay}
       <CalendarEventsSection
+        key={dateStr}
         calendarEvents={calendarEvents}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}

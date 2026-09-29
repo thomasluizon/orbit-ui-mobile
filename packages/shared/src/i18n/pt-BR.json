@@ -946,6 +946,7 @@
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
       "eventsTitle": "Na sua agenda",
+      "searchEvents": "Buscar eventos",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
       "autoSync": "Sincronizar sozinho",

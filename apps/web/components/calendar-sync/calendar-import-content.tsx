@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Check,
@@ -19,7 +19,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   useCalendarAutoSyncState,
@@ -57,9 +57,18 @@ interface ImportResult {
 
 const EVENTS_PAGE_SIZE = 20
 
+export interface CalendarImportActionHandle {
+  importSelected: () => void
+}
+
+export interface CalendarImportActionState {
+  count: number
+  disabled: boolean
+}
+
 type CalendarEvent = CalendarSyncEvent
 
-export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void }>) {
+export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
@@ -67,6 +76,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const bulkCreateHabits = useBulkCreateHabits()
   const queryClient = useQueryClient()
   const { isOnline } = useOffline()
+  const accountGeneration = useAccountGeneration()
 
   const isReviewMode = reviewMode
   const isProUser = Boolean(profile) && hasProAccess
@@ -274,6 +284,14 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     }
   }
 
+  useImperativeHandle(actionRef, () => ({ importSelected }))
+  useEffect(() => {
+    onActionStateChange(step === 'select' && events.length > 0
+      ? { count: selectedIds.size, disabled: selectedIds.size === 0 || !isOnline }
+      : null)
+  }, [step, events.length, selectedIds.size, isOnline, accountGeneration, onActionStateChange])
+  useEffect(() => () => onActionStateChange(null), [onActionStateChange])
+
   function handleRetry() {
     setWizardStage('browse')
     if (autoSyncStateQuery.isError) {
@@ -444,18 +462,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 </div>
               )}
 
-              <div className={!isOnline ? 'flex flex-col gap-4' : 'flex flex-col'} style={{ padding: '16px 16px 0' }}>
-                <div role="status">
-                  {!isOnline && <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />}
-                </div>
-                <div className="md:flex md:justify-center">
-                  <PillButton
-                    disabled={selectedIds.size === 0 || !isOnline}
-                    onClick={() => importSelected()}
-                  >
-                    {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
-                  </PillButton>
-                </div>
+              <div role="status" style={{ padding: !isOnline ? '16px 16px 0' : undefined }}>
+                {!isOnline ? <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
               </div>
             </>
           )}

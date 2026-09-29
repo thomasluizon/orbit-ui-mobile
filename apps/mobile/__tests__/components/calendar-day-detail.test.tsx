@@ -14,7 +14,8 @@ import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-da
 
 const TestRenderer = require('react-test-renderer')
 
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+const network = { isOnline: true }
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
 
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
@@ -58,6 +59,10 @@ vi.mock('@/app/(tabs)/calendar/_components/show-recurring-toggle', () => ({
 
 vi.mock('@/components/dates/event-row', () => ({
   EventRow: (props: Record<string, unknown>) => React.createElement('EventRowMock', props),
+}))
+
+vi.mock('@/components/ui/input', () => ({
+  Input: (props: Record<string, unknown>) => React.createElement('InputMock', props),
 }))
 
 type TestNode = {
@@ -745,5 +750,43 @@ describe('CalendarDayDetail (mobile)', () => {
     })
 
     expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+  })
+
+  it('shows one offline disconnected state without a reconnect action', () => {
+    network.isOnline = false
+    try {
+      const onReconnectCalendarEvents = vi.fn()
+      const tree = renderDetail({
+        calendarEventsState: 'not-connected',
+        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+        onReconnectCalendarEvents,
+      })
+      const text = nodes(tree, 'Text').map((node) => node.props.children)
+      expect(text).toContain('offline.calendar.title')
+      expect(text).toContain('offline.calendar.reason')
+      expect(text).not.toContain('Google Calendar disconnected')
+      expect(nodes(tree, 'PillButtonMock').some((node) => node.props.children === 'Reconnect')).toBe(false)
+      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
+  })
+
+  it('searches and pages a busy day within twenty event rows', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
+      id: `event-${index}`, title: `Event ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    }))
+    const tree = renderDetail({ calendarEvents })
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
+    const search = nodes(tree, 'InputMock')[0]
+    expect(search?.props.label).toBe('calendar.dayDetail.searchEvents')
+    const next = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'common.next')
+    TestRenderer.act(() => (next?.props.onClick as () => void)())
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(3)
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('Event 22'))
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(1)
+    expect(nodes(tree, 'EventRowMock')[0]?.props.title).toBe('Event 22')
   })
 })

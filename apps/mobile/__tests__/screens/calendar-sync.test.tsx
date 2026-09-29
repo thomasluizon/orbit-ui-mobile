@@ -7,8 +7,18 @@ import { calendarKeys } from '@orbit/shared/query';
 import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
 
-import { CalendarImportContent } from "@/components/calendar-sync/calendar-import-content";
-function CalendarSyncScreen() { return <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} /> }
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from "@/components/calendar-sync/calendar-import-content";
+import { PillButton } from '@/components/ui/pill-button';
+import { useTranslation } from 'react-i18next';
+function CalendarSyncScreen() {
+  const [action, setAction] = React.useState<CalendarImportActionState | null>(null);
+  const actionRef = React.useRef<CalendarImportActionHandle>(null);
+  const { t } = useTranslation();
+  return <>
+    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} />
+    {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
+  </>;
+}
 
 const TestRenderer = require("react-test-renderer");
 

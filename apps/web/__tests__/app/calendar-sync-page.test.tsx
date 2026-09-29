@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -60,13 +61,23 @@ vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+
+function CalendarSyncScreen() {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  return <>
+    <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} /></div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+}
 
 function renderPage() {
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} />
+      <CalendarSyncScreen />
     </QueryClientProvider>,
   )
 }

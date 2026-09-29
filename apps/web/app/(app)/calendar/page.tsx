@@ -60,7 +60,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
-import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
@@ -70,6 +70,7 @@ import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { plural } from '@/lib/plural'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -84,6 +85,27 @@ import {
 
 type MonthSlide = 'left' | 'right' | null
 type CalendarView = 'month' | 'week' | 'range' | 'agenda'
+
+function calendarDateFnsLocale(locale: string) {
+  return locale === 'pt-BR' ? ptBR : enUS
+}
+
+function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
+  const router = useRouter()
+  useEffect(() => {
+    if (routeRequestKey && !importRequested) router.replace('/calendar')
+  }, [routeRequestKey, importRequested, router])
+}
+
+function CalendarImportActions({ state, onImport, t }: {
+  state: CalendarImportActionState;
+  onImport: () => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return <PillButton disabled={state.disabled} onClick={onImport}>
+    {plural(t('calendar.importButton', { count: state.count }), state.count)}
+  </PillButton>
+}
 
 function calendarStatState(
   state: CalendarMonthDisplayState,
@@ -215,7 +237,7 @@ function CalendarProfileState({
 }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const dateFnsLocale = calendarDateFnsLocale(locale)
   return (
       <div className="flex min-w-0 flex-col">
         <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
@@ -312,7 +334,7 @@ function CalendarPageContent({
   const { sheetRef, closeSheet } = useSheetHost()
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost()
   const locale = useLocale()
-  const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const dateFnsLocale = calendarDateFnsLocale(locale)
   const { displayTime } = useTimeFormat()
   const { displayWeekdayDate } = useDateFormat()
   const weekStartsOn = profile.weekStartDay
@@ -330,13 +352,14 @@ function CalendarPageContent({
   const [rangeOffset, setRangeOffset] = useState(0)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false)
+  const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null)
+  const importActionRef = useRef<CalendarImportActionHandle>(null)
+  const commitCalendarImport = useCallback(() => importActionRef.current?.importSelected(), [])
   const [initialImportEventId, setInitialImportEventId] = useState<string | null>(null)
   const reviewRequested = searchParams.get('mode') === 'review'
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, searchParams.get('import') === '1')
   const importRequested = useAccountBoundRouteRequest(routeRequestKey)
-  useEffect(() => {
-    if (routeRequestKey && !importRequested) router.replace('/calendar')
-  }, [routeRequestKey, importRequested, router])
+  useClearStaleCalendarImportRoute(routeRequestKey, importRequested)
   const showImportSheet = shouldOpenCalendarImportSheet(profile.hasProAccess, isImportOpen, importRequested)
 
   const openImport = useCallback((eventId: string | null) => {
@@ -910,10 +933,13 @@ function CalendarPageContent({
         open
         onClose={closeImport}
         title={t(calendarImportTitleKey(reviewRequested))}
+        actions={importActionState ? <CalendarImportActions state={importActionState} onImport={commitCalendarImport} t={t} /> : undefined}
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
           initialEventId={initialImportEventId}
+          actionRef={importActionRef}
+          onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}
           onGoToHabits={() => closeImportSheet(() => {
             setIsImportOpen(false)

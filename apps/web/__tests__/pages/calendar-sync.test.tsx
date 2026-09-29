@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { toast } from 'sonner'
+import { useRef, useState } from 'react'
 
 
 vi.mock('next-intl', () => ({
@@ -225,14 +226,27 @@ let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknow
 const originalFetch = globalThis.fetch
 
 
-import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+import { useTranslations } from 'next-intl'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+
+function CalendarSyncScreen() {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  return <>
+    <div data-testid="sheet-body">
+      <CalendarImportContent reviewMode={mockSearchParams.get('mode') === 'review'} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} />
+    </div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+}
 
 function renderPage() {
   const queryClient = new QueryClient()
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <CalendarImportContent reviewMode={mockSearchParams.get('mode') === 'review'} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} />
+      <CalendarSyncScreen />
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
@@ -680,7 +694,9 @@ describe('CalendarSyncPage', () => {
     expect(refusals).toHaveLength(1)
     expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
     const importButton = screen.getByText('calendar.importButton:{"count":1}').closest('button')!
-    expect(importButton.parentElement?.parentElement).toContainElement(refusals[0]!)
+    expect(screen.getByTestId('sheet-body')).toContainElement(refusals[0]!)
+    expect(screen.getByTestId('sheet-actions')).toContainElement(importButton)
+    expect(screen.getByTestId('sheet-body')).not.toContainElement(importButton)
     expect(importButton).toBeDisabled()
     expect(mockBulkMutate).not.toHaveBeenCalled()
   })

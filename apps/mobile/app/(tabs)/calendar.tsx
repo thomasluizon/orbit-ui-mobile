@@ -88,7 +88,8 @@ import {
 import { CalendarLoadingBar } from "./calendar/_components/calendar-loading-bar";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
-import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content';
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content';
+import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
@@ -99,6 +100,27 @@ import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range" | "agenda";
+
+function calendarDateFnsLocale(locale: string) {
+  return locale === "pt-BR" ? ptBR : enUS;
+}
+
+function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
+  const router = useRouter();
+  useEffect(() => {
+    if (routeRequestKey && !importRequested) router.replace('/calendar');
+  }, [routeRequestKey, importRequested, router]);
+}
+
+function CalendarImportActions({ state, onImport, t }: {
+  state: CalendarImportActionState;
+  onImport: () => void;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return <PillButton disabled={state.disabled} onClick={onImport}>
+    {plural(t('calendar.importButton', { count: state.count }), state.count)}
+  </PillButton>;
+}
 
 const calendarLayoutStyles = StyleSheet.create({
   inlineDay: { paddingHorizontal: 16, paddingTop: 24 },
@@ -402,7 +424,7 @@ function CalendarScreenContent({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const dateFnsLocale = i18n.language === "pt-BR" ? ptBR : enUS;
+  const dateFnsLocale = calendarDateFnsLocale(i18n.language);
   const weekStartsOn = profile.weekStartDay;
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
@@ -433,13 +455,14 @@ function CalendarScreenContent({
   const [rangeOffset, setRangeOffset] = useState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false);
+  const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null);
+  const importActionRef = useRef<CalendarImportActionHandle>(null);
+  const commitCalendarImport = useCallback(() => importActionRef.current?.importSelected(), []);
   const [initialImportEventId, setInitialImportEventId] = useAccountScopedState<string | null>(null);
   const reviewRequested = params.mode === 'review';
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, params.import === '1');
   const importRequested = useAccountBoundRouteRequest(routeRequestKey);
-  useEffect(() => {
-    if (routeRequestKey && !importRequested) router.replace('/calendar');
-  }, [routeRequestKey, importRequested, router]);
+  useClearStaleCalendarImportRoute(routeRequestKey, importRequested);
   const showImportSheet = shouldOpenCalendarImportSheet(profile.hasProAccess, isImportOpen, importRequested);
   const openImport = useCallback((eventId: string | null) => {
     const open = () => {
@@ -1092,10 +1115,13 @@ function CalendarScreenContent({
         ref={importSheetRef}
         onClose={closeImport}
         title={t(calendarImportTitleKey(reviewRequested))}
+        actions={importActionState ? <CalendarImportActions state={importActionState} onImport={commitCalendarImport} t={t} /> : undefined}
       >
         <CalendarImportContent
           reviewMode={reviewRequested}
           initialEventId={initialImportEventId}
+          actionRef={importActionRef}
+          onActionStateChange={setImportActionState}
           onClose={() => closeImportSheet()}
           onGoToHabits={() => closeImportSheet(() => {
             setIsImportOpen(false);

@@ -221,6 +221,25 @@ describe('CalendarDayDetail', () => {
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
   })
 
+  it('searches and pages a busy day without growing the event list past twenty rows', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
+      id: `event-${index}`, title: `Event ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    }))
+    renderDetail({ calendarEvents })
+
+    expect(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' })).toBeInTheDocument()
+    expect(screen.getByText('Event 19')).toBeInTheDocument()
+    expect(screen.queryByText('Event 20')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.next' }))
+    expect(screen.getByText('Event 20')).toBeInTheDocument()
+    expect(screen.queryByText('Event 0')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'Event 22' } })
+    expect(screen.getByText('Event 22')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.next' })).not.toBeInTheDocument()
+  })
+
   it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
     const onViewPro = vi.fn()
     renderDetail({
