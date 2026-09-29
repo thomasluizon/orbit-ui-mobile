@@ -23,7 +23,9 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
   if (typeof icon === 'string') return <Icon name={icon} size={24} color={color} />
-  if (isValidElement<{ color?: string }>(icon)) return cloneElement(icon, { color })
+  if (isValidElement<{ color?: string }>(icon)) {
+    return icon.props.color === undefined ? cloneElement(icon, { color }) : icon
+  }
   return icon
 }
 

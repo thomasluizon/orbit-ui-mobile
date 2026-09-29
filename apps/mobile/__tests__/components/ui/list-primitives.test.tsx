@@ -63,6 +63,12 @@ describe('list primitives on mobile', () => {
     expect(danger.root.findByType(UserX).props.color).toBe(tokens.statusBad)
   })
 
+  it('preserves an intentionally muted leading glyph', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<ListRow title="Invite" icon={<User size={24} color={tokens.fg2} />} />)
+    expect(tree.root.findByType(User).props.color).toBe(tokens.fg2)
+  })
+
   it('passes an ordinary row color through ProfileNavIcon to its glyph', () => {
     const tree = render(<ListRow title="Wrapped" icon={<ProfileNavIcon iconKey="wrapped" />} />)
     expect(tree.root.findByType(ProfileNavIcon).props.color).toBe(createTokensV2('purple', 'dark').fg1)
