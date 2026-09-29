@@ -84,6 +84,17 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it('labels an untitled header for accessibility', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open accessibleTitle="Reschedule with AI" />)
+      await Promise.resolve()
+    })
+    const header = tree!.root.findByType(TrueSheet).props.header
+    expect(header.props.accessibilityLabel).toBe('Reschedule with AI')
+    expect(header.props.children[0].props.accessible).toBe(true)
+    expect(header.props.children[0].props.accessibilityLabel).toBe('Reschedule with AI')
+  })
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [] })
     useAppToastStore.setState({ currentToast: null, queue: [] })

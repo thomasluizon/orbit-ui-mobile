@@ -7,6 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
+  params: {} as { missing?: string[] },
   wide: false,
   push: vi.fn(),
   setPaletteOpen: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
+  useParams: () => mocks.params,
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
@@ -55,13 +57,14 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     activeId?: string | null
     onSelect?: (id: string) => void
     onCreate?: () => void
+    createLabel?: string
     createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
@@ -82,7 +85,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide ? items?.map((item) => (
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
       )) : tabBar}
-      {mocks.wide && onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
       {mocks.wide ? createRefusal : null}
       {!mocks.wide ? fab : null}
     </div>
@@ -95,8 +98,10 @@ import {
 } from '@/components/shell/destination-shell'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
+import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
+import NotFound from '@/app/not-found'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
@@ -111,6 +116,7 @@ describe('DestinationShell', () => {
 
   beforeEach(() => {
     mocks.pathname = '/'
+    mocks.params = {}
     mocks.wide = false
     mocks.profileName = ''
     mocks.profileLoaded = true
@@ -118,6 +124,35 @@ describe('DestinationShell', () => {
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  it.each([false, true])('shows an unselected not-found shell with its composer at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const view = render(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+    expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
+  })
+
+  it.each([false, true])('includes the not-found composer and unselected navigation in server markup at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const html = renderToString(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+
+    expect(html).toContain('data-shell-pinned-slot=""')
+    expect(html).toContain('Composer')
+    expect(html).not.toContain('aria-current="page"')
   })
 
   afterEach(() => {
@@ -185,7 +220,7 @@ describe('DestinationShell', () => {
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      'nav.create',
+      'nav.createHabit',
     ])
     fireEvent.click(screen.getByRole('button', { name: 'nav.progress' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
@@ -202,7 +237,7 @@ describe('DestinationShell', () => {
   it('forwards the create refusal beside the compact FAB', () => {
     render(<DestinationShell onCreate={() => {}} createRefusal={<span>Offline create refusal</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.getByText('Offline create refusal')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'nav.create' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.createHabit' })).toBeInTheDocument()
   })
 
   it('passes the selection tray target through the destination composer slot', () => {
@@ -340,7 +375,7 @@ describe('DestinationShell', () => {
     mocks.pathname = '/calendar'
     render(<DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell>)
 
-    expect(screen.queryByRole('button', { name: 'nav.create' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).not.toBeInTheDocument()
   })
 
   it('keeps a later pushed flow after selecting the active destination', () => {
@@ -363,14 +398,17 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={onCreate}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'command.title',
+      'nav.search',
       'nav.today',
       'nav.calendar',
       'nav.progress',
       'nav.profile',
-      '',
+      'nav.createHabit',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'wide-create' }))
+    expect(screen.getByRole('button', { name: 'nav.search' })).not.toHaveTextContent('command.title')
+    fireEvent.click(screen.getByRole('button', { name: 'nav.search' }))
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
 
@@ -466,6 +504,14 @@ describe('DestinationShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
+  it('focuses the object heading after navigating to a detail route', async () => {
+    const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    mocks.pathname = '/habits/h1'
+    view.rerender(<DestinationShell onCreate={() => {}}><AppBar title="Habit" titleIsHeading={false} /><h1 tabIndex={-1}>Read</h1></DestinationShell>)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Read' })).toHaveFocus())
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  })
+
   it.each([false, true])('pins pushed headers outside the scroller at wide=%s', async (wide) => {
     mocks.pathname = '/about'
     mocks.wide = wide
@@ -511,7 +557,7 @@ describe('DestinationShell', () => {
     const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Upgrade</h1></DestinationShell>)
     expect(view.container.querySelectorAll('button[aria-current], button[aria-label^="nav."]')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'nav.profile' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: 'command.title' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'nav.search' })).toBeInTheDocument()
     expect(view.container.querySelector('[data-shell-account]')).toHaveAttribute('data-loading', 'true')
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'wide-create' })).toBeNull()

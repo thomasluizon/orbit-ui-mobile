@@ -34,6 +34,7 @@ export function PopoverPositioner({
 }
 
 interface AnchoredPopoverProps extends PopoverPositionerProps {
+  id?: string
   panelRef: RefObject<HTMLDivElement | null>
   title?: string
   onKeyDown: KeyboardEventHandler<HTMLDivElement>
@@ -41,6 +42,7 @@ interface AnchoredPopoverProps extends PopoverPositionerProps {
 
 /** Loads the collision library only while an anchored menu is open. */
 export function AnchoredPopover({
+  id,
   align,
   anchorRef,
   children,
@@ -54,6 +56,7 @@ export function AnchoredPopover({
         <div className="orbit-menu-catcher" aria-hidden="true" />
         <PopoverPositioner align={align} anchorRef={anchorRef}>
           <Popover.Popup
+            id={id}
             ref={panelRef}
             role="menu"
             aria-label={title}

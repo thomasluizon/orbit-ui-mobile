@@ -77,6 +77,28 @@ describe('ShellWide', () => {
     expect(onSelect).toHaveBeenCalledWith('calendario')
   })
 
+  it('shows the short search entry and the full create action in the sidebar', () => {
+    const onPalette = vi.fn()
+    render(
+      <ShellWide
+        items={items}
+        activeId="hoje"
+        navLabel="Navegação principal"
+        onPalette={onPalette}
+        paletteLabel="Buscar"
+        paletteHint="Ctrl K"
+        onCreate={() => {}}
+        createLabel="Criar hábito"
+      />,
+    )
+
+    const search = screen.getByRole('button', { name: /^Buscar/ })
+    expect(search).toHaveTextContent('Buscar')
+    fireEvent.click(search)
+    expect(onPalette).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Criar hábito' })).toHaveTextContent('Criar hábito')
+  })
+
   it.each(['dark', 'light'])('keeps navigation colors valid in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(

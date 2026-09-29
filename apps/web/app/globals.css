@@ -1780,6 +1780,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--fg-1);
   overflow-wrap: anywhere;
 }
+.error-surface--in-shell {
+  padding: 64px 16px 0;
+}
 .error-surface-title {
   font-family: var(--font-display);
   font-size: 22px;
@@ -1796,6 +1799,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 @media (min-width: 64rem) {
   .error-surface { padding: 32px; }
+  .error-surface--in-shell { padding: 0; }
   .error-surface-title { font-size: 28px; line-height: 1.15; }
   .error-surface-action [data-variant="primary"] {
     background: var(--fg-1);

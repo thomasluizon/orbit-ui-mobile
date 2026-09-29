@@ -47,7 +47,7 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -120,7 +120,7 @@ export function Sheet({ title, headerAccessory, actions, virtualizedBody, initia
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
               <Dialog.Title className={title ? 'orbit-sheet-title' : 'sr-only'}>
-                {title ?? t('common.appName')}
+                {title ?? accessibleTitle ?? t('common.appName')}
               </Dialog.Title>
               {headerAccessory}
               {onClose ? (

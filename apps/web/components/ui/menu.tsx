@@ -48,11 +48,13 @@ function useWidePresentation(wideFrom: number): boolean {
 
 /** The sheet presentation closes through its exit transition before it reports the choice. */
 function MenuSheet({
+  id,
   items,
   onSelect,
   onClose,
   title,
 }: Readonly<{
+  id?: string
   items: readonly MenuItem[]
   onSelect?: (id: string) => void
   onClose?: () => void
@@ -62,7 +64,7 @@ function MenuSheet({
 
   return (
     <Sheet ref={sheetRef} open title={title} onClose={onClose}>
-      <div role="menu" aria-label={title}>
+      <div id={id} role="menu" aria-label={title}>
         <MenuItems
           items={items}
           onActivate={(id) =>
@@ -145,6 +147,7 @@ function adjacentTabStop(
 
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
+  id,
   open = false,
   items = EMPTY_MENU_ITEMS,
   onSelect,
@@ -230,13 +233,14 @@ export function Menu({
   if (!open || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet items={items} onClose={onClose} onSelect={onSelect} title={title} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} />
   }
 
   if (!portalTarget) return null
 
   return createPortal(
     <AnchoredPopover
+      id={id}
       align={align}
       anchorRef={anchorRef}
       panelRef={panelRef}

@@ -28,6 +28,7 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
+let detailAvailable = true
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
 const updateProgressMutateAsync = vi.fn()
@@ -41,7 +42,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -67,6 +68,7 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
     detailLoadError = false
+    detailAvailable = true
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
@@ -88,6 +90,23 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
+  })
+  it('uses the inline goal title as its only page heading', () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    const headings = screen.getAllByRole('heading', { level: 1 })
+    expect(headings).toHaveLength(1)
+    expect(headings[0]).toHaveTextContent('Read 12 books')
+    expect(headings[0]).toHaveAttribute('tabindex', '-1')
+  })
+  it('keeps one fallback heading while an inline goal has no data', () => {
+    detailAvailable = false
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('progressScreen.sections.goals')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    detailAvailable = true
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Read 12 books' })).toHaveFocus()
   })
 
   it.each([
@@ -561,7 +580,7 @@ describe('GoalDetailDrawer', () => {
     const trigger = screen.getByRole('button', { name: 'Open goal' })
     trigger.focus()
     fireEvent.click(trigger)
-    expect(document.activeElement).toHaveAttribute('data-goal-detail')
+    expect(screen.getByRole('heading', { level: 1, name: 'Read 12 books' })).toHaveFocus()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     await waitFor(() => expect(trigger).toHaveFocus())
   })

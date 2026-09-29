@@ -1,8 +1,6 @@
 'use client'
 
-import type { MouseEvent } from 'react'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { useTranslations } from 'next-intl'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
 const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
@@ -31,48 +29,6 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
         />
       )}
     </span>
-  )
-}
-
-/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px empty track otherwise. */
-interface SelectCheckProps {
-  selected: boolean
-  size?: number
-  onClick?: () => void
-  ariaLabel?: string
-  disabled?: boolean
-  habitRowControl?: boolean
-}
-
-export function SelectCheck({
-  selected,
-  size = 24,
-  onClick,
-  ariaLabel,
-  disabled = false,
-  habitRowControl = false,
-}: Readonly<SelectCheckProps>) {
-  const t = useTranslations('common')
-
-  function handleClick(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-    if (disabled) return
-    onClick?.()
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled}
-      data-habit-row-control={habitRowControl ? 'selection' : undefined}
-      aria-label={ariaLabel ?? t('select')}
-      aria-pressed={selected}
-      className={`touch-target appearance-none border-0 bg-transparent p-0 shrink-0 inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
-      style={{ width: size, height: size }}
-    >
-      <RadioGlyph selected={selected} size={size} />
-    </button>
   )
 }
 

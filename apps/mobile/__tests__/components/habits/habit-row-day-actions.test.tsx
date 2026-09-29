@@ -28,6 +28,27 @@ describe('mobile habit row on an old day', () => {
     await i18n.changeLanguage('en')
   })
 
+  it.each([['en', 'Reschedule'], ['pt-BR', 'Reagendar']])('shows the %s reschedule label on an overdue row', async (locale, label) => {
+    await i18n.changeLanguage(locale)
+    const onReschedule = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <I18nextProvider i18n={i18n}>
+          <HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} actions={{ onReschedule }} />
+        </I18nextProvider>,
+      )
+    })
+    const more = tree!.root.findByProps({ accessibilityLabel: i18n.t('habits.actions.more') })
+    TestRenderer.act(() => more.props.onPress())
+    const items = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
+    const item = items.find((candidate: TestNode) => candidate.findByType('Text').props.children === label)
+    expect(i18n.t('habits.actions.reschedule')).toBe(label)
+    expect(item).toBeDefined()
+    TestRenderer.act(() => item!.props.onPress())
+    expect(onReschedule).toHaveBeenCalledOnce()
+  })
+
   it('opens management actions ten days back while disabling completion', () => {
     const actions = {
       onEdit: vi.fn(), onDuplicate: vi.fn(), onMoveParent: vi.fn(),
@@ -41,7 +62,7 @@ describe('mobile habit row on an old day', () => {
         <I18nextProvider i18n={i18n}>
           <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
             selectedDate={new Date('2026-04-01T12:00:00Z')}
-            hasChildren childrenTotal={1} actions={actions} />
+            structuralColumn hasChildren childrenTotal={1} actions={actions} />
         </I18nextProvider>,
       )
     })
@@ -76,7 +97,7 @@ describe('mobile habit row on an old day', () => {
       <I18nextProvider i18n={i18n}>
         <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
           selectedDate={new Date('2026-04-01T12:00:00Z')}
-          hasChildren isExpanded childrenTotal={1} actions={actions} />
+          structuralColumn hasChildren isExpanded childrenTotal={1} actions={actions} />
       </I18nextProvider>,
     ))
     const collapse = tree!.root.findByProps({ accessibilityLabel: i18n.t('common.collapse') })

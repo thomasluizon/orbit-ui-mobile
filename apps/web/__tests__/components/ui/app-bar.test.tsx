@@ -20,4 +20,9 @@ describe('AppBar', () => {
     expect(screen.getByRole('button', { name: 'Share' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Back to walking' })).not.toBeInTheDocument()
   })
+  it('keeps an object view title visible without adding a page heading', () => {
+    render(<AppBar title="Habit" titleIsHeading={false} />)
+    expect(screen.getByText('Habit')).toBeVisible()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
 })

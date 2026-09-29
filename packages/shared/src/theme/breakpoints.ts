@@ -1,0 +1,1 @@
+export const WIDE_DESKTOP_BREAKPOINT = 1024

@@ -30,4 +30,10 @@ describe('AppBar', () => {
     expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'button')).toHaveLength(1)
     tree.unmount()
   })
+  it('keeps an object view title visible without a header role', () => {
+    const tree = renderNavigation(<AppBar title="Habit" titleIsHeading={false} />)
+    expect(tree.hosts().some((node) => node.props.children === 'Habit')).toBe(true)
+    expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
+    tree.unmount()
+  })
 })

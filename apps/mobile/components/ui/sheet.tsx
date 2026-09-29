@@ -57,6 +57,7 @@ interface MobileSheetProps extends SheetProps {
 /** The native overlay surface. Callers mount it only while it is open. */
 export function Sheet({
   title,
+  accessibleTitle,
   headerAccessory,
   actions,
   onClose,
@@ -128,9 +129,11 @@ export function Sheet({
     return true
   }, [onAttemptDismiss])
 
-  const header = title || headerAccessory || onClose ? (
-    <View style={styles.header}>
-      {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
+  const header = title || accessibleTitle || headerAccessory || onClose ? (
+    <View style={styles.header} accessibilityLabel={accessibleTitle}>
+      {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
+        <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
+      )}
       {headerAccessory}
       {onClose ? (
         <Pressable

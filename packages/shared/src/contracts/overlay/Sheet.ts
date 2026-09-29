@@ -3,6 +3,7 @@
 export interface SheetProps {
   open?: true
   title?: string
+  accessibleTitle?: string
   headerAccessory?: React.ReactNode
   actions?: React.ReactNode
   onClose?: () => void
