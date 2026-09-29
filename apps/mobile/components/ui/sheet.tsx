@@ -124,7 +124,7 @@ export function Sheet({
     return true
   }, [onAttemptDismiss])
 
-  const header = title || headerAccessory || onClose ? (
+  const header = title || accessibleTitle || headerAccessory || onClose ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle}>
       {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />

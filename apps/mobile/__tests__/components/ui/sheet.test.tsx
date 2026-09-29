@@ -54,7 +54,7 @@ describe('Sheet (mobile)', () => {
   it('labels an untitled header for accessibility', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open accessibleTitle="Reschedule with AI" onClose={vi.fn()} />)
+      tree = TestRenderer.create(<Sheet open accessibleTitle="Reschedule with AI" />)
       await Promise.resolve()
     })
     const header = tree!.root.findByType(TrueSheet).props.header
