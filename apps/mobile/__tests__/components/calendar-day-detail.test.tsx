@@ -129,6 +129,7 @@ interface RenderDetailProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onOpenCalendarImport?: (eventId: string | null) => void
   onViewPro?: () => void
   loggable?: boolean
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
@@ -144,6 +145,7 @@ function CalendarDayDetailHarness({
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onOpenCalendarImport = () => {},
   onViewPro = () => {},
   loggable = false,
   onCalendarAutoSyncChange = async () => {},
@@ -180,7 +182,7 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
-      onOpenCalendarImport={() => {}}
+      onOpenCalendarImport={onOpenCalendarImport}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
@@ -237,8 +239,10 @@ describe('CalendarDayDetail (mobile)', () => {
   })
 
   it('renders timed and all-day Google events through the read-only event row', () => {
+    const onOpenCalendarImport = vi.fn()
     const tree = renderDetail({
       entries: [makeEntry()],
+      onOpenCalendarImport,
       calendarEventsState: 'ready',
       calendarEvents: [
         {
@@ -251,6 +255,8 @@ describe('CalendarDayDetail (mobile)', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Work',
+          isImported: false,
         },
         {
           id: 'event-2',
@@ -262,6 +268,9 @@ describe('CalendarDayDetail (mobile)', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Personal',
+          isImported: true,
+          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
         },
       ],
     })
@@ -270,14 +279,22 @@ describe('CalendarDayDetail (mobile)', () => {
       expect.objectContaining({
         time: '09:00',
         title: 'Team meeting',
-        source: 'calendar.title',
+        source: 'Work',
       }),
       expect.objectContaining({
         allDayLabel: 'calendar.timeGrid.allDay',
         title: 'Company holiday',
-        source: 'calendar.title',
+        source: 'Personal',
       }),
     ])
+    const importButtons = nodes(tree, 'PillButtonMock').filter((button) =>
+      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Team meeting'))
+    expect(importButtons).toHaveLength(1)
+    const openImport = importButtons[0]?.props.onClick as () => void
+    openImport()
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    expect(nodes(tree, 'PillButtonMock').some((button) =>
+      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Company holiday'))).toBe(false)
   })
 
   it('renders a failed events request instead of the empty result', () => {

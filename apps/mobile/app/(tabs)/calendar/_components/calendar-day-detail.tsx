@@ -74,13 +74,13 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport, displayTime, t, tok
     {visibleEvents.map((event) => (
       <View key={event.id} style={styles.eventList}>
         {event.startTime ? (
-          <EventRow time={displayTime(event.startTime)} title={event.title} source={t('calendar.title')} />
+          <EventRow time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
         ) : (
-          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={t('calendar.title')} />
+          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
         )}
-        <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
+        {!event.isImported ? <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
           {plural(t('calendar.importButton', { count: 1 }), 1)}
-        </PillButton>
+        </PillButton> : null}
       </View>
     ))}
     {matchingEvents.length === 0 ? <View style={styles.eventList}><Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}

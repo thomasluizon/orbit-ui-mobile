@@ -464,7 +464,9 @@ describe("CalendarSyncScreen", () => {
   });
 
   it("does not show the pager when events fit on one page", async () => {
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(8) };
+    const events: CalendarSyncEvent[] = buildEvents(8);
+    events[0] = { ...events[0]!, isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' };
+    mocks.eventsQuery.data = { status: "connected", events };
 
     let tree: any;
     await TestRenderer.act(async () => {
@@ -473,7 +475,8 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
 
-    expect(countEventTitles(tree.root)).toBe(8);
+    expect(countEventTitles(tree.root)).toBe(7);
+    expect(tree.root.findAll((node: TestNode) => node.props.children === 'Event 0')).toHaveLength(0);
     expect(findShowMore(tree.root)).toHaveLength(0);
 
     const deselect = tree.root.find(

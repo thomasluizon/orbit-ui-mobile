@@ -115,7 +115,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   const incomingEvents: CalendarEvent[] = useMemo(() => {
     if (isReviewMode) return suggestions.map((s) => s.event)
-    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events
+    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events.filter((event) => !event.isImported)
     return []
   }, [isReviewMode, suggestions, eventsQuery.data])
 

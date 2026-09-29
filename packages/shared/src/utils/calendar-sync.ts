@@ -23,6 +23,8 @@ export interface CalendarSyncEvent {
   reminders: number[]
   calendarId?: string
   calendarName?: string
+  isImported?: boolean | null
+  importedHabitId?: string | null
 }
 
 export function filterCalendarSyncEventsByDate(
@@ -639,7 +641,7 @@ function getCalendarSyncImportIssueFromResolution(
 }
 
 export function isCalendarSyncEventImportable(event: CalendarSyncEvent, weekStartDay: 0 | 1 = 1): boolean {
-  return getCalendarSyncImportIssue(
+  return event.isImported !== true && getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
     event.startTime,

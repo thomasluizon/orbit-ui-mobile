@@ -84,6 +84,7 @@ interface RenderProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onOpenCalendarImport?: (eventId: string | null) => void
   onViewPro?: () => void
   loggable?: boolean
   showRecurring?: boolean
@@ -100,6 +101,7 @@ function CalendarDayDetailHarness({
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onOpenCalendarImport = () => {},
   onViewPro = () => {},
   loggable = false,
   showRecurring = true,
@@ -140,7 +142,7 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
-      onOpenCalendarImport={() => {}}
+      onOpenCalendarImport={onOpenCalendarImport}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       loggable={loggable}
@@ -181,8 +183,10 @@ describe('CalendarDayDetail', () => {
   })
 
   it('renders timed and all-day Google events as read-only context', () => {
+    const onOpenCalendarImport = vi.fn()
     renderDetail({
       entries: [makeEntry({ title: 'Read' })],
+      onOpenCalendarImport,
       calendarEventsState: 'ready',
       calendarEvents: [
         {
@@ -195,6 +199,8 @@ describe('CalendarDayDetail', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Work',
+          isImported: false,
         },
         {
           id: 'event-2',
@@ -206,19 +212,25 @@ describe('CalendarDayDetail', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Personal',
+          isImported: true,
+          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
         },
       ],
     })
 
     expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
     const timedEvent = screen.getByRole('img', {
-      name: '09:00, Team meeting, calendar.title',
+      name: '09:00, Team meeting, Work',
     })
     const allDayEvent = screen.getByRole('img', {
-      name: 'calendar.timeGrid.allDay, Company holiday, calendar.title',
+      name: 'calendar.timeGrid.allDay, Company holiday, Personal',
     })
     expect(within(timedEvent).queryByRole('button')).toBeNull()
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Team meeting/ }))
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    expect(screen.queryByRole('button', { name: /Company holiday/ })).toBeNull()
   })
 
   it('searches and pages a busy day without growing the event list past twenty rows', () => {

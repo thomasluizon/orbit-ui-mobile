@@ -173,6 +173,7 @@ describe('calendar-sync utils', () => {
 
     expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBeNull()
     expect(isCalendarSyncEventImportable(event)).toBe(true)
+    expect(isCalendarSyncEventImportable({ ...event, isImported: true })).toBe(false)
     expect(buildCalendarSyncImportRequest([event]).habits[0]).toMatchObject({
       days: ['Monday', 'Wednesday'],
       frequencyUnit: 'Day',
