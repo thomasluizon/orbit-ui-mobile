@@ -79,6 +79,17 @@ describe('FlowShell', () => {
     expect(flow?.firstElementChild).toHaveClass('my-auto')
   })
 
+  it('fills the wide onboarding action column while card actions keep their own width', () => {
+    mocks.wide = true
+    const { rerender } = render(<FlowShell mode="onboarding" action={<button type="button">Continue</button>}><h1>Onboarding</h1></FlowShell>)
+    const onboardingAction = screen.getByRole('button', { name: 'Continue' }).closest('[data-flow-action]')
+    expect(onboardingAction).toHaveClass('lg:max-w-[560px]', '[&>div]:w-full')
+    expect(onboardingAction).not.toHaveClass('md:[&_button]:w-auto')
+
+    rerender(<FlowShell mode="card" action={<button type="button">Continue</button>}><h1>Card</h1></FlowShell>)
+    expect(screen.getByRole('button', { name: 'Continue' }).closest('[data-flow-action]')).toHaveClass('md:[&_button]:w-auto')
+  })
+
   it('gives chat a full-width definite-height flow instead of the card', () => {
     render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
 

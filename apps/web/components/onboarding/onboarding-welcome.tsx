@@ -6,16 +6,14 @@ import { ONBOARDING_STARTERS } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
 import { Input } from '@/components/ui/input'
 import { OrbitMark } from '@/components/ui/orbit-mark'
-import { QuietLink } from '@/components/ui/quiet-link'
 
 interface OnboardingWelcomeProps {
   sentence: string
   marks: readonly HabitPhraseToken[]
   onChange: (value: string) => void
-  onHaveAccount?: () => void
 }
 
-export function OnboardingWelcome({ sentence, marks, onChange, onHaveAccount }: Readonly<OnboardingWelcomeProps>) {
+export function OnboardingWelcome({ sentence, marks, onChange }: Readonly<OnboardingWelcomeProps>) {
   const t = useTranslations('onboarding.flow')
   return (
     <section className="flex flex-col gap-6">
@@ -32,7 +30,6 @@ export function OnboardingWelcome({ sentence, marks, onChange, onHaveAccount }: 
           ))}
         </div>
       </div>
-      {onHaveAccount ? <div className="flex justify-center"><QuietLink onClick={onHaveAccount}>{t('what.haveAccount')}</QuietLink></div> : null}
     </section>
   )
 }

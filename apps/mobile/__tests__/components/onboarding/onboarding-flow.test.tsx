@@ -4,7 +4,6 @@ import { API } from '@orbit/shared/api'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { createTokensV2 } from '@/lib/theme'
 import { accountTimezoneDependency } from '@/lib/offline-mutations'
 
 
@@ -85,7 +84,7 @@ vi.mock('@/components/shell/flow-shell', () => ({
 vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => React.createElement('Shell412', null, children, tabBar) }))
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, activeId, onSelect }: { items: { id: string; label: string }[]; activeId: string; onSelect: (id: string) => void }) => React.createElement('TabBar', { items, activeId, onSelect }) }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => React.createElement('PillButton', { onClick, disabled: disabled || loading }, children),
+  PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', hint }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; hint?: string }) => React.createElement('PillButton', { onClick, disabled: disabled || loading, variant, size, hint }, children),
 }))
 vi.mock('@/components/ui/app-toast', () => ({ Toast: ({ message }: { message: string }) => React.createElement('Toast', { message }) }))
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
@@ -122,14 +121,11 @@ function renderedText(tree: ReturnType<typeof TestRenderer.create>): unknown[] {
 
 async function pressTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string) {
   const action = findTextAction(tree, label)
-  await TestRenderer.act(() => prop<() => void>(action, 'onPress')())
+  await TestRenderer.act(() => prop<() => void>(action, 'onClick')())
 }
 
 function findTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string): TestNode {
-  const action = tree.root.findAll((node) => (
-    typeof Reflect.get(node.props, 'onPress') === 'function'
-    && byType(node, 'Text').some((child) => child.props.children === label)
-  )).at(-1)
+  const action = byType(tree.root, 'PillButton').find((node) => node.props.children === label)
   expect(action).toBeDefined()
   return action!
 }
@@ -146,14 +142,14 @@ async function reachReminder(isLive: boolean) {
 
 function isCounterText(node: TestNode): boolean {
   const children = Reflect.get(node.props, 'children')
-  return Array.isArray(children) && children[0] === 'Orbit '
+  return Array.isArray(children) && children[0] === 'Orbit · '
 }
 
 function headerCounter(tree: ReturnType<typeof TestRenderer.create>): string {
   const counters = byType(tree.root, 'Text').filter(isCounterText)
   expect(counters).toHaveLength(1)
   const children = Reflect.get(counters[0]!.props, 'children') as [string, TestNode, string, string]
-  return `${prop<string>(children[1], 'children')}${children[2]}${children[3]}`
+  return `${children[0]}${prop<string>(children[1], 'children')}${children[2]}${children[3]}`
 }
 
 async function reachDone(isLive: boolean) {
@@ -195,21 +191,55 @@ describe('OnboardingFlow state model', () => {
 
   it('counts each rendered decision once and drops the counter on the done screen', async () => {
     const tree = await mount(false)
-    expect(headerCounter(tree)).toBe('01 / 03')
+    expect(headerCounter(tree)).toBe('Orbit · 01 / 03')
     expect(oneByType(tree.root, 'SentenceInput')).toBeDefined()
 
     await enterSentence(tree, 'Meditate at 07:00')
     await click(tree, 'onboarding.flow.continue')
-    expect(headerCounter(tree)).toBe('02 / 03')
+    expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
     expect(oneByType(tree.root, 'Schedule')).toBeDefined()
 
     await click(tree, 'onboarding.flow.create')
-    expect(headerCounter(tree)).toBe('03 / 03')
+    expect(headerCounter(tree)).toBe('Orbit · 03 / 03')
     expect(oneByType(tree.root, 'ReminderState')).toBeDefined()
 
     await click(tree, 'onboarding.flow.remind.continue')
     expect(oneByType(tree.root, 'Done')).toBeDefined()
     expect(byType(tree.root, 'Text').filter(isCounterText)).toHaveLength(0)
+  })
+
+  it('explains the empty continue action and puts the signed-out account action in the stack', async () => {
+    const tree = await mount(false)
+    const continueButton = findTextAction(tree, 'onboarding.flow.continue')
+    const accountButton = findTextAction(tree, 'onboarding.flow.what.haveAccount')
+    expect(continueButton.props).toMatchObject({ disabled: true, hint: 'onboarding.flow.what.continueReason' })
+    expect(renderedText(tree)).toContain('onboarding.flow.what.continueReason')
+    expect(accountButton.props.variant).toBe('ghost')
+    expect(byType(tree.root, 'View').some((node) => node.props.style && Reflect.get(node.props.style, 'gap') === 8 && node.findAll((child) => child === accountButton).length === 1)).toBe(true)
+
+    await enterSentence(tree, 'Walk')
+    expect(renderedText(tree)).not.toContain('onboarding.flow.what.continueReason')
+    expect(findTextAction(tree, 'onboarding.flow.continue').props.hint).toBeUndefined()
+  })
+
+  it('hides the account action for a signed-in account', async () => {
+    const tree = await mount(true)
+    expect(byType(tree.root, 'PillButton').some((node) => node.props.children === 'onboarding.flow.what.haveAccount')).toBe(false)
+  })
+
+  it('uses small ghost controls for back and skip', async () => {
+    const tree = await mount(false)
+    await enterSentence(tree, 'Walk')
+    await click(tree, 'onboarding.flow.continue')
+    for (const label of ['onboarding.flow.back', 'onboarding.flow.skip']) {
+      expect(findTextAction(tree, label).props).toMatchObject({ variant: 'ghost', size: 'sm' })
+    }
+  })
+
+  it('uses a ghost button for the reminder deny action', async () => {
+    const tree = await reachReminder(false)
+    expect(prop<string>(oneByType(tree.root, 'ReminderState'), 'state')).toBe('ask')
+    expect(findTextAction(tree, 'onboarding.flow.remind.deny').props.variant).toBe('ghost')
   })
 
   it.each([
@@ -339,11 +369,10 @@ describe('OnboardingFlow state model', () => {
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'general')).toBe(true)
   })
 
-  it('keeps quiet actions neutral', async () => {
+  it('gives skip a ghost small button', async () => {
     const tree = await mount(false)
-    const skip = byType(tree.root, 'Text').find((node) => node.props.children === 'onboarding.flow.skip')
-    expect(skip).toBeDefined()
-    expect(prop<unknown[]>(skip!, 'style')).toContainEqual({ color: createTokensV2('purple', 'dark').fg3 })
+    const skip = findTextAction(tree, 'onboarding.flow.skip')
+    expect(skip.props).toMatchObject({ variant: 'ghost', size: 'sm' })
   })
 
   it('waits for Astra before exposing schedule actions and persists its flexible cadence', async () => {
@@ -472,7 +501,7 @@ describe('OnboardingFlow state model', () => {
     await click(tree, 'onboarding.flow.remind.allow')
     const notNow = findTextAction(tree, 'onboarding.flow.remind.deny')
     expect(notNow.props.disabled).toBe(true)
-    await TestRenderer.act(() => prop<() => void>(notNow, 'onPress')())
+    await TestRenderer.act(() => prop<() => void>(notNow, 'onClick')())
     expect(mocks.updateHabit).not.toHaveBeenCalled()
 
     await TestRenderer.act(() => resolvePermission('granted'))

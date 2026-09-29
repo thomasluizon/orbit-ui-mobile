@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -56,6 +56,102 @@ beforeEach(() => {
 afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
 
 describe('habit search', () => {
+  it('shows only search results on the wide page', async () => {
+    mocks.wide = true
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
+    ]))
+    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox', { name: en.habits.search.title })
+    expect(page.container.querySelectorAll('[data-command-group]')).toHaveLength(0)
+    expect(screen.queryByText(en.command.groups.create)).toBeNull()
+    expect(screen.queryByText(en.command.groups.actions)).toBeNull()
+    expect(screen.queryByText(en.command.groups.destinations)).toBeNull()
+    expect(screen.queryByText('2 habits')).toBeNull()
+    fireEvent.change(input, { target: { value: 'walk' } })
+    expect(await screen.findByText('2 habits')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Open Walk in the name' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Open Run in the description' })).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mocks.push).toHaveBeenCalledWith('/habits/walk')
+    mocks.query.mockReturnValue(result([]))
+    fireEvent.change(input, { target: { value: 'yoga' } })
+    expect(await screen.findByText('“yoga”')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.habits.search.create })).toBeInTheDocument()
+  })
+
+  it('keeps palette groups on the narrow page', () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(screen.getByText(en.command.groups.create)).toBeInTheDocument()
+    expect(screen.getByText(en.command.groups.actions)).toBeInTheDocument()
+    expect(screen.getByText(en.command.groups.destinations)).toBeInTheDocument()
+  })
+
+  it('keeps the focused query and caret when the page crosses the wide breakpoint', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
+    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const compactInput = screen.getByRole<HTMLInputElement>('combobox')
+    fireEvent.change(compactInput, { target: { value: 'walk' } })
+    compactInput.focus()
+    compactInput.setSelectionRange(1, 3, 'backward')
+    expect(await screen.findByText('1 habit')).toBeInTheDocument()
+    mocks.wide = true
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const wideInput = screen.getByRole<HTMLInputElement>('combobox', { name: en.habits.search.title })
+    expect(wideInput).toHaveValue('walk')
+    expect(wideInput).toHaveFocus()
+    expect([wideInput.selectionStart, wideInput.selectionEnd]).toEqual([1, 3])
+    expect(wideInput.selectionDirection).toBe('backward')
+    expect(screen.getByText('1 habit')).toBeInTheDocument()
+    wideInput.setSelectionRange(2, 4)
+    mocks.wide = false
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const restoredCompactInput = screen.getByRole<HTMLInputElement>('combobox')
+    expect(restoredCompactInput).toHaveValue('walk')
+    expect(restoredCompactInput).toHaveFocus()
+    expect([restoredCompactInput.selectionStart, restoredCompactInput.selectionEnd]).toEqual([2, 4])
+    expect(screen.getByText('1 habit')).toBeInTheDocument()
+  })
+
+  it('does not move focus to search when another control is focused across the breakpoint', () => {
+    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    screen.getByRole('combobox').focus()
+    const backButton = screen.getByRole('button', { name: en.common.back })
+    backButton.focus()
+    mocks.wide = true
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(backButton).toHaveFocus()
+    expect(screen.getByRole('combobox', { name: en.habits.search.title })).not.toHaveFocus()
+  })
+
+  it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', (query, skeleton) => {
+    vi.useFakeTimers()
+    try {
+      mocks.query.mockReturnValue(result([], true))
+      const palette = mount()
+      if (query) fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
+      act(() => { vi.advanceTimersByTime(301) })
+      expect(palette.container.querySelectorAll('.skeleton-pulse').length > 0).toBe(skeleton)
+      expect(screen.queryByRole('status')).toBe(skeleton ? null : screen.getByRole('status'))
+    } finally { vi.useRealTimers() }
+  })
+
+  it('shows only searching feedback for a pending wide query', () => {
+    vi.useFakeTimers()
+    try {
+      mocks.wide = true
+      mocks.query.mockReturnValue(result([], true))
+      const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+      fireEvent.change(screen.getByRole('combobox', { name: en.habits.search.title }), { target: { value: 'walk' } })
+      act(() => { vi.advanceTimersByTime(301) })
+      expect(screen.getByRole('status')).toHaveTextContent('Searching')
+      expect(page.container.querySelector('.skeleton-pulse')).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
   it.each([false, true])('keeps create in the %s command surface and explains offline refusal', (resultsMode) => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     const onCreate = vi.fn()

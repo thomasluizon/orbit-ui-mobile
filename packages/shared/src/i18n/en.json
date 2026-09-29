@@ -2138,7 +2138,8 @@
           "read": "Read before bed",
           "tidy": "Tidy the house on Saturday"
         },
-        "haveAccount": "I already have an account"
+        "haveAccount": "I already have an account",
+        "continueReason": "Write what you want to keep up."
       },
       "when": {
         "astraRead": "This is how I read it. Tap to correct it.",
@@ -2279,7 +2280,7 @@
       "importNotNow": "Not now"
     },
     "featureGuide": {
-      "title": "Feature Guide",
+      "title": "Orbit guide",
       "openButton": "Feature Guide",
       "habits": "Habits",
       "calendar": "Calendar",
@@ -3160,10 +3161,11 @@
     "themeModeDark": "Dark"
   },
   "about": {
-    "title": "About & Help",
-    "featureGuide": "Features",
-    "terms": "Terms",
-    "privacy": "Privacy",
+    "title": "About",
+    "featureGuide": "Orbit guide",
+    "support": "Contact support",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy",
     "version": "Version {version}",
     "tagline": "An AI that tracks habits, for people who cannot keep a routine.",
     "versionLabel": "Version",

@@ -541,6 +541,7 @@ export {
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'
 export { initialsOf } from './name-initials'
+export { ABOUT_DESTINATIONS } from './about-navigation'
 export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
