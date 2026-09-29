@@ -4,8 +4,8 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getNativePushStatusPresentation,
   getTimezoneList,
-  LANGUAGE_OPTIONS,
-  resolveHourCycle,
+  buildPreferencePickerModel,
+  type PreferencePicker,
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
@@ -20,7 +20,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
-export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart' | 'clock'
+export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
 const TIME_ZONE_PAGE_SIZE = 20
@@ -362,61 +362,24 @@ function PickerContent({ props, commitSelection }: Readonly<{
   props: PreferencePickerSheetProps
   commitSelection: (apply: () => void) => void
 }>) {
-  const { activePicker, tokens, pickerTitles, selectedLanguage, currentTheme, timeZone, uses24HourClock,
-    weekStartDay, themeModeOptions, clockFormatOptions, weekStartOptions, timeZoneSearchLabel,
-    timeZoneNoResultsLabel, timeZoneShowMoreLabel, onLanguageChange, onThemeModeChange, onTimeZoneChange,
-    onClockFormatChange, onWeekStartChange } = props
-  switch (activePicker) {
-    case 'language':
-      return (
-        <PickerOptions
-          label={pickerTitles.language}
-          options={LANGUAGE_OPTIONS}
-          selected={selectedLanguage}
-          onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
-        />
-      )
-    case 'theme':
-      return (
-        <PickerOptions
-          label={pickerTitles.theme}
-          options={themeModeOptions}
-          selected={currentTheme}
-          onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
-        />
-      )
-    case 'timeZone':
-      return (
-        <TimeZoneOptions
-          tokens={tokens}
-          selected={timeZone}
-          searchLabel={timeZoneSearchLabel}
-          noResultsLabel={timeZoneNoResultsLabel}
-          showMoreLabel={timeZoneShowMoreLabel}
-          onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
-        />
-      )
-    case 'clock':
-      return (
-        <PickerOptions
-          label={pickerTitles.clock}
-          options={clockFormatOptions}
-          selected={resolveHourCycle(uses24HourClock, selectedLanguage) === 'h23' ? '24h' : '12h'}
-          onCommit={(value) => commitSelection(() => onClockFormatChange(value === '24h'))}
-        />
-      )
-    case 'weekStart':
-      return (
-        <PickerOptions
-          label={pickerTitles.weekStart}
-          options={weekStartOptions}
-          selected={weekStartDay === 0 || weekStartDay === 1 ? weekStartDay : null}
-          onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
-        />
-      )
-    default:
-      return null
+  if (props.activePicker === null) return null
+  const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: true })
+  if (model.kind === 'timeZone') {
+    return <TimeZoneOptions
+      tokens={props.tokens}
+      selected={model.selected}
+      searchLabel={props.timeZoneSearchLabel}
+      noResultsLabel={props.timeZoneNoResultsLabel}
+      showMoreLabel={props.timeZoneShowMoreLabel}
+      onCommit={(value) => commitSelection(() => model.onCommit(value))}
+    />
   }
+  return <PickerOptions
+    label={model.label}
+    options={model.options}
+    selected={model.selected}
+    onCommit={(value) => commitSelection(() => model.onCommit(value))}
+  />
 }
 
 export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {

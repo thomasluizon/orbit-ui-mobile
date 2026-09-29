@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   buildChatMessageWithFileContent,
   buildChatClientContext,
+  buildChatFinalMessageFields,
   buildComposerChips,
   resolveComposerChipStatus,
   resolveComposerChipSurface,
@@ -480,26 +481,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       activeStepsRef.current = [];
       setActiveSteps([]);
 
-      const finalFields = {
-        content: response.aiMessage || "",
-        actions: response.actions,
-        operations: response.operations,
-        pendingOperations: response.pendingOperations,
-        policyDenials: response.policyDenials,
-        correlationId: response.correlationId,
-        relatedSurfaces: response.relatedSurfaces,
-        habitList: response.habitList,
-        goalList: response.goalList,
-        metricsCard: response.metricsCard,
-        periodInsight: response.periodInsight,
-        daySummary: response.daySummary,
-        streakCard: response.streakCard,
-        calendarCard: response.calendarCard,
-        recordList: response.recordList,
-        accountRows: response.accountRows,
-        followUps: response.followUps,
-        toolSteps,
-      };
+      const finalFields = buildChatFinalMessageFields(response, toolSteps);
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
       } else {

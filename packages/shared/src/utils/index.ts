@@ -331,7 +331,19 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { formatTimeFieldInput, presentTimeFieldValue, parseTypedTimeFieldValue } from './time-field'
+export {
+  changeTimeFieldInput,
+  commitTimeFieldPickerDraft,
+  formatTimeFieldInput,
+  initialTimeFieldPickerDraft,
+  presentTimeFieldValue,
+  parseTypedTimeFieldValue,
+  selectTimeFieldHour,
+  selectTimeFieldMinute,
+  selectTimeFieldPeriod,
+} from './time-field'
+export { buildPreferencePickerModel } from './preference-picker'
+export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,

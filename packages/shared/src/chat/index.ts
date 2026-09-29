@@ -1,6 +1,7 @@
 export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'
+export * from './final-message'
 export * from './message-actions'
 export * from './message-bubble'
 export * from './pending-operation-card'

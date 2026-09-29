@@ -1,4 +1,5 @@
 import type { Time24 } from '../contracts/forms'
+import { formatTimeParts, from12Hour, parseTimeParts, to12Hour, type DayPeriod, type TimeParts } from './time-parts'
 
 const TWO_DIGITS_PATTERN = /^\d{2}$/
 const THREE_OR_FOUR_DIGITS_PATTERN = /^\d{3,4}$/
@@ -31,4 +32,36 @@ export function formatTimeFieldInput(value: string, previousValue: string): stri
   }
   if (/^\d{2}::$/.test(value)) return value.slice(0, -1)
   return value
+}
+
+export function changeTimeFieldInput(
+  value: string,
+  previousValue: string,
+  hourCycle: 'h23' | 'h12',
+): { draft: string; parsed: Time24 | null; clear: boolean } {
+  const draft = hourCycle === 'h23' ? formatTimeFieldInput(value, previousValue) : value
+  return { draft, parsed: draft ? parseTypedTimeFieldValue(draft, hourCycle) : null, clear: !draft }
+}
+
+export function initialTimeFieldPickerDraft(value: Time24 | '', now: Date): TimeParts {
+  return parseTimeParts(value) ?? { hour24: now.getHours(), minute: now.getMinutes() }
+}
+
+export function commitTimeFieldPickerDraft(draft: TimeParts): Time24 {
+  return formatTimeParts(draft) as Time24
+}
+
+export function selectTimeFieldHour(draft: TimeParts, hour: number, hourCycle: 'h23' | 'h12'): TimeParts {
+  return {
+    ...draft,
+    hour24: hourCycle === 'h23' ? hour : from12Hour(hour, to12Hour(draft.hour24).period),
+  }
+}
+
+export function selectTimeFieldMinute(draft: TimeParts, minute: number): TimeParts {
+  return { ...draft, minute }
+}
+
+export function selectTimeFieldPeriod(draft: TimeParts, period: DayPeriod): TimeParts {
+  return { ...draft, hour24: from12Hour(to12Hour(draft.hour24).hour12, period) }
 }
