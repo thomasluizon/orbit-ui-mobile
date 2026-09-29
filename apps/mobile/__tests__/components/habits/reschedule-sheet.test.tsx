@@ -253,13 +253,16 @@ describe('RescheduleSheet (mobile)', () => {
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
   })
 
-  it('uses a neutral filled action at wide width', () => {
-    __setWindowDimensions({ width: 900, height: 892, scale: 1, fontScale: 1 })
-    mockReschedule.suggestion = createMockRescheduleSuggestion({})
-    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
-    const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
-    expect(actions.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-secondary-sm')).toHaveLength(1)
-  })
+  it.each([[900, 'button-primary-sm'], [1024, 'button-secondary-sm']] as const)(
+    'uses the wide footer threshold at %ipx',
+    (width, filledButtonId) => {
+      __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
+      mockReschedule.suggestion = createMockRescheduleSuggestion({})
+      const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+      const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
+      expect(actions.findAll((node) => node.type === 'Pressable' && node.props.testID === filledButtonId)).toHaveLength(1)
+    },
+  )
 
   it('keeps the accept label and announces busy state while saving', () => {
     mockReschedule.suggestion = createMockRescheduleSuggestion({})

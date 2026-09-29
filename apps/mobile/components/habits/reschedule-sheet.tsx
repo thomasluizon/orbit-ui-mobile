@@ -9,6 +9,7 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
@@ -43,7 +44,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
   const { width } = useWindowDimensions()
-  const filledVariant = width >= 768 ? 'secondary' : 'primary'
+  const filledVariant = width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
