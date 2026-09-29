@@ -195,12 +195,12 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
         {navigationEnabled && props.tabBar !== undefined ? (
           <div data-shell-tab-bar="" className="lg:hidden">{props.tabBar}</div>
         ) : null}
-        {props.fab !== undefined ? (
-          <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
-            {props.fab}
-          </div>
-        ) : null}
       </div>
+      {props.fab !== undefined ? (
+        <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
+          {props.fab}
+        </div>
+      ) : null}
     </div>
   )
 }

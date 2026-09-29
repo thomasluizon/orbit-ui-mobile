@@ -302,16 +302,38 @@ describe('Shell412 mobile', () => {
     const fab = findByTestId(tree, 'shell-fab')[0]
     const notice = findByTestId(tree, 'shell-notice')[0]
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
-    expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
+    expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(0)
+    expect(fabBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
     expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ height: 82 })
+    expect(bottom?.findAll((node) => typeof node.type === 'string' && ['shell-fab-band', 'shell-notice', 'shell-composer-band'].includes(node.props.testID as string)).map((node) => node.props.testID)).toEqual([
+      'shell-fab-band', 'shell-notice', 'shell-composer-band',
+    ])
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === notice?.props.testID)).toHaveLength(1)
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === tabBar?.props.testID)).toHaveLength(1)
     expect(StyleSheet.flatten(fab?.props.style)).toMatchObject({
-      bottom: '100%',
-      marginBottom: 16,
+      bottom: 16,
       position: 'absolute',
       right: 16,
     })
+  })
+
+  it('anchors the FAB above the composer when the notice is empty', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 notice={<></>} composer={React.createElement('Composer')} tabBar={React.createElement('TabBar')} fab={React.createElement('Fab')}>
+          {React.createElement('Screen')}
+        </Shell412>,
+      )
+    })
+    const bottom = findByTestId(tree, 'shell-bottom')[0]
+    const composerBand = findByTestId(tree, 'shell-composer-band')[0]
+    const fabBand = findByTestId(tree, 'shell-fab-band')[0]
+    expect(fabBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
+    expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(0)
+    expect(bottom?.findAll((node) => typeof node.type === 'string' && ['shell-fab-band', 'shell-notice', 'shell-composer-band'].includes(node.props.testID as string)).map((node) => node.props.testID)).toEqual([
+      'shell-fab-band', 'shell-notice', 'shell-composer-band',
+    ])
   })
 
   it('keeps Profile identity content in the bounded destination band', async () => {

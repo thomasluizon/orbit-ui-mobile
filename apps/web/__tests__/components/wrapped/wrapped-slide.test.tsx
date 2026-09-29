@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-const motionTestState = vi.hoisted(() => ({ reduced: false }))
+const motionTestState = vi.hoisted(() => ({ reduced: false, realLocale: '' }))
 
 vi.mock('motion/react', async () => {
   const ReactModule = await import('react')
@@ -25,10 +27,20 @@ vi.mock('motion/react', async () => {
   return { motion, useReducedMotion: () => motionTestState.reduced }
 })
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
-}))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return {
+    ...actual,
+    useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+      if (motionTestState.realLocale) {
+        const locale = motionTestState.realLocale
+        const translate = actual.createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+        return translate(key as Parameters<typeof translate>[0], params as Record<string, string | number | Date> | undefined)
+      }
+      return params ? `${key}:${JSON.stringify(params)}` : key
+    },
+  }
+})
 
 vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => <div data-testid="share-card" />,
@@ -66,6 +78,57 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 describe('WrappedSlide', () => {
   afterEach(() => {
     motionTestState.reduced = false
+    motionTestState.realLocale = ''
+  })
+
+  it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {
+    const completions = buildWrappedSlides(recap).find((slide) => slide.id === 'completions')!
+    renderSlide(completions)
+    const page = screen.getByTestId('wrapped-slide-completions')
+    expect(page).toHaveClass('items-start', 'text-start')
+    expect(page).not.toHaveClass('items-center', 'text-center')
+    const figure = page.querySelector('[data-wrapped-figure="primary"]')
+    expect(figure).toHaveStyle({ fontSize: '60px', fontWeight: '600' })
+    expect(page).not.toHaveTextContent('wrapped.slides.completions.eyebrow')
+  })
+
+  it.each([
+    ['en', 0, 'Your next log starts a new streak.'],
+    ['en', 1, 'Your current streak is 1 day.'],
+    ['en', 5, 'Your current streak is 5 days.'],
+    ['pt-BR', 0, 'Seu próximo registro começa uma nova sequência.'],
+    ['pt-BR', 1, 'Sua sequência atual é de 1 dia.'],
+    ['pt-BR', 5, 'Sua sequência atual é de 5 dias.'],
+  ])('renders the %s current streak caption at %i', (locale, count, caption) => {
+    motionTestState.realLocale = locale
+    renderSlide({ id: 'streak', bestStreak: 8, currentStreak: count })
+    expect(screen.getByTestId('wrapped-slide-streak')).toHaveTextContent(caption)
+  })
+
+  it('puts the intro mark before the title and uses the 28px weekday and share titles', () => {
+    const slides = buildWrappedSlides(recap)
+    const intro = renderSlide(slides.find((slide) => slide.id === 'intro')!)
+    const introParts = screen.getAllByTestId('wrapped-motion-part')
+    expect(introParts[0]?.querySelector('svg')).toBeInTheDocument()
+    expect(introParts[1]?.tagName).toBe('H1')
+    intro.unmount()
+
+    const weekday = renderSlide(slides.find((slide) => slide.id === 'consistency')!)
+    expect(screen.getByTestId('wrapped-slide-consistency').querySelector('h2')).toHaveStyle({ fontSize: '28px' })
+    expect(screen.getByTestId('weekday-columns').parentElement).toHaveClass('w-full')
+    weekday.unmount()
+
+    renderSlide(slides.find((slide) => slide.id === 'share')!)
+    expect(screen.getByTestId('wrapped-slide-share').querySelector('h2')).toHaveStyle({ fontSize: '28px' })
+  })
+
+  it('shows an 88px well with the habit initial when emoji is absent', () => {
+    renderSlide({ id: 'topHabit', habit: { name: 'Read', emoji: null, completionRate: 50, completedCount: 5, scheduledCount: 10 } })
+    const well = screen.getByTestId('wrapped-slide-topHabit').querySelector('[data-wrapped-figure="primary"]')
+    expect(well).toHaveClass('size-[88px]', 'bg-[var(--bg-well)]')
+    expect(well).toHaveTextContent('R')
+    expect(well).not.toHaveTextContent('⭐')
+    expect(screen.getByTestId('wrapped-slide-topHabit')).toHaveTextContent('wrapped.slides.topHabit.label')
   })
 
   it('renders the positive goal count with its specific label and caption', () => {

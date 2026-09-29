@@ -40,16 +40,15 @@ function ShellBottomChrome({
         { backgroundColor, borderTopColor, paddingBottom: safeAreaBottom },
       ]}
     >
+      {fab !== undefined ? (
+        <View testID="shell-fab-band" style={styles.fabBand}>
+          <View testID="shell-fab" style={styles.fab}>{fab}</View>
+        </View>
+      ) : null}
       {notice !== undefined ? <View testID="shell-notice">{notice}</View> : null}
-      {fab !== undefined ? <View testID="shell-fab-band" style={styles.fabBand} /> : null}
-      {pinnedSlot !== undefined || fab !== undefined ? (
+      {pinnedSlot !== undefined ? (
         <View testID="shell-composer-band" style={styles.composerBand}>
-          {pinnedSlot !== undefined ? (
-            <View testID="shell-pinned-slot">{pinnedSlot}</View>
-          ) : null}
-          {fab !== undefined ? (
-            <View testID="shell-fab" style={styles.fab}>{fab}</View>
-          ) : null}
+          <View testID="shell-pinned-slot">{pinnedSlot}</View>
         </View>
       ) : null}
       {navigationEnabled ? <View testID="shell-tab-bar">{tabBar}</View> : null}
@@ -170,8 +169,7 @@ const styles = StyleSheet.create({
     height: 82,
   },
   fab: {
-    bottom: '100%',
-    marginBottom: 16,
+    bottom: 16,
     position: 'absolute',
     right: 16,
   },

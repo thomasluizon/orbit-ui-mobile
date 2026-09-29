@@ -49,7 +49,7 @@ a:hover{color:var(--fg-1)}
         <div style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;flex:0 0 auto">
           <div style="flex:1;min-width:0;display:flex;flex-direction:column">
             <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3)">{{ eyebrow }}</p>
-            <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-4)">{{ periodLabel }}</p>
+            <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3)">{{ periodLabel }}</p>
           </div>
           <span data-wr-close="1" style="display:contents">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onClose }}" dc-props="{{ closeProps }}" hint-size="44px,44px">
@@ -329,7 +329,7 @@ class Component extends DCLogic {
       H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-2)',
         textWrap: 'pretty', maxWidth: '40ch' }, this.rise(2, reduced)) },
         thin ? t.p4Thin : H(F, null, t.p4Body(t.days[bi], t.days[wi]))),
-      H('p', { style: Object.assign({ fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-4)',
+      H('p', { style: Object.assign({ fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)',
         textWrap: 'pretty', maxWidth: '46ch' }, this.rise(3, reduced)) }, t.p4Note));
   }
 

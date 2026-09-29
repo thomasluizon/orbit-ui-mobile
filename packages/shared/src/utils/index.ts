@@ -614,6 +614,7 @@ export type {
 } from './share-card'
 export {
   buildWrappedSlides,
+  formatClosedWrappedMonth,
   getWeeklyConsistencyReading,
 } from './wrapped'
 export type {
