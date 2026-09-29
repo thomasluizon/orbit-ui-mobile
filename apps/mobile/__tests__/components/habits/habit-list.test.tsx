@@ -1190,7 +1190,6 @@ describe('HabitList', () => {
       seedHabits([])
       return Promise.resolve()
     })
-    sheetTestControls.defer(true)
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -1198,11 +1197,19 @@ describe('HabitList', () => {
           filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
-    const row = tree.root.findAllByType(HabitRow)
-      .find((node: any) => node.props.habit.id === 'future-delete')
-    TestRenderer.act(() => { row?.props.actions.onDelete() })
+    TestRenderer.act(() => {
+      const moreButton = tree.root.findAll((node: any) =>
+        node.props.accessibilityLabel === 'habits.actions.more')[0]
+      moreButton.props.onPress()
+    })
+    const deleteItem = tree.root.findAll((node: any) =>
+      node.props.accessibilityRole === 'menuitem' &&
+      flattenRenderedText(node).includes('habits.actions.delete'))[0]
+    expect(deleteItem).toBeDefined()
+    TestRenderer.act(() => { deleteItem.props.onPress() })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(1)
 
+    sheetTestControls.defer(true)
     TestRenderer.act(() => { pressConfirm(tree, 'habits.deleteHabit') })
 
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)

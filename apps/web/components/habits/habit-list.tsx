@@ -78,7 +78,7 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
-import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useUIStore } from '@/stores/ui-store'
@@ -320,6 +320,7 @@ export function HabitList({
   onAllCollapsedChange,
   onSurfaceOpenChange,
 }: Readonly<HabitListProps>) {
+  const accountGeneration = useAccountGeneration()
   const t = useTranslations()
   const { isOnline } = useOffline()
   const router = useRouter()
@@ -1442,6 +1443,7 @@ export function HabitList({
       />
 
       <DeferredConfirmDialogs
+        key={accountGeneration}
         t={t}
         showDeleteConfirm={showDeleteConfirm}
         deletePending={deletePending}
