@@ -32,6 +32,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const t = useTranslations()
   const locale = useLocale()
   const contentRef = useRef<HTMLDivElement>(null)
+  const barHeadingRef = useRef<HTMLHeadingElement>(null)
   const { showError } = useAppToast()
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
@@ -80,7 +81,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   useEffect(() => {
     if (!open || !inline) return
     const trigger = document.activeElement
-    const target = contentRef.current?.querySelector<HTMLHeadingElement>('h1') ?? contentRef.current
+    const target = contentRef.current?.querySelector<HTMLHeadingElement>('h1') ?? barHeadingRef.current
     target?.focus()
     return () => {
       requestAnimationFrame(() => {
@@ -109,7 +110,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
       {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>

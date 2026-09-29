@@ -100,9 +100,13 @@ describe('GoalDetailDrawer', () => {
   })
   it('keeps one fallback heading while an inline goal has no data', () => {
     detailAvailable = false
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
+    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('progressScreen.sections.goals')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    detailAvailable = true
+    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Read 12 books' })).toHaveFocus()
   })
 
   it.each([
