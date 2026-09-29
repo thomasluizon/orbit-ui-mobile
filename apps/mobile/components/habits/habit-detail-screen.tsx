@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29 },
   renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, borderBottomWidth: 1, padding: 0 },
+  titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 18, lineHeight: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },

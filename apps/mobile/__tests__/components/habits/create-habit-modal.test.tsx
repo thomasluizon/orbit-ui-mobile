@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -213,6 +214,24 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 }
 
 describe('CreateHabitModal (mobile)', () => {
+  it('uses the sub-habit row as its single focus border', async () => {
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.type === SubHabitEditor)[0].props.onAddSubHabit()
+    })
+    const input = tree.root.findAll((node: any) => node.type === 'TextInput' && node.props.focusBorder === false)[0]
+    expect(input).toBeDefined()
+    let row = input.parent
+    while (row && StyleSheet.flatten(row.props.style)?.borderWidth !== 1) row = row.parent
+    if (!row) throw new Error('Expected a bordered sub-habit row')
+    expect(StyleSheet.flatten(row.props.style).borderWidth).toBe(1)
+    TestRenderer.act(() => input.props.onFocus())
+    expect(StyleSheet.flatten(row.props.style).borderWidth).toBe(2)
+    TestRenderer.act(() => input.props.onBlur())
+    expect(StyleSheet.flatten(row.props.style).borderWidth).toBe(1)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.hasProAccess = true

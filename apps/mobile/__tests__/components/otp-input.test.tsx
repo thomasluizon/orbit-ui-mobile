@@ -5,6 +5,19 @@ import { OtpInput } from '@/components/ui/otp-input'
 const TestRenderer = require('react-test-renderer')
 
 describe('mobile OtpInput', () => {
+  it('keeps one inset ring on the focused cell', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<OtpInput label="Code" value="" onChange={vi.fn()} error="Wrong code" />)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => tree!.root.findByType('TextInput').props.onFocus())
+    const activeCell = tree!.root.findByProps({ testID: 'otp-cell-0' })
+    const ring = activeCell.props.style[1]
+    expect(ring.borderWidth).toBe(2)
+    expect(ring.outlineWidth ?? 0).toBe(0)
+  })
+
   it('uses one spanning native input for whole-code paste and autofill', async () => {
     const onChange = vi.fn()
     const onComplete = vi.fn()

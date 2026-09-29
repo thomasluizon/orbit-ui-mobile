@@ -650,7 +650,7 @@ function createStyles(
       borderRadius: 14,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderColor: tokens.borderControl,
       paddingLeft: 12,
       paddingRight: 4,
     },

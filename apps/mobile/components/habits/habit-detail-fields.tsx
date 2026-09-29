@@ -43,7 +43,7 @@ function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onS
 
 function TextEditor({ initialValue, multiline = false, tokens, onCancel, onSave }: Readonly<{ initialValue: string; multiline?: boolean; tokens: Tokens; onCancel: () => void; onSave: (value: string) => void }>) {
   const [value, setValue] = useState(initialValue)
-  return <FieldWell tokens={tokens}><TextInput autoFocus value={value} multiline={multiline} numberOfLines={multiline ? 4 : 1} style={[styles.input, multiline ? styles.multiline : null, { backgroundColor: tokens.bg, borderColor: tokens.borderControl, color: tokens.fg1 }]} onChangeText={setValue} /><FieldActions onCancel={onCancel} onSave={() => onSave(value.trim())} /></FieldWell>
+  return <FieldWell tokens={tokens}><TextInput autoFocus value={value} multiline={multiline} numberOfLines={multiline ? 4 : 1} style={[styles.input, multiline ? styles.multiline : null, { backgroundColor: tokens.bg, borderColor: tokens.primary, borderWidth: 2, color: tokens.fg1 }]} onChangeText={setValue} /><FieldActions onCancel={onCancel} onSave={() => onSave(value.trim())} /></FieldWell>
 }
 
 function TimeEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
@@ -74,9 +74,10 @@ function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: N
   const [unit, setUnit] = useState<(typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]>(habit.frequencyUnit ?? 'Day')
   const [quantity, setQuantity] = useState(String(habit.frequencyQuantity ?? 1))
   const [days, setDays] = useState(habit.days)
+  const [quantityFocused, setQuantityFocused] = useState(false)
   return (
     <FieldWell tokens={tokens}>
-      <TextInput value={quantity} keyboardType="number-pad" accessibilityLabel={t('habits.form.frequencyRequired')} style={[styles.quantity, { backgroundColor: tokens.bg, borderColor: tokens.borderControl, color: tokens.fg1 }]} onChangeText={setQuantity} />
+      <TextInput value={quantity} keyboardType="number-pad" accessibilityLabel={t('habits.form.frequencyRequired')} style={[styles.quantity, { backgroundColor: tokens.bg, borderColor: quantityFocused ? tokens.primary : tokens.borderControl, borderWidth: quantityFocused ? 2 : 1, color: tokens.fg1 }]} onChangeText={setQuantity} onFocus={() => setQuantityFocused(true)} onBlur={() => setQuantityFocused(false)} />
       <FrequencyUnitChips unit={unit} tokens={tokens} onChange={setUnit} />
       {unit === 'Day' && Number(quantity) === 1 ? <WeekdayChips days={days} tokens={tokens} onChange={setDays} /> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, Number(quantity), days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
