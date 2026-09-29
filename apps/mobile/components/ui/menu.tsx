@@ -144,6 +144,7 @@ export function Menu({
         >
           <MenuItems
             items={orderedItems}
+            sheetPresentation={false}
             onActivate={(id) => {
               onSelect?.(id)
               onClose?.()
@@ -168,6 +169,7 @@ function MenuSheet({
     <Sheet ref={sheetRef} open title={title} onClose={onClose}>
       <MenuItems
         items={items}
+        sheetPresentation
         onActivate={(id) =>
           closeSheet(() => {
             onClose?.()
@@ -181,10 +183,11 @@ function MenuSheet({
 
 interface MenuItemsProps {
   items: MenuProps['items']
+  sheetPresentation: boolean
   onActivate: (id: string) => void
 }
 
-function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
+function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -199,6 +202,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
         onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
           styles.item,
+          sheetPresentation ? styles.sheetItem : null,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
           disabled ? styles.disabled : null,
@@ -247,6 +251,10 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  sheetItem: {
+    height: 56,
+    minHeight: 56,
   },
   label: {
     flex: 1,

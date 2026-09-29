@@ -1,0 +1,63 @@
+import { expect } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { LAYOUT_ORIGIN } from '../support/env'
+import { test } from './upgrade-fixtures'
+
+const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
+  title: 'Beber água',
+  dueDate: '2026-09-03',
+  scheduledDates: ['2026-09-03'],
+  children: [],
+  hasSubHabits: false,
+}))
+const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
+  items: [habit],
+  page: 1,
+  pageSize: 200,
+  totalCount: 1,
+  totalPages: 1,
+})
+
+for (const width of [412, 1280] as const) {
+  test.describe(`menu rows at ${width}px`, () => {
+    test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
+
+    test('keeps habit and list menu rows at their presentation height', async ({ page, context }) => {
+      await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
+        (route) => route.fulfill({ json: habitsPage }))
+      await page.goto('/')
+      await page.getByRole('button', { name: ptBr.dates.previousDay }).click()
+
+      const row = page.locator('[data-habit-title="Beber água"]')
+      await expect(row).toBeVisible()
+      await row.locator('[data-habit-row-control="menu"]').click()
+
+      const menu = page.getByRole('menu', { name: ptBr.habits.actions.more })
+      await expect(menu).toBeVisible()
+      const items = menu.getByRole('menuitem')
+      expect(await items.count()).toBeGreaterThan(0)
+      for (const item of await items.all()) {
+        expect((await item.boundingBox())?.height).toBe(width === 412 ? 56 : 44)
+      }
+      const destructive = items.last()
+      await expect(destructive).toHaveAttribute('data-destructive')
+      expect(await destructive.evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe('1px')
+
+      if (width === 412) {
+        await page.locator('.orbit-sheet-close').click()
+      } else {
+        await page.keyboard.press('Escape')
+      }
+
+      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
+      await expect(listMenu).toBeVisible()
+      for (const item of await listMenu.getByRole('menuitem').all()) {
+        expect((await item.boundingBox())?.height).toBe(width === 412 ? 56 : 44)
+      }
+    })
+  })
+}
