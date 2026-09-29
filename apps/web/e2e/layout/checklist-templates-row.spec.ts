@@ -35,7 +35,10 @@ for (const width of [412, 1280] as const) {
       expect(rowBox.y - (inputBox.y + inputBox.height)).toBeGreaterThanOrEqual(8)
       expect(rowBox.height).toBe(52)
       await expect(row).toHaveCSS('border-radius', '12px')
-      await expect.poll(() => row.evaluate((element) => getComputedStyle(element).backgroundColor))
+      await expect(button).toHaveCSS('border-radius', '12px')
+      const buttonBox = await button.boundingBox()
+      expect(buttonBox).toEqual(rowBox)
+      await expect.poll(() => button.evaluate((element) => getComputedStyle(element).backgroundColor))
         .not.toBe('rgba(0, 0, 0, 0)')
 
       const glyph = row.locator('[data-icon="template"] svg')
