@@ -5,6 +5,9 @@ import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import { ChatEmptyState } from '@/components/chat/chat-empty-state'
+import { createStyles } from '@/components/chat/conversation.styles'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -22,10 +25,6 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: () => Promise.reject(new Error('the empty state must read the cached habit list')),
 }))
-
-import { ChatEmptyState } from '@/components/chat/chat-empty-state'
-import { createStyles } from '@/components/chat/conversation.styles'
-import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 

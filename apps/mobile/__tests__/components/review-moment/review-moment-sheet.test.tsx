@@ -46,7 +46,8 @@ vi.mock('@/hooks/use-review-reminder', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
-const primaryTint = tintFromPrimary(createTokensV2('orange', 'dark'), 0.14)
+const tokens = createTokensV2('orange', 'dark')
+const primaryTint = tintFromPrimary(tokens, 0.14)
 
 type RenderedNode = {
   type: unknown
@@ -142,7 +143,10 @@ describe('ReviewMomentSheet (mobile)', () => {
       (node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.eyebrow',
     )
     expect(mark).toHaveLength(1)
+    const glyphs = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')
+    expect(glyphs.map((node) => node.props.color)).toEqual([tokens.fg1])
     expect(JSON.stringify(tree.toJSON())).not.toContain(primaryTint)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(tokens.primary)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.streakTitle')
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'review-streak-7',

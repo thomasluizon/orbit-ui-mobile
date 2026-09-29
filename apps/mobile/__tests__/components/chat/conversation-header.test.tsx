@@ -1,5 +1,7 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AstraConversation } from '@/components/chat/conversation'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -33,9 +35,6 @@ vi.mock('@/hooks/use-overlay-back', () => ({
     overlayBack.handler = onBack
   },
 }))
-
-import { AstraConversation } from '@/components/chat/conversation'
-import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
