@@ -245,6 +245,7 @@ export function HabitFormFields({
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onSuggestionContextChange,
+  onPhraseOwnershipChange,
   onFlushBufferedInputsReady,
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
@@ -352,7 +353,10 @@ export function HabitFormFields({
         setGeneral,
         toggleDay,
         getOwnership() { return phraseOwnership },
-        setOwnership: setPhraseOwnership,
+        setOwnership(ownership) {
+          setPhraseOwnership(ownership)
+          onPhraseOwnershipChange?.(ownership)
+        },
         updateProposal(update) { setProposal(update) },
         setField(field, value, validate = false) {
           const options = validate ? { shouldDirty: true, shouldValidate: true } : { shouldDirty: true }
@@ -360,7 +364,7 @@ export function HabitFormFields({
         },
       },
     }),
-    [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
+    [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
   )
 
   useEffect(() => {

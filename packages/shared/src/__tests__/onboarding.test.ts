@@ -9,7 +9,6 @@ import {
   canSnapshotOnboardingEntry,
   clampOnboardingRepeatWeeks,
   getOnboardingCompleteCopy,
-  getOnboardingHabitTitle,
   isOnboardingHabitDueToday,
   toggleOnboardingScheduleDay,
   getOnboardingReminderPreviewTime,
@@ -23,6 +22,7 @@ import {
   shouldRequestOnboardingSuggestion,
   resolveRetainedOnboarding,
 } from '../utils/onboarding'
+import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 
 /** Every rule a saved onboarding schedule owes the API, named so a failure reads as the transition. */
 function findScheduleViolations(
@@ -69,8 +69,8 @@ describe('onboarding helpers', () => {
   })
 
   it('removes schedule words from the habit title', () => {
-    expect(getOnboardingHabitTitle('Walk every Monday and Thursday at 18:00', 'en')).toBe('Walk')
-    expect(getOnboardingHabitTitle('Caminhar toda segunda e quinta às 18:00', 'pt-BR')).toBe('Caminhar')
+    expect(getHabitPhraseTitle('Walk every Monday and Thursday at 18:00', 'en')).toBe('Walk')
+    expect(getHabitPhraseTitle('Caminhar toda segunda e quinta às 18:00', 'pt-BR')).toBe('Caminhar')
   })
 
   it.each([
@@ -79,17 +79,17 @@ describe('onboarding helpers', () => {
     ['Ler um livro', 'pt-BR'],
     ['Trabalhar na postura', 'pt-BR'],
   ] as const)('preserves an ordinary title byte for byte: %s', (sentence, locale) => {
-    expect(getOnboardingHabitTitle(sentence, locale)).toBe(sentence)
+    expect(getHabitPhraseTitle(sentence, locale)).toBe(sentence)
   })
 
   it('trims a padded sentence the phrase reader leaves alone', () => {
-    expect(getOnboardingHabitTitle('  Read a book  ', 'en')).toBe('Read a book')
-    expect(getOnboardingHabitTitle('  Ler um livro  ', 'pt-BR')).toBe('Ler um livro')
+    expect(getHabitPhraseTitle('  Read a book  ', 'en')).toBe('Read a book')
+    expect(getHabitPhraseTitle('  Ler um livro  ', 'pt-BR')).toBe('Ler um livro')
   })
 
   it('removes only connectors orphaned by consumed schedule words', () => {
-    expect(getOnboardingHabitTitle('Work on posture every Monday', 'en')).toBe('Work on posture')
-    expect(getOnboardingHabitTitle('Trabalhar na postura toda segunda', 'pt-BR')).toBe('Trabalhar na postura')
+    expect(getHabitPhraseTitle('Work on posture every Monday', 'en')).toBe('Work on posture')
+    expect(getHabitPhraseTitle('Trabalhar na postura toda segunda', 'pt-BR')).toBe('Trabalhar na postura')
   })
 
   it('builds the saved habit from the chosen schedule', () => {
