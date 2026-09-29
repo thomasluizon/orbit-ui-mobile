@@ -1102,8 +1102,8 @@ describe('web useChatComposer streaming send', () => {
     globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'saved walk')
 
     function ComposerHarness() {
-      const { composerProps } = useChatComposer()
-      return <Composer {...composerProps} />
+      const { composerProps, composerInputId } = useChatComposer()
+      return <Composer {...composerProps} inputId={composerInputId} />
     }
 
     const container = document.createElement('div')

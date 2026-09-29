@@ -749,7 +749,6 @@ export function useChatComposer() {
     const common = {
       words,
       value: input,
-      inputId: composerInputId,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
@@ -803,7 +802,6 @@ export function useChatComposer() {
     isRecording,
     isSending,
     isTranscribing,
-    composerInputId,
     openFilePicker,
     openTextFilePicker,
     removeImage,
@@ -814,7 +812,7 @@ export function useChatComposer() {
     speechSupported,
     t,
     toggleRecording,
-  ]) as ComposerProps & { onPaste: typeof handlePaste; inputId: string }
+  ]) as ComposerProps & { onPaste: typeof handlePaste }
 
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -857,6 +855,7 @@ export function useChatComposer() {
     handleTextFileSelect,
     removeImage,
     composerProps,
+    composerInputId,
     sendMessage,
     retryLastSend,
     canRetryLastSend,
