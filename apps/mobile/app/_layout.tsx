@@ -561,7 +561,7 @@ function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
   return (
     <View>
-      <Fab label={t('nav.create')} onClick={onCreate}>
+      <Fab label={t('nav.createHabit')} onClick={onCreate}>
         <Plus size={24} strokeWidth={2} />
       </Fab>
     </View>

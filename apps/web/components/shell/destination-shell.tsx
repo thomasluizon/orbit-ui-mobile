@@ -267,7 +267,7 @@ function DestinationShellContent({
   )
   const wideCreate = pathname === '/upgrade'
     ? { onCreate: undefined, createLabel: undefined }
-    : { onCreate, createLabel: t('nav.create') }
+    : { onCreate, createLabel: t('nav.createHabit') }
 
   if (pathname === '/wrapped') {
     return children
@@ -291,7 +291,7 @@ function DestinationShellContent({
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         onPalette={() => setPaletteOpen(true)}
-        paletteLabel={t('command.title')}
+        paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
         notice={notice}
         header={header}
@@ -313,7 +313,7 @@ function DestinationShellContent({
           pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <div className="flex items-end gap-3">
               <div aria-live="polite" aria-atomic="true" className={createRefusal ? 'min-w-0 max-w-[min(68vw,280px)]' : ''}>{createRefusal}</div>
-              <Fab label={t('nav.create')} onClick={onCreate}>
+              <Fab label={t('nav.createHabit')} onClick={onCreate}>
                 <Plus size={24} strokeWidth={2} aria-hidden="true" />
               </Fab>
             </div>
