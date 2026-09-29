@@ -1,11 +1,32 @@
 import { expect, test } from '@playwright/test'
+import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { LAYOUT_ORIGIN } from '../support/env'
+
+const today = '2026-09-04'
+const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
+  title: 'Beber água',
+  dueDate: today,
+  scheduledDates: [today],
+  children: [],
+  hasSubHabits: false,
+}))
+const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
+  items: [habit], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
+})
 
 for (const width of [412, 600] as const) {
   test.describe(`compact FAB and notice at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
 
-    test('keeps the FAB above the notice control and the composer', async ({ page }) => {
+    test('keeps the FAB above the notice control and the composer', async ({ page, context }) => {
+      await context.route(
+        (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
+        (route) => route.fulfill({ json: habitsPage }),
+      )
+      await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
       await page.goto('/')
       const fab = page.locator('[data-shell-fab]')
       const notice = page.locator('[data-shell-notice]')
