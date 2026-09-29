@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { test as subscriptionTest } from './upgrade-fixtures'
 
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse(makeHabitDetail())
@@ -24,7 +26,6 @@ const destinations = [
   ['Sobre', '/about'],
   ['Avisos', '/notifications'],
   ['Busca', '/search'],
-  ['Pro and Assinatura', '/upgrade'],
   ['Calendar sync', '/calendar-sync'],
   ['Support', '/support'],
   ['Onboarding', '/onboarding'],
@@ -43,9 +44,10 @@ for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
           await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))
         }
         await page.goto(path)
+        if (name === 'Onboarding') await expect(page.getByRole('dialog')).toBeVisible()
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title })).toBeVisible()
-        const scroller = page.locator('[data-shell-scroller]')
-        const chrome = page.locator('[data-shell-bottom]')
+        const scroller = page.locator('[data-shell-scroller]').last()
+        const chrome = page.locator('[data-shell-bottom]').last()
         await expect(scroller).toBeVisible()
         await expect(chrome).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
@@ -55,7 +57,7 @@ for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
           const lastContent = Array.from(element.children)
             .filter((child) => !child.hasAttribute('data-shell-scroll-origin') && child.getBoundingClientRect().height > 0)
             .at(-1)
-          const bottom = document.querySelector('[data-shell-bottom]')
+          const bottom = Array.from(document.querySelectorAll('[data-shell-bottom]')).at(-1)
           if (!lastContent || !bottom) return null
           return {
             clearance: bottom.getBoundingClientRect().top - lastContent.getBoundingClientRect().bottom,
@@ -87,5 +89,40 @@ for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
       expect(distance).not.toBeNull()
       expect(distance!).toBeGreaterThanOrEqual(clearance - 1)
     })
+
+    for (const path of ['/privacy', '/terms'] as const) {
+      test(`${path} has no unused pinned-chrome clearance`, async ({ page }) => {
+        await page.goto(path)
+        const scroller = page.locator('[data-shell-scroller]')
+        await expect(scroller).toBeVisible()
+        await expect(page.locator('[data-shell-bottom]')).toHaveCount(0)
+        expect(await scroller.evaluate((element) => getComputedStyle(element).paddingBottom)).toBe('0px')
+      })
+    }
   })
+}
+
+for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
+  for (const subscriptionState of ['free', 'stripe'] as const) {
+    subscriptionTest.describe(`${subscriptionState === 'free' ? 'Pro' : 'Assinatura'} shell scroller at ${width}px`, () => {
+      subscriptionTest.use({ appLocale: 'en', subscriptionState, viewport: { width, height: 915 } })
+
+      subscriptionTest('clears the pinned chrome after content loads', async ({ page }) => {
+        await page.goto('/upgrade')
+        const screen = page.locator('[data-upgrade-screen]')
+        await expect(screen.getByText(subscriptionState === 'free'
+          ? en.upgrade.convert.freeEyebrow
+          : en.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+        const clearanceAtEnd = await page.locator('[data-shell-scroller]').evaluate((element) => {
+          element.scrollTop = element.scrollHeight
+          const lastContent = element.lastElementChild
+          const chrome = document.querySelector('[data-shell-bottom]')
+          if (!lastContent || !chrome) return null
+          return chrome.getBoundingClientRect().top - lastContent.getBoundingClientRect().bottom
+        })
+        expect(clearanceAtEnd).not.toBeNull()
+        expect(clearanceAtEnd!).toBeGreaterThanOrEqual(clearance - 1)
+      })
+    })
+  }
 }

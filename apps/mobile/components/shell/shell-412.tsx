@@ -10,6 +10,7 @@ import { ShellComposerSlotProvider, useShellComposerHost } from './shell-compose
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 
 function ShellBottomChrome({
+  visible,
   navigationEnabled,
   pinnedSlot,
   notice,
@@ -19,6 +20,7 @@ function ShellBottomChrome({
   borderTopColor,
   safeAreaBottom,
 }: Readonly<{
+  visible: boolean
   navigationEnabled: boolean
   pinnedSlot: ReactNode
   notice: ReactNode
@@ -28,10 +30,6 @@ function ShellBottomChrome({
   borderTopColor: string
   safeAreaBottom: number
 }>) {
-  const visible = navigationEnabled
-    || notice !== undefined
-    || pinnedSlot !== undefined
-    || fab !== undefined
   if (!visible) return null
 
   return (
@@ -67,6 +65,10 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const notice = registeredNotice.content === undefined
     ? props.notice
     : <>{props.notice}{registeredNotice.content}</>
+  const hasBottomChrome = navigationEnabled
+    || notice !== undefined
+    || pinnedSlot !== undefined
+    || props.fab !== undefined
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
   const [keyboardVisible, setKeyboardVisible] = useState(false)
@@ -98,11 +100,12 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View testID="shell-header">{props.header}</View>
         ) : null}
 
-        <View testID="shell-scroller" style={styles.scroller}>
+        <View testID="shell-scroller" style={[styles.scroller, { paddingBottom: hasBottomChrome ? 96 : 0 }]}>
           {props.children}
         </View>
 
         <ShellBottomChrome
+          visible={hasBottomChrome}
           navigationEnabled={navigationEnabled}
           pinnedSlot={pinnedSlot}
           notice={notice}
@@ -154,7 +157,6 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    paddingBottom: 96,
   },
   bottomChrome: {
     borderTopWidth: 1,

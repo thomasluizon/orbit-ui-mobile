@@ -290,7 +290,7 @@ function HabitDetailFrame({ header, navigationKey, children }: Readonly<{ header
   const hosted = useShellHeaderSlot(() => header, navigationKey)
   return <>
     {hosted ? null : header}
-    <div data-habit-detail-content="" className="mx-auto flex min-h-full w-full max-w-[740px] flex-col gap-6 px-4 py-6">{children}</div>
+    <div data-habit-detail-content="" className="mx-auto flex min-h-full w-full max-w-[740px] flex-col gap-6 px-4 pt-6">{children}</div>
   </>
 }
 

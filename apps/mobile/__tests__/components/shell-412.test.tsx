@@ -56,6 +56,16 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
+  it('does not reserve pinned-chrome clearance when the chrome is absent', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 nav={false}>{React.createElement('FullScreenContent')}</Shell412>)
+    })
+    expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-scroller')[0]?.props.style)).toMatchObject({ paddingBottom: 0 })
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it.each([0, 24])('handles a %s pixel navigation inset as the keyboard opens and closes', async (bottom) => {
     safeArea.bottom = bottom
     let tree!: ReactTestRenderer
