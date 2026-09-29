@@ -23,6 +23,8 @@ export interface CalendarSyncEvent {
   reminders: number[]
   calendarId?: string
   calendarName?: string
+  isImported?: boolean | null
+  importedHabitId?: string | null
 }
 
 export function filterCalendarSyncEventsByDate(
@@ -31,6 +33,54 @@ export function filterCalendarSyncEventsByDate(
 ): CalendarSyncEvent[] {
   if (!date) return []
   return events.filter((event) => event.startDate === date)
+}
+
+export function resolveCalendarImportEvents(
+  reviewMode: boolean,
+  suggestions: readonly CalendarSyncSuggestion[],
+  eventsResult: { status: 'connected'; events: CalendarSyncEvent[] } | { status: 'not-connected' } | undefined,
+): CalendarSyncEvent[] {
+  if (reviewMode) return suggestions.map((suggestion) => suggestion.event)
+  if (eventsResult?.status !== 'connected') return []
+  return eventsResult.events.filter((event) => !event.isImported)
+}
+
+export function calendarImportEventsKey(
+  reviewMode: boolean,
+  weekStartDay: 0 | 1,
+  events: readonly CalendarSyncEvent[],
+): string {
+  return `${reviewMode ? 'review' : 'manual'}:${weekStartDay}:${events.map((event) => event.id).join('|')}`
+}
+
+export function resolveCalendarImportSelection(
+  initialEventId: string | null,
+  reviewMode: boolean,
+  events: readonly CalendarSyncEvent[],
+  weekStartDay: 0 | 1,
+  previousSelection: ReadonlySet<string>,
+  previousEventsKey: string | null,
+): Set<string> {
+  const initialSelection = selectInitialCalendarImportEvent(initialEventId, reviewMode, events, weekStartDay)
+  if (initialSelection) return initialSelection
+  const importableEvents = events.filter((event) => isCalendarSyncEventImportable(event, weekStartDay))
+  if (reviewMode && previousEventsKey !== null) {
+    return new Set(importableEvents.filter((event) => previousSelection.has(event.id)).map((event) => event.id))
+  }
+  return new Set(importableEvents.map((event) => event.id))
+}
+
+export async function runCalendarSyncNowWithFeedback(
+  run: () => Promise<unknown>,
+  reportFailure: (error: unknown) => void,
+  getAccountGeneration: () => number,
+): Promise<void> {
+  const requestGeneration = getAccountGeneration()
+  try {
+    await run()
+  } catch (error: unknown) {
+    if (getAccountGeneration() === requestGeneration) reportFailure(error)
+  }
 }
 
 export interface CalendarSyncParsedRecurrence {
@@ -639,7 +689,7 @@ function getCalendarSyncImportIssueFromResolution(
 }
 
 export function isCalendarSyncEventImportable(event: CalendarSyncEvent, weekStartDay: 0 | 1 = 1): boolean {
-  return getCalendarSyncImportIssue(
+  return event.isImported !== true && getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
     event.startTime,
@@ -850,4 +900,54 @@ export function formatCalendarAutoSyncLastSynced(
     translate('calendar.autoSync.lastSyncedDaysAgo', { n: deltaDays }),
     deltaDays,
   )
+}
+export function shouldPromptForCalendarConnection(
+  stateLoading: boolean,
+  connected: boolean,
+  online: boolean,
+  browsing: boolean,
+): boolean {
+  return !stateLoading && !connected && online && browsing
+}
+
+export function resolveCalendarImportConnectionStep<T extends string>(
+  resolvedStep: T,
+  stateLoading: boolean,
+  stateError: boolean,
+  connected: boolean,
+  online: boolean,
+  browsing: boolean,
+): T | 'not-connected' | 'error' {
+  if (stateError && online && browsing) return 'error'
+  if (shouldPromptForCalendarConnection(stateLoading, connected, online, browsing)) return 'not-connected'
+  return resolvedStep
+}
+
+export function shouldOpenCalendarImportSheet(
+  hasProAccess: boolean,
+  openedLocally: boolean,
+  requestedByRoute: boolean,
+): boolean {
+  return hasProAccess && (openedLocally || requestedByRoute)
+}
+
+export function calendarImportRouteRequestKey(reviewRequested: boolean, importRequested: boolean): '' | 'review' | 'import' {
+  if (reviewRequested) return 'review'
+  return importRequested ? 'import' : ''
+}
+
+export function calendarImportTitleKey(reviewMode: boolean): 'calendar.autoSync.reviewModeTitle' | 'calendar.title' {
+  return reviewMode ? 'calendar.autoSync.reviewModeTitle' : 'calendar.title'
+}
+
+export function selectInitialCalendarImportEvent(
+  initialEventId: string | null,
+  reviewMode: boolean,
+  events: readonly CalendarSyncEvent[],
+  weekStartDay: 0 | 1,
+): Set<string> | null {
+  if (!initialEventId || reviewMode) return null
+  return new Set(events.filter((event) =>
+    event.id === initialEventId && isCalendarSyncEventImportable(event, weekStartDay),
+  ).map((event) => event.id))
 }

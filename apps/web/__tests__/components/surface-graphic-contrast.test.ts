@@ -17,7 +17,7 @@ const graphicSites = [
   'apps/mobile/components/ui/settings-row.tsx',
   'apps/mobile/components/ui/time-field.tsx',
   'apps/web/app/(app)/support/_components/support-form.tsx',
-  'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx',
+  'apps/web/components/calendar-sync/calendar-sync-event-row.tsx',
   'apps/web/app/(auth)/login/login-sections.tsx',
   'apps/web/components/search/search-results.tsx',
   'apps/web/components/ui/app-select.tsx',
@@ -40,7 +40,7 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/mobile/components/ui/settings-row.tsx': 'ChevronRight',
   'apps/mobile/components/ui/time-field.tsx': 'Clock3',
   'apps/web/app/(app)/support/_components/support-form.tsx': 'WifiOff',
-  'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx': 'X',
+  'apps/web/components/calendar-sync/calendar-sync-event-row.tsx': 'X',
   'apps/web/app/(auth)/login/login-sections.tsx': 'WifiOff',
   'apps/web/components/search/search-results.tsx': 'ChevronRight',
   'apps/web/components/ui/app-select.tsx': 'ChevronDown',
@@ -69,7 +69,7 @@ describe('raised-surface graphic contrast', () => {
     expect(result.error).toBeUndefined()
     expect(findings.filter((line) => line.startsWith(`${site}:`) && /GRAPHIC (?:floor 3\.00|surface is unresolved)/.test(line))).toEqual([])
     const source = readFileSync(resolve(repositoryRoot, site), 'utf8')
-    if (site === 'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx') {
+    if (site === 'apps/web/components/calendar-sync/calendar-sync-event-row.tsx') {
       const dismissalIcon = source.indexOf('<X size={20}')
       expect(dismissalIcon).toBeGreaterThan(0)
       const dismissalButton = source.slice(source.lastIndexOf('<button', dismissalIcon), dismissalIcon)

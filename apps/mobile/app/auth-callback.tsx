@@ -121,11 +121,11 @@ export default function AuthCallbackScreen() {
         await clearStoredReferralCode()
         if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
       }
-      await getStoredAuthReturnUrl(returnUrlAttemptId)
+      const storedReturnUrl = await getStoredAuthReturnUrl(returnUrlAttemptId)
       if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
       await clearStoredAuthReturnUrl(returnUrlAttemptId, isCurrentLoginSession)
       if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
-      router.replace('/')
+      router.replace(getSafeReturnUrl(storedReturnUrl))
     } catch { setState('failed') }
     finally { setLoading(false) }
   }

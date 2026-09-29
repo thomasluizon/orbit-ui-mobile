@@ -64,24 +64,3 @@ export function resolveDisplayedErrorMessage(
   }
   return ""
 }
-
-/**
- * Resolves the next selected-event set when the incoming events change: in
- * review mode (after the first load) keep the still-present prior selections,
- * otherwise select every incoming event.
- */
-export function resolveSyncedSelection(
-  previousSelection: ReadonlySet<string>,
-  incomingEvents: readonly { id: string }[],
-  isReviewMode: boolean,
-  previousEventsKey: string | null,
-): Set<string> {
-  if (isReviewMode && previousEventsKey !== null) {
-    const next = new Set<string>()
-    for (const event of incomingEvents) {
-      if (previousSelection.has(event.id)) next.add(event.id)
-    }
-    return next
-  }
-  return new Set(incomingEvents.map((event) => event.id))
-}

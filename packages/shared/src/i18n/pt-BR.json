@@ -991,13 +991,16 @@
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
-      "eventsTitle": "Disponíveis para importar",
+      "eventsTitle": "Na sua agenda",
+      "searchEvents": "Buscar eventos",
+      "noMatchingEvents": "Nenhum evento corresponde a \"{query}\".",
+      "clearEventSearch": "Limpar busca",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
       "autoSync": "Sincronizar sozinho",
       "disconnectedTitle": "Google Calendar desconectado",
       "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
-      "noEventsToImport": "Nada para importar do Google Calendar neste dia."
+      "noEventsToImport": "Nenhum evento do Google Calendar neste dia."
     },
     "proBoundary": {
       "title": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",

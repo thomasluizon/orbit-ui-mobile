@@ -30,7 +30,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/wrapped',
       null,
-      '/calendar-sync',
+      '/calendar',
       '/support',
       '/about',
     ])

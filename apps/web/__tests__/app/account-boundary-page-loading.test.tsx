@@ -43,7 +43,9 @@ vi.mock('@/hooks/use-calendar-events', () => ({
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   useCalendarAutoSyncState: () => ({ data: undefined }),
   useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn() }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn() }),
 }))
+vi.mock('@/components/calendar-sync/calendar-import-content', () => ({ CalendarImportContent: () => null }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: vi.fn() }) }))
 vi.mock('@/hooks/use-date-format', () => ({ useDateFormat: () => ({ displayWeekdayDate: vi.fn() }) }))

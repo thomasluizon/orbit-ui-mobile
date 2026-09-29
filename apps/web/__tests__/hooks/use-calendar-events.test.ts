@@ -33,10 +33,12 @@ describe('useCalendarEvents', () => {
   })
 
   it('returns the connected event list on a successful fetch', async () => {
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+    const events = [{ id: 'imported', isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }, { id: 'available', isImported: false }]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(events) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual({ status: 'connected', events: [] })
+    expect(result.current.data).toEqual({ status: 'connected', events })
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(`${API.calendar.events}?includeImported=true`)
   })
 
   it('maps a not-connected backend message to the not-connected status', async () => {
@@ -65,7 +67,7 @@ describe('useCalendarEvents', () => {
     let resolveEvents!: (response: unknown) => void
     let resolveAutoSyncState!: () => void
     mockFetch.mockImplementation((input: RequestInfo | URL) => {
-      if (input === API.calendar.events) {
+      if (input === `${API.calendar.events}?includeImported=true`) {
         return new Promise((resolve) => {
           resolveEvents = resolve
         })
@@ -89,6 +91,7 @@ describe('useCalendarEvents', () => {
         autoSyncState,
         displayTime: (time: string) => time,
         onAutoSyncChange: async () => {},
+        onSyncNow: async () => {},
       })
     }
 
@@ -222,6 +225,7 @@ describe('CalendarSyncBoundary account replacement', () => {
       autoSyncState,
       displayTime: (value: string) => value,
       onAutoSyncChange,
+      onSyncNow: async () => {},
     }))
 
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))

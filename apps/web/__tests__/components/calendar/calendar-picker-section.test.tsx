@@ -21,7 +21,7 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError }) }))
 
-import { CalendarPickerSection } from '@/app/(app)/calendar-sync/_components/calendar-picker-section'
+import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 
 function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
   return {
@@ -47,7 +47,7 @@ describe('CalendarPickerSection', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders a switch per calendar reflecting its synced state', () => {
+  it('renders a check row per calendar reflecting its synced state', () => {
     useCalendarsMock.mockReturnValue({
       data: [
         buildCalendar({ id: 'cal-1', name: 'Personal', isSynced: true }),
@@ -59,12 +59,22 @@ describe('CalendarPickerSection', () => {
 
     render(<CalendarPickerSection enabled />)
 
-    const switches = screen.getAllByRole('switch')
-    expect(switches).toHaveLength(2)
-    expect(switches[0]).toHaveAttribute('aria-checked', 'true')
-    expect(switches[1]).toHaveAttribute('aria-checked', 'false')
+    const checkboxes = screen.getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(2)
+    expect(checkboxes[0]).toHaveAttribute('aria-checked', 'true')
+    expect(checkboxes[1]).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByText('Personal')).toBeInTheDocument()
     expect(screen.getByText('Work')).toBeInTheDocument()
+  })
+
+  it('pages a long calendar list while keeping the total visible', () => {
+    useCalendarsMock.mockReturnValue({ data: Array.from({ length: 21 }, (_, index) =>
+      buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` })), isLoading: false, isError: false })
+    render(<CalendarPickerSection enabled />)
+    expect(screen.getAllByRole('checkbox')).toHaveLength(20)
+    expect(screen.getByText('calendar.showingCount:{"shown":20,"total":21}')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.showMore' }))
+    expect(screen.getAllByRole('checkbox')).toHaveLength(21)
   })
 
   it('persists the flipped synced value on toggle', () => {
@@ -76,7 +86,7 @@ describe('CalendarPickerSection', () => {
 
     render(<CalendarPickerSection enabled />)
 
-    fireEvent.click(screen.getByRole('switch'))
+    fireEvent.click(screen.getByRole('checkbox'))
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'cal-1', isSynced: false })
   })
 
@@ -89,7 +99,7 @@ describe('CalendarPickerSection', () => {
     mutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'))
     render(<CalendarPickerSection enabled />)
 
-    fireEvent.click(screen.getByRole('switch'))
+    fireEvent.click(screen.getByRole('checkbox'))
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
@@ -97,7 +107,7 @@ describe('CalendarPickerSection', () => {
   it('shows the loading state', () => {
     useCalendarsMock.mockReturnValue({ data: undefined, isLoading: true, isError: false })
     render(<CalendarPickerSection enabled />)
-    expect(screen.getByText('calendar.calendars.loading')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'calendar.calendars.loading' })).toBeInTheDocument()
   })
 
   it('shows the error state', () => {

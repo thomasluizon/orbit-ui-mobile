@@ -105,7 +105,7 @@ describe('CalendarImportPrompt navigation', () => {
       sheetTestControls.completeDismissal()
     })
 
-    expect(mocks.push).toHaveBeenCalledWith('/calendar-sync')
+    expect(mocks.push).toHaveBeenCalledWith('/calendar?import=1')
     expect(mocks.push).toHaveBeenCalledTimes(1)
   })
 })
@@ -149,7 +149,7 @@ describe('CalendarImportPrompt gating', () => {
 
   it('stays hidden on the calendar-sync route', () => {
     mocks.profile = baseProfile()
-    mocks.pathname = '/calendar-sync'
+    mocks.pathname = '/calendar'
     expect(sheetCount(renderPrompt())).toBe(0)
   })
 })
