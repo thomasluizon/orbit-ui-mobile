@@ -196,9 +196,11 @@ function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepU
         <ListRow
           icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.open')}
+          wrapTitle
           value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
             ? t('profile.apiKeys.noKeys')
             : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
           onClick={() => setShowStepUp(true)}
         />
       </RowList>

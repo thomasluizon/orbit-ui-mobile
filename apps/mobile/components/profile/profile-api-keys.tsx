@@ -204,9 +204,11 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
         <ListRow
           icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.open')}
+          wrapTitle
           value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
             ? t('profile.apiKeys.noKeys')
             : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
           onClick={() => setShowStepUp(true)}
         />
       </RowList>

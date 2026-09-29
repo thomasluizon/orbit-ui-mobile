@@ -4,6 +4,23 @@ import { plural } from '@/lib/plural'
 
 describe('mobile i18n interpolation', () => {
   it.each([
+    { locale: 'en', count: 0, expected: 'No keys yet' },
+    { locale: 'en', count: 1, expected: '1 active key' },
+    { locale: 'en', count: 3, expected: '3 active keys' },
+    { locale: 'pt-BR', count: 0, expected: 'Nenhuma chave ainda' },
+    { locale: 'pt-BR', count: 1, expected: '1 chave ativa' },
+    { locale: 'pt-BR', count: 3, expected: '3 chaves ativas' },
+  ])('renders the active key count in $locale for $count keys', async ({ locale, count, expected }) => {
+    await i18n.changeLanguage(locale)
+
+    expect(count === 0
+      ? i18n.t('profile.apiKeys.noKeys')
+      : i18n.t('profile.apiKeys.activeCount', { count })).toBe(expected)
+
+    await i18n.changeLanguage('en')
+  })
+
+  it.each([
     { locale: 'en', one: '1 step', other: '2 steps', diff: 'Date: from Not set to Monday', more: 'and 30 more' },
     { locale: 'pt-BR', one: '1 etapa', other: '2 etapas', diff: 'Data: de Não definido para segunda-feira', more: 'e mais 30' },
   ])('renders preview and trace copy in $locale', async ({ locale, one, other, diff, more }) => {

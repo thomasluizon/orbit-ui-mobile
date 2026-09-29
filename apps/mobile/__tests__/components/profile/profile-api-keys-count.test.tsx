@@ -42,6 +42,8 @@ it.each([0, 1, 3])('shows the count before key step-up for %i active keys', (cou
   const rows = tree.root.findAllByType(ListRow)
   expect(rows).toHaveLength(1)
   expect(rows[0].props.title).toBe('profile.apiKeys.open')
+  expect(rows[0].props.wrapTitle).toBe(true)
+  expect(rows[0].props.wrapValue).toBe(true)
   expect(rows[0].props.value).toBe(count === 0
     ? 'profile.apiKeys.noKeys'
     : `profile.apiKeys.activeCount:{"count":${count}}`)
