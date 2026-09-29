@@ -173,6 +173,8 @@ export {
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
 export { readHabitPhrase, segmentHabitPhrase } from './habit-phrase-parser'
+export { getHabitPhraseTitle } from './habit-phrase-title'
+export type { AppliedHabitPhraseFields } from './habit-phrase-title'
 export type {
   HabitPhraseCadence,
   HabitPhraseRead,
@@ -343,7 +345,6 @@ export {
   buildOnboardingScheduleFromSuggestion,
   changeOnboardingScheduleMode,
   toggleOnboardingScheduleDay,
-  getOnboardingHabitTitle,
   getOnboardingCompleteCopy,
   getOnboardingScheduleMode,
   getOnboardingReminderPreviewTime,
