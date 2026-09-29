@@ -89,15 +89,6 @@
     "habit": "Hábito",
     "openIn": "Abrir em {target}"
   },
-  "persistentReminder": {
-    "label": "Lembrete fixo",
-    "description": "Mantenha uma notificação fixa e silenciosa com sua sequência e o progresso de hoje.",
-    "channelName": "Lembrete fixo",
-    "titleStreak": "Sequência de {streak} dias",
-    "titleNoStreak": "Comece sua sequência hoje",
-    "body": "{completed}/{total} concluídos hoje",
-    "bodyEmpty": "Nada agendado para hoje"
-  },
   "common": {
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",

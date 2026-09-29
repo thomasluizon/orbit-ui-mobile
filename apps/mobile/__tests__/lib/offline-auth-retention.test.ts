@@ -45,7 +45,6 @@ vi.mock('@/lib/secure-store', () => ({
   clearRefreshToken: vi.fn(), clearAllTokens: mocks.clearTokens,
 }))
 vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: async () => {}, saveWidgetToken: async () => {} }))
-vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: async () => {} }))
 vi.mock('@/hooks/use-push-notifications', () => ({ unsubscribePushToken: async () => {} }))
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredAuthReturnUrl: async () => {},

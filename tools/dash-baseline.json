@@ -21,7 +21,6 @@
   "apps/mobile/lib/idempotency-key.ts": 2,
   "apps/mobile/lib/mutation-response-schemas.ts": 1,
   "apps/mobile/lib/offline-mutations.ts": 2,
-  "apps/mobile/lib/persistent-reminder.ts": 2,
   "apps/mobile/lib/resolve-active-scheme.ts": 1,
   "apps/mobile/lib/theme.ts": 5,
   "apps/mobile/scripts/configure-android-release-signing.js": 1,

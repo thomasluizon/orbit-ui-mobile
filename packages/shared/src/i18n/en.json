@@ -89,15 +89,6 @@
     "habit": "Habit",
     "openIn": "Open in {target}"
   },
-  "persistentReminder": {
-    "label": "Persistent reminder",
-    "description": "Keep a quiet ongoing notification with your streak and today's progress.",
-    "channelName": "Ongoing reminder",
-    "titleStreak": "{streak}-day streak",
-    "titleNoStreak": "Start your streak today",
-    "body": "{completed}/{total} done today",
-    "bodyEmpty": "Nothing scheduled today"
-  },
   "common": {
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",

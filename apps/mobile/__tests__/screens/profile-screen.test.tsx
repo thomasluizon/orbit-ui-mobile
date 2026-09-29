@@ -76,9 +76,8 @@ const {
   mockRefreshPushPermissionStatus,
   mockAddAppStateListener,
   mockRemoveAppStateListener,
-  mockReminderSupported,
-  mockToggleReminder,
   mockConversationOpen,
+  mockRealConsentSection,
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
@@ -117,9 +116,8 @@ const {
   mockRefreshPushPermissionStatus: vi.fn(),
   mockRemoveAppStateListener: vi.fn(),
   mockAddAppStateListener: vi.fn(),
-  mockReminderSupported: { current: false },
-  mockToggleReminder: vi.fn(),
   mockConversationOpen: { current: false },
+  mockRealConsentSection: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
@@ -208,10 +206,6 @@ vi.mock('@/hooks/use-push-notifications', () => ({
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
   usePushSubscriptions: () => mockDeviceState.current,
-}))
-
-vi.mock('@/hooks/use-persistent-reminder', () => ({
-  usePersistentReminder: () => ({ isSupported: mockReminderSupported.current, enabled: false, isLoading: false, toggle: mockToggleReminder }),
 }))
 
 vi.mock('@/hooks/use-gamification', () => ({
@@ -335,12 +329,17 @@ vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => React.createElement('ThemeToggle'),
 }))
 
-vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
-  MarketingConsentSection: ({ trailingRow }: { trailingRow?: React.ReactNode }) =>
-    React.createElement('MarketingConsentSectionStub', {
-      testID: 'marketing-consent-section',
-    }, trailingRow),
-}))
+vi.mock('@/components/marketing-consent/marketing-consent-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/marketing-consent/marketing-consent-section')>()
+  return {
+    MarketingConsentSection: (props: React.ComponentProps<typeof actual.MarketingConsentSection>) =>
+      mockRealConsentSection.current
+        ? React.createElement(actual.MarketingConsentSection, props)
+        : React.createElement('MarketingConsentSectionStub', {
+          testID: 'marketing-consent-section',
+        }, props.trailingRow),
+  }
+})
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => null,
@@ -566,9 +565,8 @@ describe('ProfileScreen', () => {
     mockRefreshPushPermissionStatus.mockReset().mockResolvedValue(undefined)
     mockRemoveAppStateListener.mockReset()
     mockAddAppStateListener.mockReset().mockReturnValue({ remove: mockRemoveAppStateListener })
-    mockReminderSupported.current = false
-    mockToggleReminder.mockReset().mockResolvedValue(undefined)
     mockConversationOpen.current = false
+    mockRealConsentSection.current = false
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
     mockSearchParams.current = {}
@@ -1471,6 +1469,43 @@ describe('ProfileScreen', () => {
     ).not.toHaveLength(0)
   })
 
+  it('renders only the drawn Notifications rows and the recorded deviations, in order', async () => {
+    mockPushSupported.current = true
+    mockRealConsentSection.current = true
+    const tree = await renderProfileScreen()
+    const notificationsGroup = tree.root.findByProps({ testID: 'profile-settings-group-notifications' })
+    const controls = notificationsGroup.findAll(
+      (node: { type: unknown; props: { accessibilityRole?: string; onPress?: () => void } }) =>
+        typeof node.type === 'string' &&
+        ['switch', 'button', 'link'].includes(node.props.accessibilityRole ?? '') &&
+        typeof node.props.onPress === 'function',
+    )
+    const textLines = notificationsGroup.findAll(
+      (node: { type: unknown; children: unknown[] }) =>
+        node.type === 'Text' && node.children.every((child) => typeof child === 'string'),
+    ).map(nodeText).filter(Boolean)
+
+    expect(textLines).toEqual([
+      'profile.groups.notifications',
+      'profile.marketingEmails.question',
+      'profile.marketingEmails.questionDescription',
+      'profile.marketingEmails.accept',
+      'profile.marketingEmails.decline',
+      'profile.analytics.title',
+      'profile.settingsRows.devices',
+      '0 of 5',
+      'profile.settingsRows.currentDevice',
+      'profile.settingsRows.remindersNote',
+    ])
+    expect(controls.map((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      `${node.props.accessibilityRole}: ${node.props.accessibilityLabel ?? nodeText(node)}`)).toEqual([
+      'button: profile.marketingEmails.accept',
+      'button: profile.marketingEmails.decline',
+      'switch: profile.analytics.title',
+      'switch: profile.settingsRows.alertsOnThisDevice',
+    ])
+  })
+
   it('restores the analytics switch and announces a failed local save', async () => {
     const write = vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('storage failed'))
     try {
@@ -1636,19 +1671,15 @@ describe('ProfileScreen', () => {
     expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setWeekStartDay', payload: { weekStartDay: 0 } }))
   })
 
-  it('uses inline switches for this device and persistent reminders', async () => {
+  it('uses an inline switch for this device', async () => {
     mockPushSupported.current = true
-    mockReminderSupported.current = true
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      for (const label of ['profile.settingsRows.alertsOnThisDevice', 'persistentReminder.label']) {
-        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-          node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').props.onPress()
-      }
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()
     })
     expect(mockRequestPushPermission).toHaveBeenCalledOnce()
-    expect(mockToggleReminder).toHaveBeenCalledOnce()
   })
 
   it.each([0, 1, 5])('shows %i devices against the cap', async (count) => {

@@ -19,7 +19,6 @@ vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: vi.fn(async () => {}),
   saveWidgetToken: vi.fn(async () => {}),
 }))
-vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: vi.fn(async () => {}) }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: vi.fn(() => ({})) }))
 vi.mock('expo-router', () => ({ router: { replace: vi.fn() } }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn(() => Promise.reject(new Error('profile unavailable'))) }))

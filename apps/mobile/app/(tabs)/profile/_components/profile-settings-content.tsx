@@ -6,7 +6,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
-import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
 import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
@@ -50,10 +49,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
-import {
-  PreferencePickerSheet,
-  PersistentReminderRow,
-} from '@/components/profile/preferences-sections'
+import { PreferencePickerSheet } from '@/components/profile/preferences-sections'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { useSheetHost } from '@/components/ui/sheet'
 import { DeleteAccountModal } from './delete-account-modal'
@@ -281,7 +277,6 @@ export function ProfileSettingsContent({
     void refreshPushSubscriptions()
   }, [refreshPushSubscriptions]))
   const { isSupported: pushSupported, refreshPermissionStatus } = pushPreferences
-  const persistentReminder = usePersistentReminder()
   useEffect(() => {
     if (!pushSupported) return
     const subscription = AppState.addEventListener('change', (state) => {
@@ -387,16 +382,6 @@ export function ProfileSettingsContent({
         onOpenSettings={() => void Linking.openSettings()}
         onRetry={() => void pushSubscriptions.refresh()}
       />
-      {persistentReminder.isSupported ? (
-        <RowList>
-          <PersistentReminderRow
-            t={t}
-            enabled={persistentReminder.enabled}
-            isLoading={persistentReminder.isLoading}
-            onToggle={() => void persistentReminder.toggle()}
-          />
-        </RowList>
-      ) : null}
       <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 }}>
         {t('profile.settingsRows.remindersNote')}
       </Text>
