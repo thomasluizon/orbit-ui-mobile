@@ -12,6 +12,8 @@ import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
@@ -685,10 +687,14 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
-  it('keeps the in-section goals-empty action ghost', async () => {
+  it('starts a goal request from the in-section goals-empty action', async () => {
     const tree = await renderProgress()
 
-    expect(findPill(tree.root, 'progressScreen.startHabit').props.testID).toBe('button-ghost-md')
+    const action = findPill(tree.root, 'progressScreen.goals.createAction')
+    expect(action.props.testID).toBe('button-primary-md')
+    ;(action.props.onPress as () => void)()
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {

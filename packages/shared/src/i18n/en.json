@@ -2714,7 +2714,6 @@
     "retry": "Try again",
     "empty": "Nothing to measure yet",
     "emptyAction": "Start a habit",
-    "startHabit": "View habits",
     "sections": {
       "streak": "Streak",
       "goals": "Goals",
@@ -2766,7 +2765,9 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "empty": "No goals yet. A habit is the next useful step.",
+      "empty": "A goal tracks what you want to achieve: start from a habit or ask Astra.",
+      "createAction": "Create goal",
+      "request": "Help me create a goal.",
       "filterEmpty": "No goals match this view.",
       "clearFilter": "All goals",
       "progress": "{current} / {target} {unit}",

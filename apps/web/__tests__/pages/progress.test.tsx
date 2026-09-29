@@ -10,6 +10,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTranslator } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -609,12 +611,15 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('data-variant', variant)
   })
 
-  it('keeps the in-section goals-empty action as a ghost navigation link', () => {
+  it('starts a goal request from the in-section goals-empty action', () => {
     render(<ProgressContent />)
 
-    const action = screen.getByRole('link', { name: 'progressScreen.startHabit' })
-    expect(action).toHaveAttribute('href', '/')
-    expect(action).toHaveAttribute('data-variant', 'ghost')
+    const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
+    expect(action).toHaveAttribute('data-variant', 'primary')
+    expect(within(screen.getByRole('region', { name: 'progressScreen.sections.goals' })).queryByRole('link')).not.toBeInTheDocument()
+    fireEvent.click(action)
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {
