@@ -12,7 +12,7 @@ interface SuggestionChipsProps {
 }
 
 function SuggestionLabel({ text }: Readonly<{ text: string }>) {
-  return <span className="truncate" style={{ textBox: 'trim-both cap alphabetic' }}>{text}</span>
+  return <span className="truncate">{text}</span>
 }
 
 /** The four drawn openers for an empty thread. Each one asks for a different kind

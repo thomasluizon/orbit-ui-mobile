@@ -37,7 +37,6 @@ export function createStyles(tokens: Tokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
-      maxWidth: 280,
       textAlign: "center",
       color: tokens.fg3,
     },
