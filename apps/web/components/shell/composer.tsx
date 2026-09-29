@@ -197,7 +197,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         }}
         className={`group relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity,transform] duration-150 ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        <span aria-hidden="true" hidden={!canSend} className="pointer-events-none absolute inset-0 rounded-full bg-[var(--primary-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100" />
+        <span aria-hidden="true" hidden={!canSend} className="pointer-events-none absolute inset-0 rounded-full bg-[var(--primary-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] pointer-fine:group-hover:opacity-100" />
         <span className="relative"><ArrowUp size={20} strokeWidth={2} aria-hidden="true" /></span>
       </button>
     </div>

@@ -139,7 +139,7 @@ describe('Composer', () => {
     const hoverFill = send.querySelector('span[aria-hidden="true"]')
     if (_case === 'idle with text' || _case === 'idle with a file only') {
       expect(hoverFill).not.toHaveAttribute('hidden')
-      expect(hoverFill).toHaveClass('bg-[var(--primary-hover)]', 'duration-[var(--dur-hover-control)]', 'group-hover:opacity-100')
+      expect(hoverFill).toHaveClass('bg-[var(--primary-hover)]', 'duration-[var(--dur-hover-control)]', 'pointer-fine:group-hover:opacity-100')
     } else {
       expect(hoverFill).toHaveAttribute('hidden')
     }
