@@ -4,7 +4,7 @@ import type { UserCalendar } from '@orbit/shared/types/calendar'
 import { ApiClientError } from '@orbit/shared'
 
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
-import { createStyles } from '@/app/calendar-sync-styles'
+import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -22,6 +22,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+  radius: new Proxy({}, { get: () => 8 }),
   easings: { smooth: [0.2, 0, 0, 1] },
   tintFromPrimary: () => 'rgba(127,70,247,0.1)',
 }))
@@ -76,9 +77,9 @@ function render(enabled: boolean) {
   return tree!
 }
 
-function switches(tree: ReturnType<typeof render>) {
+function checkboxes(tree: ReturnType<typeof render>) {
   return tree.root.findAll(
-    (node) => node.props.accessibilityRole === 'switch' && typeof node.type === 'string',
+    (node) => node.props.accessibilityRole === 'checkbox' && typeof node.type === 'string',
   )
 }
 
@@ -98,20 +99,32 @@ describe('mobile CalendarPickerSection', () => {
     expect(hostNodes).toHaveLength(0)
   })
 
-  it('renders a switch per calendar reflecting its synced state', () => {
+  it('renders a check row per calendar reflecting its synced state', () => {
     mocks.calendars = [
       buildCalendar({ id: 'cal-1', isSynced: true }),
       buildCalendar({ id: 'cal-2', name: 'Work', primary: false, isSynced: false }),
     ]
-    const found = switches(render(true))
+    const found = checkboxes(render(true))
     expect(found).toHaveLength(2)
     expect((found[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
     expect((found[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(false)
   })
 
+  it('pages a long calendar list while keeping the total visible', () => {
+    mocks.calendars = Array.from({ length: 21 }, (_, index) =>
+      buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` }))
+    const tree = render(true)
+    expect(checkboxes(tree)).toHaveLength(20)
+    const showMore = tree.root.findAll((node) => node.props.accessibilityRole === 'button'
+      && typeof node.props.onPress === 'function')[0]
+    expect(showMore).toBeDefined()
+    TestRenderer.act(() => { (showMore!.props.onPress as () => void)() })
+    expect(checkboxes(tree)).toHaveLength(21)
+  })
+
   it('persists the flipped synced value on toggle', () => {
     mocks.calendars = [buildCalendar({ id: 'cal-1', isSynced: true })]
-    const found = switches(render(true))
+    const found = checkboxes(render(true))
 
     TestRenderer.act(() => {
       ;(found[0]!.props.onPress as () => void)()
@@ -125,7 +138,7 @@ describe('mobile CalendarPickerSection', () => {
 
   it('shows textless recovery when saving a calendar is blocked', () => {
     mocks.calendars = [buildCalendar()]
-    const found = switches(render(true))
+    const found = checkboxes(render(true))
 
     TestRenderer.act(() => {
       ;(found[0]!.props.onPress as () => void)()

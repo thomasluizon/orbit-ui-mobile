@@ -87,7 +87,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'calendar-sync',
     section: 'features',
-    route: '/calendar-sync',
+    route: '/calendar',
     iconKey: 'calendar',
     titleKey: 'profile.calendarSync.title',
     hintKey: 'profile.calendarSync.hint',

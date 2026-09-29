@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -9,6 +9,7 @@ import {
   determineHabitDayStatus,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  isCalendarSyncConnectionActive,
   parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
@@ -24,9 +25,11 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
+import { Input } from '@/components/ui/input'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { plural } from '@/lib/plural'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
@@ -36,14 +39,62 @@ interface CalendarDayDetailProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
+  onCalendarSyncNow: () => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   proActionVariant?: 'primary' | 'secondary'
   showTitle?: boolean
+}
+
+function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  onOpenImport: (eventId: string | null) => void
+}>) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+  const [eventQuery, setEventQuery] = useState('')
+  const [eventPage, setEventPage] = useState(0)
+  const matchingEvents = useMemo(() => calendarEvents.filter((event) =>
+    event.title.toLocaleLowerCase().includes(eventQuery.trim().toLocaleLowerCase()),
+  ), [calendarEvents, eventQuery])
+  const currentPage = Math.min(eventPage, Math.max(0, Math.ceil(matchingEvents.length / 20) - 1))
+  const visibleEvents = matchingEvents.slice(currentPage * 20, (currentPage + 1) * 20)
+
+  return <div className="flex flex-col" style={{ gap: 4 }}>
+    {calendarEvents.length > 20 ? (
+      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" name="calendar-event-search" />
+    ) : null}
+    {visibleEvents.map((event) => (
+      <div key={event.id} className="flex flex-col gap-2">
+        {event.startTime ? (
+          <EventRow time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
+        ) : (
+          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
+        )}
+        {!event.isImported ? <div className="self-end">
+          <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
+            {plural(t('calendar.importButton', { count: 1 }), 1)}
+          </PillButton>
+        </div> : null}
+      </div>
+    ))}
+    {matchingEvents.length === 0 ? <div className="flex flex-wrap items-center gap-2"><p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</p><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></div> : null}
+    {calendarEvents.length >= 8 ? (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</span>
+        {matchingEvents.length > 20 ? <div className="flex gap-2">
+          <PillButton variant="ghost" size="sm" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
+          <PillButton variant="ghost" size="sm" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
+        </div> : null}
+      </div>
+    ) : null}
+    <div className="self-end"><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton></div>
+  </div>
 }
 
 function CalendarEventsSection({
@@ -51,6 +102,7 @@ function CalendarEventsSection({
   state,
   onRetry,
   onReconnect,
+  onOpenImport,
   onViewPro,
   proActionVariant,
 }: Readonly<{
@@ -58,11 +110,11 @@ function CalendarEventsSection({
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
+  onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
   proActionVariant: 'primary' | 'secondary'
 }>) {
   const t = useTranslations()
-  const { displayTime } = useTimeFormat()
   const { isOnline } = useOffline()
 
   if (state === 'pro-boundary') {
@@ -117,30 +169,13 @@ function CalendarEventsSection({
         </div>
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
-        <p className="text-center text-sm text-[var(--fg-3)]" style={{ margin: 0, paddingBlock: 24 }}>
-          {t('calendar.dayDetail.noEventsToImport')}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-center text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p>
+          <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+        </div>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (
-        <div className="flex flex-col" style={{ gap: 4 }}>
-          {calendarEvents.map((event) =>
-            event.startTime ? (
-              <EventRow
-                key={event.id}
-                time={displayTime(event.startTime)}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ) : (
-              <EventRow
-                key={event.id}
-                allDayLabel={t('calendar.timeGrid.allDay')}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ),
-          )}
-        </div>
+        <CalendarReadyEvents calendarEvents={calendarEvents} onOpenImport={onOpenImport} />
       ) : null}
     </div>
   )
@@ -287,11 +322,13 @@ export function CalendarDayDetail({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onOpenCalendarImport,
   onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
   onCalendarAutoSyncChange,
+  onCalendarSyncNow,
   onEntryChange,
   proActionVariant = 'primary',
   showTitle = true,
@@ -371,19 +408,23 @@ export function CalendarDayDetail({
       ) : null}
       {goToDay}
       <CalendarEventsSection
+        key={dateStr}
         calendarEvents={calendarEvents}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
+        onOpenImport={onOpenCalendarImport}
         onViewPro={onViewPro}
         proActionVariant={proActionVariant}
       />
-      {calendarEventsState !== 'pro-boundary' ? (
+      {calendarEventsState !== 'pro-boundary' && calendarEventsState !== 'not-connected' &&
+        isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle') ? (
         <div style={{ paddingInline: 24 }}>
           <CalendarSyncBoundary
             autoSyncState={autoSyncState}
             displayTime={displayTime}
             onAutoSyncChange={onCalendarAutoSyncChange}
+            onSyncNow={onCalendarSyncNow}
           />
         </div>
       ) : null}

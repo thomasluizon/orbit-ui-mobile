@@ -4,16 +4,19 @@ import TestRenderer from 'react-test-renderer'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { calendarKeys } from '@orbit/shared/query'
-import { createApiClientError } from '@orbit/shared/utils'
+import { createApiClientError, runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
-import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
+import { useCalendarAutoSyncState, useRunCalendarSyncNow } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 import { createTokensV2 } from '@/lib/theme'
+import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-epoch'
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
 }))
+
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 
 vi.mock('react-native', async () => {
   const reactNative = await import('../../test-mocks/react-native')
@@ -30,6 +33,15 @@ vi.mock('@/components/ui/switch', () => ({
       accessibilityLabel: label,
       accessibilityState: { checked },
     }),
+}))
+
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({ children, loading, disabled, onClick }: {
+    children: string
+    loading: boolean
+    disabled: boolean
+    onClick: () => void
+  }) => React.createElement('SyncButtonMock', { loading, disabled, onClick }, children),
 }))
 
 interface TestNode {
@@ -58,7 +70,7 @@ describe('mobile calendar events reconciliation', () => {
     let rejectEvents!: (error: unknown) => void
     let resolveAutoSyncState!: () => void
     mocks.apiClient.mockImplementation((path: string) => {
-      if (path === API.calendar.events) {
+      if (path === `${API.calendar.events}?includeImported=true`) {
         return new Promise((_resolve, reject) => {
           rejectEvents = reject
         })
@@ -79,6 +91,7 @@ describe('mobile calendar events reconciliation', () => {
           autoSyncState={autoSyncState}
           displayTime={(time) => time}
           onAutoSyncChange={async () => {}}
+          onSyncNow={async () => {}}
           t={((key: string) => key) as never}
           tokens={createTokensV2('purple', 'dark')}
         />
@@ -136,4 +149,71 @@ describe('mobile calendar events reconciliation', () => {
     expect(findSwitches()).toHaveLength(0)
     },
   )
+})
+
+describe('mobile Calendar Sync now control', () => {
+  const autoSyncState: CalendarAutoSyncState = {
+    enabled: false,
+    status: 'Idle',
+    lastSyncedAt: null,
+    hasGoogleConnection: true,
+  }
+
+  beforeEach(() => { mocks.apiClient.mockReset() })
+
+  it('runs the mutation, reports a failure, and lets the next account sync while the old request is pending', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } })
+    const reportedErrors: string[] = []
+    let failOld!: (error: Error) => void
+    mocks.apiClient
+      .mockRejectedValueOnce(new Error('Sync failed'))
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { failOld = reject }))
+      .mockResolvedValueOnce({ newSuggestions: 0, reconciledHabits: 0, status: 'Idle' })
+
+    function Harness() {
+      const mutation = useRunCalendarSyncNow()
+      return <CalendarSyncBoundary
+        autoSyncState={autoSyncState}
+        displayTime={(time) => time}
+        onAutoSyncChange={() => Promise.resolve()}
+        onSyncNow={() => runCalendarSyncNowWithFeedback(
+          () => mutation.mutateAsync(),
+          (error) => { reportedErrors.push((error as Error).message) },
+          getAccountGeneration,
+        )}
+        t={((key: string) => key) as never}
+        tokens={createTokensV2('purple', 'dark')}
+      />
+    }
+
+    let tree!: TestRenderer.ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>)
+      await Promise.resolve()
+    })
+    const button = () => (tree.root as unknown as TestNode).findAll((node) => node.type === 'SyncButtonMock')[0]!
+
+    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledWith(API.calendar.autoSyncRun, { method: 'POST' }))
+    await vi.waitFor(() => expect(reportedErrors).toEqual(['Sync failed']))
+    expect(button().props.loading).toBe(false)
+
+    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
+    await vi.waitFor(() => expect(button().props.loading).toBe(true))
+    await TestRenderer.act(async () => { advanceAccountGeneration(); await Promise.resolve() })
+    expect(button().props.loading).toBe(false)
+
+    await TestRenderer.act(async () => { (button().props.onClick as () => void)(); await Promise.resolve() })
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(3))
+    await TestRenderer.act(async () => {
+      failOld(new Error('Old account failure'))
+      await Promise.resolve()
+    })
+    expect(button().props.loading).toBe(false)
+    expect(reportedErrors).toEqual(['Sync failed'])
+    await TestRenderer.act(async () => {
+      (tree as unknown as { unmount: () => void }).unmount()
+      await Promise.resolve()
+    })
+  })
 })

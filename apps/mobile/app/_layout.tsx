@@ -95,7 +95,6 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'support',
   'upgrade',
   'wrapped',
-  'calendar-sync',
   'step-up',
 ] as const
 

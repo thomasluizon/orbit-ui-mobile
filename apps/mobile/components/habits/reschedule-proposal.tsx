@@ -7,7 +7,7 @@ export interface RescheduleProposalProps {
   proposedLabel: string
   dateLabel: string
   timeLabel: string | null
-  scheduleLabel: string
+  scheduleLabel: string | null
   rationale: string
   disclosure: string
 }
@@ -31,7 +31,7 @@ export function RescheduleProposal({
           <Text testID="reschedule-proposed-schedule" style={[styles.value, { color: tokens.fg1 }]}>
             {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
           </Text>
-          <Text style={[styles.schedule, { color: tokens.fg2 }]}>{scheduleLabel}</Text>
+          {scheduleLabel ? <Text style={[styles.schedule, { color: tokens.fg2 }]}>{scheduleLabel}</Text> : null}
         </View>
       </Proposed>
       <Text style={[styles.rationale, { color: tokens.fg2 }]}>{rationale}</Text>

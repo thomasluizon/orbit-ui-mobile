@@ -1,6 +1,5 @@
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { Pressable, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Bell, X } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import {
@@ -13,13 +12,7 @@ import { plural } from '@/lib/plural'
 import { tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
-import type { CalendarSyncStyles } from '@/app/calendar-sync-styles'
-
-function rowEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(Math.min(index, 8) * 40)
-    .reduceMotion(ReduceMotion.System)
-}
+import type { CalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
 
 function importIssueVisuals(hasImportIssue: boolean, tokens: AppTokensV2) {
   return hasImportIssue
@@ -39,7 +32,6 @@ function eventRowBackground(
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
   weekStartDay: 0 | 1
-  index: number
   selected: boolean
   isReviewMode: boolean
   suggestionId: string | null
@@ -54,7 +46,6 @@ interface CalendarSyncEventRowProps {
 export function CalendarSyncEventRow({
   event,
   weekStartDay,
-  index,
   selected,
   isReviewMode,
   suggestionId,
@@ -91,7 +82,7 @@ export function CalendarSyncEventRow({
   const issueVisuals = importIssueVisuals(hasImportIssue, tokens)
 
   return (
-    <Animated.View entering={rowEntrance(index)}>
+    <View>
       <Pressable
         onPress={() => onToggle(event.id)}
         disabled={importIssue !== null}
@@ -184,6 +175,6 @@ export function CalendarSyncEventRow({
           </Pressable>
         ) : null}
       </Pressable>
-    </Animated.View>
+    </View>
   )
 }

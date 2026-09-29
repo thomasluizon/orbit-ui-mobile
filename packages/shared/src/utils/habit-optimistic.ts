@@ -8,6 +8,26 @@ type ChildContainer = {
 
 export type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
+export const optimisticSkipMarker = '__optimisticSkip' as const
+
+function clearSkipMarkerFromNode<T extends HabitTreeNode>(node: T, habitId: string, date: string): T {
+  if (node.id === habitId &&
+    (node as T & { [optimisticSkipMarker]?: string })[optimisticSkipMarker] === date) {
+    const settled = { ...node }
+    delete (settled as T & { [optimisticSkipMarker]?: string })[optimisticSkipMarker]
+    return settled
+  }
+  const children = node.children.map((child) => clearSkipMarkerFromNode(child, habitId, date))
+  return children.some((child, index) => child !== node.children[index])
+    ? { ...node, children }
+    : node
+}
+
+export function clearOptimisticSkipMarker(items: HabitScheduleItem[], habitId: string, date: string): HabitScheduleItem[] {
+  const settled = items.map((item) => clearSkipMarkerFromNode(item, habitId, date))
+  return settled.some((item, index) => item !== items[index]) ? settled : items
+}
+
 export function buildSuccessfulLogPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
   return {
     isCompleted: true,
@@ -58,7 +78,7 @@ export function findHabitInList(
 export function buildOptimisticSkipPatch(
   habit: HabitTreeNode,
   skippedDate = formatAPIDate(new Date()),
-): Partial<HabitScheduleItem> {
+): Partial<HabitScheduleItem> & { [optimisticSkipMarker]: string } {
   if (habit.frequencyUnit !== null) {
     const remainingDates = habit.scheduledDates?.filter((date) => date !== skippedDate)
     return {
@@ -68,6 +88,7 @@ export function buildOptimisticSkipPatch(
       scheduledDates: remainingDates,
       instances: habit.instances.filter((instance) => instance.date !== skippedDate),
       isOverdue: false,
+      [optimisticSkipMarker]: skippedDate,
     }
   }
 
@@ -77,6 +98,7 @@ export function buildOptimisticSkipPatch(
     scheduledDates: [dueDate],
     isOverdue: false,
     instances: [{ date: dueDate, status: 'Pending', logId: null }],
+    [optimisticSkipMarker]: skippedDate,
   }
 }
 

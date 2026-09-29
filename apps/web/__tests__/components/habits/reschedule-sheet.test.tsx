@@ -96,6 +96,15 @@ describe('RescheduleSheet', () => {
     })
   })
 
+  it('shows only the date line for a plan without a frequency', () => {
+    h.reschedule.suggestion = createMockRescheduleSuggestion({ frequencyUnit: null, frequencyQuantity: null, days: [] })
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const schedule = screen.getByTestId('reschedule-proposed-schedule')
+    expect(schedule).toHaveTextContent(/\d/)
+    expect(schedule.parentElement?.children).toHaveLength(1)
+    expect(screen.queryByText('habits.oneTimeTask')).not.toBeInTheDocument()
+  })
+
   it('shows the upgrade prompt for free users and routes to /upgrade', () => {
     h.profile = { hasProAccess: false, language: 'en' }
 

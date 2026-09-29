@@ -949,6 +949,26 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('list-row-habits.detail.time')).toHaveAttribute('data-value', expected)
   })
 
+  it('shows only the due time for a habit without a frequency', () => {
+    mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const summary = view.container.querySelector('[data-habit-detail-content] header p')
+    expect(summary?.textContent).toBe('8:00 AM')
+  })
+
+  it('omits the summary element when there is no frequency or due time', () => {
+    mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: null }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    expect(view.container.querySelector('[data-habit-detail-content] header p')).toBeNull()
+  })
+
+  it('omits the empty read-only schedule row for a habit without a frequency', () => {
+    mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.queryByTestId('list-row-habits.detail.schedule')).toBeNull()
+  })
+
   it('persists each inline detail editor through its dedicated patch', async () => {
     mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)

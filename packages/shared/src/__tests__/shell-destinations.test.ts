@@ -6,7 +6,6 @@ describe('resolveShellDestination', () => {
     ['/', 'hoje'],
     ['/habits/123', 'hoje'],
     ['/calendar', 'calendario'],
-    ['/calendar-sync', 'calendario'],
     ['/goals/123', 'progresso'],
     ['/wrapped', 'progresso'],
     ['/profile/security', 'perfil'],
@@ -54,7 +53,7 @@ describe('resolveShellChrome', () => {
     for (const route of ['/', '/calendar', '/progress', '/profile', '/habits/h1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings', '/calendar-sync']) {
+    for (const route of ['/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })

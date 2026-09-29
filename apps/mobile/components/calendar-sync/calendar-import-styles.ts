@@ -4,6 +4,7 @@ export function createStyles() {
   return StyleSheet.create({
     safeArea: { flex: 1 },
     container: { flex: 1 },
+    scrollContent: { paddingBottom: 32 },
     cardPad: {
       paddingHorizontal: 16,
       paddingBottom: 12,

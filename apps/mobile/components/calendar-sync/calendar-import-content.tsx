@@ -1,13 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from 'react'
 import {
-  ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native'
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
@@ -19,8 +16,12 @@ import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
-  formatCalendarAutoSyncLastSynced,
+  calendarImportEventsKey,
   isCalendarSyncEventImportable,
+  isCalendarSyncConnectionActive,
+  resolveCalendarImportConnectionStep,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
   getFriendlyErrorMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
@@ -31,39 +32,43 @@ import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
   useDismissCalendarSuggestion,
-  useRunCalendarSyncNow,
-  useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { WebBrowserResultType } from 'expo-web-browser'
 import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
-  resolveSyncedSelection,
   type WizardStage,
 } from '@/lib/calendar-sync-state'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
-import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { PillButton } from '@/components/ui/pill-button'
-import { CalendarAutoSyncSection } from '@/components/calendar-sync/calendar-sync-auto-section'
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { SelectAllToggle } from '@/components/calendar-sync/calendar-sync-select-all-toggle'
-import { createStyles } from './calendar-sync-styles'
+import { createStyles } from './calendar-import-styles'
 
 const EVENTS_PAGE_SIZE = 20
+
+export interface CalendarImportActionHandle {
+  importSelected: () => void
+}
+
+export interface CalendarImportActionState {
+  count: number
+  disabled: boolean
+}
 
 function rgbaFromHex(hex: string, alpha: number): string {
   const normalized = hex.replace('#', '')
@@ -81,12 +86,9 @@ interface ImportResult {
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export default function CalendarSyncScreen() {
-  const clearance = useShellScrollerClearance()
+export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const router = useRouter()
-  const goBackOrFallback = useGoBackOrFallback()
-  const params = useLocalSearchParams<{ mode?: string }>()
-  const isReviewMode = params.mode === 'review'
+  const isReviewMode = reviewMode
   const { t } = useTranslation()
   const { profile, isLoading: isProfileLoading } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -95,6 +97,7 @@ export default function CalendarSyncScreen() {
     [currentScheme, currentTheme],
   )
   const { isOnline } = useOffline()
+  const accountGeneration = useAccountGeneration()
   const styles = useMemo(() => createStyles(), [])
   const chipTint = useMemo(
     () => ({ backgroundColor: tokens.bgElev, borderColor: tokens.hairline }),
@@ -106,32 +109,26 @@ export default function CalendarSyncScreen() {
 
   const hasProAccess = profile?.hasProAccess ?? false
   const weekStartDay = profile?.weekStartDay ?? 1
-  const showProSection = hasProAccess && !isProfileLoading
 
-  const autoSyncStateQuery = useCalendarAutoSyncState({
-    enabled: hasProAccess,
-  })
+  const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: hasProAccess })
   const suggestionsQuery = useCalendarSyncSuggestions({
     enabled: hasProAccess && isReviewMode,
   })
-  const setAutoSyncMutation = useSetCalendarAutoSync()
-  const runSyncNowMutation = useRunCalendarSyncNow()
   const dismissSuggestion = useDismissCalendarSuggestion()
 
-  const autoSyncState = autoSyncStateQuery.data
   const suggestions = useMemo(
     () => suggestionsQuery.data ?? [],
     [suggestionsQuery.data],
   )
 
-  const [wizardStage, setWizardStage] = useState<WizardStage>('browse')
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [errorMessage, setErrorMessage] = useState('')
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
-  const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
+  const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
+  const [events, setEvents] = useAccountScopedState<CalendarEvent[]>([])
+  const [selectedIds, setSelectedIds] = useAccountScopedState<Set<string>>(() => initialEventId ? new Set([initialEventId]) : new Set())
+  const [errorMessage, setErrorMessage] = useAccountScopedState('')
+  const [importResult, setImportResult] = useAccountScopedState<ImportResult | null>(null)
+  const [isConnecting, setIsConnecting] = useAccountScopedState(false)
+  const [previousEventsKey, setPreviousEventsKey] = useAccountScopedState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useAccountScopedState(EVENTS_PAGE_SIZE)
 
   const eventsQuery = useCalendarEvents({
     enabled: hasProAccess && !isReviewMode && isOnline,
@@ -139,26 +136,17 @@ export default function CalendarSyncScreen() {
   })
 
   const incomingEvents = useMemo<CalendarEvent[]>(() => {
-    if (isReviewMode) return suggestions.map((suggestion) => suggestion.event)
-    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events
-    return []
+    return resolveCalendarImportEvents(isReviewMode, suggestions, eventsQuery.data)
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${weekStartDay}:${incomingEvents
-    .map((event) => event.id)
-    .join('|')}`
+  const eventsKey = calendarImportEventsKey(isReviewMode, weekStartDay, incomingEvents)
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
-    setSelectedIds(
-      resolveSyncedSelection(
-        selectedIds,
-        incomingEvents.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
-        isReviewMode,
-        previousEventsKey,
-      ),
-    )
+    setSelectedIds(resolveCalendarImportSelection(
+      initialEventId, isReviewMode, incomingEvents, weekStartDay, selectedIds, previousEventsKey,
+    ))
   }
 
   const importableEvents = useMemo(
@@ -202,7 +190,7 @@ export default function CalendarSyncScreen() {
   )
 
   const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
-  const step = resolveCalendarSyncStep({
+  const resolvedStep = resolveCalendarSyncStep({
     wizardStage,
     isProfileLoading,
     isOnline,
@@ -211,6 +199,14 @@ export default function CalendarSyncScreen() {
     isQueryError: activeQuery.isError,
     eventsStatus: eventsQuery.data?.status,
   })
+  const googleConnected = isCalendarSyncConnectionActive(
+    autoSyncStateQuery.data?.hasGoogleConnection ?? false,
+    autoSyncStateQuery.data?.status ?? 'Idle',
+  )
+  const step = resolveCalendarImportConnectionStep(
+    resolvedStep, autoSyncStateQuery.isLoading, autoSyncStateQuery.isError,
+    googleConnected, isOnline, wizardStage === 'browse',
+  )
 
   const displayedErrorMessage = resolveDisplayedErrorMessage({
     wizardStage,
@@ -222,16 +218,14 @@ export default function CalendarSyncScreen() {
 
   const importedCount = importResult?.imported ?? 0
 
-  const handleBack = useCallback(() => {
-    goBackOrFallback('/profile')
-  }, [goBackOrFallback])
+  const handleBack = onClose
 
   const toggleAll = useCallback(() => {
     setSelectedIds(() => {
       if (allSelected) return new Set()
       return new Set(importableEvents.map((event) => event.id))
     })
-  }, [allSelected, importableEvents])
+  }, [allSelected, importableEvents, setSelectedIds])
 
   const toggleEvent = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -243,7 +237,7 @@ export default function CalendarSyncScreen() {
       }
       return next
     })
-  }, [])
+  }, [setSelectedIds])
 
   const handleConnect = useCallback(async () => {
     if (!isOnline) {
@@ -257,8 +251,8 @@ export default function CalendarSyncScreen() {
     try {
       const result = await startMobileGoogleAuth({
         returnUrl: isReviewMode
-          ? '/calendar-sync?mode=review'
-          : '/calendar-sync',
+          ? '/calendar?mode=review'
+          : '/calendar?import=1',
         forceConsent: true,
       })
       if (result.type === WebBrowserResultType.CANCEL || result.type === WebBrowserResultType.DISMISS || result.type === 'denied') return
@@ -274,41 +268,7 @@ export default function CalendarSyncScreen() {
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router])
-
-  const handleToggleAutoSync = useCallback(
-    (enabled: boolean) => {
-      if (!isOnline) {
-        showError(t('errors.offline'))
-        return
-      }
-      const requestAccount = getAccountGeneration()
-      setAutoSyncMutation.mutate(
-        { enabled },
-        {
-          onError: (err: unknown) => {
-            if (getAccountGeneration() !== requestAccount) return
-            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
-          },
-        },
-      )
-    },
-    [isOnline, setAutoSyncMutation, showError, t],
-  )
-
-  const handleSyncNow = useCallback(() => {
-    if (!isOnline) {
-      showError(t('errors.offline'))
-      return
-    }
-    const requestAccount = getAccountGeneration()
-    runSyncNowMutation.mutate(undefined, {
-      onError: (err: unknown) => {
-        if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
-      },
-    })
-  }, [isOnline, runSyncNowMutation, showError, t])
+  }, [isConnecting, isOnline, isReviewMode, router, setErrorMessage, setIsConnecting])
 
   const handleImportSelected = useCallback(async () => {
     if (!isOnline) {
@@ -368,6 +328,7 @@ export default function CalendarSyncScreen() {
       setImportResult({ imported: successCount, habits })
       setWizardStage('done')
 
+      void queryClient.invalidateQueries({ queryKey: [...calendarKeys.all, 'manual-fetch'] })
       if (isReviewMode) {
         void queryClient.invalidateQueries({
           queryKey: calendarKeys.syncSuggestions(),
@@ -384,11 +345,22 @@ export default function CalendarSyncScreen() {
     queryClient,
     selectedEvents,
     selectedIds,
+    setErrorMessage,
+    setImportResult,
+    setWizardStage,
     showError,
     suggestions,
     t,
     weekStartDay,
   ])
+
+  useImperativeHandle(actionRef, () => ({ importSelected: () => void handleImportSelected() }), [handleImportSelected])
+  useEffect(() => {
+    onActionStateChange(step === 'select' && events.length > 0
+      ? { count: selectedCount, disabled: selectedCount === 0 || !isOnline }
+      : null)
+  }, [step, events.length, selectedCount, isOnline, accountGeneration, onActionStateChange])
+  useEffect(() => () => onActionStateChange(null), [onActionStateChange])
 
   const handleRetry = useCallback(() => {
     if (!isOnline) {
@@ -396,6 +368,10 @@ export default function CalendarSyncScreen() {
     }
     setWizardStage('browse')
     setErrorMessage('')
+    if (autoSyncStateQuery.isError) {
+      void autoSyncStateQuery.refetch()
+      return
+    }
     if (isReviewMode) {
       void queryClient.invalidateQueries({
         queryKey: calendarKeys.syncSuggestions(),
@@ -403,7 +379,7 @@ export default function CalendarSyncScreen() {
       return
     }
     void eventsQuery.refetch()
-  }, [eventsQuery, isOnline, isReviewMode, queryClient])
+  }, [autoSyncStateQuery, eventsQuery, isOnline, isReviewMode, queryClient, setErrorMessage, setWizardStage])
 
   const handleDismissSuggestion = useCallback(
     async (suggestionId: string) => {
@@ -426,70 +402,20 @@ export default function CalendarSyncScreen() {
     [suggestions],
   )
 
-  const hasConnection = autoSyncState?.hasGoogleConnection === true
-  const lastSyncedLabel = formatCalendarAutoSyncLastSynced(
-    autoSyncState?.lastSyncedAt ?? null,
-    (key, values) => t(key, values),
-  )
-  const connectionMeta = (() => {
-    if (autoSyncStateQuery.isLoading) return t('calendar.fetchingEvents')
-    if (!hasConnection) return t('calendar.autoSync.connectGoogleFirst')
-    return lastSyncedLabel
-  })()
-
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
-    >
-      <PageHeader
-        onBack={handleBack}
-        title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
-        backLabel={t('common.backToProfile')}
+    <View style={styles.scrollContent}>
+      <CalendarPickerSection
+        styles={styles}
+        tokens={tokens}
+        t={t}
+        enabled={googleConnected && isOnline}
       />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: clearance }}
-        showsVerticalScrollIndicator={false}
-      >
-        {showProSection ? (
-          <>
-            <CalendarAutoSyncSection
-              styles={styles}
-              tokens={tokens}
-              chipTint={chipTint}
-              t={t}
-              autoSyncState={autoSyncState}
-              isStateLoading={autoSyncStateQuery.isLoading}
-              hasConnection={hasConnection}
-              connectionMeta={connectionMeta}
-              isOnline={isOnline}
-              isTogglePending={setAutoSyncMutation.isPending}
-              isSyncNowPending={runSyncNowMutation.isPending}
-              isConnecting={isConnecting}
-              onToggleAutoSync={handleToggleAutoSync}
-              onSyncNow={handleSyncNow}
-              onReconnect={() => void handleConnect()}
-            />
-            <CalendarPickerSection
-              styles={styles}
-              tokens={tokens}
-              t={t}
-              enabled={hasConnection && isOnline}
-            />
-          </>
-        ) : null}
-
         {(isProfileLoading || step === 'loading') && (
           <View
             style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendar.fetchingEvents')}
           >
-            <ActivityIndicator color={tokens.primary} />
-            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {t('calendar.fetchingEvents')}
-            </Text>
+            <Skeleton variant="settings" rows={2} label={t('calendar.fetchingEvents')} />
           </View>
         )}
 
@@ -500,9 +426,9 @@ export default function CalendarSyncScreen() {
             accessibilityLabel={t('calendar.notConnectedTitle')}
           >
             <View
-              style={[styles.stateGlyphCircle, { backgroundColor: tintFromPrimary(tokens, 0.1) }]}
+              style={[styles.stateGlyphCircle, { backgroundColor: tokens.bgWell }]}
             >
-              <LinkIcon size={24} color={tokens.primary} strokeWidth={1.8} />
+              <LinkIcon size={24} color={tokens.fg1} strokeWidth={1.8} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.notConnectedTitle')}
@@ -571,12 +497,11 @@ export default function CalendarSyncScreen() {
                     />
                   </View>
                 </View>
-                {events.slice(0, visibleCount).map((event, index) => (
+                {events.slice(0, visibleCount).map((event) => (
                   <CalendarSyncEventRow
                     key={event.id}
                     event={event}
                     weekStartDay={weekStartDay}
-                    index={index}
                     selected={selectedIds.has(event.id)}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
@@ -616,20 +541,6 @@ export default function CalendarSyncScreen() {
                     </Text>
                   </View>
                 ) : null}
-                <View style={styles.actionPad}>
-                  <PillButton
-
-                    onClick={() => {
-                      void handleImportSelected()
-                    }}
-                    disabled={selectedCount === 0 || !isOnline}
-                  >
-                    {plural(
-                      t('calendar.importButton', { count: selectedCount }),
-                      selectedCount,
-                    )}
-                  </PillButton>
-                </View>
               </>
             )}
           </>
@@ -639,12 +550,8 @@ export default function CalendarSyncScreen() {
           <View
             style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendar.importing')}
           >
-            <ActivityIndicator color={tokens.primary} />
-            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {t('calendar.importing')}
-            </Text>
+            <Skeleton variant="settings" rows={2} label={t('calendar.importing')} />
           </View>
         )}
 
@@ -654,10 +561,10 @@ export default function CalendarSyncScreen() {
               <View
                 style={[
                   styles.stateGlyphCircle,
-                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
+                  { backgroundColor: tokens.bgWell },
                 ]}
               >
-                <Check size={24} color={tokens.statusDone} strokeWidth={2.2} />
+                <Check size={24} color={tokens.fg1} strokeWidth={2.2} />
               </View>
               <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
                 {t('calendar.importDone')}
@@ -673,7 +580,7 @@ export default function CalendarSyncScreen() {
               <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
-              <PillButton  onClick={() => router.replace('/')}>
+              <PillButton onClick={onGoToHabits}>
                 {t('calendar.goToHabits')}
               </PillButton>
             </View>
@@ -698,7 +605,7 @@ export default function CalendarSyncScreen() {
               {t('calendar.errorTitle')}
             </Text>
             <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {displayedErrorMessage}
+              {autoSyncStateQuery.isError ? t('calendar.fetchError') : displayedErrorMessage}
             </Text>
             <View style={styles.errorActions}>
               <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
@@ -710,7 +617,6 @@ export default function CalendarSyncScreen() {
         )}
 
         <View style={{ height: 24 }} />
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

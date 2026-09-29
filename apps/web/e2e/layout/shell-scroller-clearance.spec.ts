@@ -26,7 +26,6 @@ const destinations = [
   ['Sobre', '/about'],
   ['Avisos', '/notifications'],
   ['Busca', '/search'],
-  ['Calendar sync', '/calendar-sync'],
   ['Support', '/support'],
   ['Onboarding', '/onboarding'],
   ['Not found', '/layout-missing'],

@@ -62,3 +62,13 @@ export function useAccountScopedState<S>(
 
   return [value, setAccountValue]
 }
+
+/** Accepts a route request only for the account that first observed that URL value. */
+export function useAccountBoundRouteRequest(requestKey: string): boolean {
+  const accountGeneration = useAccountGeneration()
+  const [observed, setObserved] = useState({ requestKey, accountGeneration })
+  if (observed.requestKey !== requestKey) {
+    setObserved({ requestKey, accountGeneration })
+  }
+  return requestKey !== '' && observed.accountGeneration === accountGeneration
+}
