@@ -337,8 +337,8 @@
   "auth": {
     "signIn": "Entrar",
     "enterCode": "Digite o código",
-    "email": "E-mail",
-    "emailPlaceholder": "voce@exemplo.com",
+    "email": "Email",
+    "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
     "turnstileLoading": "Verificando sua conexão…",
     "turnstileFailed": "A verificação de segurança não carregou.",
