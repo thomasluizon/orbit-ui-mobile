@@ -67,6 +67,11 @@ function render(element: React.ReactNode = <><NotificationInbox /><NotificationD
 function hosts(tree: Tree, type: string, label?: string) {
   return tree.root.findAll((node) => node.type === type && (label === undefined || node.props.accessibilityLabel === label))
 }
+function deleteFromSheet(tree: Tree, title: string, target = 'Progress') {
+  const messages = state.locale === 'en' ? en : pt
+  press(tree, `${title}. ${messages.notifications.unread}. ${state.locale === 'en' ? target : messages.nav.progress}`)
+  press(tree, state.locale === 'en' ? en.notifications.delete : pt.notifications.delete)
+}
 function press(tree: Tree, label: string) {
   const button = hosts(tree, 'Pressable', label)[0] ?? hosts(tree, 'Pressable').find(
     (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
@@ -283,7 +288,7 @@ describe('mobile alerts', () => {
   it('identifies the queued delete with a neutral trash glyph beside undo', () => {
     seed(1)
     const tree = render()
-    press(tree, 'Delete: Alert 0')
+    deleteFromSheet(tree, 'Alert 0')
     const notice = testId(tree, 'toast-neutral')[0]!
     const icons = notice.findAll((node) => node.type === 'Trash2')
     expect(icons).toHaveLength(1)
@@ -305,7 +310,7 @@ describe('mobile alerts', () => {
       expect(testId(tree, 'notification-count')[0]!.props.children).toBe(count)
     }
     expectCount(2)
-    press(tree, messages.notifications.deleteNotification.replace('{title}', 'Alert 0'))
+    deleteFromSheet(tree, 'Alert 0')
     expectCount(1)
     press(tree, messages.notifications.deleteUndo)
     expectCount(2)
@@ -407,12 +412,13 @@ describe('mobile alerts', () => {
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
   })
-  it('keeps delete outside the row body, restores on undo and dismisses on commit', () => {
+  it('opens the row sheet, restores on undo and dismisses on commit', () => {
     seed(2)
     const tree = render()
+    expect(hosts(tree, 'Pressable', 'Delete: Alert 0')).toHaveLength(0)
     const body = hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
     expect(body.findAll((node) => node.props.accessibilityLabel === 'Delete: Alert 0')).toHaveLength(0)
-    press(tree, 'Delete: Alert 0')
+    deleteFromSheet(tree, 'Alert 0')
     expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
     expect(state.remove).not.toHaveBeenCalled()
     TestRenderer.act(() => vi.advanceTimersByTime(4000))
@@ -421,7 +427,7 @@ describe('mobile alerts', () => {
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
-    press(tree, 'Delete: Alert 0')
+    deleteFromSheet(tree, 'Alert 0')
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
     expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
@@ -437,7 +443,7 @@ describe('mobile alerts', () => {
     expect(state.clear).not.toHaveBeenCalled()
     press(tree, messages.common.cancel)
     expect(testId(tree, 'notification-unread')).toHaveLength(50)
-    press(tree, messages.notifications.deleteNotification.replace('{title}', 'Alert 0'))
+    deleteFromSheet(tree, 'Alert 0')
     press(tree, messages.notifications.deleteAll)
     press(tree, messages.notifications.deleteAllAction)
     refresh(tree)

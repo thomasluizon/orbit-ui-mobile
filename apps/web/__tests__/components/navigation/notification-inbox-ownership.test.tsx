@@ -122,13 +122,15 @@ it('announces a delayed delete rejection after the inbox unmounts and keeps undo
   actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
   const view = render(shell(true))
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
   await advance(5000)
   expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
   expect(feedback.showError).not.toHaveBeenCalled()
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   await advance(5000)
   view.rerender(shell(false))
   deferred.reject()
@@ -146,7 +148,8 @@ it('runs out the delayed delete failure and holds it while the pointer rests on 
   actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
   render(shell(true))
 
-  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   await advance(5000)
   deferred.reject()
   await flushPromises()
