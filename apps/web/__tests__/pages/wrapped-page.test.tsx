@@ -37,6 +37,7 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-cover', () => ({
       <span data-testid="period">{period}</span>
       <span data-testid="cover-state">{state}</span>
       <button type="button" aria-label="month" onClick={() => onSelectPeriod('month')} />
+      <button type="button" aria-label="week" onClick={() => onSelectPeriod('week')} />
       <button type="button" aria-label="start" onClick={onStart} />
     </div>
   ),
@@ -79,6 +80,29 @@ describe('WrappedPage', () => {
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
       active: false,
       closedMonth: { year: 2026, month: 8 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'week' }))
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('week', {
+      active: false,
+      closedMonth: undefined,
+    })
+  })
+
+  it('selects the next notified closed month when only the query changes', () => {
+    mocks.searchParams = new URLSearchParams('period=month&year=2026&month=8')
+    const { rerender } = render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+
+    mocks.searchParams = new URLSearchParams('period=month&year=2026&month=9')
+    rerender(<WrappedPage />)
+
+    expect(screen.getByTestId('period')).toHaveTextContent('month')
+    expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2026, month: 9 },
     })
   })
 
