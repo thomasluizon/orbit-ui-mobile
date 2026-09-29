@@ -136,6 +136,13 @@ describe('Composer', () => {
     if (_case === 'idle with an empty field' || _case === 'idle with text') {
       expect(send).toHaveClass('duration-150')
     }
+    const hoverFill = send.querySelector('span[aria-hidden="true"]')
+    if (_case === 'idle with text' || _case === 'idle with a file only') {
+      expect(hoverFill).not.toHaveAttribute('hidden')
+      expect(hoverFill).toHaveClass('bg-[var(--primary-hover)]', 'duration-[var(--dur-hover-control)]', 'group-hover:opacity-100')
+    } else {
+      expect(hoverFill).toHaveAttribute('hidden')
+    }
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()
