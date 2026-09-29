@@ -191,8 +191,10 @@ function TodayScreenContent() {
         moreLabel={t('habits.listOptions')}
         selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        allCollapsed={habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
         completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         onToggleSelect={selection.handleToggleSelectMode}
         onToggleCollapse={() => {

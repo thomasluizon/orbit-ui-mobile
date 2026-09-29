@@ -4,6 +4,7 @@ export interface IconProps {
   /** Tabler icon name, e.g. "home", "target", "snowflake" */
   name: string
   size?: 16 | 20 | 24
+  strokeWidth?: number
   /** filled variant = active state, never decoration */
   filled?: boolean
   color?: string

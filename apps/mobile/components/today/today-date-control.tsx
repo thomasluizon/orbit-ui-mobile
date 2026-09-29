@@ -17,8 +17,10 @@ interface TodayDateControlProps {
   moreLabel: string
   selectLabel: string
   collapseLabel: string
+  allCollapsed: boolean
   refreshLabel: string
   completedLabel: string
+  showCompleted: boolean
   isFetching: boolean
   onToggleSelect: () => void
   onToggleCollapse: () => void
@@ -43,8 +45,10 @@ export function TodayDateControl({
   moreLabel,
   selectLabel,
   collapseLabel,
+  allCollapsed,
   refreshLabel,
   completedLabel,
+  showCompleted,
   isFetching,
   onToggleSelect,
   onToggleCollapse,
@@ -120,10 +124,10 @@ export function TodayDateControl({
         anchorRef={menu.anchorRef}
         title={moreLabel}
         items={[
-          { id: 'select', label: selectLabel },
-          { id: 'collapse', label: collapseLabel },
-          { id: 'refresh', label: refreshLabel, disabled: isFetching },
-          { id: 'completed', label: completedLabel },
+          { id: 'select', label: selectLabel, icon: 'checkbox' },
+          { id: 'collapse', label: collapseLabel, icon: allCollapsed ? 'chevrons-down' : 'chevrons-up' },
+          { id: 'refresh', label: refreshLabel, icon: 'refresh', disabled: isFetching },
+          { id: 'completed', label: completedLabel, icon: showCompleted ? 'eye-off' : 'eye' },
         ]}
         onClose={menu.close}
         onSelect={(id) => {

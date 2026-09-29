@@ -43,6 +43,14 @@ describe('Menu', () => {
     expect(rows[1]).toHaveAttribute('data-destructive')
   })
 
+  it('matches menu icon stroke to medium-weight labels', async () => {
+    setWide(false)
+    render(<Menu open title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]} />)
+
+    const row = await screen.findByRole('menuitem', { name: 'Select' })
+    expect(row.querySelector('[data-icon="checkbox"] svg')).toHaveAttribute('stroke-width', '2')
+  })
+
   it('uses an anchored menu at the wide width and reports only the item id', async () => {
     setWide(true)
     const anchorRef = createRef<HTMLButtonElement>()
