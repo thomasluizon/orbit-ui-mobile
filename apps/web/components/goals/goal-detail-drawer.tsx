@@ -80,13 +80,21 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   useEffect(() => {
     if (!open || !inline) return
     const trigger = document.activeElement
-    contentRef.current?.focus()
+    const target = contentRef.current?.querySelector<HTMLHeadingElement>('h1') ?? contentRef.current
+    target?.focus()
     return () => {
       requestAnimationFrame(() => {
         if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
       })
     }
   }, [open, inline])
+
+  useEffect(() => {
+    if (!open || !inline || !goal) return
+    if (document.activeElement === contentRef.current || document.activeElement === document.body) {
+      contentRef.current?.querySelector<HTMLHeadingElement>('h1')?.focus({ preventScroll: true })
+    }
+  }, [goal, inline, open])
 
   const body = (
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
@@ -101,7 +109,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={false} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
       {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>

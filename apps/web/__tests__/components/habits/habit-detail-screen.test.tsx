@@ -229,6 +229,7 @@ describe('HabitDetailScreen', () => {
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
+    expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
@@ -394,6 +395,7 @@ describe('HabitDetailScreen', () => {
   it('returns a direct detail link to Today while the profile loads', () => {
     mocks.profileReady = false
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
     expect(mocks.routerBack).not.toHaveBeenCalled()
@@ -409,14 +411,26 @@ describe('HabitDetailScreen', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" />)
 
     expect(screen.getAllByText('habits.detail.loading')).toHaveLength(3)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
 
     mocks.detailLoading = false
     mocks.detailError = true
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.loadError')
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('moves focus from the fallback heading to the habit heading when data arrives', () => {
+    mocks.detailLoading = true
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const fallback = screen.getByRole('heading', { level: 1 })
+    fallback.focus()
+    mocks.detailLoading = false
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
 
   it('distinguishes an absent child from unavailable day habits and restores completion after retry', () => {

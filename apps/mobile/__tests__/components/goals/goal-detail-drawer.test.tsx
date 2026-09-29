@@ -47,6 +47,7 @@ const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue:
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
+let detailAvailable = true
 const refetchDetail = vi.fn()
 const updateProgressMutateAsync = vi.fn()
 const mockDeleteMutateAsync = vi.fn()
@@ -137,7 +138,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
+    data: id && detailAvailable ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -178,6 +179,7 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...listGoal, progressHistory: [] }
     habitAdherence = []
     detailLoadError = false
+    detailAvailable = true
     refetchDetail.mockClear()
     mockDeleteMutateAsync.mockReset()
     mockDeleteMutateAsync.mockResolvedValue(undefined)
@@ -855,6 +857,17 @@ describe('GoalDetailDrawer', () => {
       (node.props.children === 'Read 12 books' || node.props.children === 'progressScreen.sections.goals'))
     expect(titles).toHaveLength(1)
     expect(titles[0]!.props.children).toBe('Read 12 books')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps one fallback header while an inline goal has no data', () => {
+    detailAvailable = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />) })
+    const titles = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.goals')
+    expect(titles).toHaveLength(1)
+    TestRenderer.act(() => tree.unmount())
   })
 
 })

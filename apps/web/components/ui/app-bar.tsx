@@ -14,7 +14,7 @@ export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true
           </button>
         )}
       </div>
-      {titleIsHeading ? <h1 className={titleClassName}>{title}</h1> : <span className={titleClassName}>{title}</span>}
+      {titleIsHeading ? <h1 tabIndex={-1} className={titleClassName}>{title}</h1> : <span className={titleClassName}>{title}</span>}
       <div className="flex min-w-11 items-center justify-end gap-3">{action}</div>
     </header>
   )

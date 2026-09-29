@@ -144,6 +144,10 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useAccountScopedState(false)
   const [title, setTitle] = useAccountScopedState(habit.title)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (document.activeElement === document.body) headingRef.current?.focus({ preventScroll: true })
+  }, [habit.id])
   const save = async () => {
     const next = title.trim()
     if (!next || next === habit.title) {
@@ -158,11 +162,11 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
       <div className="min-w-0 flex-1 pt-1">
         {editing ? (
-          <><h1 tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" /></>
+          <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} className="w-full border-0 border-b border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2" /></>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="block max-w-full border-0 bg-transparent p-0 text-left">
-            <h1 tabIndex={-1} className="truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">{habit.title}</h1>
-          </button>
+          <h1 ref={headingRef} tabIndex={-1} className="max-w-full truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">
+            <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left">{habit.title}</button>
+          </h1>
         )}
         <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p>
         {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
@@ -276,9 +280,9 @@ function RescheduleBlock({ habit, slipping, overdue, hasProAccess, locale }: Rea
   )
 }
 
-function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: string | null; onBack: () => void }>) {
+function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
   const t = useTranslations()
-  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={false} onBack={onBack}
+  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={titleIsHeading} onBack={onBack}
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
@@ -295,7 +299,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
-    return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${date ?? ''}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={() => {
+    return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${date ?? ''}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
       if (parentId || fromToday) router.back()
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
@@ -479,8 +483,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   }
 
-  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
+  if (detailQuery.isLoading || allHabitsQuery.isLoading) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></HabitDetailFrame>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit) return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></HabitDetailFrame>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data as HabitDetail, dateStr)
     .childrenByParent.get(habit.id) ?? [])

@@ -326,10 +326,10 @@ describe('HabitDetailScreen', () => {
     const pageHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string; children?: React.ReactNode } }) =>
       typeof node.type === 'string' &&
       node.props.accessibilityRole === 'header' &&
-      (node.props.accessibilityLabel === mocks.detail!.title || node.props.children === 'habits.detail.screenTitle'))
+      (node.props.children === mocks.detail!.title || node.props.children === 'habits.detail.screenTitle'))
     expect(pageHeaders).toHaveLength(1)
-    expect(pageHeaders[0]!.props.accessibilityLabel).toBe(mocks.detail!.title)
-    TestRenderer.act(() => { pageHeaders[0]!.props.onPress() })
+    expect(pageHeaders[0]!.props.children).toBe(mocks.detail!.title)
+    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress() })
     const editingHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
       typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
     expect(editingHeaders).toHaveLength(1)
@@ -492,6 +492,8 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = false
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
     TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress() })
     expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
     expect(mocks.routerBack).not.toHaveBeenCalled()
@@ -510,9 +512,10 @@ describe('HabitDetailScreen', () => {
 
     const title = mocks.detail!.title
     const renameControls = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.accessibilityLabel === title)
+      typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
+    expect(renameControls[0]!.props.style).toMatchObject({ minWidth: 44, paddingVertical: 8, marginVertical: -8 })
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -527,6 +530,8 @@ describe('HabitDetailScreen', () => {
       'habits.detail.loading',
       'habits.detail.loading',
     ])
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
 
     mocks.detailLoading = false
     mocks.detailError = true
@@ -535,6 +540,8 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(tree!.root.findByProps({ testID: 'load-error' }).props.message).toBe('habits.detail.loadError')
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
     TestRenderer.act(() => {
       tree!.root.findByType('PillButton').props.onClick()
     })
