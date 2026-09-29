@@ -155,7 +155,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(phrase).toBeFocused()
       await expectOneRing(page, `create phrase ${width}px`, 0)
-      await expectOneFieldIndicator(page, '#habit-phrase', '[data-habit-phrase-field]', `create phrase ${width}px`)
+      await expectOneFieldIndicator(page, '#habit-phrase', '[data-habit-phrase-field]', `create phrase ${width}px`, true)
       await inspectTabStops(page, `create form ${width}px`)
       await phrase.fill('Caminhar toda segunda')
       await inspectTabStops(page, `create form with phrase ${width}px`)
