@@ -680,13 +680,13 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
-  it.each([412, 768])('renders the global goal action as primary at %ipx', async (width) => {
+  it.each([[412, 'button-primary-md'], [768, 'button-secondary-md']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const tree = await renderProgress()
 
-    expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe('button-primary-md')
+    expect(findPill(tree.root, 'progressScreen.goals.createAction').props.testID).toBe(testID)
     dimensions.mockRestore()
   })
 

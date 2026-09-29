@@ -399,6 +399,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
 
 function GoalsEmptyState() {
   const t = useTranslations()
+  const isDesktop = useIsDesktop()
   useEffect(() => () => {
     clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
   }, [])
@@ -410,7 +411,7 @@ function GoalsEmptyState() {
     })
     useUIStore.getState().setAstraConversationOpen(true)
   }
-  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="primary" onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
 }
 
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {

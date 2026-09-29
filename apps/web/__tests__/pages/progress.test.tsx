@@ -607,13 +607,13 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('renders the global goal action as primary for desktop=%s', (isDesktop) => {
+  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global goal action for desktop=%s as a %s button', (isDesktop, variant) => {
     mocks.isDesktop = isDesktop
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     render(<ProgressPage />)
 
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', variant)
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
