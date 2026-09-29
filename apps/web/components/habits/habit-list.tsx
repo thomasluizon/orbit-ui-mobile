@@ -1306,7 +1306,7 @@ export function HabitList({
     )
   }
 
-  const showAllDone = accountHabitCount.isLoaded && accountHabitCount.count > 0 &&
+  const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
@@ -1325,8 +1325,8 @@ export function HabitList({
     }
 
     if (habits.length === 0) {
-      if (!accountHabitCount.isLoaded || showAllDone) return null
-      return accountHabitCount.count === 0 ? (
+      if (showAllDone) return null
+      return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
         <HabitListEmptyState
           title={t('habits.emptyState')}
           description={t('habits.noHabitsBody')}

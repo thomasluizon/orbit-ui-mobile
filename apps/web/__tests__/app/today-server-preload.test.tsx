@@ -110,7 +110,8 @@ describe('Today server preload', () => {
     try {
       const html = renderToString(createTodayTree(client))
 
-      expect(html).toContain(`>${en.habits.noHabitsBody}<`)
+      expect(html).toContain(`>${en.habits.nothingOpen}<`)
+      expect(html).not.toContain(`>${en.habits.noHabitsBody}<`)
       expect(html).not.toContain('data-trial-line')
     } finally {
       client.clear()
@@ -135,7 +136,7 @@ describe('Today server preload', () => {
       })
 
       expect(recoverableError).not.toHaveBeenCalled()
-      expect(container.innerHTML).toContain(`>${en.habits.noHabitsBody}<`)
+      expect(container.innerHTML).toContain(`>${en.habits.nothingOpen}<`)
     } finally {
       await act(async () => root?.unmount())
       container.remove()
@@ -173,8 +174,9 @@ describe('Today server preload', () => {
 
       expect(menu).toHaveAttribute('aria-expanded', 'true')
       expect(container.querySelector('[aria-busy="true"]')).toBeNull()
-      expect(vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
-        typeof url === 'string' && (url.startsWith('/api/habits') || url === '/api/profile'))).toEqual([])
+      const accountRequests = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+        typeof url === 'string' && (url.startsWith('/api/habits') || url === '/api/profile'))
+      expect(accountRequests.map(([url]) => url)).toEqual(['/api/habits/count'])
     } finally {
       await act(async () => root?.unmount())
       container.remove()

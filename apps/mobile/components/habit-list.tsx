@@ -391,8 +391,8 @@ function renderDayListEmptyState(
   renderFirstRun: () => ReactElement,
   sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
 ): ReactElement | null {
-  if (!isCountLoaded || showAllDone) return null
-  if (accountCount === 0) return renderFirstRun()
+  if (showAllDone) return null
+  if (isCountLoaded && accountCount === 0) return renderFirstRun()
   return <View style={sectionInsetStyle}><HabitListNothingOpen /></View>
 }
 
@@ -1779,7 +1779,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       )
     }
 
-    const showAllDone = accountHabitCount.isLoaded && accountHabitCount.count > 0 &&
+    const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
       selectedDateStr === todayStr &&
       getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
     const activeListHeader = renderAllDoneListHeader(

@@ -17,10 +17,10 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
-const accountHabitCount = vi.hoisted(() => ({ count: 0 }))
+const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 
 vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitCountLoaded: () => ({ count: accountHabitCount.count, isLoaded: true }),
+  useHabitCountLoaded: () => accountHabitCount,
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -411,6 +411,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = []
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 0
+    accountHabitCount.isLoaded = true
   })
 
   it('renders without crashing with no habits', () => {
@@ -433,6 +434,13 @@ describe('HabitList', () => {
 
   it('shows the plain line when nothing is due today', () => {
     accountHabitCount.count = 3
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
+    expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
+  })
+
+  it('keeps the plain line visible if the account count cannot load', () => {
+    accountHabitCount.isLoaded = false
     renderWithProviders(<HabitList filters={defaultFilters} />)
     expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
     expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
@@ -569,6 +577,17 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} showCompleted />)
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
     expect(screen.getByTestId('habit-card-done-due')).toBeInTheDocument()
+  })
+
+  it('shows all-done when a due row is completed without a range log flag', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'completed-due', scheduledDates: [TODAY], isCompleted: true, isLoggedInRange: false })
+    mockHabitsData.habitsById.set(due.id, due)
+    mockHabitsData.topLevelHabits = [due]
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
+    expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
   it('keeps a completed row in place for 1400 ms', () => {
