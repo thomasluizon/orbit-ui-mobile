@@ -540,13 +540,12 @@ export function useSkipHabit() {
       return { previousLists, skippedDate }
     },
 
-    onError: (_err, { habitId }, context) => {
+    onError: (_err, _vars, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) queryClient.setQueryData(key, data)
         }
       }
-      if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
     },
 
     onSettled: (data, error, { habitId }, context) => {
