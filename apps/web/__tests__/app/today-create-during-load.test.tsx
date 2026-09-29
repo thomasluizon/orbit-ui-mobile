@@ -201,4 +201,19 @@ describe('Today create during first load', () => {
     expect(screen.queryByRole('heading', { name: 'Create habit' })).not.toBeInTheDocument()
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
   })
+
+  it('clears a prior refusal after reconnecting', () => {
+    state.isOnline = false
+    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(screen.getByText('offline.create.reason')).toBeInTheDocument()
+
+    state.isOnline = true
+    view.rerender(<AppLayout><div>Today</div></AppLayout>)
+    expect(screen.queryByText('offline.create.reason')).not.toBeInTheDocument()
+
+    state.isOnline = false
+    view.rerender(<AppLayout><div>Today</div></AppLayout>)
+    expect(screen.queryByText('offline.create.reason')).not.toBeInTheDocument()
+  })
 })

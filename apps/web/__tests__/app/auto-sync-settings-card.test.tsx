@@ -185,6 +185,14 @@ describe('AutoSyncSettingsCard', () => {
     expect(hoisted.runSyncNow.mutateAsync).not.toHaveBeenCalled()
   })
 
+  it('shows the refusal even before Google is connected', () => {
+    hoisted.isOnline = false
+    hoisted.state = { hasGoogleConnection: false, enabled: false, status: null, lastSyncedAt: null }
+    render(<AutoSyncSettingsCard />)
+    expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /calendar\.autoSync\.syncNow/ })).not.toBeInTheDocument()
+  })
+
   it('runs a manual sync when Sync now is pressed', async () => {
     render(<AutoSyncSettingsCard />)
 

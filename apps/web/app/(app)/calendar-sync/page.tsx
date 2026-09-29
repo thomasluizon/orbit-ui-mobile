@@ -20,6 +20,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
@@ -318,6 +319,12 @@ function CalendarSyncPageContent() {
           >
             {t('calendar.fetchingEvents')}
           </p>
+        </div>
+      )}
+
+      {step === 'offline' && !hasProAccess && (
+        <div className="px-4 pt-6">
+          <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
         </div>
       )}
 

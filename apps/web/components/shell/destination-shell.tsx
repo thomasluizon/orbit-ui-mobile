@@ -131,6 +131,7 @@ export function DestinationShell({
   conversationOpen,
   conversationLabel,
   onCreate,
+  createRefusal,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
   const registeredHeader = useShellComposerHost()
@@ -151,6 +152,7 @@ export function DestinationShell({
           conversationOpen={conversationOpen}
           conversationLabel={conversationLabel}
           onCreate={onCreate}
+          createRefusal={createRefusal}
         >
           {children}
         </DestinationShellContent>
@@ -310,7 +312,7 @@ function DestinationShellContent({
         fab={
           pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <div className="flex items-end gap-3">
-              {createRefusal ? <div className="w-[min(68vw,280px)]">{createRefusal}</div> : null}
+              <div aria-live="polite" aria-atomic="true" className={createRefusal ? 'min-w-0 max-w-[min(68vw,280px)]' : ''}>{createRefusal}</div>
               <Fab label={t('nav.create')} onClick={onCreate}>
                 <Plus size={24} strokeWidth={2} aria-hidden="true" />
               </Fab>

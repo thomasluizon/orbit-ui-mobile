@@ -25,6 +25,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
@@ -61,6 +63,7 @@ function CalendarEventsSection({
 }>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
+  const { isOnline } = useOffline()
 
   if (state === 'pro-boundary') {
     return (
@@ -95,7 +98,12 @@ function CalendarEventsSection({
           }
         />
       ) : null}
-      {state === 'not-connected' ? (
+      <div aria-live="polite" aria-atomic="true">
+        {state === 'not-connected' && !isOnline ? (
+          <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
+        ) : null}
+      </div>
+      {state === 'not-connected' && isOnline ? (
         <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 24 }}>
           <p className="text-sm font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>
             {t('calendar.dayDetail.disconnectedTitle')}

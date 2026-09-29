@@ -295,6 +295,23 @@ describe('CalendarDayDetail', () => {
     expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
   })
 
+  it('refuses disconnected calendar reconnection in place while offline', () => {
+    network.isOnline = false
+    try {
+      const onReconnectCalendarEvents = vi.fn()
+      renderDetail({
+        calendarEventsState: 'not-connected',
+        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+        onReconnectCalendarEvents,
+      })
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
+  })
+
   it('renders a failed events request instead of the empty result', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
 

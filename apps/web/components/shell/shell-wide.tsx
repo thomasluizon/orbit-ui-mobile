@@ -149,7 +149,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
       <div className="flex flex-col gap-6">
         {props.onCreate ? (
           <div className="flex flex-col gap-3">
-            {props.createRefusal}
+            <div aria-live="polite" aria-atomic="true">{props.createRefusal}</div>
             <Button onClick={props.onCreate}>{props.createLabel}</Button>
           </div>
         ) : null}

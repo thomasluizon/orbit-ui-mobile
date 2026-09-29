@@ -76,7 +76,9 @@ export function CalendarSyncBoundary({
           />
         </div>
       ) : null}
-      {!isOnline ? <OfflineRefusal title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
+      <div aria-live="polite" aria-atomic="true">
+        {!isOnline && connected ? <OfflineRefusal icon="calendar" embedded title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
+      </div>
     </div>
   )
 }

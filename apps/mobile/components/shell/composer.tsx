@@ -181,7 +181,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerPro
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
       >
         <TextInput
-          accessibilityLabel={props.words.placeholder}
+          accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
           editable={!inputDisabled}
           multiline

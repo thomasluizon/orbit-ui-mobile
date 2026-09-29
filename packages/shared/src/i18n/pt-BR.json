@@ -1083,8 +1083,7 @@
   "chat": {
     "title": "Astra",
     "offline": {
-      "title": "Você está sem conexão",
-      "description": "A Astra precisa de conexão. A sua lista continua funcionando sem ela."
+      "title": "Você está sem conexão"
     },
     "pendingOp": {
       "risk": {

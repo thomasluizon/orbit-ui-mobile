@@ -856,6 +856,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const composerProps = useMemo(() => {
     const words = {
       placeholder: t(isOnline ? "shell.composer.placeholder" : "shell.composer.offline.placeholder"),
+      inputLabel: t("shell.composer.placeholder"),
       send: t("shell.composer.send"),
       suggestionsLabel: t("shell.composer.suggestionsLabel"),
       retry: t("shell.composer.retry"),
@@ -891,18 +892,18 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     if (isRecording) return { ...common, state: "recording", onVoice: toggleRecording, voiceWords };
     if (isTranscribing) return { ...common, state: "transcribing", onVoice: toggleRecording, voiceWords };
 
-    if (atMessageLimit) {
-      const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
-      return speechSupported
-        ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
-        : { ...common, state: "atLimit", limitReason };
-    }
-
     if (!isOnline) {
       const limitReason = t("shell.composer.offline.reason");
       return speechSupported
         ? { ...common, state: "offline", limitReason, onVoice: toggleRecording, voiceWords }
         : { ...common, state: "offline", limitReason };
+    }
+
+    if (atMessageLimit) {
+      const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
+      return speechSupported
+        ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: "atLimit", limitReason };
     }
 
     const state: "idle" | "sending" = isSending ? "sending" : "idle";

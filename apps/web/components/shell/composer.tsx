@@ -138,7 +138,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           id={props.inputId}
           rows={1}
           data-composer-input
-          aria-label={props.words.placeholder}
+          aria-label={props.words.inputLabel ?? props.words.placeholder}
           disabled={inputDisabled}
           placeholder={props.words.placeholder}
           value={props.value}

@@ -137,6 +137,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const { profile, patchProfile } = useProfile()
   const { isOnline } = useOffline()
   const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
+  useEffect(() => {
+    setShowCreateRefusal(false)
+  }, [pathname, isOnline, setShowCreateRefusal])
   useTimezoneAutoSync(profile)
   useOnboardingFlush()
   const draftHydrated = useOnboardingDraftHydrated()
@@ -300,7 +303,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <DestinationShell
         onCreate={handleCreate}
         createRefusal={!isOnline && showCreateRefusal ? (
-          <OfflineRefusal title={t('offline.create.title')} reason={t('offline.create.reason')} />
+          <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />
         ) : undefined}
         composer={
           <Composer

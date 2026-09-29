@@ -617,6 +617,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('shell.composer.offline.reason')
     expect(composer.current.composerProps.state).toBe('offline')
     expect(composer.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
+    expect(composer.current.composerProps.words.inputLabel).toBe('shell.composer.placeholder')
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {
@@ -1321,6 +1322,13 @@ describe('mobile useChatComposer', () => {
 
     expect(composer.current.composerProps.state).toBe('atLimit')
     expect(composer.current.composerProps.onVoice).toBeUndefined()
+  })
+
+  it('explains the connection first when offline at the account limit', async () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: false, aiMessagesUsed: 20, aiMessagesLimit: 20 })
+    const composer = await renderComposer({ isOnline: false })
+    expect(composer.current.composerProps.state).toBe('offline')
+    expect(composer.current.composerProps.limitReason).toBe('shell.composer.offline.reason')
   })
 
   it('rejects an oversized image with the size error copy', async () => {

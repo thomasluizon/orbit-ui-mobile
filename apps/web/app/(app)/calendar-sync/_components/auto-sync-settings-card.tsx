@@ -155,11 +155,13 @@ export function AutoSyncSettingsCard() {
         </div>
       </div>
       <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
+      <div aria-live="polite" aria-atomic="true" className="px-4">
+        {!isOnline ? <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
+      </div>
 
       {!isLoading && hasConnection && (
-        <div className="flex flex-col items-end gap-3" style={{ padding: '0 16px 4px' }}>
-          {!isOnline ? <OfflineRefusal title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
-          <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
+        <div className="flex justify-end" style={{ padding: '0 16px 4px' }}>
+          <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending || !isOnline}>
             {runSyncNow.isPending ? (
               <>
                 <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -209,7 +211,7 @@ export function AutoSyncSettingsCard() {
               </p>
             </div>
           </div>
-          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting} tone="warning">
+          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting || !isOnline} tone="warning">
             {t('calendar.autoSync.reconnectCta')}
           </QuietActionButton>
         </div>

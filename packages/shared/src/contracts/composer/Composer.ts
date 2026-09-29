@@ -1,6 +1,7 @@
 
 export type ComposerWords = {
   placeholder: string
+  inputLabel?: string
   send: string
   suggestionsLabel: string
   retry?: string
