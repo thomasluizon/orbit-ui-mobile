@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
-import { LAYOUT_ORIGIN } from '../support/env'
+import { test } from './upgrade-fixtures'
 
 const today = '2026-09-04'
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -19,15 +19,17 @@ const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
 
 for (const width of [412, 600] as const) {
   test.describe(`compact FAB and notice at ${width}px`, () => {
-    test.use({ viewport: { width, height: 915 } })
+    test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
 
     test('keeps the FAB above the notice control and the composer', async ({ page, context }) => {
       await context.route(
-        (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
+        new RegExp(`${API.habits.list}[?]`),
         (route) => route.fulfill({ json: habitsPage }),
       )
-      await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
-      await page.goto('/')
+      await page.goto(`/?date=${today}`)
+      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await page.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
+      await expect(page.locator('[data-habit-title="Beber água"]')).toBeVisible()
       const fab = page.locator('[data-shell-fab]')
       const notice = page.locator('[data-shell-notice]')
       const composer = page.locator('[data-shell-pinned-slot]')
