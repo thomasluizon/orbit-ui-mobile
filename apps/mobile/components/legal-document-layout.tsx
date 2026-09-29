@@ -28,10 +28,10 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
   const clearance = useShellScrollerClearance()
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top', 'bottom']}>
       <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
-        <View testID="legal-document" style={styles.document}>
+        <View testID="legal-document" style={[styles.document, clearance === 0 ? styles.documentEndInset : undefined]}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{title}</Text>
             <Text style={[styles.updated, { color: tokens.fg3 }]}>{lastUpdated}</Text>
@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
   document: { alignSelf: 'center', width: '100%', maxWidth: 620, minWidth: 0, paddingHorizontal: 16, paddingTop: 16, gap: 24 },
+  documentEndInset: { paddingBottom: 24 },
   titleBlock: { minWidth: 0, gap: 8 },
   title: { minWidth: 0, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, letterSpacing: -0.44 },
   titleWide: { fontSize: 28, lineHeight: 32.2, letterSpacing: -0.56 },

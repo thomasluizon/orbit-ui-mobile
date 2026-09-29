@@ -36,7 +36,7 @@ export function WrappedCover({
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.cover, { paddingTop: topInset + 32, paddingBottom: clearance }]}
+      contentContainerStyle={[styles.cover, { paddingTop: topInset + 32 }, clearance > 0 ? { paddingBottom: clearance } : undefined]}
       style={styles.coverScroller}
       testID={`wrapped-cover-${state}`}
     >

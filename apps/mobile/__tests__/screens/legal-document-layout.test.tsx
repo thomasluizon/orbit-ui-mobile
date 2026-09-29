@@ -136,7 +136,7 @@ describe.each([
       paddingTop: 16,
       width: '100%',
     })
-    expect(safeArea.props.edges).toEqual(['top'])
+    expect(safeArea.props.edges).toEqual(['top', 'bottom'])
     expect(directText(layout)).toEqual(expect.arrayContaining([
       document.title,
       document.lastUpdated,

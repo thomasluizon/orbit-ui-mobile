@@ -588,7 +588,7 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 py-4 md:px-0">
+    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 pt-4 md:px-0">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>

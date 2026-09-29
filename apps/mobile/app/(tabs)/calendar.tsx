@@ -913,21 +913,23 @@ function CalendarScreenContent({
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
       {activeError && (
-        <View style={styles.errorWrap}>
-          <View
-            style={[
-              styles.errorCard,
-              { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-            ]}
-          >
-            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
-              {t("calendar.loadError")}
-            </Text>
-            <PillButton variant="ghost" onClick={() => void activeRefresh()}>
-              {t("common.retry")}
-            </PillButton>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
+          <View style={styles.errorWrap}>
+            <View
+              style={[
+                styles.errorCard,
+                { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: tokens.fg2 }]}>
+                {t("calendar.loadError")}
+              </Text>
+              <PillButton variant="ghost" onClick={() => void activeRefresh()}>
+                {t("common.retry")}
+              </PillButton>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       )}
       {!activeError && view === "month" && (
         <FlatList

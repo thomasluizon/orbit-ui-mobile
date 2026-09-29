@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, { paddingBottom: clearance }]}>
+    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, clearance > 0 ? { paddingBottom: clearance } : undefined]}>
       <OrbitMark size={40} />
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>

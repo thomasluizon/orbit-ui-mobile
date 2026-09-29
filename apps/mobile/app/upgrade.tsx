@@ -284,7 +284,7 @@ export default function UpgradeScreen() {
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={['top', 'bottom']}
     >
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
@@ -294,7 +294,7 @@ export default function UpgradeScreen() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
+        contentContainerStyle={[styles.scrollContent, clearance > 0 ? { paddingBottom: clearance } : undefined]}
         showsVerticalScrollIndicator={false}
       >
         <UpgradeContent
@@ -315,6 +315,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     paddingTop: 16,
+    paddingBottom: 32,
   },
   usagePad: { paddingHorizontal: 16, paddingTop: 24 },
   padBlock: {
