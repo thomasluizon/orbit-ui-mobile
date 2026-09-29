@@ -75,8 +75,10 @@
   transition: background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out);
 }
 
+@layer components {
 .habit-control-motion {
   transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), transform 150ms var(--ease-out);
+}
 }
 
 .orbit-list-row-action:focus-visible,
@@ -611,6 +613,7 @@
    Roboto = mono-role with tabular numerals)
    ═══════════════════════════════════════════════════════ */
 
+@layer components {
 .t-eyebrow {
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
@@ -722,6 +725,7 @@
   letter-spacing: -0.02em;
   line-height: 1;
   color: var(--fg-1);
+}
 }
 
 @layer base {
@@ -1067,6 +1071,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ═══════════════════════════════════════════════════════ */
 
 /* Kit icon button: 40px circle, hover well, press shrink */
+@layer components {
 .icon-btn {
   appearance: none;
   border: 0;
@@ -1095,6 +1100,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .icon-btn:active { transform: scale(0.96); }
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }
+}
 
 .habit-panel {
   overflow: hidden;
@@ -1111,6 +1117,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: transparent;
 }
 
+@layer components {
 .orbit-link-action {
   position: relative;
   color: inherit;
@@ -1138,6 +1145,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .orbit-link-action-persistent::after {
   content: none;
 }
+}
 
 .today-astra-action::before {
   position: absolute;
@@ -1147,9 +1155,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  @layer components {
   .icon-btn:hover,
   .icon-btn-well:hover {
     background: var(--bg-hover);
+  }
   }
 
   [data-habit-row-control]:not(:disabled):not([aria-disabled="true"]):hover {
@@ -1166,6 +1176,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
+  @layer components {
   .orbit-link-action:hover {
     color: var(--fg-1);
   }
@@ -1173,9 +1184,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .orbit-link-action:hover::after {
     transform: scaleX(1);
   }
+  }
 }
 
 /* Kit chip: pill control (Astra action chips, filters, view switcher) */
+@layer components {
 .chip {
   appearance: none;
   border: 0;
@@ -1237,6 +1250,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .chip-ai:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
 }
 
 /* Kit pill CTA rendered as an anchor (shared by the /u viewer + its 404) */
@@ -1352,11 +1366,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ACCESSIBILITY
    ═══════════════════════════════════════════════════════ */
 
+@layer components {
 .orbit-pill-action {
   transition: background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
     opacity var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
+}
 }
 
 /* Reduced motion: keep essential loading feedback while suppressing other motion. */
@@ -1401,6 +1417,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Minimum touch target size: 44px effective, centered on the control */
+@layer components {
 .touch-target {
   position: relative;
 }
@@ -1411,6 +1428,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   bottom: min(0px, calc(50% - 22px));
   left: min(0px, calc(50% - 22px));
   right: min(0px, calc(50% - 22px));
+}
 }
 
 /* ═══════════════════════════════════════════════════════

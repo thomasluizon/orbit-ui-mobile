@@ -4,6 +4,26 @@ import { test } from './upgrade-fixtures'
 
 test.use({ appLocale: 'pt-BR', viewport: { width: 400, height: 915 } })
 
+for (const width of [412, 1024, 1280]) {
+  test(`shows search in the correct Hoje shell at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 915 })
+    await page.goto('/')
+
+    const dateRowSearch = page.locator(`button[aria-label="${ptBr.habits.search.title}"]`)
+    const sidebarSearch = page.locator('[data-shell-sidebar]').getByRole('button', {
+      name: ptBr.command.title,
+      exact: true,
+    })
+    await expect(dateRowSearch).toHaveCount(1)
+    if (width >= 1024) {
+      await expect(dateRowSearch).toBeHidden()
+      await expect(sidebarSearch).toBeVisible()
+    } else {
+      await expect(dateRowSearch).toBeVisible()
+    }
+  })
+}
+
 test('keeps an off-today date and every action legible at 400px with enlarged text', async ({ page }) => {
   await page.goto('/?date=2026-09-01')
   const previous = page.getByRole('button', { name: ptBr.dates.previousDay })
