@@ -164,7 +164,8 @@ export function Sheet({
       ref={sheetRef}
       backgroundColor={tokens.bgSheet}
       cornerRadius={28}
-      detents={['auto', MAX_HEIGHT_RATIO]}
+      // WHY: TrueSheet 3.11.3 sizes the sheet to its last detent and lets a drag reach it, so a second detent opens a blank area under short content, while `maxContentHeight` already caps long content. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/TrueSheetViewController.kt#L847-L873
+      detents={['auto']}
       dimmed={TRUE_SHEET_DIMMED}
       dismissible={onClose != null}
       footer={footer}

@@ -345,7 +345,7 @@ describe('Sheet (mobile)', () => {
     expect(contentStyle.flexGrow).toBeUndefined()
     expect(contentStyle.height).toBeUndefined()
     expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(0)
-    expect(tree.root.findByType(TrueSheet).props.detents).toEqual(['auto', 0.85])
+    expect(tree.root.findByType(TrueSheet).props.detents).toEqual(['auto'])
   })
 })
 
