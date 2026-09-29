@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Command, CommandList } from 'cmdk'
 import { buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
@@ -23,7 +23,18 @@ export default function SearchPage() {
   const router = useRouter()
   const wide = useIsWideDesktop()
   const search = useHabitSearch()
+  const searchContainer = useRef<HTMLDivElement>(null)
+  const focusedInput = useRef<HTMLInputElement | null>(null)
   const [createTitle, setCreateTitle] = useAccountScopedState<string | null>(null)
+  useLayoutEffect(() => {
+    const previousInput = focusedInput.current
+    if (previousInput && !previousInput.isConnected) {
+      const input = searchContainer.current?.querySelector<HTMLInputElement>('[cmdk-input]')
+      input?.focus()
+      input?.setSelectionRange(previousInput.selectionStart ?? 0, previousInput.selectionEnd ?? 0, previousInput.selectionDirection ?? 'none')
+      focusedInput.current = input ?? null
+    }
+  }, [wide])
   useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
   const navItems = [
     { id: 'hoje', label: t('nav.today'), icon: Home, onSelect: () => router.push('/') },
@@ -33,7 +44,11 @@ export default function SearchPage() {
   ] as const
   return <>
     <PageHeader title={t('habits.search.title')} onBack={() => router.back()} backLabel={t('common.back')} />
-    <div className="max-w-[620px]">
+    <div ref={searchContainer} className="max-w-[620px]" onFocusCapture={(event) => {
+      if (event.target instanceof HTMLInputElement && event.target.hasAttribute('cmdk-input')) focusedInput.current = event.target
+    }} onBlurCapture={(event) => {
+      if (event.target instanceof HTMLInputElement && event.target === focusedInput.current) focusedInput.current = null
+    }}>
       {wide
         ? <WideSearch search={search} onCreateHabit={setCreateTitle} />
         : <CommandMenuWithSearch search={search} resultsMode navItems={navItems} onCreateHabit={(title = '') => setCreateTitle(title)} onClose={() => {}} />}

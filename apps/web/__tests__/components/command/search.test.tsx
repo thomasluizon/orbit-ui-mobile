@@ -90,19 +90,41 @@ describe('habit search', () => {
     expect(screen.getByText(en.command.groups.destinations)).toBeInTheDocument()
   })
 
-  it('keeps a typed query when the page crosses the wide breakpoint', async () => {
+  it('keeps the focused query and caret when the page crosses the wide breakpoint', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
     const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    const compactInput = screen.getByRole<HTMLInputElement>('combobox')
+    fireEvent.change(compactInput, { target: { value: 'walk' } })
+    compactInput.focus()
+    compactInput.setSelectionRange(1, 3, 'backward')
     expect(await screen.findByText('1 habit')).toBeInTheDocument()
     mocks.wide = true
     page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    expect(screen.getByRole('combobox', { name: en.habits.search.title })).toHaveValue('walk')
+    const wideInput = screen.getByRole<HTMLInputElement>('combobox', { name: en.habits.search.title })
+    expect(wideInput).toHaveValue('walk')
+    expect(wideInput).toHaveFocus()
+    expect([wideInput.selectionStart, wideInput.selectionEnd]).toEqual([1, 3])
+    expect(wideInput.selectionDirection).toBe('backward')
     expect(screen.getByText('1 habit')).toBeInTheDocument()
+    wideInput.setSelectionRange(2, 4)
     mocks.wide = false
     page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    expect(screen.getByRole('combobox')).toHaveValue('walk')
+    const restoredCompactInput = screen.getByRole<HTMLInputElement>('combobox')
+    expect(restoredCompactInput).toHaveValue('walk')
+    expect(restoredCompactInput).toHaveFocus()
+    expect([restoredCompactInput.selectionStart, restoredCompactInput.selectionEnd]).toEqual([2, 4])
     expect(screen.getByText('1 habit')).toBeInTheDocument()
+  })
+
+  it('does not move focus to search when another control is focused across the breakpoint', () => {
+    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    screen.getByRole('combobox').focus()
+    const backButton = screen.getByRole('button', { name: en.common.back })
+    backButton.focus()
+    mocks.wide = true
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(backButton).toHaveFocus()
+    expect(screen.getByRole('combobox', { name: en.habits.search.title })).not.toHaveFocus()
   })
 
   it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', (query, skeleton) => {
