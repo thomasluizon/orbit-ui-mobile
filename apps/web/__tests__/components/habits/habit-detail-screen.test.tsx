@@ -168,7 +168,7 @@ vi.mock('@/components/dates/day-cell', () => ({
     return <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>
   },
 }))
-vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
+vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} /> }))
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => <div aria-label={label}>{children}</div>,
 }))
@@ -843,6 +843,24 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toBeInTheDocument()
+  })
+
+  it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const strip = screen.getByTestId('detail-strip')
+    expect(strip).toHaveAttribute('data-days', '30')
+    expect(strip).toHaveAttribute('data-size', '16')
+    expect(strip.closest('section')).toHaveStyle({ containerType: 'inline-size' })
+    expect(strip.closest('section')).not.toHaveClass('bg-[var(--bg-card)]')
+    expect(strip.parentElement).not.toHaveClass('overflow-x-auto')
+  })
+
+  it('formats the due time in the header without seconds', () => {
+    mocks.detail = { ...makeDetail(), dueTime: '08:00:00' }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const header = view.container.querySelector('header')
+    expect(header).toHaveTextContent('8:00')
+    expect(header).not.toHaveTextContent('08:00:00')
   })
 
   it('persists each inline detail editor through its dedicated patch', async () => {

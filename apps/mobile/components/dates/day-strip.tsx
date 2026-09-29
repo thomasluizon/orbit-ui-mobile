@@ -16,7 +16,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
   const labels = props.labels?.slice(firstIndex)
 
   return (
-    <View accessibilityRole="summary" accessibilityLabel={props.label} testID={`day-strip-${props.scope}`} style={[styles.row, account && styles.accountRow]}>
+    <View accessibilityRole="summary" accessibilityLabel={props.label} testID={`day-strip-${props.scope}`} style={[styles.row, account ? styles.accountRow : styles.habitRow]}>
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         const filled = state === 'done' || state === 'active'
@@ -42,5 +42,6 @@ export function DayStrip(props: Readonly<DayStripProps>) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   accountRow: { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 4 },
+  habitRow: { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 0 },
   accountCell: { flexShrink: 1, minWidth: 0 },
 })

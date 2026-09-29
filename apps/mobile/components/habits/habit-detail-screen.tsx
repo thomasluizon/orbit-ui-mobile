@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -34,6 +34,7 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, NormalizedHabit } from '@orbit/shared/types/habit'
+import { publishContextualSuggestion } from '@orbit/shared/stores'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -61,12 +62,17 @@ import { findUnfinalizedFirstWrite, waitForFirstWriteFinalization } from '@/lib/
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useChatStore } from '@/stores/chat-store'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
+
+function habitStripCellSize(width: number): number {
+  return width >= 480 ? 16 : 8
+}
 
 interface HabitDetailScreenProps {
   habitId: string
@@ -262,6 +268,8 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
 function HabitDetailContent({ habitId, date, fromToday = false, parentId, profile }: Readonly<HabitDetailScreenProps & { profile: NonNullable<ReturnType<typeof useProfile>['profile']> }>) {
   const { t, i18n } = useTranslation()
+  const { displayTime } = useTimeFormat()
+  const [stripWidth, setStripWidth] = useState(0)
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
@@ -311,7 +319,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasPro = profile.hasProAccess
-  const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
+  const dueTime = displayTime(habit?.dueTime)
+  const headerSummary = dueTime && !summary.includes(dueTime) ? `${summary} · ${dueTime}` : summary
   const boundary = getTodayBoundary(dateStr, todayStr)
   const completionDisabled = completionDisabledOnDetail(habit, dateStr, todayStr)
   const completionReason = boundary === 'read-only'
@@ -333,10 +342,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       label: t('habits.detail.askAstra'),
       prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
     }
-    useChatStore.getState().setContextualSuggestion(contextualSuggestion)
-    return () => {
-      if (useChatStore.getState().contextualSuggestion?.id === contextualSuggestion.id) useChatStore.getState().setContextualSuggestion(null)
-    }
+    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
   }, [habit, t]))
   const back = useCallback(() => {
     if (parentId) router.back()
@@ -452,7 +458,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
       <RescheduleBlock habit={habit} slipping={slipping} overdue={overdue} hasPro={hasPro} locale={profile.language ?? i18n.language} tokens={tokens} />
-      {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></Surface> : null}
+      {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><View style={styles.stripMetrics}><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></View></View> : null}
       <History habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? i18n.language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={profile.language ?? i18n.language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
@@ -472,6 +478,9 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 }
 
 const styles = StyleSheet.create({
+  stripSection: { gap: 8, paddingTop: 24 },
+  stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
+  stripMetrics: { paddingTop: 8 },
   profileLoading: { gap: 16, padding: 16 },
   surface: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },

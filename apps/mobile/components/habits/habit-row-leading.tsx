@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { habitInitial } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { styles } from './habit-row-styles'
 
@@ -46,7 +47,7 @@ export function HabitRowLeading({
               fontFamily: 'Geist_500Medium',
             }}
           >
-            {[...habitTitle.trim().toUpperCase()][0]}
+            {habitInitial(habitTitle)}
           </Text>
         )}
     </View>

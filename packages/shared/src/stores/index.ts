@@ -1,4 +1,10 @@
-export { createChatStoreState, type ChatStoreState } from './chat-store'
+export {
+  clearContextualSuggestionIfCurrent,
+  createChatStoreState,
+  prepareChatRequest,
+  publishContextualSuggestion,
+  type ChatStoreState,
+} from './chat-store'
 export {
   createVersionGateStoreState,
   type VersionGateStoreState,

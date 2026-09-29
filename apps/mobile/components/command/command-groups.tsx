@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { searchCommands, type SearchCommandId } from '@orbit/shared/utils'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { CalendarDays, ChartLine, CheckCircle2, Home, Plus, SkipForward, User } from '@/components/ui/icons'
+import { CalendarDays, ChartLine, Check, Home, Plus, SkipForward, User } from '@/components/ui/icons'
 
-const ICONS = { create: Plus, log: CheckCircle2, skip: SkipForward, today: Home, calendar: CalendarDays, progress: ChartLine, profile: User }
+const ICONS = { create: Plus, log: Check, skip: SkipForward, today: Home, calendar: CalendarDays, progress: ChartLine, profile: User }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions', destinations: 'command.groups.destinations' } as const
 
 export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<{ hideCreate?: boolean; query: string; onSelect: (id: SearchCommandId) => void }>) {
