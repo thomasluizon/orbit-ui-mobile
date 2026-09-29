@@ -1816,6 +1816,8 @@ export const getApiProfileResponseLongestStreakRegExpTwo = new RegExp('^-?(?:0|[
 export const getApiProfileResponseStreakFreezesAvailableRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const getApiProfileResponseUses24HourClockDefault = true;
 export const getApiProfileResponseProactiveAstraEnabledDefault = false;
+export const getApiProfileResponseActiveApiKeyCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
 
 export const GetApiProfileResponse = zod.object({
   "userId": zod.uuid(),
@@ -1872,7 +1874,8 @@ export const GetApiProfileResponse = zod.object({
 })]).optional(),
   "proactiveAstraEnabled": zod.boolean().default(getApiProfileResponseProactiveAstraEnabledDefault),
   "marketingEmailConsent": zod.boolean().nullish(),
-  "lastCompletionDate": zod.iso.date().nullish()
+  "lastCompletionDate": zod.iso.date().nullish(),
+  "activeApiKeyCount": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseActiveApiKeyCountRegExpTwo)]).nullish()
 })
 
 
