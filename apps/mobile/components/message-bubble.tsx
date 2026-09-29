@@ -12,6 +12,7 @@ import {
   getRelatedSurfaces,
   hasChatProse,
   partitionMessageActions,
+  selectMessageOperationBlocks,
   stripChatDirectives,
 } from "@orbit/shared/chat";
 import { ActionChips } from "@/components/chat/action-chips";
@@ -126,14 +127,15 @@ export function MessageBubble({
 
   const isUser = message.role === "user";
   const sourceText = stripChatDirectives(message.content, isStreaming);
+  const operationBlocks = useMemo(() => selectMessageOperationBlocks(message), [message]);
 
   const {
     clarificationActions,
     nonSuggestionActions,
     suggestionActions,
   } = useMemo(
-    () => partitionMessageActions(message.actions, message.policyDenials),
-    [message.actions, message.policyDenials],
+    () => partitionMessageActions(operationBlocks.actions, message.policyDenials),
+    [operationBlocks.actions, message.policyDenials],
   );
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
@@ -242,6 +244,12 @@ export function MessageBubble({
                 key={action.clarificationRequest.operationId}
                 clarificationRequest={action.clarificationRequest}
                 entityName={action.entityName}
+                onPendingOperationRevise={onPendingOperationRevise}
+                onPendingOperationRefresh={onPendingOperationRefresh}
+                onPendingOperationConfirmExecute={onPendingOperationConfirmExecute}
+                onPendingOperationPrepareStepUp={onPendingOperationPrepareStepUp}
+                onPendingOperationVerifyStepUp={onPendingOperationVerifyStepUp}
+                onActionChipClick={onActionChipClick}
               />
             ))}
           </View>
@@ -260,6 +268,7 @@ export function MessageBubble({
                   pendingOperation={pendingOperation}
                   onRevise={onPendingOperationRevise}
                   onRefresh={onPendingOperationRefresh}
+                  onOpenTarget={onActionChipClick}
                   onConfirmExecute={onPendingOperationConfirmExecute}
                   onPrepareStepUp={onPendingOperationPrepareStepUp}
                   onVerifyStepUp={onPendingOperationVerifyStepUp}
@@ -268,9 +277,9 @@ export function MessageBubble({
             </View>
           )}
 
-        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) ? (
+        {!isUser && operationBlocks.outcomes.length > 0 ? (
           <View style={styles.operationStack}>
-            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
+            <OperationOutcomes outcomes={operationBlocks.outcomes} />
           </View>
         ) : null}
       </View>

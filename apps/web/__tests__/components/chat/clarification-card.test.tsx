@@ -26,6 +26,7 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 }))
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
 
 function createWrapper() {
@@ -91,6 +92,18 @@ describe('ClarificationCard', () => {
     await waitFor(() => {
       expect(screen.getByText(/successCreated/)).toBeInTheDocument()
     })
+  })
+
+  it('replaces the question with an editable pending preview', async () => {
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'PendingConfirmation' }, pendingOperation } })
+    render(<ClarificationCard clarificationRequest={baseClarification} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
+    await waitFor(() => expect(screen.getByText('Beber água')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
+    expect(screen.queryByText('habits.clarification.errorGeneric')).not.toBeInTheDocument()
   })
 
   it('shows expired error when the resolve returns 404', async () => {

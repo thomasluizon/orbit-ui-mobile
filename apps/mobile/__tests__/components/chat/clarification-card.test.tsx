@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
+import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { renderedText } from '../../support/react-test-renderer'
 
 interface TestNode {
   type: unknown
@@ -173,6 +175,23 @@ describe('ClarificationCard (mobile)', () => {
 
     const successNodes = findTextNodesWithChild(tree.root, 'habits.clarification.successCreated')
     expect(successNodes.length).toBeGreaterThan(0)
+  })
+
+  it('replaces the question with an editable pending preview', async () => {
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    mutateAsync.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />)
+    })
+    const [firstButton] = findPressables(tree.root)
+    await TestRenderer.act(async () => { await firstButton!.props.onPress!() })
+    const output = renderedText(tree.root)
+    expect(output).toContain('Beber água')
+    expect(output).toContain('chat.operation.approve')
+    expect(output).toContain('chat.operation.edit')
+    expect(output).toContain('chat.operation.reject')
+    expect(output).not.toContain('habits.clarification.errorGeneric')
   })
 
   it.each<{ name: string; error: Error; expectedKey: string }>([

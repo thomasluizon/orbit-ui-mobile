@@ -20,18 +20,18 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', risk: 'Destructive',
+  pendingTitle: 'Pending operation', open: 'Open',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
   more: (count) => `and ${count} more`,
 }
 
-it('labels the pending operation from its capability and risk', () => {
+it('labels the pending operation from its capability without exposing risk', () => {
   const translated = buildPendingOperationCardLabels(
     makePendingAgentOperation(),
     (key) => key,
   )
-  expect(translated.risk).toBe('chat.operation.risk.destructive')
+  expect(translated).not.toHaveProperty('risk')
   expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
   expect(translated.confirm).toBe('chat.pendingOp.action.habits-delete')
   expect(translated.fieldLabels).toMatchObject({
@@ -39,6 +39,28 @@ it('labels the pending operation from its capability and risk', () => {
     dismiss_import: 'chat.operation.field.dismiss_import',
     run_sync: 'chat.operation.field.run_sync',
   })
+})
+
+it('names every held write capability in both locales', () => {
+  const ids = [
+    'habits.write', 'goals.write', 'tags.write', 'profile.preferences.write',
+    'profile.ai-memory.write', 'profile.ai-summary.write', 'notifications.write',
+    'checklist-templates.write', 'referrals.write', 'support.write',
+  ]
+  for (const messages of [en, ptBR]) {
+    for (const capabilityId of ids) {
+      const key = capabilityId.replaceAll('.', '-') as keyof typeof messages.chat.pendingOp.capability
+      const name = messages.chat.pendingOp.capability[key]
+      expect(name, capabilityId).toBeTruthy()
+      const labels = buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (translationKey) =>
+        translationKey.startsWith('chat.pendingOp.capability.')
+          ? name
+          : translationKey)
+      expect(labels.name).toBe(name)
+      expect(labels.confirm).toBe('chat.pendingOp.action.applyChanges')
+      expect(labels).not.toHaveProperty('risk')
+    }
+  }
 })
 
 it('uses verb-first consequence labels for known confirmation capabilities in both locales', () => {
@@ -99,7 +121,6 @@ function createRenderers() {
     blockFrame: (props) => { record.frame = props; return 'frame' },
     button: (spec) => { record.buttons.push(spec); return spec.label },
     confirmSheet: (props) => { record.confirm = props; return 'confirm' },
-    risk: (label) => label,
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
     editSheet: () => 'edit-sheet',

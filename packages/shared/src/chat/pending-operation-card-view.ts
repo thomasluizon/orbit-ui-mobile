@@ -1,4 +1,4 @@
-import type { PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
+import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -7,6 +7,7 @@ import type {
 import { getPendingOperationCardPresentation } from '../hooks/pending-operation-card-core'
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
+import { getActionChipNavigation } from './action-chips'
 
 export interface PendingOperationButtonSpec {
   disabled?: boolean
@@ -30,7 +31,7 @@ export interface PendingOperationVerificationProps {
   open: boolean
   onClosed: () => void
   onClose: () => void
-  onCompleted: (status: 'done' | 'failed') => void
+  onCompleted: (result: PendingOperationExecutionResult) => void
   onVerify: (
     id: string,
     challengeId: string,
@@ -71,7 +72,6 @@ interface PendingOperationFrameBase<Node> {
     control?: Node
   }[]
   proposedLabel?: string
-  risk: Node
   irreversibleLabel: string
   confirmNote: string
   actions: Node | undefined
@@ -86,7 +86,6 @@ export interface PendingOperationCardRenderers<Node> {
   blockFrame: (props: PendingOperationFrame<Node>) => Node
   button: (spec: PendingOperationButtonSpec) => Node
   confirmSheet: (props: PendingOperationConfirmSheetProps) => Node
-  risk: (label: string) => Node
   stepUp: (props: { message: string; actionLabel: string; onAction: () => void; busy: boolean }) => Node
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
@@ -104,7 +103,9 @@ export interface PendingOperationCardActions {
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
-  completeStepUp: (status: 'done' | 'failed') => void
+  completedOperation?: AgentOperationResult
+  onOpenTarget?: (entityId: string, actionType: string) => void
+  completeStepUp: (result: PendingOperationExecutionResult) => void
   closeStepUp: () => void
   clearClosingStepUp: () => void
   dismiss: () => void
@@ -134,6 +135,34 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
+
+function completedTargetControl<Node>(
+  targetId: string | null | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const operation = card.completedOperation
+  if (card.status !== 'done' || !operation || !targetId) return undefined
+  const navigation = getActionChipNavigation({ type: operation.sourceName, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
+  return navigation.navigable
+    ? render.button({ label: labels.open, variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
+    : undefined
+}
+
+function itemControl<Node>(
+  item: PendingOperationItem,
+  itemCount: number,
+  revision: CardRevision,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const targetId = item.entityId ?? (itemCount === 1 ? card.completedOperation?.targetId : undefined)
+  const open = completedTargetControl(targetId, card, labels, render)
+  if (open || card.status != null || revision.stale) return open
+  return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
+}
 
 function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
   const value = field.newValue ?? ''
@@ -221,11 +250,7 @@ function previewRows<Node>(
       proposed: card.status == null && !edited,
       wrapLabel: true,
       wrapMeta: true,
-      control: card.status == null && !revision.stale ? render.removeItem(
-        `${labels.remove} ${item.entityName}`,
-        card.busy || revision.busy,
-        () => void revision.rejectItem(item.itemId),
-      ) : undefined,
+      control: itemControl(item, revision.items.length, revision, card, labels, render),
     }
   })
 }
@@ -251,9 +276,7 @@ function unshownItemRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: card.status == null && !revision.stale
-        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-        : undefined,
+      control: itemControl(item, revision.items.length, revision, card, labels, render),
     })
     if (item.entityId != null) shownEntities.add(item.entityId)
   }
@@ -289,9 +312,9 @@ function changeRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: firstField && item && revision && card.status == null && !revision.stale
+      control: firstField ? completedTargetControl(card.completedOperation?.targetId ?? change.entityId, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
         ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-        : undefined,
+        : undefined) : undefined,
     }
   })
   rows.push(...unshownItemRows(shownEntities, revision, card, labels, render, destructive))
@@ -323,7 +346,6 @@ function previewFrame<Node>(
       status: card.status, irreversible: presentation.destructive && card.status == null,
     }],
     proposedLabel: labels.proposed,
-    risk: render.risk(labels.risk),
     irreversibleLabel: labels.irreversible,
     confirmNote: labels.confirmNote,
     actions: revision?.stale ? undefined : actions,

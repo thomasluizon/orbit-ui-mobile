@@ -241,7 +241,6 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
           <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
         ) : null}
-        {props.risk}
       </View>
       <Text accessibilityLiveRegion="polite" style={[styles.staleMessage, { color: tokens.fg2 }]}>
         {props.state === 'stale' ? props.staleMessage : ''}

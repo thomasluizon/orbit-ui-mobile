@@ -2,6 +2,7 @@ export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurfa
 export * from './action-chips'
 export * from './message-actions'
 export * from './message-bubble'
+export * from './message-operation-blocks'
 export * from './pending-operation-card'
 export * from './pending-operation-card-view'
 export * from './related-surfaces'

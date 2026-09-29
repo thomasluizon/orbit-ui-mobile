@@ -135,7 +135,7 @@ describe('pending operation card state', () => {
       preparedStepUp: undefined,
     })
 
-    await act(() => state.current().completeStepUp('done'))
+    await act(() => state.current().completeStepUp({ ok: true, response: succeededResponse }))
     expect(state.current()).toMatchObject({ preparedStepUp: undefined, status: 'done' })
     state.renderer.update(React.createElement(React.Fragment))
   })
@@ -176,7 +176,7 @@ describe('pending operation step up verification', () => {
       '123456',
       'confirmation-1',
     )
-    expect(onCompleted).toHaveBeenCalledWith('done')
+    expect(onCompleted).toHaveBeenCalledWith({ ok: true, response: succeededResponse })
     expect(state.current()).toMatchObject({ error: undefined, verifying: false })
     state.renderer.update(React.createElement(React.Fragment))
   })

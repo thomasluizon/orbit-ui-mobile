@@ -181,7 +181,6 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
             {props.count ?? props.items.length}
           </span>
         ) : null}
-        {props.risk}
       </header>
       <p role="status" aria-live="polite" className={props.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
         {props.state === 'stale' ? props.staleMessage : ''}

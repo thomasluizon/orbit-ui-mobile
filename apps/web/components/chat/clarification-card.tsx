@@ -2,28 +2,38 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { ClarificationRequest } from '@orbit/shared/types'
+import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
+import type { MessageBubbleProps } from '@orbit/shared/chat'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
+import { PendingOperationCard } from './pending-operation-card'
 
-export function ClarificationCard({ clarificationRequest, entityName }: Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null }>) {
+type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null } & Pick<MessageBubbleProps,
+  'onPendingOperationRevise' | 'onPendingOperationRefresh' | 'onPendingOperationConfirmExecute' | 'onPendingOperationPrepareStepUp' | 'onPendingOperationVerifyStepUp' | 'onActionChipClick'>>
+
+export function ClarificationCard({ clarificationRequest, entityName, onPendingOperationRevise, onPendingOperationRefresh, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp, onActionChipClick }: ClarificationCardProps) {
   const t = useTranslations()
   const resolve = useResolveClarification()
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
   const [errorKey, setErrorKey] = useState<string | null>(null)
+  const [pendingOperation, setPendingOperation] = useState<PendingAgentOperation | null>(null)
   const choose = async (label: string, value: string) => {
     setErrorKey(null)
     try {
       const result = await resolve.mutateAsync({ operationId: clarificationRequest.operationId, value })
       if (!result.ok) setErrorKey(errorKeyForStatus(result.status))
+      else if (result.data.operation.status === 'PendingConfirmation' && result.data.pendingOperation) setPendingOperation(result.data.pendingOperation)
       else if (result.data.operation.status !== 'Succeeded') setErrorKey('habits.clarification.errorGeneric')
       else setResolvedLabel(label)
     } catch {
       setErrorKey('habits.clarification.errorGeneric')
     }
   }
+  if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
+    <PendingOperationCard pendingOperation={pendingOperation} onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
+  )
   return (
     <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
       <div className="flex flex-col items-start gap-3">

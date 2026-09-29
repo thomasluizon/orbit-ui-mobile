@@ -16,6 +16,7 @@ export interface PendingOperationCardProps {
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onRevise?: RevisePendingOperation
   onRefresh?: RefreshPendingOperation
+  onOpenTarget?: (entityId: string, actionType: string) => void
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
   onVerifyStepUp: PendingOperationVerificationProps['onVerify']
   pendingOperation: PendingAgentOperation
@@ -24,7 +25,7 @@ export interface PendingOperationCardProps {
 
 export type PendingOperationCardAdapterProps = Pick<
   PendingOperationCardProps,
-  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'pendingOperation'
+  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'onOpenTarget' | 'pendingOperation'
 >
 
 export function SharedPendingOperationCard({
@@ -32,6 +33,7 @@ export function SharedPendingOperationCard({
   onConfirmExecute,
   onRevise,
   onRefresh,
+  onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
   pendingOperation,
@@ -58,7 +60,7 @@ export function SharedPendingOperationCard({
 
   return renderPendingOperationCard({
     card: {
-      ...card, revision,
+      ...card, revision, onOpenTarget,
       confirmOpen: card.confirmOpen && !revision.stale,
       preparedStepUp: revision.stale ? undefined : card.preparedStepUp,
       closingStepUp: revision.stale ? card.preparedStepUp ?? card.closingStepUp : card.closingStepUp,

@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState, matchesPendingOperationAuthorization, getPendingOperationExecutionStatus, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
+import type { AgentOperationResult } from '@orbit/shared/types/ai'
 
 interface PendingOperationCardState {
   busy: boolean
@@ -10,7 +11,8 @@ interface PendingOperationCardState {
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
-  completeStepUp: (status: Exclude<PendingOperationCardStatus, undefined>) => void
+  completedOperation: AgentOperationResult | undefined
+  completeStepUp: (result: PendingOperationExecutionResult) => void
   closeStepUp: () => void
   clearClosingStepUp: () => void
   dismiss: () => void
@@ -68,7 +70,7 @@ export function usePendingOperationCardState({
     setBusy(true)
     try {
       const result = await onConfirmExecute(pendingOperationId)
-      if (isCurrent()) setAuthorization((current) => ({ ...current, status: getPendingOperationExecutionStatus(result) }))
+      if (isCurrent()) setAuthorization((current) => ({ ...current, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation }))
     } finally {
       setBusy(false)
     }
@@ -88,8 +90,8 @@ export function usePendingOperationCardState({
     }
   }, [isCurrent, onPrepareStepUp, pendingOperationId, synchronized.closingStepUp])
 
-  const completeStepUp = useCallback((nextStatus: Exclude<PendingOperationCardStatus, undefined>) => {
-    if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined, status: nextStatus }))
+  const completeStepUp = useCallback((result: PendingOperationExecutionResult) => {
+    if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation }))
   }, [isCurrent])
   const clearClosingStepUp = useCallback(() => {
     setAuthorization((current) => current.closingStepUp === synchronized.closingStepUp
@@ -103,6 +105,7 @@ export function usePendingOperationCardState({
     preparedStepUp: synchronized.preparedStepUp,
     closingStepUp: synchronized.closingStepUp,
     status: synchronized.status,
+    completedOperation: synchronized.completedOperation,
     completeStepUp,
     clearClosingStepUp,
     closeStepUp: () => { if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined })) },
@@ -122,7 +125,7 @@ export function usePendingOperationStepUpVerification({
   prepared,
 }: Readonly<{
   genericError: string
-  onCompleted: (status: Exclude<PendingOperationCardStatus, undefined>) => void
+  onCompleted: (result: PendingOperationExecutionResult) => void
   onVerify: (
     id: string,
     challengeId: string,
@@ -148,7 +151,7 @@ export function usePendingOperationStepUpVerification({
       )
       const outcome = getPendingOperationVerificationResult(result, genericError)
       if (outcome.error !== undefined) setError(outcome.error)
-      else onCompleted(outcome.status)
+      else onCompleted(result)
     } finally {
       setVerifying(false)
     }

@@ -1130,12 +1130,17 @@
       "title": "You’re offline"
     },
     "pendingOp": {
-      "risk": {
-        "high": "High risk",
-        "destructive": "Destructive",
-        "low": "Low risk"
-      },
       "capability": {
+        "habits-write": "Habits",
+        "goals-write": "Goals",
+        "tags-write": "Tags",
+        "profile-preferences-write": "Profile settings",
+        "profile-ai-memory-write": "Astra memory",
+        "profile-ai-summary-write": "Daily summary",
+        "notifications-write": "Notifications",
+        "checklist-templates-write": "Checklist templates",
+        "referrals-write": "Referral details",
+        "support-write": "Support message",
         "habits-delete": "Delete habits",
         "habits-bulk-write": "Bulk habit changes",
         "habits-bulk-delete": "Bulk habit delete",
@@ -1579,11 +1584,6 @@
       "stepUpMessage": "Confirm your identity on the device before this can continue.",
       "stepUpAction": "Confirm identity",
       "openProfile": "Open Profile",
-      "risk": {
-        "low": "Low risk",
-        "destructive": "Destructive",
-        "high": "High risk"
-      },
       "outcome": {
         "PendingConfirmation": "Awaiting confirmation",
         "Denied": "Not available",

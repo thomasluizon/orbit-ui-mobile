@@ -254,13 +254,12 @@ describe('BlockFrame on mobile', () => {
     expect(textValues(tree).filter((value) => value === labels.confirmNote)).toHaveLength(1)
   })
 
-  it('renders risk once and keeps one actions slot outside the scroll body', () => {
+  it('keeps one actions slot outside the scroll body', () => {
     const tree = render(
       <BlockFrame
-        {...frame({ risk: <Text testID="risk">High risk</Text>, actions: <Text testID="action">Apply</Text> })}
+        {...frame({ actions: <Text testID="action">Apply</Text> })}
       />,
     )
-    expect(tree.root.findAll((node) => node.type === 'Text' && prop(node, 'testID') === 'risk')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.type === 'Text' && prop(node, 'testID') === 'action')).toHaveLength(1)
     const body = tree.root.find((node) => node.type === 'ScrollView' && prop(node, 'testID') === 'block-frame-body')
     expect(body.findAllByProps({ testID: 'action' })).toHaveLength(0)

@@ -149,6 +149,7 @@ import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
 import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
+import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -301,6 +302,17 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
       'X-Orbit-Held-Account-Id': 'account-a',
     })
+  })
+
+  it('finishes a held write without appending another message', async () => {
+    vi.mocked(confirmPendingOperation).mockResolvedValueOnce({ ok: true, data: { pendingOperationId: 'pending-1', confirmationToken: 'token-1', expiresAtUtc: '2026-09-29T12:00:00Z' } })
+    vi.mocked(executePendingOperation).mockResolvedValueOnce({ ok: true, data: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.confirmAndExecutePendingOperation('pending-1') })
+    expect(useChatStore.getState().messages).toHaveLength(0)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
   })
 
   it('shows reload guidance and disables retry after an account switch refusal', async () => {

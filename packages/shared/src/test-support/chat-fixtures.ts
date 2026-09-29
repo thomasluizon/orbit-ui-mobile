@@ -5,6 +5,7 @@ import type {
 } from '../types/ai'
 import type {
   ActionResult,
+  ChatMessage,
   GoalListCard,
   HabitListCard,
   SuggestedSubHabit,
@@ -85,6 +86,32 @@ export function makeAgentOperationResult(
     confirmationRequirement: 'None',
     status,
     targetName: `Habit ${index}`,
+  }
+}
+
+export function makeHeldHabitMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  return {
+    id: 'held-habit-message',
+    role: 'ai',
+    content: 'Review the habit.',
+    timestamp: new Date('2026-09-29T12:00:00Z'),
+    pendingOperations: [makePendingAgentOperation({
+      id: 'held-habit',
+      capabilityId: 'habits.write',
+      displayName: 'CreateHabit',
+      riskClass: 'Low',
+      confirmationRequirement: 'None',
+      previewFingerprint: 'habit-preview',
+      changeTargetCount: 1,
+      items: [{
+        itemId: 'new-habit',
+        entityId: null,
+        entityName: 'Beber água',
+        stateFingerprint: 'habit-state',
+        fields: [{ entityId: 'new-habit', entityName: 'Beber água', field: 'title', oldValue: null, newValue: 'Beber água', valueType: 'string' }],
+      }],
+    })],
+    ...overrides,
   }
 }
 

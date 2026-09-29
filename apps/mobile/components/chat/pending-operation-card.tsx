@@ -3,7 +3,6 @@ import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOL
 import { useTranslation } from 'react-i18next'
 import { I18nManager, Pressable, Text, View } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
-import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { OtpInput } from '@/components/ui/otp-input'
@@ -146,8 +145,8 @@ function StepUpVerificationSheet({
   useEffect(() => {
     if (!open) closeSheet(onClosed, onClosed)
   }, [open, onClosed, closeSheet])
-  const completed = (status: 'done' | 'failed') => {
-    if (openRef.current) closeSheet(() => onCompleted(status), () => onCompleted(status))
+  const completed: PendingOperationVerificationProps['onCompleted'] = (result) => {
+    if (openRef.current) closeSheet(() => onCompleted(result), () => onCompleted(result))
   }
   const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
     genericError: t('stepUp.genericError'),
@@ -177,7 +176,6 @@ const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} />,
   button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
-  risk: (label) => <Badge variant="outline">{label}</Badge>,
   stepUp: (props) => <StepUp {...props} />,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
@@ -203,6 +201,7 @@ export function PendingOperationCard({
   onConfirmExecute,
   onRevise,
   onRefresh,
+  onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
 }: Readonly<PendingOperationCardAdapterProps>) {
@@ -213,6 +212,7 @@ export function PendingOperationCard({
     onConfirmExecute={onConfirmExecute}
     onRevise={onRevise}
     onRefresh={onRefresh}
+    onOpenTarget={onOpenTarget}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
     render={pendingOperationRenderers}

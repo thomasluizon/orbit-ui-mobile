@@ -893,10 +893,7 @@ describe('mobile useChatComposer', () => {
       }),
     )
     expect(result).toMatchObject({ ok: true })
-    expect(useChatStore.getState().messages[0]).toMatchObject({
-      role: 'ai',
-      content: 'chat.operationDone',
-    })
+    expect(useChatStore.getState().messages).toHaveLength(0)
   })
 
   it('selects a valid image from the library and lets it be removed', async () => {

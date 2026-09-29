@@ -40,7 +40,6 @@ type ExpectedCommon = {
   readonly count?: React.ReactNode
   readonly items: readonly ExpectedBlockFrameItem[]
   readonly body?: React.ReactNode
-  readonly risk?: React.ReactNode
   readonly actions?: React.ReactNode
   readonly irreversibleLabel?: string
   readonly confirmNote?: string
@@ -88,7 +87,6 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameProps['count'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['items'], readonly ExpectedBlockFrameItem[]>>,
   Assert<IsExactWidth<BlockFrameProps['body'], React.ReactNode>>,
-  Assert<IsExactWidth<BlockFrameProps['risk'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['actions'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['irreversibleLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['confirmNote'], string | undefined>>,

@@ -23,21 +23,12 @@ vi.mock('@/components/ui/markdown', () => ({
   Markdown: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
 }))
 
-vi.mock('./action-chips', () => ({
-  ActionChips: () => <div data-testid="action-chips" />,
-}))
 vi.mock('./breakdown-suggestion', () => ({
   BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
 }))
 
-vi.mock('@/components/chat/action-chips', () => ({
-  ActionChips: () => <div data-testid="action-chips" />,
-}))
 vi.mock('@/components/chat/breakdown-suggestion', () => ({
   BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
-}))
-vi.mock('@/components/chat/pending-operation-card', () => ({
-  PendingOperationCard: () => <div data-testid="pending-operation-card" />,
 }))
 vi.mock('@/components/chat/habit-list-card', () => ({
   HabitListCard: ({ habitList }: { habitList: { items: { title: string }[] } }) => (
@@ -49,12 +40,10 @@ vi.mock('@/components/chat/goal-list-card', () => ({
     <div data-slot="goal-list-card">{goalList.items.map((item) => <span key={item.title}>{item.title}</span>)}</div>
   ),
 }))
-vi.mock('@/components/chat/operation-outcomes', () => ({
-  OperationOutcomes: () => <div data-testid="operation-outcomes" />,
-}))
 
 import { MessageBubble } from '@/components/chat/message-bubble'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import { makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
@@ -259,7 +248,7 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByTestId('pending-operation-card')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
   })
 
   it('renders policy denials', () => {
@@ -280,7 +269,7 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByTestId('operation-outcomes')).toBeInTheDocument()
+    expect(screen.getByText('chat.operation.outcome.UnsupportedByPolicy')).toBeInTheDocument()
     expect(screen.queryByText('Fresh confirmation required')).not.toBeInTheDocument()
   })
 
@@ -454,8 +443,53 @@ describe('MessageBubble', () => {
     )
 
     expect(screen.getByText('Logged your meditation habit.')).toBeInTheDocument()
-    expect(screen.getByTestId('operation-outcomes')).toBeInTheDocument()
+    expect(screen.queryByText('chat.operation.outcome.Succeeded')).not.toBeInTheDocument()
     expect(screen.queryByText('Logged Meditation')).not.toBeInTheDocument()
     expect(screen.queryByText(/SUCCEEDED/i)).not.toBeInTheDocument()
+  })
+
+  it('shows one real preview block and finishes it in place', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const onOpenTarget = vi.fn()
+    const { container } = render(<MessageBubble message={makeHeldHabitMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
+    expect(container.textContent).not.toContain('chat.operation.risk')
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.done')
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(screen.queryByText('chat.operation.outcome.Succeeded')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.action.open' }))
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('keeps a failed approval in its preview block', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: { status: 'Failed' } } })
+    const { container } = render(<MessageBubble message={makeHeldHabitMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.failed')
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+  })
+
+  it('shows a denied action and policy outcome in one block', () => {
+    const operation = makeAgentOperationResult('Denied', 1)
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Failed' })], operations: [operation], policyDenials: [{
+      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'policy',
+    }] })
+    const { container } = render(<MessageBubble message={message} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    expect(screen.getByText('chat.operation.outcome.UnsupportedByPolicy')).toBeInTheDocument()
+  })
+
+  it('shows a legacy success action once and no outcome for reads', () => {
+    const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Success' })], operations: [makeAgentOperationResult('Succeeded', 1)] })
+    const { container, rerender } = render(<MessageBubble message={message} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
+    rerender(<MessageBubble message={makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('Succeeded', 1)] })} />)
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(0)
   })
 })

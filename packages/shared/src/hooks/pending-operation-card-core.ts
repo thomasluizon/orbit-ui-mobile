@@ -1,4 +1,4 @@
-import type { AgentExecuteOperationResponse } from '../types/ai'
+import type { AgentExecuteOperationResponse, AgentOperationResult } from '../types/ai'
 
 export type PendingOperationExecutionResult = {
   ok: boolean
@@ -26,6 +26,7 @@ export interface PendingOperationAuthorizationState {
   preparedStepUp: PreparedPendingOperationStepUp | undefined
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
+  completedOperation: AgentOperationResult | undefined
   dismissed: boolean
 }
 
@@ -34,7 +35,7 @@ export function createPendingOperationAuthorizationState(
   sourceFingerprint: string | null | undefined,
   authorizationVersion = 0,
 ): PendingOperationAuthorizationState {
-  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, dismissed: false }
+  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, completedOperation: undefined, dismissed: false }
 }
 
 export function matchesPendingOperationAuthorization(

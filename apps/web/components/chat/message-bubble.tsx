@@ -9,6 +9,7 @@ import {
   getRelatedSurfaces,
   hasChatProse,
   partitionMessageActions,
+  selectMessageOperationBlocks,
   stripChatDirectives,
 } from '@orbit/shared/chat'
 import { LocalImage } from '@/components/ui/local-image'
@@ -71,14 +72,15 @@ export function MessageBubble({
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],
   )
+  const operationBlocks = useMemo(() => selectMessageOperationBlocks(message), [message])
 
   const {
     clarificationActions,
     nonSuggestionActions,
     suggestionActions,
   } = useMemo(
-    () => partitionMessageActions(message.actions, message.policyDenials),
-    [message.actions, message.policyDenials],
+    () => partitionMessageActions(operationBlocks.actions, message.policyDenials),
+    [operationBlocks.actions, message.policyDenials],
   )
 
   function dismissBreakdown(key: string) {
@@ -223,6 +225,12 @@ export function MessageBubble({
                 key={action.clarificationRequest.operationId}
                 clarificationRequest={action.clarificationRequest}
                 entityName={action.entityName}
+                onPendingOperationRevise={onPendingOperationRevise}
+                onPendingOperationRefresh={onPendingOperationRefresh}
+                onPendingOperationConfirmExecute={onPendingOperationConfirmExecute}
+                onPendingOperationPrepareStepUp={onPendingOperationPrepareStepUp}
+                onPendingOperationVerifyStepUp={onPendingOperationVerifyStepUp}
+                onActionChipClick={onActionChipClick}
               />
             ))}
           </div>
@@ -236,6 +244,7 @@ export function MessageBubble({
                 pendingOperation={pendingOperation}
                 onRevise={onPendingOperationRevise}
                 onRefresh={onPendingOperationRefresh}
+                onOpenTarget={onActionChipClick}
                 onConfirmExecute={onPendingOperationConfirmExecute}
                 onPrepareStepUp={onPendingOperationPrepareStepUp}
                 onVerifyStepUp={onPendingOperationVerifyStepUp}
@@ -244,9 +253,9 @@ export function MessageBubble({
           </div>
         )}
 
-        {!isUser && ((message.operations?.length ?? 0) > 0 || (message.policyDenials?.length ?? 0) > 0) && (
+        {!isUser && operationBlocks.outcomes.length > 0 && (
           <div className="mt-3 flex w-full flex-col gap-3 md:max-w-[65ch]">
-            <OperationOutcomes operations={message.operations ?? []} denials={message.policyDenials ?? []} />
+            <OperationOutcomes outcomes={operationBlocks.outcomes} />
           </div>
         )}
       </div>
