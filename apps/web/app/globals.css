@@ -1680,6 +1680,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+.prose-orbit.thread-prose :is(pre, table):focus-visible {
+  outline-color: var(--fg-1);
+}
+
 .prose-orbit th,
 .prose-orbit td {
   border: 1px solid var(--hairline);
@@ -1697,26 +1701,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-bottom: 0;
 }
 
-[data-bubble-role='ai'] .prose-orbit {
+.thread-prose,
+.thread-prose li {
   color: var(--fg-1);
-}
-
-[data-bubble-role='user'] .prose-orbit,
-[data-bubble-role='user'] .prose-orbit :is(strong, em, code, li),
-[data-bubble-role='user'] .prose-orbit a[href] {
-  color: var(--fg-on-primary);
-}
-
-[data-bubble-role='user'] .prose-orbit a[href]:active {
-  background: var(--primary-pressed);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .prose-orbit a[href] :is(strong, em, code) {
   color: inherit;
-}
-
-[data-bubble-role='user'] .prose-orbit code {
-  background: rgba(255, 255, 255, 0.14);
 }
 
 /* Theme transition class (toggled by useColorScheme on scheme change) */

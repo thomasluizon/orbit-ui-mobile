@@ -43,13 +43,14 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     .join(' ')
 }
 
-function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false): CSSProperties {
+function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
     width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,
     paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
+    paddingInlineStart: !iconOnly && leadingIcon ? sizeSpec.paddingX - 2 : undefined,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
   }
@@ -67,6 +68,7 @@ export function Button({
   iconOnly,
   matchedWidth = false,
   label,
+  leadingIcon,
   formId,
   descriptionId,
   buttonRef,
@@ -87,11 +89,11 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading)}
-      style={actionStyle(size, iconOnly, matchedWidth)}
+      style={actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon))}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
-      ) : iconOnly ? children : null}
+      ) : iconOnly ? children : leadingIcon}
       {iconOnly ? null : <span>{children}</span>}
     </button>
   )

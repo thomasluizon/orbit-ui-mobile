@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { PillButton } from '@/components/ui/pill-button'
+import { Copy } from '@/components/ui/icons'
+import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -81,6 +83,18 @@ describe('PillButton (mobile)', () => {
     const tree = renderPill(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(textContents(tree)).toContain('Continue')
     expect(tree.root.findByType('Text').props.numberOfLines).toBe(1)
+  })
+
+  it('keeps a leading glyph decorative and tightens its side of the pill', () => {
+    const tree = renderPill(<PillButton size="sm" leadingIcon={<Copy size={BUTTON_SIZES.sm.iconSize} aria-hidden />}>Copy</PillButton>)
+    const pressable = tree.root.findByType('Pressable')
+    const style = flattenStyle(pressable.props.style({ pressed: false }))
+    expect(style.paddingStart).toBe(16)
+    expect(style.paddingHorizontal).toBe(18)
+    expect(tree.root.findAllByType(Copy)).toHaveLength(1)
+    expect(tree.root.findByType(Copy).props['aria-hidden']).toBe(true)
+    expect(pressable.props.accessibilityLabel).toBeUndefined()
+    expect(textContents(tree)).toContain('Copy')
   })
 
   it('fires onPress when pressed', () => {

@@ -114,7 +114,6 @@ vi.mock('@/components/ui/app-bar', () => ({
     }, props.title as string),
   ),
 }))
-vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: (props: { children: string; disabled?: boolean; onClick: () => void }) =>
