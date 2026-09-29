@@ -24,6 +24,8 @@ interface CommandMenuProps {
   onClose: () => void
 }
 
+type HabitSearchState = ReturnType<typeof useHabitSearch>
+
 function useCreateRefusal(onCreateHabit: (title?: string) => void, onClose: () => void) {
   const [createRefusal, setCreateRefusal] = useAccountScopedState<'command' | 'search' | null>(null)
   const { isOnline } = useOffline()
@@ -41,10 +43,14 @@ function HabitSearchLoading({ show, text, heading }: Readonly<{ show: boolean; t
   return text.trim() ? <Searching /> : <CommandHabitSkeleton heading={heading} />
 }
 
-export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = false }: Readonly<CommandMenuProps>) {
+export function CommandMenu(props: Readonly<CommandMenuProps>) {
+  const search = useHabitSearch()
+  return <CommandMenuWithSearch {...props} search={search} />
+}
+
+export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search, resultsMode = false }: Readonly<CommandMenuProps & { search: HabitSearchState }>) {
   const t = useTranslations()
   const router = useRouter()
-  const search = useHabitSearch()
   /**
    * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it
    * open and `#600` leaves that store alone. Its rows are already the next account's, and so

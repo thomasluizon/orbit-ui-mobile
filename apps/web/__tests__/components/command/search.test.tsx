@@ -90,6 +90,21 @@ describe('habit search', () => {
     expect(screen.getByText(en.command.groups.destinations)).toBeInTheDocument()
   })
 
+  it('keeps a typed query when the page crosses the wide breakpoint', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
+    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    expect(await screen.findByText('1 habit')).toBeInTheDocument()
+    mocks.wide = true
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(screen.getByRole('combobox', { name: en.habits.search.title })).toHaveValue('walk')
+    expect(screen.getByText('1 habit')).toBeInTheDocument()
+    mocks.wide = false
+    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(screen.getByRole('combobox')).toHaveValue('walk')
+    expect(screen.getByText('1 habit')).toBeInTheDocument()
+  })
+
   it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', (query, skeleton) => {
     vi.useFakeTimers()
     try {

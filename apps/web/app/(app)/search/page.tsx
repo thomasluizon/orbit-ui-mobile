@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Command, CommandList } from 'cmdk'
 import { buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
-import { CommandMenu } from '@/components/command/command-menu'
+import { CommandMenuWithSearch } from '@/components/command/command-menu'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
@@ -22,6 +22,7 @@ export default function SearchPage() {
   const t = useTranslations()
   const router = useRouter()
   const wide = useIsWideDesktop()
+  const search = useHabitSearch()
   const [createTitle, setCreateTitle] = useAccountScopedState<string | null>(null)
   useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
   const navItems = [
@@ -34,17 +35,16 @@ export default function SearchPage() {
     <PageHeader title={t('habits.search.title')} onBack={() => router.back()} backLabel={t('common.back')} />
     <div className="max-w-[620px]">
       {wide
-        ? <WideSearch onCreateHabit={setCreateTitle} />
-        : <CommandMenu resultsMode navItems={navItems} onCreateHabit={(title = '') => setCreateTitle(title)} onClose={() => {}} />}
+        ? <WideSearch search={search} onCreateHabit={setCreateTitle} />
+        : <CommandMenuWithSearch search={search} resultsMode navItems={navItems} onCreateHabit={(title = '') => setCreateTitle(title)} onClose={() => {}} />}
     </div>
     {createTitle !== null && <CreateHabitModal open initialTitle={createTitle} onOpenChange={(open) => { if (!open) setCreateTitle(null) }} />}
   </>
 }
 
-function WideSearch({ onCreateHabit }: Readonly<{ onCreateHabit: (title: string) => void }>) {
+function WideSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<typeof useHabitSearch>; onCreateHabit: (title: string) => void }>) {
   const t = useTranslations()
   const router = useRouter()
-  const search = useHabitSearch()
   const { isOnline } = useOffline()
   const [createRefusal, setCreateRefusal] = useState(false)
   const entries = buildSearchEntries(search.data, search.query, null)
