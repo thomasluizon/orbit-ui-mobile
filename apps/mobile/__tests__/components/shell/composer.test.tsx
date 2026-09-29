@@ -3,6 +3,8 @@ import { Animated, StyleSheet } from 'react-native'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
@@ -194,6 +196,23 @@ describe('Composer (mobile)', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    ['idle with an empty field', { state: 'idle', value: '' }, false, true],
+    ['idle with text', { state: 'idle', value: 'oi' }, true, false],
+    ['idle with an image only', { state: 'idle', attachments: [{ id: 'image-id', kind: 'image', name: 'walk.png' }] }, false, true],
+    ['idle with a file only', { state: 'idle', attachments: [{ id: 'file-id', kind: 'file', name: 'notes.txt' }] }, true, false],
+    ['sending', { state: 'sending', value: 'oi' }, true, true],
+    ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
+    ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
+    ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
+    ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
+  ] as const)('styles the send control for %s', async (_case, overrides, accented, disabled) => {
+    const tree = await renderComposer(props(overrides))
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.testID).toBe(accented ? 'composer-send-accent' : 'composer-send-neutral')
+    expect(send.props.disabled).toBe(disabled)
+  })
+
   it('submits nonblank text and ignores a blank keyboard submit', async () => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value: 'oi', onSend }))
@@ -345,6 +364,15 @@ describe('Composer (mobile)', () => {
     const tree = await renderComposer(props())
     const input = byLabel(tree.root, words.placeholder)[0]
     expect(input.props.placeholder).toBe(words.placeholder)
+  })
+
+  it.each([
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça algo à Astra'],
+    ['en', en.shell.composer.placeholder, 'Ask Astra for something'],
+  ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
+    const tree = await renderComposer(props({ words: { ...words, placeholder } }))
+    expect(placeholder).toBe(expected)
+    expect(byLabel(tree.root, placeholder)[0].props.placeholder).toBe(expected)
   })
 
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(

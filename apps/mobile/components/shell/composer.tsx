@@ -158,7 +158,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerPro
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = props.state === 'idle'
+  const sendIsAccent = canSend || props.state === 'sending'
   const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
 
   return (
