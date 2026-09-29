@@ -1952,7 +1952,7 @@
       },
       "completions": {
         "label": "Habits logged",
-        "caption": "Each one is a habit you logged."
+        "caption": "Each one was a tap of yours, on a day you chose to show up."
       },
       "activeDays": {
         "label": "Days active",
@@ -1970,7 +1970,7 @@
         "caption": "{count, plural, =0 {Your next log starts a new streak.} one {Your current streak is # day.} other {Your current streak is # days.}}"
       },
       "topHabit": {
-        "caption": "Done on {rate} of its scheduled days.",
+        "caption": "Done {rate} of the times this period.",
         "label": "Most consistent habit"
       },
       "goals": {

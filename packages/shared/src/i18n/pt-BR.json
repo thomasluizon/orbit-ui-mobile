@@ -1952,7 +1952,7 @@
       },
       "completions": {
         "label": "Hábitos registrados",
-        "caption": "Cada um é um hábito que você registrou."
+        "caption": "Cada um foi um toque seu, num dia que você escolheu aparecer."
       },
       "activeDays": {
         "label": "Dias ativos",
@@ -1970,7 +1970,7 @@
         "caption": "{count, plural, =0 {Seu próximo registro começa uma nova sequência.} one {Sua sequência atual é de # dia.} other {Sua sequência atual é de # dias.}}"
       },
       "topHabit": {
-        "caption": "Feito em {rate} dos dias agendados.",
+        "caption": "Feito {rate} das vezes no período.",
         "label": "Hábito mais constante"
       },
       "goals": {
