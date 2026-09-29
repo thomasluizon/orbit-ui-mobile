@@ -34,7 +34,6 @@ export default defineConfig({
         'app/**/layout.tsx',
         'app/api/**',
         'app/(auth)/auth-callback/page.tsx',
-        'app/(app)/about/page.tsx',
         'app/(public)/privacy/page.tsx',
         'app/(public)/terms/page.tsx',
         'app/(public)/delete-account/page.tsx',
