@@ -97,7 +97,7 @@ describe('EditGoalModal helpers', () => {
       tree = TestRenderer.create(
         <EditGoalDeadlineField
           tokens={tokens}
-          styles={createStyles(tokens, 0)}
+          styles={createStyles(tokens)}
           deadline="2026-10-01"
           onChangeDeadline={vi.fn()}
         />,

@@ -140,7 +140,7 @@ it.each(['create', 'edit'])('keeps the %s tag input inside the keyboard-aware vi
   })
 
   const list = tree.root.findByType(FlatList)
-  expect(StyleSheet.flatten(list.props.style)).toMatchObject({ maxHeight: 360 })
+  expect(StyleSheet.flatten(list.props.style)).toMatchObject({ maxHeight: 320 })
   const footer = list.props.ListFooterComponent
   let footerTree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => {

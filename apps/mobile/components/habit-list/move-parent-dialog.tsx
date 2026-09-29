@@ -219,7 +219,6 @@ export function MoveParentDialog({
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     sheetBody: {
-      flex: 1,
       paddingHorizontal: 24,
       paddingTop: 4,
       paddingBottom: 24,
@@ -248,9 +247,6 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg3,
       marginTop: 4,
       marginBottom: 8,
-    },
-    moveOptionsList: {
-      flex: 1,
     },
     moveOptionsContent: {
       gap: 4,
@@ -348,9 +344,6 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       gap: 12,
       marginTop: 16,
-    },
-    footerPill: {
-      flex: 1,
     },
   })
 }

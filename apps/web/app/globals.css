@@ -50,6 +50,8 @@
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
+  /* Resolves to 0 until the document opts into viewport-fit cover, and keeps the pinned actions clear of the home indicator the day it does. */
+  padding-bottom: env(safe-area-inset-bottom);
   border-radius: 28px 28px 0 0;
   background: var(--bg-sheet);
   color: var(--fg-1);
@@ -237,7 +239,7 @@
 
 .orbit-sheet-body {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -250,7 +252,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 16px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 16px 24px 24px;
 }
 
 .orbit-sheet-actions > * {

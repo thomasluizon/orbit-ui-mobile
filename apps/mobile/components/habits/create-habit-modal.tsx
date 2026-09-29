@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } fr
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -121,13 +120,9 @@ export function CreateHabitModal({
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   )
-  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
@@ -613,14 +608,8 @@ export function CreateHabitModal({
   )
 }
 
-function createStyles(
-  tokens: ReturnType<typeof createTokensV2>,
-  bottomInset: number,
-) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
       paddingHorizontal: 16,
       paddingBottom: 16,
@@ -705,7 +694,7 @@ function createStyles(
       gap: 12,
       paddingTop: 16,
       paddingHorizontal: 16,
-      paddingBottom: Math.max(bottomInset + 12, 28),
+      paddingBottom: 24,
     },
   })
 }

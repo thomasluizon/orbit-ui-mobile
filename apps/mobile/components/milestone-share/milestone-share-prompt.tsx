@@ -176,9 +176,6 @@ export function MilestoneSharePrompt() {
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     content: {
       paddingHorizontal: 16,
       paddingTop: 8,

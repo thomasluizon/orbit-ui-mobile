@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } fr
 import { StyleSheet, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -85,8 +84,7 @@ export function EditHabitModal({
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
   )
-  const insets = useSafeAreaInsets()
-  const styles = useMemo(() => createStyles(insets.bottom), [insets.bottom])
+  const styles = useMemo(() => createStyles(), [])
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const suggestion = useHabitSuggestion()
@@ -525,11 +523,8 @@ export function EditHabitModal({
   )
 }
 
-function createStyles(bottomInset: number) {
+function createStyles() {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     scrollContent: {
       paddingHorizontal: 16,
       paddingBottom: 16,
@@ -545,7 +540,7 @@ function createStyles(bottomInset: number) {
       gap: 12,
       paddingTop: 16,
       paddingHorizontal: 16,
-      paddingBottom: Math.max(bottomInset + 12, 28),
+      paddingBottom: 24,
     },
   })
 }
