@@ -1690,50 +1690,45 @@
     "support": {
       "title": "Support",
       "rowTitle": "Help and support",
-      "description": "Have a question, bug report, or feedback? Send us a message.",
-      "name": "Name",
-      "email": "Email",
+      "description": "Tell us what happened. The more concrete it is, the faster we can fix it.",
+      "email": "Reply to",
       "subject": "What is it about",
-      "message": "Message",
-      "namePlaceholder": "Your name",
-      "emailPlaceholder": "Your email",
-      "messagePlaceholder": "Describe your issue or feedback...",
+      "message": "What happened",
+      "messagePlaceholder": "I logged the walk and it went back to pending after I closed the app.",
       "send": "Send",
       "success": "Your message arrived",
       "successHint": "We will reply to {email} within one working day.",
       "backToAbout": "Open About",
       "failureTitle": "The message was not sent",
-      "failureBody": "Your words are still here. Try again when you are ready.",
+      "failureBody": "What you wrote is still here. Try again whenever you like.",
       "retry": "Try again",
       "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
           "label": "Something does not work",
-          "description": "A screen, log, or sync."
+          "description": "A screen, a log or a sync."
         },
         "billing": {
           "label": "Billing or plan",
-          "description": "Charges, plan changes, or cancellations."
+          "description": "Amounts, changing plan or cancelling."
         },
         "account": {
           "label": "Account and access",
-          "description": "Signing in, verification codes, or account deletion."
+          "description": "Signing in, the verification code or deleting the account."
         },
         "other": {
           "label": "Something else",
-          "description": "Suggestions and anything not listed above."
+          "description": "Suggestions and anything not above."
         }
       },
-      "nameRequired": "Name is required.",
-      "emailRequired": "Email is required.",
-      "emailInvalid": "Please enter a valid email address.",
-      "subjectRequired": "Choose a subject.",
+      "subjectRequired": "Pick a subject so we can route it properly.",
       "subjectSendingReason": "The subject cannot change while sending.",
-      "messageRequired": "Message is required.",
+      "messageRequired": "Write at least one sentence about what happened.",
       "versionIncluded": "Orbit {version} is included with your message.",
       "messageOverLimit": "Your message is {overage, plural, one {# character} other {# characters}} too long.",
       "sendNeedsShorterMessage": "Shorten your message to send.",
-      "emailLockedReason": "We reply to the email on your account.",
+      "emailLockedReason": "Managed by your account.",
+      "sendNeedsProfile": "Wait for your account to load before sending.",
       "sendIncomplete": "Choose a subject and add a message to send.",
       "sendNeedsSubject": "Choose a subject to send.",
       "sendNeedsMessage": "Add a message to send."

@@ -150,6 +150,41 @@ describe('SupportScreen', () => {
     mocks.translations.clear()
   })
 
+  it('does not render an editable name field', async () => {
+    const tree = await renderScreen()
+    expect(findInputByLabel(tree.root, 'profile.support.name')).toBeUndefined()
+  })
+
+  it('orders subject, message, and locked reply email', async () => {
+    const tree = await renderScreen()
+    const controls = tree.root.findAll((node) =>
+      node.props.accessibilityRole === 'radiogroup'
+      || (typeof node.props.onChangeText === 'function' && [
+        'profile.support.message', 'profile.support.email',
+      ].includes(node.props.accessibilityLabel as string)),
+    )
+    const labels = controls.map((node) => node.props.accessibilityLabel)
+      .filter((label, index, all) => index === 0 || label !== all[index - 1])
+    expect(labels).toEqual([
+      'profile.support.subject', 'profile.support.message', 'profile.support.email',
+    ])
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+  })
+
+  it('shows both field errors when the empty controls lose focus', async () => {
+    const tree = await renderScreen()
+    await TestRenderer.act(async () => {
+      const group = tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup')[0]!
+      ;(group.props.onBlur as () => void)()
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired'))
+      .not.toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired'))
+      .not.toHaveLength(0)
+  })
+
   it('hydrates the form from a persisted draft', async () => {
     mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'Bug', message: 'It broke' }))
     const tree = await renderScreen()
@@ -180,7 +215,6 @@ describe('SupportScreen', () => {
       tree.root.findAll((node) => node.props['data-multiline'] === '').length,
     ).toBeGreaterThan(0)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.numberOfLines).toBe(6)
-    expect(findInputByLabel(tree.root, 'profile.support.name')!.props.value).toBe('Alex')
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe(
       'alex@example.com',
     )
@@ -289,19 +323,16 @@ describe('SupportScreen', () => {
     }).checked).toBe(true)
   })
 
-  it('does not show the locked email reason when the account email is editable', async () => {
+  it('keeps the reply field locked while the profile loads', async () => {
     mocks.profile = null
     const tree = await renderScreen()
-
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(true)
-    expect(
-      findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint,
-    ).toBeUndefined()
-    expect(
-      tree.root.findAll(
-        (node) => node.props.children === 'profile.support.emailLockedReason',
-      ),
-    ).toHaveLength(0)
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe('')
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint)
+      .toBe('profile.support.emailLockedReason')
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.accessibilityHint)
+      .toBe('profile.support.sendNeedsProfile')
   })
 
   it('shows the required subject error beside the picker', async () => {
@@ -447,57 +478,30 @@ describe('SupportScreen', () => {
     expect(sentRequestBody().message).toBe(message)
   })
 
-  it('replaces an email typed while loading with the resolved profile email', async () => {
+  it('sends the loaded profile contact details after hydration', async () => {
     mocks.profile = null
     const tree = await renderScreen()
-
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.name')!.props.onChangeText as (value: string) => void)('Orbit User')
-      ;(findInputByLabel(tree.root, 'profile.support.email')!.props.onChangeText as (value: string) => void)('stale@example.com')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
       await Promise.resolve()
     })
     await selectSubject(tree.root)
-    mocks.profile = { ...createMockProfile(), email: 'profile@example.com' }
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+
+    mocks.profile = { ...createMockProfile(), name: 'Profile User', email: 'profile@example.com' }
     await TestRenderer.act(async () => {
       tree.update(withFocusProvenance(<SupportScreen />))
       await Promise.resolve()
     })
-
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe(
-      'profile@example.com',
-    )
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value)
+      .toBe('profile@example.com')
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
     await TestRenderer.act(async () => {
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(sentRequestBody().email).toBe(
-      'profile@example.com',
-    )
-  })
-
-  it('clears stale account errors when profile hydration supplies valid values', async () => {
-    mocks.profile = null
-    const tree = await renderScreen()
-    await selectSubject(tree.root)
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
-      await Promise.resolve()
-      ;(findSendButton(tree.root)!.props.onPress as () => void)()
-      await Promise.resolve()
-    })
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.nameRequired')).not.toHaveLength(0)
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.emailRequired')).not.toHaveLength(0)
-
-    mocks.profile = createMockProfile()
-    await TestRenderer.act(async () => {
-      tree.update(withFocusProvenance(<SupportScreen />))
-      await Promise.resolve()
-    })
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.nameRequired')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.emailRequired')).toHaveLength(0)
+    expect(sentRequestBody()).toMatchObject({ name: 'Profile User', email: 'profile@example.com' })
   })
 
   it('discards a corrupted draft', async () => {
@@ -522,34 +526,6 @@ describe('SupportScreen', () => {
       'orbit-support-draft',
       JSON.stringify({ subject: 'problem', message: '' }),
     )
-  })
-
-  it('places the existing contact errors beside their system inputs', async () => {
-    mocks.profile = null
-    const tree = await renderScreen()
-    await selectSubject(tree.root)
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message')
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
-      ;(findSendButton(tree.root)!.props.onPress as () => void)()
-      await Promise.resolve()
-    })
-
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.nameRequired').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.emailRequired').length).toBeGreaterThan(0)
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.name')!.props.onChangeText as (v: string) => void)('Orbit User')
-      ;(findInputByLabel(tree.root, 'profile.support.email')!.props.onChangeText as (v: string) => void)('invalid')
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
-      ;(findSendButton(tree.root)!.props.onPress as () => void)()
-      await Promise.resolve()
-    })
-    expect(tree.root.findAll((node) => node.props.children === 'profile.support.emailInvalid').length).toBeGreaterThan(0)
-    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('blocks sending while offline and surfaces the offline message', async () => {
