@@ -3,12 +3,12 @@
 import { useTranslations } from 'next-intl'
 import { CommandGroup } from 'cmdk'
 import { searchCommands, type SearchCommandId } from '@orbit/shared/utils'
-import { CheckCircle2, Plus, SkipForward } from '@/components/ui/icons'
+import { Check, Plus, SkipForward } from '@/components/ui/icons'
 import type { CommandNavigationItem } from './command-palette'
 import { CommandRow } from './command-row'
 import { GROUP_CLASS } from './command-menu-chrome'
 
-const ICONS = { create: Plus, log: CheckCircle2, skip: SkipForward }
+const ICONS = { create: Plus, log: Check, skip: SkipForward }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions' } as const
 
 export function CommandGroups({ query, navItems, onSelect, onNavigate, hideCreate = false }: Readonly<{

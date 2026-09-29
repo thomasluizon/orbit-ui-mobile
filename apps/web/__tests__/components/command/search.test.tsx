@@ -55,6 +55,32 @@ beforeEach(() => {
 })
 
 describe('habit search', () => {
+  it.each([false, true])('selects the first habit when results load in resultsMode=%s', async (resultsMode) => {
+    mocks.query.mockReturnValue(result([], true))
+    const view = mount(resultsMode)
+    expect(screen.getByRole('option', { name: 'Create habit' })).toHaveAttribute('data-selected', 'true')
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk' }),
+      createMockHabit({ id: 'run', title: 'Run' }),
+    ]))
+    view.rerender(<NextIntlClientProvider locale="en" messages={en}><CommandMenu resultsMode={resultsMode} navItems={[]} onCreateHabit={vi.fn()} onClose={vi.fn()} /></NextIntlClientProvider>)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('data-selected', 'true'))
+  })
+
+  it('uses the initial in search and palette habit rows', () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
+    const palette = mount()
+    const paletteWell = screen.getByRole('option', { name: 'Walk' }).firstElementChild
+    expect(paletteWell).toHaveTextContent('W')
+    expect(paletteWell?.querySelector('svg')).toBeNull()
+    palette.unmount()
+    mount(true)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    return screen.findByRole('option', { name: /Open Walk/ }).then((option) => {
+      expect(option.firstElementChild).toHaveTextContent('W')
+      expect(option.querySelectorAll('svg')).toHaveLength(1)
+    })
+  })
   it('lets the shell scroll results while the palette keeps its own list scroller', () => {
     const page = mount(true)
     expect(page.container.querySelector('[cmdk-list]')).not.toHaveClass('overflow-y-auto')

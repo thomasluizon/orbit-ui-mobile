@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { habitInitial } from '@orbit/shared/utils'
 
 interface HabitRowLeadingProps {
   title: string
@@ -36,7 +37,7 @@ export function HabitRowLeading({
             }),
       }}
     >
-      {emoji ?? [...title.trim().toUpperCase()][0]}
+      {emoji ?? habitInitial(title)}
     </span>
   )
 }
