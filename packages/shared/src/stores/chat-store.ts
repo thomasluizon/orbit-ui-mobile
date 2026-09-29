@@ -15,6 +15,7 @@ export interface ChatStoreState {
   contextualSuggestion: { id: string; label: string; prompt: string } | null
   addMessage: (message: ChatMessage) => void
   updateMessage: (id: string, patch: Partial<Omit<ChatMessage, 'id'>>) => void
+  transitionMessage: (id: string, transition: (message: ChatMessage) => ChatMessage) => void
   appendToMessageContent: (id: string, text: string) => void
   setIsTyping: (value: boolean) => void
   setStreamingMessageId: (value: string | null) => void
@@ -58,6 +59,11 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
         messages: state.messages.map((message) =>
           message.id === id ? { ...message, ...patch } : message,
         ),
+      })),
+
+    transitionMessage: (id, transition) =>
+      set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? transition(message) : message),
       })),
 
     appendToMessageContent: (id, text) =>

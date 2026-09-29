@@ -55,6 +55,11 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain('onboarding.featureGuide.habitsSection.creatingTitle')
   })
 
+  it('omits internal habit type entries from the habits guide', () => {
+    render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
+    expect(document.body.textContent).not.toMatch(/habitsSection\.(oneTimeTasks|flexible|general)(Title|Desc)/)
+  })
+
   it.each([
     { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
     { tab: 'habits', title: 'onboarding.featureGuide.habitsSection.creatingTitle' },

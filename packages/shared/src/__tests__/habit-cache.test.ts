@@ -4,6 +4,7 @@ import { createMockHabit } from './factories'
 import { habitKeys } from '../query/keys'
 import {
   checkTodayAllDoneOrDefer,
+  clearCachedOptimisticSkip,
   deduplicateHabitList,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
@@ -12,7 +13,7 @@ import {
   updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
-import { optimisticRemoveHabits } from '../utils/habit-optimistic'
+import { optimisticRemoveHabits, optimisticSkipMarker } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
 
 describe('habit list cache targeting', () => {
@@ -274,5 +275,39 @@ describe('deduplicateHabitList', () => {
     const result = deduplicateHabitList([first, other, latest])
 
     expect(result.map((item) => [item.id, item.title])).toEqual([['a', 'New'], ['b', 'Exercise']])
+  })
+})
+
+describe('clearCachedOptimisticSkip', () => {
+  const marked = (id: string, date: string, children: HabitScheduleItem[] = []): HabitScheduleItem => ({
+    ...createMockHabit({ id }), children, linkedGoals: [], [optimisticSkipMarker]: date,
+  } as HabitScheduleItem)
+
+  it('clears the settled marker from every cached list, nested rows included, and keeps other dates and lists', () => {
+    const queryClient = new QueryClient()
+    const completeKey = habitKeys.list({ dateFrom: '2025-01-02', dateTo: '2025-01-02', completeDay: true })
+    const ordinaryKey = habitKeys.list({ dateFrom: '2025-01-02', dateTo: '2025-01-02' })
+    const otherDateKey = habitKeys.list({ dateFrom: '2025-01-03', dateTo: '2025-01-03' })
+    const emptyKey = habitKeys.list({})
+    const countKey = habitKeys.listTotalCount({ dateFrom: '2025-01-02', dateTo: '2025-01-02' })
+    const child = marked('child', '2025-01-02')
+    queryClient.setQueryData(completeKey, [marked('skipped', '2025-01-02'), marked('parent', '2025-01-01', [child])])
+    queryClient.setQueryData(ordinaryKey, [marked('skipped', '2025-01-02')])
+    const untouched = [marked('skipped', '2025-01-03')]
+    queryClient.setQueryData(otherDateKey, untouched)
+    queryClient.setQueryData(emptyKey, undefined)
+    queryClient.setQueryData(countKey, 2)
+
+    clearCachedOptimisticSkip(queryClient, 'skipped', '2025-01-02')
+    clearCachedOptimisticSkip(queryClient, 'child', '2025-01-02')
+
+    const complete = queryClient.getQueryData<HabitScheduleItem[]>(completeKey)
+    expect(complete?.[0]).not.toHaveProperty(optimisticSkipMarker)
+    expect(complete?.[1]?.children[0]).not.toHaveProperty(optimisticSkipMarker)
+    expect(complete?.[1]).toHaveProperty(optimisticSkipMarker, '2025-01-01')
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(ordinaryKey)?.[0]).not.toHaveProperty(optimisticSkipMarker)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(otherDateKey)).toBe(untouched)
+    expect(queryClient.getQueryData(emptyKey)).toBeUndefined()
+    expect(queryClient.getQueryData<number>(countKey)).toBe(2)
   })
 })

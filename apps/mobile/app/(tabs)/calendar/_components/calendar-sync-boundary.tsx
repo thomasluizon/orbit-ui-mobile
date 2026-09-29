@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
@@ -8,12 +8,16 @@ import {
 } from '@orbit/shared/utils'
 import { RefreshCw } from '@/components/ui/icons'
 import { Switch } from '@/components/ui/switch'
+import { PillButton } from '@/components/ui/pill-button'
+import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { AppTokensV2 } from '@/lib/theme'
 
 interface CalendarSyncBoundaryProps {
   autoSyncState: CalendarAutoSyncState | undefined
   displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
+  onSyncNow: () => Promise<void>
   t: TFunction
   tokens: AppTokensV2
 }
@@ -22,11 +26,14 @@ export function CalendarSyncBoundary({
   autoSyncState,
   displayTime,
   onAutoSyncChange,
+  onSyncNow,
   t,
   tokens,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSaving, setIsSaving] = useAccountScopedState(false)
+  const [isSyncing, setIsSyncing] = useAccountScopedState(false)
+  const { isOnline } = useOffline()
 
   const connected = isCalendarSyncConnectionActive(
     autoSyncState?.hasGoogleConnection ?? false,
@@ -41,12 +48,22 @@ export function CalendarSyncBoundary({
     : t('calendar.autoSync.lastSyncedNever')
 
   const handleAutoSyncChange = async (enabled: boolean) => {
-    if (isSaving) return
+    if (isSaving || !isOnline) return
     setIsSaving(true)
     try {
       await onAutoSyncChange(enabled)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleSyncNow = async () => {
+    if (isSyncing || !isOnline) return
+    setIsSyncing(true)
+    try {
+      await onSyncNow()
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -60,14 +77,13 @@ export function CalendarSyncBoundary({
         <Text style={styles.lastSynced}>{lastSynced}</Text>
       </View>
       {connected ? (
-        <View style={styles.switchLine}>
-          <Text style={styles.switchLabel}>{t('calendar.dayDetail.autoSync')}</Text>
-          <Switch
-            checked={autoSyncState?.enabled ?? false}
-            onChange={(enabled) => void handleAutoSyncChange(enabled)}
-            label={t('calendar.dayDetail.autoSync')}
-          />
-        </View>
+        <>
+          <View style={styles.switchLine}>
+            <Text style={styles.switchLabel}>{t('calendar.dayDetail.autoSync')}</Text>
+            <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
+          </View>
+          <View style={styles.syncAction}><PillButton variant="ghost" size="sm" disabled={!isOnline} loading={isSyncing} onClick={() => void handleSyncNow()}>{t('calendar.autoSync.syncNow')}</PillButton></View>
+        </>
       ) : null}
     </View>
   )
@@ -108,6 +124,7 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'space-between',
       gap: 12,
     },
+    syncAction: { alignItems: 'flex-end' },
     switchLabel: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,

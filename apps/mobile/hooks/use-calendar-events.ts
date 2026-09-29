@@ -31,7 +31,7 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
     queryKey: [...calendarKeys.all, 'manual-fetch', options.timeZone],
     queryFn: async () => {
       try {
-        const data = await apiClient<CalendarSyncEvent[]>(API.calendar.events)
+        const data = await apiClient<CalendarSyncEvent[]>(`${API.calendar.events}?includeImported=true`)
         return { status: 'connected', events: Array.isArray(data) ? data : [] }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : ''

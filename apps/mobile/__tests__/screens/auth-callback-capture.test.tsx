@@ -243,7 +243,7 @@ describe('AuthCallbackScreen capture retention', () => {
 
   it.each([
     ['Google sign in', null, '/'],
-    ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
+    ['Google Calendar connection', '/calendar?import=1', '/calendar?import=1'],
   ])('exchanges a matching %s link after process recreation once', async (_flow, returnUrl, destination) => {
     const { markPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
@@ -267,7 +267,7 @@ describe('AuthCallbackScreen capture retention', () => {
   })
   it.each([
     ['Google sign in', undefined, null, '/'],
-    ['Google Calendar connection', '/calendar-sync', '/calendar-sync', '/calendar-sync'],
+    ['Google Calendar connection', '/calendar?import=1', '/calendar?import=1', '/calendar?import=1'],
   ])('keeps a same-process %s callback when the screen sees the link first', async (
     _flow, returnUrl, storedReturnUrl, destination,
   ) => {

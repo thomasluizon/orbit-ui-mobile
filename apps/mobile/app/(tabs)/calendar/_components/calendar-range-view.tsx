@@ -144,7 +144,7 @@ export function CalendarRangeView({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 16, paddingHorizontal: 4, paddingTop: 12, paddingBottom: 24 },
+  container: { gap: 16, paddingHorizontal: 4, paddingTop: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rangeLabel: {
     flex: 1,

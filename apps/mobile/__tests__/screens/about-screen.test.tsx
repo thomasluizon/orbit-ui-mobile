@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutScreen from '@/app/about'
+import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import en from '@orbit/shared/i18n/en.json'
 
 const TestRenderer = require('react-test-renderer')
@@ -45,6 +46,11 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: (props: React.PropsWithChildren<{ edges?: readonly string[] }>) =>
+    React.createElement('SafeAreaView', props, props.children),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({ open, title, children }: { open: boolean; title: string; children: React.ReactNode }) =>
     open ? React.createElement('View', { testID: 'guide-sheet' }, React.createElement('Text', null, title), children) : null,
@@ -159,5 +165,22 @@ describe('AboutScreen', () => {
       tree.root.findAll((node) => node.props.testID === 'about-fact-account'),
     ).toHaveLength(0)
     expect(mocks.useProfile).not.toHaveBeenCalled()
+  })
+  it.each([
+    [0, 24, ['top', 'bottom']],
+    [96, 96, ['top']],
+  ] as const)('ends clear of the system bar or the pinned chrome at shell clearance %i', (clearance, paddingBottom, edges) => {
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ShellScrollerClearanceContext.Provider value={clearance}>
+          <AboutScreen />
+        </ShellScrollerClearanceContext.Provider>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === 'SafeAreaView')[0]!.props.edges).toEqual(edges)
+    const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({ paddingBottom })
   })
 })

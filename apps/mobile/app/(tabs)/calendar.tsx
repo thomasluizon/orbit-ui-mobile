@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
   ReduceMotion,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addMonths,
   addDays,
@@ -52,6 +52,10 @@ import {
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
   calendarMonthForDay,
+  shouldOpenCalendarImportSheet,
+  calendarImportTitleKey,
+  calendarImportRouteRequestKey,
+  runCalendarSyncNowWithFeedback,
 } from "@orbit/shared/utils";
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -63,12 +67,15 @@ import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import {
   useCalendarAutoSyncState,
   useSetCalendarAutoSync,
+  useRunCalendarSyncNow,
 } from "@/hooks/use-calendar-auto-sync";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { getAccountGeneration } from "@/lib/session-epoch";
+import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset';
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2, radius } from "@/lib/theme";
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
@@ -83,6 +90,8 @@ import {
 import { CalendarLoadingBar } from "./calendar/_components/calendar-loading-bar";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content';
+import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
@@ -93,6 +102,27 @@ import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range" | "agenda";
+
+function calendarDateFnsLocale(locale: string) {
+  return locale === "pt-BR" ? ptBR : enUS;
+}
+
+function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
+  const router = useRouter();
+  useEffect(() => {
+    if (routeRequestKey && !importRequested) router.replace('/calendar');
+  }, [routeRequestKey, importRequested, router]);
+}
+
+function CalendarImportActions({ state, onImport, t }: {
+  state: CalendarImportActionState;
+  onImport: () => void;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return <PillButton disabled={state.disabled} onClick={onImport}>
+    {plural(t('calendar.importButton', { count: state.count }), state.count)}
+  </PillButton>;
+}
 
 const calendarLayoutStyles = StyleSheet.create({
   inlineDay: { paddingHorizontal: 16, paddingTop: 24 },
@@ -293,11 +323,12 @@ function CalendarProfileState({
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(), []);
+  const clearance = useShellScrollerClearance();
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <ScrollView style={styles.profileStateWrap} contentContainerStyle={styles.profileScrollContent}>
+      <ScrollView style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
@@ -382,9 +413,12 @@ function CalendarScreenContent({
   setView,
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
+  const clearance = useShellScrollerClearance();
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string; import?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
-  const { showError } = useAppToast();
+  const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
+  const { showError, showSuccess } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
@@ -395,7 +429,7 @@ function CalendarScreenContent({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const dateFnsLocale = i18n.language === "pt-BR" ? ptBR : enUS;
+  const dateFnsLocale = calendarDateFnsLocale(i18n.language);
   const weekStartsOn = profile.weekStartDay;
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
@@ -425,6 +459,30 @@ function CalendarScreenContent({
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeOffset, setRangeOffset] = useState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useAccountScopedState(false);
+  const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null);
+  const importActionRef = useRef<CalendarImportActionHandle>(null);
+  const commitCalendarImport = useCallback(() => importActionRef.current?.importSelected(), []);
+  const [initialImportEventId, setInitialImportEventId] = useAccountScopedState<string | null>(null);
+  const reviewRequested = params.mode === 'review';
+  const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, params.import === '1');
+  const importRequested = useAccountBoundRouteRequest(routeRequestKey);
+  useClearStaleCalendarImportRoute(routeRequestKey, importRequested);
+  const showImportSheet = shouldOpenCalendarImportSheet(profile.hasProAccess, isImportOpen, importRequested);
+  const openImport = useCallback((eventId: string | null) => {
+    const open = () => {
+      setIsDayDetailOpen(false);
+      setInitialImportEventId(eventId);
+      setIsImportOpen(true);
+    };
+    if (isDayDetailOpen && view === 'week') closeSheet(open);
+    else open();
+  }, [closeSheet, isDayDetailOpen, setInitialImportEventId, setIsImportOpen, view]);
+  const closeImport = useCallback(() => {
+    setIsImportOpen(false);
+    setInitialImportEventId(null);
+    if (importRequested) router.replace('/calendar');
+  }, [importRequested, router, setInitialImportEventId, setIsImportOpen]);
   const [showRecurring, setShowRecurring] = useState(true);
   const {
     data: calendarEventsResult,
@@ -445,11 +503,14 @@ function CalendarScreenContent({
     },
   });
   const setCalendarAutoSync = useSetCalendarAutoSync();
+  const runCalendarSyncNow = useRunCalendarSyncNow();
 
   const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
     const requestAccount = getAccountGeneration();
     try {
       await setCalendarAutoSync.mutateAsync({ enabled });
+      if (getAccountGeneration() !== requestAccount) return;
+      showSuccess(t(enabled ? 'calendar.autoSync.enableSuccess' : 'calendar.autoSync.disableSuccess'));
     } catch (error: unknown) {
       if (getAccountGeneration() !== requestAccount) return;
       showError(getFriendlyErrorMessage(
@@ -459,7 +520,15 @@ function CalendarScreenContent({
         'generic',
       ));
     }
-  }, [setCalendarAutoSync, showError, t]);
+  }, [setCalendarAutoSync, showError, showSuccess, t]);
+
+  const handleCalendarSyncNow = useCallback(async () => {
+    await runCalendarSyncNowWithFeedback(
+      () => runCalendarSyncNow.mutateAsync(),
+      (error) => showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
+      getAccountGeneration,
+    );
+  }, [runCalendarSyncNow, showError, t]);
 
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {
@@ -860,12 +929,14 @@ function CalendarScreenContent({
             autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
-            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+            onReconnectCalendarEvents={() => openImport(null)}
+            onOpenCalendarImport={openImport}
             onViewPro={() => router.push('/upgrade')}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             pendingEntryStates={pendingEntryStates}
             onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+            onCalendarSyncNow={handleCalendarSyncNow}
             onEntryChange={changeSelectedEntry}
             onGoToDay={() => router.push(`/?date=${selectedDay}`)}
             displayTime={displayTime}
@@ -885,12 +956,11 @@ function CalendarScreenContent({
         emptyLabel={t('calendar.emptyStat')}
       />
 
-      <View style={{ height: 24 }} />
     </View>
   );
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarHeader
         monthLabel={monthLabel}
@@ -911,21 +981,23 @@ function CalendarScreenContent({
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
       {activeError && (
-        <View style={styles.errorWrap}>
-          <View
-            style={[
-              styles.errorCard,
-              { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-            ]}
-          >
-            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
-              {t("calendar.loadError")}
-            </Text>
-            <PillButton variant="ghost" onClick={() => void activeRefresh()}>
-              {t("common.retry")}
-            </PillButton>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
+          <View style={styles.errorWrap}>
+            <View
+              style={[
+                styles.errorCard,
+                { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: tokens.fg2 }]}>
+                {t("calendar.loadError")}
+              </Text>
+              <PillButton variant="ghost" onClick={() => void activeRefresh()}>
+                {t("common.retry")}
+              </PillButton>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       )}
       {!activeError && view === "month" && (
         <FlatList
@@ -936,6 +1008,7 @@ function CalendarScreenContent({
           renderItem={null}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
           onScroll={handleCalendarScroll}
           scrollEventThrottle={16}
@@ -951,7 +1024,7 @@ function CalendarScreenContent({
       {!activeError && view !== "month" && (
         <ScrollView
           style={styles.container}
-          contentContainerStyle={styles.viewScrollContent}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         >
           {view === "week" ? (
@@ -1034,15 +1107,14 @@ function CalendarScreenContent({
             autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
-            onReconnectCalendarEvents={() => closeSheet(() => {
-              setIsDayDetailOpen(false);
-              router.push('/calendar-sync');
-            })}
+            onReconnectCalendarEvents={() => openImport(null)}
+            onOpenCalendarImport={openImport}
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             pendingEntryStates={pendingEntryStates}
             onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+            onCalendarSyncNow={handleCalendarSyncNow}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}
@@ -1050,6 +1122,24 @@ function CalendarScreenContent({
             tokens={tokens}
           />
         </View>
+      </Sheet>) : null}
+      {showImportSheet ? (<Sheet
+        ref={importSheetRef}
+        onClose={closeImport}
+        title={t(calendarImportTitleKey(reviewRequested))}
+        actions={importActionState ? <CalendarImportActions state={importActionState} onImport={commitCalendarImport} t={t} /> : undefined}
+      >
+        <CalendarImportContent
+          reviewMode={reviewRequested}
+          initialEventId={initialImportEventId}
+          actionRef={importActionRef}
+          onActionStateChange={setImportActionState}
+          onClose={() => closeImportSheet()}
+          onGoToHabits={() => closeImportSheet(() => {
+            setIsImportOpen(false);
+            router.push('/');
+          })}
+        />
       </Sheet>) : null}
     </SafeAreaView>
   );
@@ -1060,10 +1150,6 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
 
-
-    viewScrollContent: {
-      paddingBottom: 24,
-    },
 
     agendaView: {
       alignSelf: "flex-start",
@@ -1103,7 +1189,7 @@ function createStyles() {
       flex: 1,
     },
     profileScrollContent: {
-      paddingVertical: 12,
+      paddingTop: 12,
     },
     profileLoading: {
       gap: 0,

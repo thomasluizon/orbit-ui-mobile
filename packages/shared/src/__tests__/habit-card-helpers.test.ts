@@ -94,6 +94,12 @@ describe('habit card helpers', () => {
     )
   })
 
+  it('omits a frequency label when the habit has no schedule', () => {
+    const translate = createTranslator()
+    expect(computeHabitFrequencyLabel(createMockHabit({ frequencyUnit: null, isGeneral: false }), translate)).toBeNull()
+    expect(computeHabitFrequencyLabel(createMockHabit({ frequencyUnit: 'Day', isGeneral: true }), translate)).toBeNull()
+  })
+
   it.each([
     { messages: ptBR, expected: 'Todo dia' },
     { messages: en, expected: 'Every day' },

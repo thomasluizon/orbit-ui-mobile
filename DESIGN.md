@@ -1194,6 +1194,7 @@ The same test governs any future external component, from any source. Nothing en
 
 ## Bans
 
+- **The internal Astra risk class never renders to the person.** The owner's "Every Astra write shows a preview the person approves first" decision keeps risk as an internal input to irreversible marks and destructive confirmation.
 - **No decorative glow.** Not on the CTA, not on the FAB, not anywhere. A softened glow is still a glow.
 - **No gradient wash.** No gradient borders, no gradient text, no mesh, no bloom, no scanlines, no film grain, no "subtle texture".
 - **No Liquid Glass.** No glass material, no frosted chrome as a look, no translucent panel stacked on a translucent panel.

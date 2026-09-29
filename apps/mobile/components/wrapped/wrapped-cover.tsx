@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { Chip } from '@/components/ui/chip'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
@@ -31,10 +32,11 @@ export function WrappedCover({
   onRetry,
 }: Readonly<WrappedCoverProps>) {
   const { t } = useTranslation()
+  const clearance = useShellScrollerClearance()
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.cover, { paddingTop: topInset + 32 }]}
+      contentContainerStyle={[styles.cover, { paddingTop: topInset + 32 }, clearance > 0 ? { paddingBottom: clearance } : undefined]}
       style={styles.coverScroller}
       testID={`wrapped-cover-${state}`}
     >

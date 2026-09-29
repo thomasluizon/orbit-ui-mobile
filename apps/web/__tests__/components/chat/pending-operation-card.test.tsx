@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
 
@@ -10,6 +10,7 @@ const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean)
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
+  if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
   return key
 } }))
 vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
@@ -80,11 +81,11 @@ describe('PendingOperationCard', () => {
     revise.mockReset()
   })
 
-  it('states risk and requires a sheet before a destructive operation', async () => {
+  it('hides risk and requires a sheet before a destructive operation', async () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
-    expect(screen.getByText('chat.operation.risk.destructive')).toBeInTheDocument()
+    expect(screen.queryByText('chat.operation.risk.destructive')).not.toBeInTheDocument()
     expect(screen.getByText('chat.operation.irreversible')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     expect(confirm).not.toHaveBeenCalled()
@@ -134,6 +135,48 @@ describe('PendingOperationCard', () => {
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
+  })
+
+  it('keeps the completed preview and opens its created habit', async () => {
+    const onOpenTarget = vi.fn()
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    confirm.mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created', targetName: 'Beber água',
+    } } })
+    render(<PendingOperationCard pendingOperation={pendingOperation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} onOpenTarget={onOpenTarget} />)
+    expect(screen.getByText('Beber água')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
+    expect(screen.queryByText(/chat.operation.risk/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.done')).toBeInTheDocument())
+    const open = screen.getByRole('button', { name: 'Open details: Beber água' })
+    expect(open).toHaveTextContent('chat.action.open')
+    fireEvent.click(open)
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('shows an execution error and lets the same preview retry', async () => {
+    confirm.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
+    expect(screen.getByText('chat.operationFailed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.done')).toBeInTheDocument())
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a terminal operation failure in the preview with localized status', async () => {
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
+    render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('chat.operationFailed')).toBeInTheDocument())
+    expect(screen.queryByText('Habit could not be created.')).not.toBeInTheDocument()
+    expect(screen.getByText('status.failed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
   })
 
   it('removes one item before approval executes the remaining preview', async () => {

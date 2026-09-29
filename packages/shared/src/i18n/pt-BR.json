@@ -31,8 +31,8 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Mostrar hábitos gerais no Hoje",
-      "showGeneralDesc": "Mostra seus hábitos gerais abaixo dos agendados para hoje"
+      "showGeneral": "Hábitos sem dia certo no Hoje",
+      "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
     },
     "clock": {
       "title": "Relógio",
@@ -379,6 +379,15 @@
       "friday": "Sexta-feira",
       "saturday": "Sábado",
       "sunday": "Domingo"
+    },
+    "daysValue": {
+      "monday": "segunda",
+      "tuesday": "terça",
+      "wednesday": "quarta",
+      "thursday": "quinta",
+      "friday": "sexta",
+      "saturday": "sábado",
+      "sunday": "domingo"
     }
   },
   "auth": {
@@ -460,8 +469,6 @@
     "emptyState": "Nenhum hábito ainda",
     "count": "nenhum hábito | um hábito | {n} hábitos",
     "overdue": "Atrasado",
-    "oneTimeTask": "Tarefa única",
-    "generalHabit": "Geral",
     "schedule": {
       "dueInDays": "em {count}d",
       "scheduledOn": "agendado para {date}"
@@ -495,7 +502,6 @@
     "viewsLabel": "Visualizações de hábitos",
     "viewToday": "Hoje",
     "viewAll": "Todos",
-    "viewGeneral": "Geral",
     "sectionLabel": "Hábitos",
     "frequencyFilter": "Filtrar por frequência",
     "searchPlaceholder": "Buscar hábitos...",
@@ -586,7 +592,6 @@
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
     "bulkLogConfirm": "Registrar",
     "bulkSkipTitle": "Pular hábitos",
-    "bulkSkipMessage": "Pular ou adiar {count} hábito selecionado? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã. | Pular ou adiar {count} hábitos selecionados? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã.",
     "bulkSkipConfirm": "Pular",
     "bulkBar": {
       "log": "Registrar selecionados",
@@ -765,7 +770,7 @@
       "habitTypeAvoid": "Evitar este hábito",
       "habitTypeBuildHint": "Uma rotina que você quer fortalecer.",
       "habitTypeAvoidHint": "Você marca quando resistiu, não quando fez.",
-      "generalBadHabit": "Hábitos gerais não podem ser marcados como maus hábitos",
+      "generalBadHabit": "Hábitos sem dia certo não podem ser marcados como maus hábitos.",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",
       "subHabitInputLabel": "Sub-hábito {index}",
@@ -924,7 +929,7 @@
       "weekly": "Semanal",
       "monthly": "Mensal",
       "yearly": "Anual",
-      "oneTime": "Único"
+      "oneTime": "Uma vez"
     },
     "breakdown": {
       "breakInto": "Dividir {name} em:",
@@ -943,7 +948,7 @@
         "daily": "Todo dia",
         "weekly": "Toda semana",
         "threePerWeek": "3 vezes por semana",
-        "oneTime": "Tarefa única"
+        "oneTime": "Uma vez"
       },
       "successCreated": "''{name}'' criado",
       "errorExpired": "Esta pergunta expirou. Pode perguntar de novo.",
@@ -992,13 +997,16 @@
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
-      "eventsTitle": "Disponíveis para importar",
+      "eventsTitle": "Na sua agenda",
+      "searchEvents": "Buscar eventos",
+      "noMatchingEvents": "Nenhum evento corresponde a \"{query}\".",
+      "clearEventSearch": "Limpar busca",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
       "autoSync": "Sincronizar sozinho",
       "disconnectedTitle": "Google Calendar desconectado",
       "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
-      "noEventsToImport": "Nada para importar do Google Calendar neste dia."
+      "noEventsToImport": "Nenhum evento do Google Calendar neste dia."
     },
     "proBoundary": {
       "title": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",
@@ -1038,7 +1046,7 @@
       "resisted": "resistiu"
     },
     "completionHistory": "Histórico de Conclusão",
-    "showRecurring": "Mostrar hábitos recorrentes",
+    "showRecurring": "Mostrar hábitos que se repetem",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",
@@ -1064,7 +1072,7 @@
     "fetchError": "Não foi possível buscar os eventos. Tente de novo.",
     "importError": "Não foi possível importar os eventos. Tente de novo.",
     "retry": "Tentar novamente",
-    "recurring": "Recorrente",
+    "recurring": "Repete",
     "recurrenceDaily": "Diário",
     "recurrenceWeekly": "Semanal",
     "recurrenceWeeklyDays": "Semanal ({days})",
@@ -1136,12 +1144,17 @@
       "title": "Você está sem conexão"
     },
     "pendingOp": {
-      "risk": {
-        "high": "Risco alto",
-        "destructive": "Destrutivo",
-        "low": "Risco baixo"
-      },
       "capability": {
+        "habits-write": "Hábitos",
+        "goals-write": "Metas",
+        "tags-write": "Tags",
+        "profile-preferences-write": "Configurações do perfil",
+        "profile-ai-memory-write": "Memória da Astra",
+        "profile-ai-summary-write": "Resumo diário",
+        "notifications-write": "Notificações",
+        "checklist-templates-write": "Modelos de checklist",
+        "referrals-write": "Dados de indicação",
+        "support-write": "Mensagem para suporte",
         "habits-delete": "Excluir hábitos",
         "habits-bulk-write": "Alterações de hábitos em lote",
         "habits-bulk-delete": "Exclusão de hábitos em lote",
@@ -1292,8 +1305,7 @@
       "pending": "Pendente",
       "more": "Mostrar mais",
       "today": "Hoje",
-      "overdue": "Atrasado",
-      "general": "Geral"
+      "overdue": "Atrasado"
     },
     "metrics": {
       "title": "Seu progresso",
@@ -1565,8 +1577,8 @@
         "end_date": "Data de término",
         "due_time": "Horário",
         "is_bad_habit": "Hábito ruim",
-        "is_general": "Hábito geral",
-        "is_flexible": "Agenda flexível",
+        "is_general": "Sem dia certo",
+        "is_flexible": "Qualquer dia",
         "checklist_items": "Itens da lista",
         "sub_habits": "Sub-hábitos",
         "date": "Data",
@@ -1585,11 +1597,6 @@
       "stepUpMessage": "Confirme a identidade no aparelho antes de continuar.",
       "stepUpAction": "Confirmar identidade",
       "openProfile": "Abrir Perfil",
-      "risk": {
-        "low": "Risco baixo",
-        "destructive": "Destrutivo",
-        "high": "Risco alto"
-      },
       "outcome": {
         "PendingConfirmation": "Aguardando confirmação",
         "Denied": "Não disponível",
@@ -2300,11 +2307,11 @@
         "creatingTitle": "Criando hábitos",
         "creatingDesc": "Toque no botão + na parte de baixo da tela, ou peça à IA no chat. Defina um nome, uma descrição opcional e a frequência (diária, semanal em dias específicos, mensal ou anual).",
         "frequenciesTitle": "Frequências e agendamento",
-        "frequenciesDesc": "Os hábitos podem se repetir todo dia, em dias específicos da semana, todo mês ou todo ano. Você também pode criar tarefas únicas, sem frequência. O app mostra só os hábitos agendados para cada dia.",
+        "frequenciesDesc": "Os hábitos podem se repetir todo dia, em certos dias da semana, todo mês ou todo ano. Você também pode criar um hábito para um dia só.",
         "subHabitsTitle": "Sub-hábitos",
         "subHabitsDesc": "Divida hábitos complexos em etapas menores. Por exemplo, a 'Rotina matinal' pode ter 'Meditar', 'Escrever' e 'Alongar' como sub-hábitos. Cada um pode ser concluído por conta própria.",
         "checklistsTitle": "Checklists",
-        "checklistsDesc": "Adicione um checklist a qualquer hábito para listas simples, como compras, mala de viagem ou tarefas. Marque os itens na tela de detalhes. Em hábitos recorrentes, o checklist reinicia sozinho quando você registra o hábito. Você também pode salvar checklists como modelos reutilizáveis.",
+        "checklistsDesc": "Adicione um checklist a um hábito para coisas como compras ou viagem. Marque os itens na tela de detalhes. O checklist reinicia quando você registra um hábito que se repete. Você pode salvar checklists como modelos.",
         "loggingTitle": "Registrando conclusões",
         "loggingDesc": "Toque no círculo ao lado de qualquer hábito para marcá-lo como feito. Toque de novo para desfazer. Você também pode registrar hábitos pelo chat da IA, dizendo coisas como 'corri hoje'.",
         "badHabitsTitle": "Acompanhamento de maus hábitos",
@@ -2318,27 +2325,21 @@
         "bulkSelectTitle": "Ações em massa",
         "bulkSelectDesc": "Toque em 'Selecionar' para entrar no modo de seleção. Escolha vários hábitos para registrar, pular ou excluir de uma vez.",
         "filteringTitle": "Busca e filtros",
-        "filteringDesc": "Use a barra de busca para encontrar hábitos pelo nome. Filtre por frequência (diária, semanal, mensal, anual, única) nos chips abaixo da busca.",
+        "filteringDesc": "Encontre hábitos pelo nome na busca. Use os chips abaixo dela para filtrar por dia, semana, mês, ano ou uma vez.",
         "summaryTitle": "Resumo diário da IA",
         "summaryDesc": "Quando ativado nas Configurações, um cartão de resumo feito pela IA aparece no topo do Hoje, com insights sobre o seu dia e uma dose de incentivo.",
         "remindersTitle": "Lembretes",
         "remindersDesc": "Adicione lembretes a qualquer hábito. Hábitos com horário recebem lembretes relativos (ex: 15 min antes). Hábitos sem horário recebem lembretes em horários específicos, no mesmo dia ou no dia anterior. Você recebe uma notificação push para cada lembrete.",
-        "oneTimeTasksTitle": "Tarefas únicas",
-        "oneTimeTasksDesc": "Crie tarefas sem frequência recorrente, para objetivos de um único dia. Perfeito para coisas como 'comprar mantimentos amanhã' ou 'consulta no dentista sexta'.",
         "duplicateTitle": "Duplicar hábitos",
         "duplicateDesc": "Toque e segure um cartão de hábito ou use o menu dele para duplicá-lo com tudo: frequência, tags e lembretes. Ótimo para criar hábitos parecidos num instante.",
         "dateNavTitle": "Navegação por data",
         "dateNavDesc": "Use as setas para a esquerda e para a direita no Hoje para passar de um dia para outro. O Hoje também mostra os hábitos atrasados que ainda precisam de atenção.",
         "endDatesTitle": "Datas de término",
-        "endDatesDesc": "Defina uma data de término opcional em hábitos recorrentes. O hábito para de aparecer na sua agenda depois dessa data. Ótimo para desafios temporários ou rotinas com prazo.",
+        "endDatesDesc": "Defina uma data de término opcional para um hábito que se repete. Ele para de aparecer na agenda depois desse dia.",
         "goalLinkingTitle": "Vincular a metas",
         "goalLinkingDesc": "Vincule hábitos às suas metas pelo formulário do hábito. Hábitos vinculados entram no acompanhamento da meta e mostram como suas ações diárias empurram os objetivos maiores.",
         "tagDisplayTitle": "Tags nos cartões",
         "tagDisplayDesc": "As tags que você dá aos hábitos aparecem como badges coloridos no próprio cartão. Identifique as categorias num relance, sem abrir cada hábito.",
-        "flexibleTitle": "Hábitos flexíveis",
-        "flexibleDesc": "Conclua X vezes por semana ou por mês, no seu ritmo, sem dias fixos. Hábitos flexíveis contam quantas vezes você os conclui dentro de um período, dando liberdade para escolher quando.",
-        "generalTitle": "Hábitos gerais",
-        "generalDesc": "Hábitos sem agendamento, sempre à vista, sem data de vencimento. Perfeitos para hábitos contínuos, como escrever ou ler, que você quer acompanhar sem prender a dias específicos. Ative 'Mostrar gerais no Hoje' nas Configurações.",
         "skipTitle": "Pular x Registrar",
         "skipDesc": "Pular marca um hábito como deixado de propósito naquele dia, sem quebrar a sua sequência. Use quando você escolheu não fazer um hábito de propósito (dia de descanso, viagem etc.), e não quando simplesmente esqueceu."
       },
@@ -2356,7 +2357,7 @@
       },
       "astraSection": {
         "canDoTitle": "Criar e registrar",
-        "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar conclusões. Ela também cria tarefas únicas, como 'comprar ovos amanhã'.",
+        "canDoDesc": "Diga à Astra quais hábitos você quer e ela cria. Diga 'corri hoje' para registrar um. Você também pode pedir um hábito para um dia só, como 'comprar ovos amanhã'.",
         "toolsBreadthTitle": "63 ferramentas integradas",
         "toolsBreadthDesc": "A Astra não é só conversa -- ela age. São 63 ferramentas que cobrem hábitos, sub-hábitos, metas, tags, checklists, registros, lembretes, calendário e sua conta. Quase tudo que você faz tocando na tela, você faz pedindo. O plano grátis inclui 5 mensagens de IA por dia; o Pro sobe para 50.",
         "manageTitle": "Atualizar e excluir",
@@ -2392,7 +2393,7 @@
         "streaksTitle": "Sequências e progresso",
         "streaksDesc": "O calendário mostra os seus padrões de conclusão ao longo do tempo. Use-o para perceber onde a constância falha e quais dias você costuma deixar passar, e assim ajustar a rotina.",
         "googleCalendarTitle": "Importar do Google Calendar",
-        "googleCalendarDesc": "Importe eventos do seu Google Calendar como tarefas únicas. Sincronize a sua agenda com o Orbit para que reuniões, compromissos e eventos virem tarefas automaticamente no dia certo."
+        "googleCalendarDesc": "Importe eventos do seu Google Calendar. Reuniões e compromissos aparecem no Orbit no dia certo."
       },
       "rewardsSection": {
         "xpLevelsTitle": "XP e níveis",
@@ -2623,8 +2624,8 @@
       "transcriptionFailed": "Não deu para transcrever o áudio. Tente de novo.",
       "logNotAllowed": "Não dá para registrar esse hábito agora.",
       "selfParent": "Um hábito não pode ser sub-hábito de si mesmo.",
-      "generalMismatchWithParent": "A opção Geral de um sub-hábito precisa ser igual à do hábito principal.",
-      "generalMismatchWithChildren": "Não é possível mudar isso enquanto houver sub-hábitos com uma opção Geral diferente.",
+      "generalMismatchWithParent": "Um sub-hábito e o hábito principal precisam ter a mesma opção 'sem dia certo'.",
+      "generalMismatchWithChildren": "Iguale a opção 'sem dia certo' dos sub-hábitos antes de mudar este hábito.",
       "calendarNotConnected": "Conecte o Google Agenda primeiro.",
       "calendarReconnect": "Sua conexão com o Google Agenda expirou. Reconecte para continuar.",
       "calendarFetchFailed": "Não foi possível carregar seus eventos. Tente de novo.",
@@ -2897,7 +2898,7 @@
     },
     "achievements": {
       "first_orbit": {
-        "name": "Primeira Órbita",
+        "name": "Primeira órbita",
         "description": "Crie seu primeiro hábito"
       },
       "liftoff": {
@@ -2905,27 +2906,27 @@
         "description": "Complete seu primeiro hábito"
       },
       "mission_control": {
-        "name": "Controle de Missão",
+        "name": "Controle de missão",
         "description": "Crie sua primeira meta"
       },
       "onboarding_complete": {
-        "name": "Tudo Pronto",
+        "name": "Tudo pronto",
         "description": "Conclua sua lista de configuração"
       },
       "week_warrior": {
-        "name": "Guerreiro da Semana",
+        "name": "Guerreiro da semana",
         "description": "Alcance uma sequência de 7 dias"
       },
       "fortnight_focus": {
-        "name": "Foco Quinzenal",
+        "name": "Foco quinzenal",
         "description": "Alcance uma sequência de 14 dias"
       },
       "monthly_master": {
-        "name": "Mestre Mensal",
+        "name": "Mestre mensal",
         "description": "Alcance uma sequência de 30 dias"
       },
       "quarter_champion": {
-        "name": "Campeão Trimestral",
+        "name": "Campeão trimestral",
         "description": "Alcance uma sequência de 90 dias"
       },
       "centurion": {
@@ -2933,23 +2934,23 @@
         "description": "Alcance uma sequência de 100 dias"
       },
       "year_of_discipline": {
-        "name": "Ano de Disciplina",
+        "name": "Ano de disciplina",
         "description": "Alcance uma sequência de 365 dias"
       },
       "half_year_hero": {
-        "name": "Herói do Semestre",
+        "name": "Herói do semestre",
         "description": "Alcance uma sequência de 180 dias"
       },
       "streak_titan": {
-        "name": "Titã da Sequência",
+        "name": "Titã da sequência",
         "description": "Alcance uma sequência de 500 dias"
       },
       "getting_momentum": {
-        "name": "Ganhando Ritmo",
+        "name": "Ganhando ritmo",
         "description": "Complete 10 hábitos no total"
       },
       "building_habits": {
-        "name": "Construindo Hábitos",
+        "name": "Construindo hábitos",
         "description": "Complete 50 hábitos no total"
       },
       "dedicated": {
@@ -2965,11 +2966,11 @@
         "description": "Complete 1.000 hábitos no total"
       },
       "goal_setter": {
-        "name": "Definidor de Metas",
+        "name": "Definidor de metas",
         "description": "Crie 3 metas"
       },
       "goal_crusher": {
-        "name": "Destruidor de Metas",
+        "name": "Destruidor de metas",
         "description": "Complete sua primeira meta"
       },
       "overachiever": {
@@ -2977,19 +2978,19 @@
         "description": "Complete 5 metas"
       },
       "dream_maker": {
-        "name": "Realizador de Sonhos",
+        "name": "Realizador de sonhos",
         "description": "Complete 10 metas"
       },
       "perfect_day": {
-        "name": "Dia Perfeito",
+        "name": "Dia perfeito",
         "description": "Complete todos os hábitos em um dia"
       },
       "perfect_week": {
-        "name": "Semana Perfeita",
+        "name": "Semana perfeita",
         "description": "Complete todos os hábitos por 7 dias consecutivos"
       },
       "perfect_month": {
-        "name": "Mês Perfeito",
+        "name": "Mês perfeito",
         "description": "Complete todos os hábitos por 30 dias consecutivos"
       },
       "early_bird": {
@@ -2997,7 +2998,7 @@
         "description": "Complete um hábito antes das 7h (10 vezes)"
       },
       "night_owl": {
-        "name": "Coruja Noturna",
+        "name": "Coruja noturna",
         "description": "Complete um hábito após as 22h (10 vezes)"
       },
       "comeback": {
@@ -3005,23 +3006,23 @@
         "description": "Retome após 7+ dias de inatividade"
       },
       "bad_habit_breaker": {
-        "name": "Quebrador de Maus Hábitos",
+        "name": "Quebrador de maus hábitos",
         "description": "Alcance 30 dias sem um mau hábito"
       },
       "first_cheer": {
-        "name": "Boas Energias",
+        "name": "Boas energias",
         "description": "Envie ou receba seu primeiro incentivo"
       },
       "first_friend": {
-        "name": "Primeiro Amigo",
+        "name": "Primeiro amigo",
         "description": "Adicione seu primeiro amigo"
       },
       "squad_goals": {
-        "name": "Esquadrão Completo",
+        "name": "Esquadrão completo",
         "description": "Alcance 5 amigos"
       },
       "cheerleader": {
-        "name": "Líder de Torcida",
+        "name": "Líder de torcida",
         "description": "Envie 25 incentivos"
       },
       "show_off": {
@@ -3033,19 +3034,19 @@
         "description": "Veja sua primeira Retrospectiva"
       },
       "team_player": {
-        "name": "Espírito de Equipe",
+        "name": "Espírito de equipe",
         "description": "Entre no seu primeiro desafio cooperativo"
       },
       "mission_accomplished": {
-        "name": "Missão Cumprida",
+        "name": "Missão cumprida",
         "description": "Complete um desafio cooperativo"
       },
       "battle_buddy": {
-        "name": "Parceiro de Batalha",
+        "name": "Parceiro de batalha",
         "description": "Inicie uma dupla de responsabilidade"
       },
       "streak_immortal": {
-        "name": "Sequência Imortal",
+        "name": "Sequência imortal",
         "description": "Alcance uma sequência de 1000 dias"
       },
       "unstoppable": {

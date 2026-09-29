@@ -24,18 +24,18 @@ export type PreparedStepUpExecution =
   | { ok: false; error: string; stale?: boolean };
 
 interface UsePendingOperationExecutionOptions {
-  appendExecutionMessage: (
+  handleExecutedOperation: (
     response: AgentExecuteOperationResponse,
   ) => Promise<void>;
 }
 
 /**
  * Wraps the agent pending-operation confirm/step-up/execute API calls used by
- * the chat composer. Each call returns a discriminated `ok` result and appends
- * the resulting agent message via the injected `appendExecutionMessage`.
+ * the chat composer. Each call returns a discriminated `ok` result and
+ * invalidates affected queries through the injected completion callback.
  */
 export function usePendingOperationExecution({
-  appendExecutionMessage,
+  handleExecutedOperation,
 }: UsePendingOperationExecutionOptions) {
   const { t, i18n } = useTranslation();
 
@@ -90,13 +90,13 @@ export function usePendingOperationExecution({
           },
         );
 
-        await appendExecutionMessage(execution);
+        await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
         return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
       }
     },
-    [appendExecutionMessage, t],
+    [handleExecutedOperation, t],
   );
 
   const preparePendingOperationStepUp = useCallback(
@@ -153,13 +153,13 @@ export function usePendingOperationExecution({
           },
         );
 
-        await appendExecutionMessage(execution);
+        await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
         return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && error.status === 409 };
       }
     },
-    [appendExecutionMessage, t],
+    [handleExecutedOperation, t],
   );
 
   const prepareStepUpForBubble = useCallback(

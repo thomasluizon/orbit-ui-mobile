@@ -135,7 +135,7 @@ describe('NotificationDetailModal', () => {
   it.each([
     ['/', '/'], ['/calendar', '/calendar'], ['/profile', '/profile'],
     ['/progress?wrapped=month&year=2026&month=8', '/wrapped?period=month&year=2026&month=8'],
-    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/'], ['/calendar-sync?mode=review', '/calendar'],
+    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/'], ['/calendar-sync?mode=review', '/calendar?mode=review'],
   ])('opens %s in its existing destination %s', (url, destination, habitId: string | null = null) => {
     render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url, habitId }} />)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))

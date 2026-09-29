@@ -78,7 +78,7 @@ function Section({ title, children }: Readonly<{ title: string; children: ReactN
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{children}</div>
+  return <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4">{children}</div>
 }
 
 /** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
@@ -126,7 +126,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
       <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-hidden="true">
+      <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
       <div className="flex flex-col gap-3" aria-hidden="true">
@@ -493,7 +493,7 @@ function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
       <WindowFigureGrid>
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
-        {bestWeekday ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
+        {bestWeekday ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} valueSize="lg" label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
         {topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
       </WindowFigureGrid>
     </WindowFrame>
@@ -588,7 +588,7 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 py-4 md:px-0">
+    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 pt-4 md:px-0">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>

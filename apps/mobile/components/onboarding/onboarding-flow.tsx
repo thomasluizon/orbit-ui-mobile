@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Modal, StyleSheet, Text, View } from 'react-native'
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
@@ -29,6 +29,7 @@ import {
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { Shell412 } from '@/components/shell/shell-412'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { Toast } from '@/components/ui/app-toast'
 import { PillButton } from '@/components/ui/pill-button'
@@ -65,6 +66,11 @@ function DoneTabBar({ onSelect }: Readonly<{ onSelect: (id: string) => void }>) 
       { id: 'progresso', label: t('nav.progress'), icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
       { id: 'perfil', label: t('nav.profile'), icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
     ]} />
+}
+
+function DoneScroll({ children }: Readonly<{ children: ReactNode }>) {
+  const clearance = useShellScrollerClearance()
+  return <ScrollView style={styles.doneScroll} contentContainerStyle={[styles.done, { paddingBottom: clearance }]}>{children}</ScrollView>
 }
 
 interface DecisionProps {
@@ -278,10 +284,10 @@ export function OnboardingFlow() {
   }
 
   if (astraConversationOpen) return null
-  if (step === ONBOARDING_DONE_STEP) return <Modal visible={overlayOpen} animationType="none" onRequestClose={() => void completeAndLeave()}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id as keyof typeof DONE_TAB_ROUTES] : undefined)} />}><View style={styles.done}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></View></Shell412></Modal>
+  if (step === ONBOARDING_DONE_STEP) return <Modal visible={overlayOpen} animationType="none" onRequestClose={() => void completeAndLeave()}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id as keyof typeof DONE_TAB_ROUTES] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412></Modal>
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.replace('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
   return <Modal visible animationType="none" onRequestClose={() => runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) })}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></Modal>
 }
 
-const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', gap: 12 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, done: { alignSelf: 'center', flex: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 24, width: '100%' } })
+const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', gap: 12 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 24, width: '100%' } })

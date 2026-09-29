@@ -2,30 +2,44 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { ClarificationRequest } from '@orbit/shared/types'
+import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
+import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/shared/chat'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
+import { PendingOperationCard } from './pending-operation-card'
 
-export function ClarificationCard({ clarificationRequest, entityName }: Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null }>) {
+type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null; pendingOperation?: PendingAgentOperation; savedState?: PendingOperationMessageState; onPreview?: (operation: PendingAgentOperation) => void; onStateChange?: (operationId: string, patch: PendingOperationMessageState) => void } & Pick<MessageBubbleProps,
+  'onPendingOperationRevise' | 'onPendingOperationRefresh' | 'onPendingOperationConfirmExecute' | 'onPendingOperationPrepareStepUp' | 'onPendingOperationVerifyStepUp' | 'onActionChipClick'>>
+
+export function ClarificationCard({ clarificationRequest, entityName, pendingOperation: savedPreview, savedState, onPreview, onStateChange, onPendingOperationRevise, onPendingOperationRefresh, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp, onActionChipClick }: ClarificationCardProps) {
   const t = useTranslations()
   const resolve = useResolveClarification()
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
   const [errorKey, setErrorKey] = useState<string | null>(null)
+  const [localPreview, setLocalPreview] = useState<PendingAgentOperation | null>(null)
+  const pendingOperation = savedPreview ?? localPreview
   const choose = async (label: string, value: string) => {
     setErrorKey(null)
     try {
       const result = await resolve.mutateAsync({ operationId: clarificationRequest.operationId, value })
       if (!result.ok) setErrorKey(errorKeyForStatus(result.status))
+      else if (result.data.operation.status === 'PendingConfirmation' && result.data.pendingOperation) {
+        setLocalPreview(result.data.pendingOperation)
+        onPreview?.(result.data.pendingOperation)
+      }
       else if (result.data.operation.status !== 'Succeeded') setErrorKey('habits.clarification.errorGeneric')
       else setResolvedLabel(label)
     } catch {
       setErrorKey('habits.clarification.errorGeneric')
     }
   }
+  const showPreview = pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp
   return (
-    <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
+    <>
+    <span role="status" aria-live="polite" className="sr-only">{showPreview ? t('chat.operation.pendingTitle') : ''}</span>
+    {showPreview ? <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} /> : <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
       <div className="flex flex-col items-start gap-3">
         {resolvedLabel ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</p> : (
           <div className="flex flex-wrap gap-2">{clarificationRequest.quickActions.map((action) => {
@@ -35,7 +49,8 @@ export function ClarificationCard({ clarificationRequest, entityName }: Readonly
         )}
         {errorKey ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(errorKey)}</p> : null}
       </div>
-    )} />
+    )} />}
+    </>
   )
 }
 

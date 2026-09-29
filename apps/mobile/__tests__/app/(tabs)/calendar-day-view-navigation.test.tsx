@@ -54,9 +54,11 @@ vi.mock('react-native', async () => {
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
+  useLocalSearchParams: () => ({}),
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/calendar-sync/calendar-import-content', () => ({ CalendarImportContent: () => null }))
 
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
@@ -109,10 +111,14 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
     return { data: autoSyncState }
   },
   useSetCalendarAutoSync: () => ({ mutateAsync: mockSetAutoSync }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(async () => {}) }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: vi.fn() }),
+}))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: true }),
 }))
 
 

@@ -8,7 +8,6 @@ import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslations } from 'next-intl'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
-import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { OtpInput } from '@/components/ui/otp-input'
@@ -137,8 +136,8 @@ function StepUpVerificationSheet({
   useEffect(() => {
     if (!open) closeSheet(onClosed)
   }, [open, onClosed, closeSheet])
-  const completed = (status: 'done' | 'failed') => {
-    if (openRef.current) closeSheet(() => onCompleted(status))
+  const completed: PendingOperationVerificationProps['onCompleted'] = (result) => {
+    if (openRef.current) closeSheet(() => onCompleted(result))
   }
   const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
     genericError: t('stepUp.genericError'),
@@ -168,7 +167,6 @@ const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} />,
   button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
-  risk: (label) => <Badge variant="outline">{label}</Badge>,
   stepUp: (props) => <StepUp {...props} />,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
@@ -191,8 +189,12 @@ export function PendingOperationCard({
   onConfirmExecute,
   onRevise,
   onRefresh,
+  onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
+  focusTitleOnMount,
+  savedState,
+  onStateChange,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -202,8 +204,12 @@ export function PendingOperationCard({
     onConfirmExecute={onConfirmExecute}
     onRevise={onRevise}
     onRefresh={onRefresh}
+    onOpenTarget={onOpenTarget}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
+    focusTitleOnMount={focusTitleOnMount}
+    savedState={savedState}
+    onStateChange={onStateChange}
     render={pendingOperationRenderers}
     labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
   />

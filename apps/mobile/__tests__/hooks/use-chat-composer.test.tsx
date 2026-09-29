@@ -139,7 +139,7 @@ vi.mock('@/components/navigation/destination-tab-bar', () => ({ DestinationTabBa
 vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
 vi.mock('@/components/ui/fab', () => ({ Fab: () => null }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
-vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
+vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
@@ -903,10 +903,7 @@ describe('mobile useChatComposer', () => {
       }),
     )
     expect(result).toMatchObject({ ok: true })
-    expect(useChatStore.getState().messages[0]).toMatchObject({
-      role: 'ai',
-      content: 'chat.operationDone',
-    })
+    expect(useChatStore.getState().messages).toHaveLength(0)
   })
 
   it('selects a valid image from the library and lets it be removed', async () => {

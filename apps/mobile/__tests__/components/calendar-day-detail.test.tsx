@@ -14,6 +14,9 @@ import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-da
 
 const TestRenderer = require('react-test-renderer')
 
+const network = { isOnline: true }
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
+
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
 }))
@@ -58,6 +61,10 @@ vi.mock('@/components/dates/event-row', () => ({
   EventRow: (props: Record<string, unknown>) => React.createElement('EventRowMock', props),
 }))
 
+vi.mock('@/components/ui/input', () => ({
+  Input: (props: Record<string, unknown>) => React.createElement('InputMock', props),
+}))
+
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
@@ -81,7 +88,7 @@ const translations: Record<string, string> = {
   'calendar.status.resisted': en.calendar.status.resisted,
   'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
-  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
+  'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
   'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
   'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
@@ -122,6 +129,7 @@ interface RenderDetailProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onOpenCalendarImport?: (eventId: string | null) => void
   onViewPro?: () => void
   loggable?: boolean
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
@@ -137,6 +145,7 @@ function CalendarDayDetailHarness({
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onOpenCalendarImport = () => {},
   onViewPro = () => {},
   loggable = false,
   onCalendarAutoSyncChange = async () => {},
@@ -173,12 +182,14 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onOpenCalendarImport={onOpenCalendarImport}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       pendingEntryStates={pendingEntryStates}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
@@ -228,8 +239,10 @@ describe('CalendarDayDetail (mobile)', () => {
   })
 
   it('renders timed and all-day Google events through the read-only event row', () => {
+    const onOpenCalendarImport = vi.fn()
     const tree = renderDetail({
       entries: [makeEntry()],
+      onOpenCalendarImport,
       calendarEventsState: 'ready',
       calendarEvents: [
         {
@@ -242,6 +255,8 @@ describe('CalendarDayDetail (mobile)', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Work',
+          isImported: false,
         },
         {
           id: 'event-2',
@@ -253,6 +268,9 @@ describe('CalendarDayDetail (mobile)', () => {
           isRecurring: false,
           recurrenceRule: null,
           reminders: [],
+          calendarName: 'Personal',
+          isImported: true,
+          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
         },
       ],
     })
@@ -261,14 +279,22 @@ describe('CalendarDayDetail (mobile)', () => {
       expect.objectContaining({
         time: '09:00',
         title: 'Team meeting',
-        source: 'calendar.title',
+        source: 'Work',
       }),
       expect.objectContaining({
         allDayLabel: 'calendar.timeGrid.allDay',
         title: 'Company holiday',
-        source: 'calendar.title',
+        source: 'Personal',
       }),
     ])
+    const importButtons = nodes(tree, 'PillButtonMock').filter((button) =>
+      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Team meeting'))
+    expect(importButtons).toHaveLength(1)
+    const openImport = importButtons[0]?.props.onClick as () => void
+    openImport()
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    expect(nodes(tree, 'PillButtonMock').some((button) =>
+      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Company holiday'))).toBe(false)
   })
 
   it('renders a failed events request instead of the empty result', () => {
@@ -319,6 +345,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(typeof onClick).toBe('function')
     if (typeof onClick === 'function') TestRenderer.act(() => onClick())
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+    expect(tree.root.findAll((node) => node.props.testID === 'calendar-sync-line')).toHaveLength(0)
   })
 
   it('renders the free sync boundary with one route to Orbit Pro', () => {
@@ -355,7 +382,7 @@ describe('CalendarDayDetail (mobile)', () => {
   it('renders the empty events state after an empty response resolves', () => {
     const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
     const empty = nodes(tree, 'Text').filter(
-      (node) => node.props.children === 'Nothing left to import from Google Calendar on this day.',
+      (node) => node.props.children === 'No Google Calendar events on this day.',
     )
     const errors = nodes(tree, 'Text').filter(
       (node) => node.props.accessibilityLabel === 'calendar.fetchError',
@@ -740,5 +767,48 @@ describe('CalendarDayDetail (mobile)', () => {
     })
 
     expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+  })
+
+  it('shows one offline disconnected state without a reconnect action', () => {
+    network.isOnline = false
+    try {
+      const onReconnectCalendarEvents = vi.fn()
+      const tree = renderDetail({
+        calendarEventsState: 'not-connected',
+        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+        onReconnectCalendarEvents,
+      })
+      const text = nodes(tree, 'Text').map((node) => node.props.children)
+      expect(text).toContain('offline.calendar.title')
+      expect(text).toContain('offline.calendar.reason')
+      expect(text).not.toContain('Google Calendar disconnected')
+      expect(nodes(tree, 'PillButtonMock').some((node) => node.props.children === 'Reconnect')).toBe(false)
+      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
+  })
+
+  it('searches and pages a busy day within twenty event rows', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
+      id: `event-${index}`, title: `Event ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    }))
+    const tree = renderDetail({ calendarEvents })
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
+    const search = nodes(tree, 'InputMock')[0]
+    expect(search?.props.label).toBe('calendar.dayDetail.searchEvents')
+    const next = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'common.next')
+    TestRenderer.act(() => (next?.props.onClick as () => void)())
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(3)
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('Event 22'))
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(1)
+    expect(nodes(tree, 'EventRowMock')[0]?.props.title).toBe('Event 22')
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('No such event'))
+    expect(nodes(tree, 'Text').some((node) => node.props.children === 'calendar.dayDetail.noMatchingEvents')).toBe(true)
+    const clear = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'calendar.dayDetail.clearEventSearch')
+    TestRenderer.act(() => (clear?.props.onClick as () => void)())
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
   })
 })

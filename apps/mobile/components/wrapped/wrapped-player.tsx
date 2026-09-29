@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -34,6 +35,7 @@ export function WrappedPlayer({
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const { t, i18n } = useTranslation()
+  const clearance = useShellScrollerClearance()
   const windowLabel = closedMonth && period === 'month'
     ? formatClosedWrappedMonth(closedMonth, i18n.language)
     : t(`wrapped.player.window.${period}`)
@@ -93,7 +95,7 @@ export function WrappedPlayer({
         <ScrollView
           key={current.id}
           style={styles.player}
-          contentContainerStyle={styles.slideScrollContent}
+          contentContainerStyle={[styles.slideScrollContent, { paddingBottom: clearance }]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.page}>

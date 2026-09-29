@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
+import { useRef, useState } from 'react'
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 
@@ -83,6 +84,8 @@ let mockAutoSyncState: {
       }
     | undefined
   isLoading: boolean
+  isError: boolean
+  refetch: ReturnType<typeof vi.fn>
 } = {
   data: {
     enabled: false,
@@ -91,6 +94,8 @@ let mockAutoSyncState: {
     hasGoogleConnection: true,
   },
   isLoading: false,
+  isError: false,
+  refetch: vi.fn(),
 }
 let mockSuggestions: { data: unknown[] | undefined; isLoading: boolean } = {
   data: [],
@@ -217,14 +222,27 @@ let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknow
 const originalFetch = globalThis.fetch
 
 
-import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+import { useTranslations } from 'next-intl'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+
+function CalendarSyncScreen() {
+  const [action, setAction] = useState<CalendarImportActionState | null>(null)
+  const actionRef = useRef<CalendarImportActionHandle>(null)
+  const t = useTranslations()
+  return <>
+    <div data-testid="sheet-body">
+      <CalendarImportContent reviewMode={mockSearchParams.get('mode') === 'review'} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} />
+    </div>
+    {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
+  </>
+}
 
 function renderPage() {
   const queryClient = new QueryClient()
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncPage />
+      <CalendarSyncScreen />
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
@@ -254,6 +272,8 @@ describe('CalendarSyncPage', () => {
         hasGoogleConnection: true,
       },
       isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     }
     mockSuggestions = { data: [], isLoading: false }
     mockSetAutoSync.mockClear()
@@ -282,13 +302,6 @@ describe('CalendarSyncPage', () => {
     expect(container).toBeTruthy()
   })
 
-  it('renders the page header with title and back button', () => {
-    renderPage()
-    expect(screen.getAllByText('calendar.title').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
-  })
-
-
   it('redirects non-Pro users to upgrade', async () => {
     mockHasProAccess = false
     mockProfile = { id: 'u1', hasProAccess: false }
@@ -302,7 +315,7 @@ describe('CalendarSyncPage', () => {
   it('shows loading state initially for Pro users', () => {
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
     renderPage()
-    expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'calendar.fetchingEvents' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
@@ -321,6 +334,34 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('calendar.notConnectedDesc')).toBeInTheDocument()
     expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')[0]).toHaveTextContent('auth.signInWithGoogle')
+    const linkGlyph = screen.getByRole('status').querySelector('svg.tabler-icon-link')
+    expect(linkGlyph?.getAttribute('class')).toContain('text-[var(--fg-1)]')
+    expect(linkGlyph?.parentElement).toHaveStyle({ background: 'var(--bg-well)' })
+  })
+
+  it('shows the connection action in a disconnected review sheet', () => {
+    mockSearchParams.set('mode', 'review')
+    mockAutoSyncState.data = {
+      enabled: false, status: 'ReconnectRequired', lastSyncedAt: null, hasGoogleConnection: false,
+    }
+
+    renderPage()
+
+    expect(screen.getByText('calendar.notConnectedTitle')).toBeInTheDocument()
+    expect(screen.getByText('auth.signInWithGoogle')).toBeInTheDocument()
+  })
+
+  it('shows retry when connection status fails instead of claiming disconnection', () => {
+    mockAutoSyncState.data = undefined
+    mockAutoSyncState.isError = true
+    renderPage()
+
+    expect(screen.getByText('calendar.errorTitle')).toBeInTheDocument()
+    expect(screen.queryByText('calendar.notConnectedTitle')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('calendar.retry'))
+    expect(mockAutoSyncState.refetch).toHaveBeenCalled()
   })
 
   it('requests renewed Google calendar consent from the not-connected state', async () => {
@@ -337,7 +378,7 @@ describe('CalendarSyncPage', () => {
     fireEvent.click(connectButton)
 
     expect(mockGoogleAssign).toHaveBeenCalledWith('/api/auth/google/start?purpose=calendar')
-    expect(sessionStorage.getItem('auth_return_url')).toBe('/calendar-sync')
+    expect(sessionStorage.getItem('auth_return_url')).toBe('/calendar?import=1')
     vi.unstubAllGlobals()
   })
 
@@ -405,7 +446,7 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
     expect(issue).toBeVisible()
     expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
 
     const row = screen.getByText('Second Monday review').closest('button')?.parentElement
     expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
@@ -435,7 +476,7 @@ describe('CalendarSyncPage', () => {
     renderPage()
 
     expect((await screen.findByText('Alternate week training')).closest('button')).not.toBeDisabled()
-    const importButton = screen.getByText(/calendar.importButton/).closest('button')
+    const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
     fireEvent.click(importButton!)
     expect(mockBulkMutate).toHaveBeenCalledWith(expect.objectContaining({
@@ -466,7 +507,7 @@ describe('CalendarSyncPage', () => {
     expect((await screen.findByText('Unsupported training')).closest('button')).toBeDisabled()
     expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
     expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
   })
 
   it('explains and disables a finite month-end suggestion before import', async () => {
@@ -560,7 +601,7 @@ describe('CalendarSyncPage', () => {
     })
 
     expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('calendar.importButton')
+    expect(await screen.findByText(/calendar.importButton/)).toBeInTheDocument()
   })
 
   it('renders import button with selected count', async () => {
@@ -646,10 +687,12 @@ describe('CalendarSyncPage', () => {
 
     expect(screen.getByText('Morning Workout')).toBeVisible()
     const refusals = screen.getAllByText('offline.calendar.reason')
-    expect(refusals).toHaveLength(2)
+    expect(refusals).toHaveLength(1)
     expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
-    const importButton = screen.getByText('calendar.importButton:{"count":1}').closest('button')!
-    expect(importButton.parentElement?.parentElement).toContainElement(refusals[1]!)
+    const importButton = (await screen.findByText('calendar.importButton:{"count":1}')).closest('button')!
+    expect(screen.getByTestId('sheet-body')).toContainElement(refusals[0]!)
+    expect(screen.getByTestId('sheet-actions')).toContainElement(importButton)
+    expect(screen.getByTestId('sheet-body')).not.toContainElement(importButton)
     expect(importButton).toBeDisabled()
     expect(mockBulkMutate).not.toHaveBeenCalled()
   })
@@ -670,7 +713,7 @@ describe('CalendarSyncPage', () => {
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
 
     expect(screen.getByText('Team meeting')).toBeVisible()
-    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+    expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })).toBeDisabled()
     expect(mockBulkMutate).not.toHaveBeenCalled()
     expect(mockDismissSuggestion).not.toHaveBeenCalled()
@@ -709,7 +752,7 @@ describe('CalendarSyncPage', () => {
       expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
 
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
@@ -748,7 +791,7 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
     })
@@ -839,6 +882,9 @@ describe('CalendarSyncPage', () => {
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: calendarKeys.syncSuggestions(),
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...calendarKeys.all, 'manual-fetch'],
     })
   })
 })

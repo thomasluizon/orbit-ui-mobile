@@ -268,11 +268,13 @@ describe('ProfilePage', () => {
         : key
     }
     mockProfileState.current = {
-      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR', weekStartDay: 1 }),
       isLoading: false,
       error: null,
     }
     render(<ProfilePage />)
+
+    expect(screen.getByRole('button', { name: /Semana começa em/ })).toHaveTextContent('segunda')
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
       'Você', 'Astra', 'Notificações', 'Mais do Orbit', 'Encerrar',
@@ -547,7 +549,7 @@ describe('ProfilePage', () => {
     }
     render(<ProfilePage />)
     const proMore = within(screen.getByTestId('profile-settings-group-more'))
-    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar-sync')
+    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar')
     expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 

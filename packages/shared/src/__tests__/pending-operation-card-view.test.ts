@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makePendingAgentOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
   type PendingOperationCardActions,
@@ -21,7 +21,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', risk: 'Destructive',
+  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
   more: (count) => `and ${count} more`,
@@ -38,13 +38,13 @@ it('formats time values in the pending change preview', () => {
   expect(JSON.stringify(record.frame?.items)).toContain('clock:19:30')
 })
 
-it('labels the pending operation from its capability and risk', () => {
+it('labels the pending operation from its capability without exposing risk', () => {
   const translated = buildPendingOperationCardLabels(
     makePendingAgentOperation(),
     (key) => key,
     (value) => value,
   )
-  expect(translated.risk).toBe('chat.operation.risk.destructive')
+  expect(translated).not.toHaveProperty('risk')
   expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
   expect(translated.confirm).toBe('chat.pendingOp.action.habits-delete')
   expect(translated.fieldLabels).toMatchObject({
@@ -52,6 +52,28 @@ it('labels the pending operation from its capability and risk', () => {
     dismiss_import: 'chat.operation.field.dismiss_import',
     run_sync: 'chat.operation.field.run_sync',
   })
+})
+
+it('names every held write capability in both locales', () => {
+  const ids = [
+    'habits.write', 'goals.write', 'tags.write', 'profile.preferences.write',
+    'profile.ai-memory.write', 'profile.ai-summary.write', 'notifications.write',
+    'checklist-templates.write', 'referrals.write', 'support.write',
+  ]
+  for (const messages of [en, ptBR]) {
+    for (const capabilityId of ids) {
+      const key = capabilityId.replaceAll('.', '-') as keyof typeof messages.chat.pendingOp.capability
+      const name = messages.chat.pendingOp.capability[key]
+      expect(name, capabilityId).toBeTruthy()
+      const labels = buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (translationKey) =>
+        translationKey.startsWith('chat.pendingOp.capability.')
+          ? name
+          : translationKey, (value) => value)
+      expect(labels.name).toBe(name)
+      expect(labels.confirm).toBe('chat.pendingOp.action.applyChanges')
+      expect(labels).not.toHaveProperty('risk')
+    }
+  }
 })
 
 it('uses verb-first consequence labels for known confirmation capabilities in both locales', () => {
@@ -113,7 +135,6 @@ function createRenderers() {
     blockFrame: (props) => { record.frame = props; return 'frame' },
     button: (spec) => { record.buttons.push(spec); return spec.label },
     confirmSheet: (props) => { record.confirm = props; return 'confirm' },
-    risk: (label) => label,
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
     editSheet: () => 'edit-sheet',
@@ -127,6 +148,33 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it('keeps the complete capability title visible in a narrow preview', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({ capabilityId: 'profile.preferences.write' }),
+    })
+    expect(record.frame?.wrapTitle).toBe(true)
+  })
+
+  it('names each completed row in its open control', () => {
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({
+      card: { ...createCard(), status: 'done', completedOperation: makeAgentOperationResult('Succeeded', 1), onOpenTarget: vi.fn() },
+      labels, render, onVerifyStepUp: vi.fn(),
+      pendingOperation: makePendingAgentOperation({
+        capabilityId: 'habits.bulk.write', previewFingerprint: 'preview',
+        changeTargetCount: 2,
+        changes: [
+          { entityId: 'habit-water', entityName: 'Water', field: 'title', oldValue: 'Water', newValue: 'Water', valueType: 'string' },
+          { entityId: 'habit-walk', entityName: 'Walk', field: 'title', oldValue: 'Walk', newValue: 'Walk', valueType: 'string' },
+        ],
+      }),
+    })
+    expect(record.buttons.filter((button) => button.label === 'Open').map((button) => button.accessibleName))
+      .toEqual(['Open details: Water', 'Open details: Walk'])
+  })
+
   it('names the affected resource on the irreversible confirmation', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({

@@ -49,7 +49,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
           <div data-legal-document-sections="" className="flex min-w-0 flex-col gap-6">
             {sections.map((section) => <Section key={section.id} section={section} />)}
           </div>
-          <section data-legal-document-closing="" className="flex min-w-0 flex-col gap-2 pb-6">
+          <section data-legal-document-closing="" className="flex min-w-0 flex-col gap-2">
             <h2 className="font-sans text-[var(--fs-md)] font-medium leading-[1.4] text-[var(--fg-1)]">{closingNote.title}</h2>
             {closingNote.paragraphs.map((paragraph) => (
               <p key={paragraph} className="min-w-0 font-sans text-base leading-[1.55] text-[var(--fg-1)] [overflow-wrap:anywhere]">

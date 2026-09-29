@@ -40,10 +40,10 @@ type BlockFrameItemEditArm =
 type BlockFrameCommon = {
   readonly title: string
   readonly wrapTitle?: boolean
+  readonly focusTitleOnMount?: boolean
   readonly count?: React.ReactNode
   readonly items: readonly BlockFrameItem[]
   readonly body?: React.ReactNode
-  readonly risk?: React.ReactNode
   readonly actions?: React.ReactNode
   readonly irreversibleLabel?: string
   readonly confirmNote?: string

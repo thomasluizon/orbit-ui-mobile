@@ -42,6 +42,7 @@ const overdueHabit = createMockHabit({ id: 'habit-1', title: 'Run', isOverdue: t
 interface TestNode {
   type: unknown
   props: Record<string, unknown>
+  parent?: TestNode
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -127,6 +128,15 @@ describe('RescheduleSheet (mobile)', () => {
         frequencyQuantity: 2,
       }),
     })
+  })
+
+  it('shows only the date line for a plan without a frequency', () => {
+    mockReschedule.suggestion = createMockRescheduleSuggestion({ frequencyUnit: null, frequencyQuantity: null, days: [] })
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const schedule = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
+    expect(schedule).toBeDefined()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'habits.oneTimeTask')).toHaveLength(0)
+    expect(schedule.parent?.findAll((node) => node.type === 'Text')).toHaveLength(1)
   })
 
   it('shows the upgrade prompt for free users and routes to /upgrade only after the sheet dismisses', () => {
