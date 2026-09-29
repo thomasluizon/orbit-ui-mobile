@@ -16,6 +16,7 @@ type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 
 type ExpectedBase = {
+  id?: string
   open?: boolean
   items?: readonly MenuItem[]
   onSelect?: (id: string) => void
@@ -82,6 +83,7 @@ export type MenuTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MenuItem['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<MenuItem['badge'], string | undefined>>,
   Assert<IsExactWidth<MenuProps['open'], boolean | undefined>>,
+  Assert<IsExactWidth<MenuProps['id'], string | undefined>>,
   Assert<IsExactWidth<MenuProps['items'], readonly MenuItem[] | undefined>>,
   Assert<IsExactWidth<MenuProps['onSelect'], ((id: string) => void) | undefined>>,
   Assert<IsExactWidth<MenuProps['onClose'], (() => void) | undefined>>,
