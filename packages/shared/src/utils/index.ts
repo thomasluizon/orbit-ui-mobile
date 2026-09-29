@@ -36,6 +36,7 @@ export {
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   getHabitDaysWithoutLog,
+  HABIT_SLIPPING_RATE_LIMIT,
   getHabitHistoryLog,
   getHabitStartDate,
   habitHistoryCutoff,

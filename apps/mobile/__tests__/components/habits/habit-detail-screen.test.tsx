@@ -77,6 +77,7 @@ const mocks = vi.hoisted(() => ({
   scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
+  updatePending: false,
   checklist: vi.fn(),
   deleteHabit: vi.fn(),
   showError: vi.fn(),
@@ -100,7 +101,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string | number>) => {
-      if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}`
+      if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
       if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
       if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
@@ -132,7 +133,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
-  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: false }),
+  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }),
   useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
   useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
 }))
@@ -391,6 +392,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
+    mocks.updatePending = false
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
@@ -454,7 +456,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(textsOf(tree.root)).not.toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).not.toContain('habits.detail.slippingLine:9:0:50')
 
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
@@ -464,7 +466,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
   })
 
   it('uses the account today overdue schedule on a historical detail', () => {
@@ -473,7 +475,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
     expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
 
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
@@ -501,12 +503,12 @@ describe('HabitDetailScreen', () => {
     ])
     expect(proposal.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['primary', 'sm'], ['ghost', 'sm']])
     expect(textsOf(tree.root)).not.toContain('habits.detail.slipping')
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
 
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
     TestRenderer.act(() => { pressPillButton(proposal, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
     expect(focus).toHaveBeenCalledOnce()
     focus.mockRestore()
 
@@ -1833,6 +1835,17 @@ describe('HabitDetailScreen', () => {
   })
 
 
+  it('keeps the plan label busy and holds Not now while the plan saves', () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    mocks.updatePending = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const proposal = tree.root.findAllByType('Proposed').find(isRescueProposal)!
+    expect(findPillButton(proposal, 'habits.detail.rescheduleAccept')?.props.loading).toBe(true)
+    expect(findPillButton(proposal, 'habits.reschedule.dismiss')?.props.disabled).toBe(true)
+  })
+
   it('offers Pro and Not now on the free rescue card without asking Astra', () => {
     openRescueGate()
     mocks.hasProAccess = false
@@ -1851,7 +1864,7 @@ describe('HabitDetailScreen', () => {
 
     TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
   })
 
   it('keeps delete confirmation open and reports a delete failure', async () => {

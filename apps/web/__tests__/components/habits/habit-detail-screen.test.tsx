@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
   scopedRequests: [] as { dateFrom: string; includeOverdue: boolean }[],
   log: vi.fn(),
   update: vi.fn(),
+  updatePending: false,
   checklist: vi.fn(),
   deleteHabit: vi.fn(),
   showError: vi.fn(),
@@ -60,7 +61,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({
   useLocale: () => mocks.language,
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}`
+    if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
@@ -96,7 +97,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
-  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: false }),
+  useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }),
   useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }),
   useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
 }))
@@ -154,7 +155,7 @@ vi.mock('@/components/ui/list-row', () => ({
     : <div data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, variant, size, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} data-variant={variant} data-size={size} onClick={onClick}>{children}</button>,
+  PillButton: ({ children, disabled, label, variant, size, loading, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} aria-busy={loading} data-variant={variant} data-size={size} onClick={onClick}>{children}</button>,
   Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
@@ -267,6 +268,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedRequests = []
     mocks.log.mockReset()
     mocks.update.mockReset()
+    mocks.updatePending = false
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
@@ -336,7 +338,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
   })
 
   it('uses the account today overdue schedule on a historical detail', () => {
@@ -344,7 +346,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
     expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
 
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
@@ -371,14 +373,14 @@ describe('HabitDetailScreen', () => {
     ])
     expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['primary', 'sm'], ['ghost', 'sm']])
     expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
 
     const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
     notNow.focus()
     fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
-    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine:9:0').closest('section'))
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section'))
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
@@ -406,6 +408,16 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).not.toHaveBeenCalled()
   })
 
+  it('keeps the plan label busy and holds Not now while the plan saves', () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    mocks.updatePending = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByAstra' })
+    expect(within(proposal).getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toHaveAttribute('aria-busy', 'true')
+    expect(within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })).toBeDisabled()
+  })
+
   it('offers Pro and Not now on the free rescue card without asking Astra', () => {
     openRescueGate()
     mocks.hasProAccess = false
@@ -425,7 +437,7 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
   })
 
   it('uses a primary action on narrow web and secondary on wide web', () => {

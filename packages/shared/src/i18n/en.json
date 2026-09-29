@@ -866,7 +866,7 @@
       "log": "Log {title}",
       "unlog": "Undo log for {title}",
       "lastThirtyDays": "Last 30 days",
-      "slippingLine": "No completions in the last {days, plural, one {day} other {# days}}. The streak is at {streak} and the 30-day rate is below 50%.",
+      "slippingLine": "No completions in the last {days, plural, one {day} other {# days}}. The streak is at {streak} and the 30-day rate is below {limit}%.",
       "metrics": "Progress",
       "totalCompletions": "Completions",
       "history": "History",
