@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
