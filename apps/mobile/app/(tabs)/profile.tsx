@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,6 +12,7 @@ import { ProfileSettingsContent } from './profile/_components/profile-settings-c
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
+  const clearance = useShellScrollerClearance()
   const { profile, isLoading, error, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -21,13 +23,13 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView
-      edges={['left', 'right', 'bottom']}
+      edges={['left', 'right']}
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
     >
       <ScreenReaderHeading title={t('nav.profile')} />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
       >
         {error ? (

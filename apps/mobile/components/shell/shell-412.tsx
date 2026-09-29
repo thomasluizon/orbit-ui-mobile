@@ -8,8 +8,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomChrome({
+  visible,
   navigationEnabled,
   pinnedSlot,
   notice,
@@ -19,6 +21,7 @@ function ShellBottomChrome({
   borderTopColor,
   safeAreaBottom,
 }: Readonly<{
+  visible: boolean
   navigationEnabled: boolean
   pinnedSlot: ReactNode
   notice: ReactNode
@@ -28,10 +31,6 @@ function ShellBottomChrome({
   borderTopColor: string
   safeAreaBottom: number
 }>) {
-  const visible = navigationEnabled
-    || notice !== undefined
-    || pinnedSlot !== undefined
-    || fab !== undefined
   if (!visible) return null
 
   return (
@@ -66,6 +65,10 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const notice = registeredNotice.content === undefined
     ? props.notice
     : <>{props.notice}{registeredNotice.content}</>
+  const hasBottomChrome = navigationEnabled
+    || notice !== undefined
+    || pinnedSlot !== undefined
+    || props.fab !== undefined
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
   const [keyboardVisible, setKeyboardVisible] = useState(false)
@@ -102,6 +105,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         </View>
 
         <ShellBottomChrome
+          visible={hasBottomChrome}
           navigationEnabled={navigationEnabled}
           pinnedSlot={pinnedSlot}
           notice={notice}
@@ -133,7 +137,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
         <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
-          {shell}
+          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? SHELL_SCROLLER_CLEARANCE : 0}>
+            {shell}
+          </ShellScrollerClearanceContext.Provider>
         </KeyboardAwareView>
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>

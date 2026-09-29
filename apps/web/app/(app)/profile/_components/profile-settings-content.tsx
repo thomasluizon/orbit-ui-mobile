@@ -8,7 +8,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
-import { buildProfilePickerLabels, buildClockFormatOptions, buildWeekStartOptions, resolveHourCycle, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
+import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -91,7 +91,7 @@ function buildYouRows(
   const { timeZone, languageLabel, weekStartLabel } = deriveProfilePreferenceValues({
     profile,
     selectedLanguage: controls.selectedLanguage,
-    weekStartOptions: buildWeekStartOptions(t),
+    translate: t,
   })
   const timeZoneLabel = timeZone
     ? t('profile.settingsRows.timezoneValue', { timeZone })

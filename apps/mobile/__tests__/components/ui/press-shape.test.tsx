@@ -87,6 +87,11 @@ describe('pressed hit area shapes', () => {
     expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
   })
 
+  it('fills the compact in-form ListRow body at the row radius', () => {
+    const row = <ListRow title="Templates" accessibilityLabel="Templates" compact inForm onClick={() => {}} />
+    expect(pressedStyle(row, 'Templates')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
+  })
+
   it('clips the chip press fill to its pill hit area', () => {
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Active">Active</Chip>, 'Active')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden' })
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgHover })

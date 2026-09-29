@@ -81,7 +81,10 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => React.createElement('FlowShell', null, header, notice, children, action),
 }))
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => React.createElement('Shell412', null, children, tabBar) }))
+vi.mock('@/components/shell/shell-412', async () => {
+  const { ShellScrollerClearanceContext, SHELL_SCROLLER_CLEARANCE } = await import('@/components/shell/shell-scroller-clearance')
+  return { Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => React.createElement('Shell412', null, React.createElement(ShellScrollerClearanceContext.Provider, { value: SHELL_SCROLLER_CLEARANCE }, children), tabBar) }
+})
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, activeId, onSelect }: { items: { id: string; label: string }[]; activeId: string; onSelect: (id: string) => void }) => React.createElement('TabBar', { items, activeId, onSelect }) }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', hint }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; hint?: string }) => React.createElement('PillButton', { onClick, disabled: disabled || loading, variant, size, hint }, children),
@@ -205,6 +208,7 @@ describe('OnboardingFlow state model', () => {
 
     await click(tree, 'onboarding.flow.remind.continue')
     expect(oneByType(tree.root, 'Done')).toBeDefined()
+    expect(prop<Record<string, number>[]>(oneByType(tree.root, 'ScrollView'), 'contentContainerStyle')).toContainEqual({ paddingBottom: 96 })
     expect(byType(tree.root, 'Text').filter(isCounterText)).toHaveLength(0)
   })
 

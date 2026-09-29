@@ -62,6 +62,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
@@ -72,7 +73,7 @@ function Section({ title, children, tokens }: Readonly<{ title: string; children
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
 
   return (
     <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
@@ -415,7 +416,7 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
-          ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
+          ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} valueSize="lg" label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
         {topHabit
           ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} />
@@ -488,7 +489,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
@@ -515,6 +516,7 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
 }
 
 export function ProgressContent() {
+  const clearance = useShellScrollerClearance()
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const openingGoalIdRef = useRef<string | null>(null)
   const goalCardRefs = useRef(new Map<string, View>())
@@ -559,8 +561,8 @@ export function ProgressContent() {
   }, [detailGoalId])
   return (
     <>
-      {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
-    <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
+    <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
       <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
@@ -573,7 +575,7 @@ export function ProgressContent() {
 
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
+  root: { flex: 1 }, content: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
   loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },

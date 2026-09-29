@@ -86,7 +86,7 @@ describe.each([
 
     act(() => { useAppToastStore.getState().showError('Unable to save') })
     await screen.findByText('Unable to save')
-    expect(container.querySelector('[data-shell-notice] [data-kind="neutral"]'))
+    expect(container.querySelector('[data-toast-page-host] [data-kind="neutral"]'))
       .toHaveTextContent('Unable to save')
   })
 

@@ -55,6 +55,18 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('renders the templates glyph in a compact pressed row', () => {
+    const tree = render(<ListRow icon="template" title="Templates" compact inForm onClick={vi.fn()} />)
+    const icon = tree.root.find((node) => node.props.testID === 'icon-template')
+    expect(icon.props.children).toBeTruthy()
+    const row = tree.root.findByType(View)
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    const body = tree.root.findByType(Pressable)
+    const bodyStyle = body.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    expect(StyleSheet.flatten(bodyStyle({ pressed: false }))).toMatchObject({ minHeight: 52, paddingHorizontal: 12, borderRadius: 12, overflow: 'hidden' })
+    expect(StyleSheet.flatten(bodyStyle({ pressed: true }))).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
+  })
+
   it('sets the rendered leading glyph from the row danger state', () => {
     const tokens = createTokensV2('purple', 'dark')
     const ordinary = render(<ListRow title="Sign out" icon={<User size={24} />} />)

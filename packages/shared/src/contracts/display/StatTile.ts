@@ -11,12 +11,14 @@ export interface DefaultStatTileProps extends StatTileBase {
   state?: 'default'
   /** the figure */
   value: string | number
+  valueSize?: 'lg'
   emptyLabel?: never
   loadingLabel?: never
 }
 
 export interface LoadingStatTileProps extends StatTileBase {
   state: 'loading'
+  valueSize?: never
   /** REQUIRED: the accessible name while loading, in the screen's locale (e.g. "Carregando" / "Loading") */
   loadingLabel: string
   value?: never
@@ -25,6 +27,7 @@ export interface LoadingStatTileProps extends StatTileBase {
 
 export interface EmptyStatTileProps extends StatTileBase {
   state: 'empty'
+  valueSize?: never
   /** REQUIRED: what the empty value slot says, in the screen's locale (e.g. "sem dados" / "no data") -
    * never "0", which reads as a real measurement */
   emptyLabel: string

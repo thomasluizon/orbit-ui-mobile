@@ -118,6 +118,12 @@
   transition: background-color 380ms var(--ease-standard);
 }
 
+.orbit-list-row-form {
+  margin-inline: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .orbit-row-list > div:first-child .orbit-list-row-shell {
   border-start-start-radius: 20px;
   border-start-end-radius: 20px;
@@ -1843,3 +1849,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
+
+.stat-tile-large { container: stat-tile / inline-size; }
+.stat-tile-large-value { font-size: var(--fs-md); }
+@container stat-tile (min-width: 122px) {
+  .stat-tile-large-value { font-size: var(--fs-lg); }
+}

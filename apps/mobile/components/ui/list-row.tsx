@@ -17,6 +17,10 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
+function getBodyStyle(compact: boolean, hasAction: boolean) {
+  return [styles.body, compact ? styles.compactBody : null, hasAction ? styles.bodyWithAction : null]
+}
+
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
   return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
@@ -33,10 +37,10 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = false, inForm = false, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
-  const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
+  const bodyStyle = getBodyStyle(compact, !!action)
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
@@ -55,7 +59,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   )
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, inForm ? styles.formRow : null]}>
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
@@ -76,7 +80,9 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
 
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
+  formRow: { marginHorizontal: 8, borderRadius: 12, overflow: 'hidden' },
   body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
+  compactBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 12 },
   bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, margin: 16, marginStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },

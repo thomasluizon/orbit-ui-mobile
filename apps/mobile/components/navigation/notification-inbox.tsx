@@ -9,6 +9,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -18,6 +19,7 @@ import { NotificationList } from './notification-list'
 
 export function NotificationInbox() {
   const { t } = useTranslation()
+  const clearance = useShellScrollerClearance()
   const goBack = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -45,7 +47,7 @@ export function NotificationInbox() {
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
         </View> : undefined}
       />
-      <ScrollView style={styles.scroller}>
+      <ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />

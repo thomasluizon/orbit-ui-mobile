@@ -65,7 +65,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   )
 }
 
-export function OfflineNotice() {
+export function useOfflineNoticeContent() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -87,6 +87,10 @@ export function OfflineNotice() {
   if (!notice && !currentToast) return null
 
   return <View style={styles.host} testID="offline-notice">{notice}<AppToast placement="slot" /></View>
+}
+
+export function OfflineNotice() {
+  return useOfflineNoticeContent()
 }
 
 const styles = StyleSheet.create({
