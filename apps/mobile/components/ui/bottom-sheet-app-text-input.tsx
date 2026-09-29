@@ -14,13 +14,15 @@ import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput>
+type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput> & {
+  focusBorder?: boolean
+}
 
 export const BottomSheetAppTextInput = forwardRef<
   TextInput,
   BottomSheetAppTextInputProps
 >(function BottomSheetAppTextInput(
-  { onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
+  { focusBorder = true, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
   ref,
 ) {
   const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
@@ -97,7 +99,7 @@ export const BottomSheetAppTextInput = forwardRef<
       ref={assignRef}
       placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
-      style={[styles.input, focused ? styles.inputFocused : null, style]}
+      style={[styles.input, style, focused && focusBorder ? styles.inputFocused : null]}
       value={draftValue}
       onBlur={handleBlur}
       onChangeText={handleChangeText}
@@ -123,8 +125,14 @@ function createStyles(tokens: AppTokens) {
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      borderTopWidth: 2,
+      borderRightWidth: 2,
+      borderBottomWidth: 2,
+      borderLeftWidth: 2,
+      borderTopColor: tokens.primary,
+      borderRightColor: tokens.primary,
+      borderBottomColor: tokens.primary,
+      borderLeftColor: tokens.primary,
     },
   })
 }

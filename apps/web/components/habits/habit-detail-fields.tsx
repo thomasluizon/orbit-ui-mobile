@@ -73,7 +73,7 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
   return (
     <FieldWell>
       <div className="flex gap-2">
-        <input min={1} type="number" value={quantity} aria-label={t('habits.form.frequencyRequired')} className="w-20 rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 py-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)]" onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))} />
+        <input min={1} type="number" value={quantity} data-focus-perimeter="" aria-label={t('habits.form.frequencyRequired')} className="w-20 rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 py-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))} />
         <RadioGroup aria-label={t('habits.detail.schedule')} className="flex min-w-0 flex-1 flex-wrap gap-2">
           {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
         </RadioGroup>

@@ -161,8 +161,18 @@ type MobileComposerProps = ComposerProps & {
   onInputBlur?: () => void
 }
 
+function composerFieldStyle(tokens: AppTokensV2, focused: boolean, disabled: boolean) {
+  const showFocusBorder = focused && !disabled
+  return {
+    backgroundColor: tokens.bgField,
+    borderColor: showFocusBorder ? tokens.primary : tokens.borderControl,
+    borderWidth: showFocusBorder ? 2 : 1,
+  }
+}
+
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const voiceRef = useRef<View>(null)
+  const [focused, setFocused] = useState(false)
   const [openConversationScale] = useState(() => new Animated.Value(1))
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
@@ -188,7 +198,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         </Animated.View>
       ) : null}
       <View
-        style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
+        style={[styles.field, composerFieldStyle(tokens, focused, inputDisabled)]}
       >
         <TextInput
           ref={inputRef}
@@ -200,8 +210,14 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           placeholderTextColor={tokens.fg3}
           value={props.value}
           onChangeText={props.onChangeValue}
-          onFocus={props.onInputFocus}
-          onBlur={props.onInputBlur}
+          onFocus={() => {
+            setFocused(true)
+            props.onInputFocus?.()
+          }}
+          onBlur={() => {
+            setFocused(false)
+            props.onInputBlur?.()
+          }}
           onSubmitEditing={() => {
             if (canSend) props.onSend()
           }}
