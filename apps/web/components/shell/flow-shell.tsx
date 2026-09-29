@@ -69,7 +69,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   const pinnedAction = action ? (
     <div
       data-flow-action=""
-      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 md:[&_button]:w-auto md:[&>div]:items-end ${onboarding ? 'max-w-[408px] lg:max-w-[560px]' : 'max-w-[408px]'}`}
+      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 ${onboarding ? 'max-w-[408px] lg:max-w-[560px] [&>div]:w-full' : 'max-w-[408px] md:[&_button]:w-auto md:[&>div]:items-end'}`}
     >
       {action}
     </div>
