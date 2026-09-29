@@ -64,10 +64,10 @@ export function computeHabitFrequencyLabel(
     | 'isFlexible'
   >,
   t: HabitCardTranslationAdapter,
-): string {
-  if (habit.isGeneral) return t('habits.generalHabit')
+): string | null {
+  if (habit.isGeneral) return null
   const { frequencyUnit, frequencyQuantity, days, isFlexible } = habit
-  if (!frequencyUnit) return t('habits.oneTimeTask')
+  if (!frequencyUnit) return null
   if (isFlexible) {
     return t('habits.frequency.flexibleLabel', {
       n: frequencyQuantity ?? 1,

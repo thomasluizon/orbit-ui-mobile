@@ -60,6 +60,13 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
 }
 
 describe('HabitRow canonical content (mobile)', () => {
+  it('shows a one-day habit row without an internal type label', () => {
+    const texts = renderRowText(createMockHabit({ title: 'Pay bill', frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }))
+    expect(texts).toContain('Pay bill')
+    expect(texts).toContain('08:00')
+    expect(texts).not.toContain('habits.oneTimeTask')
+  })
+
   it('omits the structural column by default and indents only a child body', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
