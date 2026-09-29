@@ -9,7 +9,6 @@ export function createStyles(tokens: EditGoalTokens) {
     form: {
       paddingTop: 8,
       paddingHorizontal: 16,
-      paddingBottom: 32,
       gap: 16,
     },
     eyebrow: {
@@ -78,17 +77,10 @@ export function createStyles(tokens: EditGoalTokens) {
       fontSize: 13,
       color: tokens.fg1,
     },
-    footer: {
+    actions: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingTop: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
-      marginTop: 8,
-    },
-    footerButton: {
-      flex: 1,
     },
   })
 }

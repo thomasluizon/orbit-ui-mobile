@@ -109,6 +109,17 @@ describe('EditGoalModal helpers', () => {
       .toBeGreaterThanOrEqual(3)
   })
 
+  it('pins Cancel and Save in the sheet footer, never in the scrolling body', () => {
+    const { tree } = renderModal()
+    const slotText = (slot: string) => tree.root.findAll((node: any) => node.type === slot)[0]
+      .findAll((node: any) => node.type === 'Text')
+      .map(flattenText)
+
+    expect(slotText('SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expect(slotText('SheetBody')).not.toContain('common.cancel')
+    expect(slotText('SheetBody')).not.toContain('common.save')
+  })
+
   it('announces required fields without marking the optional description required', () => {
     const { input } = renderModal()
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -78,6 +78,7 @@ export function EditGoalModal({
     unit !== goal.unit ||
     deadline !== (goal.deadline ?? '')
   const { sheetRef, closeSheet } = useSheetHost()
+  const formId = useId()
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
@@ -162,8 +163,18 @@ export function EditGoalModal({
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={t('goals.detail.edit')}
+        actions={(
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton formId={formId} disabled={isSubmitting} loading={isSubmitting}>
+              {t('common.save')}
+            </PillButton>
+          </div>
+        )}
       >
-        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
           <div className="t-eyebrow" style={{ padding: '12px 0' }}>
             {isStreak
               ? t('goals.form.typeStreak')
@@ -196,30 +207,6 @@ export function EditGoalModal({
           />
 
           <EditGoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
-
-          <div
-            className="flex items-center"
-            style={{
-              gap: 12,
-              padding: '16px 0 8px',
-            }}
-          >
-            <PillButton
-              variant="ghost"
-
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-
-
-              disabled={isSubmitting}
-              loading={isSubmitting}
-            >
-              {t('common.save')}
-            </PillButton>
-          </div>
         </form>
       </Sheet>) : null}
       <DiscardChangesSheet

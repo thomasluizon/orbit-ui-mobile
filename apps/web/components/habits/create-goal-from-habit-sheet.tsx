@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useId, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -134,6 +134,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
   }, [setDeadline, setDescription, setGoalType, setSubmitted, setTargetValue, setUnit])
 
   const { sheetRef, closeSheet } = useSheetHost()
+  const formId = useId()
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => {
@@ -220,8 +221,18 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('goals.create')}
+        actions={(
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton formId={formId} disabled={isSubmitting} loading={isSubmitting}>
+              {t('goals.create')}
+            </PillButton>
+          </div>
+        )}
       >
-        <form id="create-goal-from-habit-form" onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
@@ -253,31 +264,6 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
           />
 
           <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
-
-          <div
-            className="flex items-center"
-            style={{
-              gap: 12,
-              padding: '16px 0 8px',
-            }}
-          >
-            <PillButton
-              variant="ghost"
-
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-
-
-              disabled={isSubmitting}
-              loading={isSubmitting}
-
-            >
-              {t('goals.create')}
-            </PillButton>
-          </div>
         </form>
       </Sheet>) : null}
       <DiscardChangesSheet

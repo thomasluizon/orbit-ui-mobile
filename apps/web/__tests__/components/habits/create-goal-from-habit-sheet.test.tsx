@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -128,6 +128,16 @@ describe('CreateGoalFromHabitSheet', () => {
     )
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
     expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
+    render(<CreateGoalFromHabitSheet open={true} onClose={vi.fn()} />)
+    const footer = within(document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!)
+    const body = within(document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!)
+
+    expect(footer.getAllByRole('button').map((button) => button.textContent)).toEqual(['common.cancel', 'goals.create'])
+    expect(body.queryByRole('button', { name: 'goals.create' })).toBeNull()
+    expect(body.queryByRole('button', { name: 'common.cancel' })).toBeNull()
   })
 
   it('switches the goal type between standard and streak', () => {

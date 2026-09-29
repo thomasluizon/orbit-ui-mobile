@@ -173,6 +173,16 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.detail.edit')}
+        actions={(
+          <View style={styles.actions}>
+            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
+              {t('common.save')}
+            </PillButton>
+          </View>
+        )}
       >
         <View style={styles.form}>
           <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
@@ -215,25 +225,6 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
             deadline={deadline}
             onChangeDeadline={setDeadline}
           />
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-
-              disabled={isSubmitting}
-              onClick={dismissGuard.requestDismiss}
-
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              onClick={() => void onSubmit()}
-              disabled={isSubmitting}
-              loading={isSubmitting}
-            >
-              {t('common.save')}
-            </PillButton>
-          </View>
         </View>
       </Sheet>) : null}
       <DiscardChangesSheet

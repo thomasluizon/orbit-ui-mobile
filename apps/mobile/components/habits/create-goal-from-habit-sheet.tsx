@@ -181,6 +181,16 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.create')}
+        actions={(
+          <View style={styles.actions}>
+            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
+              {t('goals.create')}
+            </PillButton>
+          </View>
+        )}
       >
         <View style={styles.form}>
           <View>
@@ -227,28 +237,6 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
             deadline={deadline}
             onChangeDeadline={setDeadline}
           />
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-
-              disabled={isSubmitting}
-              onClick={dismissGuard.requestDismiss}
-
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-
-              onClick={() => void onSubmit()}
-              disabled={isSubmitting}
-              loading={isSubmitting}
-
-
-            >
-              {t('goals.create')}
-            </PillButton>
-          </View>
         </View>
       </Sheet>) : null}
       <DiscardChangesSheet

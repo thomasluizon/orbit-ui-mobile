@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -127,6 +127,20 @@ describe('EditGoalModal', () => {
     mockMutateAsync.mockResolvedValueOnce(undefined)
     fireEvent.change(unitInput, { target: { value: 'km' } })
     fireEvent.submit(targetInput.closest('form')!)
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce())
+  })
+
+  it('pins Cancel and Save in the sheet footer and submits the form from there', async () => {
+    mockMutateAsync.mockResolvedValue(undefined)
+    render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
+    const footer = within(document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!)
+    const body = within(document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!)
+
+    expect(footer.getAllByRole('button').map((button) => button.textContent)).toEqual(['common.cancel', 'common.save'])
+    expect(body.queryByRole('button', { name: 'common.save' })).toBeNull()
+    expect(body.queryByRole('button', { name: 'common.cancel' })).toBeNull()
+
+    fireEvent.click(footer.getByRole('button', { name: 'common.save' }))
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce())
   })
 
