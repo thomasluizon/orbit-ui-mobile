@@ -2,6 +2,7 @@ import React from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { StepUpTimingRecord } from '@orbit/shared/utils'
@@ -71,6 +72,8 @@ const {
   mockStepUpVerified,
   mockCreateGrant,
   mockApiKeys,
+  mockTranslate,
+  mockLocale,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -105,6 +108,8 @@ const {
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
+  mockTranslate: { current: (key: string) => key },
+  mockLocale: { current: 'en' },
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -142,8 +147,8 @@ vi.mock('react-i18next', () => ({
     init: () => {},
   },
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en', changeLanguage: mockChangeLanguage },
+    t: (key: string) => mockTranslate.current(key),
+    i18n: { language: mockLocale.current, changeLanguage: mockChangeLanguage },
   }),
 }))
 
@@ -508,6 +513,8 @@ function findButtonByText(
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
+    mockTranslate.current = (key) => key
+    mockLocale.current = 'en'
     mockApiClient.mockReset()
     mockPerformQueuedApiMutation.mockReset()
     mockShareAsync.mockReset().mockResolvedValue(undefined)
@@ -548,6 +555,60 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
+  })
+
+  it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', async () => {
+    mockLocale.current = 'pt-BR'
+    mockTranslate.current = (key) => {
+      let message: unknown = ptBR
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string' ? message : key
+    }
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const groupText = (node: unknown): string => {
+      if (typeof node === 'string' || typeof node === 'number') return String(node)
+      if (!node || typeof node !== 'object' || !('children' in node)) return ''
+      const rendered = node as { type: unknown; props: { label?: string; value?: string }; children: unknown[] }
+      const rowContent = rendered.type === 'SettingsRowStub'
+        ? `${rendered.props.label ?? ''}${rendered.props.value ?? ''}`
+        : ''
+      return rowContent + rendered.children.map(groupText).join('')
+    }
+    const inOrder = (group: string, labels: string[]) => {
+      const content = groupText(tree.root.findByProps({ testID: `profile-settings-group-${group}` }))
+      let previous = -1
+      for (const label of labels) {
+        const position = content.indexOf(label, previous + 1)
+        expect(position, `${label} in ${group}`).toBeGreaterThan(previous)
+        previous = position
+      }
+    }
+    inOrder('you', [
+      'Fuso horário', 'Semana começa em', 'Idioma', 'Português do Brasil',
+      'Tema', 'Exportar os meus dados',
+    ])
+    inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    inOrder('notifications', [
+      'Análise de uso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+    ])
+    expect(tree.root.findAll((node: { props: { testID?: string } }) =>
+      node.props.testID === 'marketing-consent-section')).toHaveLength(1)
+    inOrder('more', [
+      'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
+      'Ajuda e suporte', 'Sobre o Orbit',
+    ])
+    inOrder('ending', ['Sair da conta', 'Começar de novo', 'Apagar a conta'])
+    expect(groupText(tree.root.findByProps({ testID: 'profile-settings-group-you' }))).not.toContain('Plano')
+    expect(groupText(tree.root)).not.toContain('Compartilhar progresso')
   })
 
   it('renders every feature destination as a grouped settings row with its hint', async () => {

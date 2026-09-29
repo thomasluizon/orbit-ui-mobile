@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { useUIStore } from '@/stores/ui-store'
 
 const {
@@ -23,6 +24,8 @@ const {
   mockUpdateWeekStartDay,
   mockUpdateLanguage,
   mockTogglePush,
+  mockTranslate,
+  mockLocale,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -41,6 +44,8 @@ const {
   mockUpdateWeekStartDay: vi.fn(),
   mockUpdateLanguage: vi.fn(),
   mockTogglePush: vi.fn(),
+  mockTranslate: { current: (key: string) => key },
+  mockLocale: { current: 'en' },
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -94,8 +99,8 @@ vi.mock('@/hooks/use-shell-notice-slot', async (importOriginal) => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useLocale: () => mockLocale.current,
+  useTranslations: () => (key: string) => mockTranslate.current(key),
 }))
 
 vi.mock('@/hooks/use-color-scheme', () => ({
@@ -193,6 +198,8 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
   beforeEach(() => {
+    mockTranslate.current = (key) => key
+    mockLocale.current = 'en'
     useUIStore.getState().setAstraConversationOpen(false)
     mockExportUserData.mockReset()
     mockUpdateAiSummary.mockReset()
@@ -227,6 +234,54 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
+  })
+
+  it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', () => {
+    mockLocale.current = 'pt-BR'
+    mockTranslate.current = (key) => {
+      let message: unknown = ptBR
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string' ? message : key
+    }
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'Você', 'Astra', 'Notificações', 'Mais do Orbit', 'Encerrar',
+    ])
+    const inOrder = (group: string, labels: string[]) => {
+      const content = screen.getByTestId(`profile-settings-group-${group}`).textContent
+      let previous = -1
+      for (const label of labels) {
+        const position = content.indexOf(label, previous + 1)
+        expect(position, `${label} in ${group}`).toBeGreaterThan(previous)
+        previous = position
+      }
+    }
+    inOrder('you', [
+      'Fuso horário', 'Semana começa em', 'Idioma', 'Português do Brasil',
+      'Tema', 'Exportar os meus dados',
+    ])
+    inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    inOrder('notifications', [
+      'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
+      'Análise de uso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+    ])
+    inOrder('more', [
+      'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
+      'Ajuda e suporte', 'Sobre o Orbit',
+    ])
+    inOrder('ending', ['Sair da conta', 'Começar de novo', 'Apagar a conta'])
+    expect(screen.getByTestId('profile-settings-group-you')).not.toHaveTextContent('Plano')
+    expect(screen.queryByText('Compartilhar progresso')).not.toBeInTheDocument()
   })
 
   it('renders the remaining phone feature sections in order', () => {

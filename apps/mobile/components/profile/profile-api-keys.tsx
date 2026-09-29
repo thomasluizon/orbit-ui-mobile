@@ -243,6 +243,7 @@ function ApiKeyAccessContent({
   if (!hasProAccess) {
     return (
       <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
         <ListRow
           icon={<Lock size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.unlock')}

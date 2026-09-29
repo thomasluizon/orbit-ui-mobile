@@ -1597,7 +1597,7 @@
       "theme": "Theme",
       "export": "Export my data",
       "signOut": "Sign out",
-      "startOver": "Start over",
+      "startOver": "Fresh start",
       "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
       "remindersNote": "Each habit's reminders live on the habit itself.",
@@ -1674,7 +1674,7 @@
       "title": "Product email",
       "question": "May we email you about the product?",
       "questionDescription": "What is new and what changed, once a month at most.",
-      "accept": "Email me",
+      "accept": "Yes, email me",
       "decline": "No email"
     },
     "support": {

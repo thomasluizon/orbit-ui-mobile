@@ -1616,7 +1616,7 @@
     },
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
-      "unlock": "Ver Pro",
+      "unlock": "Liberar com o Pro",
       "open": "Abrir as chaves",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
@@ -1735,7 +1735,7 @@
     "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
     "calendarSync": {
       "title": "Sincronizar calendário",
-      "hint": "Eventos dos seus calendários aparecem no Calendário."
+      "hint": "Eventos dos seus calendários aparecem no Calendario."
     },
     "aboutRow": "Sobre o Orbit",
     "widgetHow": {

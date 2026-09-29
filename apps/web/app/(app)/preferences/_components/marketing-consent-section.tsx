@@ -56,6 +56,7 @@ export function MarketingConsentSection({
         disabled={mutation.isPending}
         className="m-0 flex flex-wrap gap-2 border-0 p-0"
       >
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
         <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
           {t('profile.marketingEmails.accept')}
         </PillButton>
