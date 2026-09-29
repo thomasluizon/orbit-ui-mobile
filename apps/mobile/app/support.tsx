@@ -28,6 +28,7 @@ import { apiClient } from '@/lib/api-client'
 import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -232,6 +233,7 @@ function SupportForm({
 }
 
 export default function SupportScreen() {
+  const clearance = useShellScrollerClearance()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -363,7 +365,7 @@ export default function SupportScreen() {
         avoidKeyboard={false}
         style={styles.container}
         containerStyle={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >

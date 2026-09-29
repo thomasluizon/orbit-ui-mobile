@@ -47,6 +47,7 @@ import {
   type WizardStage,
 } from '@/lib/calendar-sync-state'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -81,6 +82,7 @@ interface ImportResult {
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarSyncScreen() {
+  const clearance = useShellScrollerClearance()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const params = useLocalSearchParams<{ mode?: string }>()
@@ -447,6 +449,7 @@ export default function CalendarSyncScreen() {
       />
       <ScrollView
         style={styles.container}
+        contentContainerStyle={{ paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
       >
         {showProSection ? (

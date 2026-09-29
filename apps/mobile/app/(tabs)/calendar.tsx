@@ -69,6 +69,7 @@ import { getAccountGeneration } from "@/lib/session-epoch";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2, radius } from "@/lib/theme";
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
@@ -293,11 +294,12 @@ function CalendarProfileState({
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(), []);
+  const clearance = useShellScrollerClearance();
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <ScrollView style={styles.profileStateWrap} contentContainerStyle={styles.profileScrollContent}>
+      <ScrollView style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
@@ -382,6 +384,7 @@ function CalendarScreenContent({
   setView,
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
+  const clearance = useShellScrollerClearance();
   const router = useRouter();
   const { sheetRef, closeSheet } = useSheetHost();
   const { showError } = useAppToast();
@@ -935,6 +938,7 @@ function CalendarScreenContent({
           renderItem={null}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
           onScroll={handleCalendarScroll}
           scrollEventThrottle={16}
@@ -950,6 +954,7 @@ function CalendarScreenContent({
       {!activeError && view !== "month" && (
         <ScrollView
           style={styles.container}
+          contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         >
           {view === "week" ? (

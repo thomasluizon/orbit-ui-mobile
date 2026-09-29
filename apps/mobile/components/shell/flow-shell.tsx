@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { SHELL_SCROLLER_CLEARANCE, useShellScrollerClearance } from './shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FlowShellProps {
@@ -13,6 +14,8 @@ interface FlowShellProps {
 
 export function FlowShell({ children, action, header, notice }: Readonly<FlowShellProps>) {
   const { surfaces } = useAppTheme()
+  const shellClearance = useShellScrollerClearance()
+  const clearance = action || notice ? Math.max(shellClearance, SHELL_SCROLLER_CLEARANCE) : shellClearance
 
   return (
     <SafeAreaView
@@ -23,7 +26,7 @@ export function FlowShell({ children, action, header, notice }: Readonly<FlowShe
       {header}
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: clearance }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

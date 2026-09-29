@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -24,11 +25,12 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
+  const clearance = useShellScrollerClearance()
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
       <PageHeader backLabel={backLabel} onBack={onBack} title={title} />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
         <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{title}</Text>

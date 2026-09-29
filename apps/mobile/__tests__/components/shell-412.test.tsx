@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { __emitKeyboardEvent } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import ProgressScreen from '@/app/(tabs)/progress'
@@ -31,6 +32,11 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
   )
 }
 
+function ScrollSurface() {
+  const clearance = useShellScrollerClearance()
+  return <ScrollView testID="scroll-surface" contentContainerStyle={{ paddingBottom: clearance }} />
+}
+
 describe('Shell412 mobile', () => {
   beforeEach(() => {
     safeArea.bottom = 24
@@ -41,17 +47,18 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(navigationEnabled ? (
         <Shell412 tabBar={React.createElement('TabBar')} fab={React.createElement('Fab')}>
-          {React.createElement('DestinationList')}
+          <ScrollSurface />
         </Shell412>
       ) : (
         <Shell412 nav={false} action={React.createElement('Action')}>
-          {React.createElement('FlowContent')}
+          <ScrollSurface />
         </Shell412>
       ))
     })
 
     const scroller = findByTestId(tree, 'shell-scroller')[0]
-    expect(StyleSheet.flatten(scroller?.props.style)).toMatchObject({ paddingBottom: 96 })
+    expect(StyleSheet.flatten(scroller?.props.style)).not.toHaveProperty('paddingBottom')
+    expect(StyleSheet.flatten(findByTestId(tree, 'scroll-surface')[0]?.props.contentContainerStyle)).toMatchObject({ paddingBottom: 96 })
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(1)
     await TestRenderer.act(() => tree.update(<></>))
   })
@@ -59,10 +66,11 @@ describe('Shell412 mobile', () => {
   it('does not reserve pinned-chrome clearance when the chrome is absent', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<Shell412 nav={false}>{React.createElement('FullScreenContent')}</Shell412>)
+      tree = TestRenderer.create(<Shell412 nav={false}><ScrollSurface /></Shell412>)
     })
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
-    expect(StyleSheet.flatten(findByTestId(tree, 'shell-scroller')[0]?.props.style)).toMatchObject({ paddingBottom: 0 })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-scroller')[0]?.props.style)).not.toHaveProperty('paddingBottom')
+    expect(StyleSheet.flatten(findByTestId(tree, 'scroll-surface')[0]?.props.contentContainerStyle)).toMatchObject({ paddingBottom: 0 })
     await TestRenderer.act(() => tree.update(<></>))
   })
 

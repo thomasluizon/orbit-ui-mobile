@@ -410,7 +410,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
     const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
     expect(safeAreas.length).toBeGreaterThan(0)
-    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right', 'bottom'])
+    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right'])
     TestRenderer.act(() => tree.update(<></>))
   })
 

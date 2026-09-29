@@ -8,6 +8,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomChrome({
   visible,
@@ -99,7 +100,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View testID="shell-header">{props.header}</View>
         ) : null}
 
-        <View testID="shell-scroller" style={[styles.scroller, { paddingBottom: hasBottomChrome ? 96 : 0 }]}>
+        <View testID="shell-scroller" style={styles.scroller}>
           {props.children}
         </View>
 
@@ -136,7 +137,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
         <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
-          {shell}
+          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? SHELL_SCROLLER_CLEARANCE : 0}>
+            {shell}
+          </ShellScrollerClearanceContext.Provider>
         </KeyboardAwareView>
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>
