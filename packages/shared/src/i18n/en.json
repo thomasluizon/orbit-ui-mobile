@@ -1717,12 +1717,10 @@
       "description": "Select your preferred language"
     },
     "aiSummary": {
-      "title": "Daily summary",
-      "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
+      "title": "Daily summary from Astra"
     },
     "proactiveAstra": {
-      "title": "Astra alerts",
-      "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
+      "title": "Astra tells you when something slips"
     },
     "marketingEmails": {
       "title": "Product email",
