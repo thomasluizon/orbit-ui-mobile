@@ -222,11 +222,12 @@ function RootLayoutNav() {
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
+  const isNotFound = topSegment === '+not-found'
   const shellChrome = resolveShellChrome(pathname, lastDestination)
   const destination = resolveShellDestination(pathname)
   useEffect(() => {
-    if (destination && pathname !== '/upgrade') setLastDestination(destination)
-  }, [destination, pathname, setLastDestination])
+    if (destination && !isNotFound && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, isNotFound, pathname, setLastDestination])
   const captureProbeId = captureRouteProbeId(pathname, topSegment)
   const captureRequestId = captureRequestProbeIdFromUrl(
     captureBuildEnabled,
@@ -328,9 +329,9 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
-            composer={shellChrome.composer ? (
+            composer={shellChrome.composer || isNotFound ? (
               <Composer
                 {...chat.composerProps}
                 onOpenConversation={() => setAstraConversationOpen(true)}
@@ -343,7 +344,7 @@ function RootLayoutNav() {
               {notificationDeleteNotice}
               <OfflineNotice />
             </>}
-            tabBar={<DestinationTabBar pathname={pathname} />}
+            tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
@@ -355,7 +356,7 @@ function RootLayoutNav() {
         ) : (
           <Shell412
             nav={false}
-            safeAreaTop={pathname === '/search'}
+            safeAreaTop={isNotFound || pathname === '/search'}
             notice={getNoNavigationNotice(
               isAuthenticated,
               topSegment,

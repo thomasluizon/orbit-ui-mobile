@@ -7,6 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
+  params: {} as { missing?: string[] },
   wide: false,
   push: vi.fn(),
   setPaletteOpen: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
+  useParams: () => mocks.params,
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
@@ -99,6 +101,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
+import NotFound from '@/app/not-found'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
@@ -113,6 +116,7 @@ describe('DestinationShell', () => {
 
   beforeEach(() => {
     mocks.pathname = '/'
+    mocks.params = {}
     mocks.wide = false
     mocks.profileName = ''
     mocks.profileLoaded = true
@@ -120,6 +124,35 @@ describe('DestinationShell', () => {
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  it.each([false, true])('shows an unselected not-found shell with its composer at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const view = render(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+    expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
+  })
+
+  it.each([false, true])('includes the not-found composer and unselected navigation in server markup at wide=%s', (wide) => {
+    mocks.pathname = '/nao-existe'
+    mocks.params = { missing: ['nao-existe'] }
+    mocks.wide = wide
+    const html = renderToString(
+      <DestinationShell onCreate={() => {}} composer={<span>Composer</span>}>
+        <NotFound />
+      </DestinationShell>,
+    )
+
+    expect(html).toContain('data-shell-pinned-slot=""')
+    expect(html).toContain('Composer')
+    expect(html).not.toContain('aria-current="page"')
   })
 
   afterEach(() => {
