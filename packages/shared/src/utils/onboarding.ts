@@ -3,6 +3,7 @@ import type { SupportedLocale } from '../types/profile'
 import { formatAPIDateInTimeZone } from './dates'
 import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
 import { readHabitPhrase } from './habit-phrase-parser'
+import { getHabitPhraseTitle } from './habit-phrase-title'
 
 export const ONBOARDING_TOTAL_STEPS = 3
 export const ONBOARDING_WHAT_STEP = 0
@@ -21,46 +22,6 @@ export function getOnboardingDisplayTotal(): number {
 
 export function getOnboardingDisplayStep(currentStep: number): number {
   return Math.min(Math.max(currentStep + 1, 1), ONBOARDING_TOTAL_STEPS)
-}
-
-export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
-  const read = readHabitPhrase(sentence, locale)
-  if (read.consumed.length === 0) return sentence.trim()
-
-  const characters = sentence.split('')
-  const removed = Array.from({ length: characters.length }, () => false)
-  for (const token of read.consumed) {
-    characters.fill(' ', token.start, token.end)
-    removed.fill(true, token.start, token.end)
-  }
-
-  const glue = locale === 'pt-BR'
-    ? /\b(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)\b/giu
-    : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
-  const removable = [...sentence.matchAll(glue)]
-  const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
-    for (let index = start; index >= 0 && index < characters.length; index += direction) {
-      if (removed[index]) return true
-      if (!/[\s,;]/u.test(characters[index]!)) return false
-    }
-    return false
-  }
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const match of removable) {
-      const start = match.index
-      const end = start + match[0].length
-      if (removed.slice(start, end).every(Boolean)) continue
-      if (touchesRemoved(start - 1, -1) || touchesRemoved(end, 1)) {
-        characters.fill(' ', start, end)
-        removed.fill(true, start, end)
-        changed = true
-      }
-    }
-  }
-  const title = characters.join('').replaceAll(/[\s,;]+/gu, ' ').trim()
-  return title || sentence.trim()
 }
 
 export interface OnboardingSchedule {
@@ -232,7 +193,7 @@ export function buildOnboardingHabitInput(input: {
   const { schedule } = input
   const reminderEnabled = input.reminderEnabled && Boolean(schedule.dueTime)
   return {
-    title: getOnboardingHabitTitle(input.sentence, input.locale),
+    title: getHabitPhraseTitle(input.sentence, input.locale),
     emoji: input.emoji || null,
     ...(!schedule.isGeneral && schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
     ...(!schedule.isGeneral && schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),

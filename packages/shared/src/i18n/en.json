@@ -463,7 +463,8 @@
     "loadError": "Couldn't load your habits.",
     "allDoneToday": "That is it for today",
     "allDoneHint": "Everything due today is done.",
-    "seeUpcoming": "See tomorrow's habits",
+    "seeUpcoming": "See tomorrow",
+    "nothingOpen": "Nothing open on this day.",
     "noSubHabits": "No sub-habits yet",
     "filterEmptySubHabits": "No sub-habits match this view.",
     "moveParent": {

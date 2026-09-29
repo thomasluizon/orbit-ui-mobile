@@ -26,6 +26,8 @@ import {
 import { HabitRow, type HabitRowMetaToken } from './habit-row'
 import {
   HabitListEmptyState,
+  HabitListAllDone,
+  HabitListNothingOpen,
   HabitListSkeleton,
 } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
@@ -57,6 +59,7 @@ import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import {
   DndContext,
   closestCenter,
@@ -324,6 +327,7 @@ export function HabitList({
   const dndContextId = useId()
 
   const habitsQuery = useHabits(filters, undefined, { completeDay: true })
+  const accountHabitCount = useHabitCountLoaded()
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const deleteHabitMut = useDeleteHabit()
@@ -1316,6 +1320,10 @@ export function HabitList({
     )
   }
 
+  const showAllDone = !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
+    selectedDateStr === todayStr &&
+    getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
+
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
@@ -1331,21 +1339,9 @@ export function HabitList({
       )
     }
 
-    if (habits.length === 0 &&
-      getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone) {
-      return (
-        <HabitListEmptyState
-          title={t('habits.allDoneToday')}
-          description={t('habits.allDoneHint')}
-          actionLabel={onSeeUpcoming ? t('habits.seeUpcoming') : undefined}
-          onAction={onSeeUpcoming}
-          variant="secondary"
-        />
-      )
-    }
-
     if (habits.length === 0) {
-      return (
+      if (showAllDone) return null
+      return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
         <HabitListEmptyState
           title={t('habits.emptyState')}
           description={t('habits.noHabitsBody')}
@@ -1355,7 +1351,7 @@ export function HabitList({
           onAction={onCreate}
           createRefusal={createRefusal}
         />
-      )
+      ) : <HabitListNothingOpen />
     }
 
     if (isDndEnabled) {
@@ -1409,24 +1405,12 @@ export function HabitList({
     )
   }
 
-  const showAllDoneWithAnytime = !drill.currentParent && !showCompleted &&
-    dragItems.length > 0 && dragItems.every((item) => item.habit.isGeneral) &&
-    getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
-
   return (
     <div
       ref={listContainerRef}
       className="px-4 pb-24"
     >
-      {showAllDoneWithAnytime ? (
-        <HabitListEmptyState
-          title={t('habits.allDoneToday')}
-          description={t('habits.allDoneHint')}
-          actionLabel={onSeeUpcoming ? t('habits.seeUpcoming') : undefined}
-          onAction={onSeeUpcoming}
-          variant="secondary"
-        />
-      ) : null}
+      {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
       {renderMainContent()}
 
       <DeferredEditHabitModal
