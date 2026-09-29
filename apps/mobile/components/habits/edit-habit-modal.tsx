@@ -466,6 +466,23 @@ export function EditHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
+        actions={(
+          <View style={styles.actions}>
+            <PillButton
+              variant="ghost"
+              disabled={updateHabit.isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              disabled={submitDisabled}
+              onClick={() => void handleSubmit()}
+            >
+              {t('common.save')}
+            </PillButton>
+          </View>
+        )}
       >
         <View style={styles.scrollContent}>
           <View
@@ -495,24 +512,6 @@ export function EditHabitModal({
             />
           </View>
         </View>
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={updateHabit.isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-
-            disabled={submitDisabled}
-            onClick={() => void handleSubmit()}
-
-          >
-            {t('common.save')}
-          </PillButton>
-        </View>
       </Sheet>) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
@@ -527,20 +526,15 @@ function createStyles() {
   return StyleSheet.create({
     scrollContent: {
       paddingHorizontal: 16,
-      paddingBottom: 16,
       gap: 24,
     },
     fieldsPending: {
       opacity: 0.6,
     },
-    footer: {
+    actions: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
       gap: 12,
-      paddingTop: 16,
-      paddingHorizontal: 16,
-      paddingBottom: 24,
     },
   })
 }

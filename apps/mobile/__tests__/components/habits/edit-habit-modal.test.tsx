@@ -227,6 +227,16 @@ describe('EditHabitModal (mobile)', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
+  it('pins Cancel and Save in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderModal()
+    const [actions] = tree.root.findAll((node: any) => node.type === 'SheetActions')
+    const [body] = tree.root.findAll((node: any) => node.type === 'SheetBody')
+
+    expect(actions.findAllByType('PillButton').map((node: any) => node.props.children))
+      .toEqual(['common.cancel', 'common.save'])
+    expect(body.findAllByType('PillButton')).toHaveLength(0)
+  })
+
   it('blocks the fields and disables save while the habit detail is loading', async () => {
     mockHabitDetailResult = { data: null, isPending: true, error: null }
     const tree = await renderModal()

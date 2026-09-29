@@ -6,6 +6,7 @@ import {
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -164,6 +165,19 @@ describe('MoveParentDialog', () => {
           true,
       ),
     ).toBe(true)
+  })
+
+  it('pins Cancel and Move in the sheet footer, never in the scrolling body', () => {
+    const { tree } = renderDialog()
+    const [actions] = tree.root.findAll((node) => node.type === 'SheetActions')
+    const [body] = tree.root.findAll((node) => node.type === 'SheetBody')
+    const pillLabels = (slot: RenderedNode | undefined) =>
+      (slot as unknown as RenderedTree['root']).findAll(
+        (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+      ).map(flattenInstanceText)
+
+    expect(pillLabels(actions)).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expect(pillLabels(body)).toEqual([])
   })
 
   it('confirms the move from the footer pill', () => {
@@ -376,10 +390,13 @@ describe('MoveParentDialog', () => {
   })
 
   it('locks the sheet and swaps to the moving label while pending', () => {
+    const { tree: idle } = renderDialog()
+    expect(idle.root.findAll((node) => node.type === SheetDouble)[0]!.props.onClose).toBeTypeOf('function')
+
     const { tree } = renderDialog({ isPending: true })
 
     const sheets = tree.root.findAll(
-      (node) => node.type === 'Sheet',
+      (node) => node.type === SheetDouble,
     )
     expect(sheets[0]!.props.onClose).toBeUndefined()
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -134,6 +134,16 @@ export function MoveParentDialog({
       open
       onClose={isPending ? undefined : hideDialog}
       title={t('habits.moveParent.title')}
+      actions={
+        <View style={styles.actions}>
+          <PillButton variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
+            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
+          </PillButton>
+        </View>
+      }
     >
       <View style={styles.sheetBody}>
         <MoveDialogDescription
@@ -149,7 +159,7 @@ export function MoveParentDialog({
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-                trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
+              trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
             />
           </View>
         ) : null}
@@ -192,25 +202,6 @@ export function MoveParentDialog({
             {t('habits.moveParent.noSearchResults')}
           </Text>
         ) : null}
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onClick={() => closeSheet()}
-
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            disabled={!canSubmit}
-            loading={isPending}
-            onClick={onConfirm}
-
-          >
-            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
-          </PillButton>
-        </View>
       </View>
     </Sheet>) : null
   )
@@ -221,7 +212,6 @@ function createStyles(tokens: AppTokensV2) {
     sheetBody: {
       paddingHorizontal: 24,
       paddingTop: 4,
-      paddingBottom: 24,
     },
     moveDialogDescription: {
       fontFamily: 'Geist_400Regular',
@@ -234,10 +224,6 @@ function createStyles(tokens: AppTokensV2) {
       position: 'relative',
       justifyContent: 'center',
       marginBottom: 12,
-    },
-    searchIcon: {
-      position: 'absolute',
-      right: 16,
     },
     eyebrow: {
       fontFamily: 'GeistMono_500Medium',
@@ -253,85 +239,9 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 4,
       paddingBottom: 8,
     },
-    moveOption: {
-      borderRadius: 14,
-      borderWidth: 1,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    moveOptionDefault: {
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-    },
-    moveOptionRoot: {
-      borderStyle: 'dashed',
-      borderColor: tokens.hairlineStrong,
-      backgroundColor: 'transparent',
-    },
-    moveOptionSelected: {
-      borderWidth: 1.5,
-      borderColor: tokens.primary,
-      backgroundColor: tintFromPrimary(tokens, 0.1),
-    },
-    moveOptionDisabled: {
-      opacity: 0.5,
-    },
-    moveOptionPressed: {
-      backgroundColor: tokens.bgHover,
-    },
-    moveOptionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    rail: {
-      width: 20,
-      alignSelf: 'stretch',
-    },
-    well: {
-      width: 30,
-      height: 30,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    wellFilled: {
-      backgroundColor: tokens.bgWell,
-    },
-    wellRoot: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
     wellEmoji: {
       fontSize: 16,
       lineHeight: 20,
-    },
-    moveOptionLabel: {
-      flex: 1,
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    moveOptionCount: {
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-      color: tokens.fg3,
-    },
-    moveOptionCurrent: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 10.5,
-      textTransform: 'uppercase',
-      letterSpacing: 0.63,
-      color: tokens.fg3,
-    },
-    moveOptionReason: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
-      color: tokens.fg3,
-      marginTop: 4,
     },
     moveDialogEmpty: {
       fontFamily: 'Geist_400Regular',
@@ -340,10 +250,9 @@ function createStyles(tokens: AppTokensV2) {
       textAlign: 'center',
       paddingVertical: 16,
     },
-    footer: {
+    actions: {
       flexDirection: 'row',
       gap: 12,
-      marginTop: 16,
     },
   })
 }

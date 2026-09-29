@@ -542,6 +542,23 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
+        actions={(
+          <View style={styles.actions}>
+            <PillButton
+              variant="ghost"
+              disabled={isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              disabled={submitDisabled}
+              onClick={() => void handleSubmit()}
+            >
+              {t('common.create')}
+            </PillButton>
+          </View>
+        )}
       >
         <View style={styles.scrollContent}>
           {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
@@ -580,24 +597,6 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
         </View>
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-
-            disabled={submitDisabled}
-            onClick={() => void handleSubmit()}
-
-          >
-            {t('common.create')}
-          </PillButton>
-        </View>
       </Sheet>) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
@@ -612,7 +611,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scrollContent: {
       paddingHorizontal: 16,
-      paddingBottom: 16,
       gap: 24,
     },
     fieldLabel: {
@@ -687,14 +685,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 13,
       color: tokens.fg2,
     },
-    footer: {
+    actions: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
       gap: 12,
-      paddingTop: 16,
-      paddingHorizontal: 16,
-      paddingBottom: 24,
     },
   })
 }

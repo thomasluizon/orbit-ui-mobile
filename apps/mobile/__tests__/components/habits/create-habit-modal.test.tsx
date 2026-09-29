@@ -325,6 +325,31 @@ describe('CreateHabitModal (mobile)', () => {
         ).length > 0,
     )[0]
 
+  const findButtonsLabelled = (
+    root: { findAll: (predicate: (node: any) => boolean) => any[] },
+    label: string,
+  ) =>
+    root.findAll(
+      (node: any) =>
+        node.type === 'Pressable' &&
+        node.props.accessibilityRole === 'button' &&
+        node.findAll((child: any) => child.type === 'Text' && child.props.children === label).length > 0,
+    )
+
+  it.each([
+    ['habit', undefined],
+    ['sub-habit', createMockHabit({ id: 'parent-1', title: 'Parent' })],
+  ])('pins Cancel and Create in the %s sheet footer, never in the scrolling body', (_mode, parentHabit) => {
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />)
+    const [actions] = tree.root.findAll((node: any) => node.type === 'SheetActions')
+    const [body] = tree.root.findAll((node: any) => node.type === 'SheetBody')
+
+    for (const label of ['common.cancel', 'common.create']) {
+      expect(findButtonsLabelled(actions, label)).toHaveLength(1)
+      expect(findButtonsLabelled(body, label)).toHaveLength(0)
+    }
+  })
+
   it('disables the submit button until a title is entered', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(findSubmit(tree.root).props.disabled).toBe(true)
