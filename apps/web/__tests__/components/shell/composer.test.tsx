@@ -133,6 +133,9 @@ describe('Composer', () => {
     if (accented) expect(send).toHaveAttribute('data-accent', '')
     else expect(send).not.toHaveAttribute('data-accent')
     expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
+    if (_case === 'idle with an empty field' || _case === 'idle with text') {
+      expect(send).toHaveClass('duration-150')
+    }
     if (_case === 'sending') expect(send).not.toHaveClass('disabled:opacity-40')
     else if (disabled) expect(send).toHaveClass('disabled:opacity-40')
     if (disabled) expect(send).toBeDisabled()
