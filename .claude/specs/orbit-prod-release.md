@@ -150,8 +150,10 @@ Then the filed tickets, highest first. A ticket on `main` is carried into `redes
 - `#897` (on `main`) A logged sub-habit shows on its Calendário day.
 - `#842` (on `main`) Web push: serve and register a service worker.
 - `#845` (on `main`) A tab that returns without an event cursor refetches account data once, not twice.
+- `#959` (on `redesign/main`) Perfil's API keys badges read `Pro`, never the trial label, and the device row carries the drawn label.
+- `#963` (on `redesign/main`) Settle the undrawn persistent reminder row in Perfil Notifications.
 
-Sweep findings not yet filed, to file and fix: Perfil's API keys heading carries the drawn `Pro` badge, never "Período de teste" on a trial; check the undrawn "Avisos neste aparelho" row against the Perfil drawing's device list; the two Render web services still report auto-deploy on although every service must deploy only through `release.yml`; `redesign/main` tests still mock the removed `@vercel/analytics` and `@vercel/speed-insights` packages.
+Sweep findings not yet filed, to file and fix: the two Render web services still report auto-deploy on although every service must deploy only through `release.yml`; `redesign/main` tests still mock the removed `@vercel/analytics` and `@vercel/speed-insights` packages.
 
 Before a new ticket starts, check its files against the open pull requests: a ticket whose files overlap one waits for that one to merge. The shared i18n JSON files do not count as overlap, but `#934` rewrites dozens of pt-BR strings and should start when few copy pull requests are open.
 

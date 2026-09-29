@@ -1660,7 +1660,7 @@
       "currentDevice": "Este aparelho",
       "devices": "Aparelhos com aviso",
       "devicesCount": "{count} de {max}",
-      "alertsOnThisDevice": "Avisos neste aparelho",
+      "alertsOnThisDevice": "Avisos para este aparelho",
       "devicesUnavailable": "Não foi possível carregar os aparelhos.",
       "pushDeviceLimit": "Desligue os avisos em outro aparelho para usar este."
     },

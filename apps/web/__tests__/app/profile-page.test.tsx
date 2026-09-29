@@ -293,9 +293,13 @@ describe('ProfilePage', () => {
       'Tema', 'Exportar os meus dados',
     ])
     inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getByText('Pro')).toBeInTheDocument()
+    expect(apiKeys.queryByText('Período de teste')).not.toBeInTheDocument()
     inOrder('notifications', [
       'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
-      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
+      'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     inOrder('more', [
       'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
@@ -445,7 +449,8 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
     expect(screen.getByText(`${count} of 5`)).toBeInTheDocument()
     expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
-    expect(screen.queryByText('profile.settingsRows.currentDevice')).not.toBeInTheDocument()
+    expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
   })
 
   it('names this device when its endpoint is registered and turns it off', () => {
@@ -455,6 +460,7 @@ describe('ProfilePage', () => {
     const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
     fireEvent.click(control)
     expect(mockTogglePush).toHaveBeenCalledWith(false)
   })
@@ -633,6 +639,21 @@ describe('ProfilePage', () => {
 
     fireEvent.click(upgradeRow)
     expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('badges the locked API keys section Pro, never with the trial label', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: true }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    const badges = apiKeys.getAllByText('common.proBadge')
+    expect(badges).toHaveLength(2)
+    expect(badges.map((badge) => badge.dataset.variant)).toEqual(['solid', 'solid'])
+    expect(apiKeys.queryByText('trial.proBadge')).not.toBeInTheDocument()
   })
 
   it('keeps every free API key state on the enabled lock route', () => {

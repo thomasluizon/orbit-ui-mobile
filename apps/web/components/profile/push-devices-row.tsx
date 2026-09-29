@@ -46,10 +46,7 @@ export function PushDevicesRow({
         </span>
       </div>
       <div className="flex min-h-11 items-center gap-3 px-4 py-3">
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-sm text-[var(--fg-2)]">{t('profile.settingsRows.alertsOnThisDevice')}</span>
-          {currentDeviceRegistered ? <span className="font-mono text-xs text-[var(--fg-3)]">{t('profile.settingsRows.currentDevice')}</span> : null}
-        </span>
+        <span className="min-w-0 flex-1 text-sm text-[var(--fg-2)]">{t('profile.settingsRows.currentDevice')}</span>
         <fieldset disabled={disabled} className="m-0 border-0 p-0">
           <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
         </fieldset>

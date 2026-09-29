@@ -116,16 +116,9 @@ export function PushDevicesRow({
         </View>
       </View>
       <View style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>
-            {t('profile.settingsRows.alertsOnThisDevice')}
-          </Text>
-          {currentDeviceRegistered ? (
-            <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }}>
-              {t('profile.settingsRows.currentDevice')}
-            </Text>
-          ) : null}
-        </View>
+        <Text style={{ flex: 1, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>
+          {t('profile.settingsRows.currentDevice')}
+        </Text>
         <View pointerEvents={disabled ? 'none' : 'auto'} accessible={disabled} accessibilityRole={disabled ? 'switch' : undefined}
           accessibilityLabel={disabled ? t('profile.settingsRows.alertsOnThisDevice') : undefined}
           accessibilityState={disabled ? { checked: currentDeviceRegistered, disabled: true } : undefined}>
