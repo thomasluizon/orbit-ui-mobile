@@ -17,10 +17,21 @@ vi.mock('@/components/chat/suggestion-chips', () => ({
   ),
 }))
 
+const astraSuggestions = vi.hoisted(() => ({
+  current: [] as { id: string; key: string }[] | null,
+}))
+
+vi.mock('@/hooks/use-astra-suggestions', () => ({
+  useAstraSuggestions: () => astraSuggestions.current,
+}))
+
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 
 describe('ChatEmptyState', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    astraSuggestions.current = []
+    cleanup()
+  })
 
   it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
     const { container } = render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
@@ -28,6 +39,10 @@ describe('ChatEmptyState', () => {
     const mark = container.querySelector('[data-mark="astra"]')
     expect(mark).not.toBeNull()
     expect(mark?.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
+    for (const element of [mark, ...(mark?.querySelectorAll<HTMLElement>('*') ?? [])]) {
+      expect((element as HTMLElement).style.background).toBe('')
+      expect((element as HTMLElement).style.backgroundColor).toBe('')
+    }
     for (const element of container.querySelectorAll<HTMLElement>('*')) {
       expect(element.getAttribute('style') ?? '').not.toContain('--primary')
       expect(element.className.toString()).not.toContain('--primary')
@@ -43,6 +58,16 @@ describe('ChatEmptyState', () => {
 
     const suggestion = screen.getByRole('button', { name: 'Como foi a semana' })
     expect(suggestion.closest('[aria-live]')).toHaveAttribute('aria-live', 'off')
+  })
+
+  it('holds back the prompt and the suggestions until the habit list arrives', () => {
+    astraSuggestions.current = null
+    render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
+
+    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+    expect(screen.queryByText('chat.suggestion.prompt')).toBeNull()
+    expect(screen.queryAllByRole('button')).toEqual([])
+    expect(screen.getByText('aiDisclosure.notMedicalAdvice')).toBeInTheDocument()
   })
 
   it('renders the drawn title and the prompt over the suggestions', () => {

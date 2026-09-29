@@ -1,21 +1,22 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { AstraSuggestion } from "@orbit/shared/utils";
 import { MotionPressable } from "@/components/ui/motion-pressable";
-import { useAstraSuggestions } from "@/hooks/use-astra-suggestions";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface SuggestionChipsProps {
+  suggestions: readonly AstraSuggestion[];
   onSelect: (suggestion: string) => void;
   contextualAction?: { label: string; onSelect: () => void };
 }
 
-/** The four drawn openers for an empty thread. Each one asks for a different kind
- *  of answer, and the two that name a habit drop out when no habit qualifies. */
-export function SuggestionChips({ onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
+/** The drawn openers for an empty thread, in the order given, each kept to one line.
+ *  A press sends the label the person read. */
+export function SuggestionChips({ suggestions, onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -23,9 +24,6 @@ export function SuggestionChips({ onSelect, contextualAction }: Readonly<Suggest
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const suggestions = useAstraSuggestions();
-
-  if (suggestions === null) return null;
 
   const renderSuggestion = (key: string, label: string, onPress: () => void) => (
     <MotionPressable

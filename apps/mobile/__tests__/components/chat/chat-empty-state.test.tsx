@@ -1,6 +1,7 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -90,6 +91,16 @@ describe('ChatEmptyState (mobile)', () => {
     expect(rendered).not.toContain(tokens.primaryRgb)
   })
 
+  it('sets the prompt and the disclosure on the type scale, in the third text tone', () => {
+    const { tree } = renderEmptyState([])
+    const textStyle = (content: string) => StyleSheet.flatten(
+      tree.root.find((node: any) => node.type === 'Text' && node.props.children === content).props.style,
+    )
+
+    expect(textStyle('chat.suggestion.prompt')).toMatchObject({ fontSize: 14, color: tokens.fg3 })
+    expect(textStyle('aiDisclosure.notMedicalAdvice')).toMatchObject({ fontSize: 12, color: tokens.fg3 })
+  })
+
   it('renders the drawn title, the prompt and the disclosure', () => {
     const { tree } = renderEmptyState([])
     const rendered = JSON.stringify(tree.toJSON())
@@ -113,12 +124,13 @@ describe('ChatEmptyState (mobile)', () => {
     ])
   })
 
-  it('shows no suggestion until the habit list arrives, then all of them at once', async () => {
+  it('shows the prompt and every suggestion together, once the habit list arrives', async () => {
     let answer: (page: unknown) => void = () => {}
     habitRequest.apiClient.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
     const { tree } = renderEmptyState(null)
 
     expect(suggestionLabels(tree)).toEqual([])
+    expect(JSON.stringify(tree.toJSON())).not.toContain('chat.suggestion.prompt')
 
     await TestRenderer.act(async () => {
       answer({

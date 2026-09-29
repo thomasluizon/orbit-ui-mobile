@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
@@ -14,9 +14,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC' } }),
 }))
 
-vi.mock('@/lib/api-fetch', () => ({
-  fetchJson: () => Promise.reject(new Error('the empty state must read the cached habit list')),
+const habitRequest = vi.hoisted(() => ({
+  fetchJson: vi.fn((_url: string): Promise<unknown> =>
+    Promise.reject(new Error('the empty state must read the cached habit list'))),
 }))
+
+vi.mock('@/lib/api-fetch', () => habitRequest)
 
 const TODAY = '2026-08-28'
 
@@ -29,12 +32,14 @@ const houseRoutine = makeHabitScheduleItem({
   hasSubHabits: false,
 })
 
-function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[]) {
+function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | null) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  queryClient.setQueryData(
-    habitKeys.list(habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true)),
-    items,
-  )
+  if (items !== null) {
+    queryClient.setQueryData(
+      habitKeys.list(habitListQueryFilters({ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }, true)),
+      items,
+    )
+  }
   render(
     <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
       <QueryClientProvider client={queryClient}>
@@ -82,6 +87,28 @@ describe('ChatEmptyState copy', () => {
       'How was my week',
       'Split Rotina da casa',
       'How are my goals doing',
+    ])
+  })
+
+  it('shows the prompt and every suggestion together, once the habit list arrives', async () => {
+    let answer: (page: unknown) => void = () => {}
+    habitRequest.fetchJson.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
+    renderEmptyState('pt-BR', null)
+
+    expect(screen.getByText('Fale com a Astra sobre a sua rotina')).toBeInTheDocument()
+    expect(screen.queryByText('Algumas coisas que dá para pedir')).toBeNull()
+    expect(screen.queryAllByRole('button')).toEqual([])
+
+    await act(async () => {
+      answer({ items: [houseRoutine], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 })
+    })
+
+    expect(await screen.findByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
+    expect(suggestionLabels()).toEqual([
+      'Registrar Rotina da casa',
+      'Como foi a semana',
+      'Dividir Rotina da casa',
+      'Como estão as metas',
     ])
   })
 
