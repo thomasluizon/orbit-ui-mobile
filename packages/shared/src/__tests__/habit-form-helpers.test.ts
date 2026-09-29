@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
+import { readHabitPhrase } from '../utils/habit-phrase-parser'
+import { buildCreateHabitRequest } from '../utils/habit-request-builders'
 import {
   EMPTY_HABIT_FORM_PROPOSAL,
   HABIT_REMINDER_PRESETS,
@@ -580,7 +582,7 @@ describe('habit form helpers', () => {
     controller.toggleDay('Monday')
     expect(ownership.cadence).toBe(false)
     expect(setRecurring).toHaveBeenCalledOnce()
-    expect(toggleDay).toHaveBeenCalledWith('Monday')
+    expect(toggleDay).toHaveBeenCalledWith('Monday', false)
     expect(fields.get('frequencyUnit')?.value).toBe('Day')
 
     proposal = proposed
@@ -692,7 +694,7 @@ describe('habit form helpers', () => {
         intervalWeeks: 1,
         frequencyUnit: 'Day',
         frequencyQuantity: 1,
-        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        days: [],
       },
     },
     {
@@ -750,6 +752,46 @@ describe('habit form helpers', () => {
     expect(calls).toEqual([expectedMode])
     expect(fields).toEqual({ dueTime: '', ...expectedFields })
     expect(ownership).toEqual({ cadence: true, dueTime: true })
+  })
+
+  it.each([
+    { phrase: 'Ler 10 minutos todo dia às 21h', locale: 'pt-BR' as const, messages: ptBR, sentence: 'Todo dia às 21:00' },
+    { phrase: 'Read 10 minutes every day at 21h', locale: 'en' as const, messages: en, sentence: 'Every day at 21:00' },
+  ])('keeps a daily phrase daily through the form, request, and understanding in $locale', ({ phrase, locale, messages, sentence }) => {
+    const read = readHabitPhrase(phrase, locale)
+    const fields: Record<string, string | number | string[]> = {}
+    applyHabitPhraseRead(true, read, '', false, { cadence: false, dueTime: false }, {
+      setOneTime: () => {},
+      setRecurring: () => {},
+      setFlexible: () => {},
+      setGeneral: () => {},
+      setField: (field, value) => { fields[field] = value },
+    })
+
+    expect(read).toMatchObject({ cadence: 'daily', dueTime: '21:00', days: [] })
+    expect(fields).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [], dueTime: '21:00' })
+    const request = buildCreateHabitRequest(normalizeHabitFormData({
+      title: phrase,
+      frequencyUnit: fields.frequencyUnit as 'Day',
+      frequencyQuantity: fields.frequencyQuantity as number,
+      days: fields.days as string[],
+      dueTime: fields.dueTime as string,
+    }), [], [], [], [])
+    expect(request).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '21:00' })
+    expect(request.days).toBeUndefined()
+    expect(buildHabitUnderstandingSentence(
+      fields.days as string[], [], false, 'Day', 1, '21:00', locale,
+      (key, values) => key === 'habits.form.understoodDailyAt'
+        ? messages.habits.form.understoodDailyAt.replace('{time}', String(values?.time))
+        : key,
+    )).toBe(sentence)
+    expect(buildHabitUnderstandingSentence(
+      ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      [], false, 'Day', 1, '21:00', locale,
+      (key, values) => key === 'habits.form.understoodDailyAt'
+        ? messages.habits.form.understoodDailyAt.replace('{time}', String(values?.time))
+        : key,
+    )).toBe(sentence)
   })
 
   it('appends a localized repeat interval to the schedule summary', () => {

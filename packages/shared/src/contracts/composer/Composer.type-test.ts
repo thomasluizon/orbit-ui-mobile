@@ -82,6 +82,7 @@ type ExpectedComposerSuggestion = {
   onSelect: () => void
 }
 type ExpectedComposerSuggestions =
+  | readonly []
   | readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]
   | readonly [
       ExpectedComposerSuggestion,
@@ -316,10 +317,11 @@ acceptComposer({
   words: { ...words, retry: 'Retry' },
 })
 
+const suggestions0: ComposerSuggestions = []
 const suggestions4: ComposerSuggestions = [chip, chip, chip, chip]
 const suggestions5: ComposerSuggestions = [chip, chip, chip, chip, chip]
 const suggestions6: ComposerSuggestions = [chip, chip, chip, chip, chip, chip]
-void [suggestions4, suggestions5, suggestions6]
+void [suggestions0, suggestions4, suggestions5, suggestions6]
 
 // @ts-expect-error words are required in every state
 acceptComposer({ ...base, state: 'idle', words: undefined })
@@ -377,6 +379,8 @@ void [missingAttachmentId, missingAttachmentKind, missingAttachmentName, videoAt
 
 // @ts-expect-error two suggestions are below the contract minimum
 const suggestions2: ComposerSuggestions = [chip, chip]
+// @ts-expect-error one suggestion is below the contract minimum
+const suggestions1: ComposerSuggestions = [chip]
 // @ts-expect-error seven suggestions are above the contract maximum
 const suggestions7: ComposerSuggestions = [chip, chip, chip, chip, chip, chip, chip]
-void [suggestions2, suggestions7]
+void [suggestions1, suggestions2, suggestions7]

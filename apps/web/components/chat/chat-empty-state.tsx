@@ -6,11 +6,12 @@ import { SuggestionChips } from '@/components/chat/suggestion-chips'
 
 interface ChatEmptyStateProps {
   onSelectSuggestion: (suggestion: string) => void
+  contextualAction?: { label: string; onSelect: () => void }
 }
 
 /** Centered hero shown when the chat has no messages: orb, prompt copy, and the
  *  starter suggestion chips. */
-export function ChatEmptyState({ onSelectSuggestion }: Readonly<ChatEmptyStateProps>) {
+export function ChatEmptyState({ onSelectSuggestion, contextualAction }: Readonly<ChatEmptyStateProps>) {
   const t = useTranslations()
 
   return (
@@ -44,7 +45,7 @@ export function ChatEmptyState({ onSelectSuggestion }: Readonly<ChatEmptyStatePr
         >
           {t('chat.suggestion.prompt')}
         </div>
-        <SuggestionChips onSelect={onSelectSuggestion} />
+        <SuggestionChips onSelect={onSelectSuggestion} contextualAction={contextualAction} />
         <div
           className="text-center"
           style={{

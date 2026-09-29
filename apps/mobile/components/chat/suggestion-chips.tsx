@@ -9,9 +9,10 @@ type AppTokens = ReturnType<typeof createTokensV2>;
 
 interface SuggestionChipsProps {
   onSelect: (suggestion: string) => void;
+  contextualAction?: { label: string; onSelect: () => void };
 }
 
-export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
+export function SuggestionChips({ onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -33,6 +34,16 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
 
   return (
     <View ref={suggestionsRef} style={styles.container}>
+      {contextualAction ? (
+        <Pressable
+          style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+          onPress={contextualAction.onSelect}
+          accessibilityRole="button"
+          accessibilityLabel={contextualAction.label}
+        >
+          <Text style={styles.chipText}>{contextualAction.label}</Text>
+        </Pressable>
+      ) : null}
       {suggestions.map((suggestion, index) => (
         <Animated.View
           key={suggestion}

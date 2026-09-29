@@ -16,11 +16,13 @@ vi.mock('@/components/ui/app-bar', () => ({
 }))
 
 vi.mock('@/components/shell/composer', () => ({
-  Composer: () => <div data-testid="conversation-composer" />,
+  Composer: ({ suggestions }: { suggestions?: { id: string }[] }) => (
+    <div data-testid="conversation-composer">{suggestions?.length ? <div role="group" aria-label="composer-chips" /> : null}</div>
+  ),
 }))
 
 vi.mock('@/components/chat/chat-empty-state', () => ({
-  ChatEmptyState: () => null,
+  ChatEmptyState: ({ contextualAction }: { contextualAction?: { label: string; onSelect: () => void } }) => <div data-testid="empty-suggestions">{contextualAction ? <button type="button" onClick={contextualAction.onSelect}>{contextualAction.label}</button> : null}</div>,
 }))
 
 vi.mock('@/components/chat/message-bubble', () => ({
@@ -47,6 +49,7 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useChatStore } from '@/stores/chat-store'
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
@@ -68,9 +71,35 @@ function buildChat(): ChatController {
     sendError: null,
     canRetryLastSend: false,
     retryLastSend: vi.fn(),
-    composerProps: {},
+    composerProps: { suggestions: [{ id: 'one' }, { id: 'two' }, { id: 'three' }] },
   } as unknown as ChatController
 }
+
+it('shows only empty-state suggestions until the thread has a message', () => {
+  const chat = buildChat()
+  chat.messages = []
+  chat.showSuggestions = true
+  const view = render(<AstraConversation chat={chat} />)
+  expect(screen.getByTestId('empty-suggestions')).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'composer-chips' })).not.toBeInTheDocument()
+  chat.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
+  chat.showSuggestions = false
+  view.rerender(<AstraConversation chat={chat} />)
+  expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'composer-chips' })).toBeInTheDocument()
+})
+
+it('keeps a requested Progress action reachable in a new conversation', () => {
+  const chat = buildChat()
+  chat.messages = []
+  chat.showSuggestions = true
+  chat.composerProps.suggestions = []
+  useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
+  render(<AstraConversation chat={chat} />)
+  expect(screen.queryByRole('group', { name: 'composer-chips' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+  expect(chat.sendMessage).toHaveBeenCalledWith('Help me make a goal')
+})
 
 it('collapses two tool steps on the finished message', () => {
   const chat = buildChat()
@@ -116,12 +145,14 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   holdAccount('user-1')
   useAppToastStore.setState({ currentToast: null, queue: [] })
+  useChatStore.getState().setContextualSuggestion(null)
 })
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+  useChatStore.getState().setContextualSuggestion(null)
 })
 
 it('closes the goal drawer Astra opened when another account replaces the tab', async () => {

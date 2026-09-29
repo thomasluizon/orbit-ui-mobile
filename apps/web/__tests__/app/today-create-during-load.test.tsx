@@ -33,7 +33,7 @@ vi.mock('next/dynamic', () => ({
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
     <>

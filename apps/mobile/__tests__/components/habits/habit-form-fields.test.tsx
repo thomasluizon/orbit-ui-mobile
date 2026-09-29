@@ -88,7 +88,7 @@ describe('HabitFormFields mobile', () => {
     expect(understanding.props.labels.field).toBe('habits.form.describe')
     understanding.props.onToggleDay('Monday')
     expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
-    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
     understanding.props.onQuantityChange(4)
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
@@ -104,6 +104,9 @@ describe('HabitFormFields mobile', () => {
     })
 
     expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day')
+    expect(tree.root.findByType('HabitUnderstanding').props.daily).toBe(true)
+    tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
 
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
     controlValues.dueTime = '07:00'
@@ -122,6 +125,7 @@ describe('HabitFormFields mobile', () => {
     })
 
     expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every Mon at 08:00')
+    expect(tree.root.findByType('HabitUnderstanding').props.daily).toBe(false)
 
     controlValues.days = []
     controlValues.isFlexible = true
@@ -362,7 +366,7 @@ describe('HabitFormFields mobile', () => {
 
     const understanding = tree.root.findByType('HabitUnderstanding')
     understanding.props.onToggleDay('Monday')
-    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
 
     const details = tree.root.findAll(
       (node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.moreDetails').length > 0,

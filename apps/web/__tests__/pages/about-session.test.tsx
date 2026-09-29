@@ -53,7 +53,7 @@ vi.mock('@/components/navigation/navigation-history-tracker', () => ({ Navigatio
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   useNotFoundShell: () => {},
   DestinationShell: ({ children, composer, notice }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode }) => (

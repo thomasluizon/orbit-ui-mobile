@@ -6,7 +6,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { useRef, useState } from 'react'
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -75,7 +75,8 @@ function SuggestionStrip({
   suggestions,
   label,
   tokens,
-}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2 }>) {
+  focusTarget,
+}: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   return (
     <ScrollView
       horizontal
@@ -87,14 +88,18 @@ function SuggestionStrip({
         <Pressable
           key={suggestion.id}
           accessibilityRole="button"
-          onPress={suggestion.onSelect}
+          accessibilityLabel={suggestion.label}
+          onPress={() => {
+            if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
+            suggestion.onSelect()
+          }}
           style={({ pressed }) => [
             styles.suggestion,
             { backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
           ]}
         >
           {suggestion.icon}
-          <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+          <Text numberOfLines={1} style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -125,7 +130,7 @@ function VoiceStatus({
   )
 }
 
-function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: ComposerProps; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
   if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <View style={styles.limitStatus}>
@@ -140,11 +145,13 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
       {props.words.offlineReason ? <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.words.offlineReason}</Text> : null}
     </View>
   }
+  if (props.state === 'sending' || props.suggestions.length === 0) return null
   return (
     <SuggestionStrip
       suggestions={props.suggestions}
       label={props.words.suggestionsLabel}
       tokens={tokens}
+      focusTarget={focusTarget}
     />
   )
 }
@@ -154,7 +161,7 @@ type MobileComposerProps = ComposerProps & {
   onInputBlur?: () => void
 }
 
-function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
+function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
   const voiceRef = useRef<View>(null)
   const [openConversationScale] = useState(() => new Animated.Value(1))
   const inputDisabled = props.state !== 'idle'
@@ -184,6 +191,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: MobileComposerPro
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
       >
         <TextInput
+          ref={inputRef}
           accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
           accessibilityState={{ disabled: inputDisabled }}
           editable={!inputDisabled}
@@ -306,6 +314,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
+  const focusTarget = useRef<TextInput>(null)
   const testID = [
     'composer',
     props.state,
@@ -328,8 +337,8 @@ export function Composer(props: Readonly<MobileComposerProps>) {
         />
       ) : null}
 
-      <ComposerStatus props={props} tokens={tokens} />
-      <ComposerInputRow props={props} tokens={tokens} />
+      <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
+      <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
       <RetryControl props={props} tokens={tokens} />
     </View>
   )

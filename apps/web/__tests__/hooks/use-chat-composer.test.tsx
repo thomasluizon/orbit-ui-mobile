@@ -2,11 +2,14 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -15,8 +18,12 @@ afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({
   pathname: '/support',
+  searchParams: '',
   state: {
     profile: undefined as Profile | undefined,
+    habitData: { topLevelHabits: [] as NormalizedHabit[], totalCount: 0 } as { topLevelHabits: NormalizedHabit[]; totalCount: number } | null,
+    detail: null as HabitDetail | null,
+    habitFilters: [] as HabitsFilter[],
     isRecording: false,
     isTranscribing: false,
     speechSupported: true,
@@ -42,13 +49,13 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.routerPush, prefetch: vi.fn(), replace: vi.fn() }),
   usePathname: () => mocks.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mocks.searchParams),
 }))
 
 vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   DestinationShell: ({ composer }: { composer: React.ReactNode }) => <main>{composer}</main>,
 }))
@@ -102,6 +109,12 @@ vi.mock('@orbit/shared/query', async (importOriginal) => ({
 
 vi.mock('@/lib/query-client', () => ({
   getQueryClient: () => mocks.queryClient,
+}))
+
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: false } },
+  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -250,6 +263,10 @@ describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
     useThrottleStore.getState().clear()
     mocks.state.profile = undefined
+    mocks.searchParams = ''
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.state.detail = null
+    mocks.state.habitFilters = []
     mocks.state.isRecording = false
     mocks.state.isTranscribing = false
     mocks.state.speechSupported = true
@@ -263,6 +280,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setCalendarHasError(false)
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -1367,12 +1385,58 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.selectedTextFile?.name).toBe('notes.txt')
   })
 
+  it('synchronizes the Today route date before chips settle', () => {
+    mocks.pathname = '/'
+    mocks.searchParams = 'date=2026-09-11'
+    answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+    render(<AppLayout><div>Today</div></AppLayout>)
+    expect(mocks.state.habitFilters.at(-1)?.dateFrom).toBe('2026-09-11')
+  })
+
+  it('queries the selected day with the visible Today general filter', () => {
+    renderHook(() => useChatComposer({ pathname: '/', today: '2026-09-12', selectedDate: '2026-09-11', includeGeneral: true }))
+    expect(mocks.state.habitFilters.at(-1)).toMatchObject({
+      dateFrom: '2026-09-11', dateTo: '2026-09-11', includeOverdue: false, includeGeneral: true,
+    })
+  })
+
+  it('matches the shared chip builder on primary routes', () => {
+    const habit = createMockHabit({ title: 'Read', linkedGoals: [], isCompleted: false })
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null, currentStreak: 0, longestStreak: 0, aiSummaryEnabled: true, hasGoogleConnection: true })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+    for (const [pathname, surface] of [['/', 'today'], ['/calendar', 'calendar'], ['/progress', 'progress'], ['/profile', 'profile']] as const) {
+      const expected = buildComposerChips({ surface, status: 'success', habits: [habit], totalHabitCount: 1, profile: mocks.state.profile }).map((chip) => chip.id)
+      const { result, unmount } = renderHook(() => useChatComposer({ pathname, totalHabitCount: 1 }))
+      expect(result.current.composerProps.suggestions.map((chip) => chip.id)).toEqual(expected)
+      unmount()
+    }
+  })
+
+  it('gates Calendar chips on the Calendar error rather than the Today query', () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    const { result } = renderHook(() => useChatComposer({ pathname: '/calendar' }))
+    expect(result.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
+      'today.logYesterday', 'calendar.slippedThisWeek', 'today.changeTimes',
+    ])
+    act(() => useUIStore.getState().setCalendarHasError(true))
+    expect(result.current.composerProps.suggestions).toEqual([])
+  })
+
+  it('queries every habit when choosing Progress goal chips', () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    renderHook(() => useChatComposer({ pathname: '/progress' }))
+    expect(mocks.state.habitFilters.at(-1)).toEqual({})
+  })
+
   it('sends a live suggestion label in the transport payload', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const { result } = renderHook(() => useChatComposer())
-    const suggestion = result.current.composerProps.suggestions[0]
+    const suggestion = result.current.composerProps.suggestions[0]!
 
     act(() => suggestion.onSelect())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     expect(requestBody).toBeInstanceOf(FormData)
@@ -1380,24 +1444,44 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody.get('message')).toBe(suggestion.label)
   })
 
-  it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
+  it('keeps a Progress goal request available beside an existing draft', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {
+      id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal',
+    } })
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
-    useChatStore.getState().setDraft('Unsent note')
-    useChatStore.getState().setContextualSuggestion({
-      id: 'habit-detail-help',
-      label: 'Ask about Read',
-      prompt: 'Help me improve my habit named Read',
-    })
-    const { result } = renderHook(() => useChatComposer())
-
-    expect(result.current.composerProps.suggestions[0].label).toBe('Ask about Read')
-    act(() => result.current.composerProps.suggestions[0].onSelect())
-
+    const { result } = renderHook(() => useChatComposer({ pathname: '/progress' }))
+    expect(result.current.composerProps.suggestions[0]?.id).toBe('progress-create-goal')
+    act(() => result.current.composerProps.suggestions[0]?.onSelect())
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
-    expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
+    expect(requestBody.get('message')).toBe('Help me make a goal')
     expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
+  it('uses loaded habit detail while the separate day query is unavailable', () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    mocks.state.detail = makeHabitDetail()
+    const { result } = renderHook(() => useChatComposer({ pathname: '/habits/habit-1' }))
+    expect(result.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
+      'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
+    ])
+  })
+
+  it('sends the habit detail seed prompt', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer({ pathname: '/habits/habit-1' }))
+    const suggestion = result.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('habitDetail.askAstra')
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

@@ -28,6 +28,7 @@ export function HabitUnderstanding({
   error,
   emoji,
   days,
+  daily = false,
   dayOptions,
   quantity,
   mode,
@@ -125,7 +126,7 @@ export function HabitUnderstanding({
             {mode === 'fixed' ? (
               <View accessibilityLabel={labels.days} style={styles.days}>
                 {dayOptions.map((day) => {
-                  const selected = days.includes(day.value)
+                  const selected = daily || days.includes(day.value)
                   return (
                     <Pressable key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
                       <Text style={selected ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>

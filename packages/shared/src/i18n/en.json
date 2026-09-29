@@ -237,6 +237,48 @@
       "offline": {
         "placeholder": "No connection",
         "reason": "No connection. Astra comes back when the connection does."
+      },
+      "chips": {
+        "today": {
+          "moveOverdue": "Move {title} to tonight",
+          "logHabit": "Log {title}",
+          "logYesterday": "Log yesterday",
+          "pushTomorrow": "Push everything to tomorrow",
+          "trimHabit": "Trim {title}",
+          "createMorningHabit": "Create a morning habit",
+          "logLastDays": "Log the last days",
+          "resumeHabits": "Pick the habits back up",
+          "cutToTwo": "Cut to two a day",
+          "changeTimes": "Change the times",
+          "pauseWhatDoesNotFit": "Pause what does not fit",
+          "keepOnlyHabit": "Keep only {title}",
+          "buildMorningRoutine": "Build a morning routine",
+          "startOneHabit": "Start with one habit",
+          "suggestThreeHabits": "Suggest three habits",
+          "createEveningHabit": "Create an evening habit",
+          "reviewHabit": "Review {title}"
+        },
+        "calendar": {
+          "slippedThisWeek": "What slipped this week",
+          "syncCalendar": "Sync my calendar"
+        },
+        "progress": {
+          "createGoal": "Create a goal for {title}",
+          "brokenStreak": "Why the streak broke",
+          "trimGoals": "Trim my goals",
+          "stuckThisWeek": "What is getting stuck this week"
+        },
+        "profile": {
+          "changeTimezone": "Change my timezone",
+          "turnOffSummary": "Turn off the daily summary",
+          "seePlan": "See my plan",
+          "exportData": "Export my data"
+        },
+        "habitDetail": {
+          "askAstra": "Ask Astra",
+          "pauseThisWeek": "Pause this week",
+          "rename": "Rename"
+        }
       }
     }
   },
@@ -1231,12 +1273,6 @@
     "senderOrbit": "Astra",
     "astraAvatarLabel": "Astra avatar",
     "unknownEntity": "Unknown",
-    "starterChips": {
-      "logHabit": "Log a habit",
-      "createRoutine": "Create a routine",
-      "howAmIDoing": "How am I doing?",
-      "planWeek": "Plan my week"
-    },
     "habitList": {
       "title": "Today's habits",
       "allTitle": "All habits",

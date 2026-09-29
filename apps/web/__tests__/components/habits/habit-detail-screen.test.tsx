@@ -810,6 +810,23 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('edit-habit-modal')).not.toBeInTheDocument()
   })
 
+  it('keeps a daily schedule selected when correcting weekdays inline', async () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
+
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(7)
+    expect(screen.getByRole('button', { name: 'dates.daysLong.sunday', pressed: true })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { pressed: true })[0]!)
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(6)
+    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(1)
+    fireEvent.click(screen.getAllByRole('button', { pressed: false })[0]!)
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(7)
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [] })
+  })
+
   it('shows reminder offsets before schedule and edits them inline', async () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -1307,15 +1324,9 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('puts the grounded Astra seed in the persistent composer', () => {
+  it('leaves habit detail suggestions to the shell composer', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'habit-habit-1',
-      label: 'habits.detail.askAstra',
-      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    })
-    expect(screen.queryByRole('button', { name: 'habits.detail.askAstra' })).not.toBeInTheDocument()
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 

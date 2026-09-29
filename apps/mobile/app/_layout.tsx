@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import {
@@ -76,6 +76,9 @@ import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { useOffline } from '@/hooks/use-offline'
 import { PushNotificationsProvider } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
@@ -194,16 +197,37 @@ function getNoNavigationNotice(
   return <>{notificationDeleteNotice}{topSegment === 'wrapped' ? null : <OfflineNotice />}</>
 }
 
+function getComposerSelectedDate(date: string | string[] | undefined): string | undefined {
+  return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined
+}
+
+function useComposerGeneralPreference(pathname: string): boolean {
+  const accountId = useAccountId()
+  const [snapshot, setSnapshot] = useState({ accountId, value: false })
+  useEffect(() => {
+    let active = true
+    void readShowGeneralOnToday().then((value) => {
+      if (active && getAccountId() === accountId) setSnapshot({ accountId, value })
+    }).catch(() => {
+      if (active && getAccountId() === accountId) setSnapshot({ accountId, value: false })
+    })
+    return () => { active = false }
+  }, [accountId, pathname])
+  return snapshot.accountId === accountId && snapshot.value
+}
+
 function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
-  const { from } = useGlobalSearchParams<{ from?: string | string[] }>()
+  const includeGeneral = useComposerGeneralPreference(pathname)
+  const { from, date } = useGlobalSearchParams<{ from?: string | string[]; date?: string | string[] }>()
   const linkingUrl = Linking.useLinkingURL()
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const captureReady = useCaptureReady()
   const { profile } = useProfile()
+  const today = useCurrentDate(profile?.timeZone)
   useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
@@ -218,6 +242,11 @@ function RootLayoutNav() {
   const chat = useChatComposer({
     isOnline: offline.isOnline,
     offlineTitle: t('chat.offline.title'),
+    pathname,
+    today,
+    selectedDate: getComposerSelectedDate(date),
+    totalHabitCount: habitCountLoaded ? totalHabitCount : null,
+    includeGeneral,
   })
   useOnboardingFlush()
 

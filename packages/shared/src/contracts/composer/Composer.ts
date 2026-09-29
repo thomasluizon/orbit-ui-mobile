@@ -46,10 +46,22 @@ export type ComposerSuggestion = {
 type Chip = ComposerSuggestion
 
 export type ComposerSuggestions =
+  | readonly []
   | readonly [Chip, Chip, Chip]
   | readonly [Chip, Chip, Chip, Chip]
   | readonly [Chip, Chip, Chip, Chip, Chip]
   | readonly [Chip, Chip, Chip, Chip, Chip, Chip]
+
+export function toComposerSuggestions(chips: readonly ComposerSuggestion[]): ComposerSuggestions {
+  switch (chips.length) {
+    case 0: return []
+    case 3: return [chips[0]!, chips[1]!, chips[2]!]
+    case 4: return [chips[0]!, chips[1]!, chips[2]!, chips[3]!]
+    case 5: return [chips[0]!, chips[1]!, chips[2]!, chips[3]!, chips[4]!]
+    case 6: return [chips[0]!, chips[1]!, chips[2]!, chips[3]!, chips[4]!, chips[5]!]
+    default: throw new Error('Composer suggestions must contain zero or three to six chips')
+  }
+}
 
 type ComposerBase = {
   words: ComposerWords
