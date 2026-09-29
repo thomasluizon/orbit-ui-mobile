@@ -39,7 +39,6 @@ export default defineConfig({
         'app/(tabs)/calendar/_components/calendar-grid.tsx',
         'app/(tabs)/today-shell.tsx',
         'app/+not-found.tsx',
-        'app/about.tsx',
         'app/advanced-sections.tsx',
         'app/advanced.tsx',
         'app/ai-settings.tsx',
