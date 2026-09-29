@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback, useEffect, useId, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { useMemo, useCallback, useEffect, useId, useState, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -110,6 +110,7 @@ function DeferredConfirmDialogs(
 ) {
   const open =
     props.showDeleteConfirm ||
+    props.habitToSkip !== null ||
     props.duplicateHabitName !== null ||
     props.parentPrompt !== null
   return open ? <HabitListConfirmDialogs {...props} /> : null
@@ -684,6 +685,12 @@ export function HabitList({
   const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
   const [habitToDelete, setHabitToDelete] = useAccountScopedState<string | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [habitToSkip, setHabitToSkip] = useAccountScopedState<{ habit: NormalizedHabit; date: string } | null>(null)
+  const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
+  if (skipStateDate !== selectedDateStr) {
+    setSkipStateDate(selectedDateStr)
+    setHabitToSkip(null)
+  }
 
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useAccountScopedState(false)
   const [movingHabitId, setMovingHabitId] = useAccountScopedState<string | null>(null)
@@ -717,6 +724,7 @@ export function HabitList({
     showSubHabitModal ||
     showRescheduleSheet ||
     showDeleteConfirm ||
+    habitToSkip?.date === selectedDateStr ||
     habitToDuplicate ||
     parentPrompt ||
     showMoveParentOverlay,
@@ -1060,7 +1068,6 @@ export function HabitList({
         confirmedResolutionsRef.current !== confirmedResolutions
       ) return
       recordHabitResolution(confirmedResolutions, habitId, 'skip')
-      markRecentlyCompleted(habitId)
       if (settlementData) {
         settleParentAutomatically(habitId, {
           data: settlementData,
@@ -1249,7 +1256,7 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: completionReadOnly ? undefined : () => { void skipFromRow(habit) },
+          onSkip: completionReadOnly ? undefined : () => setHabitToSkip({ habit, date: selectedDateStr }),
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -1420,6 +1427,7 @@ export function HabitList({
         deleteHabitName={deleteConfirmation.name}
         deleteDescendantCount={deleteConfirmation.descendantCount}
         duplicateHabitName={habitToDuplicate?.title ?? null}
+        habitToSkip={habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null}
         parentPrompt={parentPrompt?.date === selectedDateStr
           ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
           : null}
@@ -1430,6 +1438,12 @@ export function HabitList({
         }}
         onConfirmDuplicate={() => void confirmDuplicate()}
         onCancelDuplicate={() => setHabitToDuplicate(null)}
+        onConfirmSkip={() => {
+          const habit = habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null
+          setHabitToSkip(null)
+          if (habit) void skipFromRow(habit)
+        }}
+        onCancelSkip={() => setHabitToSkip(null)}
         onConfirmParent={confirmParentSettlement}
         onCancelParent={() => setParentPromptQueue(
           (current) => shiftParentPrompt(current, selectedDateStr),

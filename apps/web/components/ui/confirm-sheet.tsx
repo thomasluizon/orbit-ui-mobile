@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface ConfirmSheetProps {
@@ -14,16 +15,14 @@ interface ConfirmSheetProps {
   cancelLabel?: string
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
+  inlineActions?: boolean
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
   /** Runs after the sheet is gone when the person confirms. It has to hide the sheet. */
   onConfirm: () => void
 }
 
-/**
- * The one confirmation surface. A confirmation belongs to an irreversible act
- * only, so a reversible one acts at once and never renders this (#42).
- */
+/** The confirmation surface for actions that cannot currently be undone. */
 export function ConfirmSheet({
   open,
   title,
@@ -31,10 +30,12 @@ export function ConfirmSheet({
   confirmLabel,
   cancelLabel,
   destructive = false,
+  inlineActions = false,
   onCancel,
   onConfirm,
 }: Readonly<ConfirmSheetProps>) {
   const t = useTranslations()
+  const isDesktop = useIsDesktop()
   const { sheetRef, closeSheet } = useSheetHost()
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [lifecycle, setLifecycle] = useState({
@@ -73,6 +74,22 @@ export function ConfirmSheet({
     if (actionsDisabled) return
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
+  const cancelButton = (
+    <PillButton variant="ghost" matchedWidth={!inlineActions} size={inlineActions ? 'sm' : 'md'} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
+      {cancelLabel ?? t('common.cancel')}
+    </PillButton>
+  )
+  const confirmButton = (
+    <PillButton
+      variant={destructive ? 'destructive' : inlineActions && isDesktop ? 'secondary' : 'primary'}
+      matchedWidth={!inlineActions}
+      size={inlineActions ? 'sm' : 'md'}
+      disabled={actionsDisabled}
+      onClick={confirm}
+    >
+      {confirmLabel}
+    </PillButton>
+  )
 
   return (
     <Sheet
@@ -90,18 +107,8 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <DialogActionPair>
-          <PillButton
-            variant={destructive ? 'destructive' : 'primary'}
-            matchedWidth
-            disabled={actionsDisabled}
-            onClick={confirm}
-          >
-            {confirmLabel}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
-            {cancelLabel ?? t('common.cancel')}
-          </PillButton>
+        <DialogActionPair inline={inlineActions}>
+          {inlineActions ? <>{cancelButton}{confirmButton}</> : <>{confirmButton}{cancelButton}</>}
         </DialogActionPair>
       }
     >
