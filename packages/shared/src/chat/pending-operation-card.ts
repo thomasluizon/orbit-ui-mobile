@@ -46,6 +46,7 @@ export interface PendingOperationCardLabels {
   proposed: string
   notSet: string
   open: string
+  openNamed: (name: string) => string
   failed: string
   denied: string
   unsupported: string
@@ -106,6 +107,7 @@ export function buildPendingOperationCardLabels(
     proposed: translate('chat.preview.proposed'),
     notSet: translate('chat.preview.notSet'),
     open: translate('chat.action.open'),
+    openNamed: (name) => translate('chat.action.openEntity', { name }),
     failed: translate('chat.operationFailed'),
     denied: translate('chat.operation.status.Denied'),
     unsupported: translate('chat.operation.status.UnsupportedByPolicy'),

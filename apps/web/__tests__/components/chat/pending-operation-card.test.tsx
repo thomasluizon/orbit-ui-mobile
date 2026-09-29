@@ -10,6 +10,7 @@ const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean)
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
+  if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
   return key
 } }))
 vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
@@ -149,7 +150,9 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByText(/chat.operation.risk/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await waitFor(() => expect(screen.getByText('status.done')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'chat.action.open' }))
+    const open = screen.getByRole('button', { name: 'Open details: Beber água' })
+    expect(open).toHaveTextContent('chat.action.open')
+    fireEvent.click(open)
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
   })
 

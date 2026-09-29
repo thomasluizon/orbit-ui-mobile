@@ -12,6 +12,7 @@ import { getActionChipNavigation } from './action-chips'
 export interface PendingOperationButtonSpec {
   disabled?: boolean
   label: string
+  accessibleName?: string
   loading?: boolean
   onClick: () => void
   variant?: 'destructive' | 'ghost' | 'primary'
@@ -58,6 +59,7 @@ export interface PendingOperationEditSheetProps {
 
 interface PendingOperationFrameBase<Node> {
   title: string
+  wrapTitle?: boolean
   focusTitleOnMount?: boolean
   body?: Node
   count?: number
@@ -143,6 +145,7 @@ type CardRevision = NonNullable<PendingOperationCardActions['revision']>
 
 function completedTargetControl<Node>(
   targetId: string | null | undefined,
+  entityName: string,
   card: PendingOperationCardActions,
   labels: PendingOperationCardLabels,
   render: PendingOperationCardRenderers<Node>,
@@ -151,7 +154,7 @@ function completedTargetControl<Node>(
   if (card.status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
   const navigation = getActionChipNavigation({ type: operation.sourceName, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
   return navigation.navigable
-    ? render.button({ label: labels.open, variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
+    ? render.button({ label: labels.open, accessibleName: labels.openNamed(entityName), variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
     : undefined
 }
 
@@ -166,7 +169,7 @@ function itemControl<Node>(
   const targetId = itemCount === 1
     ? card.completedOperation?.targetId ?? item.entityId
     : item.entityId
-  const open = completedTargetControl(targetId, card, labels, render)
+  const open = completedTargetControl(targetId, item.entityName, card, labels, render)
   if (open || card.status != null || revision.stale) return open
   return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
 }
@@ -319,7 +322,7 @@ function changeRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: firstField ? completedTargetControl(count === 1 ? card.completedOperation?.targetId ?? change.entityId : change.entityId, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
+      control: firstField ? completedTargetControl(count === 1 ? card.completedOperation?.targetId ?? change.entityId : change.entityId, change.entityName, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
         ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
         : undefined) : undefined,
     }
@@ -358,6 +361,7 @@ function previewFrame<Node>(
     : previewRows(revision, card, labels, presentation.destructive, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
+    wrapTitle: true,
     focusTitleOnMount: card.focusTitleOnMount,
     body: previewBody(card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,

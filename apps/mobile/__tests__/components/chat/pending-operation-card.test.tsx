@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ScrollView, Text, TextInput } from 'react-native'
+import { Pressable, ScrollView, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
@@ -19,6 +19,7 @@ vi.mock('react-native', async (importOriginal) => ({
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
+  if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
   return key
 } }) }))
 
@@ -504,6 +505,8 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
     expect(renderedText(tree.toJSON())).toContain('status.done')
+    expect(tree.root.findAllByType(Pressable).filter((node: import('react-test-renderer').ReactTestInstance) =>
+      node.props.accessibilityLabel === 'Open details: Beber água')).toHaveLength(1)
     TestRenderer.act(() => press(tree, 'chat.action.open').props.onPress())
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
   })

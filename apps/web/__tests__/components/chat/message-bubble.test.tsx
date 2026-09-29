@@ -463,7 +463,7 @@ describe('MessageBubble', () => {
     await screen.findByText('status.done')
     expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
     expect(screen.queryByText('chat.operation.outcome.Succeeded')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.action.open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.action.openEntity:{"name":"Beber água"}' }))
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
   })
 
