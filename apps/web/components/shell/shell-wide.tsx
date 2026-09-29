@@ -25,7 +25,7 @@ import { useModalFocusTrap } from './use-modal-focus-trap'
 
 const SIDE_PANEL_QUERY = '(min-width: 1024px)'
 
-type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode }
+type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; createRefusal?: ReactNode }
 
 const ICONS: Record<string, ComponentType<IconProps>> = {
   home: Home,
@@ -106,7 +106,7 @@ function SidebarItem({
   )
 }
 
-function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) {
+function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode }>) {
   return (
     <aside
       data-shell-sidebar=""
@@ -148,7 +148,10 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
       <div className="flex-1" />
       <div className="flex flex-col gap-6">
         {props.onCreate ? (
-          <Button onClick={props.onCreate}>{props.createLabel}</Button>
+          <div className="flex flex-col gap-3">
+            {props.createRefusal}
+            <Button onClick={props.onCreate}>{props.createLabel}</Button>
+          </div>
         ) : null}
         {props.account ? (
           <Link

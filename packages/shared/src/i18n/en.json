@@ -235,7 +235,8 @@
         "reason": "Astra is still answering. Wait for this response before sending another message."
       },
       "offline": {
-        "reason": "Astra needs a connection. Reconnect and try again. Habit logging still works offline."
+        "placeholder": "No connection",
+        "reason": "No connection. Astra comes back when the connection does."
       }
     }
   },
@@ -1083,7 +1084,7 @@
     "title": "Astra",
     "offline": {
       "title": "You’re offline",
-      "description": "Astra needs an internet connection. Reconnect to keep chatting."
+      "description": "Astra needs a connection. Your list keeps working without it."
     },
     "pendingOp": {
       "risk": {
@@ -2595,7 +2596,15 @@
   },
   "offline": {
     "title": "You're offline",
-    "description": "Check your connection and try again."
+    "description": "Check your connection and try again.",
+    "create": {
+      "title": "Create habit",
+      "reason": "Creating needs a connection because the habit is made on the server. Come back when the connection does."
+    },
+    "calendar": {
+      "title": "Sync the calendar",
+      "reason": "Google Calendar does not answer without a connection. Events already loaded stay in view."
+    }
   },
   "undo": {
     "habitDeleted": "Habit deleted",

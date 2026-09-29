@@ -9,6 +9,8 @@ import {
 import { RefreshCw } from '@/components/ui/icons'
 import { Switch } from '@/components/ui/switch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 interface CalendarSyncBoundaryProps {
   autoSyncState: CalendarAutoSyncState | undefined
@@ -23,6 +25,7 @@ export function CalendarSyncBoundary({
 }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
   const [isSaving, setIsSaving] = useAccountScopedState(false)
+  const { isOnline } = useOffline()
 
   const connected = isCalendarSyncConnectionActive(
     autoSyncState?.hasGoogleConnection ?? false,
@@ -37,7 +40,7 @@ export function CalendarSyncBoundary({
     : t('calendar.autoSync.lastSyncedNever')
 
   const handleAutoSyncChange = async (enabled: boolean) => {
-    if (isSaving) return
+    if (isSaving || !isOnline) return
     setIsSaving(true)
     try {
       await onAutoSyncChange(enabled)
@@ -67,11 +70,13 @@ export function CalendarSyncBoundary({
           </span>
           <Switch
             checked={autoSyncState?.enabled ?? false}
+            disabled={!isOnline}
             onChange={(enabled) => void handleAutoSyncChange(enabled)}
             label={t('calendar.dayDetail.autoSync')}
           />
         </div>
       ) : null}
+      {!isOnline ? <OfflineRefusal title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
     </div>
   )
 }

@@ -736,7 +736,7 @@ export function useChatComposer() {
 
   const composerProps = useMemo(() => {
     const words = {
-      placeholder: t('shell.composer.placeholder'),
+      placeholder: t(isOnline ? 'shell.composer.placeholder' : 'shell.composer.offline.placeholder'),
       send: t('shell.composer.send'),
       suggestionsLabel: t('shell.composer.suggestionsLabel'),
       retry: t('shell.composer.retry'),

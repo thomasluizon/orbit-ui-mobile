@@ -627,8 +627,8 @@ describe('CalendarSyncPage', () => {
   it('shows the offline state instead of the wizard when the browser is offline', () => {
     setNavigatorOnline(false)
     renderPage()
-    expect(screen.getByText('offline.title')).toBeInTheDocument()
-    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
     expect(screen.queryByText('calendar.fetchingEvents')).not.toBeInTheDocument()
   })
 

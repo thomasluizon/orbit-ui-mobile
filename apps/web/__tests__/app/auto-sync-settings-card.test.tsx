@@ -179,7 +179,9 @@ describe('AutoSyncSettingsCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /calendar\.autoSync\.syncNow/ }))
 
-    expect(hoisted.toast.error).toHaveBeenCalledWith('errors.offline')
+    expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+    expect(hoisted.toast.error).not.toHaveBeenCalled()
     expect(hoisted.runSyncNow.mutateAsync).not.toHaveBeenCalled()
   })
 

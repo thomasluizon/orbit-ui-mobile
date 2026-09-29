@@ -616,6 +616,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).not.toHaveBeenCalled()
     expect(composer.current.sendError).toBe('shell.composer.offline.reason')
     expect(composer.current.composerProps.state).toBe('offline')
+    expect(composer.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {

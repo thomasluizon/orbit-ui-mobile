@@ -377,6 +377,15 @@ describe('Composer (mobile)', () => {
     expect(byLabel(tree.root, placeholder)[0].props.placeholder).toBe(expected)
   })
 
+  it.each([
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+  ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
+    const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder }, limitReason: offline.reason }))
+    expect(byLabel(tree.root, placeholder)[0].props.placeholder).toBe(placeholder)
+    expect(textValues(tree.root)).toContain(reason)
+  })
+
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
     'exposes the %s state through test id and accessibility state',
     async (state) => {

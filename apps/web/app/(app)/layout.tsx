@@ -7,9 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
-import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
-import { WifiOff } from '@/components/ui/icons'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet } from '@/components/ui/sheet'
@@ -49,6 +47,7 @@ import {
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 import { Composer } from '@/components/shell/composer'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { CommandPaletteBackground } from '@/components/command/command-palette'
@@ -137,6 +136,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
   const { isOnline } = useOffline()
+  const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
   useTimezoneAutoSync(profile)
   useOnboardingFlush()
   const draftHydrated = useOnboardingDraftHydrated()
@@ -217,13 +217,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [importPromptId, showImportPrompt, unregisterOpenOverlay])
 
   const handleCreate = useCallback(() => {
+    if (!isOnline) {
+      setShowCreateRefusal(true)
+      return
+    }
+    setShowCreateRefusal(false)
     if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
     setShowCreateModal(true)
-  }, [profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal])
+  }, [isOnline, profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateRefusal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
@@ -294,6 +299,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       </Suspense>
       <DestinationShell
         onCreate={handleCreate}
+        createRefusal={!isOnline && showCreateRefusal ? (
+          <OfflineRefusal title={t('offline.create.title')} reason={t('offline.create.reason')} />
+        ) : undefined}
         composer={
           <Composer
             {...chat.composerProps}
@@ -309,13 +317,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         notice={(
           <>
             <CelebrationPanel />
-            {isOnline ? null : (
-              <Toast
-                kind="neutral"
-                icon={<WifiOff size={20} strokeWidth={2} />}
-                message={t('offline.title')}
-              />
-            )}
             <UpdateAvailableBanner />
             <NotificationDeleteNotice />
           </>

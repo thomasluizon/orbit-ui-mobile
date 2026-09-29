@@ -7,7 +7,6 @@ import {
   Check,
   Link as LinkIcon,
   AlertTriangle,
-  WifiOff,
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/ui/page-header'
@@ -366,35 +365,6 @@ function CalendarSyncPageContent() {
           >
             {t('auth.signInWithGoogle')}
           </PillButton>
-        </div>
-      )}
-
-      {step === 'offline' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
-          <WifiOff className="size-7 text-[var(--fg-3)]" strokeWidth={1.4} />
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 4,
-              }}
-            >
-              {t('offline.title')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('offline.description')}
-            </p>
-          </div>
         </div>
       )}
 

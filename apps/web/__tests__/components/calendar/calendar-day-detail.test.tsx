@@ -10,6 +10,9 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
 
+const network = vi.hoisted(() => ({ isOnline: true }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: network.isOnline }) }))
+
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
@@ -263,6 +266,22 @@ describe('CalendarDayDetail', () => {
     expect(autoSync).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(autoSync)
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
+  })
+
+  it('refuses calendar sync beside the day control while offline', () => {
+    network.isOnline = false
+    try {
+      const onCalendarAutoSyncChange = vi.fn(async () => {})
+      renderDetail({ autoSyncState: proAutoSyncState, onCalendarAutoSyncChange })
+      expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+      expect(autoSync).toBeDisabled()
+      fireEvent.click(autoSync)
+      expect(onCalendarAutoSyncChange).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
   })
 
   it('does not offer auto-sync as enabled without a Google connection', () => {

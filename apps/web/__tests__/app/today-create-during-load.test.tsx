@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   } | undefined,
   count: 0,
   countLoaded: false,
+  isOnline: true,
   push: vi.fn(),
 }))
 
@@ -29,8 +30,8 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/components/shell/destination-shell', () => ({
-  DestinationShell: ({ children, onCreate }: { children: React.ReactNode; onCreate: () => void }) => (
-    <><button type="button" onClick={onCreate}>Create</button>{children}</>
+  DestinationShell: ({ children, onCreate, notice, createRefusal }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode }) => (
+    <><button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-testid="notice-slot">{notice}</div>{children}</>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
@@ -40,7 +41,7 @@ vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({
   handleFileSelect: vi.fn(), handleTextFileSelect: vi.fn(),
   composerProps: { onSend: vi.fn() },
 }) }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.isOnline }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
 vi.mock('@/components/navigation/web-nav', () => ({ WebNav: () => null }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
@@ -78,7 +79,7 @@ vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
-vi.mock('@/components/ui/toast', () => ({ Toast: () => null }))
+vi.mock('@/components/ui/toast', () => ({ Toast: ({ message }: { message: string }) => <div>{message}</div> }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))
@@ -107,6 +108,7 @@ describe('Today create during first load', () => {
     state.profile = undefined
     state.count = 0
     state.countLoaded = false
+    state.isOnline = true
     state.push.mockClear()
   })
 
@@ -185,6 +187,18 @@ describe('Today create during first load', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+    expect(state.push).not.toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('refuses creation beside the action while offline without a shell toast', () => {
+    state.isOnline = false
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    expect(screen.getByTestId('notice-slot')).not.toHaveTextContent('offline.title')
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(screen.getByText('offline.create.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.create.reason')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Create habit' })).not.toBeInTheDocument()
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
   })
 })

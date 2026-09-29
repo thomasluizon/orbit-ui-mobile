@@ -313,6 +313,15 @@ describe('Composer', () => {
     expect(screen.getByRole('textbox', { name: placeholder })).toHaveAttribute('placeholder', expected)
   })
 
+  it.each([
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+  ])('shows the %s offline composer copy', (_locale, offline, placeholder, reason) => {
+    render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder }, limitReason: offline.reason })} />)
+    expect(screen.getByRole('textbox', { name: placeholder })).toHaveAttribute('placeholder', placeholder)
+    expect(screen.getByText(reason)).toBeInTheDocument()
+  })
+
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(
     'exposes the %s state without false boolean attributes',
     (state) => {

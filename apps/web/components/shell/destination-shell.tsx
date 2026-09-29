@@ -39,6 +39,7 @@ interface DestinationShellProps {
   conversationOpen?: boolean
   conversationLabel?: string
   onCreate: () => void
+  createRefusal?: ReactNode
 }
 
 type ComposerRenderer = () => ReactNode
@@ -168,6 +169,7 @@ function DestinationShellContent({
   conversationOpen,
   conversationLabel,
   onCreate,
+  createRefusal,
 }: Readonly<DestinationShellProps & { header?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
@@ -175,7 +177,6 @@ function DestinationShellContent({
   const previousPathname = useRef(pathname)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
-  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const lastDestination = useShellStore((state) => state.lastDestination)
   const setLastDestination = useShellStore((state) => state.setLastDestination)
@@ -259,7 +260,7 @@ function DestinationShellContent({
   const palette = (
     <CommandPalette
       navItems={commandItems}
-      onCreateHabit={() => setShowCreateModal(true)}
+      onCreateHabit={onCreate}
     />
   )
   const wideCreate = pathname === '/upgrade'
@@ -285,6 +286,7 @@ function DestinationShellContent({
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as BottomTab)}
         {...wideCreate}
+        createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('command.title')}
@@ -307,9 +309,12 @@ function DestinationShellContent({
         }
         fab={
           pathname === '/' && !todayFabHidden && !conversationOpen ? (
-            <Fab label={t('nav.create')} onClick={onCreate}>
-              <Plus size={24} strokeWidth={2} aria-hidden="true" />
-            </Fab>
+            <div className="flex items-end gap-3">
+              {createRefusal ? <div className="w-[min(68vw,280px)]">{createRefusal}</div> : null}
+              <Fab label={t('nav.create')} onClick={onCreate}>
+                <Plus size={24} strokeWidth={2} aria-hidden="true" />
+              </Fab>
+            </div>
           ) : undefined
         }
       >

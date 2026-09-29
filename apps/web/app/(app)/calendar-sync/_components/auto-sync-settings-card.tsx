@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
 import { QuietActionButton } from './quiet-action-button'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { connectGoogle } from './connect-google'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
@@ -68,10 +69,7 @@ export function AutoSyncSettingsCard() {
   }
 
   async function handleSyncNow() {
-    if (!isOnline) {
-      toast.error(t('errors.offline'))
-      return
-    }
+    if (!isOnline) return
     const requestAccount = getAccountGeneration()
     try {
       await runSyncNow.mutateAsync()
@@ -159,7 +157,8 @@ export function AutoSyncSettingsCard() {
       <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
 
       {!isLoading && hasConnection && (
-        <div className="flex justify-end" style={{ padding: '0 16px 4px' }}>
+        <div className="flex flex-col items-end gap-3" style={{ padding: '0 16px 4px' }}>
+          {!isOnline ? <OfflineRefusal title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
           <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
             {runSyncNow.isPending ? (
               <>

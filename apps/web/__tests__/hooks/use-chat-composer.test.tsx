@@ -1017,6 +1017,7 @@ describe('web useChatComposer streaming send', () => {
       expect(result.current.isOnline).toBe(false)
       expect(result.current.canSend).toBe(false)
       expect(result.current.composerProps.state).toBe('offline')
+      expect(result.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
