@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
-import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession } from './profile-session'
 
 async function inspectFocusedRing(page: Page) {
   return page.evaluate(() => {
@@ -140,7 +139,7 @@ for (const width of [412, 1280] as const) {
         hasProAccess: true,
         aiMessagesLimit: 50,
       })
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+      await setLayoutProfileSession(context, profile)
       await page.goto('/')
       await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
       await openCreateForm(page, width)
