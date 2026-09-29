@@ -89,6 +89,13 @@ describe('GoalDetailDrawer', () => {
     )
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
   })
+  it('uses the inline goal title as its only page heading', () => {
+    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+    const headings = screen.getAllByRole('heading', { level: 1 })
+    expect(headings).toHaveLength(1)
+    expect(headings[0]).toHaveTextContent('Read 12 books')
+    expect(headings[0]).toHaveAttribute('tabindex', '-1')
+  })
 
   it.each([
     {

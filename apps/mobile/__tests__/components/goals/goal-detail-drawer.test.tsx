@@ -847,5 +847,14 @@ describe('GoalDetailDrawer', () => {
     expect(nativeMocks.sendAccessibilityEvent).toHaveBeenCalledTimes(1)
     TestRenderer.act(() => tree.unmount())
   })
+  it('uses the inline goal title rather than the bar title as its page header', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
+    const titles = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' &&
+      (node.props.children === 'Read 12 books' || node.props.children === 'progressScreen.sections.goals'))
+    expect(titles).toHaveLength(1)
+    expect(titles[0]!.props.children).toBe('Read 12 books')
+  })
 
 })

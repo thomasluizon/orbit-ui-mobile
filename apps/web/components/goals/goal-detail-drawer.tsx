@@ -101,7 +101,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={false} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
       {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>

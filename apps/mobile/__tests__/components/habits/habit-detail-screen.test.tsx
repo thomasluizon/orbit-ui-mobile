@@ -243,9 +243,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => React.createElement('FlowShell', null, header, children),
 }))
-vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ onBack }: { onBack: () => void }) => React.createElement('AppBar', { testID: 'screen-back', onBack }),
-}))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -323,6 +320,20 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
+  it('exposes the habit name as the page header instead of the navigation title', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const pageHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' &&
+      node.props.accessibilityRole === 'header' &&
+      (node.props.accessibilityLabel === mocks.detail!.title || node.props.children === 'habits.detail.screenTitle'))
+    expect(pageHeaders).toHaveLength(1)
+    expect(pageHeaders[0]!.props.accessibilityLabel).toBe(mocks.detail!.title)
+    TestRenderer.act(() => { pageHeaders[0]!.props.onPress() })
+    const editingHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
+    expect(editingHeaders).toHaveLength(1)
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
@@ -481,7 +492,7 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = false
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
-    TestRenderer.act(() => { tree.root.findByProps({ testID: 'screen-back' }).props.onBack() })
+    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress() })
     expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
     expect(mocks.routerBack).not.toHaveBeenCalled()
   })
@@ -499,7 +510,7 @@ describe('HabitDetailScreen', () => {
 
     const title = mocks.detail!.title
     const renameControls = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
   })
@@ -631,7 +642,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ testID: 'screen-back' }).props.onBack()
+      tree!.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress()
     })
     expect(mocks.routerReplace).toHaveBeenCalledWith({
       pathname: '/(tabs)',
@@ -670,7 +681,7 @@ describe('HabitDetailScreen', () => {
       )
     })
 
-    TestRenderer.act(() => tree!.root.findByProps({ testID: 'screen-back' }).props.onBack())
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'common.backToParentHabit' }).props.onPress())
     expect(mocks.history.map((entry) => entry.path)).toEqual([
       '/?date=2026-08-28',
       '/habits/parent-1?date=2026-08-28&from=today',
@@ -679,7 +690,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree!.update(<HabitDetailScreen habitId="parent-1" date="2026-08-28" fromToday />)
     })
-    TestRenderer.act(() => tree!.root.findByProps({ testID: 'screen-back' }).props.onBack())
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress())
 
     expect(mocks.history).toEqual([
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },

@@ -131,7 +131,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
     <View style={styles.header}>
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
       <View style={styles.headerCopy}>
-        {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)}><Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
+        {editing ? <><Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text><TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /></> : <Pressable accessibilityRole="header" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)}><Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
         <Text numberOfLines={1} style={[styles.muted, { color: tokens.fg3 }]}>{summary}</Text>
         {habit.tags.length > 0 ? <View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View> : null}
       </View>
@@ -241,7 +241,7 @@ function LogDateError({ visible, tokens }: Readonly<{ visible: boolean; tokens: 
 
 function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: string | null; onBack: () => void }>) {
   const { t } = useTranslation()
-  return <AppBar title={t('habits.detail.screenTitle')} onBack={onBack}
+  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={false} onBack={onBack}
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
@@ -486,6 +486,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4, paddingTop: 4 },
   title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29 },
+  hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, borderBottomWidth: 1, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 18, lineHeight: 24 },
