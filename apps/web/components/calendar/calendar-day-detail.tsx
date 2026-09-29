@@ -67,7 +67,7 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
 
   return <div className="flex flex-col" style={{ gap: 4 }}>
     {calendarEvents.length > 20 ? (
-      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" />
+      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" name="calendar-event-search" />
     ) : null}
     {visibleEvents.map((event) => (
       <div key={event.id} className="flex flex-col gap-2">
@@ -83,7 +83,7 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
         </div>
       </div>
     ))}
-    {matchingEvents.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('calendar.noEvents')}</p> : null}
+    {matchingEvents.length === 0 ? <div className="flex flex-wrap items-center gap-2"><p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</p><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></div> : null}
     {calendarEvents.length > 20 ? (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</span>

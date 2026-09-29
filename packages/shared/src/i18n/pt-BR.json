@@ -947,6 +947,8 @@
       "nothingDue": "nada programado",
       "eventsTitle": "Na sua agenda",
       "searchEvents": "Buscar eventos",
+      "noMatchingEvents": "Nenhum evento corresponde a \"{query}\".",
+      "clearEventSearch": "Limpar busca",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
       "autoSync": "Sincronizar sozinho",

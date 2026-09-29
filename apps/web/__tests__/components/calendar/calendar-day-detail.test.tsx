@@ -238,6 +238,10 @@ describe('CalendarDayDetail', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'Event 22' } })
     expect(screen.getByText('Event 22')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'common.next' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'No such event' } })
+    expect(screen.getByText('calendar.dayDetail.noMatchingEvents')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
+    expect(screen.getByText('Event 0')).toBeInTheDocument()
   })
 
   it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
