@@ -140,6 +140,7 @@ function CalendarEventsSection({
 
 type EntryOutcome = {
   label: string
+  ringLabel: string
   status: NonNullable<StatusRingProps['status']>
 }
 
@@ -147,24 +148,21 @@ function getEntryOutcome(
   entry: CalendarDayEntry,
   t: ReturnType<typeof useTranslations>,
 ): EntryOutcome {
-  if (entry.status === 'upcoming') {
-    return {
-      label: t('calendar.status.upcoming'),
-      status: 'empty',
-    }
-  }
-
   const completed = entry.status === 'completed'
 
   if (entry.isBadHabit) {
+    const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      label: t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted'),
-      status: completed ? 'bad' : 'done',
+      label,
+      ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
+      status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
   }
 
+  const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
   return {
-    label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
+    label,
+    ringLabel: label,
     status: completed ? 'done' : 'empty',
   }
 }
@@ -265,7 +263,7 @@ function CalendarDayRows({
         key={`${dateStr}:${entry.habitId}`}
         title={entry.title}
         value={value}
-        trailing={<StatusRing status={outcome.status} size={24} label={outcome.label} />}
+        trailing={<StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />}
         chevron={false}
         readOnly
       />
@@ -322,9 +320,11 @@ export function CalendarDayDetail({
       className="block"
       style={{ color: 'inherit', textDecoration: 'none' }}
     >
+      {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
+        wrapTitle
         chevron={false}
         readOnly
       />
