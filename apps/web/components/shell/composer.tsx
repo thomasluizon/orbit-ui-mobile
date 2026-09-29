@@ -69,11 +69,16 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
         <button
           key={suggestion.id}
           type="button"
-          onClick={suggestion.onSelect}
-          className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+          aria-label={suggestion.label}
+          onClick={(event) => {
+            const root = event.currentTarget.closest('[data-composer-root]')
+            if (root instanceof HTMLElement) root.focus()
+            suggestion.onSelect()
+          }}
+          className="flex max-w-60 min-h-11 shrink-0 items-center gap-2 rounded-lg border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         >
           {suggestion.icon}
-          <span>{suggestion.label}</span>
+          <span className="min-w-0 truncate">{suggestion.label}</span>
         </button>
       ))}
     </div>
@@ -113,6 +118,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
       {props.words.offlineReason ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.words.offlineReason}</p> : null}
     </div>
   }
+  if (props.state === 'sending' || props.suggestions.length === 0) return null
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
@@ -231,6 +237,10 @@ export function Composer(props: Readonly<WebComposerProps>) {
   return (
     <div
       data-state={props.state}
+      data-composer-root
+      role="group"
+      aria-label={props.words.inputLabel ?? props.words.placeholder}
+      tabIndex={-1}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
       className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"

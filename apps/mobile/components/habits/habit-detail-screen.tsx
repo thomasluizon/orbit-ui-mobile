@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import {
   buildHabitDetailUpdateRequest,
@@ -34,7 +34,6 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, NormalizedHabit } from '@orbit/shared/types/habit'
-import { publishContextualSuggestion } from '@orbit/shared/stores'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -65,7 +64,6 @@ import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useChatStore } from '@/stores/chat-store'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
@@ -335,15 +333,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       Animated.timing(detailOpacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
     }
   }, [detailChevron, detailOpacity, detailsOpen])
-  useFocusEffect(useCallback(() => {
-    if (!habit) return
-    const contextualSuggestion = {
-      id: `habit-${habit.id}`,
-      label: t('habits.detail.askAstra'),
-      prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
-    }
-    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
-  }, [habit, t]))
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()

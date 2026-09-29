@@ -34,7 +34,6 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
-import { publishContextualSuggestion } from '@orbit/shared/stores'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -65,7 +64,6 @@ import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-sess
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useChatStore } from '@/stores/chat-store'
 import { useToday } from '@/app/(app)/today-provider'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
@@ -371,16 +369,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const completionDisabled = boundary === 'read-only'
     || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, dateStr, todayStr)))
   const completionReason = completionReasonForBoundary(boundary, t)
-
-  useEffect(() => {
-    if (!habit) return
-    const contextualSuggestion = {
-      id: `habit-${habit.id}`,
-      label: t('habits.detail.askAstra'),
-      prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
-    }
-    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
-  }, [habit, t])
 
   const goBack = useCallback(() => {
     if (parentId) router.back()

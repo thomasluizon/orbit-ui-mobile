@@ -14,6 +14,7 @@ import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
+import { useChatStore } from '@/stores/chat-store'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
 
@@ -48,6 +49,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const t = useTranslations()
   const router = useRouter()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
   const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
   const {
     chatContainerRef,
@@ -145,7 +147,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState onSelectSuggestion={(s) => void sendMessage(s)} />}
+        {showSuggestions && <ChatEmptyState
+          onSelectSuggestion={(s) => void sendMessage(s)}
+          contextualAction={contextualSuggestion?.id === 'progress-create-goal'
+            ? { label: contextualSuggestion.label, onSelect: () => void sendMessage(contextualSuggestion.prompt) }
+            : undefined}
+        />}
 
         <div className="flex flex-col gap-4">
         {messages.map((msg) => (
@@ -188,7 +195,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             ) : null}
           </div>
         ) : null}
-        <Composer {...composerProps} />
+        <Composer {...composerProps} suggestions={messages.length === 0 ? [] : composerProps.suggestions} />
       </div>
 
       {selectedGoalId && (

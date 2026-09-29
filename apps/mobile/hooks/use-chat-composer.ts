@@ -8,7 +8,9 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   buildChatMessageWithFileContent,
-  CHAT_STARTER_CHIP_KEYS,
+  buildComposerChips,
+  resolveComposerChipStatus,
+  resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   CHAT_TEXT_FILE_PICKER_MIME_TYPES,
   consumeChatSseStream,
@@ -18,8 +20,8 @@ import {
 } from "@orbit/shared/chat";
 import {
   hasComposerContent,
+  toComposerSuggestions,
   type ComposerProps,
-  type ComposerSuggestions,
 } from "@orbit/shared/contracts/composer";
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
@@ -40,9 +42,11 @@ import {
   buildRecentChatHistory,
   detectDefaultTimeFormat,
   getFriendlyErrorMessage,
+  formatAPIDateInTimeZone,
 } from "@orbit/shared/utils";
 import { openChatStream } from "@/lib/chat-stream";
 import { useProfile } from "@/hooks/use-profile";
+import { useHabitDetail, useHabits } from "@/hooks/use-habit-queries";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
@@ -127,6 +131,11 @@ function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
 interface UseChatComposerOptions {
   isOnline: boolean;
   offlineTitle: string;
+  pathname?: string;
+  selectedDate?: string;
+  today?: string;
+  totalHabitCount?: number | null;
+  includeGeneral?: boolean;
 }
 
 /**
@@ -135,10 +144,18 @@ interface UseChatComposerOptions {
  * I/O, mirroring the web `useChatComposer`. Offline gating is injected because
  * the offline UI itself lives on the screen.
  */
-export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptions) {
+export function useChatComposer({ isOnline, offlineTitle, pathname = "/", selectedDate, today: currentDate, totalHabitCount, includeGeneral }: UseChatComposerOptions) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion);
+  const calendarHasError = useUIStore((state) => state.calendarHasError);
+  const today = currentDate ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone);
+  const date = selectedDate ?? today;
+  const surface = resolveComposerChipSurface(pathname);
+  const habitsQuery = useHabits({ dateFrom: date, dateTo: date, includeOverdue: date === today, includeGeneral: includeGeneral || undefined }, { completeDay: true });
+  const detailId = surface === "habitDetail" ? pathname.split("/")[2] ?? null : null;
+  const detailQuery = useHabitDetail(detailId);
 
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
@@ -211,11 +228,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     [imageName, selectedImage, selectedTextFile],
   );
   const showSuggestions = messages.length === 0 && !isTyping;
-
-  const starterChips = useMemo(
-    () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
-    [t],
-  );
 
   useEffect(() => {
     if (draftHydrated) return;
@@ -827,31 +839,30 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, [isOnline, lastFailedSend, offlineTitle, performSend, setInput]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
-  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion);
-
-  const composerSuggestions = useMemo<ComposerSuggestions>(() => {
-    const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
-      const label = t(key);
-      return { id: key, label, onSelect: () => void sendMessage(label) };
-    };
-    const starters = [
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[0]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[1]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
-    ] as const;
-    if (!contextualSuggestion) return starters;
-    return [
-      {
-        id: contextualSuggestion.id,
-        label: contextualSuggestion.label,
-        onSelect: () => void sendMessage(contextualSuggestion.prompt),
-      },
-      starters[0],
-      starters[1],
-      starters[2],
-    ];
-  }, [contextualSuggestion, sendMessage, t]);
+  const chipStatus = resolveComposerChipStatus(surface, {
+    habitsError: habitsQuery.isError,
+    habitsReady: Boolean(habitsQuery.data),
+    detailError: detailQuery.isError,
+    detailReady: Boolean(detailQuery.data),
+    calendarError: calendarHasError,
+  });
+  const composerSuggestions = useMemo(() => {
+    const chips = buildComposerChips({
+      surface,
+      status: chipStatus,
+      habits: habitsQuery.data?.topLevelHabits ?? [],
+      selectedDateIsToday: date === today,
+      totalHabitCount: totalHabitCount === undefined ? habitsQuery.data?.totalCount ?? null : totalHabitCount,
+      profile: profile ?? null,
+      detailHabit: detailQuery.data,
+      contextualSuggestion,
+    });
+    return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
+      const label = providedLabel ?? t(key, params);
+      const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label);
+      return { id, label, onSelect: () => void sendMessage(prompt) };
+    }));
+  }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, totalHabitCount, profile, date, today, sendMessage, t]);
 
   const composerProps = useMemo(() => {
     const words = {
@@ -970,7 +981,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     speechError,
     toggleRecording,
     recordingTime,
-    starterChips,
     hasProAccess,
     aiMessagesUsed,
     aiMessagesLimit,

@@ -20,12 +20,14 @@ import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
   hasComposerContent,
+  toComposerSuggestions,
   type ComposerProps,
-  type ComposerSuggestions,
 } from '@orbit/shared/contracts/composer'
 import {
   buildChatMessageWithFileContent,
-  CHAT_STARTER_CHIP_KEYS,
+  buildComposerChips,
+  resolveComposerChipStatus,
+  resolveComposerChipSurface,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
 } from '@orbit/shared/chat'
@@ -41,11 +43,13 @@ import {
   buildRecentChatHistory,
   detectDefaultTimeFormat,
   getFriendlyErrorMessage,
+  formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
+import { useHabitDetail, useHabits } from '@/hooks/use-habit-queries'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
@@ -118,11 +122,19 @@ async function* streamTextChunks(
  * send is the one sanctioned client-side `fetch` to the API (a Server Action
  * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
  */
-export function useChatComposer() {
+export function useChatComposer(options: { pathname?: string; selectedDate?: string; today?: string; totalHabitCount?: number | null; includeGeneral?: boolean } = {}) {
   const t = useTranslations()
   const locale = useLocale()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
+  const calendarHasError = useUIStore((state) => state.calendarHasError)
+  const today = options.today ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone)
+  const selectedDate = options.selectedDate ?? today
+  const surface = resolveComposerChipSurface(options.pathname ?? '/')
+  const habitsQuery = useHabits({ dateFrom: selectedDate, dateTo: selectedDate, includeOverdue: selectedDate === today, includeGeneral: options.includeGeneral || undefined }, undefined, { completeDay: true })
+  const detailId = surface === 'habitDetail' ? options.pathname?.split('/')[2] ?? null : null
+  const detailQuery = useHabitDetail(detailId)
 
   const messages = useChatStore((s) => s.messages)
   const isTyping = useChatStore((s) => s.isTyping)
@@ -222,11 +234,6 @@ export function useChatComposer() {
   const canSend =
     hasComposerContent(input, attachments) && !isSending && !atMessageLimit && isOnline
   const showSuggestions = messages.length === 0 && !isTyping
-
-  const starterChips = useMemo(
-    () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
-    [t],
-  )
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
@@ -708,31 +715,30 @@ export function useChatComposer() {
   }, [lastFailedSend, performSend, setInput])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
-  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
-
-  const composerSuggestions = useMemo<ComposerSuggestions>(() => {
-    const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
-      const label = t(key)
-      return { id: key, label, onSelect: () => void sendMessage(label) }
-    }
-    const starters = [
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[0]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[1]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
-      makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
-    ] as const
-    if (!contextualSuggestion) return starters
-    return [
-      {
-        id: contextualSuggestion.id,
-        label: contextualSuggestion.label,
-        onSelect: () => void sendMessage(contextualSuggestion.prompt),
-      },
-      starters[0],
-      starters[1],
-      starters[2],
-    ]
-  }, [contextualSuggestion, sendMessage, t])
+  const chipStatus = resolveComposerChipStatus(surface, {
+    habitsError: habitsQuery.isError,
+    habitsReady: Boolean(habitsQuery.data),
+    detailError: detailQuery.isError,
+    detailReady: Boolean(detailQuery.data),
+    calendarError: calendarHasError,
+  })
+  const composerSuggestions = useMemo(() => {
+    const chips = buildComposerChips({
+      surface,
+      status: chipStatus,
+      habits: habitsQuery.data?.topLevelHabits ?? [],
+      selectedDateIsToday: selectedDate === today,
+      totalHabitCount: options.totalHabitCount === undefined ? habitsQuery.data?.totalCount ?? null : options.totalHabitCount,
+      profile: profile ?? null,
+      detailHabit: detailQuery.data,
+      contextualSuggestion,
+    })
+    return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
+      const label = providedLabel ?? t(key, params)
+      const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label)
+      return { id, label, onSelect: () => void sendMessage(prompt) }
+    }))
+  }, [surface, chipStatus, habitsQuery.data, detailQuery.data, contextualSuggestion, options.totalHabitCount, profile, selectedDate, today, sendMessage, t])
 
   const composerProps = useMemo(() => {
     const words = {
@@ -841,7 +847,6 @@ export function useChatComposer() {
     speechError,
     toggleRecording,
     recordingTime,
-    starterChips,
     messages,
     isTyping,
     isSending,
