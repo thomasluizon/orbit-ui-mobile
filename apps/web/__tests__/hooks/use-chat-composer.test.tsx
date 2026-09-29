@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -1095,6 +1096,30 @@ describe('web useChatComposer streaming send', () => {
     const { result } = renderHook(() => useChatComposer())
 
     await waitFor(() => expect(result.current.composerProps.value).toBe('saved walk'))
+  })
+
+  it('keeps text entered into the server rendered composer before hydration', async () => {
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'saved walk')
+
+    function ComposerHarness() {
+      const { composerProps } = useChatComposer()
+      return <Composer {...composerProps} />
+    }
+
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(<ComposerHarness />)
+    document.body.appendChild(container)
+    const field = container.querySelector('textarea')
+    if (!field) throw new Error('Expected server rendered composer textarea')
+    field.value = 'typed before hydration'
+
+    try {
+      render(<ComposerHarness />, { container, hydrate: true })
+      await waitFor(() => expect(field).toHaveValue('typed before hydration'))
+      await waitFor(() => expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('typed before hydration'))
+    } finally {
+      container.remove()
+    }
   })
 
   it('shares a selected Today draft with a newly mounted conversation composer', () => {
