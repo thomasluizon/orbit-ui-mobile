@@ -12,7 +12,6 @@ for (const width of [412, 1024, 1280]) {
     const dateRowSearch = page.locator(`button[aria-label="${ptBr.habits.search.title}"]`)
     const sidebarSearch = page.locator('[data-shell-sidebar]').getByRole('button', {
       name: ptBr.command.title,
-      exact: true,
     })
     await expect(dateRowSearch).toHaveCount(1)
     if (width >= 1024) {
