@@ -141,7 +141,6 @@ export function AstraImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 24,
       paddingTop: 8,
     },
     description: {

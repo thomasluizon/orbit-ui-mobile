@@ -128,7 +128,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 24,
     paddingTop: 8,
     gap: 16,
   },

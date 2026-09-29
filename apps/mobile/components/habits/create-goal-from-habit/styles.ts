@@ -8,7 +8,6 @@ export function createStyles(tokens: CreateGoalTokens) {
   return StyleSheet.create({
     form: {
       paddingTop: 8,
-      paddingHorizontal: 16,
       gap: 16,
     },
     row: {

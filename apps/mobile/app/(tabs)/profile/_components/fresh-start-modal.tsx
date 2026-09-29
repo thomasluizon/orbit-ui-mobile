@@ -308,7 +308,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 24,
     paddingBottom: 8,
     gap: 16,
   },

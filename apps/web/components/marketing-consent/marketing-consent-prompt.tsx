@@ -126,7 +126,7 @@ export function MarketingConsentPrompt() {
         </DialogActionPair>
       )}
     >
-        <div className="flex flex-col items-center px-6 text-center">
+        <div className="flex flex-col items-center text-center">
           <p className="m-0 max-w-[42ch] text-base leading-6 text-[var(--fg-2)]">
             {t('marketingConsent.prompt.body')}
           </p>

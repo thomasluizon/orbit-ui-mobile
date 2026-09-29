@@ -610,7 +610,6 @@ export function CreateHabitModal({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: 16,
       gap: 24,
     },
     subHabitsSection: {

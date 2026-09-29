@@ -525,7 +525,6 @@ export function EditHabitModal({
 function createStyles() {
   return StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: 16,
       gap: 24,
     },
     fieldsPending: {

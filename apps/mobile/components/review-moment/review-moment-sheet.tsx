@@ -168,7 +168,6 @@ export function ReviewMomentSheet() {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 24,
       gap: 16,
       alignItems: 'center',
     },

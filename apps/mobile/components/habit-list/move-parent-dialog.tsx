@@ -210,7 +210,6 @@ export function MoveParentDialog({
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     sheetBody: {
-      paddingHorizontal: 24,
       paddingTop: 4,
     },
     moveDialogDescription: {

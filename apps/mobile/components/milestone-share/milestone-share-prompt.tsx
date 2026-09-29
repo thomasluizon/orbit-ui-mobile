@@ -176,7 +176,6 @@ export function MilestoneSharePrompt() {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 16,
       paddingTop: 8,
       gap: 16,
       alignItems: 'center',

@@ -152,7 +152,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       alignItems: 'center',
-      paddingHorizontal: 24,
     },
     body: {
       maxWidth: 420,
