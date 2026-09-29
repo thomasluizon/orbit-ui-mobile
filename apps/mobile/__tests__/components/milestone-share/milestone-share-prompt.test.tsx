@@ -52,6 +52,7 @@ const TestRenderer = require('react-test-renderer')
 type RenderedNode = {
   type: unknown
   props: Record<string, unknown>
+  findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
 }
 type RenderedTree = {
   root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
