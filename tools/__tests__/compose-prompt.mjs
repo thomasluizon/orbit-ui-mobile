@@ -98,7 +98,20 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
-    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
+    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) &&
+      /NEVER open the app in a browser and never start a dev or production server/.test(prompt) &&
+      /Playwright, Maestro or Cypress/.test(prompt) &&
+      /nothing under `e2e\/`/.test(prompt) &&
+      /no layout guard/.test(prompt) &&
+      /no navigating to localhost/.test(prompt) &&
+      /no logging in to the app/.test(prompt),
+    prompt,
+  )
+  T(
+    `${TOOL}: the brief requires complete Vitest evidence including Chromium geometry`,
+    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
+      /headless Chromium geometry tests through `apps\/web\/__tests__\/support\/chromium\.ts`/.test(prompt) &&
+      /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
   )
   /**

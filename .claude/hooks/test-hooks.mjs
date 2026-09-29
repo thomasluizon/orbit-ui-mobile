@@ -261,6 +261,9 @@ T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm r
 for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
   T(`worker-browser: ${command} allows`, worker(command), null)
 }
+for (const file of ["apps/web/__tests__/support/chromium.test.ts", "apps/web/__tests__/components/dates/date-surfaces.test.tsx", "apps/web/__tests__/components/ui/pill-button.test.tsx"]) {
+  T(`worker-browser: Vitest may run ${file}`, worker(`npx vitest run ${file}`), null)
+}
 // The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
 // `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
 // aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.

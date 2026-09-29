@@ -92,11 +92,12 @@ const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for y
 
 const browserBan = `
 
-**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
-own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
-Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
-logging in to the app. If the ticket says screenshots are required, do not gather them in this
-worker. A fresh worktree has no seeded session.`
+**NEVER open the app in a browser and never start a dev or production server. This is unconditional
+and it OVERRIDES the ticket's own Evidence section.** The repository's own Vitest suites are required evidence: run them in full, including the
+headless Chromium geometry tests through \`apps/web/__tests__/support/chromium.ts\`. That Chromium use is permitted within Vitest.
+No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no Playwright, Maestro or Cypress,
+nothing under \`e2e/\`, no layout guard, no navigating to localhost on any port, no logging in to the app.
+If the ticket says screenshots are required, do not gather them in this worker. A fresh worktree has no seeded session.`
 
 const brief = `## Orchestrator's brief
 
