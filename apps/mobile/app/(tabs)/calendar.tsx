@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { useState, useMemo, useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -388,6 +388,7 @@ function CalendarScreenContent({
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
+  const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
   const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -682,6 +683,11 @@ function CalendarScreenContent({
           error: rangeError,
           refresh: rangeRefresh,
         };
+
+  useLayoutEffect(() => {
+    setCalendarHasError(Boolean(activeError));
+    return () => setCalendarHasError(false);
+  }, [activeError, setCalendarHasError]);
 
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return [];

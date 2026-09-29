@@ -4,6 +4,7 @@ import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Shell412 } from '@/components/shell/shell-412'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { useChatStore } from '@/stores/chat-store'
 import { __emitKeyboardEvent, __resetTestHostConfig } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
@@ -33,7 +34,7 @@ const mocks = vi.hoisted(() => ({
       value: '',
       onChangeValue: vi.fn(),
       onSend: vi.fn(),
-      suggestions: [],
+      suggestions: [] as { id: string; label: string; onSelect: () => void }[],
       state: 'atLimit' as const,
       limitReason: 'limit reason',
     },
@@ -211,6 +212,8 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
     mocks.composer.flatListRef.current = null
+    mocks.composer.composerProps.suggestions = []
+    useChatStore.getState().setContextualSuggestion(null)
   })
 
   it.each([true, false])('keeps the composer inside Android keyboard avoidance when suggestions are %s', async (showSuggestions) => {
@@ -283,6 +286,27 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
 
     expect(findByLabel(tree.root, 'common.openSettings')).toBeUndefined()
+  })
+
+  it('shows only empty-state suggestions until the thread has a message', async () => {
+    mocks.composer.composerProps.suggestions = [{ id: 'one', label: 'One', onSelect: vi.fn() }, { id: 'two', label: 'Two', onSelect: vi.fn() }, { id: 'three', label: 'Three', onSelect: vi.fn() }]
+    const tree = await renderScreen()
+    expect(findByType(tree.root, 'ChatEmptyState')).toBeDefined()
+    expect((findByType(tree.root, 'Composer')?.props.suggestions as unknown[])).toEqual([])
+    mocks.composer.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
+    mocks.composer.showSuggestions = false
+    TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
+    expect(findByType(tree.root, 'ChatEmptyState')).toBeUndefined()
+    expect((findByType(tree.root, 'Composer')?.props.suggestions as { id: string }[]).map((chip) => chip.id)).toEqual(['one', 'two', 'three'])
+  })
+
+  it('keeps a requested Progress action reachable in a new conversation', async () => {
+    useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
+    const tree = await renderScreen()
+    expect((findByType(tree.root, 'Composer')?.props.suggestions as unknown[])).toEqual([])
+    const action = findByType(tree.root, 'ChatEmptyState')?.props.contextualAction as { onSelect: () => void }
+    TestRenderer.act(() => action.onSelect())
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Help me make a goal')
   })
 
   it('sends the selected empty-state suggestion', async () => {

@@ -336,6 +336,7 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
+import { useUIStore } from '@/stores/ui-store'
 import {
   holdAccount,
   recoverSameAccount,
@@ -971,13 +972,16 @@ describe('CalendarPage view switcher', () => {
 
   it('shows a retryable error card when the calendar query fails', () => {
     monthQueryState.error = 'network down'
-    render(<CalendarPage />)
+    const page = render(<CalendarPage />)
 
+    expect(useUIStore.getState().calendarHasError).toBe(true)
     expect(screen.queryByTestId('month-view')).toBeNull()
     expect(screen.getByText('calendar.loadError')).toBeDefined()
 
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+    page.unmount()
+    expect(useUIStore.getState().calendarHasError).toBe(false)
   })
 
   it('removes recurring habits from the month and shows its honest empty state', () => {

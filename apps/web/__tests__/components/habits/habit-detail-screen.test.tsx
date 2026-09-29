@@ -1307,15 +1307,9 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('puts the grounded Astra seed in the persistent composer', () => {
+  it('leaves habit detail suggestions to the shell composer', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'habit-habit-1',
-      label: 'habits.detail.askAstra',
-      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    })
-    expect(screen.queryByRole('button', { name: 'habits.detail.askAstra' })).not.toBeInTheDocument()
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 

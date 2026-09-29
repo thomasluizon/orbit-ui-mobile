@@ -4,7 +4,6 @@ import {
   clearContextualSuggestionIfCurrent,
   createChatStoreState,
   prepareChatRequest,
-  publishContextualSuggestion,
 } from '../stores/chat-store'
 
 function createStoreHarness() {
@@ -160,11 +159,11 @@ describe('shared chat store', () => {
   it('clears a scoped suggestion only while it is still current', () => {
     const store = createStoreHarness()
     const suggestion = { id: 'habit-1', label: 'Ask Astra', prompt: 'Help with this habit' }
-    const cleanup = publishContextualSuggestion(store.getState, suggestion)
+    store.getState().setContextualSuggestion(suggestion)
     expect(store.getState().contextualSuggestion).toEqual(suggestion)
 
     store.getState().setContextualSuggestion({ id: 'habit-2', label: 'Ask Astra', prompt: 'Another habit' })
-    cleanup()
+    clearContextualSuggestionIfCurrent(store.getState(), 'habit-1')
     expect(store.getState().contextualSuggestion?.id).toBe('habit-2')
 
     clearContextualSuggestionIfCurrent(store.getState(), 'habit-2')

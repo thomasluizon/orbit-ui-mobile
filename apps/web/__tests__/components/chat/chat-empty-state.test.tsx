@@ -27,4 +27,12 @@ describe('ChatEmptyState', () => {
     fireEvent.click(screen.getByText('chat.suggestion.meditated'))
     expect(onSelectSuggestion).toHaveBeenCalledWith('chat.suggestion.meditated')
   })
+
+  it('shows a requested contextual action beside the existing suggestions', () => {
+    const onSelect = vi.fn()
+    render(<ChatEmptyState onSelectSuggestion={vi.fn()} contextualAction={{ label: 'Create a goal', onSelect }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+    expect(onSelect).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'chat.suggestion.meditated' })).toBeInTheDocument()
+  })
 })

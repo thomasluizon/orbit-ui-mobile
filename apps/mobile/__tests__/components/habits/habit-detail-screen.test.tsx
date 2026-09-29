@@ -1580,18 +1580,11 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('puts the grounded Astra seed in the persistent composer', () => {
-    let tree: ReturnType<typeof TestRenderer.create>
+  it('leaves habit detail suggestions to the shell composer', () => {
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'habit-habit-1',
-      label: 'habits.detail.askAstra',
-      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    })
-    expect(tree!.root.findAllByProps({ title: 'habits.detail.askAstra' })).toHaveLength(0)
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
@@ -1697,27 +1690,6 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })
 
-  it('restores the parent Astra suggestion after leaving a child detail', () => {
-    let parentTree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      parentTree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    })
-    const parentFocus = mocks.focusEffect
-    if (!parentFocus) throw new Error('Expected parent focus effect')
-
-    mocks.detail = { ...makeDetail(), id: 'child-1', title: 'Child' }
-    let childTree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      childTree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
-    })
-    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-child-1')
-
-    TestRenderer.act(() => childTree!.unmount())
-    expect(useChatStore.getState().contextualSuggestion).toBeNull()
-    TestRenderer.act(() => { parentFocus() })
-    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-habit-1')
-    parentTree!.unmount()
-  })
 
   it('sends free users from the slipping block to upgrade', () => {
     mocks.hasProAccess = false
