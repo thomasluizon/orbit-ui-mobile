@@ -1628,6 +1628,8 @@
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
       "open": "Open the keys",
+      "noKeys": "No keys yet",
+      "activeCount": "{count, plural, one {# active key} other {# active keys}}",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",

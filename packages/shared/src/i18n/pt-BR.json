@@ -1628,6 +1628,8 @@
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Liberar com o Pro",
       "open": "Abrir as chaves",
+      "noKeys": "Nenhuma chave ainda",
+      "activeCount": "{count, plural, one {# chave ativa} other {# chaves ativas}}",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
