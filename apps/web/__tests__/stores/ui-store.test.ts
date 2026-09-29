@@ -105,10 +105,10 @@ describe('ui store', () => {
         expect(useUIStore.getState().allDoneCelebration).toBe(false)
       })
 
-      it('celebrates once with the due item count', () => {
+      it('celebrates once when the last due item is completed without a range log', () => {
         const today = formatAPIDate(new Date())
         const first = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })
-        const second = createMockHabit({ id: 'h2', scheduledDates: [today], isLoggedInRange: true })
+        const second = createMockHabit({ id: 'h2', scheduledDates: [today], isCompleted: true, isLoggedInRange: false })
         const habits = new Map([[first.id, first], [second.id, second]])
         const check = useUIStore.getState().checkAllDoneCelebration
         check(habits, new Map(), today)
