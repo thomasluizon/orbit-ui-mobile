@@ -95,6 +95,7 @@ import {
 } from '@/components/shell/destination-shell'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
+import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
 import type { TodayView } from '@/app/(app)/use-today-page'
@@ -464,6 +465,14 @@ describe('DestinationShell', () => {
     render(<DestinationShell onCreate={() => {}}><h1>Page title</h1></DestinationShell>)
 
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('focuses the object heading after navigating to a detail route', async () => {
+    const view = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    mocks.pathname = '/habits/h1'
+    view.rerender(<DestinationShell onCreate={() => {}}><AppBar title="Habit" titleIsHeading={false} /><h1 tabIndex={-1}>Read</h1></DestinationShell>)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Read' })).toHaveFocus())
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
   it.each([false, true])('pins pushed headers outside the scroller at wide=%s', async (wide) => {
