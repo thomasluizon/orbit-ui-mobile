@@ -13,6 +13,13 @@ describe('DestinationTabBar', () => {
     expect(tabs.find((node) => node.props.accessibilityState?.selected)?.props.accessibilityLabel).toBe('nav.today')
     tree.unmount()
   })
+  it('leaves every destination unselected on the not-found screen', () => {
+    const tree = renderNavigation(<DestinationTabBar pathname="/nao-existe" notFound />)
+    const tabs = tree.hosts().filter((node) => node.props.accessibilityRole === 'tab')
+    expect(tabs).toHaveLength(4)
+    expect(tabs.every((tab) => tab.props.accessibilityState?.selected === false)).toBe(true)
+    tree.unmount()
+  })
   beforeEach(() => { mocks.navigate.mockClear() })
   it('keeps all four translated destinations reachable through the router', () => {
     const tree = renderNavigation(<DestinationTabBar pathname="/calendar" />)

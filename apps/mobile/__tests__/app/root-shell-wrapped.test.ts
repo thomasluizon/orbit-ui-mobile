@@ -250,6 +250,17 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
+  it('keeps the not-found screen in the tab shell with a composer and no header', async () => {
+    routeState.pathname = '/nao-existe'
+    routeState.segments = ['+not-found']
+    const tree = await renderRoot()
+
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
+    expect(findByTestId(tree, 'composer-marker')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
+  })
+
   it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings', '/calendar-sync'])(
     'shows composer only on destination roots and habit detail at %s', async (pathname) => {
       routeState.pathname = pathname
