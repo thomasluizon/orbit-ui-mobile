@@ -42,7 +42,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const showResults = resultsMode && page === null && !!search.query
   const visibleEntries = !search.busy && !search.isError ? entries : []
   const firstCommand = page === null
-    ? searchCommands(search.text, null, t).filter((command) => !(showResults && visibleEntries.length === 0 && command.id === 'create'))[0]
+    ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations' && !(showResults && visibleEntries.length === 0 && command.id === 'create'))[0]
     : undefined
   const firstDestination = navItems.find((item) => item.label.toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase()))
   const firstValue = visibleEntries.length > 0

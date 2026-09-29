@@ -7,6 +7,8 @@ describe('habitInitial', () => {
     ['  walk', 'W'],
     ['e\u0301tude', 'E\u0301'],
     ['  👩‍🚀 mission', '👩‍🚀'],
+    ['🇧🇷 Brasil', '🇧🇷'],
+    ['👍🏽 Good', '👍🏽'],
     ['', ''],
   ])('returns the first grapheme of %s', (title, initial) => {
     expect(habitInitial(title)).toBe(initial)

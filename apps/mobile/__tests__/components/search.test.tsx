@@ -93,13 +93,13 @@ describe('mobile search', () => {
     await mount()
     const resultRow = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')[0]!
     expect(resultRow.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')).toHaveLength(1)
-    expect(resultRow.findAllByType(Circle)).toHaveLength(0)
+    expect(resultRow.findAll((node) => node.type === Circle)).toHaveLength(0)
   })
 
   it('uses the check glyph for the log command', async () => {
     await mount()
     const command = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'Log a habit').length > 0)[0]!
-    expect(command.findAllByType(Check)).toHaveLength(1)
+    expect(command.findAll((node) => node.type === Check)).toHaveLength(1)
   })
   it('keeps the habit group before create, actions and destinations', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
