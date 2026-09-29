@@ -510,7 +510,7 @@ function GlobalOverlays({
             </PillButton>
             <button
               type="button"
-              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
+              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-out"
               onClick={onDismissCalendarPrompt}
             >
               {t('common.later')}
@@ -536,7 +536,7 @@ function GlobalOverlays({
             </PillButton>
             <button
               type="button"
-              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
+              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-out"
               onClick={onDismissImportPrompt}
             >
               {t('onboarding.wizard.importNotNow')}

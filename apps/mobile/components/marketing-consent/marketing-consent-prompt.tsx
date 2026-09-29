@@ -163,6 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     laterButtonPressed: {
       opacity: 0.6,
+      transform: [{ scale: 0.96 }],
     },
     laterText: {
       fontFamily: 'Geist_500Medium',

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
@@ -170,6 +171,15 @@ describe('MarketingConsentPrompt (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.accept', 'marketingConsent.prompt.decline'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('presses Decline to the shared 0.96 scale', async () => {
+    const tree = await renderArmed()
+    await settle()
+    const quiet = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline' && typeof node.props.style === 'function')[0]
+
+    expect(StyleSheet.flatten(quiet.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

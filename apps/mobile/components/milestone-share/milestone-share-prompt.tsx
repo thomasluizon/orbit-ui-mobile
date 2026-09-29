@@ -202,7 +202,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'center',
     },
     laterButtonPressed: {
-      transform: [{ scale: 0.98 }],
+      transform: [{ scale: 0.96 }],
     },
     laterText: {
       fontFamily: 'Geist_500Medium',

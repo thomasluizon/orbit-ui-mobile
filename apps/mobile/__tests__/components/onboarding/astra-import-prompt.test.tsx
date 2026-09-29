@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
@@ -125,6 +126,22 @@ describe('AstraImportPrompt gating', () => {
   it('shows the sheet once onboarding is complete', async () => {
     mocks.profile = baseProfile()
     expect(sheetCount(await renderPrompt())).toBe(1)
+  })
+
+  it('centres its copy and gives the quiet action a centred 44 point row that presses to 0.96', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    const actions = tree.root.findAll((node: any) => node.type === 'SheetActions')[0]
+    const quiet = actions.findAll((node: any) => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').at(-1)
+    const quietStyle = (pressed: boolean) => StyleSheet.flatten(typeof quiet.props.style === 'function' ? quiet.props.style({ pressed }) : quiet.props.style)
+    const label = actions.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importNotNow')[0]
+    const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importDescription')[0]
+
+    expect(quietStyle(false)).toMatchObject({ minHeight: 44, alignItems: 'center', justifyContent: 'center' })
+    expect(quietStyle(false).paddingBottom).toBeUndefined()
+    expect(quietStyle(true).transform).toEqual([{ scale: 0.96 }])
+    expect(StyleSheet.flatten(label.props.style).fontFamily).toBe('Geist_500Medium')
+    expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
   it('pins Import and Not now in the sheet footer, never in the scrolling body', async () => {

@@ -185,7 +185,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'center',
     },
     notNowButtonPressed: {
-      transform: [{ scale: 0.98 }],
+      transform: [{ scale: 0.96 }],
     },
     notNowText: {
       fontFamily: 'Geist_500Medium',

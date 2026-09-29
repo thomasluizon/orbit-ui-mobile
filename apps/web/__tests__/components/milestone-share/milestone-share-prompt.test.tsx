@@ -126,6 +126,16 @@ describe('MilestoneSharePrompt', () => {
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
+  it('gives Later the shared press and a 44 pixel target, and spaces the pills 12 apart', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    const later = screen.getByRole('button', { name: 'milestoneShare.later' })
+    expect(later.className.split(' ')).toEqual(expect.arrayContaining(['touch-target', 'active:scale-[0.96]']))
+    expect(screen.getByRole('button', { name: 'milestoneShare.download' }).parentElement!.style.gap).toBe('12px')
+  })
+
   it('stays hidden while a celebration is in flight', async () => {
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     render(<MilestoneSharePrompt />)

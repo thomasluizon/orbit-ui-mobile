@@ -163,6 +163,18 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(StyleSheet.flatten(resolved).minHeight).toBeGreaterThanOrEqual(44)
   })
 
+  it('presses Later to the shared 0.96 scale', async () => {
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    const later = tree.root.findAll((node) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
+
+    expect(StyleSheet.flatten(later.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
+  })
+
   it('stays hidden while a celebration is in flight', async () => {
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     const tree = await render()

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
@@ -131,6 +132,22 @@ describe('CalendarImportPrompt gating', () => {
   it('shows the sheet once onboarding is complete', () => {
     mocks.profile = baseProfile()
     expect(sheetCount(renderPrompt())).toBe(1)
+  })
+
+  it('centres its copy and gives the quiet action a centred 44 point row that presses to 0.96', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const actions = tree.root.findAll((node: any) => node.type === 'SheetActions')[0]
+    const quiet = actions.findAll((node: any) => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').at(-1)
+    const quietStyle = (pressed: boolean) => StyleSheet.flatten(typeof quiet.props.style === 'function' ? quiet.props.style({ pressed }) : quiet.props.style)
+    const label = actions.findAll((node: any) => node.type === 'Text' && node.props.children === 'common.later')[0]
+    const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.calendarDescription')[0]
+
+    expect(quietStyle(false)).toMatchObject({ minHeight: 44, alignItems: 'center', justifyContent: 'center' })
+    expect(quietStyle(false).paddingBottom).toBeUndefined()
+    expect(quietStyle(true).transform).toEqual([{ scale: 0.96 }])
+    expect(StyleSheet.flatten(label.props.style).fontFamily).toBe('Geist_500Medium')
+    expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
   it('pins Import and Later in the sheet footer, never in the scrolling body', () => {

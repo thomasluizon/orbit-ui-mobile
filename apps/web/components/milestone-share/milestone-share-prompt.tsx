@@ -143,7 +143,7 @@ export function MilestoneSharePrompt() {
       title={t('milestoneShare.title')}
       actions={(
         <DialogActionPair>
-          <div className="flex w-full" style={{ gap: 8 }}>
+          <div className="flex w-full" style={{ gap: 12 }}>
             {canShareFiles && (
               <PillButton loading={isSharing} disabled={isSharing} onClick={handleShare}>
                 {t('milestoneShare.share')}
@@ -162,7 +162,7 @@ export function MilestoneSharePrompt() {
           <button
             type="button"
             onClick={dismiss}
-            className="w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.98] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="touch-target w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
             style={{
               padding: '12px 0',
               fontFamily: 'var(--font-sans)',

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
@@ -155,6 +156,16 @@ describe('ReviewMomentSheet (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.cta', 'reviewMoment.notNow'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('presses Not now to the shared 0.96 scale', async () => {
+    const tree = await render()
+    await armReview('review-streak-7')
+    await settle()
+    const quiet = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.notNow' && typeof node.props.style === 'function')[0]
+
+    expect(StyleSheet.flatten(quiet.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
   })
 
   it('shows the level variant for a level key', async () => {

@@ -163,6 +163,17 @@ describe('Today create during first load', () => {
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
+  it.each([
+    ['calendar', { hasImportedCalendar: false }, 'common.later'],
+    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
+  ] as const)('presses the %s import quiet action to the shared 0.96 scale', async (_prompt, flags, quiet) => {
+    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
+    render(<AppLayout><div>Today</div></AppLayout>)
+    await act(async () => {})
+
+    expect(screen.getByRole('button', { name: quiet }).className.split(' ')).toContain('active:scale-[0.96]')
+  })
+
   it('waits to offer calendar import while another sheet is open', async () => {
     state.profile = {
       hasProAccess: true,

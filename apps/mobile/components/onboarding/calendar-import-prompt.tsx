@@ -96,7 +96,7 @@ export function CalendarImportPrompt() {
             {t('onboarding.wizard.calendarButton')}
           </PillButton>
           <Pressable
-            style={styles.quietRow}
+            style={({ pressed }) => [styles.quietRow, pressed ? styles.quietRowPressed : null]}
             onPress={() =>
               closeSheet(() => {
                 unregisterOpenOverlay(promptId)
@@ -128,16 +128,19 @@ function createStyles(tokens: AppTokensV2) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
+      textAlign: 'center',
       color: tokens.fg2,
     },
     quietRow: {
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingBottom: 8,
+    },
+    quietRowPressed: {
+      transform: [{ scale: 0.96 }],
     },
     quietText: {
-      fontFamily: 'Geist_400Regular',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
     },
