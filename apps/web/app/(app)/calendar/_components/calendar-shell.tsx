@@ -219,12 +219,7 @@ interface LegendItemProps {
 
 function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
   if (outcome === 'partial') {
-    return (
-      <svg aria-hidden="true" data-legend-outcome="partial" width="12" height="12" className="shrink-0 -rotate-90">
-        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
-        <circle cx="6" cy="6" r="5" fill="none" pathLength="100" stroke="var(--primary)" strokeDasharray="50 100" strokeLinecap="round" strokeWidth="2" />
-      </svg>
-    )
+    return <span aria-hidden="true" data-legend-outcome="partial" className="shrink-0 rounded-full" style={{ width: 12, height: 12, borderWidth: 1.5, borderStyle: 'solid', borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)', borderBottomColor: 'var(--status-empty)', borderLeftColor: 'var(--status-empty)' }} />
   }
 
   const style = outcome === 'full'

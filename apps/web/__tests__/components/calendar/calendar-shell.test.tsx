@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -14,6 +16,20 @@ import {
 } from '@/app/(app)/calendar/_components/calendar-shell'
 
 describe('Calendar shell helpers', () => {
+  it.each([
+    [en, ['all logged', 'part done', 'nothing logged', 'can log'], 'Range', 'Open this day on Today', ['Previous range', 'Next range'], ['done', 'not logged', 'indulged', 'resisted']],
+    [ptBR, ['tudo registrado', 'em parte', 'nada registrado', 'pode registrar'], 'Período', 'Abrir este dia no Hoje', ['Período anterior', 'Período seguinte'], ['feito', 'sem registro', 'cedeu', 'resistiu']],
+  ])('uses the drawn calendar words in each locale', (locale, legendWords, rangeWord, dayLink, rangePager, statusWords) => {
+    expect([locale.calendar.legend.full, locale.calendar.legend.partial, locale.calendar.legend.none, locale.calendar.legend.loggable]).toEqual(legendWords)
+    expect([locale.calendar.dayCell.full, locale.calendar.dayCell.partial, locale.calendar.dayCell.none]).toEqual(legendWords.slice(0, 3))
+    expect(locale.calendar.view.range).toBe(rangeWord)
+    expect(locale.calendar.goToDay).toBe(dayLink)
+    expect([locale.calendar.range.previous, locale.calendar.range.next]).toEqual(rangePager)
+    expect([locale.calendar.status.completed, locale.calendar.status.missed, locale.calendar.status.indulged, locale.calendar.status.resisted]).toEqual(statusWords)
+    render(<CalendarLegend loggableLabel={locale.calendar.legend.loggable} fullLabel={locale.calendar.legend.full} partialLabel={locale.calendar.legend.partial} noneLabel={locale.calendar.legend.none} />)
+    for (const word of legendWords) expect(screen.getByText(word)).toBeInTheDocument()
+  })
+
   it('renders the header, fires month handlers, and opens a year picker', () => {
     const onPreviousMonth = vi.fn()
     const onNextMonth = vi.fn()
@@ -121,8 +137,12 @@ describe('Calendar shell helpers', () => {
     expect(screen.getByText('Partial')).toBeInTheDocument()
     expect(screen.getByText('None logged')).toBeInTheDocument()
     expect(document.querySelector('[data-legend-outcome="full"]')).toHaveStyle({ background: 'var(--fg-1)' })
-    expect(document.querySelector('[data-legend-outcome="partial"] circle:first-child')).toHaveAttribute('stroke', 'var(--status-empty)')
-    expect(document.querySelector('[data-legend-outcome="partial"] circle:nth-child(2)')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-width: 1.5px')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-style: solid')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-bottom-color: var(--status-empty)')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-left-color: var(--status-empty)')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-top-color: var(--primary)')
+    expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-right-color: var(--primary)')
     expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--status-empty)' })
     expect(document.querySelector('[data-legend-outcome="loggable"]')).toHaveStyle({
       background: 'var(--bg-well)',

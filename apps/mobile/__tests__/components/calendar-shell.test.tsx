@@ -1,6 +1,8 @@
 import React from "react";
 import { StyleSheet } from "react-native";
 import { describe, it, expect, vi } from "vitest";
+import en from "@orbit/shared/i18n/en.json";
+import ptBR from "@orbit/shared/i18n/pt-BR.json";
 
 import { createTokensV2 } from "@/lib/theme";
 import { useUIStore } from "@/stores/ui-store";
@@ -280,6 +282,23 @@ describe("CalendarWeekNav (mobile)", () => {
 });
 
 describe("CalendarLegend (mobile)", () => {
+  it.each([
+    [en, ["all logged", "part done", "nothing logged", "can log"], "Range", "Open this day on Today", ["Previous range", "Next range"], ["done", "not logged", "indulged", "resisted"]],
+    [ptBR, ["tudo registrado", "em parte", "nada registrado", "pode registrar"], "Período", "Abrir este dia no Hoje", ["Período anterior", "Período seguinte"], ["feito", "sem registro", "cedeu", "resistiu"]],
+  ])("uses the drawn calendar words in each locale", (locale, legendWords, rangeWord, dayLink, rangePager, statusWords) => {
+    expect([locale.calendar.legend.full, locale.calendar.legend.partial, locale.calendar.legend.none, locale.calendar.legend.loggable]).toEqual(legendWords);
+    expect([locale.calendar.dayCell.full, locale.calendar.dayCell.partial, locale.calendar.dayCell.none]).toEqual(legendWords.slice(0, 3));
+    expect(locale.calendar.view.range).toBe(rangeWord);
+    expect(locale.calendar.goToDay).toBe(dayLink);
+    expect([locale.calendar.range.previous, locale.calendar.range.next]).toEqual(rangePager);
+    expect([locale.calendar.status.completed, locale.calendar.status.missed, locale.calendar.status.indulged, locale.calendar.status.resisted]).toEqual(statusWords);
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarLegend loggableLabel={locale.calendar.legend.loggable} fullLabel={locale.calendar.legend.full} partialLabel={locale.calendar.legend.partial} noneLabel={locale.calendar.legend.none} tokens={createTokensV2("purple", "dark")} />);
+    });
+    expect(hostTextValues(tree!)).toEqual(legendWords);
+  });
+
   it("renders all four status labels", () => {
     const tokens = createTokensV2("purple", "dark");
     let tree: Tree;
@@ -310,6 +329,7 @@ describe("CalendarLegend (mobile)", () => {
     );
     expect(partialTrack).toHaveLength(1);
     expect(partialArc).toHaveLength(1);
+    expect(partialArc[0]?.props).toMatchObject({ strokeWidth: 1.5, rotation: -135 });
     const noneMark = tree!.root.findAll(
       (node) => node.type === "View" && node.props.testID === "calendar-legend-none",
     )[0];

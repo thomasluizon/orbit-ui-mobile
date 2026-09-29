@@ -721,9 +721,9 @@ function CalendarPageContent({
                   <CalendarMonthLegend
                     state={monthDisplayState}
                     loggableLabel={t('calendar.legend.loggable')}
-                    fullLabel={t('calendar.dayCell.full')}
-                    partialLabel={t('calendar.dayCell.partial')}
-                    noneLabel={t('calendar.dayCell.none')}
+                    fullLabel={t('calendar.legend.full')}
+                    partialLabel={t('calendar.legend.partial')}
+                    noneLabel={t('calendar.legend.none')}
                   />
 
                   <MonthRecurringFilter
