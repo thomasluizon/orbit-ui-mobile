@@ -54,7 +54,7 @@ const ICON_COMPONENTS: Readonly<Record<string, TablerIcon>> = {
   x: X,
 }
 
-export function Icon({ name, size = 24, filled = false, color, label }: Readonly<IconProps>) {
+export function Icon({ name, size = 24, strokeWidth = 1.5, filled = false, color, label }: Readonly<IconProps>) {
   const Glyph = ICON_COMPONENTS[name]
 
   return (
@@ -78,7 +78,7 @@ export function Icon({ name, size = 24, filled = false, color, label }: Readonly
           color={color}
           fill={filled ? color ?? 'currentColor' : 'none'}
           size={size}
-          strokeWidth={filled ? 2 : 1.5}
+          strokeWidth={filled ? 2 : strokeWidth}
         />
       )}
     </View>
