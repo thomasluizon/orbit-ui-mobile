@@ -3,6 +3,7 @@ import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession } from './profile-session'
+import { expectOneFieldIndicator } from './focus-indicators'
 
 async function inspectFocusedRing(page: Page) {
   return page.evaluate(() => {
@@ -38,47 +39,6 @@ async function expectOneRing(page: Page, surface: string, stop: number) {
   if (!state) return
   expect(state.focusVisible, `${surface} Tab stop ${stop}: ${state.focused} is keyboard-focused`).toBe(true)
   expect(state.indicators, `${surface} Tab stop ${stop}: ${state.focused} drew ${state.indicators.join(', ')}`).toHaveLength(1)
-}
-
-async function expectOneFieldIndicator(page: Page, targetSelector: string, rootSelector: string, surface: string, includeDescendants = false) {
-  const target = page.locator(targetSelector).first()
-  await expect(target).toBeVisible()
-  await target.focus()
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Tab')
-  await expect(target).toBeFocused()
-  const indicators = await target.evaluate((field, options) => {
-    const root = field.closest(options.rootSelector)
-    if (!root) throw new Error(`Missing field root: ${options.rootSelector}`)
-    const perimeter = new Set<Element>()
-    let current: Element | null = field
-    while (current) {
-      perimeter.add(current)
-      if (current === root) break
-      current = current.parentElement
-    }
-    const activeCell = root.querySelector('[data-otp-cell][data-active]')
-    if (activeCell) perimeter.add(activeCell)
-    if (options.includeDescendants) root.querySelectorAll('*').forEach((element) => perimeter.add(element))
-    const paintsNothing = (element: Element) => {
-      for (let node: Element | null = element; node; node = node.parentElement) {
-        if (Number.parseFloat(getComputedStyle(node).opacity) === 0) return true
-      }
-      return false
-    }
-    return [...perimeter].flatMap((element) => {
-      if (paintsNothing(element)) return []
-      const style = getComputedStyle(element)
-      const label = element.tagName.toLowerCase()
-      const visible: string[] = []
-      if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) visible.push(`${label}:outline`)
-      const shadows = style.boxShadow.matchAll(/\b0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+(\d*\.?\d+)px\b/g)
-      for (const shadow of shadows) if (Number(shadow[1]) > 0) visible.push(`${label}:shadow`)
-      if (style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0) visible.push(`${label}:border`)
-      return visible
-    })
-  }, { rootSelector, includeDescendants })
-  expect(indicators, `${surface} drew ${indicators.join(', ')}`).toHaveLength(1)
 }
 
 async function inspectTabStops(page: Page, surface: string) {
@@ -125,9 +85,9 @@ for (const width of [412, 1280] as const) {
         await page.keyboard.press('Tab')
         await expect(target).toBeFocused()
         await expectOneRing(page, `${surface} route control ${width}px`, 0)
-        if (surface === 'Hoje') await expectOneFieldIndicator(page, targetSelector, '[data-composer-input-row]', `composer ${width}px`)
-        if (surface === 'Busca') await expectOneFieldIndicator(page, targetSelector, 'div.relative', `search ${width}px`, true)
-        if (surface === 'Suporte') await expectOneFieldIndicator(page, targetSelector, '[data-input-root]', `support message ${width}px`)
+        if (surface === 'Hoje') await expectOneFieldIndicator(page, target, '[data-composer-input-row]', `composer ${width}px`)
+        if (surface === 'Busca') await expectOneFieldIndicator(page, target, 'div.relative', `search ${width}px`, { includeDescendants: true })
+        if (surface === 'Suporte') await expectOneFieldIndicator(page, target, '[data-input-root]', `support message ${width}px`)
       })
     }
 
@@ -147,7 +107,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(field).toBeFocused()
       await expectOneRing(page, `palette field ${width}px`, 0)
-      await expectOneFieldIndicator(page, '[cmdk-input]', 'div.relative', `palette search ${width}px`, true)
+      await expectOneFieldIndicator(page, field, 'div.relative', `palette search ${width}px`, { includeDescendants: true })
       await inspectTabStops(page, `palette ${width}px`)
     })
 
@@ -162,7 +122,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(phrase).toBeFocused()
       await expectOneRing(page, `create phrase ${width}px`, 0)
-      await expectOneFieldIndicator(page, '#habit-phrase', '[data-habit-phrase-field]', `create phrase ${width}px`, true)
+      await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase ${width}px`, { includeDescendants: true })
       await inspectTabStops(page, `create form ${width}px`)
       await phrase.fill('Caminhar toda segunda')
       await inspectTabStops(page, `create form with phrase ${width}px`)
@@ -176,7 +136,7 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(time).toBeFocused()
       await expectOneRing(page, `create exact time ${width}px`, 0)
-      await expectOneFieldIndicator(page, 'input[data-hour-cycle]', 'input[data-hour-cycle]', `create time ${width}px`)
+      await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time ${width}px`)
       await inspectTabStops(page, `create expanded form ${width}px`)
     })
 
@@ -206,6 +166,37 @@ for (const width of [412, 1280] as const) {
       await page.keyboard.press('Tab')
       await expect(disclosure.getByRole('button', { name: messages.habits.form.removeSubHabit })).toBeFocused()
       await expectOneRing(page, `sub-habit remove ${width}px`, 1)
+      await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `sub-habit row ${width}px`)
+      await page.emulateMedia({ forcedColors: 'active' })
+      await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `sub-habit row forced colors ${width}px`, { forcedColors: true })
+    })
+
+    test('fields draw one indicator in forced colors', async ({ page }) => {
+      await page.emulateMedia({ forcedColors: 'active' })
+      await page.goto('/')
+      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
+      const composer = page.locator('[data-shell-pinned-slot] [data-composer-input]').first()
+      await expectOneFieldIndicator(page, composer, '[data-composer-input-row]', `composer forced colors ${width}px`, { forcedColors: true })
+
+      await page.goto('/search')
+      const search = page.locator('[cmdk-input]').first()
+      await expectOneFieldIndicator(page, search, 'div.relative', `search forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
+
+      await page.goto('/support')
+      const message = page.locator('form textarea').first()
+      await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
+
+      await page.goto('/')
+      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
+      await openCreateForm(page, width)
+      const phrase = page.locator('#habit-phrase')
+      await expect(phrase).toBeVisible()
+      await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
+      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+      const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
+      await expect(disclosure).toBeVisible()
+      const time = disclosure.getByRole('textbox', { name: messages.habits.form.exactTime })
+      await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time forced colors ${width}px`, { forcedColors: true })
     })
   })
 
@@ -215,7 +206,7 @@ for (const width of [412, 1280] as const) {
       await page.goto('/login')
       await expect(page.getByRole('textbox').first()).toBeVisible()
       await inspectTabStops(page, `Entrar ${width}px`)
-      await expectOneFieldIndicator(page, 'input[name="email"]', '[data-input-root]', `sign-in email ${width}px`)
+      await expectOneFieldIndicator(page, page.locator('input[name="email"]'), '[data-input-root]', `sign-in email ${width}px`)
     })
 
     test('code entry has one ring on its active box', async ({ page }) => {
@@ -225,7 +216,20 @@ for (const width of [412, 1280] as const) {
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
       const code = page.locator('input[name="verificationCode"]')
       await expect(code).toBeVisible()
-      await expectOneFieldIndicator(page, 'input[name="verificationCode"]', 'form', `sign-in code ${width}px`)
+      await expectOneFieldIndicator(page, code, 'form', `sign-in code ${width}px`)
+    })
+
+    test('sign-in fields draw one indicator in forced colors', async ({ page }) => {
+      await page.emulateMedia({ forcedColors: 'active' })
+      await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
+      await page.goto('/login')
+      const email = page.locator('input[name="email"]')
+      await expectOneFieldIndicator(page, email, '[data-input-root]', `sign-in email forced colors ${width}px`, { forcedColors: true })
+      await email.fill('focus@example.com')
+      await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
+      const code = page.locator('input[name="verificationCode"]')
+      await expect(code).toBeVisible()
+      await expectOneFieldIndicator(page, code, 'form', `sign-in code forced colors ${width}px`, { forcedColors: true })
     })
   })
 }

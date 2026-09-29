@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
+import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 
@@ -37,6 +38,56 @@ vi.mock('@/components/ui/app-select', () => ({
 const translate = (key: string, values?: Record<string, unknown>) =>
   values ? `${key}(${JSON.stringify(values)})` : key
 
+const understandingLabels = {
+  field: 'Describe the habit',
+  placeholder: 'Run every weekday',
+  understood: 'Orbit understood',
+  understoodAstra: 'Astra proposed',
+  unresolved: 'Choose a schedule',
+  days: 'Active days',
+  less: 'Less often',
+  more: 'More often',
+  count: (count: number) => `${count} times a week`,
+  scheduleMode: 'Schedule',
+  setDays: 'Set days',
+  timesAWeek: 'Times a week',
+  repeat: (count: number) => `Every ${count} weeks`,
+  repeatLess: 'Repeat less often',
+  repeatMore: 'Repeat more often',
+  proposed: 'Proposed by Astra',
+}
+
+function collectComponentFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = join(directory, entry.name)
+    if (entry.isDirectory()) return collectComponentFiles(entryPath)
+    return entry.name.endsWith('.tsx') ? [entryPath] : []
+  })
+}
+
+function renderPhraseField() {
+  return render(
+    <HabitUnderstanding
+      value=""
+      emoji="\u{1F3C3}"
+      days={[]}
+      dayOptions={[]}
+      quantity={1}
+      mode="fixed"
+      intervalWeeks={1}
+      sentence={null}
+      consumed={[]}
+      onValueChange={vi.fn()}
+      onEmojiSelect={vi.fn()}
+      onToggleDay={vi.fn()}
+      onQuantityChange={vi.fn()}
+      onModeChange={vi.fn()}
+      onIntervalWeeksChange={vi.fn()}
+      labels={understandingLabels}
+    />,
+  )
+}
+
 describe('habit form focus treatments', () => {
   it('restores a system outline that outranks utilities in forced colors', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
@@ -45,6 +96,43 @@ describe('habit form focus treatments', () => {
     expect(stylesheet).toMatch(
       /@media \(forced-colors: active\) \{\s*:focus-visible \{[^}]*outline: 2px solid CanvasText !important;[^}]*\}\s*\}/,
     )
+  })
+
+  it('drops the global forced-colors outline on a field that paints its own perimeter', () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+
+    expect(stylesheet).toMatch(
+      /@media \(forced-colors: active\) \{[^@]*\[data-focus-perimeter\] :is\(input, textarea\):focus-visible \{\s*outline: none !important;/,
+    )
+  })
+
+  it('pairs every forced-colors outline opt-out with a system-color perimeter', () => {
+    const roots = ['components', 'app'].map((directory) => resolve(process.cwd(), directory))
+    const offenders = roots.flatMap((root) => collectComponentFiles(root))
+      .map((file) => ({ file, source: readFileSync(file, 'utf8') }))
+      .filter(({ source }) => source.includes('data-focus-perimeter'))
+      .filter(({ source }) => {
+        const optOuts = source.split('data-focus-perimeter').length - 1
+        const perimeters = source.split('border-[Highlight]').length - 1
+        return perimeters < optOuts
+      })
+      .map(({ file }) => relative(process.cwd(), file))
+
+    expect(offenders).toEqual([])
+  })
+
+  it('paints the habit phrase perimeter above its mirror', () => {
+    const view = renderPhraseField()
+
+    const field = view.container.querySelector('[data-habit-phrase-field]')
+    expect(field).not.toBeNull()
+    const mirror = field?.querySelector('p')
+    expect(mirror).not.toBeNull()
+    expect(mirror?.className).not.toContain('bg-[')
+    expect(field?.className).toContain('bg-[var(--bg-field)]')
+    expect(field?.className).toContain('shadow-[inset_0_0_0_1px_var(--border-control)]')
+    expect(field).toHaveAttribute('data-focus-perimeter')
   })
 
   it('shows the design-system focus shadow on the custom reminder input', () => {

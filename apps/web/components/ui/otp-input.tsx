@@ -61,7 +61,7 @@ export function OtpInput({
             data-otp-cell=""
             data-error={error ? '' : undefined}
             data-active={focused && !disabled && index === activeIndex ? '' : undefined}
-            className="pointer-events-none grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)] forced-colors:border forced-colors:border-[CanvasText] forced-colors:data-[active]:border-2 forced-colors:data-[active]:border-[Highlight]"
+            className="pointer-events-none grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:data-[active]:border-[Highlight]"
             style={{
               boxShadow: focused && !disabled && index === activeIndex
                 ? 'inset 0 0 0 2px var(--primary)'

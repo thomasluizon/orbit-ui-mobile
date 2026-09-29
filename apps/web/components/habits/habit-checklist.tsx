@@ -331,7 +331,7 @@ function SortableChecklistItem({
         value={item.text}
         type="text"
         aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
+        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         onChange={(e) => onUpdateText(index, e.target.value)}
       />
 
@@ -433,8 +433,8 @@ function ChecklistAddRow({
         type="text"
         disabled={disabled}
         placeholder={t('habits.form.checklistPlaceholder')}
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
-        style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+        data-focus-perimeter=""
+        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
         onChange={(e) => onChangeText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

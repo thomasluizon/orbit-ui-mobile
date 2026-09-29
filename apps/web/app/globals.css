@@ -1405,8 +1405,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (forced-colors: active) {
-  [data-composer-input-row]:has(textarea:focus-visible) {
-    outline: none;
+  /* WHY: a field that paints its own forced-colors perimeter must not also take the outline above (#950). */
+  :is(input, textarea)[data-focus-perimeter]:focus-visible,
+  [data-focus-perimeter] :is(input, textarea):focus-visible {
+    outline: none !important;
   }
 }
 
