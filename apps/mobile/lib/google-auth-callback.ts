@@ -1,6 +1,15 @@
 import { useSyncExternalStore } from 'react'
+import Constants from 'expo-constants'
 
-export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
+const extra: unknown = Constants.expoConfig?.extra
+const router = typeof extra === 'object' && extra !== null && 'router' in extra
+  ? extra.router
+  : undefined
+const appLinkOrigin = typeof router === 'object' && router !== null
+  && 'origin' in router && typeof router.origin === 'string'
+  ? router.origin
+  : 'https://app.useorbit.org'
+export const AUTH_CALLBACK_URL = `${appLinkOrigin}/auth-callback`
 
 interface PendingGoogleAuthSessionState {
   callbackUrl: string | null
