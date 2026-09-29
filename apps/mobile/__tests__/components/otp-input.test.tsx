@@ -8,7 +8,7 @@ describe('mobile OtpInput', () => {
   it('keeps one inset ring on the focused cell', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<OtpInput label="Code" value="" onChange={vi.fn()} />)
+      tree = TestRenderer.create(<OtpInput label="Code" value="" onChange={vi.fn()} error="Wrong code" />)
       await Promise.resolve()
     })
     TestRenderer.act(() => tree!.root.findByType('TextInput').props.onFocus())

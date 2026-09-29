@@ -66,10 +66,10 @@ export function OtpInput({
               styles.cell,
               {
                 backgroundColor: tokens.bgField,
-                borderColor: error
-                  ? tokens.statusBad
-                  : focused && !disabled && index === activeIndex
-                    ? tokens.primary
+                borderColor: focused && !disabled && index === activeIndex
+                  ? tokens.primary
+                  : error
+                    ? tokens.statusBad
                     : tokens.borderControl,
                 borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
               },
