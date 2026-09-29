@@ -11,8 +11,10 @@ import {
   unsubscribePush as unsubscribePushAction,
 } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
+import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 
-export type PushPreferenceStatus = WebPushPreferenceStatus
+/** `checking` covers the first render, before the browser reports its push support and subscription. */
+export type PushPreferenceStatus = WebPushPreferenceStatus | 'checking'
 
 export interface PushPreferenceSnapshot {
   supported: boolean
@@ -24,6 +26,15 @@ export interface PushPreferenceSnapshot {
 export interface UsePushNotificationPreferencesResult extends PushPreferenceSnapshot {
   loading: boolean
   togglePush: () => Promise<void>
+}
+
+function createCheckingSnapshot(): PushPreferenceSnapshot {
+  return {
+    supported: false,
+    subscribed: false,
+    permission: '',
+    status: 'checking',
+  }
 }
 
 function createUnsupportedSnapshot(): PushPreferenceSnapshot {
@@ -76,12 +87,12 @@ export function isPushNotificationSupported(): boolean {
   )
 }
 
-export function getPushStatusTone(status: PushPreferenceStatus): string {
+export function getPushStatusTone(status: WebPushPreferenceStatus): string {
   return getPushStatusToneClass(getWebPushStatusTone(status))
 }
 
 export function getPushStatusMessageKey(
-  status: PushPreferenceStatus,
+  status: WebPushPreferenceStatus,
   permission: WebPushPermission,
 ): string {
   return getWebPushStatusMessageKey(status, permission)
@@ -99,7 +110,7 @@ export async function loadPushNotificationState(): Promise<PushPreferenceSnapsho
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready
+    const registration = await getActiveServiceWorkerRegistration()
     const subscription = await registration.pushManager.getSubscription()
 
     return createSnapshot(permission, Boolean(subscription))
@@ -115,6 +126,10 @@ export async function subscribeToPushNotifications(
     return createUnsupportedSnapshot()
   }
 
+  if (!vapidKey) {
+    throw new Error('Missing VAPID public key')
+  }
+
   const permission =
     Notification.permission === 'granted'
       ? 'granted'
@@ -124,15 +139,11 @@ export async function subscribeToPushNotifications(
     return createSnapshot(permission, false)
   }
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await getActiveServiceWorkerRegistration()
   const existingSubscription = await registration.pushManager.getSubscription()
 
   if (existingSubscription) {
     await existingSubscription.unsubscribe()
-  }
-
-  if (!vapidKey) {
-    throw new Error('Missing VAPID public key')
   }
 
   const subscription = await registration.pushManager.subscribe({
@@ -158,7 +169,7 @@ export async function unsubscribeFromPushNotifications(
     return createUnsupportedSnapshot()
   }
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await getActiveServiceWorkerRegistration()
   const subscription = await registration.pushManager.getSubscription()
 
   if (subscription) {
@@ -178,7 +189,7 @@ export async function unsubscribeFromPushNotifications(
 
 export function usePushNotificationPreferences(): UsePushNotificationPreferencesResult {
   const [state, setState] = useState<UsePushNotificationPreferencesResult>({
-    ...createUnsupportedSnapshot(),
+    ...createCheckingSnapshot(),
     loading: false,
     togglePush: () => Promise.resolve(undefined),
   })

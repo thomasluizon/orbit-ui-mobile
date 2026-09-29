@@ -32,6 +32,7 @@ let mockPushPreferences = {
   permission: '' as NotificationPermission | '',
   loading: false,
   status: 'unsupported' as
+    | 'checking'
     | 'unsupported'
     | 'denied'
     | 'not-registered'
@@ -286,6 +287,29 @@ describe('PreferencesPage', () => {
     expect(screen.getByText('settings.notifications.title')).toBeInTheDocument()
     expect(screen.getByText('settings.notifications.registered')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'settings.notifications.title' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('holds the push status line empty while the browser state is still loading', () => {
+    mockPushPreferences = {
+      ...mockPushPreferences,
+      supported: false,
+      permission: '',
+      subscribed: false,
+      status: 'checking',
+    }
+
+    render(<PreferencesPage />)
+
+    expect(screen.queryByText('settings.notifications.unsupported')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('push-status')).toHaveTextContent(/^\s*$/)
+  })
+
+  it('says push is unsupported only once the browser was checked', () => {
+    render(<PreferencesPage />)
+
+    expect(screen.getByTestId('push-status')).toHaveTextContent('settings.notifications.unsupported')
+    expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
   })
 
   it('hides the push toggle when notification permission is denied', () => {

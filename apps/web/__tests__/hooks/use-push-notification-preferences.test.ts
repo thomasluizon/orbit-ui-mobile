@@ -30,7 +30,37 @@ interface SetupPushEnvironmentOptions {
   subscribeResult?: MockPushSubscription
   fetchOk?: boolean
   fetchStatus?: number
-  readyRejects?: boolean
+  registerRejects?: boolean
+}
+
+interface MockRegistration {
+  pushManager: {
+    getSubscription: ReturnType<typeof vi.fn>
+    subscribe: ReturnType<typeof vi.fn>
+  }
+}
+
+/** Mirrors the browser: `ready` never settles until something registers a worker for the page. */
+function createServiceWorkerContainer(registration: MockRegistration, registerRejects: boolean) {
+  let activate: (value: MockRegistration) => void = () => undefined
+  const ready = new Promise<MockRegistration>((resolve) => {
+    activate = resolve
+  })
+  const register = registerRejects
+    ? vi.fn().mockRejectedValue(new TypeError('Failed to register a ServiceWorker'))
+    : vi.fn(async () => {
+        activate(registration)
+        return registration
+      })
+  return { ready, register }
+}
+
+function settleWithin<T>(promise: Promise<T>, milliseconds = 1000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`still pending after ${milliseconds}ms`)), milliseconds)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
 function createMockSubscription(endpoint = 'https://example.com/push'): MockPushSubscription {
@@ -57,30 +87,29 @@ function setupPushEnvironment(options: SetupPushEnvironmentOptions = {}) {
   })
   const getSubscription = vi.fn().mockResolvedValue(existingSubscription)
   const subscribe = vi.fn().mockResolvedValue(subscribeResult)
-  const ready = options.readyRejects
-    ? Promise.reject(new Error('service worker unavailable'))
-    : Promise.resolve({
-        pushManager: {
-          getSubscription,
-          subscribe,
-        },
-      })
+  const container = createServiceWorkerContainer(
+    { pushManager: { getSubscription, subscribe } },
+    options.registerRejects ?? false,
+  )
+  const requestPermission = vi.fn().mockResolvedValue(requestPermissionResult)
 
   vi.stubGlobal('Notification', {
     permission,
-    requestPermission: vi.fn().mockResolvedValue(requestPermissionResult),
+    requestPermission,
   })
   vi.stubGlobal('PushManager', class PushManager {})
   vi.stubGlobal('fetch', fetchMock)
 
   Object.defineProperty(global.navigator, 'serviceWorker', {
     configurable: true,
-    value: { ready },
+    value: container,
   })
 
   return {
     fetchMock,
     getSubscription,
+    register: container.register,
+    requestPermission,
     subscribe,
     subscribeResult,
   }
@@ -125,7 +154,7 @@ describe('use-push-notification-preferences helpers', () => {
   })
 
   it('reports unsupported when browser push APIs are unavailable', async () => {
-    const result = await loadPushNotificationState()
+    const result = await settleWithin(loadPushNotificationState())
 
     expect(result).toEqual({
       supported: false,
@@ -142,7 +171,7 @@ describe('use-push-notification-preferences helpers', () => {
       existingSubscription: subscription,
     })
 
-    const result = await loadPushNotificationState()
+    const result = await settleWithin(loadPushNotificationState())
 
     expect(result).toEqual({
       supported: true,
@@ -152,13 +181,22 @@ describe('use-push-notification-preferences helpers', () => {
     })
   })
 
-  it('returns sync-failed when the service worker cannot be queried', async () => {
+  it('registers the push worker for the whole origin before reading the subscription', async () => {
+    const { register, getSubscription } = setupPushEnvironment({ permission: 'granted' })
+
+    await settleWithin(loadPushNotificationState())
+
+    expect(register).toHaveBeenCalledWith('/sw.js', { scope: '/', updateViaCache: 'none' })
+    expect(getSubscription).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns sync-failed instead of hanging when the worker cannot register', async () => {
     setupPushEnvironment({
       permission: 'granted',
-      readyRejects: true,
+      registerRejects: true,
     })
 
-    const result = await loadPushNotificationState()
+    const result = await settleWithin(loadPushNotificationState())
 
     expect(result).toEqual({
       supported: true,
@@ -174,7 +212,7 @@ describe('use-push-notification-preferences helpers', () => {
       requestPermissionResult: 'denied',
     })
 
-    const result = await subscribeToPushNotifications()
+    const result = await settleWithin(subscribeToPushNotifications())
 
     expect(result).toEqual({
       supported: true,
@@ -195,7 +233,7 @@ describe('use-push-notification-preferences helpers', () => {
     })
     mockSubscribePush.mockResolvedValue(undefined)
 
-    const result = await subscribeToPushNotifications()
+    const result = await settleWithin(subscribeToPushNotifications())
 
     expect(staleSubscription.unsubscribe).toHaveBeenCalledTimes(1)
     expect(subscribe).toHaveBeenCalledTimes(1)
@@ -216,8 +254,33 @@ describe('use-push-notification-preferences helpers', () => {
     })
     mockSubscribePush.mockRejectedValue(new Error('Server error'))
 
-    await expect(subscribeToPushNotifications()).rejects.toThrow()
+    await expect(settleWithin(subscribeToPushNotifications())).rejects.toThrow('Failed to persist push subscription')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses to subscribe without a VAPID key before prompting or dropping the current subscription', async () => {
+    delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    const existingSubscription = createMockSubscription()
+    const { requestPermission, subscribe } = setupPushEnvironment({
+      permission: 'default',
+      requestPermissionResult: 'granted',
+      existingSubscription,
+    })
+
+    await expect(settleWithin(subscribeToPushNotifications())).rejects.toThrow('Missing VAPID public key')
+    expect(requestPermission).not.toHaveBeenCalled()
+    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed worker registration when subscribing instead of hanging', async () => {
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', registerRejects: true })
+
+    await expect(settleWithin(subscribeToPushNotifications())).rejects.toThrow(
+      'Failed to register a ServiceWorker',
+    )
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(mockSubscribePush).not.toHaveBeenCalled()
   })
 
   it('unsubscribes the current subscription and reports not-registered', async () => {
@@ -228,7 +291,7 @@ describe('use-push-notification-preferences helpers', () => {
     })
     mockUnsubscribePush.mockResolvedValue(undefined)
 
-    const result = await unsubscribeFromPushNotifications('granted')
+    const result = await settleWithin(unsubscribeFromPushNotifications('granted'))
 
     expect(mockUnsubscribePush).toHaveBeenCalledTimes(1)
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
@@ -245,7 +308,7 @@ describe('use-push-notification-preferences helpers', () => {
     setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
     mockUnsubscribePush.mockRejectedValue(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
 
-    await expect(unsubscribeFromPushNotifications('granted')).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    await expect(settleWithin(unsubscribeFromPushNotifications('granted'))).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
   })
 })
@@ -269,6 +332,40 @@ describe('usePushNotificationPreferences hook', () => {
       return
     }
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = originalVapidKey
+  })
+
+  it('reports a checking state, never unsupported, until the browser answers', async () => {
+    setupPushEnvironment({ permission: 'granted', existingSubscription: createMockSubscription() })
+    const statuses: string[] = []
+    const { result } = renderHook(() => {
+      const preferences = usePushNotificationPreferences()
+      statuses.push(preferences.status)
+      return preferences
+    })
+
+    expect(statuses[0]).toBe('checking')
+    await waitFor(() => expect(result.current.status).toBe('registered'))
+    expect(statuses).not.toContain('unsupported')
+  })
+
+  it('reports unsupported once checked in a browser without push', async () => {
+    const { result } = renderHook(() => usePushNotificationPreferences())
+
+    await waitFor(() => expect(result.current.status).toBe('unsupported'))
+    expect(result.current.supported).toBe(false)
+  })
+
+  it('shows sync-failed on mount and on toggle when the worker cannot register', async () => {
+    setupPushEnvironment({ permission: 'granted', registerRejects: true })
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('sync-failed'))
+
+    await act(async () => {
+      await settleWithin(result.current.togglePush())
+    })
+
+    expect(result.current.status).toBe('sync-failed')
+    expect(result.current.loading).toBe(false)
   })
 
   it('loads the current subscription snapshot on mount', async () => {
