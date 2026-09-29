@@ -1733,7 +1733,6 @@
     },
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",
-    "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
     "widgetTitle": "Widget do Android",
     "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
     "calendarSync": {
@@ -2734,9 +2733,9 @@
       "stripWindow": "Atividade nos últimos {count, plural, one {# dia} other {# dias}}",
       "frozenToday": "Hoje está congelado. A sequência não quebra hoje.",
       "longest": "Maior sequência",
-      "active": "Dia ativo",
-      "frozen": "Dia congelado",
-      "missed": "Dia sem registro",
+      "active": "dia ativo",
+      "frozen": "dia congelado",
+      "missed": "dia sem registro",
       "today": "Hoje",
       "legend": "Legenda dos dias da sequência",
       "banked": "No banco",
@@ -2837,7 +2836,7 @@
   },
   "gamification": {
     "categories": {
-      "GettingStarted": "Primeiros Passos",
+      "GettingStarted": "Primeiros passos",
       "Consistency": "Consistência",
       "Volume": "Volume",
       "Goals": "Metas",
@@ -2845,7 +2844,7 @@
       "Special": "Especial",
       "Social": "Social",
       "Sharing": "Compartilhamento",
-      "Together": "Em Grupo"
+      "Together": "Em grupo"
     },
     "achievements": {
       "first_orbit": {
