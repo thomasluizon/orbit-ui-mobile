@@ -1878,20 +1878,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .error-surface { padding: 32px; }
   .error-surface--in-shell { padding: 0; }
   .error-surface-title { font-size: 28px; line-height: 1.15; }
-  .error-surface-action [data-variant="primary"] {
+  .error-surface:not(.error-surface--in-shell) .error-surface-action [data-variant="primary"] {
     background: var(--fg-1);
     color: var(--bg);
   }
 }
 
 @media (min-width: 64rem) and (hover: hover) and (pointer: fine) {
-  .error-surface-action :is(button:enabled, a)[data-variant="primary"]:hover {
+  .error-surface:not(.error-surface--in-shell) .error-surface-action :is(button:enabled, a)[data-variant="primary"]:hover {
     background: var(--fg-1);
     opacity: 0.9;
   }
 }
 @media (min-width: 64rem) {
-  .error-surface-action :is(button:enabled, a)[data-variant="primary"]:active {
+  .error-surface:not(.error-surface--in-shell) .error-surface-action :is(button:enabled, a)[data-variant="primary"]:active {
     background: var(--fg-1);
     opacity: 0.85;
   }

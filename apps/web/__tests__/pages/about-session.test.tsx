@@ -134,6 +134,15 @@ it('renders an unauthenticated unknown public path without the shell', () => {
   expect(screen.queryByTestId('composer')).not.toBeInTheDocument()
 })
 
+it('keeps the shell shape while a protected unknown path restores its session', () => {
+  mocks.pathname = '/nao-existe'
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
+  render(<AppLayout><AppNotFound /></AppLayout>)
+  expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+  expect(screen.getByRole('main', { name: 'Destination shell' }).querySelector('main')).toBeNull()
+})
+
 it('passes the selected Today date to the create modal', () => {
   mocks.pathname = '/'
   mocks.searchParams = new URLSearchParams({ date: '2026-08-20' })
