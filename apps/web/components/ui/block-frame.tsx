@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type {
   BlockFrameItemStatus,
   BlockFrameProps,
@@ -154,6 +155,10 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (props.focusTitleOnMount) titleRef.current?.focus()
+  }, [props.focusTitleOnMount])
   const missingLabels = findMissingBlockFrameLabels(props)
   if (process.env.NODE_ENV !== 'production' && missingLabels.length > 0) {
     throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
@@ -175,7 +180,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       }}
     >
       <header className="flex shrink-0 items-center gap-3">
-        <h3 className={props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.title}</h3>
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.title}</h3>
         {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
           <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
             {props.count ?? props.items.length}

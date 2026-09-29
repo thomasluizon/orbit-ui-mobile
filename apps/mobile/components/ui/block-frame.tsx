@@ -8,9 +8,9 @@ import {
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
   CheckCircle2,
   Pencil,
@@ -215,6 +215,15 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const titleRef = useRef<Text>(null)
+  const titleFocused = useRef(false)
+  const focusTitle = () => {
+    if (!props.focusTitleOnMount || titleFocused.current) return
+    const tag = findNodeHandle(titleRef.current)
+    if (tag == null) return
+    AccessibilityInfo.setAccessibilityFocus(tag)
+    titleFocused.current = true
+  }
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const missingLabels = findMissingBlockFrameLabels(props)
@@ -237,7 +246,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <View style={styles.header}>
-        <Text numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
+        <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
         {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
           <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
         ) : null}

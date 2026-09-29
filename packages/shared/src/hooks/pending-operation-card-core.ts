@@ -27,6 +27,7 @@ export interface PendingOperationAuthorizationState {
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
   completedOperation: AgentOperationResult | undefined
+  canRetry: boolean
   dismissed: boolean
 }
 
@@ -35,7 +36,7 @@ export function createPendingOperationAuthorizationState(
   sourceFingerprint: string | null | undefined,
   authorizationVersion = 0,
 ): PendingOperationAuthorizationState {
-  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, completedOperation: undefined, dismissed: false }
+  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, completedOperation: undefined, canRetry: false, dismissed: false }
 }
 
 export function matchesPendingOperationAuthorization(
@@ -90,10 +91,11 @@ export function getPendingOperationCardPresentation(
   confirmationRequirement: string,
   busy: boolean,
   status: PendingOperationCardStatus,
+  canRetry = false,
 ): { destructive: boolean; action: 'none' | 'stepUp' | 'buttons'; frameState: 'acting' | 'partiallyFailed' | 'resting' } {
   return {
     destructive: riskClass === 'Destructive',
-    action: status ? 'none' : confirmationRequirement === 'StepUp' ? 'stepUp' : 'buttons',
+    action: status === 'done' || (status === 'failed' && !canRetry) ? 'none' : confirmationRequirement === 'StepUp' ? 'stepUp' : 'buttons',
     frameState: busy ? 'acting' : status === 'failed' ? 'partiallyFailed' : 'resting',
   }
 }

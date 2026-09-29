@@ -508,6 +508,28 @@ describe('PendingOperationCard (mobile)', () => {
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
   })
 
+  it('shows an execution error and lets the same preview retry', async () => {
+    const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
+    handlers.onConfirmExecute.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('status.done')
+    expect(handlers.onConfirmExecute).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a terminal operation failure in the preview with localized status', async () => {
+    const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    expect(renderedText(tree.toJSON())).not.toContain('Habit could not be created.')
+    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(press(tree, 'chat.operation.approve')).toBeUndefined()
+  })
+
   it('finishes a verified step up even when the native dismissal rejects', async () => {
     const { tree, handlers } = renderCard({ confirmationRequirement: 'StepUp', riskClass: 'High' })
     handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })

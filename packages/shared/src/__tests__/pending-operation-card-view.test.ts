@@ -20,7 +20,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', open: 'Open',
+  pendingTitle: 'Pending operation', open: 'Open', failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
   more: (count) => `and ${count} more`,

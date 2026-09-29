@@ -58,6 +58,8 @@ export interface PendingOperationEditSheetProps {
 
 interface PendingOperationFrameBase<Node> {
   title: string
+  focusTitleOnMount?: boolean
+  body?: Node
   count?: number
   items: readonly {
     id: string
@@ -104,6 +106,9 @@ export interface PendingOperationCardActions {
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
   completedOperation?: AgentOperationResult
+  canRetry?: boolean
+  focusTitleOnMount?: boolean
+  openableCapability?: boolean
   onOpenTarget?: (entityId: string, actionType: string) => void
   completeStepUp: (result: PendingOperationExecutionResult) => void
   closeStepUp: () => void
@@ -143,7 +148,7 @@ function completedTargetControl<Node>(
   render: PendingOperationCardRenderers<Node>,
 ): Node | undefined {
   const operation = card.completedOperation
-  if (card.status !== 'done' || !operation || !targetId) return undefined
+  if (card.status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
   const navigation = getActionChipNavigation({ type: operation.sourceName, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
   return navigation.navigable
     ? render.button({ label: labels.open, variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
@@ -158,7 +163,9 @@ function itemControl<Node>(
   labels: PendingOperationCardLabels,
   render: PendingOperationCardRenderers<Node>,
 ): Node | undefined {
-  const targetId = item.entityId ?? (itemCount === 1 ? card.completedOperation?.targetId : undefined)
+  const targetId = itemCount === 1
+    ? card.completedOperation?.targetId ?? item.entityId
+    : item.entityId
   const open = completedTargetControl(targetId, card, labels, render)
   if (open || card.status != null || revision.stale) return open
   return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
@@ -312,7 +319,7 @@ function changeRows<Node>(
       irreversible: destructive && card.status == null,
       wrapLabel: true,
       editable: false,
-      control: firstField ? completedTargetControl(card.completedOperation?.targetId ?? change.entityId, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
+      control: firstField ? completedTargetControl(count === 1 ? card.completedOperation?.targetId ?? change.entityId : change.entityId, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
         ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
         : undefined) : undefined,
     }
@@ -324,6 +331,17 @@ function changeRows<Node>(
     irreversible: false, wrapLabel: true, editable: false, control: undefined,
   })
   return rows
+}
+
+function previewBody<Node>(
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  if (card.status !== 'failed') return undefined
+  if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied)
+  if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
+  return render.notice(labels.failed)
 }
 
 function previewFrame<Node>(
@@ -340,6 +358,8 @@ function previewFrame<Node>(
     : previewRows(revision, card, labels, presentation.destructive, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
+    focusTitleOnMount: card.focusTitleOnMount,
+    body: previewBody(card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,
@@ -378,9 +398,12 @@ export function renderPendingOperationCard<Node>({
 
   const presentation = getPendingOperationCardPresentation(
     pendingOperation.riskClass, pendingOperation.confirmationRequirement,
-    card.busy || revision?.busy === true, card.status,
+    card.busy || revision?.busy === true, card.status, card.canRetry,
   )
-  const blockFrame = previewFrame(pendingOperation, card, labels, render, presentation)
+  const openableCapability = pendingOperation.capabilityId === 'habits.write'
+    || pendingOperation.capabilityId === 'habits.bulk.write'
+    || pendingOperation.capabilityId === 'goals.write'
+  const blockFrame = previewFrame(pendingOperation, { ...card, openableCapability }, labels, render, presentation)
   const confirmSheet = render.confirmSheet({
     open: card.confirmOpen,
     title: labels.confirmTitle,

@@ -153,6 +153,28 @@ describe('PendingOperationCard', () => {
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
   })
 
+  it('shows an execution error and lets the same preview retry', async () => {
+    confirm.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
+    expect(screen.getByText('chat.operationFailed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('status.done')).toBeInTheDocument())
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a terminal operation failure in the preview with localized status', async () => {
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
+    render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('chat.operationFailed')).toBeInTheDocument())
+    expect(screen.queryByText('Habit could not be created.')).not.toBeInTheDocument()
+    expect(screen.getByText('status.failed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+  })
+
   it('removes one item before approval executes the remaining preview', async () => {
     revise.mockResolvedValue({ ok: true, result: {
       isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,

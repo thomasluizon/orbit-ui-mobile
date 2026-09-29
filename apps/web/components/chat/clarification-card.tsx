@@ -31,11 +31,11 @@ export function ClarificationCard({ clarificationRequest, entityName, onPendingO
       setErrorKey('habits.clarification.errorGeneric')
     }
   }
-  if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
-    <PendingOperationCard pendingOperation={pendingOperation} onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
-  )
+  const showPreview = pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp
   return (
-    <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
+    <>
+    <span role="status" aria-live="polite" className="sr-only">{showPreview ? t('chat.operation.pendingTitle') : ''}</span>
+    {showPreview ? <PendingOperationCard pendingOperation={pendingOperation} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} /> : <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
       <div className="flex flex-col items-start gap-3">
         {resolvedLabel ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</p> : (
           <div className="flex flex-wrap gap-2">{clarificationRequest.quickActions.map((action) => {
@@ -45,7 +45,8 @@ export function ClarificationCard({ clarificationRequest, entityName, onPendingO
         )}
         {errorKey ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(errorKey)}</p> : null}
       </div>
-    )} />
+    )} />}
+    </>
   )
 }
 

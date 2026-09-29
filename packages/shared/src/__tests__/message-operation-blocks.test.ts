@@ -7,6 +7,17 @@ describe('one block per write', () => {
     expect(selectMessageOperationBlocks(makeHeldHabitMessage())).toEqual({ actions: [], outcomes: [] })
   })
 
+  it('keeps a separate result when only one same-type write is pending', () => {
+    const message = makeHeldHabitMessage({
+      operations: [{ ...makeAgentOperationResult('PendingConfirmation', 1), pendingOperationId: 'held-habit' }],
+      actions: [
+        makeActionResult({ type: 'CreateHabit', status: 'Success', entityName: 'Beber água' }),
+        makeActionResult({ type: 'CreateHabit', status: 'Success', entityName: 'Meditar' }),
+      ],
+    })
+    expect(selectMessageOperationBlocks(message).actions).toMatchObject([{ entityName: 'Meditar' }])
+  })
+
   it('keeps a legacy success action and hides its succeeded outcome', () => {
     const message = makeHeldHabitMessage({
       pendingOperations: [],

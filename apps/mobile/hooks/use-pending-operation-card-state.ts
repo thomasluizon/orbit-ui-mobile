@@ -10,6 +10,7 @@ interface PendingOperationCardState {
   closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
   completedOperation: AgentOperationResult | undefined
+  canRetry: boolean
   completeStepUp: (result: PendingOperationExecutionResult) => void
   closeStepUp: () => void
   clearClosingStepUp: () => void
@@ -68,7 +69,10 @@ export function usePendingOperationCardState({
     setBusy(true)
     try {
       const result = await onConfirmExecute(pendingOperationId)
-      if (isCurrent()) setAuthorization((current) => ({ ...current, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation }))
+      if (isCurrent()) setAuthorization((current) => ({
+        ...current, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation,
+        canRetry: !result.ok,
+      }))
     } finally {
       setBusy(false)
     }
@@ -82,6 +86,7 @@ export function usePendingOperationCardState({
       const prepared = getPreparedPendingOperationStepUp(result)
       if (isCurrent()) setAuthorization((current) => ({
         ...current, preparedStepUp: prepared, status: prepared ? current.status : 'failed',
+        canRetry: !prepared,
       }))
     } finally {
       setBusy(false)
@@ -89,7 +94,10 @@ export function usePendingOperationCardState({
   }, [isCurrent, onPrepareStepUp, pendingOperationId, synchronized.closingStepUp])
 
   const completeStepUp = useCallback((result: PendingOperationExecutionResult) => {
-    if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation }))
+    if (isCurrent()) setAuthorization((current) => ({
+      ...current, preparedStepUp: undefined, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation,
+      canRetry: !result.ok,
+    }))
   }, [isCurrent])
   const clearClosingStepUp = useCallback(() => {
     setAuthorization((current) => current.closingStepUp === synchronized.closingStepUp
@@ -104,6 +112,7 @@ export function usePendingOperationCardState({
     closingStepUp: synchronized.closingStepUp,
     status: synchronized.status,
     completedOperation: synchronized.completedOperation,
+    canRetry: synchronized.canRetry,
     completeStepUp,
     clearClosingStepUp,
     closeStepUp: () => { if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined })) },

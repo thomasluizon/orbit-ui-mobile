@@ -187,6 +187,7 @@ export function PendingOperationCard({
   onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
+  focusTitleOnMount,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
 
@@ -198,6 +199,7 @@ export function PendingOperationCard({
     onOpenTarget={onOpenTarget}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
+    focusTitleOnMount={focusTitleOnMount}
     render={pendingOperationRenderers}
     labels={buildPendingOperationCardLabels(pendingOperation, t)}
   />

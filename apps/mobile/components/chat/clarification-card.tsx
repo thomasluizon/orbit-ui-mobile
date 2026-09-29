@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { AccessibilityInfo, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
@@ -21,6 +21,9 @@ export function ClarificationCard({ clarificationRequest, entityName, onPendingO
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [pendingOperation, setPendingOperation] = useState<PendingAgentOperation | null>(null)
+  useEffect(() => {
+    if (pendingOperation) AccessibilityInfo.announceForAccessibility(t('chat.operation.pendingTitle'))
+  }, [pendingOperation, t])
   const choose = async (label: string, value: string) => {
     setErrorKey(null)
     try {
@@ -33,7 +36,7 @@ export function ClarificationCard({ clarificationRequest, entityName, onPendingO
     }
   }
   if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
-    <PendingOperationCard pendingOperation={pendingOperation} onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
+    <PendingOperationCard pendingOperation={pendingOperation} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
   )
   return (
     <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={t(clarificationRequest.question, { defaultValue: clarificationRequest.question })} items={[]} actions={(

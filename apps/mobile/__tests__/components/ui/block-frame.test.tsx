@@ -2,7 +2,8 @@ import type { ReactElement } from 'react'
 import type { BlockFrameItem, BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { act, create } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, Text } from 'react-native'
+import * as ReactNative from 'react-native'
+import { AccessibilityInfo, Pressable, Text } from 'react-native'
 import { BlockFrame } from '@/components/ui/block-frame'
 
 vi.mock('react-i18next', () => ({
@@ -63,6 +64,23 @@ afterEach(() => {
 })
 
 describe('BlockFrame on mobile', () => {
+  it('moves accessibility focus to a preview heading after layout', () => {
+    const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+    const focus = vi.fn()
+    const originalFocus = Object.getOwnPropertyDescriptor(AccessibilityInfo, 'setAccessibilityFocus')
+    Object.defineProperty(AccessibilityInfo, 'setAccessibilityFocus', { configurable: true, value: focus })
+    const tree = render(<BlockFrame {...frame({ focusTitleOnMount: true })} />)
+    const title = tree.root.find((node) => node.type === 'Text' && prop(node, 'children') === 'Changes')
+    prop<() => void>(title, 'onLayout')()
+    prop<() => void>(title, 'onLayout')()
+    expect(findNode).toHaveBeenCalled()
+    expect(focus).toHaveBeenCalledOnce()
+    expect(focus).toHaveBeenCalledWith(42)
+    findNode.mockRestore()
+    if (originalFocus) Object.defineProperty(AccessibilityInfo, 'setAccessibilityFocus', originalFocus)
+    else Reflect.deleteProperty(AccessibilityInfo, 'setAccessibilityFocus')
+  })
+
   it('renders a body without a zero count when there are no rows', () => {
     const tree = render(<BlockFrame {...frame({ items: [], body: <Text>Nothing logged</Text> })} />)
     expect(textValues(tree)).toContain('Nothing logged')

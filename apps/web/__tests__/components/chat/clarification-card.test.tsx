@@ -98,11 +98,14 @@ describe('ClarificationCard', () => {
     const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
     mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'PendingConfirmation' }, pendingOperation } })
     render(<ClarificationCard clarificationRequest={baseClarification} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    const announcement = document.querySelector('span[role="status"]')
     fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
     await waitFor(() => expect(screen.getByText('Beber água')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
+    expect(announcement).toHaveTextContent('chat.operation.pendingTitle')
+    expect(screen.getByRole('heading', { name: 'chat.pendingOp.capability.habits-write' })).toHaveFocus()
     expect(screen.queryByText('habits.clarification.errorGeneric')).not.toBeInTheDocument()
   })
 

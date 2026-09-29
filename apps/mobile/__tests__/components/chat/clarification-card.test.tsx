@@ -3,6 +3,7 @@ import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { AccessibilityInfo } from 'react-native'
 import { renderedText } from '../../support/react-test-renderer'
 
 interface TestNode {
@@ -178,6 +179,7 @@ describe('ClarificationCard (mobile)', () => {
   })
 
   it('replaces the question with an editable pending preview', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
     const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
     let tree!: TestInstance
@@ -191,6 +193,7 @@ describe('ClarificationCard (mobile)', () => {
     expect(output).toContain('chat.operation.approve')
     expect(output).toContain('chat.operation.edit')
     expect(output).toContain('chat.operation.reject')
+    expect(announce).toHaveBeenCalledWith('chat.operation.pendingTitle')
     expect(output).not.toContain('habits.clarification.errorGeneric')
   })
 

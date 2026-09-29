@@ -46,6 +46,9 @@ export interface PendingOperationCardLabels {
   proposed: string
   notSet: string
   open: string
+  failed: string
+  denied: string
+  unsupported: string
   diff: (field: string, oldValue: string, newValue: string) => string
   more: (count: number) => string
   stepUpAction: string
@@ -103,6 +106,9 @@ export function buildPendingOperationCardLabels(
     proposed: translate('chat.preview.proposed'),
     notSet: translate('chat.preview.notSet'),
     open: translate('chat.action.open'),
+    failed: translate('chat.operationFailed'),
+    denied: translate('chat.operation.status.Denied'),
+    unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
     diff: (field, oldValue, newValue) => translate('chat.preview.diff', { field, old: oldValue, new: newValue }),
     more: (count) => translate('chat.preview.more', { count }),
     stepUpAction: translate('chat.operation.stepUpAction'),

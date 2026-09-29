@@ -180,7 +180,7 @@ const pendingOperationRenderers = {
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
-  notice: (message) => <Text accessibilityRole="text">{message}</Text>,
+  notice: (message) => <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>,
   actionRow: (...children) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>,
   diffLabel: (field, oldValue, newValue, accessible) => <DiffLabel field={field} oldValue={oldValue} newValue={newValue} accessible={accessible} />,
 } satisfies PendingOperationCardRenderers
@@ -204,6 +204,7 @@ export function PendingOperationCard({
   onOpenTarget,
   onPrepareStepUp,
   onVerifyStepUp,
+  focusTitleOnMount,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const { t } = useTranslation()
 
@@ -215,6 +216,7 @@ export function PendingOperationCard({
     onOpenTarget={onOpenTarget}
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
+    focusTitleOnMount={focusTitleOnMount}
     render={pendingOperationRenderers}
     labels={buildPendingOperationCardLabels(pendingOperation, t)}
   />

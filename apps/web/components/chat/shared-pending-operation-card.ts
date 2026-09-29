@@ -18,12 +18,13 @@ export interface PendingOperationCardProps {
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
   onVerifyStepUp: PendingOperationVerificationProps['onVerify']
   pendingOperation: PendingAgentOperation
+  focusTitleOnMount?: boolean
   render: PendingOperationCardRenderers
 }
 
 export type PendingOperationCardAdapterProps = Pick<
   PendingOperationCardProps,
-  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'onOpenTarget' | 'pendingOperation'
+  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'onOpenTarget' | 'pendingOperation' | 'focusTitleOnMount'
 >
 
 export function SharedPendingOperationCard({
@@ -35,6 +36,7 @@ export function SharedPendingOperationCard({
   onPrepareStepUp,
   onVerifyStepUp,
   pendingOperation,
+  focusTitleOnMount,
   render,
 }: Readonly<PendingOperationCardProps>): ReactNode {
   const revision = usePendingOperationRevision(pendingOperation, onRevise, onRefresh)
@@ -58,7 +60,7 @@ export function SharedPendingOperationCard({
 
   return renderPendingOperationCard({
     card: {
-      ...card, revision, onOpenTarget,
+      ...card, revision, onOpenTarget, focusTitleOnMount,
       confirmOpen: card.confirmOpen && !revision.stale,
       preparedStepUp: revision.stale ? undefined : card.preparedStepUp,
       closingStepUp: revision.stale ? card.preparedStepUp ?? card.closingStepUp : card.closingStepUp,
