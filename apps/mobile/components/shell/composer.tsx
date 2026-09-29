@@ -252,7 +252,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
             onPress={props.onVoice}
             style={({ pressed }) => [
               styles.iconButton,
-              isRecording ? { backgroundColor: tokens.primary } : null,
+              isRecording ? { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary } : null,
               pressed && !isRecording ? { backgroundColor: tokens.bgHover } : null,
               voiceDisabled ? styles.disabled : null,
             ]}
@@ -378,7 +378,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
   },
   suggestionText: {
@@ -419,6 +420,8 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   field: {
     minHeight: 48,
@@ -446,6 +449,8 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   sendButton: {
     width: 48,
@@ -453,6 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
+    overflow: 'hidden',
   },
   disabled: {
     opacity: 0.4,

@@ -67,7 +67,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const size = props.size ?? 44
   const containerStyle = [
     styles.container,
-    { width: size, height: size, borderRadius: size / 2 },
+    { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' as const },
     props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]

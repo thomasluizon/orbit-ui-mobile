@@ -48,7 +48,7 @@ export function SettingsRow({
       type={interactive ? 'button' : undefined}
       onClick={interactive ? onClick : undefined}
       aria-label={ariaLabel}
-      className={`w-full flex items-center bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]' : ''}`}
+      className={`w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
       style={{
         padding: '16px',
         gap: 12,

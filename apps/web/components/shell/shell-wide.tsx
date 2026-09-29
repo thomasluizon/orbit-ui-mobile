@@ -48,15 +48,6 @@ function getServerSnapshot() {
   return false
 }
 
-function SidebarItemHoverSurface() {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-[12px] transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)]"
-    />
-  )
-}
-
 function SidebarItem({
   item,
   active,
@@ -69,25 +60,24 @@ function SidebarItem({
   const Icon = item.icon ? ICONS[item.icon] : undefined
   const content = (
     <>
-      <SidebarItemHoverSurface />
       {Icon ? (
         <Icon
-          className="relative"
           size={20}
           strokeWidth={active ? 2 : 1.5}
           color={active ? 'var(--primary)' : 'var(--fg-3)'}
           aria-hidden="true"
         />
       ) : null}
-      <span className="relative min-w-0 truncate">{item.label}</span>
+      <span className="min-w-0 truncate">{item.label}</span>
     </>
   )
   const className = [
-    'group relative flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
-    'transition-[color,transform] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+    'flex h-11 w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+    'transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
     active
-      ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
+      ? 'text-[var(--primary-soft)]'
       : 'text-[var(--fg-3)]',
+    onSelect ? 'hover:bg-[var(--bg-hover)]' : '',
   ].join(' ')
 
   if (!onSelect) {

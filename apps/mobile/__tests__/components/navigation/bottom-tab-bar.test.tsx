@@ -4,7 +4,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
@@ -58,6 +58,18 @@ describe('BottomTabBar', () => {
       width: '100%',
     })
     tree.unmount()
+  })
+
+  it('paints a pressed tab on its rounded, clipped hit area', () => {
+    const renderer = require('react-test-renderer')
+    type TabTree = { root: { findAllByType: (type: typeof Pressable) => { props: { testID?: string; style: (state: { pressed: boolean }) => unknown } }[] }; unmount: () => void }
+    let tree!: TabTree
+    renderer.act(() => { tree = renderer.create(<BottomTabBar items={items} activeId="today" onSelect={vi.fn()} label="Navigation" />) })
+    const tab = tree.root.findAllByType(Pressable).find((node) => node.props.testID === 'tab-progress-inactive')
+    if (!tab) throw new Error('Progress tab was not rendered')
+    const pressed = StyleSheet.flatten(tab.props.style({ pressed: true }))
+    expect(pressed).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    renderer.act(() => tree.unmount())
   })
 
   it.each(['dark', 'light'] as const)('uses resting and pressed label roles in %s mode', (mode) => {

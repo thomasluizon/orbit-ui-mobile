@@ -34,22 +34,21 @@ function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, w
 export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const interactive = !readOnly && !disabled && (href || onClick)
   const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (
-    <div className={`orbit-list-row-shell flex items-stretch ${interactive ? 'orbit-list-row-interactive' : ''}`} style={{ minHeight: 52 }}>
+    <div className="orbit-list-row-shell flex items-stretch" style={{ minHeight: 52 }}>
       {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (
-        <Link href={href} aria-label={accessibilityLabel} onClick={onClick} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center text-left no-underline" style={bodyStyle}>{content}</Link>
+        <Link href={href} aria-label={accessibilityLabel} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{content}</Link>
       ) : (
-        <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
+        <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0 }}>
-          <span className="habit-control-motion flex shrink-0 items-center justify-center rounded-full group-hover/list-action:bg-[var(--bg-hover)] group-active/list-action:scale-[0.96]" style={{ width: 44, height: 44 }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent" style={{ margin: 16, marginInlineStart: 0 }}>
+          <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>
         </button>

@@ -3,6 +3,7 @@ import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
+import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -309,8 +310,20 @@ describe('Composer (mobile)', () => {
     expect(textValues(tree.root)).toContain(voiceWords.recording)
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
     expect(byLabel(tree.root, voiceWords.stop)).toHaveLength(1)
+    expect(StyleSheet.flatten(byLabel(tree.root, voiceWords.stop)[0].props.style)).toMatchObject({
+      borderRadius: 999,
+      overflow: 'hidden',
+      backgroundColor: createTokensV2('purple', 'dark').primary,
+    })
     pressControl(byLabel(tree.root, voiceWords.stop)[0])
     expect(onVoice).toHaveBeenCalledOnce()
+  })
+
+  it('clips every composer icon hit area to a circle', async () => {
+    const tree = await renderComposer(props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), onVoice: vi.fn(), attachWords, voiceWords }))
+    for (const label of [attachWords.file, attachWords.image, voiceWords.start]) {
+      expect(StyleSheet.flatten(byLabel(tree.root, label)[0].props.style)).toMatchObject({ borderRadius: 999, overflow: 'hidden' })
+    }
   })
 
   it('keeps the stop control and shows the connection reason during an offline recording', async () => {

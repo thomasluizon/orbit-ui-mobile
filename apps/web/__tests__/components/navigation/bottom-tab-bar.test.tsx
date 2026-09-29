@@ -27,7 +27,7 @@ describe('BottomTabBar', () => {
       'Progresso',
       'Perfil',
     ])
-    expect(buttons.every((button) => button.children.length === 2)).toBe(true)
+    expect(buttons.every((button) => button.children.length === 1)).toBe(true)
     expect(screen.queryByText('Astra')).not.toBeInTheDocument()
   })
 
@@ -48,7 +48,7 @@ describe('BottomTabBar', () => {
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
 
-  it.each(['dark', 'light'])('uses resting and hover label roles in %s mode', (mode) => {
+  it.each(['dark', 'light'])('keeps the selected label stable while the tab fills on hover in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(
       <BottomTabBar
@@ -62,14 +62,14 @@ describe('BottomTabBar', () => {
     const activeLabel = screen.getByText('Calendário')
     const inactiveLabel = screen.getByText('Hoje')
     expect(activeLabel).toHaveClass('text-[var(--primary-soft)]')
-    expect(activeLabel).toHaveClass('group-hover:text-[var(--primary-text)]')
-    expect(activeLabel).toHaveClass('duration-[var(--dur-hover-control)]')
+    expect(activeLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
+    expect(activeLabel.parentElement).toHaveClass('rounded-full', 'hover:bg-[var(--bg-hover)]')
     expect(inactiveLabel).toHaveClass('text-[var(--fg-3)]')
     expect(inactiveLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
     delete document.documentElement.dataset.theme
   })
 
-  it('keeps icons above the animated hover surface', () => {
+  it('paints hover on the rounded tab hit area behind its icon', () => {
     render(
       <BottomTabBar
         activeId="hoje"
@@ -80,10 +80,8 @@ describe('BottomTabBar', () => {
     )
 
     const iconLayer = screen.getByTestId('today-icon').parentElement
-    const hoverSurface = iconLayer?.previousElementSibling
-    expect(iconLayer).toHaveClass('relative')
-    expect(hoverSurface).toHaveClass('duration-[var(--dur-hover)]')
-    expect(hoverSurface).toHaveAttribute('aria-hidden', 'true')
+    expect(iconLayer?.parentElement).toHaveClass('rounded-full', 'overflow-hidden', 'hover:bg-[var(--bg-hover)]')
+    expect(iconLayer?.previousElementSibling).toBeNull()
   })
 
   it('leaves every label inactive for an unknown destination', () => {

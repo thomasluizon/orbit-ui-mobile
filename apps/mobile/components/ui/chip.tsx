@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: radius.full,
+    overflow: 'hidden',
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',

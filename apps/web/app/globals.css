@@ -151,9 +151,13 @@
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
-  .orbit-list-row-interactive:hover:not(:has(.orbit-list-row-action:hover)) {
+  .orbit-list-row-body:hover:not(:has(button:hover, a:hover, [role="button"]:hover)) {
     background: var(--bg-hover);
     --orbit-list-row-secondary: var(--fg-2);
+  }
+
+  .orbit-list-row-action:hover {
+    background: var(--bg-hover);
   }
 
   .orbit-profile-theme-choice:hover {
@@ -316,7 +320,6 @@
 
 .orbit-menu-item[data-destructive] {
   border-top: 1px solid var(--hairline);
-  border-radius: 0 0 12px 12px;
   --icon-color: var(--status-bad);
   color: var(--icon-color);
 }
@@ -1171,9 +1174,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background: var(--primary-hover);
   }
 
-  .habit-panel:has([data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover) {
+  [data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover {
     background: var(--bg-hover);
-    box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
   @layer components {
@@ -1220,20 +1222,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   left: 0;
   right: 0;
 }
-.chip:hover { background: var(--bg-elev-2); color: var(--fg-1); }
 .chip:active { transform: scale(0.96); }
 .chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.chip-active,
-.chip-active:hover {
+.chip-active {
   background: var(--selection-bg);
   color: var(--fg-1);
   box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.45);
 }
-.chip-filled,
-.chip-filled:hover {
+.chip-filled {
   background: var(--primary);
   color: var(--fg-on-primary);
   box-shadow: none;
@@ -1243,13 +1242,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--fg-1);
   box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.28);
 }
-.chip-ai:hover {
-  background: rgba(var(--primary-rgb), 0.16);
-  color: var(--fg-1);
-}
 .chip-ai:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:not(.chip-active):not(.chip-filled):hover { background: var(--bg-hover); }
+  .chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
 }
 }
 

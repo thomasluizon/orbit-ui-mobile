@@ -172,7 +172,7 @@ function useBodyPressFeedback(
   return {
     feedbackStyle:
       pressed
-        ? { backgroundColor: tokens.bgHover, borderColor: tokens.hairlineStrong }
+        ? { borderColor: tokens.hairlineStrong }
         : null,
     onPressIn: () => setPressed(true),
     onPressOut: () => setPressed(false),
@@ -377,7 +377,7 @@ export const HabitRow = memo(function HabitRow({
           style={({ pressed }) => [
             styles.bodyButton,
             { paddingVertical: isChild ? 4 : 8, paddingLeft: isChild ? 24 : 0 },
-            pressed ? styles.bodyButtonPressed : null,
+            pressed ? [styles.bodyButtonPressed, { backgroundColor: tokens.bgHover }] : null,
           ]}
         >
           <HabitRowLeading
