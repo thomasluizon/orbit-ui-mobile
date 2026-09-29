@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDependents,
+  clearCachedOptimisticSkip,
   checkTodayAllDoneOrDefer,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
@@ -340,19 +341,21 @@ export function useSkipHabit() {
         return habit ? optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate)) : items
       })
 
-      return { previousLists }
+      return { previousLists, skippedDate }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, { habitId }, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) queryClient.setQueryData(key, data)
         }
       }
+      if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
     },
 
-    onSettled: (_data, error, { habitId }) => {
+    onSettled: (_data, error, { habitId }, context) => {
       if (error) return
+      if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
       invalidateHabitDependents(queryClient, habitId)
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })

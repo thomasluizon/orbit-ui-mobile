@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitScheduleChild, HabitScheduleItem } from '../types/habit'
+import { getAllDoneOnDate, isHabitSkippedOnDate } from '../utils/all-done'
+import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import {
   buildOptimisticSkipPatch,
   findHabitInList,
@@ -126,7 +128,22 @@ describe('buildOptimisticSkipPatch', () => {
       scheduledDates: ['2026-04-08'],
       instances: [{ date: '2026-04-08', status: 'Pending', logId: null }],
       isOverdue: false,
+      __optimisticSkip: '2026-04-06',
     })
+  })
+
+  it('keeps a pending recurring skip out of all-done when the other due habit is logged', () => {
+    const date = '2026-04-06'
+    const skipped = makeItem({ id: 'skipped', dueDate: date, scheduledDates: [date] })
+    const logged = makeItem({ id: 'logged', dueDate: date, scheduledDates: [date], isLoggedInRange: true })
+    const normalized = normalizeHabits([{ ...skipped, ...buildOptimisticSkipPatch(skipped, date) }, logged])
+
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
+      .toEqual({ allDone: false, count: 1 })
+    expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
+    normalized.set('skipped', { ...normalized.get('skipped')!, isCompleted: true })
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
+      .toEqual({ allDone: false, count: 1 })
   })
 
   it('postpones one-time habits to tomorrow', () => {
@@ -137,6 +154,7 @@ describe('buildOptimisticSkipPatch', () => {
       scheduledDates: ['2026-04-07'],
       isOverdue: false,
       instances: [{ date: '2026-04-07', status: 'Pending', logId: null }],
+      __optimisticSkip: '2026-04-06',
     })
   })
 

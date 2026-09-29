@@ -26,6 +26,7 @@ export { attachNotificationPolling } from './notification-polling'
 export {
   updateHabitListsForDate,
   updateCachedHabitLists,
+  clearCachedOptimisticSkip,
   restoreCachedHabitLists,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,

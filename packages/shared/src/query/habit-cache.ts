@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
+import { clearOptimisticSkipMarker } from '../utils/habit-optimistic'
 import { habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
@@ -41,6 +42,18 @@ export function updateCachedHabitLists(
 ): void {
   for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
     if (items) setCachedHabitList(queryClient, key, items, updater(items))
+  }
+}
+
+export function clearCachedOptimisticSkip(
+  queryClient: QueryClient,
+  habitId: string,
+  date: string,
+): void {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (!items) continue
+    const settled = clearOptimisticSkipMarker(items, habitId, date)
+    if (settled !== items) setCachedHabitList(queryClient, key, items, settled)
   }
 }
 
