@@ -177,9 +177,11 @@ describe('MarketingConsentPrompt (mobile)', () => {
     const tree = await renderArmed()
     await settle()
     const quiet = tree.root.findAll((node: any) =>
-      typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline' && typeof node.props.style === 'function')[0]
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline')[0]!
+    const style = quiet.props.style
+    const pressed = typeof style === 'function' ? style({ pressed: true }) : style
 
-    expect(StyleSheet.flatten(quiet.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
+    expect(StyleSheet.flatten(pressed).transform).toEqual([{ scale: 0.96 }])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

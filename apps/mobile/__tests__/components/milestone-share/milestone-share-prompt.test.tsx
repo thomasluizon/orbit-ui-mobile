@@ -171,8 +171,10 @@ describe('MilestoneSharePrompt (mobile)', () => {
     })
     const later = tree.root.findAll((node) =>
       typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
+    const style = later.props.style
+    const pressed = typeof style === 'function' ? style({ pressed: true }) : style
 
-    expect(StyleSheet.flatten(later.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
+    expect(StyleSheet.flatten(pressed).transform).toEqual([{ scale: 0.96 }])
   })
 
   it('stays hidden while a celebration is in flight', async () => {

@@ -163,9 +163,11 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-streak-7')
     await settle()
     const quiet = tree.root.findAll((node: any) =>
-      typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.notNow' && typeof node.props.style === 'function')[0]
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.notNow')[0]!
+    const style = quiet.props.style
+    const pressed = typeof style === 'function' ? style({ pressed: true }) : style
 
-    expect(StyleSheet.flatten(quiet.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
+    expect(StyleSheet.flatten(pressed).transform).toEqual([{ scale: 0.96 }])
   })
 
   it('shows the level variant for a level key', async () => {
