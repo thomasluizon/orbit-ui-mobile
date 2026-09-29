@@ -24,16 +24,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
   useLogHabit: () => ({ mutate: mocks.mutate }),
 }))
-vi.mock('@/components/ui/status-ring', () => ({ StatusRing: () => <Text>Status</Text> }))
+vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <Text testID={`ring-${status}`}>{label}</Text> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
     <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable>,
 }))
 vi.mock('@/components/ui/block-frame', () => ({
-  BlockFrame: ({ title, count, items, actions }: BlockFrameProps) => <View>
+  BlockFrame: ({ title, count, items, body, actions }: BlockFrameProps) => <View>
     <Text>{title}</Text>
     <Text>{count}</Text>
+    {body}
     {items.map((item) => <View key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}
     {actions}
   </View>,
@@ -77,13 +78,24 @@ describe('Astra list cards on mobile', () => {
     expect(renderedText(tree.toJSON())).toContain('4')
   })
 
-  it('announces unlog for an already-completed occurrence', () => {
-    mocks.occurrencesById.set('habit-1', { isCompleted: true, isLoggedInRange: true })
+  it('shows a logged recurring occurrence as done and unlogs it', () => {
+    mocks.occurrencesById.set('habit-1', { isCompleted: false, isLoggedInRange: true })
     const tree = render(<HabitListCard habitList={habits} />)
 
+    expect(tree.root.findByProps({ testID: 'ring-done' }).props.children).toBe('chat.habitList.logged')
     const unlog = tree.root.findByProps({ accessibilityLabel: 'chat.habitList.unlog:{"name":"Water"}' })
     TestRenderer.act(() => unlog.props.onPress())
     expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', intent: 'unlog' }))
+  })
+
+  it('titles the all scope and explains an empty scope', () => {
+    const all = render(<HabitListCard habitList={{ scope: 'all', items: [] }} />)
+    expect(renderedText(all.toJSON())).toContain('chat.habitList.allTitle')
+    expect(renderedText(all.toJSON())).toContain('chat.habitList.allEmpty')
+    expect(renderedText(all.toJSON())).not.toContain('chat.habitList.count')
+    const today = render(<HabitListCard habitList={{ scope: 'today', items: [] }} />)
+    expect(renderedText(today.toJSON())).toContain('chat.habitList.title')
+    expect(renderedText(today.toJSON())).toContain('chat.habitList.todayEmpty')
   })
 
   it('withholds the toggle when the occurrence is not authoritative', () => {

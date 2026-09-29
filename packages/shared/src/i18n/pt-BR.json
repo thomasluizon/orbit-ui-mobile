@@ -1240,6 +1240,9 @@
     },
     "habitList": {
       "title": "Hábitos de hoje",
+      "allTitle": "Todos os hábitos",
+      "todayEmpty": "Nenhum hábito para hoje",
+      "allEmpty": "Nenhum hábito para mostrar",
       "count": "{shown} de {total}",
       "open": "Abrir {name}",
       "log": "Registrar {name}",
@@ -1249,8 +1252,7 @@
       "more": "Mostrar mais",
       "today": "Hoje",
       "overdue": "Atrasado",
-      "general": "Geral",
-      "empty": "Nenhum hábito para mostrar"
+      "general": "Geral"
     },
     "metrics": {
       "title": "Seu progresso",
