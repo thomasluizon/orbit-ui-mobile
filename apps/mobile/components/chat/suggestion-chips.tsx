@@ -84,8 +84,7 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 16,
       borderRadius: 999,
       backgroundColor: tokens.bgWell,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      boxShadow: `inset 0 0 0 1px ${tokens.hairline}`,
     },
     chipPressed: {
       backgroundColor: tokens.bgHover,
