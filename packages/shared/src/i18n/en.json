@@ -31,8 +31,8 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Show general habits on Today",
-      "showGeneralDesc": "Display your general habits below today's scheduled habits"
+      "showGeneral": "Anytime habits on Today",
+      "showGeneralDesc": "Habits with no schedule show in the Today list."
     },
     "weekStartDay": {
       "title": "First day",
@@ -455,8 +455,6 @@
     "emptyState": "No habits yet",
     "count": "no habits | one habit | {n} habits",
     "overdue": "Overdue",
-    "oneTimeTask": "One-time task",
-    "generalHabit": "General",
     "schedule": {
       "dueInDays": "in {count}d",
       "scheduledOn": "scheduled {date}"
@@ -490,7 +488,6 @@
     "viewsLabel": "Habit views",
     "viewToday": "Today",
     "viewAll": "All",
-    "viewGeneral": "General",
     "sectionLabel": "Habits",
     "frequencyFilter": "Filter by frequency",
     "searchPlaceholder": "Search habits...",
@@ -581,7 +578,6 @@
     "bulkLogMessage": "Log {count} selected habit as complete? Already completed habits will be skipped. | Log {count} selected habits as complete? Already completed habits will be skipped.",
     "bulkLogConfirm": "Log",
     "bulkSkipTitle": "Skip Habits",
-    "bulkSkipMessage": "Skip/postpone {count} selected habit? Recurring habits advance to next date, one-time tasks move to tomorrow. | Skip/postpone {count} selected habits? Recurring habits advance to next date, one-time tasks move to tomorrow.",
     "bulkSkipConfirm": "Skip",
     "bulkBar": {
       "log": "Log selected",
@@ -760,7 +756,7 @@
       "habitTypeAvoid": "Avoid this habit",
       "habitTypeBuildHint": "A routine you want to strengthen.",
       "habitTypeAvoidHint": "You log when you resisted, not when you did it.",
-      "generalBadHabit": "General habits cannot be marked as bad habits",
+      "generalBadHabit": "Anytime habits cannot be marked as bad habits.",
       "subHabits": "Sub-habits",
       "subHabitPlaceholder": "Sub-habit title",
       "subHabitInputLabel": "Sub-habit {index}",
@@ -918,7 +914,7 @@
       "weekly": "Weekly",
       "monthly": "Monthly",
       "yearly": "Yearly",
-      "oneTime": "One-time"
+      "oneTime": "Once"
     },
     "breakdown": {
       "breakInto": "Break down {name} into:",
@@ -936,8 +932,7 @@
       "quickAction": {
         "daily": "Daily",
         "weekly": "Weekly",
-        "threePerWeek": "3 times per week",
-        "oneTime": "One-time task"
+        "threePerWeek": "3 times per week"
       },
       "successCreated": "Created ''{name}''",
       "errorExpired": "This clarification expired. Please ask again.",
@@ -1032,7 +1027,7 @@
       "resisted": "resisted"
     },
     "completionHistory": "Completion History",
-    "showRecurring": "Show recurring habits",
+    "showRecurring": "Show habits that repeat",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Import events as habits",
@@ -1058,7 +1053,7 @@
     "fetchError": "Could not fetch calendar events. Please try again.",
     "importError": "Could not import events. Please try again.",
     "retry": "Try again",
-    "recurring": "Recurring",
+    "recurring": "Repeats",
     "recurrenceDaily": "Daily",
     "recurrenceWeekly": "Weekly",
     "recurrenceWeeklyDays": "Weekly ({days})",
@@ -1286,8 +1281,7 @@
       "pending": "Pending",
       "more": "Show more",
       "today": "Today",
-      "overdue": "Overdue",
-      "general": "General"
+      "overdue": "Overdue"
     },
     "metrics": {
       "title": "Your progress",
@@ -1559,8 +1553,8 @@
         "end_date": "End date",
         "due_time": "Due time",
         "is_bad_habit": "Bad habit",
-        "is_general": "General habit",
-        "is_flexible": "Flexible schedule",
+        "is_general": "Anytime",
+        "is_flexible": "Any day",
         "checklist_items": "Checklist items",
         "sub_habits": "Sub habits",
         "date": "Date",
@@ -2294,11 +2288,11 @@
         "creatingTitle": "Creating Habits",
         "creatingDesc": "Tap the + button at the bottom of the screen, or ask the AI in chat. Set a name, optional description, and frequency schedule (daily, weekly on specific days, monthly, or yearly).",
         "frequenciesTitle": "Frequencies & Scheduling",
-        "frequenciesDesc": "Habits can repeat daily, weekly on specific days, monthly, or yearly. You can also create one-time tasks with no frequency. The app shows only habits scheduled for each day.",
+        "frequenciesDesc": "Habits can repeat daily, on certain days of the week, monthly, or yearly. You can also set a habit for one day.",
         "subHabitsTitle": "Sub-Habits",
         "subHabitsDesc": "Break down complex habits into smaller steps. For example, 'Morning Routine' can have 'Meditate', 'Journal', and 'Stretch' as sub-habits. Each can be completed independently.",
         "checklistsTitle": "Checklists",
-        "checklistsDesc": "Add a checklist to any habit for simple item lists like shopping, packing, or to-do breakdowns. Check items off in the detail view. For recurring habits, the checklist automatically resets when you log the habit. You can also save checklists as reusable templates.",
+        "checklistsDesc": "Add a checklist to a habit for things like shopping or packing. Check items off in the detail view. The checklist resets when you log a habit that repeats. You can save checklists as templates.",
         "loggingTitle": "Logging Completions",
         "loggingDesc": "Tap the circle next to any habit to mark it as done. Tap again to undo. You can also log habits through the AI chat by saying things like 'I ran today'.",
         "badHabitsTitle": "Bad Habit Tracking",
@@ -2312,27 +2306,21 @@
         "bulkSelectTitle": "Bulk Actions",
         "bulkSelectDesc": "Tap 'Select' to enter selection mode. Choose multiple habits to log, skip, or delete them at once.",
         "filteringTitle": "Search & Filters",
-        "filteringDesc": "Use the search bar to find habits by name. Filter by frequency (daily, weekly, monthly, yearly, one-time) using the chips below the search bar.",
+        "filteringDesc": "Find habits by name with search. Use the chips below it to filter by daily, weekly, monthly, yearly, or once.",
         "summaryTitle": "AI Daily Summary",
         "summaryDesc": "When enabled in Settings, an AI-generated summary card appears at the top of your Today view with insights about your day and motivational nudges.",
         "remindersTitle": "Reminders",
         "remindersDesc": "Add reminders to any habit. Habits with a due time get relative reminders (e.g. 15 min before). Habits without a due time get scheduled reminders at specific times on the same day or day before. You'll receive a push notification for each reminder.",
-        "oneTimeTasksTitle": "One-Time Tasks",
-        "oneTimeTasksDesc": "Create tasks without a recurring frequency for single-date goals. Perfect for things like 'buy groceries tomorrow' or 'dentist appointment Friday'.",
         "duplicateTitle": "Duplicate Habits",
         "duplicateDesc": "Long-press a habit card or use its menu to duplicate it with all settings (frequency, tags, reminders). Great for creating similar habits quickly.",
         "dateNavTitle": "Date Navigation",
         "dateNavDesc": "Use the left and right arrows on the Today view to navigate between days. The Today view also shows any overdue habits that still need attention.",
         "endDatesTitle": "End Dates",
-        "endDatesDesc": "Set an optional end date on recurring habits. The habit stops appearing in your schedule after the end date passes, perfect for time-limited challenges or temporary routines.",
+        "endDatesDesc": "Set an optional end date for a habit that repeats. It stops appearing in your schedule after that day.",
         "goalLinkingTitle": "Goal Linking",
         "goalLinkingDesc": "Link habits to your goals from the habit form. Linked habits contribute to goal adherence tracking, helping you see how your daily actions drive progress toward bigger objectives.",
         "tagDisplayTitle": "Tags on Cards",
         "tagDisplayDesc": "Tags you assign to habits appear as color-coded badges directly on habit cards. Quickly identify categories at a glance without opening each habit.",
-        "flexibleTitle": "Flexible Habits",
-        "flexibleDesc": "Complete X times per week or month at your own pace -- no specific days required. Flexible habits track how many times you complete them within a window, giving you freedom to choose when.",
-        "generalTitle": "General Habits",
-        "generalDesc": "Habits without a schedule -- always visible, no due dates. Perfect for ongoing habits like journaling or reading that you want to track without being tied to specific days. Enable 'Show general on Today' in Settings.",
         "skipTitle": "Skip vs Log",
         "skipDesc": "Skip marks a habit as intentionally skipped for the day without breaking your streak. Use it when you consciously chose not to do a habit (rest day, travel, etc.) rather than simply forgetting."
       },
@@ -2350,7 +2338,7 @@
       },
       "astraSection": {
         "canDoTitle": "Create & Log",
-        "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
+        "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "63 Built-In Tools",
         "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
@@ -2386,7 +2374,7 @@
         "streaksTitle": "Streaks & Progress",
         "streaksDesc": "The calendar shows your completion patterns over time. Use it to identify consistency gaps and see which days you tend to miss, so you can adjust your routine.",
         "googleCalendarTitle": "Google Calendar Import",
-        "googleCalendarDesc": "Import events from your Google Calendar as one-time habits. Sync your schedule to Orbit so meetings, appointments, and events automatically appear as tasks on the right day."
+        "googleCalendarDesc": "Import events from your Google Calendar. Meetings and appointments appear in Orbit on the right day."
       },
       "rewardsSection": {
         "xpLevelsTitle": "XP and levels",
@@ -2617,8 +2605,8 @@
       "transcriptionFailed": "Couldn't transcribe the audio. Please try again.",
       "logNotAllowed": "You can't log this habit right now.",
       "selfParent": "A habit can't be its own sub-habit.",
-      "generalMismatchWithParent": "A sub-habit's General setting must match its parent habit's.",
-      "generalMismatchWithChildren": "Can't change this while it has sub-habits with a different General setting.",
+      "generalMismatchWithParent": "A sub-habit and its parent must have the same 'anytime' setting.",
+      "generalMismatchWithChildren": "Change the sub-habits' schedules before changing 'anytime'.",
       "calendarNotConnected": "Connect Google Calendar first.",
       "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
       "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",

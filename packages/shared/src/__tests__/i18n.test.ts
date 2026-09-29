@@ -78,6 +78,24 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it('keeps internal habit type names out of rendered copy', () => {
+    const otherMeanings = new Set([
+      'preferences.general',
+      'chat.insight.overview',
+      'privacy.intro.body',
+      'onboarding.featureGuide.astraSection.cannotDoDesc',
+      'referral.drawer.disclaimer',
+    ])
+    for (const [key, value] of ptFlat) {
+      if (otherMeanings.has(key)) continue
+      expect(value, `pt-BR: ${key}`).not.toMatch(/recorrente|flexíve(l|is)|tarefas? únicas?|\bgera(l|is)\b/i)
+    }
+    for (const [key, value] of enFlat) {
+      if (otherMeanings.has(key)) continue
+      expect(value, `en: ${key}`).not.toMatch(/\brecurring\b|\bflexible\b|\bone-time\b|\bgeneral\b/i)
+    }
+  })
+
   it.each([en, ptBR])('uses the invalid-email example in the sign-in placeholder', (catalog) => {
     expect(catalog.auth.errors.invalidEmail).toContain(catalog.auth.emailPlaceholder)
   })
