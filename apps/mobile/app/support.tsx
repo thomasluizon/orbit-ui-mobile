@@ -185,6 +185,7 @@ function SupportForm({
         maxLength={messageMaxLength}
         multiline
         rows={6}
+        autoComplete="off"
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
@@ -196,7 +197,7 @@ function SupportForm({
         hint={t('profile.support.emailLockedReason')}
         kind="email"
         inputMode="email"
-        autoComplete="email"
+        autoComplete="off"
       />
       {appVersion ? (
         <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>

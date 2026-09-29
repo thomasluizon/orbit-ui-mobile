@@ -123,6 +123,7 @@ export function SupportForm({
       </div>
       <Input
         label={t('profile.support.message')}
+        name="message"
         value={message}
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
@@ -130,6 +131,7 @@ export function SupportForm({
         error={messageError ?? undefined}
         hint={messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
+        autoComplete="off"
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
@@ -137,13 +139,14 @@ export function SupportForm({
       />
       <Input
         label={t('profile.support.email')}
+        name="replyEmail"
         value={email}
         onChange={() => {}}
         disabled
         hint={t('profile.support.emailLockedReason')}
         kind="email"
         inputMode="email"
-        autoComplete="email"
+        autoComplete="off"
       />
       <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
         {t('profile.support.versionIncluded', { version: appVersion })}
