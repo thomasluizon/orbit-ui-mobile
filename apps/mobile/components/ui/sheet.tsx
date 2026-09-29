@@ -4,6 +4,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/ui/icons'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
@@ -73,6 +74,7 @@ export function Sheet({
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height } = useWindowDimensions()
+  const { bottom: bottomInset } = useSafeAreaInsets()
   const { t } = useTranslation()
   const overlayId = useId()
   const sheetId = `sheet:${overlayId}`
@@ -153,7 +155,7 @@ export function Sheet({
   const footer = actions || showSheetToast ? (
     <View>
       {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
-      {actions ? <View style={styles.actions}>{actions}</View> : null}
+      {actions ? <View style={[styles.actions, { paddingBottom: 16 + bottomInset }]}>{actions}</View> : null}
     </View>
   ) : undefined
 
@@ -180,13 +182,14 @@ export function Sheet({
       insetAdjustment="automatic"
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
-      scrollable
+      scrollable={virtualizedBody}
     >
       {virtualizedBody ? (
         <View testID="sheet-virtualized-body" style={styles.body}>{children}</View>
       ) : (
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
+          style={{ maxHeight: height * MAX_HEIGHT_RATIO - 180 }}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -231,7 +234,6 @@ function createStyles(tokens: Tokens) {
       transform: [{ scale: 0.96 }],
     },
     body: {
-      flexGrow: 1,
       padding: 16,
       paddingBottom: 24,
     },

@@ -237,7 +237,7 @@
 
 .orbit-sheet-body {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
@@ -18,6 +18,10 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 
 vi.unmock('@/components/ui/sheet')
+
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+}))
 
 const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
 
@@ -167,7 +171,7 @@ describe('Sheet (mobile)', () => {
       .find((node: { props: { nestedScrollEnabled?: boolean } }) => node.props.nestedScrollEnabled)
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
-    expect(nativeSheet.props.scrollable).toBe(true)
+    expect(nativeSheet.props.scrollable).toBe(false)
     expect(nativeSheet.props.maxContentHeight).toBeCloseTo(892 * 0.85 - 24)
     expect(nativeSheet.props.maxContentWidth).toBe(640)
     expect(nativeSheet.props.insetAdjustment).toBe('automatic')
@@ -281,6 +285,15 @@ describe('Sheet (mobile)', () => {
     })
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.footer).toBeDefined()
+    const bodyScroller = tree.root.findAllByType('ScrollView')[0]
+    const bodyStyle = (StyleSheet.flatten(bodyScroller.props.style) ?? {}) as { flex?: number; flexGrow?: number }
+    const contentStyle = StyleSheet.flatten(bodyScroller.props.contentContainerStyle) as { flex?: number; flexGrow?: number }
+    expect(bodyStyle.flex).toBeUndefined()
+    expect(bodyStyle.flexGrow).toBeUndefined()
+    expect(contentStyle.flex).toBeUndefined()
+    expect(contentStyle.flexGrow).toBeUndefined()
+    const actions = nativeSheet.props.footer.props.children[1]
+    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingBottom: 40 })
   })
 })
 
