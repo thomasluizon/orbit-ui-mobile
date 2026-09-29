@@ -164,7 +164,7 @@ export default function UpgradeScreen() {
     isOnline,
     portalState,
   })
-  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, isStatusError, model, showPitch)
+  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

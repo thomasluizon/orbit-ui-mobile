@@ -89,7 +89,7 @@ export default function UpgradePage() {
     portalState,
   })
   const screenState = heldAccountId === null ? 'loading' : model.state
-  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, isStatusError, model, showPitch, heldAccountId !== null)
+  const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch, heldAccountId !== null)
 
   const usagePercent = useMemo(() => {
     if (!status || status.aiMessagesLimit === 0) return 0

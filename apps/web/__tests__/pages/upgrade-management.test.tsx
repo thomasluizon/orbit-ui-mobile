@@ -311,6 +311,13 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 
+  it('shows the subscription title when status resolves without a value', () => {
+    mockProfile = null
+    render(<UpgradePage />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
+  })
+
   it('shows billing loading state for Pro users', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }

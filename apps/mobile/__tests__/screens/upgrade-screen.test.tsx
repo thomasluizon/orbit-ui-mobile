@@ -240,6 +240,7 @@ describe('UpgradeScreen', () => {
   it.each([
     ['loading', true, false, 'common.loading'],
     ['load-failed', false, true, 'upgrade.billing.error'],
+    ['load-failed-without-status', false, false, 'upgrade.billing.error'],
   ] as const)('renders the %s status outcome', async (_state, statusLoading, statusError, label) => {
     mocks.profile = null
     mocks.statusLoading = statusLoading

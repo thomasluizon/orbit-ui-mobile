@@ -42,14 +42,13 @@ export interface SubscriptionScreenModel {
 
 export function resolveUpgradeHeader(
   status: SubscriptionStatus | null,
-  isStatusError: boolean,
   model: SubscriptionScreenModel,
   showPitch: boolean,
   canShowTitle = true,
 ): { lapsedNoticeStatus: SubscriptionStatus | null; titleKey: 'upgrade.title' | 'upgrade.pitchTitle' | null } {
   const lapsedNoticeStatus = status && !status.hasProAccess
     && (status.lapseReason || status.subscriptionEndedAtUtc) && !showPitch ? status : null
-  const titleKey = !canShowTitle || (!status && !isStatusError)
+  const titleKey = !canShowTitle || (!status && model.state !== 'load-failed')
     ? null
     : model.state === 'load-failed' || lapsedNoticeStatus || model.content !== 'pitch'
       ? 'upgrade.title'
