@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
-import { StatTile } from '@/components/ui/stat-tile'
+import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 describe('StatTile', () => {
@@ -16,9 +16,23 @@ describe('StatTile', () => {
     expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
-  it('uses the large type token for a weekday value', () => {
-    render(<StatTile value="Wednesday" label="Best weekday" valueSize="lg" />)
-    expect(screen.getByText('Wednesday')).toHaveStyle({ fontSize: 'var(--fs-lg)' })
+  it.each([
+    { viewport: 360, contentWidth: 110 },
+    { viewport: 412, contentWidth: 136 },
+  ])('lets weekday values wrap within the $viewport px two-column grid', ({ viewport, contentWidth }) => {
+    const gridWidth = viewport - 32
+    expect((gridWidth - 12) / 2 - 48).toBe(contentWidth)
+    for (const weekday of ['Wednesday', 'Quarta-feira']) {
+      const { unmount } = render(<StatTile value={weekday} label="Best weekday" valueSize="lg" />)
+      const value = screen.getByText(weekday)
+      expect(value).toHaveStyle({ fontSize: 'var(--fs-lg)', overflowWrap: 'anywhere' })
+      expect(value).toHaveClass('max-w-full', 'whitespace-normal')
+      expect(value).not.toHaveClass('overflow-hidden', 'text-ellipsis', 'whitespace-nowrap')
+      expect(value.parentElement).toHaveClass('px-6', 'py-4')
+      expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
+      expect(2 * 24 + 40 + 8 + 2 * 16).toBeLessThanOrEqual(STAT_TILE_MIN_HEIGHT)
+      unmount()
+    }
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

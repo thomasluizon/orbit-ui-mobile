@@ -5,7 +5,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-import { StatTile } from '@/components/ui/stat-tile'
+import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
@@ -35,8 +35,10 @@ describe('StatTile (mobile)', () => {
   })
 
   it.each([
+    { platform: 'web', screenWidth: 360, tileBorder: 0 },
     { platform: 'web', screenWidth: 412, tileBorder: 0 },
     { platform: 'web', screenWidth: 1352, tileBorder: 0 },
+    { platform: 'mobile', screenWidth: 360, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 412, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 1352, tileBorder: 2 },
   ])('fits every weekday value in the $platform progress grid at $screenWidth px', ({ platform, screenWidth, tileBorder }) => {
@@ -47,7 +49,9 @@ describe('StatTile (mobile)', () => {
     const fontFile = require.resolve('@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf')
 
     for (const bundle of [en, ptBR]) {
-      for (const weekday of Object.values(bundle.dates.daysValue)) {
+      const weekdays = Object.values(bundle.dates.daysValue)
+      if (bundle === ptBR) weekdays.push('Quarta-feira')
+      for (const weekday of weekdays) {
         let tree: ReturnType<typeof TestRenderer.create>
         TestRenderer.act(() => {
           tree = TestRenderer.create(<StatTile value={weekday} label="Best weekday" valueSize="lg" />)
@@ -59,7 +63,15 @@ describe('StatTile (mobile)', () => {
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="40" font-family="Space Grotesk" font-size="${size}" font-weight="600">${weekday}</text></svg>`
         const bounds = new Resvg(svg, { font: { fontFiles: [fontFile], loadSystemFonts: false } }).getBBox()
         expect(bounds, weekday).not.toBeNull()
-        expect(bounds!.width, `${weekday} in ${platform} at ${screenWidth}px`).toBeLessThan(contentWidth)
+        expect(bounds!.width, `${weekday} in ${platform} at ${screenWidth}px`).toBeLessThan(2 * contentWidth)
+        if (bounds!.width > contentWidth) {
+          expect(value.props.numberOfLines, `${weekday} wraps in ${platform} at ${screenWidth}px`).toBeUndefined()
+          expect(value.props.ellipsizeMode).toBeUndefined()
+          expect(StyleSheet.flatten(value.props.style).maxWidth).toBe('100%')
+          const tile = tree!.root.findByProps({ testID: 'stat-tile-default' })
+          expect(StyleSheet.flatten(tile.props.style).paddingVertical).toBe(16)
+          expect(2 * 24 + 40 + 8 + 2 * 16).toBeLessThanOrEqual(STAT_TILE_MIN_HEIGHT)
+        }
       }
     }
   })
