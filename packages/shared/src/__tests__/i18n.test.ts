@@ -121,8 +121,9 @@ describe('i18n locale parity', () => {
       expect(many).toContain('{count}')
     }
     expect(en.habits.deleteConfirmTitle).toBe('Delete this habit?')
-    expect(ptBR.habits.deleteConfirmTitle).toBe('Excluir este hábito?')
+    expect(ptBR.habits.deleteConfirmTitle).toBe('Apagar este hábito?')
     expect(en.habits.deleteHabit).toBe('Delete habit')
+    expect([ptBR.habits.deleteHabit, ptBR.habits.detail.delete, ptBR.undo.habitDeleted]).toEqual(['Apagar hábito', 'Apagar hábito', 'Hábito apagado'])
   })
 
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
