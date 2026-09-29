@@ -79,9 +79,9 @@ describe('ChatEmptyState copy', () => {
     expect(screen.getByText('Some things you can ask')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
       'Log Caminhar',
-      'How the week went',
+      'How was my week',
       'Split Rotina da casa',
-      'How are my goals',
+      'How are my goals doing',
     ])
   })
 

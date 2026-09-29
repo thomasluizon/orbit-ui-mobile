@@ -1221,9 +1221,9 @@
     "suggestion": {
       "prompt": "Some things you can ask",
       "logHabit": "Log {habit}",
-      "week": "How the week went",
+      "week": "How was my week",
       "splitHabit": "Split {habit}",
-      "goals": "How are my goals"
+      "goals": "How are my goals doing"
     },
     "action": {
       "changes": "Changes",
