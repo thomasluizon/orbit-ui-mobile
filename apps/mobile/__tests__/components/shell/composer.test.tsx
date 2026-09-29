@@ -198,6 +198,23 @@ describe('Composer (mobile)', () => {
     expect(onInputBlur).toHaveBeenCalledOnce()
   })
 
+  it('replaces its resting field border with one focused border', async () => {
+    const tree = await renderComposer(props())
+    const input = byLabel(tree.root, words.placeholder)[0]
+    const field = () => {
+      let ancestor = input.parent
+      while (ancestor && StyleSheet.flatten(ancestor.props.style)?.borderWidth === undefined) ancestor = ancestor.parent
+      if (!ancestor) throw new Error('Expected a bordered field')
+      return ancestor
+    }
+    expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(1)
+    TestRenderer.act(() => input.props.onFocus())
+    expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(2)
+    expect(StyleSheet.flatten(input.props.style).borderWidth).toBeUndefined()
+    TestRenderer.act(() => input.props.onBlur())
+    expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(1)
+  })
+
   it.each(['', '   '])('does not send a blank value %j', async (value) => {
     const onSend = vi.fn()
     const tree = await renderComposer(props({ value, onSend }))

@@ -250,7 +250,7 @@ function ApiKeyAccessContent({
           icon={<Lock size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.unlock')}
           accessibilityLabel={t('profile.apiKeys.unlock')}
-          trailing={<ProBadge alwaysVisible />}
+          trailing={<ProBadge alwaysVisible label={t('common.proBadge')} />}
           chevron={false}
           onClick={onUpgrade}
         />
@@ -397,7 +397,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         <h3 className="font-sans text-[14px] font-medium text-[var(--fg-2)]">
           {t('profile.settingsRows.apiKeysMcp')}
         </h3>
-        <ProBadge alwaysVisible variant="outline" />
+        <ProBadge alwaysVisible label={t('common.proBadge')} />
       </div>
       <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)] [text-wrap:pretty]">
         {t('profile.apiKeys.description')}

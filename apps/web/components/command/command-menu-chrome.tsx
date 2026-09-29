@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/pill-button'
 
 export const GROUP_CLASS =
@@ -80,34 +79,17 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack,
       )}
 
       <div className="min-w-0 flex-1">
-        <div className="relative [&_label]:sr-only">
-          <div
-            aria-hidden="true"
-            inert
-            className="pointer-events-none [&_.opacity-60]:opacity-100"
-          >
-            <Input
-              label={fieldLabel}
-              value=""
-              onChange={setSearch}
-              disabled
-              trailing={
-                <Search
-                  className="size-5 text-[var(--fg-3)]"
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-              }
-            />
-          </div>
+        <div className="relative">
           <CommandInput
             ref={inputRef}
             aria-label={fieldLabel}
             value={search}
             onValueChange={setSearch}
             placeholder={t(searchMode ? 'habits.search.title' : 'command.placeholder')}
-            className="absolute inset-x-0 bottom-0 h-[54px] rounded-[12px] bg-transparent px-4 pr-12 text-[16px] text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+            data-focus-perimeter=""
+            className="h-[54px] w-full rounded-[12px] bg-[var(--bg-field)] px-4 pr-12 text-[16px] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
           />
+          <Search className="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 text-[var(--fg-3)]" strokeWidth={1.8} aria-hidden />
         </div>
       </div>
 

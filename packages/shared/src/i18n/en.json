@@ -65,13 +65,13 @@
     "markAllReadError": "Couldn't mark the alerts read. Try again.",
     "deleteError": "Couldn't delete that alert. Try again.",
     "deleteAllError": "Couldn't clear the alerts. Try again.",
-    "markAllRead": "Mark all",
-    "markAsRead": "Mark read",
+    "markAllRead": "Mark all read",
+    "markAsRead": "Mark as read",
     "markRead": "Mark {title} as read",
     "deleteAll": "Clear all",
     "deleteAllAction": "Delete notifications",
     "deleteAllConfirmTitle": "Delete all alerts?",
-    "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
+    "deleteAllConfirmDescription": "{count, plural, one {The alert leaves the list.} other {All # alerts leave the list.}} There is no way to undo this.",
     "delete": "Delete",
     "deleteNotification": "Delete: {title}",
     "deleteUndo": "Undo",
@@ -87,7 +87,7 @@
     "read": "read",
     "unread": "unread",
     "habit": "Habit",
-    "openIn": "Open {target}"
+    "openIn": "Open in {target}"
   },
   "persistentReminder": {
     "label": "Persistent reminder",

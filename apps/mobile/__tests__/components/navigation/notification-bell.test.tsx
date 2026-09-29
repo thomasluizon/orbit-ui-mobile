@@ -1,7 +1,9 @@
 import React from 'react'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { StyleSheet } from 'react-native'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
@@ -16,6 +18,12 @@ import { useUIStore } from '@/stores/ui-store'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: pt } },
+  lng: 'en', fallbackLng: 'en', initAsync: false,
+})
 const state = vi.hoisted(() => ({
   notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
   locale: 'en', mode: 'dark', pathname: '/', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
@@ -32,13 +40,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, values?: Record<string, unknown>) => {
-      const messages = state.locale === 'en' ? en : pt
-      const [namespace, name = ''] = key.split('.')
-      const group = messages[namespace as keyof typeof messages]
-      const value = typeof group === 'object' ? Reflect.get(group, name) as unknown : undefined
-      return typeof value === 'string' ? value.replace(/\{(\w+)\}/g, (_, token: string) => String(values?.[token])) : key
-    },
+    t: (key: string, values?: Record<string, unknown>) => testI18n.getFixedT(state.locale)(key, values),
   }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
@@ -246,7 +248,7 @@ describe('mobile alerts', () => {
 
     expect(body.findAll((node) => node.type === 'Text' && node.props.children === longBody)).toHaveLength(1)
     expect(body.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
-    for (const label of ['Open Progress', en.notifications.markAsRead, en.notifications.delete]) {
+    for (const label of ['Open in Progress', en.notifications.markAsRead, en.notifications.delete]) {
       expect(actions.findAll((node) => node.type === 'Text' && node.props.children === label)).toHaveLength(1)
     }
   })
@@ -266,8 +268,8 @@ describe('mobile alerts', () => {
   })
 
   it.each([
-    ['en', 'Mark all', 'Mark read'],
-    ['pt-BR', 'Marcar todas', 'Marcar lida'],
+    ['en', 'Mark all read', 'Mark as read'],
+    ['pt-BR', 'Marcar tudo como lido', 'Marcar como lido'],
   ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
     state.locale = locale
     seed(1)
@@ -433,13 +435,16 @@ describe('mobile alerts', () => {
     expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
     expect(state.remove).toHaveBeenCalledOnce()
   })
-  it.each(['en', 'pt-BR'])('confirms the full scope and irreversible clear in %s', (locale) => {
+  it.each([
+    ['en', 'All 50 alerts leave the list. There is no way to undo this.'],
+    ['pt-BR', 'Os 50 avisos saem da lista. Não há como desfazer.'],
+  ])('confirms the full scope and irreversible clear in %s', (locale, confirmBody) => {
     state.locale = locale
     seed(50)
     const messages = locale === 'en' ? en : pt
     const tree = render()
     press(tree, messages.notifications.deleteAll)
-    expect(text(tree, locale === 'en' ? 'All alerts leave the list. There is no way to undo this.' : 'Todos os avisos saem da lista. Não há como desfazer.')).toHaveLength(1)
+    expect(text(tree, confirmBody)).toHaveLength(1)
     expect(state.clear).not.toHaveBeenCalled()
     press(tree, messages.common.cancel)
     expect(testId(tree, 'notification-unread')).toHaveLength(50)
@@ -452,6 +457,49 @@ describe('mobile alerts', () => {
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
   })
+  it.each([
+    ['en', 'The alert leaves the list. There is no way to undo this.'],
+    ['pt-BR', 'O aviso sai da lista. Não há como desfazer.'],
+  ])('names the one visible alert in the clear confirmation in %s', (locale, confirmBody) => {
+    state.locale = locale
+    seed(1)
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    press(tree, messages.notifications.deleteAll)
+    expect(text(tree, confirmBody)).toHaveLength(1)
+  })
+
+  it('sets the detail delete apart at the far end behind a growing spacer', () => {
+    const tree = render(<NotificationDetailModal open
+      notification={createMockNotification({ url: '/progress', isRead: false })}
+      onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
+    const slot = testId(tree, 'sheet-actions-slot')[0]!
+    const isSpacer = (node: Node) => node.type === 'View'
+      && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1
+    const row = slot.findAll((node) => node.type === 'View' && !isSpacer(node))[0]!
+
+    expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).flexGrow).toBe(1)
+    expect(slot.findAll((node) => isSpacer(node) || (node.type === 'Text' && typeof node.props.children === 'string'))
+      .map((node) => isSpacer(node) ? 'spacer' : node.props.children))
+      .toEqual(['Open in Progress', en.notifications.markAsRead, 'spacer', en.notifications.delete])
+  })
+
+  it.each([
+    ['achievement', 'New achievement: First Orbit', 'Create your first habit (+25 XP)'],
+    ['level up', 'You reached level 3', 'Keep the streak going.'],
+  ])('leads the %s row to Progress and opens it from the sheet', (_kind, title, body) => {
+    state.notifications = [createMockNotification({ title, body, url: '/progress', habitId: null, isRead: false })]
+    state.unreadCount = 1
+    const tree = render()
+    const rows = hosts(tree, 'Pressable', `${title}. unread. Progress`)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.findAll((node) => node.type === 'ChartLine')).toHaveLength(1)
+    expect(rows[0]!.findAll((node) => node.type === 'Text' && node.props.children === en.nav.progress)).toHaveLength(1)
+    press(tree, `${title}. unread. Progress`)
+    press(tree, 'Open in Progress')
+    expect(state.push).toHaveBeenCalledWith('/progress')
+  })
+
   it.each([
     ['/streak', '/progress', en.nav.progress], ['/', '/', en.nav.today],
     ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],

@@ -100,9 +100,9 @@ it.each([
 
   if (actionName === 'markNotificationRead') {
     fireEvent.click(screen.getByRole('button', { name: /unread/ }))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark as read' }))
   } else if (actionName === 'markAllNotificationsRead') {
-    fireEvent.click(screen.getByRole('button', { name: 'Mark all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }))
   } else {
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete notifications' }))
@@ -187,7 +187,7 @@ it('takes the replaced account notification off the screen instead of holding it
   await act(async () => { await useAuthStore.getState().checkSession() })
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Mark read' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Mark as read' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   respondWithAccount('user-3')

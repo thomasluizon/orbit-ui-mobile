@@ -261,6 +261,12 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('uses one Portuguese verb for removing data', () => {
+    const offenders = [...ptFlat].filter(([, value]) => /exclu/i.test(value)).map(([key]) => key)
+
+    expect(offenders).toEqual([])
+  })
+
   it('keeps sharing and referral guide rows under rewards', () => {
     for (const flat of [enFlat, ptFlat]) {
       expect(flat.get('onboarding.featureGuide.rewardsSection.milestoneShareTitle')).toBeTruthy()

@@ -29,6 +29,7 @@ describe('web OtpInput', () => {
     expect(cells().filter((cell) => cell.hasAttribute('data-active'))).toHaveLength(0)
     fireEvent.focus(input)
     expect(cells()[2]).toHaveAttribute('data-active')
+    expect((cells()[2] as HTMLElement).style.boxShadow).toBe('inset 0 0 0 2px var(--primary)')
     expect(cells().filter((cell) => cell.hasAttribute('data-active'))).toHaveLength(1)
     if (error) expect(cells().filter((cell) => cell.hasAttribute('data-error'))).toHaveLength(6)
     view.rerender(<><OtpInput label="Code" value="123456" onChange={vi.fn()} autoFocus={false} error={error} /><button>Continue</button></>)
