@@ -1606,9 +1606,10 @@
       "remindersNote": "Each habit's reminders live on the habit itself.",
       "currentDevice": "This device",
       "devices": "Devices getting alerts",
-      "of": "of",
-      "devicesUnavailable": "Could not load devices. Try again later.",
-      "pushDeviceLimit": "Up to 5 devices can receive alerts."
+      "devicesCount": "{count} of {max}",
+      "alertsOnThisDevice": "Alerts on this device",
+      "devicesUnavailable": "Could not load devices.",
+      "pushDeviceLimit": "Turn off alerts on another device to use this one."
     },
     "allowance": {
       "title": "Today's messages",

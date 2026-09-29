@@ -11,6 +11,15 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 
+interface MockDeviceState {
+  count: number | undefined
+  max: number
+  isCurrentDeviceRegistered: boolean
+  isLoading: boolean
+  isError: boolean
+  refresh: ReturnType<typeof vi.fn>
+}
+
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
     React.createElement('ReferralCardStub', {
@@ -75,7 +84,9 @@ const {
   mockApiKeys,
   mockTranslate,
   mockLocale,
-} = vi.hoisted(() => ({
+} = vi.hoisted(() => {
+  const deviceState: MockDeviceState = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() }
+  return ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
   mockShareAsync: vi.fn(),
@@ -95,7 +106,7 @@ const {
   mockChangeLanguage: vi.fn(),
   mockPushSupported: { current: false },
   mockPushEnabled: { current: false },
-  mockDeviceState: { current: { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() } },
+  mockDeviceState: { current: deviceState },
   mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
   mockDisablePushNotifications: vi.fn(),
   mockOpenSettings: vi.fn(),
@@ -110,7 +121,7 @@ const {
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
-  mockTranslate: { current: (key: string) => key },
+  mockTranslate: { current: (key: string, params?: Record<string, string | number>) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key },
   mockLocale: { current: 'en' },
   mockProfileState: {
     current: {
@@ -119,7 +130,7 @@ const {
       error: null as Error | null,
     },
   },
-}))
+}) })
 
 vi.mock('expo-sharing', () => {
   return { isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: mockShareAsync }
@@ -149,7 +160,7 @@ vi.mock('react-i18next', () => ({
     init: () => {},
   },
   useTranslation: () => ({
-    t: (key: string) => mockTranslate.current(key),
+    t: (key: string, params?: Record<string, string | number>) => mockTranslate.current(key, params),
     i18n: { language: mockLocale.current, changeLanguage: mockChangeLanguage },
   }),
 }))
@@ -519,7 +530,7 @@ function findButtonByText(
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
-    mockTranslate.current = (key) => key
+    mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
     mockLocale.current = 'en'
     mockApiClient.mockReset()
     mockPerformQueuedApiMutation.mockReset()
@@ -566,14 +577,16 @@ describe('ProfileScreen', () => {
 
   it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', async () => {
     mockLocale.current = 'pt-BR'
-    mockTranslate.current = (key) => {
+    mockTranslate.current = (key, params) => {
       let message: unknown = ptBR
       for (const segment of key.split('.')) {
         message = message && typeof message === 'object'
           ? (message as Record<string, unknown>)[segment]
           : undefined
       }
-      return typeof message === 'string' ? message : key
+      return typeof message === 'string'
+        ? message.replace('{count}', String(params?.count ?? '')).replace('{max}', String(params?.max ?? ''))
+        : key
     }
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
@@ -1366,7 +1379,7 @@ describe('ProfileScreen', () => {
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
           node.props.accessibilityRole === 'switch' &&
-          node.props.accessibilityLabel === 'profile.settingsRows.currentDevice',
+          node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice',
       ),
     ).not.toHaveLength(0)
   })
@@ -1531,7 +1544,7 @@ describe('ProfileScreen', () => {
     mockReminderSupported.current = true
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      for (const label of ['profile.settingsRows.currentDevice', 'persistentReminder.label']) {
+      for (const label of ['profile.settingsRows.alertsOnThisDevice', 'persistentReminder.label']) {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').props.onPress()
       }
@@ -1544,8 +1557,9 @@ describe('ProfileScreen', () => {
   it.each([0, 1, 5])('shows %i devices against the cap', async (count) => {
     mockDeviceState.current.count = count
     const tree = await renderProfileScreen()
-    expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} profile.settingsRows.of 5`)
-    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
+    expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} of 5`)
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.alertsOnThisDevice')
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.currentDevice')
   })
 
   it('names this device when its token is registered', async () => {
@@ -1554,8 +1568,37 @@ describe('ProfileScreen', () => {
     mockDeviceState.current.isCurrentDeviceRegistered = true
     const tree = await renderProfileScreen()
     const control = tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function')
+      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function')
     expect(control.props.accessibilityState?.checked).toBe(true)
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
+  })
+
+  it('reserves the count while devices load', async () => {
+    mockDeviceState.current.count = undefined
+    mockDeviceState.current.isLoading = true
+    const tree = await renderProfileScreen()
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'profile.loading')).not.toHaveLength(0)
+  })
+
+  it('explains the full device cap', async () => {
+    mockPushSupported.current = true
+    mockDeviceState.current.count = 5
+    const tree = await renderProfileScreen()
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.pushDeviceLimit')
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityState?: { disabled?: boolean } } }) =>
+      node.props.accessibilityRole === 'switch' && node.props.accessibilityState?.disabled === true)).not.toHaveLength(0)
+  })
+
+  it('offers retry when the device list fails', async () => {
+    mockDeviceState.current.isError = true
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
+        node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry' && typeof node.props.onPress === 'function').props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
 
   it('disables an enabled push registration from Perfil', async () => {
@@ -1565,7 +1608,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()
     })
     expect(mockDisablePushNotifications).toHaveBeenCalledOnce()
@@ -1579,7 +1622,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.currentDevice' && typeof node.props.onPress === 'function').props.onPress()
+        node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
       tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void }; children: unknown[] }) =>
         node.props.accessibilityRole === 'button' && nodeText(node) === 'settings.notifications.openSettings' && typeof node.props.onPress === 'function').props.onPress()
       await Promise.resolve()

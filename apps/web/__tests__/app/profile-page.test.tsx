@@ -5,6 +5,15 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { useUIStore } from '@/stores/ui-store'
 
+interface MockDeviceState {
+  count: number | undefined
+  max: number
+  isCurrentDeviceRegistered: boolean
+  isLoading: boolean
+  isError: boolean
+  refresh: ReturnType<typeof vi.fn>
+}
+
 const {
   mockExportUserData,
   mockUpdateAiSummary,
@@ -27,7 +36,9 @@ const {
   mockDeviceState,
   mockTranslate,
   mockLocale,
-} = vi.hoisted(() => ({
+} = vi.hoisted(() => {
+  const deviceState: MockDeviceState = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() }
+  return ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
   mockUpdateProactiveAstra: vi.fn(),
@@ -45,8 +56,8 @@ const {
   mockUpdateWeekStartDay: vi.fn(),
   mockUpdateLanguage: vi.fn(),
   mockTogglePush: vi.fn(),
-  mockDeviceState: { current: { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() } },
-  mockTranslate: { current: (key: string) => key },
+  mockDeviceState: { current: deviceState },
+  mockTranslate: { current: (key: string, params?: Record<string, string | number>) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key },
   mockLocale: { current: 'en' },
   mockProfileState: {
     current: {
@@ -55,7 +66,7 @@ const {
       error: null as Error | null,
     },
   },
-}))
+}) })
 
 vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
@@ -106,7 +117,7 @@ vi.mock('@/hooks/use-shell-notice-slot', async (importOriginal) => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => mockLocale.current,
-  useTranslations: () => (key: string) => mockTranslate.current(key),
+  useTranslations: () => (key: string, params?: Record<string, string | number>) => mockTranslate.current(key, params),
 }))
 
 vi.mock('@/hooks/use-color-scheme', () => ({
@@ -203,7 +214,7 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
   beforeEach(() => {
-    mockTranslate.current = (key) => key
+    mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
     mockLocale.current = 'en'
     useUIStore.getState().setAstraConversationOpen(false)
     mockExportUserData.mockReset()
@@ -244,14 +255,16 @@ describe('ProfilePage', () => {
 
   it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', () => {
     mockLocale.current = 'pt-BR'
-    mockTranslate.current = (key) => {
+    mockTranslate.current = (key, params) => {
       let message: unknown = ptBR
       for (const segment of key.split('.')) {
         message = message && typeof message === 'object'
           ? (message as Record<string, unknown>)[segment]
           : undefined
       }
-      return typeof message === 'string' ? message : key
+      return typeof message === 'string'
+        ? message.replace('{count}', String(params?.count ?? '')).replace('{max}', String(params?.max ?? ''))
+        : key
     }
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
@@ -408,25 +421,49 @@ describe('ProfilePage', () => {
 
   it('uses the current device switch to enable browser push', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' }))
     expect(mockTogglePush).toHaveBeenCalledWith(true)
   })
 
   it.each([0, 1, 5])('shows %i devices against the cap', (count) => {
     mockDeviceState.current.count = count
     render(<ProfilePage />)
-    expect(screen.getByText(`${count} profile.settingsRows.of 5`)).toBeInTheDocument()
+    expect(screen.getByText(`${count} of 5`)).toBeInTheDocument()
     expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.currentDevice')).not.toBeInTheDocument()
   })
 
   it('names this device when its endpoint is registered and turns it off', () => {
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
     render(<ProfilePage />)
-    const control = screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
     fireEvent.click(control)
     expect(mockTogglePush).toHaveBeenCalledWith(false)
+  })
+
+  it('reserves the count while devices load', () => {
+    mockDeviceState.current.count = undefined
+    mockDeviceState.current.isLoading = true
+    render(<ProfilePage />)
+    const placeholder = screen.getByRole('status', { name: 'profile.loading' })
+    expect(placeholder.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('explains the full device cap and keeps this device off', () => {
+    mockDeviceState.current.count = 5
+    render(<ProfilePage />)
+    expect(screen.getByText('profile.settingsRows.pushDeviceLimit')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
+  })
+
+  it('offers retry when the device list fails', () => {
+    mockDeviceState.current.isError = true
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
 
   it('keeps the share card off Perfil', () => {
@@ -895,7 +932,7 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
     expect(
       within(notificationsGroup).getByRole('switch', {
-        name: 'profile.settingsRows.currentDevice',
+        name: 'profile.settingsRows.alertsOnThisDevice',
       }),
     ).toBeInTheDocument()
   })

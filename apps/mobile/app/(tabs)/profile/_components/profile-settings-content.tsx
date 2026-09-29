@@ -377,6 +377,7 @@ export function ProfileSettingsContent({
         registrationStatus={pushPreferences.registrationStatus}
         onToggle={() => void handlePushToggle()}
         onOpenSettings={() => void Linking.openSettings()}
+        onRetry={() => void pushSubscriptions.refresh()}
       />
       {persistentReminder.isSupported ? (
         <RowList>

@@ -329,6 +329,7 @@ export function ProfileSettingsContent({
         permission={pushPreferences.permission}
         status={pushPreferences.status}
         onToggle={() => void toggleThisDevice()}
+        onRetry={() => void pushSubscriptions.refresh()}
       />
       <p className="m-0 text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
     </div>,

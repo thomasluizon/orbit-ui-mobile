@@ -4,6 +4,8 @@ import { getNativePushStatusPresentation, type NativePushRegistrationStatus } fr
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
 import { RowList } from '@/components/ui/row-list'
 import { Switch } from '@/components/ui/switch'
+import { PillButton } from '@/components/ui/pill-button'
+import { RotateCcw } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
 
 function PushDevicesFeedback({
@@ -15,6 +17,7 @@ function PushDevicesFeedback({
   registrationStatus,
   currentDeviceRegistered,
   onOpenSettings,
+  onRetry,
 }: Readonly<{
   tokens: AppTokensV2
   error: boolean
@@ -24,6 +27,7 @@ function PushDevicesFeedback({
   registrationStatus: NativePushRegistrationStatus
   currentDeviceRegistered: boolean
   onOpenSettings: () => void
+  onRetry: () => void
 }>) {
   const { t } = useTranslation()
   const pushStatus = getNativePushStatusPresentation({
@@ -36,9 +40,14 @@ function PushDevicesFeedback({
     || registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
   return (
     <>
-      {error ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
-        {t('profile.settingsRows.devicesUnavailable')}
-      </Text> : null}
+      {error ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <Text accessibilityRole="alert" style={{ flex: 1, color: tokens.statusBadText, fontSize: 14 }}>
+          {t('profile.settingsRows.devicesUnavailable')}
+        </Text>
+        <PillButton variant="ghost" size="sm" iconOnly label={t('common.retry')} onClick={onRetry}>
+          <RotateCcw size={16} color={tokens.fg2} strokeWidth={1.8} />
+        </PillButton>
+      </View> : null}
       {full ? (
         <Text style={{ color: tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
           {t('profile.settingsRows.pushDeviceLimit')}
@@ -70,6 +79,7 @@ export function PushDevicesRow({
   registrationStatus,
   onToggle,
   onOpenSettings,
+  onRetry,
 }: Readonly<{
   tokens: AppTokensV2
   count: number | undefined
@@ -82,31 +92,45 @@ export function PushDevicesRow({
   registrationStatus: NativePushRegistrationStatus
   onToggle: () => void
   onOpenSettings: () => void
+  onRetry: () => void
 }>) {
   const { t } = useTranslation()
   const canEnable = count !== undefined && max !== undefined && count < max
   const disabled = loading || error || !supported || (!currentDeviceRegistered && !canEnable)
   return (
+    <View accessibilityState={{ busy: loading }}>
     <RowList>
       <View style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ flex: 1, color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 16 }}>
+        <Text style={{ flex: 1, color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 }}>
           {t('profile.settingsRows.devices')}
         </Text>
-        {count !== undefined && max !== undefined ? (
-          <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }}>
-            {count} {t('profile.settingsRows.of')} {max}
-          </Text>
-        ) : null}
+        <View style={{ minWidth: 64, alignItems: 'flex-end' }}>
+          {count !== undefined && max !== undefined ? (
+            <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }}>
+              {t('profile.settingsRows.devicesCount', { count, max })}
+            </Text>
+          ) : loading ? (
+            <View accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')}
+              style={{ width: 48, height: 16, borderRadius: 8, backgroundColor: tokens.bgWell }} />
+          ) : null}
+        </View>
       </View>
       <View style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ flex: 1, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>
-          {t('profile.settingsRows.currentDevice')}
-        </Text>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>
+            {t('profile.settingsRows.alertsOnThisDevice')}
+          </Text>
+          {currentDeviceRegistered ? (
+            <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }}>
+              {t('profile.settingsRows.currentDevice')}
+            </Text>
+          ) : null}
+        </View>
         <View pointerEvents={disabled ? 'none' : 'auto'} accessible={disabled} accessibilityRole={disabled ? 'switch' : undefined}
-          accessibilityLabel={disabled ? t('profile.settingsRows.currentDevice') : undefined}
+          accessibilityLabel={disabled ? t('profile.settingsRows.alertsOnThisDevice') : undefined}
           accessibilityState={disabled ? { checked: currentDeviceRegistered, disabled: true } : undefined}>
           <View accessibilityElementsHidden={disabled} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-            <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.currentDevice')} />
+            <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
           </View>
         </View>
       </View>
@@ -119,7 +143,9 @@ export function PushDevicesRow({
         registrationStatus={registrationStatus}
         currentDeviceRegistered={currentDeviceRegistered}
         onOpenSettings={onOpenSettings}
+        onRetry={onRetry}
       />
     </RowList>
+    </View>
   )
 }
