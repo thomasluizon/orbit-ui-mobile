@@ -5,6 +5,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import {
   registerModalFocusOwner,
   registerOverlay,
@@ -52,6 +53,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
+  const modalId = `modal:${overlayId}`
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const exitActionRef = useRef<(() => void) | null>(null)
@@ -73,19 +75,19 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
   useEffect(() => {
     if (!modalFocusOwnerActive) return
     registerOverlay({
-      id: overlayId,
+      id: modalId,
       dismiss: () => {
         if (onCloseRef.current) requestClose()
       },
     })
-    registerModalFocusOwner(overlayId)
-    registerOpenOverlay(overlayId)
+    registerModalFocusOwner(modalId)
+    registerOpenOverlay(modalId)
     return () => {
-      unregisterOverlay(overlayId)
-      unregisterModalFocusOwner(overlayId)
-      unregisterOpenOverlay(overlayId)
+      unregisterOverlay(modalId)
+      unregisterModalFocusOwner(modalId)
+      unregisterOpenOverlay(modalId)
     }
-  }, [modalFocusOwnerActive, overlayId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
+  }, [modalFocusOwnerActive, modalId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
 
   function runExit() {
     const exitAction = exitActionRef.current
@@ -133,6 +135,9 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
                 {children}
               </div>
             )}
+            <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
+              <AppToastHost placement="modal" modalId={modalId} />
+            </div>
             {actions == null ? null : (
               <footer className="orbit-sheet-actions" data-slot="sheet-actions">
                 {actions}

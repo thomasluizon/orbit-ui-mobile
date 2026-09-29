@@ -4,7 +4,8 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getNativePushStatusPresentation,
   getTimezoneList,
-  LANGUAGE_OPTIONS,
+  buildPreferencePickerModel,
+  type PreferencePicker,
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
@@ -19,7 +20,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
-export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
+export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
 const TIME_ZONE_PAGE_SIZE = 20
@@ -343,8 +344,10 @@ interface PreferencePickerSheetProps {
   currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
+  uses24HourClock?: boolean
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
+  clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   sheetRef: Ref<SheetHandle>
   closePicker: (exitAction?: () => void) => void
   onHidden: () => void
@@ -352,84 +355,50 @@ interface PreferencePickerSheetProps {
   onThemeModeChange: (mode: ThemeMode) => void
   onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
+  onClockFormatChange: (uses24HourClock: boolean) => void
 }
 
-export function PreferencePickerSheet({
-  tokens,
-  activePicker,
-  pickerTitles,
-  pickerDescriptions,
-  timeZoneSearchLabel,
-  timeZoneNoResultsLabel,
-  timeZoneShowMoreLabel,
-  selectedLanguage,
-  currentTheme,
-  timeZone,
-  weekStartDay,
-  themeModeOptions,
-  weekStartOptions,
-  sheetRef,
-  closePicker,
-  onHidden,
-  onLanguageChange,
-  onThemeModeChange,
-  onTimeZoneChange,
-  onWeekStartChange,
-}: Readonly<PreferencePickerSheetProps>) {
+function PickerContent({ props, commitSelection }: Readonly<{
+  props: PreferencePickerSheetProps
+  commitSelection: (apply: () => void) => void
+}>) {
+  if (props.activePicker === null) return null
+  const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: true })
+  if (model.kind === 'timeZone') {
+    return <TimeZoneOptions
+      tokens={props.tokens}
+      selected={model.selected}
+      searchLabel={props.timeZoneSearchLabel}
+      noResultsLabel={props.timeZoneNoResultsLabel}
+      showMoreLabel={props.timeZoneShowMoreLabel}
+      onCommit={(value) => commitSelection(() => model.onCommit(value))}
+    />
+  }
+  return <PickerOptions
+    label={model.label}
+    options={model.options}
+    selected={model.selected}
+    onCommit={(value) => commitSelection(() => model.onCommit(value))}
+  />
+}
+
+export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
+  const { activePicker, tokens, pickerTitles, pickerDescriptions, sheetRef,
+    closePicker, onHidden } = props
   const commitSelection = (apply: () => void) => closePicker(() => {
     onHidden()
     apply()
   })
+  if (activePicker === null) return null
 
-  return (
-    activePicker !== null ? (<Sheet
-      ref={sheetRef}
-      open
-      onClose={onHidden}
-      title={pickerTitles[activePicker]}
-      key={activePicker}
-    >
-      <View style={styles.sheetContent}>
-        {pickerDescriptions[activePicker] ? (
-          <Text style={[styles.sheetDescription, { color: tokens.fg3 }]}>
-            {pickerDescriptions[activePicker]}
-          </Text>
-        ) : null}
-        {activePicker === 'language' ? (
-          <PickerOptions
-            label={pickerTitles.language}
-            options={LANGUAGE_OPTIONS}
-            selected={selectedLanguage}
-            onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
-          />
-        ) : null}
-        {activePicker === 'theme' ? (
-          <PickerOptions
-            label={pickerTitles.theme}
-            options={themeModeOptions}
-            selected={currentTheme}
-            onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
-          />
-        ) : null}
-        {activePicker === 'timeZone' ? (
-          <TimeZoneOptions
-            tokens={tokens}
-            selected={timeZone}
-            searchLabel={timeZoneSearchLabel}
-            noResultsLabel={timeZoneNoResultsLabel}
-            showMoreLabel={timeZoneShowMoreLabel}
-            onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
-          />
-        ) : null}
-        {activePicker === 'weekStart' ? (
-          <PickerOptions
-            label={pickerTitles.weekStart}
-            options={weekStartOptions}
-            selected={weekStartDay === 0 || weekStartDay === 1 ? weekStartDay : null}
-            onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
-          />
-        ) : null}
-      </View>
-    </Sheet>) : null
-  )
+  return <Sheet ref={sheetRef} open onClose={onHidden} title={pickerTitles[activePicker]} key={activePicker}>
+    <View style={styles.sheetContent}>
+      {pickerDescriptions[activePicker] ? (
+        <Text style={[styles.sheetDescription, { color: tokens.fg3 }]}>
+          {pickerDescriptions[activePicker]}
+        </Text>
+      ) : null}
+      <PickerContent props={props} commitSelection={commitSelection} />
+    </View>
+  </Sheet>
 }

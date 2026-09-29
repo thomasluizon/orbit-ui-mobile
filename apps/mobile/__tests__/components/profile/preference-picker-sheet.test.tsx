@@ -30,6 +30,7 @@ const pickerTitles = {
   theme: 'Theme',
   timeZone: 'Timezone',
   weekStart: 'Week start',
+  clock: 'Clock',
 }
 
 function baseProps() {
@@ -49,6 +50,8 @@ function baseProps() {
       { value: 'light' as const, label: 'Light' },
       { value: 'dark' as const, label: 'Dark' },
     ],
+    clockFormatOptions: [{ value: '24h' as const, label: '24 hour' }, { value: '12h' as const, label: '12 hour' }],
+    uses24HourClock: true,
     weekStartOptions: [
       { value: 1 as const, label: 'Monday' },
       { value: 0 as const, label: 'Sunday' },
@@ -60,12 +63,32 @@ function baseProps() {
     onThemeModeChange: vi.fn(),
     onTimeZoneChange: vi.fn(),
     onWeekStartChange: vi.fn(),
+    onClockFormatChange: vi.fn(),
   }
 }
 
 describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     __resetTestHostConfig()
+  })
+
+  it('checks the current clock and commits one selection', () => {
+    const props = { ...baseProps(), activePicker: 'clock' as const }
+    let tree: any
+    void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+    const radios = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(radios.map((option: any) => option.props.accessibilityState.checked)).toEqual([true, false])
+    void act(() => radios[1].props.onPress())
+    expect(props.onClockFormatChange).toHaveBeenCalledOnce()
+    expect(props.onClockFormatChange).toHaveBeenCalledWith(false)
+  })
+
+  it('checks the locale default when no clock preference is saved', () => {
+    const props = { ...baseProps(), activePicker: 'clock' as const, uses24HourClock: undefined }
+    let tree: any
+    void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+    const radios = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+    expect(radios.map((option: any) => option.props.accessibilityState.checked)).toEqual([false, true])
   })
 
   it('drafts the language reached by native focus without writing it', () => {

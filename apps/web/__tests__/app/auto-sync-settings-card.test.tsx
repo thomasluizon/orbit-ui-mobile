@@ -18,7 +18,8 @@ const hoisted = vi.hoisted(() => ({
   isOnline: true,
   setAutoSync: { mutateAsync: vi.fn(), isPending: false },
   runSyncNow: { mutateAsync: vi.fn(), isPending: false },
-  toast: { error: vi.fn(), success: vi.fn() },
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
   connectGoogle: vi.fn(),
   realHooks: false,
   realRunHook: false,
@@ -48,7 +49,7 @@ vi.mock('@/lib/actions/calendar', () => ({
   runCalendarSyncNow: (...args: unknown[]) => hoisted.runSyncNowAction(...args),
 }))
 
-vi.mock('sonner', () => ({ toast: hoisted.toast }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: hoisted.showError, showSuccess: hoisted.showSuccess }) }))
 
 vi.mock('@/app/(app)/calendar-sync/_components/connect-google', () => ({
   connectGoogle: (...args: unknown[]) => hoisted.connectGoogle(...args),
@@ -74,8 +75,8 @@ describe('AutoSyncSettingsCard', () => {
     hoisted.runSyncNow.mutateAsync.mockReset().mockResolvedValue(undefined)
     hoisted.setAutoSync.isPending = false
     hoisted.runSyncNow.isPending = false
-    hoisted.toast.error.mockReset()
-    hoisted.toast.success.mockReset()
+    hoisted.showError.mockReset()
+    hoisted.showSuccess.mockReset()
     hoisted.connectGoogle.mockReset().mockResolvedValue(undefined)
     hoisted.realHooks = false
     hoisted.realRunHook = false
@@ -106,7 +107,7 @@ describe('AutoSyncSettingsCard', () => {
     await waitFor(() =>
       expect(hoisted.setAutoSync.mutateAsync).toHaveBeenCalledWith({ enabled: true }),
     )
-    expect(hoisted.toast.success).toHaveBeenCalledWith('calendar.autoSync.enableSuccess')
+    expect(hoisted.showSuccess).toHaveBeenCalledWith('calendar.autoSync.enableSuccess')
   })
 
   it('confirms with the disable copy when turning auto-sync off', async () => {
@@ -118,7 +119,7 @@ describe('AutoSyncSettingsCard', () => {
     await waitFor(() =>
       expect(hoisted.setAutoSync.mutateAsync).toHaveBeenCalledWith({ enabled: false }),
     )
-    expect(hoisted.toast.success).toHaveBeenCalledWith('calendar.autoSync.disableSuccess')
+    expect(hoisted.showSuccess).toHaveBeenCalledWith('calendar.autoSync.disableSuccess')
   })
 
   it('surfaces a friendly error when the toggle mutation fails', async () => {
@@ -127,7 +128,7 @@ describe('AutoSyncSettingsCard', () => {
 
     fireEvent.click(toggle())
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(hoisted.showError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it.each([true, false])('ignores the previous account toggle %s outcome after the next account toggles', async (succeeds) => {
@@ -147,14 +148,14 @@ describe('AutoSyncSettingsCard', () => {
     await waitFor(() => expect(toggle()).not.toBeDisabled())
     fireEvent.click(toggle())
     await waitFor(() => expect(hoisted.setAutoSyncAction).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(hoisted.toast.success).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(hoisted.showSuccess).toHaveBeenCalledTimes(1))
 
     await act(async () => {
       if (succeeds) finishFirst(undefined)
       else failFirst(new Error('old failure'))
     })
-    expect(hoisted.toast.success).toHaveBeenCalledTimes(1)
-    expect(hoisted.toast.error).not.toHaveBeenCalled()
+    expect(hoisted.showSuccess).toHaveBeenCalledTimes(1)
+    expect(hoisted.showError).not.toHaveBeenCalled()
   })
 
   it('does not confirm a toggle interrupted before its request was sent', async () => {
@@ -168,8 +169,8 @@ describe('AutoSyncSettingsCard', () => {
     act(() => advanceAccountGeneration())
     await act(async () => { finishCancellation(); await Promise.resolve() })
     expect(hoisted.setAutoSyncAction).not.toHaveBeenCalled()
-    expect(hoisted.toast.success).not.toHaveBeenCalled()
-    expect(hoisted.toast.error).not.toHaveBeenCalled()
+    expect(hoisted.showSuccess).not.toHaveBeenCalled()
+    expect(hoisted.showError).not.toHaveBeenCalled()
     expect(toggle()).not.toBeDisabled()
   })
 
@@ -181,7 +182,7 @@ describe('AutoSyncSettingsCard', () => {
 
     expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
     expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
-    expect(hoisted.toast.error).not.toHaveBeenCalled()
+    expect(hoisted.showError).not.toHaveBeenCalled()
     expect(hoisted.runSyncNow.mutateAsync).not.toHaveBeenCalled()
   })
 
@@ -207,7 +208,7 @@ describe('AutoSyncSettingsCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /calendar\.autoSync\.syncNow/ }))
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(hoisted.showError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('releases Sync now and hides the previous account error after replacement', async () => {
@@ -223,7 +224,7 @@ describe('AutoSyncSettingsCard', () => {
     act(() => advanceAccountGeneration())
     await waitFor(() => expect(screen.getByRole('button', { name: 'calendar.autoSync.syncNow' })).not.toBeDisabled())
     await act(async () => { failFirst(new Error('old failure')); await Promise.resolve() })
-    expect(hoisted.toast.error).not.toHaveBeenCalled()
+    expect(hoisted.showError).not.toHaveBeenCalled()
   })
 
   it('offers reconnect when the status requires it and launches the Google flow', async () => {
@@ -243,6 +244,6 @@ describe('AutoSyncSettingsCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.reconnectCta' }))
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('auth.googleError'))
+    await waitFor(() => expect(hoisted.showError).toHaveBeenCalledWith('auth.googleError'))
   })
 })

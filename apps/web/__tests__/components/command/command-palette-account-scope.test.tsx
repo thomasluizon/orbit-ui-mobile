@@ -28,10 +28,12 @@ vi.mock('@/stores/ui-store', () => ({
     setActiveView: typeof mocks.setActiveView
     registerOpenOverlay: typeof mocks.registerOpenOverlay
     unregisterOpenOverlay: typeof mocks.unregisterOpenOverlay
+    openOverlayIds: string[]
   }) => unknown) => selector({
     setActiveView: mocks.setActiveView,
     registerOpenOverlay: mocks.registerOpenOverlay,
     unregisterOpenOverlay: mocks.unregisterOpenOverlay,
+    openOverlayIds: [],
   }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))

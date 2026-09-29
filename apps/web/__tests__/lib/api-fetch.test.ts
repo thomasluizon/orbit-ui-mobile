@@ -1,11 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { z } from 'zod'
 
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-  },
-}))
 
 const mockLogout = vi.fn()
 const mockConfirmSessionRefreshFailure = vi.fn()
@@ -50,7 +45,8 @@ vi.stubGlobal('fetch', mockFetch)
 const originalLocation = globalThis.location
 
 import { apiFetch, fetchJson, ApiError } from '@/lib/api-fetch'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
+const toastError = vi.fn()
 
 describe('apiFetch', () => {
   beforeEach(() => {
@@ -59,7 +55,8 @@ describe('apiFetch', () => {
     mockConfirmSessionRefreshFailure.mockReset()
     mockRecoverSessionRefreshFailure.mockReset()
     mockMarkUpgradeRequired.mockReset()
-    vi.mocked(toast.error).mockReset()
+    toastError.mockReset()
+    useAppToastStore.setState({ showError: toastError, currentToast: null, queue: [] })
   })
 
   afterEach(() => {
@@ -116,7 +113,7 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('shows the failed-refresh state when a public endpoint still succeeds', async () => {
@@ -130,7 +127,7 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/subscriptions/plans')).resolves.toEqual({ plans: [] })
     expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('throws ApiError with status 401', async () => {
@@ -167,7 +164,7 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockHref.href).toBe('/upgrade')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('does not redirect again when already on /upgrade', async () => {
@@ -189,7 +186,7 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(locationOnUpgrade.href).toBe('https://app.useorbit.org/upgrade')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('returns a pay-gate error without redirecting when the caller handles it', async () => {
@@ -216,7 +213,7 @@ describe('apiFetch', () => {
       handlesPayGate: true,
     })).rejects.toThrow(ApiError)
     expect(locationOnProgress.href).toBe('https://app.useorbit.org/progress')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('does not redirect on a non-PAY_GATE 403 and shows an error toast', async () => {
@@ -235,10 +232,7 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockHref.href).toBe('')
-    expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
-      description: 'You do not own this habit',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Something went wrong: You do not own this habit')
   })
 
   it('flags upgrade required on a 426 without toast', async () => {
@@ -256,7 +250,7 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(mockMarkUpgradeRequired).toHaveBeenCalledWith('1.5.0')
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('flags upgrade required on a 426 with a null minVersion when absent', async () => {
@@ -278,10 +272,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Validation error', {
-      description: 'Title is required',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Validation error: Title is required')
   })
 
   it('shows not found toast on 404', async () => {
@@ -292,10 +283,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Not found', {
-      description: 'Habit not found',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Not found: Habit not found')
   })
 
   it('shows conflict toast on 409', async () => {
@@ -306,10 +294,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Conflict', {
-      description: 'Already exists',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Conflict: Already exists')
   })
 
   it('shows rate limit toast on 429', async () => {
@@ -320,10 +305,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Too many requests', {
-      description: 'Slow down',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Too many requests: Slow down')
   })
 
   it('shows server error toast on 500', async () => {
@@ -334,10 +316,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Server error', {
-      description: 'Internal server error',
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Server error: Internal server error')
   })
 
   it('lets a caller handle a 503 without a global toast', async () => {
@@ -355,7 +334,7 @@ describe('apiFetch', () => {
         handlesError: true,
       }),
     ).rejects.toThrow(ApiError)
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('shows server error toast on 502', async () => {
@@ -366,10 +345,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Server error', {
-      description: undefined,
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Server error')
   })
 
   it('uses generic title when no backend error message', async () => {
@@ -380,10 +356,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
-      description: undefined,
-      duration: 5000,
-    })
+    expect(toastError).toHaveBeenCalledWith('Something went wrong')
   })
 
   it('handles body parse failure gracefully', async () => {
@@ -429,7 +402,7 @@ describe('apiFetch', () => {
       status: 502,
       code: 'INVALID_RESPONSE_SCHEMA',
     })
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
   })
 })
 

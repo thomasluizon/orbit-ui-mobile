@@ -9,6 +9,7 @@ import { fetchJson } from '@/lib/api-fetch'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -37,11 +38,6 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => v
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 vi.mock('@/app/actions/notifications', () => actionMocks)
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    dismiss: vi.fn(), error: feedback.showError, info: vi.fn(), success: vi.fn(),
-  }),
-}))
 
 let queryClient: QueryClient
 
@@ -70,6 +66,7 @@ async function flushPromises() {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  useAppToastStore.setState({ showError: feedback.showError, currentToast: null, queue: [] })
   resetPendingNotificationDeletesForTests()
   focusManager.setFocused(true)
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
@@ -113,7 +110,7 @@ it.each([
 
   deferred.reject()
   await flushPromises()
-  expect(feedback.showError).toHaveBeenCalledWith(message, { duration: 5000 })
+  expect(feedback.showError).toHaveBeenCalledWith(message)
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 

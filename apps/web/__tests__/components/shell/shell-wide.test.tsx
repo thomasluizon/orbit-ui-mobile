@@ -1,6 +1,8 @@
 import { useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 const media = vi.hoisted(() => ({ width: 1023 }))
 
@@ -30,6 +32,7 @@ function BlurFocusedElement() {
 describe('ShellWide', () => {
   beforeEach(() => {
     media.width = 1023
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
       matches: media.width >= Number(query.match(/min-width: (\d+)px/)?.[1]),
       addEventListener: vi.fn(),
@@ -166,6 +169,32 @@ describe('ShellWide', () => {
     )
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('keeps a queued action in the compact conversation dialog', async () => {
+    const reload = vi.fn()
+    const { container } = render(
+      <ShellWide
+        items={items}
+        activeId="hoje"
+        navLabel="Main navigation"
+        notice={<span>Background notice</span>}
+        conversation={<div data-shell-notice=""><AppToastHost /></div>}
+        conversationLabel="Astra conversation"
+        conversationOpen
+      >
+        <h1>Today</h1>
+      </ShellWide>,
+    )
+
+    act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
+    await screen.findByText('App updated')
+    const dialog = screen.getByRole('dialog', { name: 'Astra conversation' })
+    expect(within(dialog).getByRole('status')).toHaveTextContent('App updated')
+    expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
+    expect(container.querySelector('[data-shell-background]')).not.toHaveTextContent('App updated')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reload' }))
+    expect(reload).toHaveBeenCalledOnce()
   })
 
   it('keeps the sidebar and current screen beside the conversation from the wide breakpoint', () => {

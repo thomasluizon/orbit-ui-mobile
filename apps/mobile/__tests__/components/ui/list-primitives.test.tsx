@@ -4,6 +4,8 @@ import type { StyleProp, ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
+import { User, UserX } from '@/components/ui/icons'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
@@ -53,6 +55,25 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('sets the rendered leading glyph from the row danger state', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const ordinary = render(<ListRow title="Sign out" icon={<User size={24} />} />)
+    const danger = render(<ListRow title="Delete account" icon={<UserX size={24} />} danger />)
+    expect(ordinary.root.findByType(User).props.color).toBe(tokens.fg1)
+    expect(danger.root.findByType(UserX).props.color).toBe(tokens.statusBad)
+  })
+
+  it('preserves an intentionally muted leading glyph', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<ListRow title="Invite" icon={<User size={24} color={tokens.fg2} />} />)
+    expect(tree.root.findByType(User).props.color).toBe(tokens.fg2)
+  })
+
+  it('passes an ordinary row color through ProfileNavIcon to its glyph', () => {
+    const tree = render(<ListRow title="Wrapped" icon={<ProfileNavIcon iconKey="wrapped" />} />)
+    expect(tree.root.findByType(ProfileNavIcon).props.color).toBe(createTokensV2('purple', 'dark').fg1)
+  })
+
   it('exposes the Support action as an accessibility focus target', () => {
     const supportRef = createRef<View>()
     const tree = render(<ListRow title="Support" onClick={() => {}} ref={supportRef} />)

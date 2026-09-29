@@ -14,6 +14,7 @@ import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
 const labels: PendingOperationCardLabels = {
+  formatTime: (value) => value,
   approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
@@ -26,10 +27,22 @@ const labels: PendingOperationCardLabels = {
   more: (count) => `and ${count} more`,
 }
 
+it('formats time values in the pending change preview', () => {
+  const operation = makePendingAgentOperation({
+    riskClass: 'Low', confirmationRequirement: 'None',
+    changes: [{ entityId: 'habit-1', entityName: 'Run', field: 'due_time', oldValue: '08:00', newValue: '19:30', valueType: 'time' }],
+    changeTargetCount: 1,
+  })
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: createCard(), labels: { ...labels, formatTime: (value) => `clock:${value}` }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
+  expect(JSON.stringify(record.frame?.items)).toContain('clock:19:30')
+})
+
 it('labels the pending operation from its capability and risk', () => {
   const translated = buildPendingOperationCardLabels(
     makePendingAgentOperation(),
     (key) => key,
+    (value) => value,
   )
   expect(translated.risk).toBe('chat.operation.risk.destructive')
   expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
@@ -49,7 +62,7 @@ it('uses verb-first consequence labels for known confirmation capabilities in bo
       const label = messages.chat.pendingOp.action[actionKey]
       expect(label.split(' '), capabilityId).toHaveLength(2)
       expect(label.split(' ')[0], capabilityId).toMatch(/^(Delete|Change|Sync|Excluir|Alterar|Sincronizar)$/)
-      expect(buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (key) => key).confirm)
+      expect(buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (key) => key, (value) => value).confirm)
         .toBe(`chat.pendingOp.action.${actionKey}`)
     }
   }
@@ -61,7 +74,7 @@ it('names deletion of saved AI memory on the confirmation in both locales', () =
     const translate = (key: string) => key.startsWith('chat.pendingOp.action.')
       ? (messages.chat.pendingOp.action as Record<string, string>)[key.slice('chat.pendingOp.action.'.length)] ?? key
       : key
-    const localized = buildPendingOperationCardLabels(pendingOperation, translate)
+    const localized = buildPendingOperationCardLabels(pendingOperation, translate, (value) => value)
     const { record, render } = createRenderers()
     renderPendingOperationCard({
       card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation,
@@ -74,6 +87,7 @@ it('keeps generic confirmation copy for an unknown capability', () => {
   const localized = buildPendingOperationCardLabels(
     makePendingAgentOperation({ capabilityId: 'unknown.capability' }),
     (key) => key,
+    (value) => value,
   )
   expect(localized.confirm).toBe('chat.pendingOp.action.applyChanges')
 })

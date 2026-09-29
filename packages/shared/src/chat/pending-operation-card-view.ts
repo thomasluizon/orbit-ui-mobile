@@ -138,6 +138,7 @@ type CardRevision = NonNullable<PendingOperationCardActions['revision']>
 function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
   const value = field.newValue ?? ''
   if (field.valueType === 'boolean') return localizedBoolean(value, labels)
+  if (field.valueType === 'time') return labels.formatTime(value)
   if (field.field === 'days') return value.split(',').map((day) => labels.dayLabels[day.trim()] ?? day.trim()).join(', ')
   return value
 }
@@ -150,7 +151,9 @@ function localizedBoolean(value: string, labels: PendingOperationCardLabels): st
 
 function changeValue(value: string | null, valueType: string, labels: PendingOperationCardLabels): string {
   if (value == null) return labels.notSet
-  return valueType === 'boolean' ? localizedBoolean(value, labels) : value
+  if (valueType === 'boolean') return localizedBoolean(value, labels)
+  if (valueType === 'time') return labels.formatTime(value)
+  return value
 }
 
 function actionLabel(field: string, labels: PendingOperationCardLabels): string {

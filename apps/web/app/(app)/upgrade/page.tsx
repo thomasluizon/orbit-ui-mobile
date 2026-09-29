@@ -188,7 +188,7 @@ export default function UpgradePage() {
       const data = await openCustomerPortal(intendedAccountId)
       if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
         setPortalState('idle')
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
         return
       }
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, intendedAccountId)
@@ -197,7 +197,7 @@ export default function UpgradePage() {
       if (getAccountGeneration() !== accountGeneration) return
       if (reportsAccountChanged(error)) {
         setPortalState('idle')
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+        showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
         return
       }
       setPortalState('failed')

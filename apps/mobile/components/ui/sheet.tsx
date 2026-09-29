@@ -9,6 +9,8 @@ import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scr
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { AppToast } from '@/components/ui/app-toast'
 
 const MAX_HEIGHT_RATIO = 0.85
 const MAX_CONTENT_WIDTH = 640
@@ -73,8 +75,11 @@ export function Sheet({
   const { height } = useWindowDimensions()
   const { t } = useTranslation()
   const overlayId = useId()
+  const sheetId = `sheet:${overlayId}`
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
+  const currentToast = useAppToastStore((state) => state.currentToast)
   const sheetRef = useRef<TrueSheet>(null)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
@@ -84,7 +89,7 @@ export function Sheet({
   }, [onClose])
 
   const handleDidDismiss = useCallback(() => {
-    unregisterOpenOverlay(overlayId)
+    unregisterOpenOverlay(sheetId)
     const exitAction = exitActionRef.current
     exitActionRef.current = null
     if (exitAction) {
@@ -92,12 +97,12 @@ export function Sheet({
       return
     }
     onCloseRef.current?.()
-  }, [overlayId, unregisterOpenOverlay])
+  }, [sheetId, unregisterOpenOverlay])
 
   useEffect(() => {
-    registerOpenOverlay(overlayId)
-    return () => unregisterOpenOverlay(overlayId)
-  }, [overlayId, registerOpenOverlay, unregisterOpenOverlay])
+    registerOpenOverlay(sheetId)
+    return () => unregisterOpenOverlay(sheetId)
+  }, [sheetId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
     void sheetRef.current?.present().catch(() => {
@@ -144,7 +149,13 @@ export function Sheet({
     </View>
   ) : undefined
 
-  const footer = actions ? <View style={styles.actions}>{actions}</View> : undefined
+  const showSheetToast = topOverlayId === sheetId && currentToast !== null
+  const footer = actions || showSheetToast ? (
+    <View>
+      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
+      {actions ? <View style={styles.actions}>{actions}</View> : null}
+    </View>
+  ) : undefined
 
   return (
     <TrueSheet
@@ -234,5 +245,6 @@ function createStyles(tokens: Tokens) {
       justifyContent: 'flex-end',
       padding: 16,
     },
+    notice: { padding: 16 },
   })
 }

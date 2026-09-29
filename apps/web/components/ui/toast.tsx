@@ -64,7 +64,7 @@ function DoneMark() {
 }
 
 /** Stable live-region feedback. It owns no portal, position, scrim, focus, or z-index. */
-export function Toast(props: Readonly<ToastProps>) {
+export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -94,7 +94,7 @@ export function Toast(props: Readonly<ToastProps>) {
       aria-atomic="true"
       data-kind={props.kind}
       tabIndex={-1}
-      className={`flex items-center gap-3 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)]`}
+      className={`flex items-center gap-3 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)] ${props.outlined ? 'ring-1 ring-inset ring-[var(--fg-3)]' : ''}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}

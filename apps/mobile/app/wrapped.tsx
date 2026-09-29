@@ -92,6 +92,7 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
           slides={slides}
           recap={recap}
           period={period}
+          closedMonth={closedMonth}
           tokens={tokens}
           onClose={() => setIsPlaying(false)}
         />

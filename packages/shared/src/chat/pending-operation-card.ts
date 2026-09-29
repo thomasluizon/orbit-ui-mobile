@@ -7,6 +7,7 @@ export const PENDING_OPERATION_WEEKDAYS = [
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
+  formatTime: (value: string) => string
   approve: string
   acting: string
   cancel: string
@@ -55,9 +56,11 @@ export interface PendingOperationCardLabels {
 export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
   translate: (key: string, values?: Record<string, string | number>) => string,
+  formatTime: (value: string) => string,
 ): PendingOperationCardLabels {
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
   return {
+    formatTime,
     approve: translate('chat.operation.approve'),
     acting: translate('blockFrame.status.acting'),
     cancel: translate('common.cancel'),

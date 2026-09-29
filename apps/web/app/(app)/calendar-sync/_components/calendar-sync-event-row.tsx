@@ -1,5 +1,7 @@
 'use client'
 
+import { useTimeFormat } from '@/hooks/use-time-format'
+
 import { Bell, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -35,6 +37,7 @@ export function CalendarSyncEventRow({
   onDismiss,
   t,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const { displayTime } = useTimeFormat()
   const importIssue = getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
@@ -114,7 +117,7 @@ export function CalendarSyncEventRow({
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
+                {displayTime(event.startTime)}{event.endTime ? ` - ${displayTime(event.endTime)}` : ''}
               </span>
             )}
             {event.isRecurring && (

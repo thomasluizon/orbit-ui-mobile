@@ -11,6 +11,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { createTokensV2 } from '@/lib/theme'
@@ -97,6 +98,7 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
 
 export function HabitDetailFields({ habit, hasProAccess, locale, relationshipControlsAvailable, summary, tokens, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
   const { t } = useTranslation()
+  const { displayTime } = useTimeFormat()
   const { showError } = useAppToast()
   const fields = useHabitDetailFieldsState(habit, onPatch)
   const { cancelReminders, close, goalIds, openField, reminderHabit, save, saveReminders, toggleField, toggleGoal, updateReminders } = fields
@@ -107,10 +109,10 @@ export function HabitDetailFields({ habit, hasProAccess, locale, relationshipCon
   return (
     <View style={styles.list}>
       {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell tokens={tokens}><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
-      <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, t)} onClick={() => toggleField('reminders')} />
+      <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, t, displayTime)} onClick={() => toggleField('reminders')} />
       {openField === 'reminders' ? <FieldWell tokens={tokens}>{habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} tokens={tokens} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
-      <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
+      <ListRow title={t('habits.detail.time')} value={displayTime(habit.dueTime) || t('habits.detail.noValue')} onClick={() => toggleField('time')} />
       {openField === 'time' ? <TimeEditor habit={habit} tokens={tokens} onCancel={close} onSave={save} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
       {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline tokens={tokens} onCancel={close} onSave={(description) => save({ description })} /> : null}

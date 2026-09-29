@@ -74,7 +74,12 @@ it('builds the inline picker labels from the active locale', () => {
     theme: 'translated:preferences.themeMode',
     timeZone: 'translated:profile.settingsRows.timezone',
     weekStart: 'translated:settings.weekStartDay.title',
+    clock: 'translated:settings.clock.title',
   })
+  expect(labels.clockFormatOptions).toEqual([
+    { value: '24h', label: 'translated:settings.clock.hour24' },
+    { value: '12h', label: 'translated:settings.clock.hour12' },
+  ])
   expect(labels.weekStartOptions).toEqual([
     { value: 1, label: 'translated:settings.weekStartDay.monday' },
     { value: 0, label: 'translated:settings.weekStartDay.sunday' },

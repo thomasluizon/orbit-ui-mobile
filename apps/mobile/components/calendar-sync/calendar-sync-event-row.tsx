@@ -1,3 +1,4 @@
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Bell, X } from '@/components/ui/icons'
@@ -64,6 +65,7 @@ export function CalendarSyncEventRow({
   onToggle,
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const { displayTime } = useTimeFormat()
   const importIssue = getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
@@ -82,8 +84,8 @@ export function CalendarSyncEventRow({
       pluralize: plural,
     },
   )
-  const endTimeSuffix = event.endTime ? ` - ${event.endTime}` : ''
-  const timeLabel = event.startTime ? `${event.startTime}${endTimeSuffix}` : ''
+  const endTimeSuffix = event.endTime ? ` - ${displayTime(event.endTime)}` : ''
+  const timeLabel = event.startTime ? `${displayTime(event.startTime)}${endTimeSuffix}` : ''
   const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
   const hasImportIssue = importIssue !== null
   const issueVisuals = importIssueVisuals(hasImportIssue, tokens)

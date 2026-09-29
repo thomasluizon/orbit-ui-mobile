@@ -3,15 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
-import { toast } from 'sonner'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('sonner', () => ({
-  toast: { error: vi.fn() },
-}))
 
 const originalLocation = globalThis.location
 const mockFetch = vi.fn()
@@ -29,7 +26,7 @@ function createWrapper() {
 describe('useProgressRetrospective', () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    vi.mocked(toast.error).mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     vi.stubGlobal('fetch', mockFetch)
   })
 
@@ -78,7 +75,7 @@ describe('useProgressRetrospective', () => {
 
     const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(toast.error).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast).toBeNull()
   })
 
   it('does not repeat a query failure toast on refetch', async () => {
@@ -90,8 +87,8 @@ describe('useProgressRetrospective', () => {
 
     const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isError).toBe(true))
-    const firstFailureToastCount = vi.mocked(toast.error).mock.calls.length
+    const firstFailureToastCount = useAppToastStore.getState().queue.length + Number(useAppToastStore.getState().currentToast !== null)
     await result.current.refetch()
-    expect(vi.mocked(toast.error).mock.calls.length).toBe(firstFailureToastCount)
+    expect(useAppToastStore.getState().queue.length + Number(useAppToastStore.getState().currentToast !== null)).toBe(firstFailureToastCount)
   })
 })
