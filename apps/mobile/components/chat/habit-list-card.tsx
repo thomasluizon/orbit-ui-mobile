@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { HabitListCard as HabitListCardData } from '@orbit/shared/types/chat'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, isHabitDoneForRange } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { StatusRing } from '@/components/ui/status-ring'
 import { Button } from '@/components/ui/pill-button'
@@ -30,9 +30,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const visibleItems = habitList.items.slice(0, shownCount)
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
-    const logged = occurrence
-      ? item.isBadHabit ? occurrence.isLoggedInRange : occurrence.isCompleted
-      : false
+    const logged = occurrence ? isHabitDoneForRange(occurrence) : false
     return {
       id: item.id,
       label: (
@@ -54,7 +52,9 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
 
   return (
     <View style={{ width: '100%', marginTop: 8 }}>
-      <BlockFrame state="resting" title={t('chat.habitList.title')} count={t('chat.habitList.count', { shown: visibleItems.length, total: habitList.items.length })} items={rows} actions={visibleItems.length < habitList.items.length ? (
+      <BlockFrame state="resting" title={t(habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.items.length })} items={rows} body={habitList.items.length === 0 ? (
+        <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t(habitList.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty')}</Text>
+      ) : undefined} actions={visibleItems.length < habitList.items.length ? (
         <Button variant="ghost" size="sm" onClick={() => setShownCount((count) => count + PAGE_SIZE)}>{t('chat.habitList.more')}</Button>
       ) : undefined} />
     </View>
