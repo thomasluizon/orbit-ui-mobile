@@ -267,6 +267,16 @@ export function isHabitSlipping(
   return habit.isBadHabit ? recentlyLogged : !recentlyLogged
 }
 
+/** Calendar days with no log up to today: after the last completion, or from creation, both ends included, when there is none. */
+export function getHabitDaysWithoutLog(
+  metrics: Pick<HabitMetrics, 'lastCompletedDate'>,
+  createdAtUtc: string,
+  today: Date,
+): number {
+  if (metrics.lastCompletedDate) return differenceInCalendarDays(today, parseAPIDate(metrics.lastCompletedDate))
+  return differenceInCalendarDays(today, new Date(createdAtUtc)) + 1
+}
+
 export function shouldShowHabitMetrics(habit: Pick<HabitDetail, 'frequencyUnit' | 'isGeneral'>): boolean {
   return habit.frequencyUnit !== null || habit.isGeneral
 }
