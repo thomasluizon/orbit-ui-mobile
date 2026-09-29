@@ -56,7 +56,7 @@ function buildMenuItems(
   completionReadOnly: boolean,
   hasProAccess: boolean,
   isOverdue: boolean,
-  hasChildren: boolean,
+  hasSubHabits: boolean,
   t: (key: string) => string,
 ): MenuItem[] {
   const items: MenuItem[] = []
@@ -69,7 +69,7 @@ function buildMenuItems(
   if (actions.onEnterSelectMode && !isSelectMode) {
     items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
   }
-  if (actions.onDrillInto && hasChildren) items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
+  if (actions.onDrillInto && hasSubHabits) items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
   if (actions.onDelete) {
     items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
   }
@@ -304,8 +304,8 @@ export const HabitRow = memo(function HabitRow({
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, isOverdue, hasChildren, t),
-    [actions, completionReadOnly, hasChildren, hasProAccess, isOverdue, isSelectMode, t],
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, isOverdue, habit.hasSubHabits, t),
+    [actions, completionReadOnly, habit.hasSubHabits, hasProAccess, isOverdue, isSelectMode, t],
   )
 
   const openMenu = useCallback(() => {

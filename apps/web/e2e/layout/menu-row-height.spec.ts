@@ -36,8 +36,10 @@ for (const width of [412, 1280] as const) {
       await expect(row).toBeVisible()
       await row.locator('[data-habit-row-control="menu"]').click()
 
-      const menu = page.getByRole('menu', { name: ptBr.habits.actions.more })
+      const menu = page.getByRole('menu', { name: habit.title })
       await expect(menu).toBeVisible()
+      await expect(menu.getByRole('menuitem', { name: ptBr.habits.actions.moveUnder })).toBeVisible()
+      await expect(menu.getByRole('menuitem', { name: ptBr.habits.actions.delete })).toBeVisible()
       const items = menu.getByRole('menuitem')
       expect(await items.count()).toBeGreaterThan(0)
       for (const item of await items.all()) {

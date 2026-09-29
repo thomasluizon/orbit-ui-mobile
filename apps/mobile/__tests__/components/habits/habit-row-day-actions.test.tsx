@@ -39,7 +39,7 @@ describe('mobile habit row on an old day', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <I18nextProvider i18n={i18n}>
-          <HabitRow habit={createMockHabit({ title: 'Read' })}
+          <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
             selectedDate={new Date('2026-04-01T12:00:00Z')}
             hasChildren childrenTotal={1} actions={actions} />
         </I18nextProvider>,
@@ -74,7 +74,7 @@ describe('mobile habit row on an old day', () => {
     expect(actions.onLog).not.toHaveBeenCalled()
     TestRenderer.act(() => tree!.update(
       <I18nextProvider i18n={i18n}>
-        <HabitRow habit={createMockHabit({ title: 'Read' })}
+        <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
           selectedDate={new Date('2026-04-01T12:00:00Z')}
           hasChildren isExpanded childrenTotal={1} actions={actions} />
       </I18nextProvider>,

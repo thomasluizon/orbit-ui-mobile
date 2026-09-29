@@ -353,7 +353,7 @@ describe('HabitRow menu (mobile)', () => {
   it('matches the drawn menu for an overdue parent on a free plan', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true })}
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true, hasSubHabits: true })}
         hasChildren hasProAccess={false} actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
           onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
           onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
@@ -392,6 +392,22 @@ describe('HabitRow menu (mobile)', () => {
     expect(menu.props.items.map((item: { id: string }) => item.id)).toEqual(['add', 'select'])
     expect(menu.props.items[0].badge).toBeUndefined()
     expect(menu.props.title).toBe('Read')
+  })
+
+  it('keeps drill navigation when stored children are filtered out of the visible row', () => {
+    const onDrillInto = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Morning routine', hasSubHabits: true })}
+          hasChildren={false} actions={{ onDrillInto }} />,
+      )
+    })
+
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.items.map((item: { id: string }) => item.id)).toContain('drill')
+    TestRenderer.act(() => menu.props.onSelect('drill'))
+    expect(onDrillInto).toHaveBeenCalledOnce()
   })
 
   it('removes the menu while selecting rows', () => {
