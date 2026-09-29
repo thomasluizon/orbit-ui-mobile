@@ -81,7 +81,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           : 'loading'
 
   return (
-    <main className="relative flex min-h-dvh flex-col">
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
       {!isPlaying ? (
         <div className="absolute left-4 top-2 z-[1]">
           <Button

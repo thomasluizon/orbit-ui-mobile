@@ -79,6 +79,13 @@ describe('WrappedPlayer', () => {
     expect(within(pager).getAllByRole('listitem')).toHaveLength(8)
   })
 
+  it('uses the wide Wrapped frame for the player', () => {
+    renderPlayer()
+    const frame = screen.getByTestId('wrapped-frame')
+    expect(frame).toHaveClass('max-w-[900px]')
+    expect(frame).not.toHaveClass('md:max-w-[480px]')
+  })
+
   it('pages forward and back through the Pager controls', () => {
     renderPlayer()
     const pager = screen.getByTestId('wrapped-pager')
