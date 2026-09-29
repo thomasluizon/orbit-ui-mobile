@@ -47,9 +47,10 @@ import { PostHogProvider } from 'posthog-react-native'
 import { useConfig } from '@/hooks/use-config'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
 import { retirePersistentReminder } from './retired-persistent-reminder'
+import { captureError } from './sentry'
 
 void SplashScreen.preventAutoHideAsync()
-void retirePersistentReminder().catch(() => {})
+void retirePersistentReminder().catch(captureError)
 if (captureBuildEnabled) pinCaptureAnimationDurations()
 
 function syncWidgetDataSafely() {
