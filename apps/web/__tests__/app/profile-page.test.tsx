@@ -293,6 +293,9 @@ describe('ProfilePage', () => {
       'Tema', 'Exportar os meus dados',
     ])
     inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getByText('Pro')).toBeInTheDocument()
+    expect(apiKeys.queryByText('Período de teste')).not.toBeInTheDocument()
     inOrder('notifications', [
       'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
       'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
@@ -436,7 +439,7 @@ describe('ProfilePage', () => {
 
   it('uses the current device switch to enable browser push', () => {
     render(<ProfilePage />)
-    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' }))
     expect(mockTogglePush).toHaveBeenCalledWith(true)
   })
 
@@ -445,16 +448,18 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
     expect(screen.getByText(`${count} of 5`)).toBeInTheDocument()
     expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
-    expect(screen.queryByText('profile.settingsRows.currentDevice')).not.toBeInTheDocument()
+    expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
   })
 
   it('names this device when its endpoint is registered and turns it off', () => {
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
     render(<ProfilePage />)
-    const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
     fireEvent.click(control)
     expect(mockTogglePush).toHaveBeenCalledWith(false)
   })
@@ -471,7 +476,7 @@ describe('ProfilePage', () => {
     mockDeviceState.current.count = 5
     render(<ProfilePage />)
     expect(screen.getByText('profile.settingsRows.pushDeviceLimit')).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.currentDevice' })).toBeDisabled()
   })
 
   it('offers retry when the device list fails', () => {
@@ -999,7 +1004,7 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
     expect(
       within(notificationsGroup).getByRole('switch', {
-        name: 'profile.settingsRows.alertsOnThisDevice',
+        name: 'profile.settingsRows.currentDevice',
       }),
     ).toBeInTheDocument()
   })
