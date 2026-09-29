@@ -298,12 +298,36 @@ describe('Sheet (mobile)', () => {
     await TestRenderer.act(() => {
       nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
     })
-    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - 24)
     await TestRenderer.act(() => {
       nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
     })
     const measuredScroller = tree.root.findAllByType('ScrollView')[0]
-    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56)
+    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24)
+  })
+
+  it('keeps a short sheet at its content height with no stretched body', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Sheet open title="Update title" actions={<Text>Open the store</Text>}>
+          <Text>Two short lines of update copy.</Text>
+        </Sheet>,
+      )
+      await Promise.resolve()
+    })
+
+    const bodyScroller = tree.root.findAllByType('ScrollView')[0]
+    const bodyStyle = (StyleSheet.flatten(bodyScroller.props.style) ?? {}) as { flex?: number; flexGrow?: number; height?: number }
+    const contentStyle = StyleSheet.flatten(bodyScroller.props.contentContainerStyle) as { flex?: number; flexGrow?: number; height?: number }
+    expect(bodyStyle.flex).toBeUndefined()
+    expect(bodyStyle.flexGrow).toBeUndefined()
+    expect(bodyStyle.height).toBeUndefined()
+    expect(contentStyle.flex).toBeUndefined()
+    expect(contentStyle.flexGrow).toBeUndefined()
+    expect(contentStyle.height).toBeUndefined()
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(0)
+    expect(tree.root.findByType(TrueSheet).props.detents).toEqual(['auto', 0.85])
   })
 })
 

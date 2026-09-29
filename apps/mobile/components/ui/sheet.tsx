@@ -155,7 +155,9 @@ export function Sheet({
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
   const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)
-  const reservedFooterHeight = footer ? footerHeight : 0
+  // WHY: TrueSheet 3.11.3 adds the bottom inset to every detent and pins the footer to the sheet bottom, so the footer covers the body only above that inset. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDetentCalculator.kt#L42-L55
+  const reservedFooterHeight = footer ? Math.max(0, footerHeight - bottomInset) : 0
+  const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
 
   return (
     <TrueSheet
@@ -183,14 +185,14 @@ export function Sheet({
       scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight }]}>
+        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: maxBodyHeight }]}>
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
       ) : (
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
-          style={{ maxHeight: height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight }}
+          style={{ maxHeight: maxBodyHeight }}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
