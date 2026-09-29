@@ -77,7 +77,7 @@ async function forceControlState(page: Page, pseudoClasses: string[]) {
   await session.send('DOM.enable')
   await session.send('CSS.enable')
   const { root } = await session.send('DOM.getDocument')
-  const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'input' })
+  const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'input, textarea' })
   await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudoClasses })
 }
 
@@ -101,9 +101,10 @@ describe('Input perimeter over an autofilled control in Chromium', () => {
 
   const cases = (['light', 'dark'] as const).flatMap((mode) =>
     (['rest', 'error', 'focus'] as const).flatMap((state) =>
-      [false, true].flatMap((autofilled) => [false, true].map((trailing) => ({ mode, state, autofilled, trailing })))))
+      [false, true].flatMap((autofilled) => (['single', 'trailing', 'multiline'] as const).map((layout) => ({ mode, state, autofilled, layout })))))
 
-  it.each(cases)('draws one $state perimeter in $mode, autofilled=$autofilled, trailing=$trailing', async ({ mode, state, autofilled, trailing }) => {
+  it.each(cases)('draws one $state perimeter in $mode, autofilled=$autofilled, layout=$layout', async ({ mode, state, autofilled, layout }) => {
+    const shape = layout === 'multiline' ? { multiline: true as const, rows: 2 } : {}
     const { container } = render(
       <Input
         label="Email"
@@ -113,7 +114,8 @@ describe('Input perimeter over an autofilled control in Chromium', () => {
         value="person@example.com"
         onChange={() => {}}
         error={state === 'error' ? 'Enter a valid email.' : undefined}
-        trailing={trailing ? <span className="block size-4" /> : undefined}
+        trailing={layout === 'trailing' ? <span className="block size-4" /> : undefined}
+        {...shape}
       />,
     )
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
@@ -121,8 +123,13 @@ describe('Input perimeter over an autofilled control in Chromium', () => {
     try {
       await page.setContent(`<html class="${mode}" style="${variables}"><head><style>${stylesheet}</style></head><body style="margin:0;padding:48px;width:360px">${container.innerHTML}</body></html>`)
       await forceControlState(page, [...(autofilled ? ['autofill'] : []), ...(state === 'focus' ? ['focus', 'focus-visible'] : [])])
-      const fill = await page.$eval('input', (input) => getComputedStyle(input).backgroundColor)
-      expect(fill).toBe(autofilled ? CHROME_AUTOFILL_FILL[mode] : 'rgba(0, 0, 0, 0)')
+      const control = await page.$eval('input, textarea', (field) => {
+        const bounds = field.getBoundingClientRect()
+        const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+        return { fill: getComputedStyle(field).backgroundColor, receivesPointer: hit === field }
+      })
+      expect(control.fill).toBe(autofilled ? CHROME_AUTOFILL_FILL[mode] : 'rgba(0, 0, 0, 0)')
+      expect(control.receivesPointer).toBe(true)
       const box = await page.$eval('[data-focus-perimeter]', (field) => field.getBoundingClientRect().toJSON() as DOMRect)
       const row = Math.floor(box.top + box.height / 2)
       const column = Math.floor(box.left + box.width / 2)
