@@ -14,7 +14,7 @@ const overlays: OverlayGuard[] = [
     name: 'overflow menu',
     sourcePath: 'components/habits/habit-row.tsx',
     mount: /<Menu\b/,
-    firstLine: "title={t('habits.actions.more')}",
+    firstLine: "title={habit.title || t('habits.actions.menuTitle')}",
   },
   {
     name: 'sub habit sheet',

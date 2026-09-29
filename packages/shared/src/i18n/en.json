@@ -483,11 +483,15 @@
     },
     "actions": {
       "more": "More actions",
+      "menuTitle": "Habit",
+      "addSubHabit": "Add sub habit",
+      "moveUnder": "Move under another habit",
+      "delete": "Delete",
       "duplicate": "Duplicate",
       "skip": "Skip",
-      "openSubHabits": "Open sub-habits",
+      "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
-      "reschedule": "Reschedule with AI"
+      "reschedule": "Reschedule"
     },
     "reschedule": {
       "title": "Reschedule with AI",
