@@ -70,8 +70,16 @@ for (const width of [412, 1280] as const) {
       await page.goto('/upgrade')
       await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
       await page.goto('/wrapped')
-      await expectHoverOnHitArea(page.locator('.chip:not(.chip-active)').first(), 'pill')
-      await expectHoverOnHitArea(page.locator('.chip.chip-active').first(), 'pill')
+      const restingChip = page.locator('.chip:not(.chip-active)').first()
+      const activeChip = page.locator('.chip.chip-active').first()
+      await expectHoverOnHitArea(restingChip, 'pill')
+      await expectHoverOnHitArea(activeChip, 'pill')
+      for (const chip of [restingChip, activeChip]) {
+        const chipBox = await chip.boundingBox()
+        expect(chipBox!.height, 'a chip paints its whole 44px hit area').toBeGreaterThanOrEqual(44)
+        const chipPseudo = await chip.evaluate((element) => getComputedStyle(element, '::after').content)
+        expect(chipPseudo, 'a chip carries no hit area the fill cannot reach').toBe('none')
+      }
     })
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
