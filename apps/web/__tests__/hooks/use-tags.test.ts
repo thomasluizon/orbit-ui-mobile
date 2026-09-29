@@ -294,7 +294,6 @@ describe('web tag hooks', () => {
       'undo.action',
       expect.any(Function),
       expect.any(Function),
-      Infinity,
     )
 
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
