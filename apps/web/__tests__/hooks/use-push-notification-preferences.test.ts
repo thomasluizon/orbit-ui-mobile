@@ -16,6 +16,8 @@ import {
   unsubscribeFromPushNotifications,
   usePushNotificationPreferences,
 } from '@/hooks/use-push-notification-preferences'
+import * as pushPreferences from '@/hooks/use-push-notification-preferences'
+import { setAccountId } from '@/lib/account-scope'
 
 interface MockPushSubscription {
   endpoint: string
@@ -40,8 +42,12 @@ interface MockRegistration {
   }
 }
 
-/** Mirrors the browser: `ready` never settles until something registers a worker for the page. */
+/**
+ * Mirrors the browser: `ready` never settles until something registers a worker for the page, and
+ * `getRegistration` finds a registration only once one exists.
+ */
 function createServiceWorkerContainer(registration: MockRegistration, registerRejects: boolean) {
+  let registered = false
   let activate: (value: MockRegistration) => void = () => undefined
   const ready = new Promise<MockRegistration>((resolve) => {
     activate = resolve
@@ -49,10 +55,12 @@ function createServiceWorkerContainer(registration: MockRegistration, registerRe
   const register = registerRejects
     ? vi.fn().mockRejectedValue(new TypeError('Failed to register a ServiceWorker'))
     : vi.fn(async () => {
+        registered = true
         activate(registration)
         return registration
       })
-  return { ready, register }
+  const getRegistration = vi.fn(async () => (registered ? registration : undefined))
+  return { ready, register, getRegistration }
 }
 
 function settleWithin<T>(promise: Promise<T>, milliseconds = 1000): Promise<T> {
@@ -76,6 +84,19 @@ function createMockSubscription(endpoint = 'https://example.com/push'): MockPush
   }
 }
 
+/**
+ * Turns push on through the real subscribe flow as the given account, which is how a browser comes to
+ * hold a subscription that belongs to one account, then forgets the calls it took to get there.
+ */
+async function enablePushAs(accountId: string, subscription = createMockSubscription()) {
+  setAccountId(accountId)
+  const environment = setupPushEnvironment({ permission: 'granted', subscribeResult: subscription })
+  mockSubscribePush.mockResolvedValue(undefined)
+  await settleWithin(subscribeToPushNotifications())
+  vi.clearAllMocks()
+  return { ...environment, subscription }
+}
+
 function setupPushEnvironment(options: SetupPushEnvironmentOptions = {}) {
   const permission = options.permission ?? 'granted'
   const requestPermissionResult = options.requestPermissionResult ?? permission
@@ -85,8 +106,12 @@ function setupPushEnvironment(options: SetupPushEnvironmentOptions = {}) {
     ok: options.fetchOk ?? true,
     status: options.fetchStatus ?? 200,
   })
-  const getSubscription = vi.fn().mockResolvedValue(existingSubscription)
-  const subscribe = vi.fn().mockResolvedValue(subscribeResult)
+  let currentSubscription = existingSubscription
+  const getSubscription = vi.fn(async () => currentSubscription)
+  const subscribe = vi.fn(async () => {
+    currentSubscription = subscribeResult
+    return subscribeResult
+  })
   const container = createServiceWorkerContainer(
     { pushManager: { getSubscription, subscribe } },
     options.registerRejects ?? false,
@@ -107,6 +132,7 @@ function setupPushEnvironment(options: SetupPushEnvironmentOptions = {}) {
 
   return {
     fetchMock,
+    getRegistration: container.getRegistration,
     getSubscription,
     register: container.register,
     requestPermission,
@@ -124,6 +150,8 @@ describe('use-push-notification-preferences helpers', () => {
     mockSubscribePush.mockReset()
     mockUnsubscribePush.mockReset()
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
+    setAccountId('account-a')
+    localStorage.clear()
   })
 
   afterEach(() => {
@@ -154,7 +182,7 @@ describe('use-push-notification-preferences helpers', () => {
   })
 
   it('reports unsupported when browser push APIs are unavailable', async () => {
-    const result = await settleWithin(loadPushNotificationState())
+    const result = await settleWithin(loadPushNotificationState('account-a'))
 
     expect(result).toEqual({
       supported: false,
@@ -164,14 +192,10 @@ describe('use-push-notification-preferences helpers', () => {
     })
   })
 
-  it('loads a registered subscription when permission is granted and a subscription exists', async () => {
-    const subscription = createMockSubscription()
-    setupPushEnvironment({
-      permission: 'granted',
-      existingSubscription: subscription,
-    })
+  it('loads a registered subscription when this account turned push on in this browser', async () => {
+    await enablePushAs('account-a')
 
-    const result = await settleWithin(loadPushNotificationState())
+    const result = await settleWithin(loadPushNotificationState('account-a'))
 
     expect(result).toEqual({
       supported: true,
@@ -181,10 +205,31 @@ describe('use-push-notification-preferences helpers', () => {
     })
   })
 
+  it('does not report the subscription another account turned on in this browser as registered', async () => {
+    await enablePushAs('account-a')
+
+    const result = await settleWithin(loadPushNotificationState('account-b'))
+
+    expect(result).toEqual({
+      supported: true,
+      subscribed: false,
+      permission: 'granted',
+      status: 'not-registered',
+    })
+  })
+
+  it('does not report a subscription with no recorded account as registered', async () => {
+    setupPushEnvironment({ permission: 'granted', existingSubscription: createMockSubscription() })
+
+    const result = await settleWithin(loadPushNotificationState('account-a'))
+
+    expect(result.status).toBe('not-registered')
+  })
+
   it('registers the push worker for the whole origin before reading the subscription', async () => {
     const { register, getSubscription } = setupPushEnvironment({ permission: 'granted' })
 
-    await settleWithin(loadPushNotificationState())
+    await settleWithin(loadPushNotificationState('account-a'))
 
     expect(register).toHaveBeenCalledWith('/sw.js', { scope: '/', updateViaCache: 'none' })
     expect(getSubscription).toHaveBeenCalledTimes(1)
@@ -196,7 +241,7 @@ describe('use-push-notification-preferences helpers', () => {
       registerRejects: true,
     })
 
-    const result = await settleWithin(loadPushNotificationState())
+    const result = await settleWithin(loadPushNotificationState('account-a'))
 
     expect(result).toEqual({
       supported: true,
@@ -313,6 +358,59 @@ describe('use-push-notification-preferences helpers', () => {
   })
 })
 
+describe('releasing this browser push subscription at logout', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    mockSubscribePush.mockReset()
+    mockUnsubscribePush.mockReset()
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('removes the subscription on the API while signed in, then in the browser', async () => {
+    const { subscription } = await enablePushAs('account-a')
+    let finishApiCall: () => void = () => undefined
+    mockUnsubscribePush.mockReturnValue(new Promise<void>((resolve) => {
+      finishApiCall = resolve
+    }))
+
+    const released = pushPreferences.releasePushSubscription()
+    await vi.waitFor(() => expect(mockUnsubscribePush).toHaveBeenCalledTimes(1))
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    finishApiCall()
+    await settleWithin(released)
+
+    expect(mockUnsubscribePush).toHaveBeenCalledWith({ keys: { p256dh: 'p256dh-key', auth: 'auth-key' } })
+    expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('still ends the browser subscription when the API call fails, so the API drops it on its next send', async () => {
+    const { subscription } = await enablePushAs('account-a')
+    const failure = new Error('network down')
+    mockUnsubscribePush.mockRejectedValue(failure)
+
+    await expect(settleWithin(pushPreferences.releasePushSubscription())).rejects.toBe(failure)
+
+    expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('never registers a worker just to find there is nothing to release', async () => {
+    const { register, getSubscription } = setupPushEnvironment({ permission: 'granted' })
+
+    await settleWithin(pushPreferences.releasePushSubscription())
+
+    expect(register).not.toHaveBeenCalled()
+    expect(getSubscription).not.toHaveBeenCalled()
+    expect(mockUnsubscribePush).not.toHaveBeenCalled()
+  })
+})
+
 describe('usePushNotificationPreferences hook', () => {
   const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
@@ -322,6 +420,8 @@ describe('usePushNotificationPreferences hook', () => {
     mockSubscribePush.mockReset()
     mockUnsubscribePush.mockReset()
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
+    setAccountId('account-a')
+    localStorage.clear()
   })
 
   afterEach(() => {
@@ -335,7 +435,7 @@ describe('usePushNotificationPreferences hook', () => {
   })
 
   it('reports a checking state, never unsupported, until the browser answers', async () => {
-    setupPushEnvironment({ permission: 'granted', existingSubscription: createMockSubscription() })
+    await enablePushAs('account-a')
     const statuses: string[] = []
     const { result } = renderHook(() => {
       const preferences = usePushNotificationPreferences()
@@ -369,10 +469,34 @@ describe('usePushNotificationPreferences hook', () => {
   })
 
   it('loads the current subscription snapshot on mount', async () => {
-    setupPushEnvironment({ permission: 'granted', existingSubscription: createMockSubscription() })
+    await enablePushAs('account-a')
     const { result } = renderHook(() => usePushNotificationPreferences())
     await waitFor(() => expect(result.current.status).toBe('registered'))
     expect(result.current.subscribed).toBe(true)
+  })
+
+  it('waits for the signed-in account before it reads the browser subscription', async () => {
+    const { getSubscription } = await enablePushAs('account-a')
+    setAccountId(null)
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+
+    expect(result.current.status).toBe('checking')
+    expect(getSubscription).not.toHaveBeenCalled()
+
+    act(() => setAccountId('account-a'))
+    await waitFor(() => expect(result.current.status).toBe('registered'))
+  })
+
+  it('stops reporting registered when another account takes over the page', async () => {
+    await enablePushAs('account-a')
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('registered'))
+
+    act(() => setAccountId('account-b'))
+
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
+    expect(result.current.subscribed).toBe(false)
   })
 
   it('subscribes when toggled while unsubscribed', async () => {
@@ -391,8 +515,7 @@ describe('usePushNotificationPreferences hook', () => {
   })
 
   it('unsubscribes when toggled while subscribed', async () => {
-    const subscription = createMockSubscription()
-    setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
+    await enablePushAs('account-a')
     mockUnsubscribePush.mockResolvedValue(undefined)
     const { result } = renderHook(() => usePushNotificationPreferences())
     await waitFor(() => expect(result.current.subscribed).toBe(true))
@@ -421,8 +544,7 @@ describe('usePushNotificationPreferences hook', () => {
   })
 
   it('keeps registered state when account refusal blocks unsubscribe', async () => {
-    const subscription = createMockSubscription()
-    setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
+    const { subscription } = await enablePushAs('account-a')
     mockUnsubscribePush.mockRejectedValue(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
     const { result } = renderHook(() => usePushNotificationPreferences())
     await waitFor(() => expect(result.current.subscribed).toBe(true))

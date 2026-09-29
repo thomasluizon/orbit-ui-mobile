@@ -35,10 +35,25 @@ function renderBridge() {
   return { ...view, invalidateQueries }
 }
 
-function postFromWorker(container: EventTarget, data: unknown) {
+function postFromWorker(container: EventTarget, data: unknown, ports: MessagePort[] = []) {
   act(() => {
-    container.dispatchEvent(new MessageEvent('message', { data }))
+    container.dispatchEvent(Object.assign(new Event('message'), { data, ports }))
   })
+}
+
+/** The reply port `public/sw.js` sends with a click, so it can tell a window with no bridge from one that took it. */
+function createReplyPort() {
+  const channel = new MessageChannel()
+  const receipts: unknown[] = []
+  channel.port1.onmessage = (event) => receipts.push(event.data)
+  return {
+    port: channel.port2,
+    receipts: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      channel.port1.close()
+      return receipts
+    },
+  }
 }
 
 describe('ServiceWorkerBridge', () => {
@@ -87,6 +102,28 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
     expect(mockPush.mock.calls).toEqual([['/chat'], ['/streak']])
+  })
+
+  it('confirms a notification click on the worker reply port, so the worker does not reload the window', async () => {
+    const container = installServiceWorkerContainer()
+    renderBridge()
+    const reply = createReplyPort()
+
+    postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
+
+    expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
+  })
+
+  it('confirms a click the shared rule rejects, since the launch link would be rejected the same way', async () => {
+    const container = installServiceWorkerContainer()
+    renderBridge()
+    const reply = createReplyPort()
+
+    postFromWorker(container, { type: 'orbit:notification-click', url: '//evil.example' }, [reply.port])
+
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
 
   it.each(['/social/x', '//evil.example', 'https://evil.example', 42])(

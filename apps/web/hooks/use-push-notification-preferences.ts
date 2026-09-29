@@ -11,6 +11,12 @@ import {
   unsubscribePush as unsubscribePushAction,
 } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import {
+  getExistingPushSubscription,
+  isPushSubscriptionOwner,
+  recordPushSubscriptionOwner,
+} from '@/lib/push-subscription-owner'
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 
 /** `checking` covers the first render, before the browser reports its push support and subscription. */
@@ -98,7 +104,8 @@ export function getPushStatusMessageKey(
   return getWebPushStatusMessageKey(status, permission)
 }
 
-export async function loadPushNotificationState(): Promise<PushPreferenceSnapshot> {
+/** Reports registered only for the account that turned push on in this browser, never for an earlier one. */
+export async function loadPushNotificationState(accountId: string): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
@@ -113,7 +120,7 @@ export async function loadPushNotificationState(): Promise<PushPreferenceSnapsho
     const registration = await getActiveServiceWorkerRegistration()
     const subscription = await registration.pushManager.getSubscription()
 
-    return createSnapshot(permission, Boolean(subscription))
+    return createSnapshot(permission, subscription !== null && isPushSubscriptionOwner(accountId))
   } catch {
     return createSyncFailedSnapshot(permission)
   }
@@ -151,6 +158,7 @@ export async function subscribeToPushNotifications(
     applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
   })
 
+  const ownerAccountId = getAccountId()
   try {
     await subscribePushAction(subscription.toJSON())
   } catch (error) {
@@ -158,6 +166,7 @@ export async function subscribeToPushNotifications(
     if (reportsAccountChanged(error)) throw error
     throw new Error('Failed to persist push subscription')
   }
+  if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
 
   return createSnapshot(permission, true)
 }
@@ -187,7 +196,25 @@ export async function unsubscribeFromPushNotifications(
   return createSnapshot(nextPermission, false)
 }
 
+/**
+ * Logout: removes this browser's subscription on the API while the session cookie still names its
+ * account, then in the browser, so the next person here gets none of this account's pushes. Ending it in
+ * the browser also ends the endpoint, so the API deletes its row on the next send (410 Gone) even when
+ * the first call fails. The Android twin is `unsubscribePushToken` in `apps/mobile/hooks/use-push-notifications.ts`.
+ */
+export async function releasePushSubscription(): Promise<void> {
+  const subscription = await getExistingPushSubscription()
+  if (!subscription) return
+  try {
+    await unsubscribePushAction(subscription.toJSON())
+  } finally {
+    await subscription.unsubscribe()
+  }
+}
+
 export function usePushNotificationPreferences(): UsePushNotificationPreferencesResult {
+  const accountId = useAccountId()
+  const [loadedAccountId, setLoadedAccountId] = useState<string | null>(null)
   const [state, setState] = useState<UsePushNotificationPreferencesResult>({
     ...createCheckingSnapshot(),
     loading: false,
@@ -195,13 +222,15 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
   })
 
   useEffect(() => {
+    if (accountId === null) return undefined
     let cancelled = false
 
-    void loadPushNotificationState().then((snapshot) => {
+    void loadPushNotificationState(accountId).then((snapshot) => {
       if (cancelled) {
         return
       }
 
+      setLoadedAccountId(accountId)
       setState((current) => ({
         ...current,
         ...snapshot,
@@ -211,7 +240,7 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [accountId])
 
   async function togglePush() {
     setState((current) => ({
@@ -246,6 +275,7 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
 
   return {
     ...state,
+    ...(loadedAccountId === accountId ? {} : createCheckingSnapshot()),
     togglePush,
   }
 }

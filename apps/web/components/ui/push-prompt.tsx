@@ -9,6 +9,8 @@ import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
+import { useAccountId } from '@/lib/account-scope'
+import { isPushSubscriptionOwner } from '@/lib/push-subscription-owner'
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 import {
   isPushNotificationSupported,
@@ -29,6 +31,7 @@ function setCookie(name: string, value: string, maxAge: number) {
 
 export function PushPrompt() {
   const t = useTranslations()
+  const accountId = useAccountId()
   const overlayId = useId()
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
@@ -44,6 +47,7 @@ export function PushPrompt() {
   }, [])
 
   useEffect(() => {
+    if (accountId === null) return
     if (!isPushNotificationSupported()) return
     if (Notification.permission === 'denied') return
     if (getCookie(STORAGE_KEY) === '1') return
@@ -51,13 +55,13 @@ export function PushPrompt() {
     getActiveServiceWorkerRegistration()
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => {
-        if (sub && Notification.permission === 'granted') return
+        if (sub && Notification.permission === 'granted' && isPushSubscriptionOwner(accountId)) return
         setEligible(true)
       })
       .catch(() => {
         setEligible(true)
       })
-  }, [])
+  }, [accountId])
 
   useEffect(() => {
     if (!eligible || anotherOverlayOpen || show) return

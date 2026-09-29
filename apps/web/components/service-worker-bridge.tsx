@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
-import { registerServiceWorker } from '@/lib/service-worker-registration'
-
-const NOTIFICATION_URL_PARAM = 'notificationUrl'
+import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 
 type AppRouter = ReturnType<typeof useRouter>
 
@@ -29,7 +27,8 @@ function takeLaunchNotificationUrl(): string | null {
 /**
  * Registers the Web Push worker and carries its events into the app: a notification click navigates
  * through the shared destination rule and an arriving push refreshes the notification list, matching
- * the Android handlers in `apps/mobile/hooks/use-push-notifications.ts`.
+ * the Android handlers in `apps/mobile/hooks/use-push-notifications.ts`. The click receipt on the reply
+ * port tells the worker this window took the click, so it does not load the launch link here as well.
  */
 export function ServiceWorkerBridge(): null {
   const router = useRouter()
@@ -53,6 +52,7 @@ export function ServiceWorkerBridge(): null {
       if (typeof message !== 'object' || message === null || !('type' in message)) return
       if (message.type === 'orbit:push-received') void invalidateNotificationList(queryClient)
       if (message.type === 'orbit:notification-click' && 'url' in message) {
+        event.ports[0]?.postMessage({ type: 'orbit:notification-click-received' })
         openNotificationUrl(router, message.url)
       }
     }

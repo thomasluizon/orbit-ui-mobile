@@ -20,7 +20,9 @@ vi.mock('@/lib/actions/notifications', () => ({
 }))
 
 import { PushPrompt } from '@/components/ui/push-prompt'
+import { subscribeToPushNotifications } from '@/hooks/use-push-notification-preferences'
 import { subscribePush } from '@/lib/actions/notifications'
+import { setAccountId } from '@/lib/account-scope'
 import { useUIStore } from '@/stores/ui-store'
 
 let mockNotificationPermission = 'default' as NotificationPermission
@@ -56,10 +58,44 @@ function createServiceWorkerContainer(pushManager: Record<string, unknown>, regi
   return { ready, register }
 }
 
+/**
+ * Turns push on through the real subscribe flow as the given account, which is how a browser comes to
+ * hold a subscription that belongs to one account.
+ */
+async function enablePushAs(accountId: string) {
+  let current: Record<string, unknown> | null = null
+  const created = {
+    endpoint: 'https://push.example.com/current',
+    toJSON: () => ({ endpoint: 'https://push.example.com/current' }),
+    unsubscribe: vi.fn().mockResolvedValue(true),
+  }
+  Object.defineProperty(navigator, 'serviceWorker', {
+    value: createServiceWorkerContainer({
+      getSubscription: vi.fn(async () => current),
+      subscribe: vi.fn(async () => {
+        current = created
+        return created
+      }),
+    }),
+    writable: true,
+    configurable: true,
+  })
+  Object.defineProperty(globalThis, 'PushManager', {
+    value: class {},
+    writable: true,
+    configurable: true,
+  })
+  mockNotificationPermission = 'granted'
+  setAccountId(accountId)
+  await subscribeToPushNotifications('dGVzdA')
+}
+
 describe('PushPrompt', () => {
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
     vi.clearAllMocks()
+    setAccountId('account-a')
+    localStorage.clear()
     mockNotificationPermission = 'default'
     Object.defineProperty(navigator, 'serviceWorker', {
       value: undefined,
@@ -227,24 +263,22 @@ describe('PushPrompt', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('does not show prompt when already subscribed with granted permission', async () => {
-    const mockSubscription = { endpoint: 'https://push.example.com' }
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: createServiceWorkerContainer({ getSubscription: () => Promise.resolve(mockSubscription) }),
-      writable: true,
-      configurable: true,
-    })
-    Object.defineProperty(globalThis, 'PushManager', {
-      value: class {},
-      writable: true,
-      configurable: true,
-    })
-    mockNotificationPermission = 'granted'
+  it('does not show prompt when this account already turned push on with granted permission', async () => {
+    await enablePushAs('account-a')
 
     const { container } = render(<PushPrompt />)
 
     await new Promise((r) => setTimeout(r, 50))
     expect(container.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('offers the prompt when the browser subscription belongs to another account', async () => {
+    await enablePushAs('account-a')
+    setAccountId('account-b')
+
+    render(<PushPrompt />)
+
+    expect(await screen.findByText('pushPrompt.enable')).toBeInTheDocument()
   })
 
   it('shows prompt when getSubscription throws an error and permission is not granted', async () => {
@@ -286,6 +320,8 @@ describe('PushPrompt enable flow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    setAccountId('account-a')
+    localStorage.clear()
     mockNotificationPermission = 'default'
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
     document.cookie = 'orbit_push_prompted=; max-age=0'

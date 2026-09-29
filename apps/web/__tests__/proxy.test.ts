@@ -318,6 +318,22 @@ describe('proxy', () => {
     expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
   })
 
+  it('keeps the notification a signed-out launch link carries on the way to login', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    await proxy(createRequest('/?notificationUrl=%2Fprofile'))
+
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('notificationUrl')).toBe('/profile')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+  })
+
   it('stops browsers from caching the push service worker script', async () => {
     const configuredHeaders = await nextConfig.headers?.()
     const serviceWorkerHeaders = configuredHeaders?.find(({ source }) => source === '/sw.js')

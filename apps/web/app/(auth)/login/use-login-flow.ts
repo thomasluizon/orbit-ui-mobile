@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import {
+  getNotificationDestination,
   isValidEmail,
   isValidReferralCode,
   isValidVerificationCode,
@@ -14,6 +15,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
+import { NOTIFICATION_URL_PARAM } from '@/lib/service-worker-registration'
 import {
   fetchAuthEndpoint,
   getCookieValue,
@@ -94,6 +96,8 @@ export function useLoginFlow() {
   }
 
   const getReturnUrl = useCallback((): string => {
+    const notificationDestination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
+    if (notificationDestination) return notificationDestination.url
     const returnUrl = searchParams.get('returnUrl')
     if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
       return returnUrl

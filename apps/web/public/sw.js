@@ -6,6 +6,12 @@
 
 const NOTIFICATION_ICON = '/pwa-192x192.png'
 
+/**
+ * How long a window gets to confirm it took a click. A login page or a page still loading has no
+ * listener, so the worker then loads the launch link in that window instead.
+ */
+const CLICK_RECEIPT_TIMEOUT_MS = 1000
+
 /** The API sends `{ title, body, url? }`. A push that does not match still needs a visible notification. */
 function readPushPayload(data) {
   let payload = null
@@ -20,6 +26,37 @@ function readPushPayload(data) {
 function findOrbitWindows() {
   return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
 }
+
+/** The app reads this link on load, and the proxy keeps its parameter on the way to `/login`. */
+function launchUrl(url) {
+  return url ? `/?notificationUrl=${encodeURIComponent(url)}` : '/'
+}
+
+/** Resolves true once the window's app confirms the click on the reply port it gets with it. */
+function handClickToWindow(client, url) {
+  const channel = new MessageChannel()
+  const receipt = new Promise((resolve) => {
+    channel.port1.onmessage = () => resolve(true)
+    setTimeout(() => resolve(false), CLICK_RECEIPT_TIMEOUT_MS)
+  })
+  client.postMessage({ type: 'orbit:notification-click', url }, [channel.port2])
+  return receipt.finally(() => channel.port1.close())
+}
+
+/**
+ * Picks among the windows this worker controls, the only ones `navigate` accepts. Claiming on activate
+ * brings every window that was already open under control.
+ */
+async function openNotification(url) {
+  const [client] = await self.clients.matchAll({ type: 'window' })
+  if (!client) return self.clients.openWindow(launchUrl(url))
+  const focused = await client.focus()
+  if (url && !(await handClickToWindow(focused, url))) await focused.navigate(launchUrl(url))
+}
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
 
 self.addEventListener('push', (event) => {
   const payload = readPushPayload(event.data)
@@ -39,16 +76,5 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = event.notification.data.url
-
-  event.waitUntil(
-    findOrbitWindows().then((windows) => {
-      const client = windows[0]
-      if (!client) {
-        return self.clients.openWindow(url ? `/?notificationUrl=${encodeURIComponent(url)}` : '/')
-      }
-      if (url) client.postMessage({ type: 'orbit:notification-click', url })
-      return client.focus()
-    }),
-  )
+  event.waitUntil(openNotification(event.notification.data.url))
 })
