@@ -44,7 +44,7 @@ for (const width of [412, 600] as const) {
       })
       expect(gapWithoutNotice).toBeGreaterThanOrEqual(15.5)
 
-      await notice.evaluate((slot, closeLabel) => {
+      const geometry = await notice.evaluate((slot, closeLabel) => {
         const panel = document.createElement('section')
         panel.setAttribute('data-celebration-panel', '')
         panel.style.cssText = 'height:92px;margin:0 16px;display:flex;align-items:center;justify-content:flex-end'
@@ -55,24 +55,28 @@ for (const width of [412, 600] as const) {
         close.addEventListener('click', () => { close.dataset.clicked = 'true' })
         panel.append(close)
         slot.append(panel)
-      }, ptBr.celebration.close)
-
-      const close = notice.getByRole('button', { name: ptBr.celebration.close })
-      const geometry = await page.evaluate(() => {
         const fab = document.querySelector('[data-shell-fab]')?.getBoundingClientRect()
-        const panel = document.querySelector('[data-celebration-panel]')?.getBoundingClientRect()
-        const close = document.querySelector('[data-celebration-panel] button')?.getBoundingClientRect()
-        if (!fab || !panel || !close) throw new Error('Notice controls missing')
+        if (!fab) throw new Error('Compact FAB missing')
+        const panelBox = panel.getBoundingClientRect()
+        const closeBox = close.getBoundingClientRect()
+        const hit = document.elementFromPoint(
+          closeBox.left + closeBox.width / 2,
+          closeBox.top + closeBox.height / 2,
+        )
+        const hitsClose = hit === close || close.contains(hit)
+        if (hitsClose) close.click()
         return {
-          gap: panel.top - fab.bottom,
-          intersectsClose: fab.left < close.right && close.left < fab.right
-            && fab.top < close.bottom && close.top < fab.bottom,
+          gap: panelBox.top - fab.bottom,
+          intersectsClose: fab.left < closeBox.right && closeBox.left < fab.right
+            && fab.top < closeBox.bottom && closeBox.top < fab.bottom,
+          hitsClose,
+          clicked: close.dataset.clicked === 'true',
         }
-      })
+      }, ptBr.celebration.close)
       expect(geometry.gap).toBeGreaterThanOrEqual(15.5)
       expect(geometry.intersectsClose).toBe(false)
-      await close.click()
-      await expect(close).toHaveAttribute('data-clicked', 'true')
+      expect(geometry.hitsClose).toBe(true)
+      expect(geometry.clicked).toBe(true)
     })
   })
 }
