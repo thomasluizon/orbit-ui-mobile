@@ -77,8 +77,8 @@ describe('proxy', () => {
     vi.unstubAllEnvs()
   })
 
-  it('allows public legal pages without resolving a session', async () => {
-    for (const path of ['/terms', '/privacy', '/delete-account', '/about']) {
+  it('allows public legal pages and unknown paths beneath them without resolving a session', async () => {
+    for (const path of ['/terms', '/terms/x', '/privacy', '/privacy/x', '/delete-account', '/about']) {
       const response = await proxy(createRequest(path))
 
       expect(response).toMatchObject({ type: 'next' })

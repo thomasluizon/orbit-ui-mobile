@@ -5,7 +5,7 @@ import { ChevronLeft } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function AppBar({ title, onBack, backLabel, action, titleRef }: Readonly<NavHeaderProps & { titleRef?: Ref<Text> }>) {
+export function AppBar({ title, onBack, backLabel, action, titleRef, titleIsHeading = true }: Readonly<NavHeaderProps & { titleRef?: Ref<Text>; titleIsHeading?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -18,7 +18,7 @@ export function AppBar({ title, onBack, backLabel, action, titleRef }: Readonly<
           </Pressable>
         )}
       </View>
-      <Text ref={titleRef} accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       <View style={styles.action}>{action}</View>
     </View>
   )

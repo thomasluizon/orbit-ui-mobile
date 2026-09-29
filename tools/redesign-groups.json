@@ -89,7 +89,9 @@
       "m-overlay-components-throttle-screen",
       "m-overlay-components-upgrade-required-screen",
       "m-overlay-components-version-update-drawer",
-      "not-found-root"
+      "not-found-app",
+      "not-found-root",
+      "route-missing"
     ],
     "Orbit Habit Create": [
       "m-overlay-create-goal-from-habit-goal-deadline-field",

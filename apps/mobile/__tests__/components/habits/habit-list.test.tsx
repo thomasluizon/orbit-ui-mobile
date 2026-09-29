@@ -1887,6 +1887,7 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
     expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
+    expect(tree.root.findByType('FlatList').props.renderItem({ item: child, index: 0 }).props.structuralColumn).toBe(true)
   })
 
   it('explains filtered empty drills and offers Show completed when it can reveal children', () => {
@@ -3253,6 +3254,7 @@ describe('HabitList', () => {
       .find((node: any) => node.props.habit.id === 'overdue-1')
 
     expect(overdueCard?.props.isSelectMode).toBe(true)
+    expect(overdueCard?.props.structuralColumn).toBe(true)
 
     TestRenderer.act(() => {
       overdueCard?.props.actions.onToggleSelection()

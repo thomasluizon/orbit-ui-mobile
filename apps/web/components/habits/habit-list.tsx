@@ -1256,6 +1256,7 @@ export function HabitList({
       <Fragment key={habit.id}>
       <HabitRow
         habit={habit}
+        structuralColumn
         state={state}
         meta={meta}
         canLog={canLog}

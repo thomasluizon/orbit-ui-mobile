@@ -1,6 +1,7 @@
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { PlanSelection } from './plan-selection'
 import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -144,7 +145,7 @@ export function PricingSection({
                 {t('upgrade.convert.handOff')}
               </p>
             </div>
-            <a
+            <Link
               href="/profile"
               aria-disabled={checkoutLoading !== null}
               onClick={(event) => {
@@ -159,7 +160,7 @@ export function PricingSection({
               className="inline-flex min-h-11 items-center text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] [@media(pointer:fine)]:hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               {t('upgrade.convert.stayFree')}
-            </a>
+            </Link>
           </div>
         ) : null}
       </div>

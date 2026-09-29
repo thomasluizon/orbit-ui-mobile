@@ -13,10 +13,62 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 195,
-  "cellCount": 836,
+  "surfaceCount": 197,
+  "cellCount": 844,
   "cells": [
     {
+      "surfaceId": "route-missing",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/[...missing]/page.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/[...missing]/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-missing",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/[...missing]/page.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/[...missing]/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-missing",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/[...missing]/page.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/[...missing]/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-missing",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/[...missing]/page.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/[...missing]/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-about",
       "platform": "web",
       "kind": "route",
@@ -1755,6 +1807,58 @@
       "ownedFiles": [
         "apps/web/app/fonts.ts",
         "apps/web/app/global-error.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "not-found-app",
+      "platform": "web",
+      "kind": "not-found",
+      "sourceFile": "apps/web/app/(app)/not-found.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/not-found.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "not-found-app",
+      "platform": "web",
+      "kind": "not-found",
+      "sourceFile": "apps/web/app/(app)/not-found.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/not-found.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "not-found-app",
+      "platform": "web",
+      "kind": "not-found",
+      "sourceFile": "apps/web/app/(app)/not-found.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/not-found.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "not-found-app",
+      "platform": "web",
+      "kind": "not-found",
+      "sourceFile": "apps/web/app/(app)/not-found.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/not-found.tsx"
       ],
       "state": "default",
       "theme": "dark",

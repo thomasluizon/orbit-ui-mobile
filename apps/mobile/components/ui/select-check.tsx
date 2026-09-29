@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { useTranslation } from 'react-i18next'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
@@ -34,52 +33,6 @@ export function RadioGlyph({
         />
       ) : null}
     </View>
-  )
-}
-
-/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px empty track otherwise. */
-interface SelectCheckProps {
-  selected: boolean
-  /** Circle size in px (default 24 per kit spec). */
-  size?: number
-  onPress?: () => void
-  accessibilityLabel?: string
-  disabled?: boolean
-  habitRowControl?: boolean
-}
-
-export function SelectCheck({
-  selected,
-  size = 24,
-  onPress,
-  accessibilityLabel,
-  disabled = false,
-  habitRowControl = false,
-}: Readonly<SelectCheckProps>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const { t } = useTranslation()
-
-  return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
-      accessibilityRole="checkbox"
-      accessibilityLabel={accessibilityLabel ?? t('common.select')}
-      accessibilityState={{ checked: selected, disabled }}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      style={({ pressed }) => ({
-        width: size,
-        height: size,
-        borderRadius: 999,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: habitRowControl && pressed && !disabled ? tokens.bgHover : 'transparent',
-        transform: [{ scale: habitRowControl && pressed && !disabled ? 0.96 : 1 }],
-      })}
-    >
-      <RadioGlyph selected={selected} size={size} tokens={tokens} />
-    </Pressable>
   )
 }
 
