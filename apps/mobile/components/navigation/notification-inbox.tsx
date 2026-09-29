@@ -41,8 +41,11 @@ export function NotificationInbox() {
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
         footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <View style={styles.actions}>
-          {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
-            onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
+          {inbox.visibleUnreadCount > 0 ? (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:206 (D42) */
+            <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
+              onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button>
+          ) : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
         </View> : undefined}
@@ -57,7 +60,7 @@ export function NotificationInbox() {
         onMarkAsRead={(id) => markAsRead.mutate(id)}
         onDelete={() => requestDeleteNotification(selected)} /> : null}
       <ConfirmSheet open={confirmOpen} title={t('notifications.deleteAllConfirmTitle')}
-        message={t('notifications.deleteAllConfirmDescription')}
+        message={t('notifications.deleteAllConfirmDescription', { count: inbox.visibleNotifications.length })}
         confirmLabel={t('notifications.deleteAllAction')} destructive
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
