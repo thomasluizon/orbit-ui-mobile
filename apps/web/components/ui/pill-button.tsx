@@ -43,13 +43,18 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     .join(' ')
 }
 
+function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: boolean): number {
+  if (iconOnly) return 0
+  return leadingIcon ? paddingX - 2 : paddingX
+}
+
 function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
     width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,
-    paddingInlineStart: iconOnly ? 0 : leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
+    paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
     paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
