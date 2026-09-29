@@ -66,6 +66,18 @@ describe('NotificationDetailModal navigation', () => {
     expect(mocks.push).toHaveBeenCalledWith('/streak')
   })
 
+  it('preserves the closed month after the sheet closes', () => {
+    const { tree } = renderModal('/progress?wrapped=month&year=2024&month=2')
+    const view = tree.root.findAllByType('Pressable')
+      .find((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === 'notifications.view')
+    expect(view).toBeDefined()
+    TestRenderer.act(() => {
+      view.props.onPress()
+      tree.root.findByType('Sheet').props.onDidDismiss()
+    })
+    expect(mocks.push).toHaveBeenCalledWith('/wrapped?wrapped=month&year=2024&month=2')
+  })
+
   it('hides View for a missing destination', () => {
     const { tree } = renderModal(null)
     const view = tree.root.findAllByType('Pressable')

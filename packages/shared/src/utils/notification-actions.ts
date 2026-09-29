@@ -13,7 +13,7 @@ export function resolveNotificationUrl(url: string): string | null {
   if (!isViewableNotificationUrl(url)) return null
 
   let destination = url
-  if (url.startsWith('/progress?wrapped=')) destination = '/wrapped'
+  if (url.startsWith('/progress?wrapped=')) destination = `/wrapped${url.slice('/progress'.length)}`
   else if (url === '/progress' || url.startsWith('/progress?')) destination = '/streak'
 
   return isViewableNotificationUrl(destination) ? destination : null

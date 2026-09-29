@@ -10,7 +10,7 @@ import {
 describe('notification-actions', () => {
   it.each([
     ['/progress', '/streak'],
-    ['/progress?wrapped=month&year=2026&month=8', '/wrapped'],
+    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?wrapped=month&year=2026&month=8'],
     ['/progress?', '/streak'],
     ['/progress?other=value', '/streak'],
     ['/', '/'],

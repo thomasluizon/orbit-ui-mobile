@@ -412,13 +412,14 @@ export type {
 } from './retrospective'
 export {
   buildRecapRequestUrl,
+  getClosedMonthFromWrappedParams,
   buildShareCardStats,
   formatCompletionRate,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export type { ClosedMonth, RecapSharePeriod, ShareCardStat } from './share-card'
 export { buildWrappedSlides } from './wrapped'
 export type { WrappedSlide, WrappedSlideId } from './wrapped'
 export {
