@@ -188,10 +188,11 @@ function useTokens() {
 interface ApiKeyGateProps {
   busy: boolean
   error: boolean
+  activeApiKeyCount: number | null | undefined
   onStartStepUp: () => Promise<void>
 }
 
-function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<ApiKeyGateProps>) {
   const { t } = useTranslation()
   const tokens = useTokens()
   const [showStepUp, setShowStepUp] = useState(false)
@@ -203,6 +204,11 @@ function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
         <ListRow
           icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={t('profile.apiKeys.open')}
+          wrapTitle
+          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
+            ? t('profile.apiKeys.noKeys')
+            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
           onClick={() => setShowStepUp(true)}
         />
       </RowList>
@@ -233,6 +239,7 @@ function ApiKeyAccessContent({
   busy,
   children,
   error,
+  activeApiKeyCount,
   hasProAccess,
   onStartStepUp,
   onUpgrade,
@@ -256,7 +263,7 @@ function ApiKeyAccessContent({
     )
   }
   if (!unlocked) {
-    return <ApiKeyGate busy={busy} error={error} onStartStepUp={onStartStepUp} />
+    return <ApiKeyGate busy={busy} error={error} activeApiKeyCount={activeApiKeyCount} onStartStepUp={onStartStepUp} />
   }
   return children
 }
@@ -400,6 +407,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       <Text style={[styles.description, { color: tokens.fg3 }]}>{t('profile.apiKeys.description')}</Text>
 
       <ApiKeyAccessContent
+        activeApiKeyCount={profile?.activeApiKeyCount}
         busy={stepUp.busy}
         error={stepUp.error}
         hasProAccess={hasProAccess}

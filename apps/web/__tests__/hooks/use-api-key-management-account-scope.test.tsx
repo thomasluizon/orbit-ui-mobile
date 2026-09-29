@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { QueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/lib/step-up-storage'
 
@@ -86,4 +87,16 @@ it('does not return an old key or consume the next account grant', async () => {
 
   expect(returned).toBeNull()
   expect(hasApiKeyCreationGrant()).toBe(true)
+})
+
+it('refreshes the profile count after creating a key', async () => {
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+  mocks.createApiKey.mockResolvedValue({ success: true, response: { id: 'new-key', key: 'orbit_sk_new' } })
+  const { result } = renderManagement()
+
+  await act(async () => {
+    await result.current.handleCreateKey({ name: 'A key' }, async () => {})
+  })
+
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: profileKeys.all })
 })
