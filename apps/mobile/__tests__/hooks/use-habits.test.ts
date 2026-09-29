@@ -430,12 +430,38 @@ describe('mobile habit hooks', () => {
     const context = await mutation.onMutate?.(variables)
     expect((mocks.queryClient.getQueryData(key) as HabitScheduleItem[])[1]?.isCompleted).toBe(true)
     const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
-    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: false, count: 1 })
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today)).toEqual({ allDone: true, count: 2 })
     mutation.onSuccess?.({ logId: 'log-2', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
     const completed = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
     expect(getAllDoneOnDate(completed, buildChildrenIndex(completed), today)).toEqual({ allDone: true, count: 2 })
     expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 2 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    mocks.useRealUIStore = false
+  })
+
+  it('does not celebrate while a recurring skip is pending when the other due habit is logged', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    mocks.state.entries = [{ key, value: [
+      makeHabit({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeHabit({ id: 'logged', dueDate: today, scheduledDates: [today] }),
+    ] }]
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date?: string }, unknown>
+    await skip.onMutate?.({ habitId: 'skipped' })
+    const log = useLogHabit() as unknown as MutationConfig<LogHabitResponse,
+      { habitId: string; date?: string }, HabitSnapshotContext>
+    const variables = { habitId: 'logged' }
+    const context = await log.onMutate?.(variables)
+    log.onSuccess?.({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
+
+    const normalized = normalizeHabits(mocks.queryClient.getQueryData(key) as HabitScheduleItem[])
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), today))
+      .toEqual({ allDone: false, count: 1 })
+    expect(useUIStore.getState().activeCelebration).toBeNull()
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
     mocks.useRealUIStore = false
   })

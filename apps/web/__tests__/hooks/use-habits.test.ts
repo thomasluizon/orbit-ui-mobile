@@ -385,6 +385,34 @@ describe('useLogHabit', () => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
   })
 
+  it('does not celebrate while a recurring skip is pending when the other due habit is logged', async () => {
+    const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    const { logHabit, skipHabit } = await import('@/lib/actions/habits')
+    let resolveSkip!: () => void
+    vi.mocked(skipHabit).mockImplementation(() => new Promise<void>((resolve) => { resolveSkip = resolve }))
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-last', isFirstCompletionToday: false, currentStreak: 1 })
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, [
+      makeScheduleItem({ id: 'skipped', dueDate: today, scheduledDates: [today] }),
+      makeScheduleItem({ id: 'logged', dueDate: today, scheduledDates: [today] }),
+    ])
+    const { result } = renderHook(() => ({ skip: useSkipHabit(), log: useLogHabit() }),
+      { wrapper: createWrapper(queryClient) })
+
+    act(() => { result.current.skip.mutate({ habitId: 'skipped' }) })
+    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.isCompleted).toBe(true))
+    await act(async () => { await result.current.log.mutateAsync({ habitId: 'logged' }) })
+
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(key)?.[0]?.instances)
+      .toContainEqual({ date: today, status: 'Completed', logId: null })
+    await act(async () => { resolveSkip() })
+  })
+
   it('celebrates once after deleting a due habit before logging the last one', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const { logHabit, deleteHabit } = await import('@/lib/actions/habits')

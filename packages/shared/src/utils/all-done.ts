@@ -1,5 +1,6 @@
 import type { NormalizedHabit } from '../types/habit'
 import { hasHabitScheduleOnDate } from './habits'
+import { optimisticSkipMarker } from './habit-optimistic'
 
 export function isHabitLoggedOnDate(habit: NormalizedHabit, date: string): boolean {
   void date
@@ -24,11 +25,13 @@ export function getAllDoneOnDate(
       (hasHabitScheduleOnDate(habit, date) || habit.isOverdue)) {
       const logged = isHabitLoggedOnDate(habit, date)
       const skipped = isHabitSkippedOnDate(habit, date)
-      const done = habit.isFlexible
+      const pendingSkip = Boolean((habit as NormalizedHabit & { [optimisticSkipMarker]?: true })[optimisticSkipMarker])
+      const completed = habit.isCompleted || logged
+      const done = !skipped && (habit.isFlexible
         ? habit.flexibleTarget !== null && habit.flexibleCompleted !== null &&
-          habit.flexibleCompleted >= habit.flexibleTarget && logged
-        : logged
-      if (!done && !skipped) openCount++
+          habit.flexibleCompleted >= habit.flexibleTarget && completed
+        : completed)
+      if (!done && (!skipped || pendingSkip)) openCount++
       if (done) count++
     }
     for (const childId of childrenByParent.get(habit.id) ?? []) {
