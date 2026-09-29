@@ -73,9 +73,9 @@ function SidebarItem({
   )
   const className = [
     'flex h-11 w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-    'transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
+    'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
     active
-      ? 'text-[var(--primary-soft)]'
+      ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
       : 'text-[var(--fg-3)]',
     onSelect ? 'hover:bg-[var(--bg-hover)]' : '',
   ].join(' ')

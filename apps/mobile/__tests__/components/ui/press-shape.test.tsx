@@ -25,5 +25,6 @@ describe('pressed hit area shapes', () => {
 
   it('clips the chip press fill to its pill hit area', () => {
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Active">Active</Chip>, 'Active')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden' })
+    expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
   })
 })

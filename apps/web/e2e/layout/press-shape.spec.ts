@@ -71,6 +71,7 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
       await page.goto('/wrapped')
       await expectHoverOnHitArea(page.locator('.chip:not(.chip-active)').first(), 'pill')
+      await expectHoverOnHitArea(page.locator('.chip.chip-active').first(), 'pill')
     })
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
@@ -92,6 +93,10 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(page.getByRole('dialog').locator('.orbit-pill-action:enabled').first(), 'pill')
 
       await page.goto('/calendar')
+      await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
+      await page.getByRole('button', { name: ptBr.common.selectYear }).click()
+      await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { pressed: false }).first(), 'pill')
+      await page.getByRole('dialog').getByRole('button', { pressed: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
       await expectHoverOnHitArea(page.locator('button[data-testid^="calendar-day-select-"]').first(), 'pill')
     })

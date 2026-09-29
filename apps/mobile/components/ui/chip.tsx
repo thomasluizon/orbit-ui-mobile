@@ -37,7 +37,7 @@ export function Chip({
         return [
           styles.chip,
           {
-            backgroundColor: active ? tokens.selectionBg : pressedBackground,
+            backgroundColor: active ? pressed ? tokens.bgHover : tokens.selectionBg : pressedBackground,
             borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
           },
           pressed && !active ? styles.chipPressed : null,

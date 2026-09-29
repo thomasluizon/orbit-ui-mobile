@@ -47,7 +47,7 @@ export function ListRow(props: Readonly<WebListRowProps>) {
         <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent" style={{ margin: 16, marginInlineStart: 0 }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={{ margin: 16, marginInlineStart: 0 }}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>

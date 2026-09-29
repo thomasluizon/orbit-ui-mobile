@@ -10,9 +10,9 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
         const active = index === activeIndex
         return (
           <button key={item.id} type="button" aria-label={item.label} onClick={() => onSelect(item.id)} aria-current={active ? 'page' : undefined}
-            data-active={active || undefined} className="flex h-11 min-w-0 basis-0 grow flex-col items-center justify-center gap-1 self-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2">
+            data-active={active || undefined} className="group flex h-11 min-w-0 basis-0 grow flex-col items-center justify-center gap-1 self-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2">
             {item.icon ? <span>{item.icon({ active })}</span> : null}
-            <span className={`max-w-full truncate text-[12px] font-medium ${active ? 'text-[var(--primary-soft)]' : 'text-[var(--fg-3)]'}`}>{item.label}</span>
+            <span className={`max-w-full truncate text-[12px] font-medium transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${active ? 'text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}>{item.label}</span>
           </button>
         )
       })}

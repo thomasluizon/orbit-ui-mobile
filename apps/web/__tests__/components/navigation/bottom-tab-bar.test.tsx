@@ -48,7 +48,7 @@ describe('BottomTabBar', () => {
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
 
-  it.each(['dark', 'light'])('keeps the selected label stable while the tab fills on hover in %s mode', (mode) => {
+  it.each(['dark', 'light'])('keeps the selected label legible while the tab fills on hover in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(
       <BottomTabBar
@@ -62,7 +62,7 @@ describe('BottomTabBar', () => {
     const activeLabel = screen.getByText('Calendário')
     const inactiveLabel = screen.getByText('Hoje')
     expect(activeLabel).toHaveClass('text-[var(--primary-soft)]')
-    expect(activeLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
+    expect(activeLabel).toHaveClass('group-hover:text-[var(--primary-text)]')
     expect(activeLabel.parentElement).toHaveClass('rounded-full', 'hover:bg-[var(--bg-hover)]')
     expect(inactiveLabel).toHaveClass('text-[var(--fg-3)]')
     expect(inactiveLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')

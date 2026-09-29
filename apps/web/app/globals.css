@@ -1256,8 +1256,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .chip:not(.chip-active):not(.chip-filled):hover { background: var(--bg-hover); }
-  .chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
+  .chip:not(.chip-filled):hover { background: var(--bg-hover); }
+  .chip.chip-filled:hover { background: var(--primary-hover); }
+  .chip.chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
 }
 }
 

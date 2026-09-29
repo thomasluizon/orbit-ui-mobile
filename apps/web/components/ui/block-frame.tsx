@@ -68,7 +68,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
         {isEditable && onEditItem && props.editLabel ? (
           <button
             aria-label={props.editLabel}
-            className="flex size-11 items-center justify-center rounded-[8px] text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
+            className="flex size-11 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
             onClick={() => onEditItem(item.id)}
             type="button"
           >
@@ -127,7 +127,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
     return (
       <div className="flex shrink-0 justify-end text-sm text-[var(--fg-2)]">
         {frameProps.onRefresh ? <button
-          className="flex min-h-11 items-center gap-2 rounded-[8px] px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
+          className="flex min-h-11 items-center gap-2 rounded-full px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
           onClick={frameProps.onRefresh}
           type="button"
         >
