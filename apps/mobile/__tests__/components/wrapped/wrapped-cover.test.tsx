@@ -1,7 +1,19 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { WrappedCover } from '@/components/wrapped/wrapped-cover'
+
+const coverCopyState = vi.hoisted(() => ({ localized: false }))
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      if (coverCopyState.localized && key === 'wrapped.coverSubtitle') return ptBR.wrapped.coverSubtitle
+      if (coverCopyState.localized && key === 'wrapped.empty') return ptBR.wrapped.empty
+      return key
+    },
+  }),
+}))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -85,6 +97,15 @@ function nodeWithChild(root: TestNode, type: string, child: string) {
 describe('mobile WrappedCover', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    coverCopyState.localized = false
+  })
+
+  it('shows the drawn Portuguese subtitle and empty way out with period choices', () => {
+    coverCopyState.localized = true
+    const tree = renderCover({ state: 'empty' })
+    expect(nodeWithChild(tree.root, 'Text', 'Os registros do período, uma página de cada vez.')).toBeTruthy()
+    expect(nodeWithChild(tree.root, 'Text', 'Nada registrado nesse período. Escolha outro período para ver um fechamento.')).toBeTruthy()
+    expect(nodesByType(tree.root, 'Chip')).toHaveLength(3)
   })
 
   it('renders the ready cover and starts the player', () => {

@@ -2,9 +2,16 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const coverCopyState = vi.hoisted(() => ({ localized: false }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    if (coverCopyState.localized && key === 'wrapped.coverSubtitle') return ptBR.wrapped.coverSubtitle
+    if (coverCopyState.localized && key === 'wrapped.empty') return ptBR.wrapped.empty
+    return key
+  },
 }))
 
 vi.mock('@/components/gamification/ring-motif', () => ({
@@ -58,6 +65,15 @@ const baseProps = {
 }
 
 describe('WrappedCover', () => {
+  it('shows the drawn Portuguese subtitle and empty way out with period choices', () => {
+    coverCopyState.localized = true
+    const view = render(<WrappedCover {...baseProps} state="empty" />)
+    expect(screen.getByText('Os registros do período, uma página de cada vez.')).toBeInTheDocument()
+    expect(screen.getByText('Nada registrado nesse período. Escolha outro período para ver um fechamento.')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /wrapped\.periods\./ })).toHaveLength(3)
+    view.unmount()
+    coverCopyState.localized = false
+  })
   it('renders the ready cover and starts the player', () => {
     const onSelectPeriod = vi.fn()
     const onStart = vi.fn()

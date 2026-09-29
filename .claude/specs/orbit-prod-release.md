@@ -63,6 +63,7 @@ The goal is a production release with an empty ticket board. First, Orbit moves 
 - `#74` owns existing copy. Never revisit the redesign gate's timing because of how many screens remain.
 
 - Redesign fixes merge once the exact head has green checks, a Pullfrog approval of that head and zero unresolved threads, and then `redesign/main` is released to staging. No screenshot gate sits in front of a merge.
+- Every rendered sweep scrolls each screen to its end at both widths and checks the last element clears the pinned chrome; bottom clearance is the shell's job, never a page's.
 - Redesign quality is judged on the rendered app: sweep staging screen by screen, at desktop and phone width, against the `DESIGN.md` rules, the screen's drawing in `design/canvas/`, `BRAND.md` and the brain decisions, and file what is wrong. A code-only audit never counts as a sweep. Sweeps repeat after every batch of merged fixes until a full pass finds nothing.
 - A sweep may create, log and delete test habits and send Astra messages in the owner's staging account. Never in production.
 - Owner overrides of the drawings: Calendário is one centred column (month grid on top, the selected day below it, the view selector folded into the month header, 24px card padding), and the Calendário drawing is amended to match; the Perfil Suporte row opens the support form, not Astra; Perfil keeps its settings inline as drawn, and the duplicate Preferências, Avançado and Recursos de IA pages go; Sobre carries no internal naming note.
@@ -104,32 +105,26 @@ The decision and its research: brain ADR `Move Orbit to Render with Amazon SES, 
 
 Owner rules for Batch M: the production copy loses zero rows (writes frozen during the dump, every table verified by row count and checksum, Supabase paused until sign-off); staging seeds sample data for the owner's account only; PostHog replaces Vercel Analytics and Speed Insights; both databases stay reachable through the Render MCP and `psql`; MCPs, CLIs and APIs come before the browser.
 
-Tickets, in dependency order (every Batch M ticket except `#805` is closed, `#831` and `#833` included):
+Tickets, in dependency order (every other Batch M ticket is closed):
 
-- `#805` Web privacy disclosures (`ui#1217`, on `main`): push the branch's unpushed commit (the LGPD safeguards sentence), answer its three threads, approve the wording with `/second-opinion`, and merge only after email runs on SES.
-- Operations still open, in order: when AWS grants SES production access (support case `179056896000159`; the latest message on it is Orbit's full answer to AWS's request for detail, so AWS owes the next reply; `aws sesv2 get-account` reports `DENIED` until then), set `production_email_provider` and `staging_email_provider` to `Ses` and the two dead-letter alert email variables in `infra/local.tfvars`, apply the targeted plan, release the API in both environments, and prove one real sign-in code arrives through SES; then cancel Resend Pro, merge `#805`, and list the retired projects for the owner's delete click (the two Vercel Orbit projects, the paused Supabase project, Resend).
+- `#805` Web privacy disclosures (`ui#1217`, on `main`): email now runs on SES, the LGPD safeguards sentence and a merge of `main` (conflicts resolved to this pull request's residency text) are pushed, the three P1 threads are answered as resolved by the cutover, and the copy is approved. It needs green CI and a fresh Pullfrog approval of its head, then merges to `main`; production web is then released.
+- `#943` (`repo:api`, on `main`) Retire the Resend email provider: delete the Resend code and configuration, make SES the only provider, then carry it by `#746`.
+- Email runs on Amazon SES in both environments: production access is granted, `Email__Provider` is `Ses` in both API environment groups, both SES dead-letter alarm topics email `contact@useorbit.org` (confirmed), and Resend Pro is cancelled (ends at its billing date; the free tier stays for rollback until `#943` lands). After `#943`, list the retired projects for the owner's delete click: the two Vercel Orbit projects, the paused Supabase project, and Resend.
 
 ### Batch R: the owner's redesign review, and sweeps until nothing is wrong
 
 The owner reviewed staging (`redesign/main`) and found the redesign far from the drawings and `DESIGN.md`. Everything he reported gets fixed, and the rendered sweeps (standing rule above) continue until a full pass finds nothing. This batch runs beside Batch M, because Batch M's remaining items wait on AWS; it outranks every later batch. Tickets that fix a shipped defect land on `main` first and are carried into `redesign/main` through `#556` (UI) or `#746` (API); every other ticket lands on `redesign/main`.
 
-The owner's first instruction for the next run: fix `#942` first (the Modelos row hover in the Criar hábito checklist block, which the owner called absolutely horrible), before any other queued ticket.
-
 Open pull requests and in-flight work first, in this order (heads are leads; re-read each):
 
-- `#942` The Modelos row in the create habit checklist block: square full-bleed hover fill against the input, and an empty icon slot (`icon="template"` renders nothing). Not started; first.
-- `#939` Pending skips stay out of all-done on `redesign/main`: `ui#1316` at `5cdc8fed`, one P1 (a settled skip's marker keeps the day open in cached lists); a review-batch worker was running on `ticket-939-skip-all-done-carry` when the run ended (its order lived in the old scratchpad). Read the worktree: a new commit is the fix to carry into the body, resolve the thread, push. Then `#940` carries the same fix to `main`, followed by a production web release and an Android open-track build.
-- `#930` The compact FAB sits above the shell notice: `ui#1317` at `f1d70c04`, approved, but its own new layout spec `fab-notice.spec.ts` fails at 412px ("Notice controls missing"). The fix commit is on `ticket-930-fab-celebration`, unpushed: carry its report into the body, push, rerun if `Unit Tests` hits the known flaky `pending-operation-card` test.
-- `#870` Google Calendar sync and import fold into Calendário, imported events read only (API `#937` merged): `ui#1313` at `30da0d09`, approved; merge on the bar (a merge-result check first if it overlaps later merges).
-- `#871` Perfil's two Astra rows: `ui#1320` at `5d205bb1`, approved; merge on the bar.
-- `#929` Drawn weekday values (best-day tile at `--fs-lg`) and sentence-case achievement names: `ui#1318` at `1a500d7f`, Pullfrog commented; copy approved. Fix the findings.
-- `#884` Internal habit type names never render: `ui#1319` at `161ae2f7`, Pullfrog requested changes; copy approved (the Perfil switch text is drawn verbatim). Fix the findings.
-- `#894` Each Astra write reports once in one preview block, risk level never shown: `ui#1321` at `86aa95d1`, awaiting review. Holding every write for approval needs `#893` (`repo:api`).
-- `#852` Wrapped player pages and header as drawn: `ui#1322` at `bcfe672f`, awaiting review; copy approved (eyebrows and empty state are drawn verbatim).
-- `#928` Perfil's delete row draws its icon in the danger colour: `ui#1323` at `17e67f4b`, awaiting review.
-- Batch M's web privacy disclosures: `ui#1217` on `main`, held until email runs on SES.
-
-Board closures owed (merged, still open, because a `redesign/main` merge closes nothing and the board's close workflow is off): `#916` (merged on `main` as `ui#1275`), `#919` (merged as `orbit-api#651`). Close each with `node tools/complete-ticket.mjs --issue "#N"`, a few at a time.
+- `#944` The shell scroller has no bottom clearance, so a screen's last element ends flush on the pinned chrome's divider (Perfil's "Apagar a conta" card on web); the owner has reported this repeatedly. The fix lives in the shell on both platforms, removes per-page duplicates, and proves itself with a layout spec over every destination at 412 and 1280. A worker was running on `fix/ticket-944-scroller-clearance` when the run ended: read the worktree, and deliver or salvage it.
+- `#942` The Modelos row in the create habit checklist block (rounded inset hover, restored glyphs, label "Usar modelo" / "Use template" with no count, a layout spec): `ui#1324`, copy approved; waiting on CI and review.
+- `#939` Pending skips stay out of all-done: `ui#1316`, the settled-skip fix and a shared coverage test pushed; waiting on CI and a fresh review. Then `#940` carries it to `main`, followed by a production web release and an Android open-track build.
+- `#870` Google Calendar import and sync fold into Calendário: `ui#1313`, merged forward, Sonar duplication and shared coverage fixed; waiting on CI and a fresh review.
+- `#884` Internal habit type names never render: `ui#1319`, the Astra one-time clarification label restored as "Once" / "Uma vez" (copy approved) and merged forward; waiting on CI and a fresh review.
+- `#929` Drawn weekday values and sentence-case achievement names: `ui#1318`, one P1 (the weekday still clips at a 360 viewport); a review-batch worker was running on its branch when the run ended.
+- `#894` Each Astra write reports once in one preview block: `ui#1321`, two P1s (a completed preview resets to Approve after a remount; Open after a completed goal routes to a habit); a review-batch worker was running on its branch when the run ended.
+- Batch M's `#805` (`ui#1217`, on `main`), above.
 
 Then the filed tickets, highest first. A ticket on `main` is carried into `redesign/main` by `#556`/`#746` after it merges:
 
@@ -151,13 +146,15 @@ Then the filed tickets, highest first. A ticket on `main` is carried into `redes
 - `#842` (on `main`) Web push: serve and register a service worker.
 - `#845` (on `main`) A tab that returns without an event cursor refetches account data once, not twice.
 
+Sweep findings not yet filed, to file and fix: Perfil's API keys heading carries the drawn `Pro` badge, never "Período de teste" on a trial; check the undrawn "Avisos neste aparelho" row against the Perfil drawing's device list; the two Render web services still report auto-deploy on although every service must deploy only through `release.yml`; `redesign/main` tests still mock the removed `@vercel/analytics` and `@vercel/speed-insights` packages.
+
 Before a new ticket starts, check its files against the open pull requests: a ticket whose files overlap one waits for that one to merge. The shared i18n JSON files do not count as overlap, but `#934` rewrites dozens of pt-BR strings and should start when few copy pull requests are open.
 
 Decisions this run took that bind the rest of the batch: a drawn string beats a ticket paraphrase and a worker's second-opinion dissent (the orchestrator frames `/second-opinion` as a claimed defect, so DISAGREE approves); the pt-BR delete verb is "Apagar" everywhere (every drawing uses it); an existing type token may replace a drawn size that cannot fit the longest locale value (`--fs-lg` for the best-day tile); the Perfil "Análise de uso" switch stays although the drawing omits it, because removing a usage-analytics consent control drops the person's privacy choice; a flexible habit is done for the day once logged; a toast host follows the topmost open modal (sheet, dialog, command palette).
 
 Unverified findings, reproduce before filing: two copies of Habit detail stay on screen after a client navigation from Hoje in a hidden browser window (both copies are Habit detail, which points at an exit animation paused by the hidden window; re-check in a visible window). The not-found page shows Today's composer chips; confirm whether the drawing wants chips there.
 
-Sweep coverage so far: the latest sweeps ran on staging web `8393f925` at 600px and 1280px and verified the delete flow ("Apagar este hábito?"), the Perfil key count, the Astra habit block, the sidebar "Buscar" and "Criar hábito", "Todo dia" rows, live composer chips, the in-shell not-found page, Sobre, desktop search and Progresso's hidden title (drawn). Still to sweep at both widths after the next staging release: everything merged since `8393f925` (drawn toasts in every modal, the Perfil Clock row and 12 or 24 hour times, Wrapped's desktop frame, Avisos rows, onboarding, Habit detail's single heading), then every later merge, until a full pass finds nothing. The owner's staging account holds "Ler 10 minutos" (daily 21:00), "Beber água" (daily 08:00) and "Caminhar"; delete "Ler 10 minutos" once sweeps no longer need it.
+Sweep coverage so far: staging web runs `redesign/main` at the head released last (read `/api/health`). No full sweep ran on the builds carrying the Perfil Astra rows, the Perfil delete icon, the FAB above the notice or the Wrapped player; sweep them first. Every sweep scrolls each screen's shell scroller to its end at both widths and checks the last element clears the pinned chrome. The owner's staging account holds "Ler 10 minutos" (daily 21:00) and others; delete "Ler 10 minutos" once sweeps no longer need it.
 
 ### Batch 0a: DONE
 
@@ -449,6 +446,7 @@ Current operational rules above take precedence when a record conflicts.
 - Render provider v1.9.1 turns a digest image path into a tag on any web service update, so an existing web service is never updated through Terraform; the release workflows own web digests (`ignore_changes` on the digest) and the `#814` guard rejects in-place web service updates before apply.
 - Staging services: `orbit-api-staging`, `orbit-web-staging` (`srv-dass1t0jo6nc73d5s340`) and `orbit-landing-staging` deploy only through `release.yml` with a selected branch; today they run `redesign/main`.
 - Staging billing runs on Stripe test mode: product, four prices and the webhook exist, with ids and secrets in SSM `/orbit/staging/api/Stripe__*`; `Stripe:PublishableKey` was deleted because nothing read it.
+- A `gh issue list --search` call spends the separate search rate limit and can fail while the GraphQL budget is fine; probe `rateLimit` before concluding GraphQL is exhausted, and filter REST issue listings locally instead.
 - `useorbit.org` DNS is served by Cloudflare (zone `3f80ecc2735314886702b6643b15d150`, nameservers `candy` and `tom`). Cloudflare DNSSEC signs the zone (KSK key tag 2371, algorithm 13); its DS record (digest type 2, digest `550CC9A0902AC2319B30F903A53F7D487E2172A4B2E65C587348A0867EC2DC46`) is added at Spaceship > useorbit.org > DNSSEC. Never add a DS whose zone is not the delegated, signed one: that breaks resolution for validating resolvers.
 - Apply Terraform only with `-target` lists that exclude the web services and the production API service unless the change is intended; a full plan still carries items that need a release first.
 - The repositories stay public: GitHub-hosted CI is free only for public repositories (one day measured 21,300 Linux minutes across the three), and CodeQL's licence covers only open source code. Never commit Terraform state or a secret.
@@ -496,11 +494,11 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository (REST `gh api repos/thomasluizon/<repo>/pulls?state=open` while GraphQL is exhausted).
 
-Batch M is done except email: production runs entirely on the new stack. Production web runs `24160e3a` (`main`, with `#848` notification routes and closed-month Wrapped, and `#931` all-done counting a completed due habit and ignoring a pending skip); Android 1.3.43 (102) is on the open track with the same; the production API runs `4c108bd0`. A narrow gap shipped with `#931`: a settled skip's marker stays in cached lists until a refetch, so logging the last due habit can miss the all-done celebration; `#940` fixes it on `main` after `#939` lands. Email still goes through Resend: AWS has not granted SES production access, and AWS owes the next reply.
+Batch M is done except the Resend retirement (`#943`) and `#805`: production runs entirely on the new stack and email sends through Amazon SES in both environments. Production web runs `24160e3a` (`main`); Android 1.3.43 (102) is on the open track; the production API runs `a78ba3aa`.
 
-THE REDESIGN GATE is open and failing: Batch R is in progress. `redesign/main` (`ui`) is at `4871a5d5`; staging web runs `8393f925` and needs a release; the staging API runs `40efecfb` (`orbit-api` `redesign/main`, with imported calendar events behind `includeImported`). The internal Android build 1.3.39 (98) is still the one on the internal track; the next internal build waits until Batch R lands.
+THE REDESIGN GATE is open: Batch R is in progress. `redesign/main` (`ui`) carries the Perfil Astra rows, the Perfil delete icon, the FAB above the shell notice and the Wrapped player as drawn; a staging web release of that head was running when the run ended. The staging API runs `40efecfb` (`orbit-api` `redesign/main`). The internal Android build 1.3.39 (98) is still the one on the internal track; the next internal build waits until Batch R lands.
 
-Open pull requests: `ui` `#1313`, `#1316`, `#1317`, `#1318`, `#1319`, `#1320`, `#1321`, `#1322`, `#1323` (base `redesign/main`) and `#1217` (base `main`); none in `orbit-api` or `orbit-landing-page`. See Batch R's in-flight list for each one's state.
+Open pull requests: `ui` `#1313`, `#1316`, `#1318`, `#1319`, `#1321`, `#1324` (base `redesign/main`) and `#1217` (base `main`); none in `orbit-api` or `orbit-landing-page`. See Batch R's in-flight list for each one's state.
 
 Pullfrog sometimes publishes no review of a merge-forward or review-fix push, and sometimes approves a head without publishing the `pullfrog-approval` check; request a review with `node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900` (add `--re-review` when the head already has a review). A pull request whose base moved under it is proven with the combined local merge-result check before merging at its approved head; a conflict is resolved on the branch and pushed.
 
@@ -508,8 +506,8 @@ Waiting on the owner:
 
 - The redesign approval at THE REDESIGN GATE, after Batch R.
 - A device test of `#390` (bulk log replay) and `#134` (three-dot menu) on the current open-track build.
-- The delete click on the retired projects once he is satisfied: the two Vercel Orbit projects, the paused Supabase project, and Resend after its cancellation.
+- The delete click on the retired projects once `#943` lands: the two Vercel Orbit projects, the paused Supabase project, and Resend.
 
 Watch windows: `#565` closes seven days after the web deploy of `f0322e3a` and `#566` seven days after Android 1.3.37 went live, if Sentry shows no recurrence of ORBIT-WEB-C or ORBIT-MOBILE-5.
 
-Board status: a closed ticket that still shows a Todo Status needs `complete-ticket.mjs --repair-status`, a few at a time. Worktrees: each merged ticket's worktree can go with `node tools/teardown-worktree.mjs`, which refuses anything unmerged. Local branches of squash-merged pull requests (`ticket-862-onboarding-details`, `ticket-867-sobre-labels`, `ticket-882-drawn-toast`, `ticket-888-shell-not-found`) show commits ahead of a deleted upstream; they are merged, not lost. Unpushed real work: `ticket-805-privacy-processors` (1 commit), `ticket-930-fab-celebration` (1 commit, the layout fix), `ticket-939-skip-all-done-carry` (a worker may have added the settled-skip fix). The detached scratch worktree `integ` under an old scratchpad and the detached `ticket-822-web-health-retry` are removable with `git worktree remove` (no `--force`: `node_modules` holds symlinks).
+Board status: a closed ticket that still shows a Todo Status needs `complete-ticket.mjs --repair-status`, a few at a time. Worktrees: each merged ticket's worktree can go with `node tools/teardown-worktree.mjs`, which refuses anything unmerged (the merged `ticket-852`, `ticket-871`, `ticket-928` and `ticket-930` worktrees are among them). Local branches of squash-merged pull requests (`ticket-862-onboarding-details`, `ticket-867-sobre-labels`, `ticket-882-drawn-toast`, `ticket-888-shell-not-found`) show commits ahead of a deleted upstream; they are merged, not lost. The detached `ticket-822-web-health-retry` worktree is removable with `git worktree remove` (no `--force`).

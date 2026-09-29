@@ -1,14 +1,34 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { WrappedSlide } from '@/components/wrapped/wrapped-slide'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import {
   reanimatedTestState,
   withDelayCalls,
   withTimingCalls,
 } from '@/test-mocks/react-native-reanimated'
+
+const translationState = vi.hoisted(() => ({ realLocale: '' }))
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({ resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, lng: 'en', fallbackLng: 'en', initAsync: false })
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => translationState.realLocale
+      ? testI18n.getFixedT(translationState.realLocale)(key, params)
+      : params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: translationState.realLocale || 'en' },
+  }),
+}))
 
 vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => React.createElement('ShareCard'),
@@ -48,8 +68,59 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 describe('mobile WrappedSlide', () => {
   afterEach(() => {
     reanimatedTestState.reducedMotion = false
+    translationState.realLocale = ''
     withDelayCalls.length = 0
     withTimingCalls.length = 0
+  })
+
+  it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {
+    const completions = buildWrappedSlides(recap).find((slide) => slide.id === 'completions')!
+    const tree = renderSlide(completions)
+    const page = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-completions')[0]!
+    const figure = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-figure')[0]!
+    expect(StyleSheet.flatten(page.props.style)).toMatchObject({ alignItems: 'flex-start', paddingHorizontal: 16 })
+    expect(StyleSheet.flatten(figure.props.style)).toMatchObject({ fontSize: 60 })
+    expect(StyleSheet.flatten(figure.props.style)).not.toHaveProperty('textAlign', 'center')
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.completions.eyebrow')).toHaveLength(0)
+  })
+
+  it.each([
+    ['en', 0, 'Your next log starts a new streak.'],
+    ['en', 1, 'Your current streak is 1 day.'],
+    ['en', 5, 'Your current streak is 5 days.'],
+    ['pt-BR', 0, 'Seu próximo registro começa uma nova sequência.'],
+    ['pt-BR', 1, 'Sua sequência atual é de 1 dia.'],
+    ['pt-BR', 5, 'Sua sequência atual é de 5 dias.'],
+  ])('renders the %s current streak caption at %i', (locale, count, caption) => {
+    translationState.realLocale = locale
+    const tree = renderSlide({ id: 'streak', bestStreak: 8, currentStreak: count })
+    expect(tree.root.findAll((node) => node.props.children === caption).length).toBeGreaterThan(0)
+  })
+
+  it('puts the intro mark before its title and uses the 28px weekday and share titles', () => {
+    const slides = buildWrappedSlides(recap)
+    const intro = renderSlide(slides.find((slide) => slide.id === 'intro')!)
+    const introParts = intro.root.findAll((node) => typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-'))
+    expect(introParts[0]?.props.nativeID).toBe('wrapped-motion-part-0')
+    expect((introParts[0]?.props.children as React.ReactElement).type).toBe(OrbitMark)
+    expect(introParts[1]?.props.children).toBe('wrapped.slides.intro.week')
+    expect(introParts[1]?.props.accessibilityRole).toBe('header')
+    const weekday = renderSlide(slides.find((slide) => slide.id === 'consistency')!)
+    const weekdayTitle = weekday.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.title' && typeof node.type === 'string')[0]!
+    expect(StyleSheet.flatten(weekdayTitle.props.style)).toMatchObject({ fontSize: 28 })
+    expect(weekdayTitle.props.accessibilityRole).toBe('header')
+    const share = renderSlide(slides.find((slide) => slide.id === 'share')!)
+    const shareTitle = share.root.findAll((node) => node.props.children === 'wrapped.slides.share.title' && typeof node.type === 'string')[0]!
+    expect(StyleSheet.flatten(shareTitle.props.style)).toMatchObject({ fontSize: 28 })
+    expect(shareTitle.props.accessibilityRole).toBe('header')
+  })
+
+  it('shows an 88px well with the habit initial when emoji is absent', () => {
+    const tree = renderSlide({ id: 'topHabit', habit: { name: 'Read', emoji: null, completionRate: 50, completedCount: 5, scheduledCount: 10 } })
+    const well = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-figure')[0]!
+    expect(StyleSheet.flatten(well.props.style)).toMatchObject({ width: 88, height: 88 })
+    expect(tree.root.findAll((node) => node.props.children === 'R').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === '⭐')).toHaveLength(0)
   })
 
   it('renders the positive goal count with its specific label and caption', () => {
@@ -84,18 +155,22 @@ describe('mobile WrappedSlide', () => {
     const parts = tree.root.findAll((node) =>
       typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-'))
 
-    expect(parts.map((part) => part.props.children)).toEqual([
-      'wrapped.slides.topHabit.eyebrow',
-      topHabit.habit.emoji,
+    expect(parts.map((part) => part.props.nativeID)).toEqual([
+      'wrapped-motion-part-0', 'wrapped-motion-part-1', 'wrapped-motion-part-2', 'wrapped-motion-part-3',
+    ])
+    expect(parts.slice(1).map((part) => part.props.children)).toEqual([
       topHabit.habit.name,
+      'wrapped.slides.topHabit.label',
       'wrapped.slides.topHabit.caption:{"rate":"95%"}',
     ])
-    expect(parts[1]!.props.importantForAccessibility).toBe('no-hide-descendants')
-    expect(parts[1]!.props.accessibilityElementsHidden).toBe(true)
+    expect(parts[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(parts[0]!.props.accessibilityElementsHidden).toBe(true)
+    expect(parts[1]!.props.accessibilityRole).toBe('header')
+    expect(tree.root.findAll((node) => node.props.children === topHabit.habit.emoji).length).toBeGreaterThan(0)
     expect(parts.filter((part) => part.props.importantForAccessibility !== 'no-hide-descendants')
       .map((part) => part.props.children)).toEqual([
-      'wrapped.slides.topHabit.eyebrow',
       topHabit.habit.name,
+      'wrapped.slides.topHabit.label',
       'wrapped.slides.topHabit.caption:{"rate":"95%"}',
     ])
   })
