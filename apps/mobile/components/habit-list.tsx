@@ -516,6 +516,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const hasQueuedParentPrompt = parentPrompt !== null
     const promptDataRef = useRef<ParentSettlementData | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deletePending, setDeletePending] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
     const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
     const [habitToSkip, setHabitToSkip] = useState<{ habit: NormalizedHabit; date: string } | null>(null)
@@ -1361,12 +1362,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const confirmDelete = useCallback(async () => {
       if (!habitToDelete) return
 
+      setDeletePending(true)
+      setShowDeleteConfirm(false)
+
       try {
         await deleteMutation.mutateAsync(habitToDelete)
       } catch {
       } finally {
         setHabitToDelete(null)
-        setShowDeleteConfirm(false)
+        setDeletePending(false)
       }
     }, [deleteMutation, habitToDelete])
 
@@ -1663,6 +1667,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListConfirmDialogs
           t={t}
           showDeleteConfirm={showDeleteConfirm}
+          deletePending={deletePending}
           deleteHabitName={deleteConfirmation.name}
           deleteDescendantCount={deleteConfirmation.descendantCount}
           duplicateHabitName={habitToDuplicate?.title ?? null}

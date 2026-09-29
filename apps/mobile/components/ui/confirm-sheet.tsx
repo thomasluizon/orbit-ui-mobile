@@ -16,6 +16,8 @@ interface ConfirmSheetProps {
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
+  confirmImmediately?: boolean
+  loading?: boolean
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
   /** Runs after the sheet is gone when the person confirms. It has to hide the sheet. */
@@ -31,6 +33,8 @@ export function ConfirmSheet({
   cancelLabel,
   destructive = false,
   inlineActions = false,
+  confirmImmediately = false,
+  loading = false,
   onCancel,
   onConfirm,
 }: Readonly<ConfirmSheetProps>) {
@@ -66,13 +70,17 @@ export function ConfirmSheet({
 
   if (!lifecycle.mounted) return null
 
-  const actionsDisabled = lifecycle.closing || !open
+  const actionsDisabled = lifecycle.closing || !open || loading
   const cancel = () => {
     if (actionsDisabled) return
     closeSheet()
   }
   const confirm = () => {
     if (actionsDisabled) return
+    if (confirmImmediately) {
+      onConfirm()
+      return
+    }
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
@@ -86,6 +94,7 @@ export function ConfirmSheet({
       matchedWidth={!inlineActions}
       size={inlineActions ? 'sm' : 'md'}
       disabled={actionsDisabled}
+      loading={loading}
       onClick={confirm}
     >
       {confirmLabel}

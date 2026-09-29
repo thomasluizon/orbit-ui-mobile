@@ -2771,6 +2771,25 @@ describe('HabitList', () => {
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
   })
 
+  it('starts a future-day row delete as soon as confirmation is pressed', async () => {
+    const habit = createMockHabit({ id: 'future-delete', title: 'Read', scheduledDates: [TOMORROW] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    sheetTestControls.defer(true)
+
+    renderWithProviders(
+      <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
+        selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />,
+    )
+    fireEvent.click(screen.getByTestId('delete-future-delete'))
+    const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
+
+    expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
+    expect(deleteHabitMutateAsync).toHaveBeenCalledTimes(1)
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith('future-delete')
+  })
+
   it('opens the skip sheet from the recurring row menu without sending the mutation', async () => {
     rowImplementation.actual = true
     vi.stubGlobal('matchMedia', (query: string) => ({

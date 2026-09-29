@@ -695,6 +695,7 @@ export function HabitList({
   const [showRescheduleSheet, setShowRescheduleSheet] = useAccountScopedState(false)
   const [habitToReschedule, setHabitToReschedule] = useAccountScopedState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
+  const [deletePending, setDeletePending] = useState(false)
   const [habitToDelete, setHabitToDelete] = useAccountScopedState<string | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
   const [habitToSkip, setHabitToSkip] = useAccountScopedState<{ habit: NormalizedHabit; date: string } | null>(null)
@@ -1054,12 +1055,14 @@ export function HabitList({
 
   async function confirmDelete() {
     if (!habitToDelete) return
+    setDeletePending(true)
+    setShowDeleteConfirm(false)
     try {
       await deleteHabitMut.mutateAsync(habitToDelete)
     } catch {
     } finally {
       setHabitToDelete(null)
-      setShowDeleteConfirm(false)
+      setDeletePending(false)
     }
   }
 
@@ -1439,6 +1442,7 @@ export function HabitList({
       <DeferredConfirmDialogs
         t={t}
         showDeleteConfirm={showDeleteConfirm}
+        deletePending={deletePending}
         deleteHabitName={deleteConfirmation.name}
         deleteDescendantCount={deleteConfirmation.descendantCount}
         duplicateHabitName={habitToDuplicate?.title ?? null}

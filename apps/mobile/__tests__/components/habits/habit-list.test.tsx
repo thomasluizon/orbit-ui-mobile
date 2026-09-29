@@ -1177,6 +1177,29 @@ describe('HabitList', () => {
     expect(deleteMutateAsync).toHaveBeenCalledWith('habit-1')
   })
 
+  it('starts a future-day row delete as soon as confirmation is pressed', () => {
+    const habit = createMockHabit({ id: 'future-delete', title: 'Read', scheduledDates: [TOMORROW] })
+    seedHabits([habit])
+    sheetTestControls.defer(true)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" selectedDate={new Date(`${TOMORROW}T09:00:00Z`)}
+          filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    const row = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'future-delete')
+    TestRenderer.act(() => { row?.props.actions.onDelete() })
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(1)
+
+    TestRenderer.act(() => { pressConfirm(tree, 'habits.deleteHabit') })
+
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
+    expect(deleteMutateAsync).toHaveBeenCalledTimes(1)
+    expect(deleteMutateAsync).toHaveBeenCalledWith('future-delete')
+  })
+
   it('omits the habit description from the canonical row', () => {
     seedHabits([
       createMockHabit({ id: 'habit-desc', title: 'Meditate', description: 'Ten minutes of breathing' }),

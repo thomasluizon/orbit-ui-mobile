@@ -7,6 +7,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
   showDeleteConfirm: boolean
+  deletePending: boolean
   deleteHabitName: string
   deleteDescendantCount: number
   duplicateHabitName: string | null
@@ -25,6 +26,7 @@ interface HabitListConfirmDialogsProps {
 export function HabitListConfirmDialogs({
   t,
   showDeleteConfirm,
+  deletePending,
   deleteHabitName,
   deleteDescendantCount,
   duplicateHabitName,
@@ -89,6 +91,8 @@ export function HabitListConfirmDialogs({
         )}
         confirmLabel={t('habits.deleteHabit')}
         destructive
+        confirmImmediately
+        loading={deletePending}
         onCancel={onCancelDelete}
         onConfirm={onConfirmDelete}
       />
