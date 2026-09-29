@@ -8,6 +8,7 @@ import {
   gamificationKeys,
   profileKeys,
   updateHabitListsForDate,
+  clearCachedOptimisticSkip,
   checkTodayAllDoneOrDefer,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
@@ -305,7 +306,7 @@ export function useSkipHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; skippedDate: string }
   >({
     mutationFn: ({ habitId, date }) =>
       performQueuedApiMutation<void>({
@@ -322,17 +323,18 @@ export function useSkipHabit() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
+      const skippedDate = date ?? formatAPIDate(new Date())
 
       /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
-        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
+        updateHabitListsForDate(queryClient, skippedDate, (items) => {
           const habit = findHabitInList(items, habitId)
           if (!habit) return items
-          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
+          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate))
         })
       }
 
-      return { previousLists }
+      return { previousLists, skippedDate }
     },
 
     onError: (_err, _vars, context) => {
@@ -343,7 +345,8 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: (data, error, { habitId }) => {
+    onSettled: (data, error, { habitId }, context) => {
+      if (!error && context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
       finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false, includeGoals: true })
     },
   })
