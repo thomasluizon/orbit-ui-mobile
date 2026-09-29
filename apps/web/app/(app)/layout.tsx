@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useId, Suspense } from 'react'
+import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -51,7 +51,8 @@ import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { CommandPaletteBackground } from '@/components/command/command-palette'
-import { TodayProvider } from './today-provider'
+import { TodayProvider, useToday } from './today-provider'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import {
   isCalendarPromptCriteriaMet,
   isImportPromptCriteriaMet,
@@ -61,6 +62,7 @@ import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
+import { isPublicPath } from '@/lib/public-paths'
 
 const CreateHabitModal = dynamic(() =>
   import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal),
@@ -78,7 +80,7 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (pathname === '/about' && !isAuthenticated) return <>{children}</>
+  if (!isAuthenticated && isPublicPath(pathname)) return <>{children}</>
   return (
     <Providers>
       <AccountEventConnection />
@@ -129,12 +131,27 @@ function CreateHabitModalFromQuery({ pathname, activeView, onOpenChange }: Reado
   )
 }
 
+function subscribeToGeneralPreference() { return () => {} }
+function readServerGeneralPreference() { return false }
+
+function SyncComposerDate({ onChange }: Readonly<{ onChange: (date: string | undefined) => void }>) {
+  const searchParams = useSearchParams()
+  const date = searchParams.get('date')
+  useLayoutEffect(() => {
+    onChange(date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined)
+  }, [date, onChange])
+  return null
+}
+
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
+  const today = useToday(profile?.timeZone)
+  const [composerDate, setComposerDate] = useState<string | undefined>()
+  const includeGeneral = useSyncExternalStore(subscribeToGeneralPreference, readShowGeneralOnToday, readServerGeneralPreference)
   const { isOnline } = useOffline()
   const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
   useEffect(() => {
@@ -169,7 +186,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     handleFileSelect,
     handleTextFileSelect,
     ...chat
-  } = useChatComposer()
+  } = useChatComposer({
+    pathname,
+    today,
+    selectedDate: pathname === '/' ? composerDate : undefined,
+    totalHabitCount: habitCountLoaded ? totalHabitCount : null,
+    includeGeneral,
+  })
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useAccountScopedState(false)
   const [calendarPromptOffered, setCalendarPromptOffered] = useAccountScopedState(false)
@@ -298,6 +321,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   return (
     <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
       <Suspense fallback={null}>
+        <SyncComposerDate onChange={setComposerDate} />
         <OpenAstraFromQuery pathname={pathname} onOpen={setAstraConversationOpen} />
       </Suspense>
       <DestinationShell

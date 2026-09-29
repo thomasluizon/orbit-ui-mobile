@@ -181,11 +181,11 @@ interface ApiKeyGateProps {
   busy: boolean
   accountReady: boolean
   error: string | null
-
+  activeApiKeyCount: number | null | undefined
   onStartStepUp: () => Promise<void>
 }
 
-function ApiKeyGate({ busy, accountReady, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepUp }: Readonly<ApiKeyGateProps>) {
   const t = useTranslations()
   const [showStepUp, setShowStepUp] = useAccountScopedState(false)
 
@@ -196,6 +196,11 @@ function ApiKeyGate({ busy, accountReady, error, onStartStepUp }: Readonly<ApiKe
         <ListRow
           icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.open')}
+          wrapTitle
+          value={activeApiKeyCount == null ? undefined : activeApiKeyCount === 0
+            ? t('profile.apiKeys.noKeys')
+            : t('profile.apiKeys.activeCount', { count: activeApiKeyCount })}
+          wrapValue
           onClick={() => setShowStepUp(true)}
         />
       </RowList>
@@ -230,6 +235,7 @@ function ApiKeyAccessContent({
   accountReady,
   children,
   error,
+  activeApiKeyCount,
   hasProAccess,
   onStartStepUp,
   onUpgrade,
@@ -252,7 +258,7 @@ function ApiKeyAccessContent({
     )
   }
   if (!unlocked) {
-    return <ApiKeyGate busy={busy} accountReady={accountReady} error={error} onStartStepUp={onStartStepUp} />
+    return <ApiKeyGate busy={busy} accountReady={accountReady} error={error} activeApiKeyCount={activeApiKeyCount} onStartStepUp={onStartStepUp} />
   }
   return children
 }
@@ -398,6 +404,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       </p>
 
       <ApiKeyAccessContent
+        activeApiKeyCount={profile?.activeApiKeyCount}
         accountReady={stepUp.accountReady}
         busy={stepUp.busy}
         error={stepUp.error}

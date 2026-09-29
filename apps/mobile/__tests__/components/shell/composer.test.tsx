@@ -1,5 +1,5 @@
 import React from 'react'
-import { Animated, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
@@ -40,7 +40,7 @@ vi.mock('react-native', async (importOriginal) => {
     },
   )
 
-  return { ...original, Pressable }
+  return { ...original, Pressable, AccessibilityInfo: { ...original.AccessibilityInfo, sendAccessibilityEvent: vi.fn() } }
 })
 
 const TestRenderer = require('react-test-renderer')
@@ -147,21 +147,37 @@ describe('Composer (mobile)', () => {
     timing.mockRestore()
   })
 
+  it('renders no chip row for an empty suggestion list', async () => {
+    const tree = await renderComposer(props({ suggestions: [] }))
+    expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
+  })
+
   it('renders six suggestions', async () => {
     const tree = await renderComposer(props({ suggestions: suggestions(6) }))
     expect(textValues(tree.root).filter((value: unknown) => String(value).startsWith('chip sentinel'))).toHaveLength(6)
+  })
+
+  it('moves accessibility focus to the persistent input when a chip sends', async () => {
+    const chips = suggestions(3)
+    const tree = await renderComposer(props({ suggestions: chips }))
+    const chip = tree.root.findAllByType('Pressable').find(
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[0]!.label,
+    )
+    if (!chip) throw new Error('Expected first chip')
+    pressControl(chip)
+    expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: expect.any(Number) }), 'focus')
   })
 
   it('selects only the pressed suggestion', async () => {
     const chips = suggestions(3)
     const tree = await renderComposer(props({ suggestions: chips }))
     const secondChip = tree.root.findAllByType('Pressable').find(
-      (node: { props: { onPress?: unknown } }) => node.props.onPress === chips[1].onSelect,
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === chips[1]!.label,
     )
     if (secondChip) pressControl(secondChip)
-    expect(chips[1].onSelect).toHaveBeenCalledOnce()
-    expect(chips[0].onSelect).not.toHaveBeenCalled()
-    expect(chips[2].onSelect).not.toHaveBeenCalled()
+    expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
+    expect(chips[0]!.onSelect).not.toHaveBeenCalled()
+    expect(chips[2]!.onSelect).not.toHaveBeenCalled()
   })
 
   it('reports input changes', async () => {
@@ -252,11 +268,11 @@ describe('Composer (mobile)', () => {
     expect(onSend).toHaveBeenCalledOnce()
   })
 
-  it('disables input and send while keeping suggestions during sending', async () => {
+  it('disables input and send and hides suggestions during sending', async () => {
     const tree = await renderComposer(props({ state: 'sending', value: 'oi' }))
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
     expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
-    expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(1)
+    expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
   })
 
   it('renders only the limit reason above disabled neutral controls', async () => {

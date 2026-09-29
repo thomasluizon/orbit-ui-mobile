@@ -207,7 +207,7 @@
     "createHabit": "Create habit",
     "profile": "Profile",
     "astra": "Astra",
-    "create": "Create",
+    "search": "Search",
     "today": "Today",
     "progress": "Progress",
     "mainNavigation": "Main navigation"
@@ -242,6 +242,48 @@
       "offline": {
         "placeholder": "No connection",
         "reason": "No connection. Astra comes back when the connection does."
+      },
+      "chips": {
+        "today": {
+          "moveOverdue": "Move {title} to tonight",
+          "logHabit": "Log {title}",
+          "logYesterday": "Log yesterday",
+          "pushTomorrow": "Push everything to tomorrow",
+          "trimHabit": "Trim {title}",
+          "createMorningHabit": "Create a morning habit",
+          "logLastDays": "Log the last days",
+          "resumeHabits": "Pick the habits back up",
+          "cutToTwo": "Cut to two a day",
+          "changeTimes": "Change the times",
+          "pauseWhatDoesNotFit": "Pause what does not fit",
+          "keepOnlyHabit": "Keep only {title}",
+          "buildMorningRoutine": "Build a morning routine",
+          "startOneHabit": "Start with one habit",
+          "suggestThreeHabits": "Suggest three habits",
+          "createEveningHabit": "Create an evening habit",
+          "reviewHabit": "Review {title}"
+        },
+        "calendar": {
+          "slippedThisWeek": "What slipped this week",
+          "syncCalendar": "Sync my calendar"
+        },
+        "progress": {
+          "createGoal": "Create a goal for {title}",
+          "brokenStreak": "Why the streak broke",
+          "trimGoals": "Trim my goals",
+          "stuckThisWeek": "What is getting stuck this week"
+        },
+        "profile": {
+          "changeTimezone": "Change my timezone",
+          "turnOffSummary": "Turn off the daily summary",
+          "seePlan": "See my plan",
+          "exportData": "Export my data"
+        },
+        "habitDetail": {
+          "askAstra": "Ask Astra",
+          "pauseThisWeek": "Pause this week",
+          "rename": "Rename"
+        }
       }
     }
   },
@@ -520,9 +562,9 @@
     "postponeConfirmTitle": "Postpone {name}?",
     "postponeConfirmMessage": "It moves to tomorrow, with nothing logged.",
     "postponeConfirmButton": "Postpone",
-    "deleteConfirmTitle": "Delete Habit",
+    "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
-    "deleteListConfirmMessage": "{name} and {count} item inside it leave your list. You can undo it from the message that appears. | {name} and {count} items inside it leave your list. You can undo it from the message that appears.",
+    "deleteListConfirmMessage": "{name} leaves your list. You can undo it from the message that appears. | {name} and {count} item inside it leave your list. You can undo it from the message that appears. | {name} and {count} items inside it leave your list. You can undo it from the message that appears.",
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate habit",
@@ -1236,12 +1278,6 @@
     "senderOrbit": "Astra",
     "astraAvatarLabel": "Astra avatar",
     "unknownEntity": "Unknown",
-    "starterChips": {
-      "logHabit": "Log a habit",
-      "createRoutine": "Create a routine",
-      "howAmIDoing": "How am I doing?",
-      "planWeek": "Plan my week"
-    },
     "habitList": {
       "title": "Today's habits",
       "allTitle": "All habits",
@@ -1634,6 +1670,8 @@
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
       "open": "Open the keys",
+      "noKeys": "No keys yet",
+      "activeCount": "{count, plural, one {# active key} other {# active keys}}",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",

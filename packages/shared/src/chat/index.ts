@@ -1,3 +1,4 @@
+export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'
 export * from './message-actions'
@@ -11,13 +12,6 @@ export * from './account-rows-core'
 export * from './record-list-core'
 
 export const CHAT_VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22] as const
-
-export const CHAT_STARTER_CHIP_KEYS = [
-  'chat.starterChips.logHabit',
-  'chat.starterChips.createRoutine',
-  'chat.starterChips.howAmIDoing',
-  'chat.starterChips.planWeek',
-] as const
 
 /**
  * Maximum silence between chat stream events before the client aborts the send

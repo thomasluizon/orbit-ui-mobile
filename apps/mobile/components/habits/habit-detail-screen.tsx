@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import {
   buildHabitDetailUpdateRequest,
@@ -34,7 +34,6 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, NormalizedHabit } from '@orbit/shared/types/habit'
-import { publishContextualSuggestion } from '@orbit/shared/stores'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -65,7 +64,6 @@ import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useChatStore } from '@/stores/chat-store'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
@@ -131,7 +129,8 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
     <View style={styles.header}>
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
       <View style={styles.headerCopy}>
-        {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)}><Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
+        <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
+        {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
         <Text numberOfLines={1} style={[styles.muted, { color: tokens.fg3 }]}>{summary}</Text>
         {habit.tags.length > 0 ? <View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View> : null}
       </View>
@@ -240,9 +239,9 @@ function LogDateError({ visible, tokens }: Readonly<{ visible: boolean; tokens: 
   return <View accessibilityLiveRegion="polite">{visible ? <Text style={[styles.muted, { color: tokens.statusBadText, marginHorizontal: 16 }]}>{t('habits.detail.logDateUnavailable')}</Text> : null}</View>
 }
 
-function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: string | null; onBack: () => void }>) {
+function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
   const { t } = useTranslation()
-  return <AppBar title={t('habits.detail.screenTitle')} onBack={onBack}
+  return <AppBar title={t('habits.detail.screenTitle')} titleIsHeading={titleIsHeading} onBack={onBack}
     backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
 }
 
@@ -251,7 +250,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
   if (!profile) {
-    return <FlowShell nav={false} header={<HabitDetailNavigation parentId={parentId} onBack={() => {
+    return <FlowShell nav={false} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
       if (parentId || fromToday) router.back()
       else router.replace(date ? { pathname: '/(tabs)', params: { date } } : '/(tabs)')
     }} />}>
@@ -336,15 +335,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       Animated.timing(detailOpacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
     }
   }, [detailChevron, detailOpacity, detailsOpen])
-  useFocusEffect(useCallback(() => {
-    if (!habit) return
-    const contextualSuggestion = {
-      id: `habit-${habit.id}`,
-      label: t('habits.detail.askAstra'),
-      prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
-    }
-    return publishContextualSuggestion(useChatStore.getState, contextualSuggestion)
-  }, [habit, t]))
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()
@@ -437,7 +427,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   )
   const childUnavailableReason = t(childUnavailableReasonKey)
 
-  const appBar = <HabitDetailNavigation parentId={parentId} onBack={back} />
+  const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || allHabitsQuery.isLoading || detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data} onBack={back} />
   if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
   if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
 
@@ -487,6 +477,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4, paddingTop: 4 },
   title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29 },
+  renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
+  hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, borderBottomWidth: 1, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 18, lineHeight: 24 },

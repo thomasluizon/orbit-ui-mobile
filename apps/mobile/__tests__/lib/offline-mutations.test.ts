@@ -2760,6 +2760,23 @@ describe('offline mutation helpers', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/tags/work', expect.objectContaining({ body: JSON.stringify(payload) }), undefined)
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['tags'] })
   })
+
+  it.each([
+    ['replays', null, { succeeded: 1, remaining: 0 }],
+    ['drops', new Error('400 validation failed'), { failed: 1, remaining: 0 }],
+  ])('refreshes the profile key count when it %s a queued key revocation', async (_outcome, failure, summary) => {
+    mocks.apiClient.mockReset()
+    if (failure) mocks.apiClient.mockRejectedValue(failure)
+    else mocks.apiClient.mockResolvedValue(null)
+    mocks.invalidateQueries.mockClear()
+    mocks.queued.length = 0
+    mocks.setOnline(true)
+    mocks.queued.push(buildQueuedMutation({
+      type: 'deleteApiKey', scope: 'apiKeys', endpoint: '/api/api-keys/key-1', method: 'DELETE', payload: undefined, targetEntityId: 'key-1',
+    }))
+    expect(await flushQueuedMutations()).toMatchObject(summary)
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
   describe('stuck queue recovery', () => {
     beforeEach(() => {
       vi.clearAllMocks()

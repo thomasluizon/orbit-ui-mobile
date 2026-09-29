@@ -4,7 +4,7 @@ import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { apiKeyKeys, profileKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -60,6 +60,7 @@ export function useApiKeyManagement({
       setRevokingKeyId(null)
       setRevokeKeyError(null)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
     onError: (error) => {
       setRevokeKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.apiKeysError'))
@@ -94,6 +95,7 @@ export function useApiKeyManagement({
       consumeApiKeyCreationGrant()
       setCreateGrantAvailable(false)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       return result.response
     } catch (error) {
       if (getAccountGeneration() !== accountGeneration) return null

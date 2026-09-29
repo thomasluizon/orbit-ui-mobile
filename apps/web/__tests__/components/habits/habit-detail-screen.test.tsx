@@ -132,9 +132,6 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ onBack }: { onBack: () => void }) => <button type="button" aria-label="screen-back" onClick={onBack} />,
-}))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
@@ -228,6 +225,17 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
+  it('exposes the habit name as its only page heading and a route focus target', () => {
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const headings = screen.getAllByRole('heading', { level: 1 })
+    expect(headings).toHaveLength(1)
+    expect(headings[0]).toHaveTextContent(mocks.detail!.title)
+    expect(headings[0]).toHaveAttribute('tabindex', '-1')
+    expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
+    fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
@@ -390,7 +398,8 @@ describe('HabitDetailScreen', () => {
   it('returns a direct detail link to Today while the profile loads', () => {
     mocks.profileReady = false
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
     expect(mocks.routerBack).not.toHaveBeenCalled()
   })
@@ -405,14 +414,26 @@ describe('HabitDetailScreen', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" />)
 
     expect(screen.getAllByText('habits.detail.loading')).toHaveLength(3)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
 
     mocks.detailLoading = false
     mocks.detailError = true
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.loadError')
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('moves focus from the fallback heading to the habit heading when data arrives', () => {
+    mocks.detailLoading = true
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const fallback = screen.getByRole('heading', { level: 1 })
+    fallback.focus()
+    mocks.detailLoading = false
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
 
   it('distinguishes an absent child from unavailable day habits and restores completion after retry', () => {
@@ -576,7 +597,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'Read' })).toBeInTheDocument()
     expect(mocks.update).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
@@ -602,14 +623,14 @@ describe('HabitDetailScreen', () => {
       <HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="parent-1" fromToday />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToParentHabit' }))
     expect(mocks.history.map((entry) => entry.path)).toEqual([
       '/?date=2026-08-28',
       '/habits/parent-1?date=2026-08-28&from=today',
     ])
 
     view.rerender(<HabitDetailScreen habitId="parent-1" date="2026-08-28" fromToday />)
-    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
 
     expect(mocks.history).toEqual([
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
@@ -885,7 +906,7 @@ describe('HabitDetailScreen', () => {
     mocks.uses24HourClock = uses24HourClock
     mocks.detail = { ...makeDetail(), dueTime: '19:30' }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const header = view.container.querySelector('header')
+    const header = view.container.querySelector('[data-habit-detail-content] header')
     expect(header).toHaveTextContent(expected)
     expect(header).not.toHaveTextContent(excluded)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
@@ -1303,15 +1324,9 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('puts the grounded Astra seed in the persistent composer', () => {
+  it('leaves habit detail suggestions to the shell composer', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'habit-habit-1',
-      label: 'habits.detail.askAstra',
-      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    })
-    expect(screen.queryByRole('button', { name: 'habits.detail.askAstra' })).not.toBeInTheDocument()
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 

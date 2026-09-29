@@ -68,7 +68,7 @@ const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> =
   tags: [tagKeys.all, habitKeys.lists(), habitKeys.searches()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
-  apiKeys: [apiKeyKeys.all],
+  apiKeys: [apiKeyKeys.all, profileKeys.all],
   calendar: [profileKeys.all],
 }
 

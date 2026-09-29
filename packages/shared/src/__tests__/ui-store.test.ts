@@ -31,6 +31,13 @@ function createStoreHarness() {
 }
 
 describe("shared ui store", () => {
+  it("keeps the Calendar error signal outside persisted UI state", () => {
+    const store = createStoreHarness();
+    store.getState().setCalendarHasError(true);
+    expect(store.getState().calendarHasError).toBe(true);
+    expect(getPersistedUIState(store.getState())).not.toHaveProperty('calendarHasError');
+  });
+
   it("reserves only one prompt while an overlay or create form is open", () => {
     const store = createStoreHarness();
     expect(store.getState().tryReservePromptOverlay("calendar")).toBe(true);

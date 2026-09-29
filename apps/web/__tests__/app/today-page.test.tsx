@@ -44,8 +44,8 @@ vi.mock('@/components/ui/icons', async (importOriginal) => ({
 }))
 
 vi.mock('@/components/ui/menu', () => ({
-  Menu: ({ open, items, onSelect, title }: any) => open ? (
-    <div role="menu" aria-label={title}>
+  Menu: ({ id, open, items, onSelect, title }: any) => open ? (
+    <div id={id} role="menu" aria-label={title}>
       {items.map((item: any) => (
         <button key={item.id} role="menuitem" onClick={() => onSelect(item.id)}>
           {item.icon ? <Icon name={item.icon} size={20} /> : null}
@@ -297,6 +297,15 @@ describe('Hoje date control', () => {
       expect(className).toContain('hover:bg-[var(--bg-hover)]')
       expect(className).toContain('var(--dur-hover-control)')
     }
+  })
+
+  it('connects the list options button to its menu', async () => {
+    render(<TodayDateControl {...baseProps} />)
+    const button = screen.getByRole('button', { name: 'List options' })
+    fireEvent.click(button)
+    expect(await screen.findByRole('menu')).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveAttribute('role', 'menu')
   })
 
   it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', (plan) => {

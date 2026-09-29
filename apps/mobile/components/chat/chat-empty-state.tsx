@@ -8,10 +8,11 @@ import type { ChatStyles } from "@/components/chat/conversation.styles";
 interface ChatEmptyStateProps {
   styles: ChatStyles;
   onSelectSuggestion: (suggestion: string) => void;
+  contextualAction?: { label: string; onSelect: () => void };
 }
 
 export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
-  function ChatEmptyState({ styles, onSelectSuggestion }, ref) {
+  function ChatEmptyState({ styles, onSelectSuggestion, contextualAction }, ref) {
     const { t } = useTranslation();
 
     return (
@@ -20,7 +21,7 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
           <AstraAvatar size={84} />
           <Text style={styles.emptyTitle}>{t("chat.empty.title")}</Text>
           <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
-          <SuggestionChips onSelect={onSelectSuggestion} />
+          <SuggestionChips onSelect={onSelectSuggestion} contextualAction={contextualAction} />
           <Text style={styles.aiDisclaimer}>
             {t("aiDisclosure.notMedicalAdvice")}
           </Text>

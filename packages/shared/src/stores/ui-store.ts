@@ -123,6 +123,8 @@ export interface UIStoreState {
   /** Transient shell state. These values are deliberately excluded from persistence. */
   todayFabHidden: boolean;
   setTodayFabHidden: (hidden: boolean) => void;
+  calendarHasError: boolean;
+  setCalendarHasError: (hasError: boolean) => void;
   astraConversationOpen: boolean;
   astraEntryPointIntent: 'support' | undefined;
   setAstraConversationOpen: (open: boolean, entryPointIntent?: 'support') => void;
@@ -358,6 +360,8 @@ export function createUIStoreState(
     },
     todayFabHidden: false,
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
+    calendarHasError: false,
+    setCalendarHasError: (calendarHasError) => set({ calendarHasError }),
     astraConversationOpen: false,
     astraEntryPointIntent: undefined,
     setAstraConversationOpen: (open, entryPointIntent) => set({

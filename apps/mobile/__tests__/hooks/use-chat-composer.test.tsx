@@ -1,11 +1,13 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -22,6 +24,9 @@ const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
 const mocks = vi.hoisted(() => {
   const state = {
     profile: undefined as Profile | undefined,
+    habitData: { topLevelHabits: [] as NormalizedHabit[], totalCount: 0 } as { topLevelHabits: NormalizedHabit[]; totalCount: number } | null,
+    detail: null as HabitDetail | null,
+    habitFilters: [] as HabitsFilter[],
     speechError: null as string | null,
     recordingDuration: 0,
     isRecording: false,
@@ -168,6 +173,12 @@ vi.mock('expo-file-system', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: false } },
+  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
   useProfile: () => ({ profile: mocks.state.profile }),
@@ -190,7 +201,7 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
 type ComposerApi = ReturnType<typeof useChatComposer>
 
 async function renderComposer(
-  options: { isOnline?: boolean; offlineTitle?: string } = {},
+  options: { isOnline?: boolean; offlineTitle?: string; pathname?: string; today?: string; selectedDate?: string; includeGeneral?: boolean } = {},
 ): Promise<{ current: ComposerApi; rerender: () => void; unmount: () => void }> {
   const ref: { current: ComposerApi | null } = { current: null }
 
@@ -198,6 +209,10 @@ async function renderComposer(
     ref.current = useChatComposer({
       isOnline: options.isOnline ?? true,
       offlineTitle: options.offlineTitle ?? 'offline',
+      pathname: options.pathname,
+      today: options.today,
+      selectedDate: options.selectedDate,
+      includeGeneral: options.includeGeneral,
     })
     return null
   }
@@ -341,6 +356,9 @@ describe('mobile useChatComposer', () => {
 
   beforeEach(() => {
     mocks.state.profile = undefined
+    mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
+    mocks.state.detail = null
+    mocks.state.habitFilters = []
     mocks.state.speechError = null
     mocks.state.recordingDuration = 0
     mocks.state.isRecording = false
@@ -362,6 +380,7 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true, contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setCalendarHasError(false)
   })
 
   afterEach(() => {
@@ -1216,7 +1235,6 @@ describe('mobile useChatComposer', () => {
 
     expect(composer.current.atMessageLimit).toBe(true)
     expect(composer.current.showSuggestions).toBe(true)
-    expect(composer.current.starterChips.length).toBeGreaterThan(0)
   })
 
   it('states only the allowance at the message limit', async () => {
@@ -1392,36 +1410,97 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
   })
 
+  it('queries the selected day with the visible Today general filter', async () => {
+    await renderComposer({ pathname: '/', today: '2026-09-12', selectedDate: '2026-09-11', includeGeneral: true })
+    expect(mocks.state.habitFilters.at(-1)).toMatchObject({
+      dateFrom: '2026-09-11', dateTo: '2026-09-11', includeOverdue: false, includeGeneral: true,
+    })
+  })
+
+  it('matches the shared chip builder on primary routes', async () => {
+    const habit = createMockHabit({ title: 'Read', linkedGoals: [], isCompleted: false })
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null, currentStreak: 0, longestStreak: 0, aiSummaryEnabled: true, hasGoogleConnection: true })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+    for (const [pathname, surface] of [['/', 'today'], ['/calendar', 'calendar'], ['/progress', 'progress'], ['/profile', 'profile']] as const) {
+      const expected = buildComposerChips({ surface, status: 'success', habits: [habit], totalHabitCount: 1, profile: mocks.state.profile }).map((chip) => chip.id)
+      const composer = await renderComposer({ pathname })
+      expect(composer.current.composerProps.suggestions.map((chip) => chip.id)).toEqual(expected)
+      composer.unmount()
+    }
+  })
+
+  it('gates Calendar chips on the Calendar error rather than the Today query', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    const composer = await renderComposer({ pathname: '/calendar' })
+    expect(composer.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
+      'today.logYesterday', 'calendar.slippedThisWeek', 'today.changeTimes',
+    ])
+    await TestRenderer.act(async () => {
+      useUIStore.getState().setCalendarHasError(true)
+      await Promise.resolve()
+    })
+    expect(composer.current.composerProps.suggestions).toEqual([])
+  })
+
+  it('queries every habit when choosing Progress goal chips', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    await renderComposer({ pathname: '/progress' })
+    expect(mocks.state.habitFilters.at(-1)).toEqual({})
+  })
+
   it('sends a live suggestion label as the transport message', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     const composer = await renderComposer()
-    const suggestion = composer.current.composerProps.suggestions[0]
+    const suggestion = composer.current.composerProps.suggestions[0]!
 
     TestRenderer.act(() => suggestion.onSelect())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
     appendFormPart.mockRestore()
   })
 
-  it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
+  it('keeps a Progress goal request available beside an existing draft', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {
+      id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal',
+    } })
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
-    useChatStore.getState().setDraft('Unsent note')
-    useChatStore.getState().setContextualSuggestion({
-      id: 'habit-detail-help',
-      label: 'Ask about Read',
-      prompt: 'Help me improve my habit named Read',
-    })
-    const composer = await renderComposer()
-
-    expect(composer.current.composerProps.suggestions[0].label).toBe('Ask about Read')
-    TestRenderer.act(() => composer.current.composerProps.suggestions[0].onSelect())
-
+    const composer = await renderComposer({ pathname: '/progress' })
+    expect(composer.current.composerProps.suggestions[0]?.id).toBe('progress-create-goal')
+    TestRenderer.act(() => composer.current.composerProps.suggestions[0]?.onSelect())
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
-    expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me improve my habit named Read')
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me make a goal')
     expect(useChatStore.getState().draft).toBe('Unsent note')
+    appendFormPart.mockRestore()
+  })
+
+  it('uses loaded habit detail while the separate day query is unavailable', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    mocks.state.detail = makeHabitDetail()
+    const composer = await renderComposer({ pathname: '/habits/habit-1' })
+    expect(composer.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
+      'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
+    ])
+  })
+
+  it('sends the habit detail seed prompt', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = makeHabitDetail()
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    const composer = await renderComposer({ pathname: '/habits/habit-1' })
+    const suggestion = composer.current.composerProps.suggestions[0]!
+    expect(suggestion.id).toBe('habitDetail.askAstra')
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'habits.detail.askAstraSeedDefault:{"title":"Read"}')
     appendFormPart.mockRestore()
   })
 

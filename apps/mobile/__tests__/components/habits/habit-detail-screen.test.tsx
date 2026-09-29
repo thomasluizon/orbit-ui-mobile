@@ -245,9 +245,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => React.createElement('FlowShell', null, header, children),
 }))
-vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ onBack }: { onBack: () => void }) => React.createElement('AppBar', { testID: 'screen-back', onBack }),
-}))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -325,6 +322,20 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
+  it('exposes the habit name as the page header instead of the navigation title', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const pageHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' &&
+      node.props.accessibilityRole === 'header' &&
+      (node.props.children === mocks.detail!.title || node.props.children === 'habits.detail.screenTitle'))
+    expect(pageHeaders).toHaveLength(1)
+    expect(pageHeaders[0]!.props.children).toBe(mocks.detail!.title)
+    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress() })
+    const editingHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
+    expect(editingHeaders).toHaveLength(1)
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
@@ -484,7 +495,9 @@ describe('HabitDetailScreen', () => {
     mocks.profileReady = false
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
-    TestRenderer.act(() => { tree.root.findByProps({ testID: 'screen-back' }).props.onBack() })
+    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
+    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress() })
     expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
     expect(mocks.routerBack).not.toHaveBeenCalled()
   })
@@ -505,6 +518,7 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
+    expect(renameControls[0]!.props.style).toMatchObject({ minWidth: 44, paddingVertical: 8, marginVertical: -8 })
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -519,6 +533,8 @@ describe('HabitDetailScreen', () => {
       'habits.detail.loading',
       'habits.detail.loading',
     ])
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
 
     mocks.detailLoading = false
     mocks.detailError = true
@@ -527,6 +543,8 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(tree!.root.findByProps({ testID: 'load-error' }).props.message).toBe('habits.detail.loadError')
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'habits.detail.screenTitle')).toHaveLength(1)
     TestRenderer.act(() => {
       tree!.root.findByType('PillButton').props.onClick()
     })
@@ -634,7 +652,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ testID: 'screen-back' }).props.onBack()
+      tree!.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress()
     })
     expect(mocks.routerReplace).toHaveBeenCalledWith({
       pathname: '/(tabs)',
@@ -673,7 +691,7 @@ describe('HabitDetailScreen', () => {
       )
     })
 
-    TestRenderer.act(() => tree!.root.findByProps({ testID: 'screen-back' }).props.onBack())
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'common.backToParentHabit' }).props.onPress())
     expect(mocks.history.map((entry) => entry.path)).toEqual([
       '/?date=2026-08-28',
       '/habits/parent-1?date=2026-08-28&from=today',
@@ -682,7 +700,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree!.update(<HabitDetailScreen habitId="parent-1" date="2026-08-28" fromToday />)
     })
-    TestRenderer.act(() => tree!.root.findByProps({ testID: 'screen-back' }).props.onBack())
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'common.backToToday' }).props.onPress())
 
     expect(mocks.history).toEqual([
       { path: '/?date=2026-08-28', selectedDate: '2026-08-28' },
@@ -1583,18 +1601,11 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('puts the grounded Astra seed in the persistent composer', () => {
-    let tree: ReturnType<typeof TestRenderer.create>
+  it('leaves habit detail suggestions to the shell composer', () => {
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+      TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-
-    expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'habit-habit-1',
-      label: 'habits.detail.askAstra',
-      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
-    })
-    expect(tree!.root.findAllByProps({ title: 'habits.detail.askAstra' })).toHaveLength(0)
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
@@ -1700,27 +1711,6 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })
 
-  it('restores the parent Astra suggestion after leaving a child detail', () => {
-    let parentTree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      parentTree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    })
-    const parentFocus = mocks.focusEffect
-    if (!parentFocus) throw new Error('Expected parent focus effect')
-
-    mocks.detail = { ...makeDetail(), id: 'child-1', title: 'Child' }
-    let childTree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      childTree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
-    })
-    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-child-1')
-
-    TestRenderer.act(() => childTree!.unmount())
-    expect(useChatStore.getState().contextualSuggestion).toBeNull()
-    TestRenderer.act(() => { parentFocus() })
-    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-habit-1')
-    parentTree!.unmount()
-  })
 
   it('sends free users from the slipping block to upgrade', () => {
     mocks.hasProAccess = false

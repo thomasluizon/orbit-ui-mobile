@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi, afterEach } from 'vitest'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import RootLayout from '@/app/layout'
 import AppLayout from '@/app/(app)/layout'
+import AppNotFound from '@/app/(app)/not-found'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -44,8 +45,13 @@ vi.mock('@/components/navigation/navigation-history-tracker', () => ({ Navigatio
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
-vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children }))
-vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children }: { children: ReactNode }) => <main aria-label="Destination shell">{children}</main> }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
+vi.mock('@/components/shell/destination-shell', () => ({
+  useNotFoundShell: () => {},
+  DestinationShell: ({ children, composer }: { children: ReactNode; composer?: ReactNode }) => (
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" />{composer}{children}</main>
+  ),
+}))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
@@ -74,7 +80,7 @@ vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ Retained
 vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
 vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
 vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: () => <div data-testid="composer" /> }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 
 beforeEach(() => {
@@ -107,6 +113,34 @@ it('opens an Astra deep link once while the shell rerenders', () => {
   render(<AppLayout><p>Today content</p></AppLayout>)
 
   expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
+})
+
+it('renders an authenticated unknown path inside the destination shell', () => {
+  mocks.pathname = '/nao-existe'
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
+  useAuthStore.setState({ isAuthenticated: true })
+  render(<AppLayout><AppNotFound /></AppLayout>)
+  expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
+  expect(screen.getByTestId('composer')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+})
+
+it('renders an unauthenticated unknown public path without the shell', () => {
+  mocks.pathname = '/terms/x'
+  render(<AppLayout><AppNotFound /></AppLayout>)
+  expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+  expect(screen.getByRole('main')).toHaveClass('min-h-dvh')
+  expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).not.toBeInTheDocument()
+  expect(screen.queryByTestId('composer')).not.toBeInTheDocument()
+})
+
+it('keeps the shell shape while a protected unknown path restores its session', () => {
+  mocks.pathname = '/nao-existe'
+  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
+  render(<AppLayout><AppNotFound /></AppLayout>)
+  expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+  expect(screen.getByRole('main', { name: 'Destination shell' }).querySelector('main')).toBeNull()
 })
 
 it('passes the selected Today date to the create modal', () => {
