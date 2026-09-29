@@ -429,6 +429,17 @@ describe('alerts', () => {
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
   })
 
+  it('sets the detail delete apart at the far end behind a growing spacer', () => {
+    seed(1)
+    showInbox()
+    fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
+    const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild!
+    expect(getComputedStyle(row).width).toBe('100%')
+    expect([...row.children].map((child) => child.tagName === 'SPAN' ? 'spacer' : child.textContent))
+      .toEqual(['Open in Progress', en.notifications.markAsRead, 'spacer', en.notifications.delete])
+    expect(getComputedStyle(row.children[2]!).flexGrow).toBe('1')
+  })
+
   it.each([
     ['achievement', 'New achievement: First Orbit', 'Create your first habit (+25 XP)'],
     ['level up', 'You reached level 3', 'Keep the streak going.'],

@@ -3,7 +3,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
@@ -467,6 +467,21 @@ describe('mobile alerts', () => {
     const tree = render()
     press(tree, messages.notifications.deleteAll)
     expect(text(tree, confirmBody)).toHaveLength(1)
+  })
+
+  it('sets the detail delete apart at the far end behind a growing spacer', () => {
+    const tree = render(<NotificationDetailModal open
+      notification={createMockNotification({ url: '/progress', isRead: false })}
+      onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
+    const slot = testId(tree, 'sheet-actions-slot')[0]!
+    const isSpacer = (node: Node) => node.type === 'View'
+      && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1
+    const row = slot.findAll((node) => node.type === 'View' && !isSpacer(node))[0]!
+
+    expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).flexGrow).toBe(1)
+    expect(slot.findAll((node) => isSpacer(node) || (node.type === 'Text' && typeof node.props.children === 'string'))
+      .map((node) => isSpacer(node) ? 'spacer' : node.props.children))
+      .toEqual(['Open in Progress', en.notifications.markAsRead, 'spacer', en.notifications.delete])
   })
 
   it.each([

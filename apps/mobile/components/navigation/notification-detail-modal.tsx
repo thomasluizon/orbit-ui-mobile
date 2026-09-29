@@ -121,6 +121,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 26.35,
     },
     actions: {
+      flexGrow: 1,
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'center',
