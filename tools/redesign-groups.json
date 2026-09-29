@@ -66,11 +66,9 @@
     "Orbit Calendario": [
       "m-overlay-components-calendar-shell",
       "m-overlay-onboarding-calendar-import-prompt",
-      "m-route-calendar-sync",
       "m-route-tabs-calendar",
       "overlay-components-calendar-shell",
-      "route-calendar",
-      "route-calendar-sync"
+      "route-calendar"
     ],
     "Orbit Celebracao": [],
     "Orbit Entrar": [
@@ -236,6 +234,14 @@
     ]
   },
   "deleted": [
+    {
+      "surfaceId": "route-calendar-sync",
+      "decision": "Calendário owns Google Calendar connection, import, and review in a sheet."
+    },
+    {
+      "surfaceId": "m-route-calendar-sync",
+      "decision": "Calendário owns Google Calendar connection, import, and review in a sheet."
+    },
     {
       "surfaceId": "route-advanced",
       "decision": "Perfil owns the settings previously reached through the web Avançado route."

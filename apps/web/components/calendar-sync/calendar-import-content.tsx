@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
+import { useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Check,
@@ -30,7 +30,6 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
-  resolveSyncedSelection,
   type WizardStage,
 } from '@/lib/calendar-sync-state'
 import { CalendarPickerSection } from './calendar-picker-section'
@@ -42,11 +41,13 @@ import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
   getFriendlyErrorMessage,
   isCalendarSyncEventImportable,
   isCalendarSyncConnectionActive,
   resolveCalendarImportConnectionStep,
-  selectInitialCalendarImportEvent,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
 
@@ -82,20 +83,14 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const isProUser = Boolean(profile) && hasProAccess
   const weekStartDay = profile?.weekStartDay ?? 1
 
-  /**
-   * `events`, `selectedIds`, `visibleCount` and the latch below re-derive from the query cache
-   * through the `eventsKey` sync, so emptying that cache empties them. The four that follow do
-   * not: they are the wizard's own answer, and `importResult` names the habits the PREVIOUS
-   * account just created.
-   */
   const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [events, setEvents] = useAccountScopedState<CalendarEvent[]>([])
+  const [selectedIds, setSelectedIds] = useAccountScopedState<Set<string>>(() => new Set())
   const [errorMessage, setErrorMessage] = useAccountScopedState('')
   const [importResult, setImportResult] = useAccountScopedState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useAccountScopedState(false)
-  const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
-  const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
+  const [previousEventsKey, setPreviousEventsKey] = useAccountScopedState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useAccountScopedState(EVENTS_PAGE_SIZE)
 
   const eventsQuery = useCalendarEvents({
     enabled: isProUser && !isReviewMode,
@@ -114,25 +109,17 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   )
 
   const incomingEvents: CalendarEvent[] = useMemo(() => {
-    if (isReviewMode) return suggestions.map((s) => s.event)
-    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events.filter((event) => !event.isImported)
-    return []
+    return resolveCalendarImportEvents(isReviewMode, suggestions, eventsQuery.data)
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${weekStartDay}:${incomingEvents.map((e) => e.id).join('|')}`
+  const eventsKey = calendarImportEventsKey(isReviewMode, weekStartDay, incomingEvents)
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
-    setSelectedIds(
-      selectInitialCalendarImportEvent(initialEventId, isReviewMode, incomingEvents, weekStartDay) ??
-      resolveSyncedSelection(
-        selectedIds,
-        incomingEvents.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
-        isReviewMode,
-        previousEventsKey,
-      ),
-    )
+    setSelectedIds(resolveCalendarImportSelection(
+      initialEventId, isReviewMode, incomingEvents, weekStartDay, selectedIds, previousEventsKey,
+    ))
   }
 
   const importableEvents = useMemo(

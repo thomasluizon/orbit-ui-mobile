@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
 import { toast } from 'sonner'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
@@ -102,6 +103,8 @@ function countEventRows(): number {
 }
 
 describe('CalendarSyncPage pagination', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
   beforeEach(() => {
     useCalendarEventsMock.mockReset()
     bulkMutateMock.mockReset()
@@ -109,6 +112,27 @@ describe('CalendarSyncPage pagination', () => {
     vi.mocked(toast.error).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
+  })
+
+  it('replaces visible event details when accounts share an event id', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('calendar-account-a')
+    let currentEvents = [{ ...buildEvents(1)[0]!, id: 'shared-event', title: 'Account A event' }]
+    useCalendarEventsMock.mockImplementation(() => ({
+      data: { status: 'connected', events: currentEvents },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }))
+
+    renderPage()
+    expect(screen.getByText('Account A event')).toBeInTheDocument()
+
+    currentEvents = [{ ...currentEvents[0]!, title: 'Account B event' }]
+    await replaceAccountWith('calendar-account-b')
+
+    expect(screen.queryByText('Account A event')).not.toBeInTheDocument()
+    expect(screen.getByText('Account B event')).toBeInTheDocument()
   })
 
   it('renders only the first page of events and reveals more on demand', () => {

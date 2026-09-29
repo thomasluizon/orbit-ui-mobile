@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { render, renderHook, waitFor, act, fireEvent, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import {
@@ -11,11 +11,13 @@ import {
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { calendarKeys } from '@orbit/shared/query'
-import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-epoch'
 import type {
   CalendarAutoSyncState,
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
+import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
+import { runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
 
 
 const mockFetch = vi.fn()
@@ -428,6 +430,61 @@ describe('useDismissCalendarSuggestion', () => {
 
 describe('remaining calendar mutations', () => {
   beforeEach(() => { mockFetch.mockReset() })
+
+  it('runs Sync now from Calendar, reports a failure, and clears loading for the next account', async () => {
+    const { Wrapper } = createWrapper()
+    const reportedErrors: string[] = []
+    const connectedState: CalendarAutoSyncState = {
+      enabled: false,
+      status: 'Idle',
+      lastSyncedAt: null,
+      hasGoogleConnection: true,
+    }
+    let finishOld!: (response: unknown) => void
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ newSuggestions: 0, reconciledHabits: 0, status: 'Idle' }),
+      })
+
+    function Harness() {
+      const mutation = useRunCalendarSyncNow()
+      return React.createElement(CalendarSyncBoundary, {
+        autoSyncState: connectedState,
+        displayTime: (value: string) => value,
+        onAutoSyncChange: async () => {},
+        onSyncNow: () => runCalendarSyncNowWithFeedback(
+          () => mutation.mutateAsync(),
+          (error) => reportedErrors.push((error as Error).message),
+          getAccountGeneration,
+        ),
+      })
+    }
+    render(React.createElement(Harness), { wrapper: Wrapper })
+    const button = () => screen.getByRole('button', { name: 'calendar.autoSync.syncNow' })
+
+    fireEvent.click(button())
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/calendar/auto-sync/run', { method: 'POST' }))
+    await waitFor(() => expect(reportedErrors).toEqual(['Request failed with status 500']))
+    expect(button()).not.toBeDisabled()
+
+    fireEvent.click(button())
+    await waitFor(() => expect(button()).toHaveAttribute('aria-busy', 'true'))
+    act(() => advanceAccountGeneration())
+    expect(button()).not.toBeDisabled()
+
+    fireEvent.click(button())
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3))
+    await act(async () => {
+      finishOld({ ok: false, status: 503 })
+      await Promise.resolve()
+    })
+    expect(button()).not.toBeDisabled()
+    expect(reportedErrors).toEqual(['Request failed with status 500'])
+  })
 
   it('retires a pending manual sync and ignores its late cache invalidation', async () => {
     const { Wrapper, client } = createWrapper()

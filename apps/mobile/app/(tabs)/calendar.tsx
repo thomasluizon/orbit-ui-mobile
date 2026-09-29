@@ -55,6 +55,7 @@ import {
   shouldOpenCalendarImportSheet,
   calendarImportTitleKey,
   calendarImportRouteRequestKey,
+  runCalendarSyncNowWithFeedback,
 } from "@orbit/shared/utils";
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -517,13 +518,11 @@ function CalendarScreenContent({
   }, [setCalendarAutoSync, showError, t]);
 
   const handleCalendarSyncNow = useCallback(async () => {
-    const requestAccount = getAccountGeneration();
-    try {
-      await runCalendarSyncNow.mutateAsync();
-    } catch (error: unknown) {
-      if (getAccountGeneration() !== requestAccount) return;
-      showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless'));
-    }
+    await runCalendarSyncNowWithFeedback(
+      () => runCalendarSyncNow.mutateAsync(),
+      (error) => showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
+      getAccountGeneration,
+    );
   }, [runCalendarSyncNow, showError, t]);
 
   const openOrbitPro = useCallback(() => {

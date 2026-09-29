@@ -6,6 +6,7 @@ import ptBR from '../i18n/pt-BR.json'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
@@ -20,9 +21,36 @@ import {
   resolveCalendarSyncEndDate,
   reconcileCalendarAutoSyncGrantRevocation,
   resolveCalendarEventsGrantRevocation,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
 } from '../utils/calendar-sync'
 
 describe('calendar-sync utils', () => {
+  it('keeps imported events out of manual import and preserves review selection on refresh', () => {
+    const event = {
+      id: 'available', title: 'Meeting', description: null, startDate: '2026-09-12',
+      startTime: '09:00', endTime: '10:00', isRecurring: false,
+      recurrenceRule: null, reminders: [],
+    }
+    const imported = { ...event, id: 'imported', isImported: true }
+    const result = { status: 'connected' as const, events: [event, imported] }
+    const manualEvents = resolveCalendarImportEvents(false, [], result)
+    expect(manualEvents).toEqual([event])
+    expect(calendarImportEventsKey(false, 1, manualEvents)).toBe('manual:1:available')
+    expect([...resolveCalendarImportSelection(null, false, manualEvents, 1, new Set(), null)])
+      .toEqual(['available'])
+
+    const reviewEvents = resolveCalendarImportEvents(true, [{
+      id: 'suggestion', googleEventId: event.id,
+      discoveredAtUtc: '2026-09-12T08:00:00Z', event,
+    }], result)
+    expect(reviewEvents).toEqual([event])
+    expect([...resolveCalendarImportSelection(null, true, reviewEvents, 1, new Set(['available']), 'review:1:available')])
+      .toEqual(['available'])
+    expect([...resolveCalendarImportSelection(null, true, reviewEvents, 1, new Set(['gone']), 'review:1:gone')])
+      .toEqual([])
+  })
+
   it('parses RRULE recurrence data', () => {
     expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE')).toEqual({
       frequencyUnit: 'Week',

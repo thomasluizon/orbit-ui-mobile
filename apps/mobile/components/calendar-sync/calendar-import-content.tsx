@@ -16,10 +16,12 @@ import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  calendarImportEventsKey,
   isCalendarSyncEventImportable,
   isCalendarSyncConnectionActive,
   resolveCalendarImportConnectionStep,
-  selectInitialCalendarImportEvent,
+  resolveCalendarImportEvents,
+  resolveCalendarImportSelection,
   getFriendlyErrorMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
@@ -41,7 +43,6 @@ import { allowGoogleErrorLogin } from '@/lib/google-auth-callback'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
-  resolveSyncedSelection,
   type WizardStage,
 } from '@/lib/calendar-sync-state'
 import { createTokensV2 } from '@/lib/theme'
@@ -135,27 +136,17 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   })
 
   const incomingEvents = useMemo<CalendarEvent[]>(() => {
-    if (isReviewMode) return suggestions.map((suggestion) => suggestion.event)
-    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events.filter((event) => !event.isImported)
-    return []
+    return resolveCalendarImportEvents(isReviewMode, suggestions, eventsQuery.data)
   }, [isReviewMode, suggestions, eventsQuery.data])
 
-  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${weekStartDay}:${incomingEvents
-    .map((event) => event.id)
-    .join('|')}`
+  const eventsKey = calendarImportEventsKey(isReviewMode, weekStartDay, incomingEvents)
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
-    setSelectedIds(
-      selectInitialCalendarImportEvent(initialEventId, isReviewMode, incomingEvents, weekStartDay) ??
-      resolveSyncedSelection(
-        selectedIds,
-        incomingEvents.filter((event) => isCalendarSyncEventImportable(event, weekStartDay)),
-        isReviewMode,
-        previousEventsKey,
-      ),
-    )
+    setSelectedIds(resolveCalendarImportSelection(
+      initialEventId, isReviewMode, incomingEvents, weekStartDay, selectedIds, previousEventsKey,
+    ))
   }
 
   const importableEvents = useMemo(

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
@@ -10,6 +10,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { AppTokensV2 } from '@/lib/theme'
 
 interface CalendarSyncBoundaryProps {
@@ -30,8 +31,8 @@ export function CalendarSyncBoundary({
   tokens,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [isSaving, setIsSaving] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [isSaving, setIsSaving] = useAccountScopedState(false)
+  const [isSyncing, setIsSyncing] = useAccountScopedState(false)
   const { isOnline } = useOffline()
 
   const connected = isCalendarSyncConnectionActive(

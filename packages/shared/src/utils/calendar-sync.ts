@@ -35,6 +35,54 @@ export function filterCalendarSyncEventsByDate(
   return events.filter((event) => event.startDate === date)
 }
 
+export function resolveCalendarImportEvents(
+  reviewMode: boolean,
+  suggestions: readonly CalendarSyncSuggestion[],
+  eventsResult: { status: 'connected'; events: CalendarSyncEvent[] } | { status: 'not-connected' } | undefined,
+): CalendarSyncEvent[] {
+  if (reviewMode) return suggestions.map((suggestion) => suggestion.event)
+  if (eventsResult?.status !== 'connected') return []
+  return eventsResult.events.filter((event) => !event.isImported)
+}
+
+export function calendarImportEventsKey(
+  reviewMode: boolean,
+  weekStartDay: 0 | 1,
+  events: readonly CalendarSyncEvent[],
+): string {
+  return `${reviewMode ? 'review' : 'manual'}:${weekStartDay}:${events.map((event) => event.id).join('|')}`
+}
+
+export function resolveCalendarImportSelection(
+  initialEventId: string | null,
+  reviewMode: boolean,
+  events: readonly CalendarSyncEvent[],
+  weekStartDay: 0 | 1,
+  previousSelection: ReadonlySet<string>,
+  previousEventsKey: string | null,
+): Set<string> {
+  const initialSelection = selectInitialCalendarImportEvent(initialEventId, reviewMode, events, weekStartDay)
+  if (initialSelection) return initialSelection
+  const importableEvents = events.filter((event) => isCalendarSyncEventImportable(event, weekStartDay))
+  if (reviewMode && previousEventsKey !== null) {
+    return new Set(importableEvents.filter((event) => previousSelection.has(event.id)).map((event) => event.id))
+  }
+  return new Set(importableEvents.map((event) => event.id))
+}
+
+export async function runCalendarSyncNowWithFeedback(
+  run: () => Promise<unknown>,
+  reportFailure: (error: unknown) => void,
+  getAccountGeneration: () => number,
+): Promise<void> {
+  const requestGeneration = getAccountGeneration()
+  try {
+    await run()
+  } catch (error: unknown) {
+    if (getAccountGeneration() === requestGeneration) reportFailure(error)
+  }
+}
+
 export interface CalendarSyncParsedRecurrence {
   frequencyUnit?: FrequencyUnit
   frequencyQuantity?: number
