@@ -95,6 +95,22 @@ describe('TimeField', () => {
     expect(row.props.style[1].outlineWidth ?? 0).toBe(0)
   })
 
+  it('shows the focus border when the time entry also has an error', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TimeField value="" onChange={vi.fn()} label="Time" error="Required" />)
+      await Promise.resolve()
+    })
+    const row = () => tree.root.findAllByType('View').find((node: any) =>
+      Array.isArray(node.props.style) && node.props.style[1]?.borderWidth === 2,
+    )
+    const errorColor = row().props.style[1].borderColor
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+    expect(row().props.style[1].borderColor).not.toBe(errorColor)
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onBlur())
+    expect(row().props.style[1].borderColor).toBe(errorColor)
+  })
+
   beforeEach(() => {
     mockUses24HourClock = true
     __resetTestHostConfig()

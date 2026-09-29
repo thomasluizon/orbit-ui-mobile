@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { RecordListCard } from '@/components/chat/record-list-card'
 import { renderedText } from '../../support/react-test-renderer'
@@ -26,6 +26,16 @@ function render(element: React.ReactElement) {
 
 describe('Astra record list on mobile', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.generation = 0 })
+
+  it('replaces the record filter border on focus', () => {
+    const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 21, items: [{ id: 'key-1', title: 'Key' }] }} />)
+    const input = tree.root.findByProps({ accessibilityLabel: 'chat.recordList.filter' })
+    expect(StyleSheet.flatten(input.props.style).borderWidth).toBe(1)
+    TestRenderer.act(() => input.props.onFocus())
+    expect(StyleSheet.flatten(input.props.style).borderWidth).toBe(2)
+    TestRenderer.act(() => input.props.onBlur())
+    expect(StyleSheet.flatten(input.props.style).borderWidth).toBe(1)
+  })
 
   it('marks a notification read optimistically and restores it on failure', async () => {
     let rejectRead: (reason: Error) => void = () => {}
