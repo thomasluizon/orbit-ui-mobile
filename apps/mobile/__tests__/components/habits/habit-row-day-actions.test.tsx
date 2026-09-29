@@ -41,7 +41,7 @@ describe('mobile habit row on an old day', () => {
         <I18nextProvider i18n={i18n}>
           <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
             selectedDate={new Date('2026-04-01T12:00:00Z')}
-            hasChildren childrenTotal={1} actions={actions} />
+            structuralColumn hasChildren childrenTotal={1} actions={actions} />
         </I18nextProvider>,
       )
     })
@@ -76,7 +76,7 @@ describe('mobile habit row on an old day', () => {
       <I18nextProvider i18n={i18n}>
         <HabitRow habit={createMockHabit({ title: 'Read', hasSubHabits: true })}
           selectedDate={new Date('2026-04-01T12:00:00Z')}
-          hasChildren isExpanded childrenTotal={1} actions={actions} />
+          structuralColumn hasChildren isExpanded childrenTotal={1} actions={actions} />
       </I18nextProvider>,
     ))
     const collapse = tree!.root.findByProps({ accessibilityLabel: i18n.t('common.collapse') })
