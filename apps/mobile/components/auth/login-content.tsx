@@ -53,7 +53,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     <KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.scrollKeyboardOpen, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}>
-      <View style={[styles.formColumn, width < 336 && { paddingHorizontal: 8 }, wide && styles.panel]}>
+      <View style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: 8 }, wide && styles.panel]}>
         {flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
         <Lockup />
         {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}
