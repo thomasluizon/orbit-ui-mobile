@@ -81,7 +81,7 @@ export function CalendarSyncBoundary({
             <Text style={styles.switchLabel}>{t('calendar.dayDetail.autoSync')}</Text>
             <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
           </View>
-          <View style={styles.syncAction}><PillButton variant="ghost" size="sm" disabled={!isOnline || isSyncing} onClick={() => void handleSyncNow()}>{t(isSyncing ? 'calendar.autoSync.syncNowRunning' : 'calendar.autoSync.syncNow')}</PillButton></View>
+          <View style={styles.syncAction}><PillButton variant="ghost" size="sm" disabled={!isOnline} loading={isSyncing} onClick={() => void handleSyncNow()}>{t('calendar.autoSync.syncNow')}</PillButton></View>
         </>
       ) : null}
     </View>

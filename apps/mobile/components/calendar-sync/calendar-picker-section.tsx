@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -6,6 +7,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { CalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
@@ -31,6 +33,7 @@ export function CalendarPickerSection({
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const { showError } = useAppToast()
+  const [visibleCount, setVisibleCount] = useState(20)
 
   if (!enabled) return null
 
@@ -87,7 +90,7 @@ export function CalendarPickerSection({
       ) : null}
 
       {!isLoading && !isError
-        ? calendars?.map((calendar) => (
+        ? calendars?.slice(0, visibleCount).map((calendar) => (
             <CheckRow
               key={calendar.id}
               label={calendar.name}
@@ -97,6 +100,19 @@ export function CalendarPickerSection({
             />
           ))
         : null}
+
+      {!isLoading && !isError && calendars && calendars.length > 20 ? (
+        <View style={styles.showMoreRow}>
+          <Text style={[styles.showingCountText, { color: tokens.fg3 }]}>
+            {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
+          </Text>
+          {visibleCount < calendars.length ? (
+            <PillButton variant="ghost" size="sm" onClick={() => setVisibleCount((count) => count + 20)}>
+              {t('calendar.showMore')}
+            </PillButton>
+          ) : null}
+        </View>
+      ) : null}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>

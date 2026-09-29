@@ -64,6 +64,18 @@ describe('Google code callback', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated account to %s', async (returnUrl) => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    sessionStorage.setItem('auth_return_url', returnUrl)
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A',
+      email: 'a@example.com', wasReactivated: true }), { status: 200 }))
+    render(<AuthCallbackPage />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
+    await act(async () => { mocks.continueAccount?.() })
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith(returnUrl))
+    expect(sessionStorage.getItem('auth_return_url')).toBeNull()
+  })
+
   it.each(['access_denied', 'cancel', 'dismiss'])('returns to calendar after consent %s', async (error) => {
     window.history.replaceState(null, '', `/auth-callback?error=${error}&state=oauth-state`)
     sessionStorage.setItem('auth_return_url', '/calendar?import=1')

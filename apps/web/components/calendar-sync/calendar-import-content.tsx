@@ -318,15 +318,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       {step === 'loading' && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <Skeleton variant="settings" rows={2} label={t('calendar.fetchingEvents')} />
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {t('calendar.fetchingEvents')}
-          </p>
         </div>
       )}
 
@@ -473,15 +464,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       {step === 'importing' && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <Skeleton variant="settings" rows={2} label={t('calendar.importing')} />
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {t('calendar.importing')}
-          </p>
         </div>
       )}
 

@@ -88,7 +88,7 @@ const translations: Record<string, string> = {
   'calendar.status.resisted': en.calendar.status.resisted,
   'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
-  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
+  'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
   'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
   'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
@@ -382,7 +382,7 @@ describe('CalendarDayDetail (mobile)', () => {
   it('renders the empty events state after an empty response resolves', () => {
     const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
     const empty = nodes(tree, 'Text').filter(
-      (node) => node.props.children === 'Nothing left to import from Google Calendar on this day.',
+      (node) => node.props.children === 'No Google Calendar events on this day.',
     )
     const errors = nodes(tree, 'Text').filter(
       (node) => node.props.accessibilityLabel === 'calendar.fetchError',

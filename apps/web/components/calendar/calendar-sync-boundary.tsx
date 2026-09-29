@@ -83,7 +83,7 @@ export function CalendarSyncBoundary({
             <span className="text-sm text-[var(--fg-2)]">{t('calendar.dayDetail.autoSync')}</span>
             <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
           </div>
-          <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || isSyncing} onClick={() => void handleSyncNow()}>{t(isSyncing ? 'calendar.autoSync.syncNowRunning' : 'calendar.autoSync.syncNow')}</PillButton></div>
+          <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline} loading={isSyncing} onClick={() => void handleSyncNow()}>{t('calendar.autoSync.syncNow')}</PillButton></div>
         </>
       ) : null}
       <div aria-live="polite" aria-atomic="true">

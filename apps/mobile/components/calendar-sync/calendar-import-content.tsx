@@ -423,12 +423,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           <View
             style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendar.fetchingEvents')}
           >
             <Skeleton variant="settings" rows={2} label={t('calendar.fetchingEvents')} />
-            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {t('calendar.fetchingEvents')}
-            </Text>
           </View>
         )}
 
@@ -563,12 +559,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           <View
             style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendar.importing')}
           >
             <Skeleton variant="settings" rows={2} label={t('calendar.importing')} />
-            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {t('calendar.importing')}
-            </Text>
           </View>
         )}
 

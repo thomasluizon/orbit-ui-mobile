@@ -67,6 +67,16 @@ describe('CalendarPickerSection', () => {
     expect(screen.getByText('Work')).toBeInTheDocument()
   })
 
+  it('pages a long calendar list while keeping the total visible', () => {
+    useCalendarsMock.mockReturnValue({ data: Array.from({ length: 21 }, (_, index) =>
+      buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` })), isLoading: false, isError: false })
+    render(<CalendarPickerSection enabled />)
+    expect(screen.getAllByRole('checkbox')).toHaveLength(20)
+    expect(screen.getByText('calendar.showingCount:{"shown":20,"total":21}')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.showMore' }))
+    expect(screen.getAllByRole('checkbox')).toHaveLength(21)
+  })
+
   it('persists the flipped synced value on toggle', () => {
     useCalendarsMock.mockReturnValue({
       data: [buildCalendar({ id: 'cal-1', isSynced: true })],

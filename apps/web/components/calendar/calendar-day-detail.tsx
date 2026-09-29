@@ -84,7 +84,7 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
       </div>
     ))}
     {matchingEvents.length === 0 ? <div className="flex flex-wrap items-center gap-2"><p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</p><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></div> : null}
-    {calendarEvents.length > 20 ? (
+    {calendarEvents.length >= 8 ? (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</span>
         {matchingEvents.length > 20 ? <div className="flex gap-2">

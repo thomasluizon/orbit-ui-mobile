@@ -319,7 +319,7 @@ describe('CalendarSyncPage', () => {
   it('shows loading state initially for Pro users', () => {
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
     renderPage()
-    expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'calendar.fetchingEvents' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 

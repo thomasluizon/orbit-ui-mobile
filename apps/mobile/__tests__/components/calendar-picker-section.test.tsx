@@ -110,6 +110,18 @@ describe('mobile CalendarPickerSection', () => {
     expect((found[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(false)
   })
 
+  it('pages a long calendar list while keeping the total visible', () => {
+    mocks.calendars = Array.from({ length: 21 }, (_, index) =>
+      buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` }))
+    const tree = render(true)
+    expect(checkboxes(tree)).toHaveLength(20)
+    const showMore = tree.root.findAll((node) => node.props.accessibilityRole === 'button'
+      && typeof node.props.onPress === 'function')[0]
+    expect(showMore).toBeDefined()
+    TestRenderer.act(() => { (showMore!.props.onPress as () => void)() })
+    expect(checkboxes(tree)).toHaveLength(21)
+  })
+
   it('persists the flipped synced value on toggle', () => {
     mocks.calendars = [buildCalendar({ id: 'cal-1', isSynced: true })]
     const found = checkboxes(render(true))

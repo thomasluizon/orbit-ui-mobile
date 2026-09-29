@@ -84,7 +84,7 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport, displayTime, t, tok
       </View>
     ))}
     {matchingEvents.length === 0 ? <View style={styles.eventList}><Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}
-    {calendarEvents.length > 20 ? (
+    {calendarEvents.length >= 8 ? (
       <View style={styles.eventPager}>
         <Text style={[styles.eventCount, { color: tokens.fg3 }]}>{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</Text>
         {matchingEvents.length > 20 ? <View style={styles.eventPageActions}>

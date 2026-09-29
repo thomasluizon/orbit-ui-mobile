@@ -100,12 +100,14 @@ function AuthCallbackContent() {
       ownedGeneration = getAccountGeneration()
       await hydrateProfilePresentation()
       if (ownedGeneration !== getAccountGeneration()) return
+      const storedReturn = sessionStorage.getItem('auth_return_url')
       sessionStorage.removeItem('auth_return_url')
       if (getCookieValue('referral_code')) {
         document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
       }
       setRouteTransitionIntent('replace')
-      router.push('/')
+      const safeUrl = storedReturn?.startsWith('/') && !storedReturn.startsWith('//') ? storedReturn : '/'
+      router.push(safeUrl)
     } catch {
       if (ownedGeneration === getAccountGeneration()) setState('failed')
     }

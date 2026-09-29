@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { toast } from 'sonner'
@@ -22,6 +24,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
   const t = useTranslations()
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
+  const [visibleCount, setVisibleCount] = useState(20)
 
   if (!enabled) return null
 
@@ -76,7 +79,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
 
       {!isLoading &&
         !isError &&
-        calendars?.map((calendar) => (
+        calendars?.slice(0, visibleCount).map((calendar) => (
           <CheckRow
             key={calendar.id}
             label={calendar.name}
@@ -85,6 +88,19 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             onChange={(checked) => void handleToggle(calendar.id, checked)}
           />
         ))}
+
+      {!isLoading && !isError && calendars && calendars.length > 20 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-2">
+          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+            {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
+          </span>
+          {visibleCount < calendars.length ? (
+            <PillButton variant="ghost" size="sm" onClick={() => setVisibleCount((count) => count + 20)}>
+              {t('calendar.showMore')}
+            </PillButton>
+          ) : null}
+        </div>
+      ) : null}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>
