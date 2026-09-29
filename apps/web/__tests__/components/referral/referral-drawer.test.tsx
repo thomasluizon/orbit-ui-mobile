@@ -29,7 +29,7 @@ vi.mock('@/hooks/use-referral', () => ({
 }))
 
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
@@ -159,6 +159,7 @@ describe('ReferralDrawer', () => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.drawer.share'])
+    expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual(['referral.drawer.copyLink'])
   })
 

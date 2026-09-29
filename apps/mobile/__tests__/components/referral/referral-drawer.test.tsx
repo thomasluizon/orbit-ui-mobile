@@ -2,7 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -49,6 +49,7 @@ describe('ReferralDrawer (mobile)', () => {
     const tree = renderDrawer()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.drawer.share'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual(['referral.drawer.copyLink'])
   })
 

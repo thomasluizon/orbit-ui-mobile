@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet } from '@/components/ui/sheet'
@@ -170,9 +171,11 @@ function ReferralDrawerContent({
       onClose={() => onOpenChange(false)}
       title={t('referral.drawer.title')}
       actions={isLoaded && canShare ? (
-        <PillButton onClick={() => void shareLink()}>
-          {t('referral.drawer.share')}
-        </PillButton>
+        <DialogActionPair>
+          <PillButton onClick={() => void shareLink()}>
+            {t('referral.drawer.share')}
+          </PillButton>
+        </DialogActionPair>
       ) : undefined}
     >
       <div className="overlay-bleed">
