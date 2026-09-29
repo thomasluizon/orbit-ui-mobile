@@ -47,8 +47,9 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
   )
 }
 
-export function CommandSearchField({ search, setSearch, activePageLabel, onBack }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void }>) {
+export function CommandSearchField({ search, setSearch, activePageLabel, onBack, searchMode = false }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void; searchMode?: boolean }>) {
   const t = useTranslations()
+  const fieldLabel = t(searchMode ? 'habits.search.title' : 'command.title')
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (activePageLabel !== null) inputRef.current?.focus()
@@ -86,7 +87,7 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack 
             className="pointer-events-none [&_.opacity-60]:opacity-100"
           >
             <Input
-              label={t('command.title')}
+              label={fieldLabel}
               value=""
               onChange={setSearch}
               disabled
@@ -101,9 +102,10 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack 
           </div>
           <CommandInput
             ref={inputRef}
+            aria-label={fieldLabel}
             value={search}
             onValueChange={setSearch}
-            placeholder={t('command.placeholder')}
+            placeholder={t(searchMode ? 'habits.search.title' : 'command.placeholder')}
             className="absolute inset-x-0 bottom-0 h-[54px] rounded-[12px] bg-transparent px-4 pr-12 text-[16px] text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
           />
         </div>

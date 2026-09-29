@@ -10,6 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '../support/react-test-renderer'
 import SearchScreen from '@/app/search'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 
@@ -88,6 +89,15 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', async (query, skeleton) => {
+    mocks.query.mockReturnValue(result([], true))
+    await mount()
+    if (query) await TestRenderer.act(() => { (input().props.onChangeText as (value: string) => void)(query) })
+    await TestRenderer.act(() => { vi.advanceTimersByTime(301) })
+    expect(tree.root.findAll((node) => node.type === Skeleton)).toHaveLength(skeleton ? 3 : 0)
+    expect(text().includes('Searching')).toBe(!skeleton)
+  })
+
   it('shows the initial for a habit without an emoji', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
     await mount()
