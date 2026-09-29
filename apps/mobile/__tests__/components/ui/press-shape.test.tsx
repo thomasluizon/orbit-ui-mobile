@@ -5,8 +5,10 @@ import { buildDayCellAccessibleName } from '@orbit/shared/utils'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { createStyles as createCalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
 import { DayCell } from '@/components/dates/day-cell'
+import { CheckRow } from '@/components/ui/check-row'
 import { Chip } from '@/components/ui/chip'
 import { ListRow } from '@/components/ui/list-row'
+import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { createTokensV2, radius } from '@/lib/theme'
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -95,6 +97,29 @@ describe('pressed hit area shapes', () => {
   it('clips the chip press fill to its pill hit area', () => {
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Active">Active</Chip>, 'Active')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden' })
     expect(pressedStyle(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, 'Selected')).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    withTree(<Chip onPress={() => {}} accessibilityLabel="Selected" active>Selected</Chip>, (tree) => {
+      expect(pressedFill(findPressable(tree, 'Selected'), false).backgroundColor).toBe(tokens.selectionBg)
+    })
+  })
+
+  it('fills the pressed check row at the row radius and clears it on release', () => {
+    withTree(<CheckRow label="Water" checked={false} onChange={() => {}} />, (tree) => {
+      const control = findPressable(tree, 'Water')
+      expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
+      expect(pressedFill(control, false).backgroundColor).toBeUndefined()
+    })
+  })
+
+  it('fills only an actionable settings group row, at the row radius', () => {
+    const rows = <><SettingsGroupRow label="Theme" onPress={() => {}} /><SettingsGroupRow label="Version" /></>
+
+    withTree(rows, (tree) => {
+      const action = findPressable(tree, 'Theme')
+      expect(pressedFill(action, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
+      expect(pressedFill(action, false).backgroundColor).toBeUndefined()
+      expect(pressedFill(findPressable(tree, 'Version'), true)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+      expect(pressedFill(findPressable(tree, 'Version'), true).backgroundColor).toBeUndefined()
+    })
   })
 
   it('layers the day press fill over the whole round hit area without hiding the outcome', () => {
@@ -150,6 +175,32 @@ describe('pressed hit area shapes', () => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
+    })
+  })
+
+  it('keeps an unimportable calendar row on its elevated fill until pressed', () => {
+    const event = { id: 'e2', title: 'Second Monday review', description: null, startDate: '2026-09-14', startTime: null, endTime: null, startUtc: null, recurrenceTimeZone: null, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO', reminders: [] }
+    const row = (
+      <CalendarSyncEventRow
+        event={event}
+        weekStartDay={1}
+        selected={false}
+        isReviewMode={false}
+        suggestionId={null}
+        dismissPending={false}
+        styles={createCalendarSyncStyles()}
+        tokens={tokens}
+        t={((key: string) => key) as never}
+        onToggle={() => {}}
+        onDismiss={() => {}}
+      />
+    )
+
+    withTree(row, (tree) => {
+      const control = tree.root.findAllByType(Pressable)[0]!
+      expect(control.props).toMatchObject({ accessibilityState: { disabled: true }, accessibilityHint: 'calendar.importIssue.ordinalWeekday' })
+      expect(pressedFill(control, false)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgElev })
+      expect(pressedFill(control, true).backgroundColor).toBe(tokens.bgHover)
     })
   })
 })

@@ -115,6 +115,9 @@ describe('DayCell', () => {
 
     rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
     expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })
+
+    rerender(<DayCell day={18} label="March 18" words={cellWords} done={1} scheduled={1} habitHistory today />)
+    expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ fontWeight: '500' })
   })
 })
 

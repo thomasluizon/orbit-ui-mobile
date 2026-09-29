@@ -192,4 +192,11 @@ describe('list primitives on web', () => {
     expect(openProfile).toHaveBeenCalledOnce()
     expect(openPrivacy).toHaveBeenCalledOnce()
   })
+
+  it('draws a divider above every actionable SettingsGroup entry except the first', () => {
+    render(<SettingsGroup items={[{ label: 'Account', onClick: vi.fn() }, { label: 'Privacy', onClick: vi.fn() }]} />)
+
+    expect(screen.getByRole('button', { name: 'Account' }).getAttribute('style')).not.toContain('border-top')
+    expect(screen.getByRole('button', { name: 'Privacy' }).getAttribute('style')).toContain('border-top: 1px solid var(--hairline)')
+  })
 })

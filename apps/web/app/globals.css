@@ -2,13 +2,7 @@
 
 /* WHY: Tailwind's own hover variant gates on (hover: hover) alone, and DESIGN.md requires
    (pointer: fine) too, so a touch tap cannot latch a hover state. */
-@custom-variant hover {
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      @slot;
-    }
-  }
-}
+@plugin "../tailwind-hover-variant.mjs";
 
 .habit-detail-strip [data-scope='habit'] {
   --habit-strip-cell-size: 8px;
@@ -1250,70 +1244,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 }
 
-/* Kit pill CTA rendered as an anchor (shared by the /u viewer + its 404) */
-.pill-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 26px;
-  border-radius: var(--radius-full);
-  background: var(--primary);
-  color: var(--fg-on-primary);
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 500;
-  transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    transform var(--dur-fast) var(--ease-standard);
-}
-.pill-link:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
-}
-.pill-link:active {
-  transform: scale(0.98);
-}
-
-/* In-field AI affordance */
-.ai-spark-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 0;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.1);
-  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.22);
-  transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    box-shadow var(--dur-fast) var(--ease-standard),
-    transform var(--dur-fast) var(--ease-standard);
-}
-.ai-spark-btn::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-}
-.ai-spark-btn:hover:not(:disabled) {
-  background: rgba(var(--primary-rgb), 0.18);
-  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.35);
-}
-.ai-spark-btn:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.96);
-}
-.ai-spark-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 /* Overlay body gutter — single source for full-bleed rows inside AppOverlay */
 [data-slot='overlay-body'] {
   --overlay-px: 22px;
@@ -1326,37 +1256,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .overlay-bleed {
   margin-left: calc(-1 * var(--overlay-px));
   margin-right: calc(-1 * var(--overlay-px));
-}
-
-/* Kit interactive card: translucent card with state-only hover feedback */
-.card-int {
-  border-radius: 18px;
-  background: var(--bg-card);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  cursor: pointer;
-  transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    box-shadow var(--dur-fast) var(--ease-standard),
-    transform var(--dur-fast) var(--ease-standard);
-}
-.card-int:hover {
-  background: var(--bg-elev);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong), var(--shadow-1);
-}
-.card-int:active {
-  transform: scale(0.96);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-}
-
-@keyframes orb-entrance {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 /* ═══════════════════════════════════════════════════════
