@@ -31,6 +31,7 @@ describe('HabitRow overflow menus', () => {
       'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
+    expect(items.every((item) => item.querySelector('[data-icon] svg[width="20"][stroke-width="2"]'))).toBe(true)
     expect(items[8]).toHaveAttribute('data-destructive', 'true')
   })
 

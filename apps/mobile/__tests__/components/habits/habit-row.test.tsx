@@ -3,6 +3,7 @@ import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { Menu } from '@/components/ui/menu'
+import { Icon } from '@/components/ui/icon'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -370,6 +371,15 @@ describe('HabitRow menu (mobile)', () => {
     ])
     expect(menu.props.items[0].badge).toBe('Pro')
     expect(menu.props.items[8].destructive).toBe(true)
+    pressMoreButton(renderer)
+    const icons = renderer!.root.findAllByType(Icon)
+    expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>
+      icon.props.size === 20 && icon.props.strokeWidth === 2)).toBe(true)
+    expect(icons[8].props.color).toBe(createTokensV2('purple', 'dark').statusBad)
   })
 
   it('omits overdue and child actions when their row conditions do not apply', () => {
