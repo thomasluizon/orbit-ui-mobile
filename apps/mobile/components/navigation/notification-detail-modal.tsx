@@ -70,15 +70,18 @@ export function NotificationDetailModal({
       actions={
         <View style={styles.actions}>
           {canView ? (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
             <Button variant={width >= 1024 ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           ) : null}
           {canMarkAsRead ? (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
             </Button>
           ) : null}
+          <View style={styles.spacer} />
           <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
           </Button>
@@ -118,11 +121,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 26.35,
     },
     actions: {
+      flexGrow: 1,
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-end',
       gap: 8,
+    },
+    spacer: {
+      flex: 1,
     },
   })
 }

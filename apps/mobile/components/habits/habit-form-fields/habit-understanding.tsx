@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
@@ -55,6 +55,7 @@ export function HabitUnderstanding({
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
+  const [focused, setFocused] = useState(false)
   const hasValue = value.trim().length > 0
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
@@ -62,7 +63,10 @@ export function HabitUnderstanding({
     <View style={styles.container}>
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>{labels.field}</Text>
-        <View style={styles.inputLayer}>
+        <View style={[styles.inputLayer, {
+          borderColor: focused ? tokens.primary : tokens.borderControl,
+          borderWidth: focused ? 2 : 1,
+        }]}>
           <Text aria-hidden style={styles.inputMirror}>
             {hasValue ? segments.map((segment, index) => (
               <Text key={`${segment.text}-${index}`} style={segment.consumed ? styles.consumed : null}>
@@ -80,6 +84,8 @@ export function HabitUnderstanding({
             selectionColor={tokens.primary}
             style={styles.input}
             onChangeText={onValueChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
           />
         </View>
         {error ? (
@@ -187,7 +193,7 @@ function createStyles(tokens: AppTokens) {
       minHeight: 92,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderColor: tokens.borderControl,
       backgroundColor: tokens.bgField,
     },
     inputMirror: {

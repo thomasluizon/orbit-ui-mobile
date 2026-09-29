@@ -105,12 +105,15 @@ export function ChecklistTemplates({
 
   return (
     <>
-      <ListRow
-        icon="template"
-        title={t('habits.form.templates')}
-        value={templates.length > 0 ? String(templates.length) : undefined}
-        onClick={() => setOpen(true)}
-      />
+      <View style={styles.formRow}>
+        <ListRow
+          icon="template"
+          title={t('habits.form.useTemplate')}
+          compact
+          inForm
+          onClick={() => setOpen(true)}
+        />
+      </View>
       {open ? (
         <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <View style={styles.container}>
@@ -190,6 +193,7 @@ export function ChecklistTemplates({
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
+    formRow: { paddingTop: 8 },
     container: {
       gap: 4,
     },

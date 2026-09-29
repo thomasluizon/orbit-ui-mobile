@@ -1,9 +1,10 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/ui/icons'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
@@ -73,6 +74,9 @@ export function Sheet({
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { height } = useWindowDimensions()
+  const { bottom: bottomInset } = useSafeAreaInsets()
+  const [headerHeight, setHeaderHeight] = useState(0)
+  const [footerHeight, setFooterHeight] = useState(0)
   const { t } = useTranslation()
   const overlayId = useId()
   const sheetId = `sheet:${overlayId}`
@@ -130,7 +134,7 @@ export function Sheet({
   }, [onAttemptDismiss])
 
   const header = title || accessibleTitle || headerAccessory || onClose ? (
-    <View style={styles.header} accessibilityLabel={accessibleTitle}>
+    <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
       {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
@@ -150,19 +154,18 @@ export function Sheet({
   ) : undefined
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
-  const footer = actions || showSheetToast ? (
-    <View>
-      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
-      {actions ? <View style={styles.actions}>{actions}</View> : null}
-    </View>
-  ) : undefined
+  const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)
+  // WHY: TrueSheet 3.11.3 adds the bottom inset to every detent and pins the footer to the sheet bottom, so the footer covers the body only above that inset. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDetentCalculator.kt#L42-L55
+  const reservedFooterHeight = footer ? Math.max(0, footerHeight - bottomInset) : 0
+  const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
 
   return (
     <TrueSheet
       ref={sheetRef}
       backgroundColor={tokens.bgSheet}
       cornerRadius={28}
-      detents={['auto', MAX_HEIGHT_RATIO]}
+      // WHY: TrueSheet 3.11.3 sizes the sheet to its last detent and lets a drag reach it, so a second detent opens a blank area under short content, while `maxContentHeight` already caps long content. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/TrueSheetViewController.kt#L847-L873
+      detents={['auto']}
       dimmed={TRUE_SHEET_DIMMED}
       dismissible={onClose != null}
       footer={footer}
@@ -180,18 +183,23 @@ export function Sheet({
       insetAdjustment="automatic"
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
-      scrollable
+      scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={styles.body}>{children}</View>
+        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: maxBodyHeight }]}>
+          {children}
+          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
+        </View>
       ) : (
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
+          style={{ maxHeight: maxBodyHeight }}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {children}
+          <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </KeyboardAwareSheetScrollView>
       )}
     </TrueSheet>
@@ -199,6 +207,23 @@ export function Sheet({
 }
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function renderSheetFooter(
+  actions: ReactNode,
+  showSheetToast: boolean,
+  sheetId: string,
+  styles: ReturnType<typeof createStyles>,
+  bottomInset: number,
+  setFooterHeight: (height: number) => void,
+) {
+  if (!actions && !showSheetToast) return undefined
+  return (
+    <View style={{ paddingBottom: bottomInset }} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
+      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
+      {actions ? <View style={styles.actions}>{actions}</View> : null}
+    </View>
+  )
+}
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
@@ -231,7 +256,6 @@ function createStyles(tokens: Tokens) {
       transform: [{ scale: 0.96 }],
     },
     body: {
-      flexGrow: 1,
       padding: 16,
       paddingBottom: 24,
     },

@@ -6,6 +6,7 @@ import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import type { createTokensV2 } from '@/lib/theme'
 import { Proposed } from '@/components/ui/proposed'
+import { useState } from 'react'
 
 export interface SubHabitEntry {
   id: string
@@ -43,6 +44,7 @@ export function SubHabitEditor({
   styles,
 }: Readonly<SubHabitEditorProps>) {
   const { t } = useTranslation()
+  const [focusedId, setFocusedId] = useState<string | null>(null)
 
   return (
     <View style={styles.subHabitsSection}>
@@ -50,7 +52,10 @@ export function SubHabitEditor({
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (
             <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.detail.proposed')}>
-            <View style={styles.subHabitRow}>
+            <View style={[styles.subHabitRow, {
+              borderColor: focusedId === entry.id ? tokens.primary : tokens.borderControl,
+              borderWidth: focusedId === entry.id ? 2 : 1,
+            }]}>
               <Text style={styles.subHabitIndex}>{index + 1}</Text>
               <BottomSheetAppTextInput
                 value={entry.value}
@@ -61,6 +66,9 @@ export function SubHabitEditor({
                   index: index + 1,
                 })}
                 style={styles.subHabitInput}
+                focusBorder={false}
+                onFocus={() => setFocusedId(entry.id)}
+                onBlur={() => setFocusedId((current) => current === entry.id ? null : current)}
                 onChangeText={(val: string) => onUpdateSubHabit(entry.id, val)}
               />
               <Pressable

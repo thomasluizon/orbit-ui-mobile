@@ -1,7 +1,7 @@
 import { createElement, useState, type ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { i18n } from '@/lib/i18n'
@@ -10,6 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 interface RenderedNode {
   type: unknown
   props: Record<string, unknown>
+  parent: RenderedNode | null
 }
 
 interface RenderedInput extends RenderedNode {
@@ -129,6 +130,16 @@ describe('HabitChecklist checked rows', () => {
 })
 
 describe('HabitChecklist editable rows', () => {
+  it('separates the add field focus perimeter from the primary button', () => {
+    const tree = renderChecklist()
+    const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')
+    if (!input) throw new Error('Expected checklist add input')
+    let row = input.parent
+    while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 44) row = row.parent
+    if (!row) throw new Error('Expected checklist add row')
+    expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 12 })
+  })
+
   it('keeps a draft with its row through an optimistic reorder and rollback', () => {
     const tree = renderChecklist()
     const secondInput = itemInputs(tree)[1]!
@@ -201,6 +212,6 @@ describe('HabitChecklist editable rows', () => {
     if (!firstInput) throw new Error('First checklist input was not rendered')
     const style = firstInput.props.style
 
-    expect(style.at(-1)).toMatchObject({ paddingHorizontal: 8 })
+    expect(StyleSheet.flatten(style)).toMatchObject({ paddingHorizontal: 8 })
   })
 })

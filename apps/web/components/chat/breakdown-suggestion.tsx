@@ -25,7 +25,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const rows = card.habits.map((habit) => ({
     id: habit.id,
     label: card.editingId === habit.id ? (
-      <input autoFocus aria-label={t('chat.preview.editName', { name: habit.title })} className="min-h-11 w-full rounded-[8px] bg-[var(--bg-field)] px-3 text-base outline outline-1 outline-[var(--border-control)] sm:text-sm" value={habit.title} onBlur={() => card.setEditingId(null)} onChange={(event) => card.editTitle(habit.id, event.target.value)} />
+      <input autoFocus data-focus-perimeter="" aria-label={t('chat.preview.editName', { name: habit.title })} className="min-h-11 w-full rounded-[8px] border-0 bg-[var(--bg-field)] px-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] sm:text-sm" value={habit.title} onBlur={() => card.setEditingId(null)} onChange={(event) => card.editTitle(habit.id, event.target.value)} />
     ) : habit.title,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
@@ -7,6 +8,7 @@ import { authLocales, authScreenStates, createLoginScreenFixture } from '@orbit/
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/components/auth/login-content'
+import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
 
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
@@ -22,7 +24,9 @@ void testI18n.use(ICU).init({
 setI18n(testI18n)
 
 const { act, create } = require('react-test-renderer')
-const mocks = vi.hoisted((): { flow: Record<string, unknown>; action: () => void; theme: string } => ({ flow: {}, action: vi.fn(), theme: 'dark' }))
+const mocks = vi.hoisted((): { flow: Record<string, unknown>; action: () => void; revealInput: (input: unknown) => void; theme: string } => ({
+  flow: {}, action: vi.fn(), revealInput: vi.fn(), theme: 'dark',
+}))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({
   TurnstileWidget: () => React.createElement('TurnstileWidget'),
@@ -31,7 +35,9 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'pu
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
   const { View } = await import('react-native')
-  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => <View>{children}</View> }
+  return { useKeyboardAwareInputReveal: () => ({ revealInput: mocks.revealInput }), KeyboardAwareScrollView: ({ children, contentContainerStyle }: {
+    children: React.ReactNode; contentContainerStyle: unknown
+  }) => <View testID="login-scroll-content" style={contentContainerStyle as React.ComponentProps<typeof View>['style']}>{children}</View> }
 })
 
 interface Node {
@@ -68,6 +74,45 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     vi.clearAllMocks()
     void testI18n.changeLanguage(locale)
     setI18n(testI18n)
+  })
+  it.each(['email', 'code'] as const)('fills the safe viewport and centres the %s column', (step) => {
+    setFixture(step, locale)
+    const tree = render()
+    const scroll = tree.root.findAll((node) => node.props.testID === 'login-scroll-content')[0]
+    const contentStyle = StyleSheet.flatten(scroll?.props.style) as Record<string, unknown>
+    expect(contentStyle).toMatchObject({ flexGrow: 1, justifyContent: 'center', alignItems: 'center' })
+    act(() => tree.unmount())
+  })
+  it.each(['email', 'code'] as const)('starts the %s column at the top while the keyboard is open', (step) => {
+    setFixture(step, locale)
+    const tree = render()
+    const scrollStyle = () => {
+      const scroll = tree.root.findAll((node) => node.props.testID === 'login-scroll-content')[0]
+      return StyleSheet.flatten(scroll?.props.style) as Record<string, unknown>
+    }
+    act(() => __emitKeyboardEvent('keyboardDidShow'))
+    expect(scrollStyle().justifyContent).toBe('flex-start')
+    act(() => __emitKeyboardEvent('keyboardDidHide'))
+    expect(scrollStyle().justifyContent).toBe('center')
+    act(() => tree.unmount())
+  })
+  it('registers the focused code field so the scroll view can reveal it above the keyboard', () => {
+    setFixture('code', locale)
+    const tree = render()
+    act(() => (host(tree.root, 'TextInput')[0]!.props.onFocus as () => void)())
+    expect(mocks.revealInput).toHaveBeenCalledWith(expect.objectContaining({ measureInWindow: expect.any(Function) }))
+    act(() => tree.unmount())
+  })
+  it('keeps the wide panel centred while the keyboard is open', () => {
+    __setWindowDimensions({ width: 800, height: 892, scale: 1, fontScale: 1 })
+    setFixture('code', locale)
+    const tree = render()
+    act(() => __emitKeyboardEvent('keyboardDidShow'))
+    const scroll = tree.root.findAll((node) => node.props.testID === 'login-scroll-content')[0]
+    const contentStyle = StyleSheet.flatten(scroll?.props.style) as Record<string, unknown>
+    expect(contentStyle.justifyContent).toBe('center')
+    act(() => tree.unmount())
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
   })
   it('labels the email field and shows the drawn example address', () => {
     setFixture('email', locale)

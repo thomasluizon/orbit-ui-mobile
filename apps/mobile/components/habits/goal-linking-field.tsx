@@ -61,7 +61,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
 
   return (
     <>
-      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
+      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} inForm onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><Text numberOfLines={1} style={styles.chipText}>{goal.title}</Text></View>)}{selectedGoals.length > 3 ? <View style={styles.chip}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
       {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} onClose={() => { setOpen(false); setQuery('') }}>
         {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={openCreateGoal}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.createGoal')}</Text></Pressable></View> : <View style={styles.list}>
@@ -81,9 +81,9 @@ function createStyles(tokens: Tokens) {
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8 },
     chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 13, flexShrink: 1 },
-    list: { gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
+    list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
     search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 44, paddingHorizontal: 12 },
-    virtualList: { maxHeight: 360 },
+    virtualList: { maxHeight: 320 },
     row: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 12, minHeight: 48, paddingHorizontal: 12 },
     rowTitle: { color: tokens.fg1, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16 },
     rowValue: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },

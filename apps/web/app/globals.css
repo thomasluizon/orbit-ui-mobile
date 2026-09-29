@@ -50,6 +50,8 @@
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
+  /* Resolves to 0 until the document opts into viewport-fit cover, and keeps the pinned actions clear of the home indicator the day it does. */
+  padding-bottom: env(safe-area-inset-bottom);
   border-radius: 28px 28px 0 0;
   background: var(--bg-sheet);
   color: var(--fg-1);
@@ -98,6 +100,12 @@
 
 .orbit-list-row-shell {
   transition: background-color 380ms var(--ease-standard);
+}
+
+.orbit-list-row-form {
+  margin-inline: 8px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .orbit-row-list > div:first-child .orbit-list-row-shell {
@@ -231,7 +239,7 @@
 
 .orbit-sheet-body {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -244,7 +252,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 16px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 16px 24px 24px;
 }
 
 .orbit-sheet-actions > * {
@@ -1405,8 +1413,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (forced-colors: active) {
-  [data-composer-input-row]:has(textarea:focus-visible) {
-    outline: none;
+  /* WHY: a field that paints its own forced-colors perimeter must not also take the outline above (#950). */
+  :is(input, textarea)[data-focus-perimeter]:focus-visible,
+  [data-focus-perimeter] :is(input, textarea):focus-visible {
+    outline: none !important;
   }
 }
 

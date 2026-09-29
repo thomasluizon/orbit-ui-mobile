@@ -83,7 +83,7 @@ it('uses verb-first consequence labels for known confirmation capabilities in bo
       const actionKey = capabilityId.replaceAll('.', '-') as keyof typeof messages.chat.pendingOp.action
       const label = messages.chat.pendingOp.action[actionKey]
       expect(label.split(' '), capabilityId).toHaveLength(2)
-      expect(label.split(' ')[0], capabilityId).toMatch(/^(Delete|Change|Sync|Excluir|Alterar|Sincronizar)$/)
+      expect(label.split(' ')[0], capabilityId).toMatch(/^(Delete|Change|Sync|Apagar|Alterar|Sincronizar)$/)
       expect(buildPendingOperationCardLabels(makePendingAgentOperation({ capabilityId }), (key) => key, (value) => value).confirm)
         .toBe(`chat.pendingOp.action.${actionKey}`)
     }
@@ -91,7 +91,7 @@ it('uses verb-first consequence labels for known confirmation capabilities in bo
 })
 
 it('names deletion of saved AI memory on the confirmation in both locales', () => {
-  for (const [messages, expected] of [[en, 'Delete memory'], [ptBR, 'Excluir memória']] as const) {
+  for (const [messages, expected] of [[en, 'Delete memory'], [ptBR, 'Apagar memória']] as const) {
     const pendingOperation = makePendingAgentOperation({ capabilityId: 'user-facts.delete' })
     const translate = (key: string) => key.startsWith('chat.pendingOp.action.')
       ? (messages.chat.pendingOp.action as Record<string, string>)[key.slice('chat.pendingOp.action.'.length)] ?? key

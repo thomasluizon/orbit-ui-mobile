@@ -7,7 +7,6 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
-import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { Chip } from '@/components/ui/chip'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -154,7 +153,7 @@ export function FeatureGuideDrawer({
         </ScrollView>
       </View>
 
-      <View style={withDrawerContentInset(styles.sectionContent)}>
+      <View style={styles.sectionContent}>
         {items.map((item) => (
           <View key={item.titleKey} style={styles.sectionItem}>
             <Text style={styles.sectionTitle}>{t(item.titleKey)}</Text>
@@ -177,9 +176,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     tabBarContent: {
       gap: 8,
       paddingRight: 12,
-    },
-    sectionScroll: {
-      flex: 1,
     },
     sectionContent: {
       paddingHorizontal: 24,

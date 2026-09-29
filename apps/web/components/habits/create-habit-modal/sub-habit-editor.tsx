@@ -34,7 +34,8 @@ export function SubHabitEditor({
           {subHabits.map((entry, index) => (
             <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.detail.proposed')}>
               <div
-                className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] has-[input:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                data-focus-perimeter=""
+                className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[input:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[input:focus-visible]:border-[Highlight] transition-[box-shadow] duration-[var(--dur-fast)]"
                 style={{ minHeight: 54, gap: 8, padding: '0 8px 0 16px' }}
               >
                 <span className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]" aria-hidden="true">{index + 1}</span>

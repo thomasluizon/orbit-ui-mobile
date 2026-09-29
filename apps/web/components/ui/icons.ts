@@ -45,6 +45,8 @@ export {
   IconEyeOff as EyeOff,
   IconPlayerTrackNext as FastForward,
   IconFileText as FileText,
+  IconDeviceFloppy as DeviceFloppy,
+  IconTemplate as Template,
   IconFilter as Filter,
   IconFlame as Flame,
   IconGift as Gift,

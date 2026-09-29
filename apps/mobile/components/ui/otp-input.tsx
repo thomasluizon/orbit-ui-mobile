@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
 
 export function OtpInput({
   label,
@@ -16,6 +17,7 @@ export function OtpInput({
   length = 6,
 }: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
+  const keyboardAware = useKeyboardAwareInputReveal()
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -42,7 +44,7 @@ export function OtpInput({
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
-          onFocus={() => setFocused(true)}
+          onFocus={() => { setFocused(true); keyboardAware?.revealInput(inputRef.current) }}
           onBlur={() => setFocused(false)}
           editable={!disabled}
           keyboardType="number-pad"
@@ -66,15 +68,12 @@ export function OtpInput({
               styles.cell,
               {
                 backgroundColor: tokens.bgField,
-                borderColor: error
-                  ? tokens.statusBad
-                  : focused && !disabled && index === activeIndex
-                    ? tokens.primary
+                borderColor: focused && !disabled && index === activeIndex
+                  ? tokens.primary
+                  : error
+                    ? tokens.statusBad
                     : tokens.borderControl,
                 borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
-                outlineWidth: focused && !disabled && index === activeIndex ? 2 : 0,
-                outlineOffset: 2,
-                outlineColor: tokens.primary,
               },
             ]}
           >

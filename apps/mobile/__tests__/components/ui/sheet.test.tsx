@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
@@ -18,6 +18,10 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 
 vi.unmock('@/components/ui/sheet')
+
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+}))
 
 const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
 
@@ -167,7 +171,7 @@ describe('Sheet (mobile)', () => {
       .find((node: { props: { nestedScrollEnabled?: boolean } }) => node.props.nestedScrollEnabled)
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
-    expect(nativeSheet.props.scrollable).toBe(true)
+    expect(nativeSheet.props.scrollable).toBe(false)
     expect(nativeSheet.props.maxContentHeight).toBeCloseTo(892 * 0.85 - 24)
     expect(nativeSheet.props.maxContentWidth).toBe(640)
     expect(nativeSheet.props.insetAdjustment).toBe('automatic')
@@ -182,7 +186,7 @@ describe('Sheet (mobile)', () => {
 
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
     expect(tree.root.findByProps({ testID: 'sheet-virtualized-body' })).toBeDefined()
-    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(true)
+    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(false)
   })
 
   it('reveals a focused lower input through the sheet body scroller', async () => {
@@ -275,12 +279,73 @@ describe('Sheet (mobile)', () => {
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <Sheet open actions={<Text>Save</Text>}><Text>Body</Text></Sheet>,
+        <Sheet open title="Title" actions={<Text>Save</Text>}><Text>Body</Text></Sheet>,
       )
       await Promise.resolve()
     })
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.footer).toBeDefined()
+    const bodyScroller = tree.root.findAllByType('ScrollView')[0]
+    const bodyStyle = (StyleSheet.flatten(bodyScroller.props.style) ?? {}) as { flex?: number; flexGrow?: number }
+    const contentStyle = StyleSheet.flatten(bodyScroller.props.contentContainerStyle) as { flex?: number; flexGrow?: number }
+    expect(bodyStyle.flex).toBeUndefined()
+    expect(bodyStyle.flexGrow).toBeUndefined()
+    expect(contentStyle.flex).toBeUndefined()
+    expect(contentStyle.flexGrow).toBeUndefined()
+    const actions = nativeSheet.props.footer.props.children[1]
+    expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ padding: 16 })
+    expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
+    await TestRenderer.act(() => {
+      nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
+    })
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - 24)
+    await TestRenderer.act(() => {
+      nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
+    })
+    const measuredScroller = tree.root.findAllByType('ScrollView')[0]
+    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24)
+  })
+
+  it('clears the bottom inset for a sheet toast that has no actions', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open title="Title"><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      useAppToastStore.getState().showError('Could not save')
+      await Promise.resolve()
+    })
+
+    const footer = tree.root.findByType(TrueSheet).props.footer
+    expect(footer).toBeDefined()
+    expect(StyleSheet.flatten(footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps a short sheet at its content height with no stretched body', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Sheet open title="Update title" actions={<Text>Open the store</Text>}>
+          <Text>Two short lines of update copy.</Text>
+        </Sheet>,
+      )
+      await Promise.resolve()
+    })
+
+    const bodyScroller = tree.root.findAllByType('ScrollView')[0]
+    const bodyStyle = (StyleSheet.flatten(bodyScroller.props.style) ?? {}) as { flex?: number; flexGrow?: number; height?: number }
+    const contentStyle = StyleSheet.flatten(bodyScroller.props.contentContainerStyle) as { flex?: number; flexGrow?: number; height?: number }
+    expect(bodyStyle.flex).toBeUndefined()
+    expect(bodyStyle.flexGrow).toBeUndefined()
+    expect(bodyStyle.height).toBeUndefined()
+    expect(contentStyle.flex).toBeUndefined()
+    expect(contentStyle.flexGrow).toBeUndefined()
+    expect(contentStyle.height).toBeUndefined()
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(0)
+    expect(tree.root.findByType(TrueSheet).props.detents).toEqual(['auto'])
   })
 })
 

@@ -15,7 +15,7 @@ describe('goal deadline removal graphic', () => {
       tree = create(
         <GoalDeadlineField
           tokens={tokens}
-          styles={createStyles(tokens, 0)}
+          styles={createStyles(tokens)}
           deadline="2025-06-15"
           onChangeDeadline={vi.fn()}
         />,

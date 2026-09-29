@@ -47,8 +47,6 @@ vi.mock('next/dynamic', () => ({
         : <div data-testid="create-habit-modal">{props.initialDate}</div>
       : null,
 }))
-vi.mock('@vercel/analytics/next', () => ({ Analytics: () => null }))
-vi.mock('@vercel/speed-insights/next', () => ({ SpeedInsights: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))

@@ -90,12 +90,10 @@ describe('form primitives on mobile', () => {
     void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
     expect(style()).not.toEqual(resting)
     expect(style()).toMatchObject({
-      borderColor: error ? tokens.statusBad : tokens.borderControl,
-      borderWidth: error ? 2 : 1,
-      outlineColor: tokens.primary,
-      outlineOffset: 2,
-      outlineWidth: 2,
+      borderColor: tokens.primary,
+      borderWidth: 2,
     })
+    expect((style() as { outlineWidth?: number }).outlineWidth ?? 0).toBe(0)
     void act(() => prop<() => void>(input, 'onBlur')())
     expect(style()).toEqual(resting)
   })
@@ -125,11 +123,14 @@ describe('form primitives on mobile', () => {
     expect(cell().props['data-active']).toBeUndefined()
     void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
     expect(cell().props['data-active']).toBe('')
-    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
-    if (error) expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ borderColor: tokens.statusBad })
+    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ borderWidth: 2, borderColor: tokens.primary })
+    expect(StyleSheet.flatten(prop<{ outlineWidth?: number }>(cell(), 'style')).outlineWidth ?? 0).toBe(0)
     void act(() => prop<() => void>(input, 'onBlur')())
     expect(cell().props['data-active']).toBeUndefined()
-    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ outlineWidth: 0 })
+    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({
+      borderWidth: error ? 2 : 1,
+      borderColor: error ? tokens.statusBad : tokens.borderControl,
+    })
   })
 
   it('renders labelled single and multiline inputs with their shared limits', () => {

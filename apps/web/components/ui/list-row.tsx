@@ -11,6 +11,12 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   titleTranslate?: 'no'
 }
 
+function getBodyStyle(compact: boolean, hasAction: boolean) {
+  return compact
+    ? { minHeight: 52, padding: '4px 12px', paddingInlineEnd: hasAction ? 0 : 12 }
+    : { minHeight: 76, padding: 16, paddingInlineEnd: hasAction ? 0 : 16 }
+}
+
 function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<WebListRowProps, 'title' | 'titleTranslate' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
@@ -32,14 +38,14 @@ function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, w
 }
 
 export function ListRow(props: Readonly<WebListRowProps>) {
-  const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
+  const { accessibilityLabel, action, chevron = true, compact = false, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const interactive = !readOnly && !disabled && (href || onClick)
   const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
-  const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
+  const bodyStyle = getBodyStyle(compact, !!action)
 
   return (
-    <div className={`orbit-list-row-shell flex items-stretch ${interactive ? 'orbit-list-row-interactive' : ''}`} style={{ minHeight: 52 }}>
+    <div className={`orbit-list-row-shell flex items-stretch ${interactive ? 'orbit-list-row-interactive' : ''} ${inForm ? 'orbit-list-row-form' : ''}`} style={{ minHeight: 52 }}>
       {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (

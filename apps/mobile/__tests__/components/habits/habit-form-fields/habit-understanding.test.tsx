@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -20,6 +21,7 @@ vi.mock("@/components/habits/habit-form-fields/habit-emoji-selector", () => ({
 interface TestNode {
   type: unknown;
   props: Record<string, unknown>;
+  parent: TestNode | null;
   findAll(predicate: (node: TestNode) => boolean): TestNode[];
 }
 
@@ -100,6 +102,20 @@ function daySelected(tree: TestTree, label: string): boolean {
 }
 
 describe("HabitUnderstanding mobile", () => {
+  it("replaces the phrase border on focus without adding an input border", () => {
+    const { tree } = renderUnderstanding();
+    const input = tree.root.findAll((node) => node.type === "TextInput")[0]!;
+    let layer = input.parent;
+    while (layer && StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth === undefined) layer = layer.parent;
+    if (!layer) throw new Error('Expected a bordered phrase field');
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(1);
+    TestRenderer.act(() => (input.props.onFocus as () => void)());
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(2);
+    expect(StyleSheet.flatten(input.props.style as TextStyle).borderWidth).toBeUndefined();
+    TestRenderer.act(() => (input.props.onBlur as () => void)());
+    expect(StyleSheet.flatten(layer.props.style as ViewStyle).borderWidth).toBe(1);
+  });
+
   it("shows every weekday selected for a daily phrase", () => {
     const dayOptions = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
       .map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value }));

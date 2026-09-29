@@ -59,17 +59,20 @@ export function NotificationDetailModal({
       onClose={() => onOpenChange(false)}
       title={notification.title}
       actions={
-        <div className="flex flex-wrap items-center justify-end" style={{ gap: 8 }}>
+        <div className="flex flex-wrap items-center justify-end" style={{ gap: 8, width: '100%' }}>
           {canView && (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
             <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           )}
           {canMarkAsRead && (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
             </Button>
           )}
+          <span style={{ flexGrow: 1 }} />
           <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
           </Button>

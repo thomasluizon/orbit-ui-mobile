@@ -475,6 +475,7 @@ vi.mock('@/components/ui/list-row', () => ({
       accessibilityLabel: action.label,
       onPress: action.onPress,
     }) : null,
+    trailing ?? null,
   ),
 }))
 
@@ -629,8 +630,12 @@ describe('ProfileScreen', () => {
       'Tema', 'Exportar os meus dados',
     ])
     inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
+    expect(groupText(apiKeys)).toContain('Pro')
+    expect(groupText(apiKeys)).not.toContain('Período de teste')
     inOrder('notifications', [
-      'Análise de uso', 'Aparelhos com aviso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
+      'Os lembretes de cada hábito ficam no próprio hábito.',
     ])
     expect(tree.root.findAll((node: { props: { testID?: string } }) =>
       node.props.testID === 'marketing-consent-section')).toHaveLength(1)
@@ -893,6 +898,24 @@ describe('ProfileScreen', () => {
       expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile' } })
       expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile' } })
     }
+  })
+
+  it('badges the locked API keys section Pro, never with the trial label', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+
+    const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
+    const badges = apiKeys.findAll((node: { type: unknown; props: { testID?: string } }) =>
+      typeof node.type === 'string'
+      && typeof node.props.testID === 'string' && node.props.testID.startsWith('badge-'))
+    expect(badges.map((badge: { props: { testID?: string } }) => badge.props.testID))
+      .toEqual(['badge-solid', 'badge-solid'])
+    expect(badges.map(nodeText)).toEqual(['common.proBadge', 'common.proBadge'])
+    expect(nodeText(apiKeys)).not.toContain('trial.proBadge')
   })
 
   it('shows only the API key description and upgrade row to free accounts', async () => {
@@ -1632,8 +1655,8 @@ describe('ProfileScreen', () => {
     mockDeviceState.current.count = count
     const tree = await renderProfileScreen()
     expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} of 5`)
-    expect(nodeText(tree.root)).toContain('profile.settingsRows.alertsOnThisDevice')
-    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.currentDevice')
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
   })
 
   it('names this device when its token is registered', async () => {
@@ -1645,6 +1668,7 @@ describe('ProfileScreen', () => {
       node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function')
     expect(control.props.accessibilityState?.checked).toBe(true)
     expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
   })
 
   it('reserves the count while devices load', async () => {

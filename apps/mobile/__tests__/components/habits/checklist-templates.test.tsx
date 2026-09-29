@@ -93,9 +93,17 @@ describe('ChecklistTemplates mobile', () => {
     mocks.closeSheet.mockReset()
   })
 
+  it('shows a template entry without a count', () => {
+    mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
+    const { tree } = renderTemplates()
+    const row = listRow(tree, 'habits.form.useTemplate')
+    expect(row.props.icon).toBe('template')
+    expect(row.props.value).toBeUndefined()
+  })
+
   it('saves the current checklist under a trimmed template name', () => {
     const { tree } = renderTemplates()
-    press(listRow(tree, 'habits.form.templates'))
+    press(listRow(tree, 'habits.form.useTemplate'))
     const saveCurrent = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
     press(saveCurrent, 'onPress')
 
@@ -117,7 +125,7 @@ describe('ChecklistTemplates mobile', () => {
   it('loads a selected template as unchecked checklist items', () => {
     mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Warm up', 'Run'] }]
     const { tree, onLoad } = renderTemplates()
-    press(listRow(tree, 'habits.form.templates'))
+    press(listRow(tree, 'habits.form.useTemplate'))
     press(listRow(tree, 'Workout'))
     expect(mocks.closeSheet).toHaveBeenCalledOnce()
     expect(onLoad).not.toHaveBeenCalled()
@@ -133,7 +141,7 @@ describe('ChecklistTemplates mobile', () => {
   it('surfaces deletion failures through the app toast', () => {
     mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
     const { tree } = renderTemplates()
-    press(listRow(tree, 'habits.form.templates'))
+    press(listRow(tree, 'habits.form.useTemplate'))
     const action = listRow(tree, 'Workout').props.action as { onPress: () => void }
     TestRenderer.act(() => action.onPress())
     const onError = mocks.remove.mock.calls[0]![1].onError as () => void
