@@ -13,6 +13,7 @@ interface HabitListConfirmDialogsProps {
   parentPrompt: { id: string; name: string; mode: 'log' | 'skip' } | null
   onConfirmDelete: () => void
   onCancelDelete: () => void
+  onDeleteClosed: () => void
   onConfirmDuplicate: () => void
   onCancelDuplicate: () => void
   onConfirmSkip: () => void
@@ -32,6 +33,7 @@ export function HabitListConfirmDialogs({
   parentPrompt,
   onConfirmDelete,
   onCancelDelete,
+  onDeleteClosed,
   onConfirmDuplicate,
   onCancelDuplicate,
   onConfirmSkip,
@@ -92,6 +94,7 @@ export function HabitListConfirmDialogs({
         confirmImmediately
         loading={deletePending}
         onCancel={onCancelDelete}
+        onCloseComplete={onDeleteClosed}
         onConfirm={onConfirmDelete}
       />
     </>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -19,6 +19,7 @@ interface ConfirmSheetProps {
   /** Starts the action on press while the controlled sheet closes. */
   confirmImmediately?: boolean
   loading?: boolean
+  onCloseComplete?: () => void
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
   /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */
@@ -36,6 +37,7 @@ export function ConfirmSheet({
   inlineActions = false,
   confirmImmediately = false,
   loading = false,
+  onCloseComplete,
   onCancel,
   onConfirm,
 }: Readonly<ConfirmSheetProps>) {
@@ -43,6 +45,8 @@ export function ConfirmSheet({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
+  const onCloseCompleteRef = useRef(onCloseComplete)
+  useEffect(() => { onCloseCompleteRef.current = onCloseComplete }, [onCloseComplete])
   const [lifecycle, setLifecycle] = useState({
     lastOpen: open, mounted: open, closing: false, generation: 0,
   })
@@ -62,6 +66,7 @@ export function ConfirmSheet({
       closing: false,
       generation: current.lastOpen ? current.generation + 1 : current.generation,
     }) : current)
+    onCloseCompleteRef.current?.()
   }, [])
 
   useEffect(() => {

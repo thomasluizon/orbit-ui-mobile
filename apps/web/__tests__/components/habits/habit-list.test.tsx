@@ -2783,12 +2783,16 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'future-delete', title: 'Read', scheduledDates: [TOMORROW] })
     mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.topLevelHabits = [habit]
+    deleteHabitMutateAsync.mockImplementationOnce(() => {
+      mockHabitsData.habitsById.delete(habit.id)
+      mockHabitsData.topLevelHabits = []
+      return Promise.resolve()
+    })
     sheetTestControls.defer(true)
 
-    renderWithProviders(
-      <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
-        selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />,
-    )
+    const futureList = <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
+      selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />
+    const { rerenderWithProviders } = renderWithProviders(futureList)
     fireEvent.click(screen.getByTestId('delete-future-delete'))
     const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
     fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
@@ -2796,6 +2800,16 @@ describe('HabitList', () => {
     expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
     expect(deleteHabitMutateAsync).toHaveBeenCalledTimes(1)
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith('future-delete')
+    await act(async () => { await Promise.resolve() })
+    rerenderWithProviders(futureList)
+    expect(screen.queryByTestId('habit-card-future-delete')).toBeNull()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toHaveTextContent(
+      'Read leaves your list. You can undo it from the message that appears.',
+    )
+    act(() => { sheetTestControls.completeDismissal() })
+    expect(screen.queryByTestId('sheet')).toBeNull()
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1')
   })
 
   it.each([

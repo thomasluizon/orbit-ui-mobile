@@ -114,13 +114,15 @@ function DeferredCreateHabitModal(props: Readonly<ComponentProps<typeof CreateHa
 function DeferredConfirmDialogs(
   props: Readonly<ComponentProps<typeof HabitListConfirmDialogs>>,
 ) {
+  const [activated, setActivated] = useState(false)
   const open =
     props.showDeleteConfirm ||
     props.deletePending ||
     props.habitToSkip !== null ||
     props.duplicateHabitName !== null ||
     props.parentPrompt !== null
-  return open ? <HabitListConfirmDialogs {...props} /> : null
+  if (open && !activated) setActivated(true)
+  return open || activated ? <HabitListConfirmDialogs {...props} /> : null
 }
 
 function DeferredMoveParentOverlay(
@@ -696,8 +698,10 @@ export function HabitList({
   const [showRescheduleSheet, setShowRescheduleSheet] = useAccountScopedState(false)
   const [habitToReschedule, setHabitToReschedule] = useAccountScopedState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
-  const [deletePending, setDeletePending] = useState(false)
-  const [habitToDelete, setHabitToDelete] = useAccountScopedState<string | null>(null)
+  const [deletePending, setDeletePending] = useAccountScopedState(false)
+  const [habitToDelete, setHabitToDelete] = useAccountScopedState<{
+    id: string; name: string; descendantCount: number
+  } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
   const [habitToSkip, setHabitToSkip] = useAccountScopedState<{ habit: NormalizedHabit; date: string } | null>(null)
   const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
@@ -726,11 +730,7 @@ export function HabitList({
     autoCollapsedOnDragRef.current = null
   })
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
-  const deleteConfirmation = getDeleteConfirmation(
-    habitToDelete,
-    habitsById,
-    childrenByParent,
-  )
+  const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
 
   const surfaceOpen = Boolean(
     drill.currentParent ||
@@ -1027,7 +1027,7 @@ export function HabitList({
   }, [setEditModalOnSaved, setHabitToEdit, setShowEditModal])
 
   function promptDelete(habitId: string) {
-    setHabitToDelete(habitId)
+    setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
     setShowDeleteConfirm(true)
   }
 
@@ -1060,10 +1060,9 @@ export function HabitList({
     setDeletePending(true)
     setShowDeleteConfirm(false)
     try {
-      await deleteHabitMut.mutateAsync(habitToDelete)
+      await deleteHabitMut.mutateAsync(habitToDelete.id)
     } catch {
     } finally {
-      setHabitToDelete(null)
       setDeletePending(false)
     }
   }
@@ -1413,6 +1412,7 @@ export function HabitList({
   return (
     <div
       ref={listContainerRef}
+      tabIndex={-1}
       className="px-4 pb-24"
     >
       {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
@@ -1453,6 +1453,10 @@ export function HabitList({
           ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
           : null}
         onConfirmDelete={() => void confirmDelete()}
+        onDeleteClosed={() => {
+          setHabitToDelete(null)
+          listContainerRef.current?.focus()
+        }}
         onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)

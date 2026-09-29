@@ -517,7 +517,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const promptDataRef = useRef<ParentSettlementData | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deletePending, setDeletePending] = useState(false)
-    const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
+    const [habitToDelete, setHabitToDelete] = useState<{
+      id: string; name: string; descendantCount: number
+    } | null>(null)
     const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
     const [habitToSkip, setHabitToSkip] = useState<{ habit: NormalizedHabit; date: string } | null>(null)
     const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
@@ -536,11 +538,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [selectedMoveParentId, setSelectedMoveParentId] = useState<
       string | null
     >(null)
-    const deleteConfirmation = getDeleteConfirmation(
-      habitToDelete,
-      habitsById,
-      childrenByParent,
-    )
+    const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
       [selectedHabitIds],
@@ -1279,9 +1277,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const promptDelete = useCallback((habitId: string) => {
-      setHabitToDelete(habitId)
+      setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
       setShowDeleteConfirm(true)
-    }, [])
+    }, [habitsById, childrenByParent])
 
     const confirmDuplicate = useCallback(async () => {
       if (!habitToDuplicate) return
@@ -1366,10 +1364,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       setShowDeleteConfirm(false)
 
       try {
-        await deleteMutation.mutateAsync(habitToDelete)
+        await deleteMutation.mutateAsync(habitToDelete.id)
       } catch {
       } finally {
-        setHabitToDelete(null)
         setDeletePending(false)
       }
     }, [deleteMutation, habitToDelete])
@@ -1674,6 +1671,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           habitToSkip={habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null}
           parentPrompt={getVisibleParentPrompt(parentPrompt, selectedDateStr)}
           onConfirmDelete={() => void confirmDelete()}
+          onDeleteClosed={() => setHabitToDelete(null)}
           onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)

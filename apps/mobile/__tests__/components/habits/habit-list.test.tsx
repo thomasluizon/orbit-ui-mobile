@@ -1183,9 +1183,13 @@ describe('HabitList', () => {
     expect(deleteMutateAsync).toHaveBeenCalledWith('habit-1')
   })
 
-  it('starts a future-day row delete as soon as confirmation is pressed', () => {
+  it('starts a future-day row delete as soon as confirmation is pressed', async () => {
     const habit = createMockHabit({ id: 'future-delete', title: 'Read', scheduledDates: [TOMORROW] })
     seedHabits([habit])
+    deleteMutateAsync.mockImplementationOnce(() => {
+      seedHabits([])
+      return Promise.resolve()
+    })
     sheetTestControls.defer(true)
     let tree: any
     TestRenderer.act(() => {
@@ -1204,6 +1208,21 @@ describe('HabitList', () => {
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
     expect(deleteMutateAsync).toHaveBeenCalledTimes(1)
     expect(deleteMutateAsync).toHaveBeenCalledWith('future-delete')
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList view="today" selectedDate={new Date(`${TOMORROW}T09:00:00Z`)}
+          filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    expect(tree.root.findAllByType(HabitRow)
+      .some((node: any) => node.props.habit.id === 'future-delete')).toBe(false)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(flattenRenderedText(tree.toJSON())).toContain(
+      'Read leaves your list. You can undo it from the message that appears.',
+    )
+    TestRenderer.act(() => { sheetTestControls.completeDismissal() })
+    expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
   it.each([
