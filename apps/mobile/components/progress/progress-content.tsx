@@ -72,7 +72,7 @@ function Section({ title, children, tokens }: Readonly<{ title: string; children
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
 
   return (
     <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
@@ -488,7 +488,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">

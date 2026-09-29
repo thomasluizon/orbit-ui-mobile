@@ -16,23 +16,15 @@ describe('StatTile', () => {
     expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
-  it.each([
-    { viewport: 360, contentWidth: 110 },
-    { viewport: 412, contentWidth: 136 },
-  ])('lets weekday values wrap within the $viewport px two-column grid', ({ viewport, contentWidth }) => {
-    const gridWidth = viewport - 32
-    expect((gridWidth - 12) / 2 - 48).toBe(contentWidth)
-    for (const weekday of ['Wednesday', 'Quarta-feira']) {
-      const { unmount } = render(<StatTile value={weekday} label="Best weekday" valueSize="lg" />)
-      const value = screen.getByText(weekday)
-      expect(value).toHaveStyle({ fontSize: 'var(--fs-lg)', overflowWrap: 'anywhere' })
-      expect(value).toHaveClass('max-w-full', 'whitespace-normal')
-      expect(value).not.toHaveClass('overflow-hidden', 'text-ellipsis', 'whitespace-nowrap')
-      expect(value.parentElement).toHaveClass('px-6', 'py-4')
-      expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
-      expect(2 * 24 + 40 + 8 + 2 * 16).toBeLessThanOrEqual(STAT_TILE_MIN_HEIGHT)
-      unmount()
-    }
+  it('keeps large weekday values on one line for the tile width query', () => {
+    render(<StatTile value="Wednesday" label="Best weekday" valueSize="lg" />)
+    const value = screen.getByText('Wednesday')
+    expect(value).toHaveClass('stat-tile-large-value', 'max-w-full', 'whitespace-nowrap')
+    expect(value).not.toHaveClass('overflow-hidden', 'text-ellipsis', 'break-words')
+    expect(value).not.toHaveStyle({ overflowWrap: 'anywhere' })
+    expect(value.parentElement).toHaveClass('stat-tile-large', 'px-6', 'py-4')
+    expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
+    expect(24 + 40 + 8 + 2 * 16).toBeLessThanOrEqual(STAT_TILE_MIN_HEIGHT)
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

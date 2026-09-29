@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,20 +12,21 @@ function shownStatValue(props: StatTileProps): string | number {
   return props.value
 }
 
-function TileValue({ value, isEmpty, isLargeValue, color }: Readonly<{
+function TileValue({ value, isEmpty, isLargeValue, largeFontSize, color }: Readonly<{
   value: string | number
   isEmpty: boolean
   isLargeValue: boolean
+  largeFontSize: number
   color: string
 }>) {
-  const lineProps = isLargeValue ? {} : { ellipsizeMode: 'tail' as const, numberOfLines: 1 }
   return (
     <Text
       accessibilityLabel={String(value)}
-      {...lineProps}
+      numberOfLines={1}
+      ellipsizeMode={isLargeValue ? undefined : 'tail'}
       style={[
         isEmpty ? styles.emptyValue : styles.value,
-        isLargeValue ? styles.largeValue : undefined,
+        isLargeValue ? [styles.largeValue, { fontSize: largeFontSize }] : undefined,
         { color },
       ]}
     >
@@ -35,6 +37,7 @@ function TileValue({ value, isEmpty, isLargeValue, color }: Readonly<{
 
 /** A fixed-height stat surface whose loading and empty states never reflow the row. */
 export function StatTile(props: Readonly<StatTileProps>) {
+  const [tileWidth, setTileWidth] = useState(0)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { label, state = 'default' } = props
@@ -47,6 +50,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       testID={`stat-tile-${state}`}
       accessibilityRole={state === 'loading' ? 'progressbar' : undefined}
       accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
+      onLayout={(event) => setTileWidth(event.nativeEvent.layout.width)}
     >
       {state === 'loading' ? (
         <View style={[styles.valueSkeleton, { backgroundColor: tokens.bgElev2 }]} />
@@ -55,6 +59,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           value={shownStatValue(props)}
           isEmpty={isEmpty}
           isLargeValue={isLargeValue}
+          largeFontSize={tileWidth >= 172 ? 22 : 18}
           color={isEmpty ? tokens.fg3 : tokens.fg1}
         />
       )}
@@ -87,7 +92,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     maxWidth: '100%',
   },
-  largeValue: { fontSize: 22, textAlign: 'center' },
+  largeValue: { textAlign: 'center' },
   emptyValue: {
     fontFamily: 'GeistMono_500Medium',
     fontSize: 12,

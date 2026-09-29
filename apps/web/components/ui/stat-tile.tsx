@@ -16,17 +16,16 @@ function TileValue({ shownValue, isEmpty, isLargeValue }: Readonly<{
   return (
     <span
       className={isLargeValue
-        ? 'max-w-full whitespace-normal break-words'
+        ? 'stat-tile-large-value max-w-full whitespace-nowrap'
         : 'max-w-full overflow-hidden text-ellipsis whitespace-nowrap'}
       title={shownValue}
       style={{
         color: isEmpty ? 'var(--fg-3)' : 'var(--fg-1)',
         fontFamily: isEmpty ? 'var(--font-mono)' : 'var(--font-display)',
-        fontSize: isEmpty ? 12 : isLargeValue ? 'var(--fs-lg)' : 24,
+        fontSize: isEmpty ? 12 : isLargeValue ? undefined : 24,
         fontWeight: isEmpty ? 500 : 600,
         fontVariantNumeric: 'tabular-nums',
         lineHeight: '24px',
-        overflowWrap: isLargeValue ? 'anywhere' : undefined,
       }}
     >
       {shownValue}
@@ -44,7 +43,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <div
-      className={`flex flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] text-center ${isLargeValue ? 'px-6 py-4' : 'p-6'}`}
+      className={`flex flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] text-center ${isLargeValue ? 'stat-tile-large px-6 py-4' : 'p-6'}`}
       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minHeight: STAT_TILE_MIN_HEIGHT }}
       data-state={state}
       role={isLoading ? 'status' : undefined}
