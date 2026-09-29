@@ -35,9 +35,8 @@ export const captionStyle: CSSProperties = {
   textWrap: 'pretty',
 }
 
-export const titleStyle: CSSProperties = {
+const baseTitleStyle: CSSProperties = {
   fontFamily: 'var(--font-display)',
-  fontSize: 34,
   lineHeight: 1.1,
   fontWeight: 700,
   letterSpacing: '-0.02em',
@@ -46,10 +45,12 @@ export const titleStyle: CSSProperties = {
   textWrap: 'balance',
 }
 
-export const introTitleStyle: CSSProperties = {
-  ...titleStyle,
-  fontSize: 'var(--wrapped-intro-title-size, 34px)',
+export const titleStyle: CSSProperties = {
+  ...baseTitleStyle,
+  fontSize: 34,
 }
+
+export const introTitleStyle = baseTitleStyle
 
 export const coverTitleStyle: CSSProperties = {
   fontFamily: 'var(--font-display)',

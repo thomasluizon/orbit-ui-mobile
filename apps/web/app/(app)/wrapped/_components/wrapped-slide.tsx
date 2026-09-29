@@ -60,7 +60,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             {t('wrapped.slides.intro.eyebrow')}
           </motion.span>
           <motion.h1
-            className="lg:[--wrapped-intro-title-size:44px]"
+            className="text-[34px] lg:text-[44px]"
             data-testid="wrapped-motion-part"
             data-wrapped-figure="primary"
             {...motionProps(1, reducedMotion)}
