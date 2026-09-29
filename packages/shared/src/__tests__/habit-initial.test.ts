@@ -20,8 +20,17 @@ describe('habitInitial', () => {
     ['\u06001 habit', '\u06001'],
     ['a\u200cb habit', 'A\u200c'],
     ['क्A habit', 'क्'],
+    ['क्‌ष अभ्यास', 'क्‌'],
     ['', ''],
   ])('returns the first grapheme of %s', (title, initial) => {
     expect(habitInitial(title)).toBe(initial)
+  })
+
+  it.each([
+    'étude', '  👩‍🚀 mission', '🇧🇷 Brasil', 'क्ष अभ्यास', 'क्‍षब अभ्यास', 'क्‌ष अभ्यास',
+    'क्‌‍ष', 'a‌b habit', 'กิ วิ่ง', '한글 읽기', '؀1 habit',
+  ])('agrees with the platform grapheme segmenter for %s', (title) => {
+    const [first] = new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(title.trim())
+    expect(habitInitial(title)).toBe(first!.segment.toLocaleUpperCase())
   })
 })

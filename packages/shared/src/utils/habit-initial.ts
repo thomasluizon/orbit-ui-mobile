@@ -19,9 +19,11 @@ const INDIC_LINKERS = new Set([
   0x11133, 0x113d0, 0x1193e, 0x11a3a, 0x11a47, 0x11a99, 0x11f42,
 ])
 
+const ZERO_WIDTH_NON_JOINER = 0x200c
+
 function isContinuation(symbol: string, codePoint: number): boolean {
   return MARK.test(symbol)
-    || codePoint === 0x200c
+    || codePoint === ZERO_WIDTH_NON_JOINER
     || (codePoint >= 0x1f3fb && codePoint <= 0x1f3ff)
     || (codePoint >= 0xe0020 && codePoint <= 0xe007f)
     || codePoint === 0xff9e || codePoint === 0xff9f
@@ -92,7 +94,8 @@ function advanceCluster(symbols: string[], cursor: GraphemeCursor): GraphemeCurs
   const codePoint = symbol.codePointAt(0)!
   if (joinsHangul(symbols[cursor.end - 1]!.codePointAt(0)!, codePoint)) return { ...cursor, end: cursor.end + 1 }
   if (isContinuation(symbol, codePoint) || INDIC_LINKERS.has(codePoint)) {
-    return { ...cursor, end: cursor.end + 1, afterIndicLinker: cursor.afterIndicLinker || INDIC_LINKERS.has(codePoint) }
+    const afterIndicLinker = codePoint !== ZERO_WIDTH_NON_JOINER && (cursor.afterIndicLinker || INDIC_LINKERS.has(codePoint))
+    return { ...cursor, end: cursor.end + 1, afterIndicLinker }
   }
   if (codePoint === 0x200d) return advanceJoiner(symbols, cursor)
   if (cursor.afterIndicLinker && INDIC_CONSONANT.test(symbol)) return { ...cursor, end: cursor.end + 1, afterIndicLinker: false }
