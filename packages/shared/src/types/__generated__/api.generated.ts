@@ -384,7 +384,35 @@ export const PostApiAuthConfirmDeletionBody = zod.object({
 export const PostApiAuthConfirmDeletionResponse = zod.unknown()
 
 
-export const GetApiCalendarEventsResponse = zod.unknown()
+export const getApiCalendarEventsQueryIncludeImportedDefault = false;
+
+export const GetApiCalendarEventsQueryParams = zod.object({
+  "includeImported": zod.boolean().default(getApiCalendarEventsQueryIncludeImportedDefault)
+})
+
+export const getApiCalendarEventsResponseRemindersItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiCalendarEventsResponseCalendarIdDefault = ``;
+export const getApiCalendarEventsResponseCalendarNameDefault = ``;
+
+export const GetApiCalendarEventsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "startDate": zod.string().nullable(),
+  "startTime": zod.string().nullable(),
+  "endTime": zod.string().nullable(),
+  "isRecurring": zod.boolean(),
+  "recurrenceRule": zod.string().nullable(),
+  "reminders": zod.array(zod.union([zod.int(),zod.stringFormat('int32', getApiCalendarEventsResponseRemindersItemRegExpTwo)])),
+  "startUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "calendarId": zod.string().default(getApiCalendarEventsResponseCalendarIdDefault),
+  "calendarName": zod.string().default(getApiCalendarEventsResponseCalendarNameDefault),
+  "endUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "recurrenceTimeZone": zod.string().nullish(),
+  "isImported": zod.boolean().nullish(),
+  "importedHabitId": zod.uuid().nullish()
+})
+export const GetApiCalendarEventsResponse = zod.array(GetApiCalendarEventsResponseItem)
 
 
 export const GetApiCalendarCalendarsResponse = zod.unknown()

@@ -8,14 +8,14 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { BottomTabBar } from './bottom-tab-bar'
 
-export function DestinationTabBar({ pathname }: Readonly<{ pathname: string }>) {
+export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pathname: string; notFound?: boolean }>) {
   const router = useRouter()
   const setActiveView = useUIStore((s) => s.setActiveView)
   const lastDestination = useUIStore((s) => s.lastDestination)
 
   const active = useMemo(
-    () => resolveShellChrome(pathname, lastDestination).activeId,
-    [pathname, lastDestination],
+    () => notFound ? '' : resolveShellChrome(pathname, lastDestination).activeId,
+    [pathname, lastDestination, notFound],
   )
 
   const handleTab = (id: string) => {

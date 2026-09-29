@@ -12,7 +12,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
@@ -50,7 +50,6 @@ interface ShellComposerSlotContextValue {
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 const ShellHeaderSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
-
 function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
   const register = useCallback((nextRenderer: ComposerRenderer) => {
@@ -144,18 +143,18 @@ export function DestinationShell({
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotContext.Provider value={registeredComposer.value}>
         <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
-        <DestinationShellContent
-          header={registeredHeader.content}
-          notice={hostedNotice}
-          composer={registeredComposer.content ?? composer}
-          conversation={conversation}
-          conversationOpen={conversationOpen}
-          conversationLabel={conversationLabel}
-          onCreate={onCreate}
-          createRefusal={createRefusal}
-        >
-          {children}
-        </DestinationShellContent>
+          <DestinationShellContent
+            header={registeredHeader.content}
+            notice={hostedNotice}
+            composer={registeredComposer.content ?? composer}
+            conversation={conversation}
+            conversationOpen={conversationOpen}
+            conversationLabel={conversationLabel}
+            onCreate={onCreate}
+            createRefusal={createRefusal}
+          >
+            {children}
+          </DestinationShellContent>
         </ShellHeaderSlotContext.Provider>
       </ShellComposerSlotContext.Provider>
     </ShellNoticeSlotProvider>
@@ -176,6 +175,8 @@ function DestinationShellContent({
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
+  const params = useParams<{ missing?: string[] }>()
+  const notFoundVisible = Array.isArray(params.missing)
   const previousPathname = useRef(pathname)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
@@ -186,9 +187,10 @@ function DestinationShellContent({
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
   const chrome = resolveShellChrome(pathname, lastDestination)
+  const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
-    if (destination && pathname !== '/upgrade') setLastDestination(destination)
-  }, [destination, pathname, setLastDestination])
+    if (destination && !notFoundVisible && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, notFoundVisible, pathname, setLastDestination])
   useEffect(() => {
     if (previousPathname.current === pathname) return
     previousPathname.current = pathname
@@ -267,7 +269,7 @@ function DestinationShellContent({
   )
   const wideCreate = pathname === '/upgrade'
     ? { onCreate: undefined, createLabel: undefined }
-    : { onCreate, createLabel: t('nav.create') }
+    : { onCreate, createLabel: t('nav.createHabit') }
 
   if (pathname === '/wrapped') {
     return children
@@ -284,21 +286,21 @@ function DestinationShellContent({
       <ShellWide
         {...conversationSlot}
         items={wideItems}
-        activeId={chrome.activeId}
+        activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as BottomTab)}
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         onPalette={() => setPaletteOpen(true)}
-        paletteLabel={t('command.title')}
+        paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
         notice={notice}
         header={header}
-        composer={chrome.composer ? composer : undefined}
+        composer={notFoundVisible || chrome.composer ? composer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
-            activeId={chrome.activeId}
+            activeId={activeId}
             items={[
               { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
               { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
@@ -313,7 +315,7 @@ function DestinationShellContent({
           pathname === '/' && !todayFabHidden && !conversationOpen ? (
             <div className="flex items-end gap-3">
               <div aria-live="polite" aria-atomic="true" className={createRefusal ? 'min-w-0 max-w-[min(68vw,280px)]' : ''}>{createRefusal}</div>
-              <Fab label={t('nav.create')} onClick={onCreate}>
+              <Fab label={t('nav.createHabit')} onClick={onCreate}>
                 <Plus size={24} strokeWidth={2} aria-hidden="true" />
               </Fab>
             </div>
