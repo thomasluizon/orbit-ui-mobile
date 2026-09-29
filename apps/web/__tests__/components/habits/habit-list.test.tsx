@@ -69,9 +69,16 @@ const mockDrillState = {
 }
 let capturedDrillOptions: HabitVisibilityOptions | undefined
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', async () => {
+  const { default: messages } = await import('@orbit/shared/i18n/en.json')
+  return {
   useTranslations: () => {
     const t = (key: string, params?: Record<string, unknown>) => {
+      if (key === 'habits.deleteListConfirmMessage') {
+        return messages.habits.deleteListConfirmMessage
+          .replaceAll('{name}', String(params?.name))
+          .replaceAll('{count}', String(params?.count))
+      }
       if (params && Object.keys(params).length > 0) {
         return `${key}(${JSON.stringify(params)})`
       }
@@ -80,7 +87,8 @@ vi.mock('next-intl', () => ({
     return t
   },
   useLocale: () => 'en',
-}))
+  }
+})
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush, refresh: vi.fn() }),
@@ -2763,12 +2771,92 @@ describe('HabitList', () => {
       name: 'habits.deleteConfirmTitle',
     })
     expect(within(confirmation).getByText(
-      'habits.deleteListConfirmMessage({"name":"Stretch","count":1})',
+      'Stretch and 1 item inside it leave your list. You can undo it from the message that appears.',
     )).toBeInTheDocument()
     await act(async () => {
       fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
     })
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith('h-1')
+  })
+
+  it('starts a future-day row delete as soon as confirmation is pressed', async () => {
+    rowImplementation.actual = true
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 768px)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    const habit = createMockHabit({ id: 'future-delete', title: 'Read', scheduledDates: [TOMORROW] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    deleteHabitMutateAsync.mockImplementationOnce(() => {
+      mockHabitsData.habitsById.delete(habit.id)
+      mockHabitsData.topLevelHabits = []
+      return Promise.resolve()
+    })
+    const futureList = <HabitList filters={{ dateFrom: TOMORROW, dateTo: TOMORROW, includeOverdue: true }}
+      selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />
+    const { rerenderWithProviders } = renderWithProviders(futureList)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.delete' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    sheetTestControls.defer(true)
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
+
+    expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
+    expect(deleteHabitMutateAsync).toHaveBeenCalledTimes(1)
+    expect(deleteHabitMutateAsync).toHaveBeenCalledWith('future-delete')
+    await act(async () => { await Promise.resolve() })
+    rerenderWithProviders(futureList)
+    expect(screen.queryByRole('button', { name: 'habits.actions.more' })).toBeNull()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toHaveTextContent(
+      'Read leaves your list. You can undo it from the message that appears.',
+    )
+    act(() => { sheetTestControls.completeDismissal() })
+    expect(screen.queryByTestId('sheet')).toBeNull()
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1')
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    [0, 'Read leaves your list. You can undo it from the message that appears.'],
+    [1, 'Read and 1 item inside it leave your list. You can undo it from the message that appears.'],
+    [3, 'Read and 3 items inside it leave your list. You can undo it from the message that appears.'],
+  ])('names %i descendants in the delete confirmation', async (count, message) => {
+    const habit = createMockHabit({ id: 'read', title: 'Read' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    const children = Array.from({ length: count }, (_, index) =>
+      createMockHabit({ id: `child-${index}`, title: `Child ${index}`, parentId: habit.id }))
+    for (const child of children) mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(habit.id, children.map((child) => child.id))
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    fireEvent.click(screen.getByTestId('delete-read'))
+    const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    expect(within(confirmation).getByText(message)).toBeInTheDocument()
+    if (count === 0) expect(within(confirmation).getByText(message).textContent).not.toMatch(/0|items/)
+  })
+
+  it('shows busy delete actions while dismissal and deletion are pending', async () => {
+    const habit = createMockHabit({ id: 'read', title: 'Read' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    deleteHabitMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    sheetTestControls.defer(true)
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    fireEvent.click(screen.getByTestId('delete-read'))
+    const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
+
+    const mountedSheet = screen.getByTestId('sheet')
+    const confirmButton = within(mountedSheet).getByRole('button', { name: 'habits.deleteHabit', hidden: true })
+    const cancelButton = within(mountedSheet).getByRole('button', { name: 'common.cancel', hidden: true })
+    expect(confirmButton).toHaveAttribute('aria-busy', 'true')
+    expect(confirmButton).toBeDisabled()
+    expect(cancelButton).toBeDisabled()
+    expect(deleteHabitMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('opens the skip sheet from the recurring row menu without sending the mutation', async () => {
@@ -3015,5 +3103,19 @@ describe('HabitList across an account change', () => {
     await replaceAccountWith('user-2')
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('removes a closing delete sheet immediately when the account changes', async () => {
+    deleteHabitMutateAsync.mockImplementation(() => new Promise<void>(() => {}))
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    fireEvent.click(screen.getByTestId('delete-habit-a'))
+    const confirmation = await screen.findByRole('dialog', { name: 'habits.deleteConfirmTitle' })
+    sheetTestControls.defer(true)
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'habits.deleteHabit' }))
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })
