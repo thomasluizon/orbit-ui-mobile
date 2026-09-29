@@ -198,8 +198,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.statusBadText,
     },
     laterButton: {
+      minHeight: 44,
       alignItems: 'center',
-      paddingVertical: 12,
+      justifyContent: 'center',
     },
     laterButtonPressed: {
       transform: [{ scale: 0.98 }],

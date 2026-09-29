@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
@@ -146,6 +147,20 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.share', 'milestoneShare.later'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('gives Later the 44 point minimum target', async () => {
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    const later = tree.root.findAll((node) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
+    const style = later.props.style
+    const resolved = typeof style === 'function' ? style({ pressed: false }) : style
+
+    expect(StyleSheet.flatten(resolved).minHeight).toBeGreaterThanOrEqual(44)
   })
 
   it('stays hidden while a celebration is in flight', async () => {
