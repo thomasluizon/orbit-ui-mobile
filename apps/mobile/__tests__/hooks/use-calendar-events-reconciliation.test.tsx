@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
 }))
 
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+
 vi.mock('react-native', async () => {
   const reactNative = await import('../../test-mocks/react-native')
   return { ...reactNative, default: reactNative }
@@ -79,6 +81,7 @@ describe('mobile calendar events reconciliation', () => {
           autoSyncState={autoSyncState}
           displayTime={(time) => time}
           onAutoSyncChange={async () => {}}
+          onSyncNow={async () => {}}
           t={((key: string) => key) as never}
           tokens={createTokensV2('purple', 'dark')}
         />

@@ -851,3 +851,53 @@ export function formatCalendarAutoSyncLastSynced(
     deltaDays,
   )
 }
+export function shouldPromptForCalendarConnection(
+  stateLoading: boolean,
+  connected: boolean,
+  online: boolean,
+  browsing: boolean,
+): boolean {
+  return !stateLoading && !connected && online && browsing
+}
+
+export function resolveCalendarImportConnectionStep<T extends string>(
+  resolvedStep: T,
+  stateLoading: boolean,
+  stateError: boolean,
+  connected: boolean,
+  online: boolean,
+  browsing: boolean,
+): T | 'not-connected' | 'error' {
+  if (stateError && online && browsing) return 'error'
+  if (shouldPromptForCalendarConnection(stateLoading, connected, online, browsing)) return 'not-connected'
+  return resolvedStep
+}
+
+export function shouldOpenCalendarImportSheet(
+  hasProAccess: boolean,
+  openedLocally: boolean,
+  requestedByRoute: boolean,
+): boolean {
+  return hasProAccess && (openedLocally || requestedByRoute)
+}
+
+export function calendarImportRouteRequestKey(reviewRequested: boolean, importRequested: boolean): '' | 'review' | 'import' {
+  if (reviewRequested) return 'review'
+  return importRequested ? 'import' : ''
+}
+
+export function calendarImportTitleKey(reviewMode: boolean): 'calendar.autoSync.reviewModeTitle' | 'calendar.title' {
+  return reviewMode ? 'calendar.autoSync.reviewModeTitle' : 'calendar.title'
+}
+
+export function selectInitialCalendarImportEvent(
+  initialEventId: string | null,
+  reviewMode: boolean,
+  events: readonly CalendarSyncEvent[],
+  weekStartDay: 0 | 1,
+): Set<string> | null {
+  if (!initialEventId || reviewMode) return null
+  return new Set(events.filter((event) =>
+    event.id === initialEventId && isCalendarSyncEventImportable(event, weekStartDay),
+  ).map((event) => event.id))
+}

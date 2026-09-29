@@ -23,7 +23,7 @@ describe('onboarding overlay state machine', () => {
         hasCompletedTour: true,
         hasImportedCalendar: false,
       })
-      expect(isCalendarPromptCriteriaMet(profile, '/calendar-sync')).toBe(false)
+      expect(isCalendarPromptCriteriaMet(profile, '/calendar')).toBe(false)
     })
 
     it('does not wait for the retired tour state', () => {

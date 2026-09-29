@@ -25,6 +25,7 @@ function getMockAccountDateKey(): string {
 }
 
 let isWideDesktopValue = false
+let calendarRouteSearch = ''
 let calendarGridSelectionDate = '2026-01-05'
 const calendarGridProps: Record<string, unknown> & {
   currentMonth?: Date
@@ -145,6 +146,11 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush }),
+  useSearchParams: () => new URLSearchParams(calendarRouteSearch),
+}))
+
+vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
+  CalendarImportContent: ({ reviewMode }: { reviewMode: boolean }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)} />,
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -164,6 +170,7 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
     return { data: autoSyncState }
   },
   useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSync }),
+  useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(async () => {}) }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -363,6 +370,7 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
+    calendarRouteSearch = ''
     calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
     calendarDayDetailProps.calendarEvents = undefined
@@ -841,8 +849,16 @@ describe('CalendarPage view switcher', () => {
 
     expect(calendarDayDetailProps.calendarEventsState).toBe('not-connected')
     expect(calendarDayDetailProps.calendarEvents).toEqual([])
-    calendarDayDetailProps.onReconnectCalendarEvents?.()
-    expect(routerPush).toHaveBeenCalledWith('/calendar-sync')
+    act(() => { calendarDayDetailProps.onReconnectCalendarEvents?.() })
+    expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
+    expect(routerPush).not.toHaveBeenCalledWith('/calendar-sync')
+  })
+
+  it('opens the review sheet from a review notification route', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarRouteSearch = 'mode=review'
+    render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-review', 'true')
   })
 
   it('passes a resolved empty Google events query as ready', () => {

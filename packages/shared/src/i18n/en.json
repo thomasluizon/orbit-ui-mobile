@@ -945,7 +945,7 @@
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
-      "eventsTitle": "Available to import",
+      "eventsTitle": "On your calendar",
       "googleConnected": "Google Calendar connected",
       "lastSynced": "Last synced {time}",
       "autoSync": "Sync on its own",

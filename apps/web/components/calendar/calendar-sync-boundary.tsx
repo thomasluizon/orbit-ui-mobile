@@ -11,20 +11,24 @@ import { Switch } from '@/components/ui/switch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface CalendarSyncBoundaryProps {
   autoSyncState: CalendarAutoSyncState | undefined
   displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
+  onSyncNow: () => Promise<void>
 }
 
 export function CalendarSyncBoundary({
   autoSyncState,
   displayTime,
   onAutoSyncChange,
+  onSyncNow,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
   const [isSaving, setIsSaving] = useAccountScopedState(false)
+  const [isSyncing, setIsSyncing] = useAccountScopedState(false)
   const { isOnline } = useOffline()
 
   const connected = isCalendarSyncConnectionActive(
@@ -49,6 +53,16 @@ export function CalendarSyncBoundary({
     }
   }
 
+  const handleSyncNow = async () => {
+    if (isSyncing || !isOnline) return
+    setIsSyncing(true)
+    try {
+      await onSyncNow()
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <div
       className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
@@ -64,17 +78,13 @@ export function CalendarSyncBoundary({
         </p>
       </div>
       {connected ? (
-        <div className="flex min-h-11 items-center justify-between gap-3">
-          <span className="text-sm text-[var(--fg-2)]">
-            {t('calendar.dayDetail.autoSync')}
-          </span>
-          <Switch
-            checked={autoSyncState?.enabled ?? false}
-            disabled={!isOnline}
-            onChange={(enabled) => void handleAutoSyncChange(enabled)}
-            label={t('calendar.dayDetail.autoSync')}
-          />
-        </div>
+        <>
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <span className="text-sm text-[var(--fg-2)]">{t('calendar.dayDetail.autoSync')}</span>
+            <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
+          </div>
+          <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || isSyncing} onClick={() => void handleSyncNow()}>{t(isSyncing ? 'calendar.autoSync.syncNowRunning' : 'calendar.autoSync.syncNow')}</PillButton></div>
+        </>
       ) : null}
       <div aria-live="polite" aria-atomic="true">
         {!isOnline && connected ? <OfflineRefusal icon="calendar" embedded title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}

@@ -140,12 +140,14 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onOpenCalendarImport={() => {}}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
       proActionVariant={proActionVariant}
     />
@@ -338,6 +340,7 @@ describe('CalendarDayDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-calendar-sync-line]')).toBeNull()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

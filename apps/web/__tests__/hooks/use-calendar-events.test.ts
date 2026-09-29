@@ -89,6 +89,7 @@ describe('useCalendarEvents', () => {
         autoSyncState,
         displayTime: (time: string) => time,
         onAutoSyncChange: async () => {},
+        onSyncNow: async () => {},
       })
     }
 
@@ -222,6 +223,7 @@ describe('CalendarSyncBoundary account replacement', () => {
       autoSyncState,
       displayTime: (value: string) => value,
       onAutoSyncChange,
+      onSyncNow: async () => {},
     }))
 
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))

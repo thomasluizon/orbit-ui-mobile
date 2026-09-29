@@ -14,6 +14,8 @@ import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-da
 
 const TestRenderer = require('react-test-renderer')
 
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
 }))
@@ -173,12 +175,14 @@ function CalendarDayDetailHarness({
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onOpenCalendarImport={() => {}}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
       onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       pendingEntryStates={pendingEntryStates}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
@@ -319,6 +323,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(typeof onClick).toBe('function')
     if (typeof onClick === 'function') TestRenderer.act(() => onClick())
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+    expect(tree.root.findAll((node) => node.props.testID === 'calendar-sync-line')).toHaveLength(0)
   })
 
   it('renders the free sync boundary with one route to Orbit Pro', () => {

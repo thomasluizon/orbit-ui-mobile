@@ -859,7 +859,7 @@ describe('usePushNotifications', () => {
   it.each([
     ['/chat', '/', true],
     ['/calendar-sync', '/calendar', false],
-    ['/calendar-sync?mode=review', '/calendar', false],
+    ['/calendar-sync?mode=review', '/calendar?mode=review', false],
     ['/streak', '/progress', false],
     ['/achievements?earned=latest', '/progress', false],
     ['/insights?range=year', '/progress', false],

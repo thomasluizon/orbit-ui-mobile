@@ -33,7 +33,7 @@ function AuthCallbackContent() {
     const oauthState = params.get('state')
     if (params.has('error') || !code || !oauthState) {
       const storedReturn = sessionStorage.getItem('auth_return_url')
-      const calendarReturn = storedReturn === '/calendar-sync' || storedReturn === '/calendar-sync?mode=review'
+      const calendarReturn = storedReturn === '/calendar?import=1' || storedReturn === '/calendar?mode=review'
       const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
       const finish = () => {
         if (storedReturn && calendarReturn && cancelled) router.replace(storedReturn)

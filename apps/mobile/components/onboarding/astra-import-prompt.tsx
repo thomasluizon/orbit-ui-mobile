@@ -53,7 +53,7 @@ export function AstraImportPrompt() {
       !calendarPromptWouldShow &&
       !pendingOnboardingAnswers &&
       !astraConversationOpen &&
-      pathname !== '/calendar-sync' &&
+      pathname !== '/calendar' &&
       !dismissed,
   )
 

@@ -1,7 +1,7 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, render, renderHook } from '@testing-library/react'
-import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountBoundRouteRequest, useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 beforeEach(() => {
@@ -93,4 +93,18 @@ it('ignores a setter captured by a request from the previous account', async () 
   act(() => previousAccountSetter('old request result'))
 
   expect(result.current[0]).toBe('')
+})
+
+it('does not reopen a route-requested sheet after an account replacement', async () => {
+  const { result, rerender } = renderHook(({ requestKey }) => useAccountBoundRouteRequest(requestKey), {
+    initialProps: { requestKey: 'review' },
+  })
+  expect(result.current).toBe(true)
+
+  await replaceAccountWith('user-2')
+  expect(result.current).toBe(false)
+
+  rerender({ requestKey: '' })
+  rerender({ requestKey: 'review' })
+  expect(result.current).toBe(true)
 })

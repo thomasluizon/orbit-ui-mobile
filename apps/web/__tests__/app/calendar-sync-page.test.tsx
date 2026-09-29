@@ -40,7 +40,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: false }, isLoading: false }),
+  useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: true }, isLoading: false }),
   useCalendarSyncSuggestions: () => ({ data: pageState.suggestions, isLoading: false, isError: false }),
   useDismissCalendarSuggestion: () => ({ mutateAsync: dismissMutateMock, isPending: false }),
   useRunCalendarSyncNow: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -60,13 +60,13 @@ vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
 
 function renderPage() {
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncPage />
+      <CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} />
     </QueryClientProvider>,
   )
 }

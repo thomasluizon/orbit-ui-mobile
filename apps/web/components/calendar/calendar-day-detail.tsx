@@ -9,6 +9,7 @@ import {
   determineHabitDayStatus,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  isCalendarSyncConnectionActive,
   parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
@@ -27,6 +28,7 @@ import { EventRow } from '@/components/dates/event-row'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { plural } from '@/lib/plural'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
@@ -36,11 +38,13 @@ interface CalendarDayDetailProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
+  onCalendarSyncNow: () => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   proActionVariant?: 'primary' | 'secondary'
   showTitle?: boolean
@@ -51,6 +55,7 @@ function CalendarEventsSection({
   state,
   onRetry,
   onReconnect,
+  onOpenImport,
   onViewPro,
   proActionVariant,
 }: Readonly<{
@@ -58,6 +63,7 @@ function CalendarEventsSection({
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
+  onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
   proActionVariant: 'primary' | 'secondary'
 }>) {
@@ -117,29 +123,28 @@ function CalendarEventsSection({
         </div>
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
-        <p className="text-center text-sm text-[var(--fg-3)]" style={{ margin: 0, paddingBlock: 24 }}>
-          {t('calendar.dayDetail.noEventsToImport')}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-center text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p>
+          <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+        </div>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (
         <div className="flex flex-col" style={{ gap: 4 }}>
-          {calendarEvents.map((event) =>
-            event.startTime ? (
-              <EventRow
-                key={event.id}
-                time={displayTime(event.startTime)}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ) : (
-              <EventRow
-                key={event.id}
-                allDayLabel={t('calendar.timeGrid.allDay')}
-                title={event.title}
-                source={t('calendar.title')}
-              />
-            ),
-          )}
+          {calendarEvents.map((event) => (
+            <div key={event.id} className="flex flex-col gap-2">
+              {event.startTime ? (
+                <EventRow time={displayTime(event.startTime)} title={event.title} source={t('calendar.title')} />
+              ) : (
+                <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={t('calendar.title')} />
+              )}
+              <div className="self-end">
+                <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
+                  {plural(t('calendar.importButton', { count: 1 }), 1)}
+                </PillButton>
+              </div>
+            </div>
+          ))}
+          <div className="self-end"><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton></div>
         </div>
       ) : null}
     </div>
@@ -287,11 +292,13 @@ export function CalendarDayDetail({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onOpenCalendarImport,
   onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
   onCalendarAutoSyncChange,
+  onCalendarSyncNow,
   onEntryChange,
   proActionVariant = 'primary',
   showTitle = true,
@@ -375,15 +382,18 @@ export function CalendarDayDetail({
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
+        onOpenImport={onOpenCalendarImport}
         onViewPro={onViewPro}
         proActionVariant={proActionVariant}
       />
-      {calendarEventsState !== 'pro-boundary' ? (
+      {calendarEventsState !== 'pro-boundary' && calendarEventsState !== 'not-connected' &&
+        isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle') ? (
         <div style={{ paddingInline: 24 }}>
           <CalendarSyncBoundary
             autoSyncState={autoSyncState}
             displayTime={displayTime}
             onAutoSyncChange={onCalendarAutoSyncChange}
+            onSyncNow={onCalendarSyncNow}
           />
         </div>
       ) : null}

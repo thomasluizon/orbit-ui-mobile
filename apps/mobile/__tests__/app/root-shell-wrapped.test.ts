@@ -250,7 +250,7 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
-  it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings', '/calendar-sync'])(
+  it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings'])(
     'shows composer only on destination roots and habit detail at %s', async (pathname) => {
       routeState.pathname = pathname
       routeState.segments = pathname === '/' ? ['(tabs)'] : [pathname.slice(1)]

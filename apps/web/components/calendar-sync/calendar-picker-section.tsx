@@ -1,11 +1,10 @@
 'use client'
 
-import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Switch } from '@/components/ui/switch'
+import { CheckRow } from '@/components/ui/check-row'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { toast } from 'sonner'
@@ -15,7 +14,7 @@ interface CalendarPickerSectionProps {
 }
 
 /**
- * "Calendars" settings section: one Switch row per Google calendar, toggling
+ * "Calendars" settings section: one check row per Google calendar, selecting
  * which calendars Orbit reads events from. Persists each toggle immediately.
  * Renders nothing until enabled so it stays hidden when Google is not connected.
  */
@@ -38,19 +37,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     <>
       <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
 
-      {isLoading && (
-        <div
-          className="flex items-center"
-          style={{ gap: 8, padding: '4px 16px 0' }}
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('calendar.calendars.loading')}
-          </span>
-        </div>
-      )}
+      {isLoading && <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} />}
 
       {isError && (
         <div
@@ -89,21 +76,14 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
 
       {!isLoading &&
         !isError &&
-        calendars?.map((calendar, index) => (
-          <SettingsRow
+        calendars?.map((calendar) => (
+          <CheckRow
             key={calendar.id}
             label={calendar.name}
-            desc={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
-            leadingDot={calendar.backgroundColor ?? undefined}
-            accessory="none"
-            divider={index < calendars.length - 1}
-          >
-            <Switch
-              checked={calendar.isSynced}
-              onChange={(checked) => void handleToggle(calendar.id, checked)}
-              label={t('calendar.calendars.toggleLabel', { name: calendar.name })}
-            />
-          </SettingsRow>
+            description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
+            checked={calendar.isSynced}
+            onChange={(checked) => void handleToggle(calendar.id, checked)}
+          />
         ))}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>

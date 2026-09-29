@@ -945,7 +945,7 @@
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
-      "eventsTitle": "Disponíveis para importar",
+      "eventsTitle": "Na sua agenda",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
       "autoSync": "Sincronizar sozinho",

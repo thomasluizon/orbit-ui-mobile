@@ -10,7 +10,6 @@ export const SHELL_DESTINATION_ROUTES: readonly ShellDestinationRoute[] = [
   { pattern: '/habit', destination: 'hoje' },
   { pattern: '/habits', destination: 'hoje' },
   { pattern: '/calendar', destination: 'calendario' },
-  { pattern: '/calendar-sync', destination: 'calendario' },
   { pattern: '/progress', destination: 'progresso' },
   { pattern: '/goals', destination: 'progresso' },
   { pattern: '/wrapped', destination: 'progresso' },

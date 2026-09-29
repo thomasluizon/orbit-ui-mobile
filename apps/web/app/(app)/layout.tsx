@@ -247,7 +247,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
     })
     setRouteTransitionIntent('forward')
-    router.push('/calendar-sync')
+    router.push('/calendar?import=1')
   }, [router, setShowCalendarPrompt, showPersistentError, t])
 
 

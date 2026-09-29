@@ -3,28 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 import { ApiClientError } from "@orbit/shared";
 import type { CalendarSyncEvent } from "@orbit/shared/utils";
+import { calendarKeys } from '@orbit/shared/query';
+import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
-import { CalendarAutoSyncSection } from '@/components/calendar-sync/calendar-sync-auto-section';
 
-import CalendarSyncScreen from "@/app/calendar-sync";
+import { CalendarImportContent } from "@/components/calendar-sync/calendar-import-content";
+function CalendarSyncScreen() { return <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} /> }
 
 const TestRenderer = require("react-test-renderer");
 
 type TestNode = {
   props: Record<string, unknown>;
+  type?: unknown;
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
 };
 
 type CalendarSyncTree = {
   root: TestNode & {
-    findByType: (component: typeof CalendarAutoSyncSection) => {
-      props: {
-        onToggleAutoSync: (enabled: boolean) => void;
-        onSyncNow: () => void;
-        isTogglePending: boolean;
-        isSyncNowPending: boolean;
-      };
-    };
     find: (predicate: (node: TestNode) => boolean) => TestNode;
   };
   update: (element: React.ReactElement) => void;
@@ -63,6 +58,7 @@ const mocks = vi.hoisted(() => {
     searchParams: {},
     suggestions: [] as unknown[],
     isOnline: true,
+    hasGoogleConnection: true,
     bulkMutateAsync: vi.fn(),
     dismissMutateAsync: vi.fn(),
     setAutoSyncMutate: vi.fn(),
@@ -72,6 +68,8 @@ const mocks = vi.hoisted(() => {
     showError: vi.fn(),
     startGoogleAuth: vi.fn(),
     autoSyncStatus: "Idle",
+    autoSyncError: false,
+    refetchAutoSyncState: vi.fn(),
   };
 });
 
@@ -117,9 +115,11 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
       enabled: false,
       status: mocks.autoSyncStatus,
       lastSyncedAt: null,
-      hasGoogleConnection: true,
+      hasGoogleConnection: mocks.hasGoogleConnection,
     },
     isLoading: false,
+    isError: mocks.autoSyncError,
+    refetch: mocks.refetchAutoSyncState,
   }),
   useCalendarSyncSuggestions: () => ({
     data: mocks.suggestions,
@@ -165,7 +165,7 @@ vi.mock("expo-web-browser", () => ({
 const tokensV2Proxy: any = new Proxy(
   {},
   {
-    get: (_target, prop) => (prop === "fgOnPrimary" ? "#ffffff" : "#111111"),
+    get: (_target, prop) => prop === "fgOnPrimary" ? "#ffffff" : prop === 'primary' ? '#ff00ff' : "#111111",
   },
 );
 
@@ -258,12 +258,14 @@ describe("CalendarSyncScreen", () => {
     mocks.searchParams = {};
     mocks.suggestions = [];
     mocks.isOnline = true;
+    mocks.hasGoogleConnection = true;
     mocks.bulkMutateAsync.mockReset();
     mocks.dismissMutateAsync.mockReset();
     mocks.setAutoSyncMutate.mockReset();
     mocks.runSyncNowMutate.mockReset();
     mocks.startGoogleAuth.mockReset();
     mocks.autoSyncStatus = "Idle";
+    mocks.autoSyncError = false;
     mocks.isSetPending = false;
     mocks.isRunPending = false;
   });
@@ -297,11 +299,33 @@ describe("CalendarSyncScreen", () => {
     mocks.eventsQuery.data = { status: "not-connected" };
     mocks.startGoogleAuth.mockResolvedValue({ type: "success", url: "https://app.useorbit.org/auth-callback?code=google-code" });
 
-    await pressConnect();
+    const tree = await pressConnect();
 
-    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync", forceConsent: true });
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar?import=1", forceConsent: true });
+    expect(tree.root.findAll((node) => node.type === 'Switch')).toHaveLength(0);
+    const linkGlyph = tree.root.find((node) => node.type === LinkIcon);
+    expect(linkGlyph.props.color).toBe('#111111');
     expect(mocks.router.replace).toHaveBeenCalledWith("/auth-callback");
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
+  });
+
+  it("shows retry when connection status fails instead of claiming disconnection", async () => {
+    mocks.autoSyncError = true;
+    mocks.hasGoogleConnection = false;
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+
+    expect(tree!.root.findAll((node) => node.props.children === "calendar.errorTitle")).not.toHaveLength(0);
+    expect(tree!.root.findAll((node) => node.props.children === "calendar.notConnectedTitle")).toHaveLength(0);
+    const retry = tree!.root.find((node) => node.props.children === "calendar.retry" && typeof node.props.onClick === "function");
+    await TestRenderer.act(async () => {
+      (retry.props.onClick as () => void)();
+      await Promise.resolve();
+    });
+    expect(mocks.refetchAutoSyncState).toHaveBeenCalled();
   });
 
   it.each(["cancel", "dismiss"])("keeps the calendar open when consent returns %s", async (type) => {
@@ -329,6 +353,7 @@ describe("CalendarSyncScreen", () => {
 
   it("keeps the review return path and sends failed authorization to login", async () => {
     mocks.searchParams = { mode: "review" };
+    mocks.hasGoogleConnection = false;
     mocks.autoSyncStatus = "ReconnectRequired";
     mocks.startGoogleAuth.mockRejectedValue(new Error("Google denied access"));
 
@@ -338,14 +363,13 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
     const reconnect = tree!.root.find((node: TestNode) =>
-      typeof node.props.onPress === "function" && node.findAll((child: TestNode) =>
-        child.props.children === "calendar.autoSync.reconnectCta").length > 0);
+      node.props.children === "auth.signInWithGoogle" && typeof node.props.onClick === "function");
     await TestRenderer.act(async () => {
-      (reconnect.props.onPress as () => void)();
+      (reconnect.props.onClick as () => void)();
       await Promise.resolve();
     });
 
-    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar-sync?mode=review", forceConsent: true });
+    expect(mocks.startGoogleAuth).toHaveBeenCalledWith({ returnUrl: "/calendar?mode=review", forceConsent: true });
     expect(mocks.router.replace).toHaveBeenCalledWith("/login?googleError=1");
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/auth-callback");
   });
@@ -532,52 +556,6 @@ describe("CalendarSyncScreen", () => {
     ).length).toBeGreaterThan(0);
   });
 
-  it("shows retry recovery when a textless sync request is blocked", async () => {
-    let tree: any;
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const syncNow = tree.root.find(
-      (node: TestNode) =>
-        node.props.accessibilityLabel === "calendar.autoSync.syncNow" &&
-        typeof node.props.onPress === "function",
-    );
-    TestRenderer.act(() => {
-      (syncNow.props.onPress as () => void)();
-      const options = mocks.runSyncNowMutate.mock.calls[0]?.[1] as {
-        onError: (error: unknown) => void;
-      };
-      options.onError(new ApiClientError(403, "Forbidden"));
-    });
-
-    expect(mocks.runSyncNowMutate.mock.calls[0]?.[0]).toBeUndefined();
-    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
-  });
-
-  it("shows retry recovery when changing auto-sync is blocked", async () => {
-    let tree: any;
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CalendarSyncScreen />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const section = tree.root.findByType(CalendarAutoSyncSection);
-    TestRenderer.act(() => {
-      section.props.onToggleAutoSync(true);
-      const options = mocks.setAutoSyncMutate.mock.calls[0]?.[1] as {
-        onError: (error: unknown) => void;
-      };
-      options.onError(new ApiClientError(403, "Forbidden"));
-    });
-
-    expect(mocks.setAutoSyncMutate.mock.calls[0]?.[0]).toEqual({ enabled: true });
-    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
-  });
-
   it("shows text-bearing recovery when importing a review suggestion is blocked", async () => {
     mocks.searchParams = { mode: "review" };
     mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
@@ -684,44 +662,6 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "sug-0" });
-  });
-
-  it('drops a previous account toggle error while the next account can toggle', async () => {
-    let tree!: CalendarSyncTree;
-    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
-    const section = tree.root.findByType(CalendarAutoSyncSection);
-    await TestRenderer.act(async () => { section.props.onToggleAutoSync(true); await Promise.resolve(); });
-    const oldOptions = mocks.setAutoSyncMutate.mock.calls[0]![1];
-    mocks.isSetPending = true;
-    await TestRenderer.act(async () => { tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
-    expect(tree.root.findByType(CalendarAutoSyncSection).props.isTogglePending).toBe(true);
-    expect(tree.root.find((node) => node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'calendar.autoSync.title').props.accessibilityState).toEqual({ checked: false, disabled: true });
-    mocks.isSetPending = false;
-    await TestRenderer.act(async () => { advanceAccountGeneration(); tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
-    expect(tree.root.findByType(CalendarAutoSyncSection).props.isTogglePending).toBe(false);
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'calendar.autoSync.title')).toHaveLength(0);
-    await TestRenderer.act(async () => { section.props.onToggleAutoSync(false); await Promise.resolve(); });
-    expect(mocks.setAutoSyncMutate).toHaveBeenCalledTimes(2);
-    oldOptions.onError(new Error('old failure'));
-    expect(mocks.showError).not.toHaveBeenCalled();
-  });
-
-  it('drops a previous account manual sync error', async () => {
-    let tree!: CalendarSyncTree;
-    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
-    const section = tree.root.findByType(CalendarAutoSyncSection);
-    await TestRenderer.act(async () => { section.props.onSyncNow(); await Promise.resolve(); });
-    const oldOptions = mocks.runSyncNowMutate.mock.calls[0]![1];
-    mocks.isRunPending = true;
-    await TestRenderer.act(async () => { tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
-    expect(tree.root.findByType(CalendarAutoSyncSection).props.isSyncNowPending).toBe(true);
-    expect(tree.root.find((node) => node.props.accessibilityLabel === 'calendar.autoSync.syncNow').props.disabled).toBe(true);
-    mocks.isRunPending = false;
-    await TestRenderer.act(async () => { advanceAccountGeneration(); tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
-    expect(tree.root.findByType(CalendarAutoSyncSection).props.isSyncNowPending).toBe(false);
-    expect(tree.root.find((node) => node.props.accessibilityLabel === 'calendar.autoSync.syncNow').props.disabled).toBe(false);
-    oldOptions.onError(new Error('old failure'));
-    expect(mocks.showError).not.toHaveBeenCalled();
   });
 
   it('drops a previous account suggestion error', async () => {
@@ -876,6 +816,9 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.showError).toHaveBeenCalledWith(
       'calendar.importPartialFailure({"count":1})',
     );
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [...calendarKeys.all, 'manual-fetch'],
+    });
     expect(
       tree.root.findAll(
         (node: TestNode) => node.props.children === "calendar.importDone",
