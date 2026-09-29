@@ -1025,6 +1025,24 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('renders only the drawn Notifications rows and the recorded usage analytics switch', () => {
+    render(<ProfilePage />)
+
+    const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
+    const controls = ['button', 'switch', 'link'].flatMap((role) =>
+      within(notificationsGroup).queryAllByRole(role).map((control) =>
+        `${role}: ${control.getAttribute('aria-label') ?? control.textContent}`),
+    )
+
+    expect(controls).toEqual([
+      'button: profile.marketingEmails.accept',
+      'button: profile.marketingEmails.decline',
+      'switch: profile.analytics.title',
+      'switch: profile.settingsRows.alertsOnThisDevice',
+    ])
+    expect(within(notificationsGroup).getByText('profile.settingsRows.remindersNote')).toBeInTheDocument()
+  })
+
   it('restores the analytics switch and explains a failed local save', async () => {
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('storage failed')
