@@ -123,11 +123,13 @@ describe('RescheduleSheet', () => {
 
     expect(screen.getByText('habits.reschedule.loading')).toBeInTheDocument()
     expect(screen.getByTestId('reschedule-loading-skeleton')).toBeInTheDocument()
-    expect(screen.getAllByRole('progressbar')).toHaveLength(2)
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.getByTestId('reschedule-loading-skeleton').querySelectorAll('[data-variant="habit-row"]')).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'habits.reschedule.accept' })).not.toBeInTheDocument()
   })
 
   it('uses an accessible dialog title and the proposed Astra label', () => {
+    h.profile = { hasProAccess: true, language: 'pt-BR' }
     h.reschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     expect(screen.getByRole('dialog', { name: 'habits.reschedule.title' })).toBeInTheDocument()
@@ -135,7 +137,7 @@ describe('RescheduleSheet', () => {
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
     expect(screen.getByTestId('reschedule-proposed-schedule')).not.toHaveTextContent('2026')
-    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/Thu/)
+    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/qui/i)
     expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
     expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
     expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).toHaveAttribute('color', 'var(--fg-1)')
@@ -143,11 +145,16 @@ describe('RescheduleSheet', () => {
 
   it('uses the neutral filled action at wide width and shows a busy accept while saving', () => {
     h.wide = true
-    h.pending = true
     h.reschedule.suggestion = createMockRescheduleSuggestion({})
-    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    h.mutateAsync.mockImplementation(() => new Promise(() => {}))
+    const onOpenChange = vi.fn()
+    const { rerender } = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
     expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toHaveAttribute('data-variant', 'secondary')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.accept' }))
+    h.pending = true
+    rerender(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
     expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'habits.reschedule.accept' })).toBeDisabled()
   })
 
   it('waits for dismissal before navigating to Pro', () => {

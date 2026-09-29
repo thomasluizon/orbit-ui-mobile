@@ -108,7 +108,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         <View style={styles.suggestionBlock}>
           <Text style={styles.bodyText}>{t('habits.reschedule.loading')}</Text>
           <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
-          <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
+          <Skeleton variant="habit-row" grouped />
         </View>
       )
     }

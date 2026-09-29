@@ -168,7 +168,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           </p>
           <div data-testid="reschedule-loading-skeleton" className="flex flex-col" style={{ gap: 8 }}>
             <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
-            <Skeleton variant="habit-row" label={t('habits.reschedule.loading')} />
+            <Skeleton variant="habit-row" grouped />
           </div>
         </div>
       )

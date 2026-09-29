@@ -14,6 +14,7 @@ const mockUpdateMutateAsync = vi.fn()
 const mockShowError = vi.fn()
 const mockRefetch = vi.fn()
 let mockProfile: { hasProAccess: boolean; language: string }
+let mockUpdateIsPending = false
 let mockReschedule: {
   suggestion: RescheduleSuggestion | null
   isLoading: boolean
@@ -30,7 +31,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mockShowError }) }))
 vi.mock('@/hooks/use-habits', () => ({
-  useUpdateHabit: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
+  useUpdateHabit: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: mockUpdateIsPending }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: () => mockReschedule,
@@ -91,6 +92,7 @@ describe('RescheduleSheet (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }
+    mockUpdateIsPending = false
     mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
     __setWindowDimensions({ width: 390, height: 892, scale: 1, fontScale: 1 })
   })
@@ -228,10 +230,13 @@ describe('RescheduleSheet (mobile)', () => {
     const skeletons = tree.root.findAll((node) => node.type === 'AnimatedView')
     expect(skeletons.length).toBeGreaterThanOrEqual(1)
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(2)
-    expect(tree.root.findAll((node) => node.props.testID === 'button-primary-md')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+    const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
+    expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && String(node.props.testID).startsWith('button-'))).toHaveLength(0)
   })
 
   it('keeps the title accessible without showing it and labels the proposal with Astra', () => {
+    mockProfile = { hasProAccess: true, language: 'pt-BR' }
     mockReschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
@@ -241,6 +246,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(JSON.stringify(date.props.children)).not.toContain('2026')
+    expect(JSON.stringify(date.props.children)).toMatch(/qui/i)
     const glyph = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')[0]!
     expect(glyph.props.color).toBe(createTokensV2().fg1)
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
@@ -253,5 +259,18 @@ describe('RescheduleSheet (mobile)', () => {
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-secondary-sm')).toHaveLength(1)
+  })
+
+  it('keeps the accept label and announces busy state while saving', () => {
+    mockReschedule.suggestion = createMockRescheduleSuggestion({})
+    mockUpdateMutateAsync.mockImplementation(() => new Promise(() => {}))
+    const onOpenChange = vi.fn()
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
+    TestRenderer.act(() => pressButton(tree.root, 'habits.reschedule.accept'))
+    mockUpdateIsPending = true
+    TestRenderer.act(() => tree.update(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />))
+    const accept = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
+    expect(accept.props.accessibilityState).toEqual({ disabled: true, busy: true })
+    expect(accept.findAll((node) => node.type === 'Text' && node.props.children === 'habits.reschedule.accept')).toHaveLength(1)
   })
 })
