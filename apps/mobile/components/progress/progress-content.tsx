@@ -73,7 +73,7 @@ function Section({ title, children, tokens }: Readonly<{ title: string; children
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
 
   return (
     <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
@@ -416,7 +416,7 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
-          ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
+          ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} valueSize="lg" label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
         {topHabit
           ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} />
@@ -489,7 +489,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : 2
+  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">

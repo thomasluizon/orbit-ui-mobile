@@ -1831,3 +1831,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
+
+.stat-tile-large { container: stat-tile / inline-size; }
+.stat-tile-large-value { font-size: var(--fs-md); }
+@container stat-tile (min-width: 122px) {
+  .stat-tile-large-value { font-size: var(--fs-lg); }
+}

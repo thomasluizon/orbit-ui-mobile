@@ -1,30 +1,39 @@
 import { describe, expect, it } from 'vitest'
 import { createMockProfile } from './factories'
+import ptBR from '../i18n/pt-BR.json'
+import en from '../i18n/en.json'
 import { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '../utils/profile-preferences'
 
-const weekStartOptions = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-]
+const translateWeekday = (key: 'dates.daysValue.monday' | 'dates.daysValue.sunday') =>
+  ptBR.dates.daysValue[key.endsWith('monday') ? 'monday' : 'sunday']
+
+it('keeps the drawn weekday value forms in both locales', () => {
+  expect(Object.values(ptBR.dates.daysValue)).toEqual([
+    'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo',
+  ])
+  expect(Object.values(en.dates.daysValue)).toEqual([
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+  ])
+})
 
 describe('deriveProfilePreferenceValues', () => {
   it('uses account and preference state for inline labels', () => {
     expect(deriveProfilePreferenceValues({
       profile: createMockProfile({ isTrialActive: true, hasProAccess: true, timeZone: 'America/Sao_Paulo', weekStartDay: 1 }),
       selectedLanguage: 'pt-BR',
-      weekStartOptions,
+      translate: translateWeekday,
     })).toMatchObject({
       planLabelKey: 'profile.subscription.trial',
       timeZone: 'America/Sao_Paulo',
       languageLabel: 'Português',
-      weekStartLabel: 'Monday',
+      weekStartLabel: 'segunda',
     })
   })
 
   it('handles free and Pro plans without a time zone', () => {
     const inputs = {
       selectedLanguage: 'en',
-      weekStartOptions,
+      translate: translateWeekday,
     }
     expect(deriveProfilePreferenceValues({ ...inputs, profile: undefined }).planLabelKey).toBe('profile.subscription.free')
     expect(deriveProfilePreferenceValues({ ...inputs, profile: createMockProfile({ hasProAccess: true, isTrialActive: false, timeZone: null }) })).toMatchObject({

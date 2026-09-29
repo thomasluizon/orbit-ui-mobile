@@ -600,11 +600,12 @@ describe('ProfileScreen', () => {
         : key
     }
     mockProfileState.current = {
-      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR', weekStartDay: 1 }),
       isLoading: false,
       error: null,
     }
     const tree = await renderProfileScreen()
+    expect(findRowByLabel(tree, 'Semana começa em').props.value).toBe('segunda')
     const groupText = (node: unknown): string => {
       if (typeof node === 'string' || typeof node === 'number') return String(node)
       if (!node || typeof node !== 'object' || !('children' in node)) return ''
