@@ -866,7 +866,7 @@
       "log": "Registrar {title}",
       "unlog": "Desfazer registro de {title}",
       "lastThirtyDays": "Últimos 30 dias",
-      "slippingLine": "Nenhum registro {days, plural, one {no último dia} other {nos últimos # dias}}. A sequência está em {streak} e a taxa dos últimos 30 dias caiu.",
+      "slippingLine": "Nenhum registro {days, plural, one {no último dia} other {nos últimos # dias}}. A sequência está em {streak} e a taxa dos últimos 30 dias está abaixo de 50%.",
       "metrics": "Progresso",
       "totalCompletions": "Registros",
       "history": "Histórico",
