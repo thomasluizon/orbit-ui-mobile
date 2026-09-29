@@ -16,6 +16,7 @@ import {
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { DestinationShell } from '@/components/shell/destination-shell'
 import { useChatStore } from '@/stores/chat-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
@@ -76,6 +77,8 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
+  usePathname: () => '/habits/habit-1',
+  useParams: () => ({}),
 }))
 
 vi.mock('@/app/(app)/today-provider', async () => {
@@ -110,6 +113,8 @@ vi.mock('@/hooks/use-app-toast', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: mocks.profileReady ? {
+      name: 'Reader',
+      email: 'reader@example.com',
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
@@ -154,6 +159,7 @@ vi.mock('@/components/ui/list-row', () => ({
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, variant, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} data-variant={variant} onClick={onClick}>{children}</button>,
+  Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -430,6 +436,19 @@ describe('HabitDetailScreen', () => {
     fallback.focus()
     mocks.detailLoading = false
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
+  })
+
+  it('replaces the hosted loading heading with the habit heading after a fresh load', () => {
+    mocks.detailLoading = true
+    const view = render(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    screen.getByRole('heading', { level: 1, name: 'habits.detail.screenTitle' }).focus()
+
+    mocks.detailLoading = false
+    view.rerender(<DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell>)
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
 
