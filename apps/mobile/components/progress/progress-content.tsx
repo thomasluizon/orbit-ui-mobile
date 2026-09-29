@@ -10,6 +10,7 @@ import {
 } from 'react-native-draggable-flatlist'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
+import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
 import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
@@ -325,22 +326,14 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
 function GoalsEmptyState() {
   const { t } = useTranslation()
   useEffect(() => () => {
-    const chat = useChatStore.getState()
-    if (chat.contextualSuggestion?.id === 'progress-create-goal') {
-      chat.setContextualSuggestion(null)
-    }
+    clearContextualSuggestionIfCurrent(useChatStore.getState(), 'progress-create-goal')
   }, [])
   const askAstraForGoal = () => {
-    const chat = useChatStore.getState()
-    if (chat.draft) {
-      chat.setContextualSuggestion({
-        id: 'progress-create-goal',
-        label: t('progressScreen.goals.createAction'),
-        prompt: t('progressScreen.goals.request'),
-      })
-    } else {
-      chat.setDraft(t('progressScreen.goals.request'))
-    }
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'progress-create-goal',
+      label: t('progressScreen.goals.createAction'),
+      prompt: t('progressScreen.goals.request'),
+    })
     useUIStore.getState().setAstraConversationOpen(true)
   }
   return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="primary" onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
