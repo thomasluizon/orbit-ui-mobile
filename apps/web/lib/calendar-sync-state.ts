@@ -20,6 +20,7 @@ export interface CalendarSyncStepInput {
   isQueryLoading: boolean
   isQueryError: boolean
   eventsStatus: string | undefined
+  hasLoadedEvents: boolean
 }
 
 /** Resolves the wizard step from the current stage, connectivity, and query state. */
@@ -27,7 +28,7 @@ export function resolveCalendarSyncStep(input: CalendarSyncStepInput): Step {
   if (input.wizardStage === 'importing') return 'importing'
   if (input.wizardStage === 'done') return 'done'
   if (input.wizardStage === 'error') return 'error'
-  if (!input.isOnline) return 'offline'
+  if (!input.isOnline) return input.hasLoadedEvents ? 'select' : 'offline'
   if (input.isQueryLoading) return 'loading'
   if (input.isQueryError) return 'error'
   if (!input.isReviewMode && input.eventsStatus === 'not-connected') {

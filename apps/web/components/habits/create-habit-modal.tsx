@@ -23,6 +23,8 @@ import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useAccountGeneration, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
@@ -114,6 +116,7 @@ export function CreateHabitModal({
   const emojiSuggestion = useHabitSuggestion()
   const { config } = useConfig()
   const hasProAccess = useHasProAccess()
+  const { isOnline } = useOffline()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
@@ -276,6 +279,8 @@ export function CreateHabitModal({
       e.preventDefault()
       const submittingAccount = getAccountGeneration()
 
+      if (!isOnline) return
+
       if (isSubHabitMode && !canUseSubHabits) {
         navigateToUpgrade()
         return
@@ -318,7 +323,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -460,20 +465,25 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
         actions={(
-          <div className="flex items-center justify-end" style={{ gap: 12 }}>
-            <PillButton
-              variant="ghost"
-              disabled={isPending}
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              formId={formId}
-              disabled={isPending || watchedTitle.trim().length === 0}
-            >
-              {t('common.create')}
-            </PillButton>
+          <div className={isOnline ? 'flex w-full flex-col' : 'flex w-full flex-col gap-4'}>
+            <div role="status">
+              {!isOnline && <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />}
+            </div>
+            <div className="flex items-center justify-end" style={{ gap: 12 }}>
+              <PillButton
+                variant="ghost"
+                disabled={isPending}
+                onClick={dismissGuard.requestDismiss}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
+                formId={formId}
+                disabled={isPending || !isOnline || watchedTitle.trim().length === 0}
+              >
+                {t('common.create')}
+              </PillButton>
+            </div>
           </div>
         )}
       >

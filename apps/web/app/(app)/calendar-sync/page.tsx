@@ -147,6 +147,7 @@ function CalendarSyncPageContent() {
     isQueryLoading: activeQuery.isLoading,
     isQueryError: activeQuery.isError,
     eventsStatus: eventsQuery.data?.status,
+    hasLoadedEvents: events.length > 0,
   })
 
   const displayedErrorMessage = resolveDisplayedErrorMessage({
@@ -187,6 +188,7 @@ function CalendarSyncPageContent() {
   }
 
   async function handleDismissSuggestion(suggestionId: string) {
+    if (!isOnline) return
     const requestAccount = getAccountGeneration()
     try {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
@@ -414,7 +416,7 @@ function CalendarSyncPageContent() {
                     selected={selectedIds.has(event.id)}
                     isReviewMode={isReviewMode}
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
-                    dismissPending={dismissSuggestion.isPending}
+                    dismissPending={dismissSuggestion.isPending || !isOnline}
                     onToggle={toggleEvent}
                     onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
                     t={t}
@@ -454,14 +456,18 @@ function CalendarSyncPageContent() {
                 </div>
               )}
 
-              <div className="md:flex md:justify-center" style={{ padding: '16px 16px 0' }}>
-                <PillButton
-
-                  disabled={selectedIds.size === 0 || !isOnline}
-                  onClick={() => importSelected()}
-                >
-                  {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
-                </PillButton>
+              <div className={!isOnline ? 'flex flex-col gap-4' : 'flex flex-col'} style={{ padding: '16px 16px 0' }}>
+                <div role="status">
+                  {!isOnline && <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />}
+                </div>
+                <div className="md:flex md:justify-center">
+                  <PillButton
+                    disabled={selectedIds.size === 0 || !isOnline}
+                    onClick={() => importSelected()}
+                  >
+                    {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
+                  </PillButton>
+                </div>
               </div>
             </>
           )}

@@ -206,6 +206,7 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
     mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
     return (
       <div data-testid="habit-form-fields">
+        <input aria-label="draft" defaultValue="" />
         {onSuggestSetup && (
           <button type="button" data-testid="suggest-trigger" onClick={() => { void onSuggestSetup() }}>
             suggest
@@ -233,6 +234,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe('CreateHabitModal', () => {
   beforeEach(() => {
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
     mockHabitFormFieldsState.onSuggestSetup = undefined
     mockProfileState.hasProAccess = true
@@ -398,6 +400,36 @@ describe('CreateHabitModal', () => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
     })
     expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { subHabitMode: false, label: 'habit' },
+    { subHabitMode: true, label: 'sub-habit' },
+  ])('keeps an open $label draft and refuses submission after disconnect', async ({ subHabitMode }) => {
+    const onOpenChange = vi.fn()
+    renderWithProviders(
+      <CreateHabitModal
+        open
+        onOpenChange={onOpenChange}
+        parentHabit={subHabitMode ? createMockHabit({ id: 'parent-1' }) : undefined}
+      />,
+    )
+
+    const draft = screen.getByRole('textbox', { name: 'draft' })
+    fireEvent.change(draft, { target: { value: 'Keep this draft' } })
+    const offlineStatus = screen.getByRole('status')
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true })
+    act(() => { globalThis.dispatchEvent(new Event('offline')) })
+    fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
+
+    expect(screen.getByText('offline.create.reason')).toBeVisible()
+    expect(offlineStatus).toHaveTextContent('offline.create.reason')
+    expect(offlineStatus.closest('[data-slot="sheet-actions"]')).toBeInTheDocument()
+    expect(screen.getByTestId('habit-form-fields')).toBeInTheDocument()
+    expect(draft).toHaveValue('Keep this draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled()
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
   })
 
   it('omits nested sub-habits from a Free create request', async () => {
