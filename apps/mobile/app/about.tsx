@@ -4,9 +4,9 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import Constants from 'expo-constants'
 import { Compass, FileText, Mail, Shield } from 'lucide-react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { getAppVersion } from '@/lib/app-version'
 import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -30,7 +30,7 @@ export default function AboutScreen() {
     [currentScheme, currentTheme],
   )
   const [showGuide, setShowGuide] = useState(false)
-  const appVersion = Constants.expoConfig?.version
+  const appVersion = getAppVersion()
 
   return (
     <SafeAreaView

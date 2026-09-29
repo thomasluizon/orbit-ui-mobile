@@ -9,13 +9,14 @@ import { AppLogo } from '@/components/ui/app-logo'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import packageJson from '@/package.json'
+import { getAppVersion } from '@/lib/app-version'
 
 export default function AboutPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const [showGuide, setShowGuide] = useState(false)
+  const appVersion = getAppVersion()
 
   return (
     <div className="md:mx-auto md:max-w-[760px]">
@@ -43,16 +44,18 @@ export default function AboutPage() {
             >
               {t('common.appName')}
             </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 13,
-                color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {t('about.version', { version: packageJson.version })}
-            </span>
+            {appVersion ? (
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  color: 'var(--fg-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {t('about.version', { version: appVersion })}
+              </span>
+            ) : null}
           </div>
           <div>
             <SettingsRow

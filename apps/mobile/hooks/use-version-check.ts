@@ -10,6 +10,7 @@ import SpInAppUpdates, {
 } from 'sp-react-native-in-app-updates'
 import { versionCheckKeys } from '@orbit/shared/query'
 import { isVersionBelow } from '@orbit/shared/utils'
+import { getAppVersion } from '@/lib/app-version'
 import { getAppStoreLookup } from '@/lib/version-check'
 
 const SIX_HOURS = 1000 * 60 * 60 * 6
@@ -58,7 +59,7 @@ async function resolveVersionSources(bundleId: string | null): Promise<QueryResu
 }
 
 export function useVersionCheck(): VersionNeedsUpdateResponse {
-  const currentVersion = Constants.expoConfig?.version ?? null
+  const currentVersion = getAppVersion()
   const bundleId =
     Platform.OS === 'ios'
       ? Constants.expoConfig?.ios?.bundleIdentifier ?? null
