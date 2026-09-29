@@ -280,6 +280,7 @@ function AllDayMoreChip({
         height: ALL_DAY_CHIP_HEIGHT,
         paddingHorizontal: 8,
         borderRadius: 8,
+        overflow: "hidden",
         borderWidth: 1,
         borderColor: tokens.hairline,
         backgroundColor: pressed ? tokens.bgHover : "transparent",

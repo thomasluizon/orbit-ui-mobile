@@ -27,6 +27,24 @@ function pickOption(columnLabel: string, label: string) {
 }
 
 describe('TimeField', () => {
+  it('paints the option hover fill on the whole row at the enumerated radius', () => {
+    uses24HourClock = true
+    render(<TimeField value="14:30" onChange={vi.fn()} />)
+
+    openPicker()
+    const hours = screen.getByRole('radiogroup', { name: 'common.hours' })
+    const selected = within(hours).getByRole('radio', { name: '14' })
+    const unselected = within(hours).getByRole('radio', { name: '07' })
+
+    for (const option of [selected, unselected]) {
+      expect(option.className).toContain('rounded-[12px]')
+      expect(option.className).toContain('min-h-[44px]')
+      expect(option.className).not.toContain('rounded-[10px]')
+    }
+    expect(unselected.className).toContain('hover:bg-[var(--bg-elev)]')
+    expect(selected.className).toContain('hover:bg-[var(--primary-hover)]')
+  })
+
   it('offers every minute, so an odd minute like 07:13 is selectable in a 24-hour locale', () => {
     uses24HourClock = true
     const onChange = vi.fn()

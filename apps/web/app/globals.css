@@ -159,7 +159,7 @@
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
 
-  .orbit-list-row-body:hover:not(:has(button:hover, a:hover, [role="button"]:hover)) {
+  .orbit-list-row-body:hover:not(:disabled):not(:has(button:hover, a:hover, [role="button"]:hover)) {
     background: var(--bg-hover);
     --orbit-list-row-secondary: var(--fg-2);
   }
@@ -1167,8 +1167,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 @media (hover: hover) and (pointer: fine) {
   @layer components {
-  .icon-btn:hover,
-  .icon-btn-well:hover {
+  .icon-btn:not(:disabled):hover,
+  .icon-btn-well:not(:disabled):hover {
     background: var(--bg-hover);
   }
   }
@@ -1211,6 +1211,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
+  min-height: 44px;
   padding: 9px 16px;
   border-radius: var(--radius-full);
   box-shadow: inset 0 0 0 1px var(--hairline);
@@ -1221,14 +1222,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background-color 240ms var(--ease-standard),
     color 240ms var(--ease-standard),
     transform 150ms var(--ease-out);
-}
-.chip::after {
-  content: '';
-  position: absolute;
-  top: calc(50% - 22px);
-  bottom: calc(50% - 22px);
-  left: 0;
-  right: 0;
 }
 .chip:active { transform: scale(0.96); }
 .chip:disabled {
@@ -1256,9 +1249,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .chip:not(.chip-filled):hover { background: var(--bg-hover); }
-  .chip.chip-filled:hover { background: var(--primary-hover); }
-  .chip.chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
+  button.chip:not(:disabled):not(.chip-filled):hover { background: var(--bg-hover); }
+  button.chip:not(:disabled).chip-filled:hover { background: var(--primary-hover); }
+  button.chip:not(:disabled).chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
 }
 }
 

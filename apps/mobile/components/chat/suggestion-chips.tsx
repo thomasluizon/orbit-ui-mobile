@@ -79,6 +79,7 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
       paddingHorizontal: 16,
       borderRadius: 999,
+      overflow: "hidden",
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,

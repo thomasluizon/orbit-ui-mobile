@@ -58,9 +58,9 @@ function TimeOption({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
+      className={`w-full min-h-[44px] snap-center rounded-[12px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
         selected
-          ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+          ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]'
           : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
       }`}
       style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}

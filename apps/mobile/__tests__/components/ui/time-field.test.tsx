@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pressable, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../../test-mocks/react-native'
 
 import { TimeField } from '@/components/ui/time-field'
+import { createTokensV2 } from '@/lib/theme'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
@@ -81,6 +82,27 @@ async function pressDone(tree: any) {
 }
 
 describe('TimeField', () => {
+  it('paints the option press fill on the whole row at the enumerated radius', async () => {
+    mockUses24HourClock = true
+    let tree: any
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(<TimeField value="14:30" onChange={vi.fn()} />)
+    })
+    await openPicker(tree)
+
+    const selected = radioOption(tree, 'common.hours', '14')
+    const unselected = radioOption(tree, 'common.hours', '07')
+    const tokens = createTokensV2('purple', 'dark')
+
+    for (const option of [selected, unselected]) {
+      expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    }
+    expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgElev)
+    expect(StyleSheet.flatten(selected.props.style({ pressed: true })).backgroundColor).toBe(tokens.primaryPressed)
+    expect(StyleSheet.flatten(selected.props.style({ pressed: false })).backgroundColor).toBe(tokens.primary)
+  })
+
   beforeEach(() => {
     mockUses24HourClock = true
     __resetTestHostConfig()
