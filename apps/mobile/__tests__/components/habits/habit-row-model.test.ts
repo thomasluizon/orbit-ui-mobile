@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { computeHabitFrequencyLabel } from '@orbit/shared/utils'
 import {
   buildHabitRowAccessibilityLabel,
   buildHabitRowMetaParts,
@@ -35,7 +36,10 @@ describe('buildHabitRowMetaParts', () => {
   })
 
   it('omits the frequency label for a general habit', () => {
-    const parts = buildHabitRowMetaParts({ ...base, habit: createMockHabit({ isGeneral: true }) })
+    const habit = createMockHabit({ isGeneral: true })
+    const frequencyLabel = computeHabitFrequencyLabel(habit, t)
+    expect(frequencyLabel).toBeNull()
+    const parts = buildHabitRowMetaParts({ ...base, habit, frequencyLabel })
     expect(parts).not.toContain('Every day')
   })
 
