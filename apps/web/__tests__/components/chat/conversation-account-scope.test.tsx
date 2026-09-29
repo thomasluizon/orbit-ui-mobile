@@ -84,6 +84,19 @@ it('collapses two tool steps on the finished message', () => {
   expect(screen.getByText('chat.trace.unknown')).toBeVisible()
 })
 
+it('owns the feed padding and spacing between turns', () => {
+  const chat = buildChat()
+  chat.messages = [
+    { id: 'first', role: 'user', content: 'Hello', timestamp: new Date() },
+    { id: 'second', role: 'ai', content: 'Hi', timestamp: new Date() },
+  ]
+  render(<AstraConversation chat={chat} />)
+  const feed = screen.getByRole('log')
+  expect(feed).toHaveStyle({ padding: '16px' })
+  expect(feed.firstElementChild).toHaveClass('gap-4')
+  expect(feed.firstElementChild?.children).toHaveLength(2)
+})
+
 it('shows follow-ups only under the latest AI message and sends their origin', () => {
   const chat = buildChat()
   chat.messages = [
