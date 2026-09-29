@@ -5,6 +5,7 @@ import { habitKeys } from '../query/keys'
 import {
   deduplicateHabitList,
   getTodayHabitList,
+  getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
   updateHabitListsForDate,
 } from '../query/habit-cache'
@@ -139,6 +140,21 @@ describe('getTodayHabitList', () => {
     updateHabitListsForDate(queryClient, today, (items) => [...items, scheduled('c')])
     expect(queryClient.getQueryData(countKey)).toBe(3)
     expect(getTodayHabitList(queryClient, today)?.map((item) => item.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('does not use a stale complete list when the retry refetch fails', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const key = habitKeys.list(todayFilters)
+    let fetches = 0
+    await queryClient.fetchQuery({ queryKey: key, queryFn: async () => {
+      fetches += 1
+      if (fetches > 1) throw new Error('Refetch failed')
+      return [scheduled('a')]
+    } })
+    queryClient.setQueryData(habitKeys.listTotalCount(todayFilters), 1)
+
+    expect(await getTodayHabitListAfterRefetch(queryClient, today)).toBeUndefined()
+    expect(fetches).toBe(2)
   })
 })
 
