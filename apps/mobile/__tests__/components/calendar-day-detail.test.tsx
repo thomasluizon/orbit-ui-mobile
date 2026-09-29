@@ -398,10 +398,11 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(rows.slice(0, 3).map((row) => ({
       value: row.props.value,
       ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
+      ringLabel: (row.props.trailing as React.ReactElement<{ label: string }>).props.label,
     }))).toEqual([
-      { value: '08:00 · indulged', ringStatus: 'bad' },
-      { value: '08:00 · resisted', ringStatus: 'done' },
-      { value: '08:00 · resisted', ringStatus: 'done' },
+      { value: '08:00 · indulged', ringStatus: 'bad', ringLabel: 'indulged' },
+      { value: '08:00 · resisted', ringStatus: 'done', ringLabel: 'resisted' },
+      { value: '08:00 · resisted', ringStatus: 'empty', ringLabel: 'not logged' },
     ])
   })
 

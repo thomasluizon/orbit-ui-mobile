@@ -377,8 +377,8 @@ describe('CalendarDayDetail', () => {
     expect(screen.getByText('08:00 · indulged')).toBeInTheDocument()
     expect(screen.getAllByText('08:00 · resisted')).toHaveLength(2)
     expect(screen.getByRole('img', { name: 'indulged' })).toHaveAttribute('data-status', 'bad')
-    expect(screen.getAllByRole('img', { name: 'resisted' })).toHaveLength(2)
-    expect(screen.getAllByRole('img', { name: 'resisted' }).every((ring) => ring.getAttribute('data-status') === 'done')).toBe(true)
+    expect(screen.getByRole('img', { name: 'resisted' })).toHaveAttribute('data-status', 'done')
+    expect(screen.getByRole('img', { name: 'not logged' })).toHaveAttribute('data-status', 'empty')
   })
 
   it('uses check rows on loggable days and reports the requested state', () => {
