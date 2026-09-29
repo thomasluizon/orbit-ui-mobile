@@ -235,7 +235,8 @@
         "reason": "Astra is still answering. Wait for this response before sending another message."
       },
       "offline": {
-        "reason": "Astra needs a connection. Reconnect and try again. Habit logging still works offline."
+        "placeholder": "No connection",
+        "reason": "No connection. Astra comes back when the connection does."
       }
     }
   },
@@ -337,7 +338,7 @@
     "signIn": "Sign in",
     "enterCode": "Enter the code",
     "email": "Email",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
     "turnstileLoading": "Checking your connection…",
     "turnstileFailed": "Security check didn't load.",
@@ -483,9 +484,13 @@
     },
     "actions": {
       "more": "More actions",
+      "menuTitle": "Habit",
+      "addSubHabit": "Add sub habit",
+      "moveUnder": "Move under another habit",
+      "delete": "Delete",
       "duplicate": "Duplicate",
       "skip": "Skip",
-      "openSubHabits": "Open sub-habits",
+      "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
       "reschedule": "Reschedule"
     },
@@ -912,22 +917,21 @@
       "empty": "Nothing scheduled"
     },
     "legend": {
-      "today": "Today",
-      "loggable": "Can log",
-      "done": "Done",
-      "partial": "Partial",
-      "missed": "Missed"
+      "loggable": "can log",
+      "full": "all logged",
+      "partial": "part done",
+      "none": "nothing logged"
     },
     "dayCell": {
-      "none": "None logged",
-      "partial": "Partially done",
-      "full": "Done",
-      "notScheduled": "Not scheduled",
-      "future": "Upcoming",
+      "none": "nothing logged",
+      "partial": "part done",
+      "full": "all logged",
+      "notScheduled": "nothing due",
+      "future": "not yet",
       "of": "of",
-      "today": "Today",
-      "selected": "Selected",
-      "readOnly": "Read only"
+      "today": "today",
+      "selected": "selected",
+      "readOnly": "read only"
     },
     "bestStreak": "Best streak",
     "totalLogs": "Logs",
@@ -954,7 +958,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open day",
+    "goToDay": "Open this day on Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -982,7 +986,6 @@
     "status": {
       "completed": "done",
       "missed": "not logged",
-      "upcoming": "Upcoming",
       "indulged": "indulged",
       "resisted": "resisted"
     },
@@ -1082,8 +1085,7 @@
   "chat": {
     "title": "Astra",
     "offline": {
-      "title": "You’re offline",
-      "description": "Astra needs an internet connection. Reconnect to keep chatting."
+      "title": "You’re offline"
     },
     "pendingOp": {
       "risk": {
@@ -1605,7 +1607,11 @@
       "reminders": "Habit reminders",
       "remindersNote": "Each habit's reminders live on the habit itself.",
       "currentDevice": "This device",
-      "pushDeviceLimit": "Up to 5 devices can receive alerts."
+      "devices": "Devices getting alerts",
+      "devicesCount": "{count} of {max}",
+      "alertsOnThisDevice": "Alerts on this device",
+      "devicesUnavailable": "Could not load devices.",
+      "pushDeviceLimit": "Turn off alerts on another device to use this one."
     },
     "allowance": {
       "title": "Today's messages",
@@ -2380,6 +2386,7 @@
   },
   "upgrade": {
     "title": "Subscription",
+    "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -2594,7 +2601,15 @@
   },
   "offline": {
     "title": "You're offline",
-    "description": "Check your connection and try again."
+    "description": "Check your connection and try again.",
+    "create": {
+      "title": "Create habit",
+      "reason": "Creating needs a connection because the habit is made on the server. Come back when the connection does."
+    },
+    "calendar": {
+      "title": "Sync the calendar",
+      "reason": "Google Calendar does not answer without a connection. Events already loaded stay in view."
+    }
   },
   "undo": {
     "habitDeleted": "Habit deleted",

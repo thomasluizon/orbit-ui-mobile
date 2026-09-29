@@ -231,6 +231,15 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toBeInTheDocument()
   })
 
+  it('keeps the stop control and shows the connection reason during an offline recording', () => {
+    const onVoice = vi.fn()
+    render(<Composer {...props({ state: 'recording', words: { ...words, placeholder: en.shell.composer.offline.placeholder, offlineReason: en.shell.composer.offline.reason }, onVoice, voiceWords })} />)
+    expect(screen.getByText(voiceWords.recording)).toBeVisible()
+    expect(screen.getByText(en.shell.composer.offline.reason)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: voiceWords.stop }))
+    expect(onVoice).toHaveBeenCalledOnce()
+  })
+
   it('renders transcribing status with an unusable input', () => {
     render(<Composer {...props({ state: 'transcribing', onVoice: vi.fn(), voiceWords })} />)
     expect(screen.getByText(voiceWords.transcribing)).toBeInTheDocument()
@@ -311,6 +320,15 @@ describe('Composer', () => {
     render(<Composer {...props({ words: { ...words, placeholder } })} />)
     expect(placeholder).toBe(expected)
     expect(screen.getByRole('textbox', { name: placeholder })).toHaveAttribute('placeholder', expected)
+  })
+
+  it.each([
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+  ])('shows the %s offline composer copy', (_locale, offline, placeholder, reason) => {
+    render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason })} />)
+    expect(screen.getByRole('textbox', { name: 'Ask Astra for something' })).toHaveAttribute('placeholder', placeholder)
+    expect(screen.getByText(reason)).toBeInTheDocument()
   })
 
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(

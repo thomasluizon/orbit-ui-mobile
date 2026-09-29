@@ -25,6 +25,7 @@ export const requestPermissionsAsync = vi.fn(() => Promise.resolve({
 }))
 export const getExpoPushTokenAsync = vi.fn(() => Promise.resolve({ data: 'expo-token' }))
 export const getDevicePushTokenAsync = vi.fn(() => Promise.resolve({ type: 'fcm', data: 'native-token' }))
+export const unregisterForNotificationsAsync = vi.fn(async () => {})
 export const getLastNotificationResponse = vi.fn(() => null)
 export const clearLastNotificationResponse = vi.fn()
 export const addNotificationResponseReceivedListener = vi.fn(() => ({
@@ -58,6 +59,8 @@ export function resetExpoNotificationsMocks(): void {
   getExpoPushTokenAsync.mockResolvedValue({ data: 'expo-token' })
   getDevicePushTokenAsync.mockReset()
   getDevicePushTokenAsync.mockResolvedValue({ type: 'fcm', data: 'native-token' })
+  unregisterForNotificationsAsync.mockReset()
+  unregisterForNotificationsAsync.mockResolvedValue(undefined)
   getLastNotificationResponse.mockReset()
   getLastNotificationResponse.mockReturnValue(null)
   clearLastNotificationResponse.mockReset()
@@ -81,6 +84,7 @@ const expoNotificationsMock = {
   requestPermissionsAsync,
   getExpoPushTokenAsync,
   getDevicePushTokenAsync,
+  unregisterForNotificationsAsync,
   getLastNotificationResponse,
   clearLastNotificationResponse,
   addNotificationResponseReceivedListener,

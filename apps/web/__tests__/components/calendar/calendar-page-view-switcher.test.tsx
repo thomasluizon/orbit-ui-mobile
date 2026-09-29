@@ -16,7 +16,7 @@ import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => { vi.useRealTimers(); Reflect.deleteProperty(navigator, 'onLine') })
 
 const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -921,6 +921,16 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
     expect(screen.queryByTestId('calendar-legend')).toBeNull()
     expect(calendarStatsProps.state).toBe('empty')
+  })
+
+  it('explains an offline empty-month create request in the month feedback', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    expect(screen.getByText('offline.create.reason')).toBeVisible()
+    fireEvent.click(screen.getByTestId('calendar-header'))
+    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+    expect(screen.queryByText('offline.create.reason')).toBeNull()
   })
 
   it('keeps paging available but removes creation for a future month', () => {

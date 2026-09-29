@@ -82,6 +82,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -103,6 +104,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -124,6 +126,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -145,6 +148,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -166,6 +170,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -187,6 +192,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -208,6 +214,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -229,6 +236,7 @@
         "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx",
         "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
         "apps/web/app/(app)/calendar-sync/page.tsx",
+        "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
@@ -572,7 +580,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
@@ -580,7 +587,9 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx",
+        "apps/web/components/profile/push-devices-row.tsx",
+        "apps/web/hooks/use-push-subscriptions.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -594,7 +603,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
@@ -602,7 +610,9 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx",
+        "apps/web/components/profile/push-devices-row.tsx",
+        "apps/web/hooks/use-push-subscriptions.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -616,7 +626,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
@@ -624,7 +633,9 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx",
+        "apps/web/components/profile/push-devices-row.tsx",
+        "apps/web/hooks/use-push-subscriptions.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -638,7 +649,6 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
@@ -646,7 +656,9 @@
         "apps/web/components/profile/astra-allowance-panel.tsx",
         "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx"
+        "apps/web/components/profile/profile-settings-frame.tsx",
+        "apps/web/components/profile/push-devices-row.tsx",
+        "apps/web/hooks/use-push-subscriptions.ts"
       ],
       "state": "default",
       "theme": "dark",

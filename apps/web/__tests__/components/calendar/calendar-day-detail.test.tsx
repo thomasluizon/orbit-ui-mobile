@@ -10,16 +10,18 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
 
+const network = vi.hoisted(() => ({ isOnline: true }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: network.isOnline }) }))
+
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
   'calendar.goToDay': en.calendar.goToDay,
   'calendar.showRecurring': 'Show recurring habits',
-  'calendar.status.completed': 'done',
-  'calendar.status.missed': 'not logged',
-  'calendar.status.indulged': 'indulged',
-  'calendar.status.resisted': 'resisted',
-  'calendar.status.upcoming': 'Upcoming',
+  'calendar.status.completed': en.calendar.status.completed,
+  'calendar.status.missed': en.calendar.status.missed,
+  'calendar.status.indulged': en.calendar.status.indulged,
+  'calendar.status.resisted': en.calendar.status.resisted,
   'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
   'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
@@ -265,6 +267,22 @@ describe('CalendarDayDetail', () => {
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
   })
 
+  it('refuses calendar sync beside the day control while offline', () => {
+    network.isOnline = false
+    try {
+      const onCalendarAutoSyncChange = vi.fn(async () => {})
+      renderDetail({ autoSyncState: proAutoSyncState, onCalendarAutoSyncChange })
+      expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+      expect(autoSync).toBeDisabled()
+      fireEvent.click(autoSync)
+      expect(onCalendarAutoSyncChange).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
+  })
+
   it('does not offer auto-sync as enabled without a Google connection', () => {
     renderDetail({
       dateStr: '2025-06-15',
@@ -274,6 +292,23 @@ describe('CalendarDayDetail', () => {
 
     const switches = screen.queryAllByRole('switch', { name: 'calendar.dayDetail.autoSync' })
     expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
+  })
+
+  it('refuses disconnected calendar reconnection in place while offline', () => {
+    network.isOnline = false
+    try {
+      const onReconnectCalendarEvents = vi.fn()
+      renderDetail({
+        calendarEventsState: 'not-connected',
+        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+        onReconnectCalendarEvents,
+      })
+      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
+    } finally {
+      network.isOnline = true
+    }
   })
 
   it('renders a failed events request instead of the empty result', () => {
@@ -348,7 +383,7 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {
+  it('labels an unlogged ordinary row like a missed row', () => {
     renderDetail({
       entries: [
         makeEntry({ title: 'Read' }),
@@ -360,13 +395,13 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00 · done')).toBeInTheDocument()
     expect(screen.getByText('09:00 · not logged')).toBeInTheDocument()
-    expect(screen.getByText('10:00 · Upcoming')).toBeInTheDocument()
+    expect(screen.getByText('10:00 · not logged')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'done' })).toHaveAttribute('data-status', 'done')
-    expect(screen.getByRole('img', { name: 'not logged' })).toHaveAttribute('data-status', 'empty')
-    expect(screen.getByRole('img', { name: 'Upcoming' })).toHaveAttribute('data-status', 'empty')
+    expect(screen.getAllByRole('img', { name: 'not logged' })).toHaveLength(2)
+    expect(screen.getAllByRole('img', { name: 'not logged' }).every((ring) => ring.getAttribute('data-status') === 'empty')).toBe(true)
   })
 
-  it('keeps avoid-habit upcoming rows distinct from indulged and resisted outcomes', () => {
+  it('labels an unlogged avoid-habit row like a resisted row', () => {
     renderDetail({
       entries: [
         makeEntry({ title: 'Sweets', isBadHabit: true }),
@@ -376,11 +411,10 @@ describe('CalendarDayDetail', () => {
     })
 
     expect(screen.getByText('08:00 · indulged')).toBeInTheDocument()
-    expect(screen.getByText('08:00 · resisted')).toBeInTheDocument()
-    expect(screen.getByText('08:00 · Upcoming')).toBeInTheDocument()
+    expect(screen.getAllByText('08:00 · resisted')).toHaveLength(2)
     expect(screen.getByRole('img', { name: 'indulged' })).toHaveAttribute('data-status', 'bad')
     expect(screen.getByRole('img', { name: 'resisted' })).toHaveAttribute('data-status', 'done')
-    expect(screen.getByRole('img', { name: 'Upcoming' })).toHaveAttribute('data-status', 'empty')
+    expect(screen.getByRole('img', { name: 'not logged' })).toHaveAttribute('data-status', 'empty')
   })
 
   it('uses check rows on loggable days and reports the requested state', () => {
@@ -412,9 +446,8 @@ describe('CalendarDayDetail', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
       fireEvent.click(screen.getByRole('checkbox', { name: 'Sweets' }))
 
-      expect(screen.getAllByText('08:00 · Upcoming')).toHaveLength(2)
-      expect(screen.queryByText('08:00 · not logged')).not.toBeInTheDocument()
-      expect(screen.queryByText('08:00 · resisted')).not.toBeInTheDocument()
+      expect(within(screen.getByRole('checkbox', { name: 'Read' })).getByText('08:00 · not logged')).toBeInTheDocument()
+      expect(within(screen.getByRole('checkbox', { name: 'Sweets' })).getByText('08:00 · resisted')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -666,10 +699,11 @@ describe('CalendarDayDetail', () => {
 
   it('leaves for Today through the panel row with the selected date', () => {
     renderDetail()
-    expect(screen.getByRole('link', { name: 'Open day' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open this day on Today' })).toHaveAttribute(
       'href',
       '/?date=2025-06-15',
     )
+    expect(screen.getByText('Open this day on Today')).toHaveClass('break-words')
   })
 
   it('keeps the title, summary and route within a 24px inset card', () => {
@@ -678,7 +712,7 @@ describe('CalendarDayDetail', () => {
     expect(card.style.paddingBlock).toBe('24px')
     expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
     expect(card).toContainElement(screen.getByText('1 of 1 logged'))
-    expect(card).toContainElement(screen.getByRole('link', { name: 'Open day' }))
+    expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
     expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '24px' })
     expect(screen.getByText('Meditate').closest('[style*="padding-inline: 8px"]')).not.toBeNull()
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()

@@ -25,6 +25,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
@@ -61,6 +63,7 @@ function CalendarEventsSection({
 }>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
+  const { isOnline } = useOffline()
 
   if (state === 'pro-boundary') {
     return (
@@ -95,7 +98,12 @@ function CalendarEventsSection({
           }
         />
       ) : null}
-      {state === 'not-connected' ? (
+      <div aria-live="polite" aria-atomic="true">
+        {state === 'not-connected' && !isOnline ? (
+          <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
+        ) : null}
+      </div>
+      {state === 'not-connected' && isOnline ? (
         <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 24 }}>
           <p className="text-sm font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>
             {t('calendar.dayDetail.disconnectedTitle')}
@@ -140,6 +148,7 @@ function CalendarEventsSection({
 
 type EntryOutcome = {
   label: string
+  ringLabel: string
   status: NonNullable<StatusRingProps['status']>
 }
 
@@ -147,24 +156,21 @@ function getEntryOutcome(
   entry: CalendarDayEntry,
   t: ReturnType<typeof useTranslations>,
 ): EntryOutcome {
-  if (entry.status === 'upcoming') {
-    return {
-      label: t('calendar.status.upcoming'),
-      status: 'empty',
-    }
-  }
-
   const completed = entry.status === 'completed'
 
   if (entry.isBadHabit) {
+    const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      label: t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted'),
-      status: completed ? 'bad' : 'done',
+      label,
+      ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
+      status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
   }
 
+  const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
   return {
-    label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
+    label,
+    ringLabel: label,
     status: completed ? 'done' : 'empty',
   }
 }
@@ -265,7 +271,7 @@ function CalendarDayRows({
         key={`${dateStr}:${entry.habitId}`}
         title={entry.title}
         value={value}
-        trailing={<StatusRing status={outcome.status} size={24} label={outcome.label} />}
+        trailing={<StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />}
         chevron={false}
         readOnly
       />
@@ -322,9 +328,11 @@ export function CalendarDayDetail({
       className="block"
       style={{ color: 'inherit', textDecoration: 'none' }}
     >
+      {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
+        wrapTitle
         chevron={false}
         readOnly
       />

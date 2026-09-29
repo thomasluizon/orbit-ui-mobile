@@ -2,6 +2,7 @@ import React from 'react'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared'
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => {
@@ -233,6 +234,8 @@ describe('usePushNotifications', () => {
       type: 'fcm',
       data: 'native-token',
     })
+    vi.mocked(notificationsModule.unregisterForNotificationsAsync).mockReset()
+    vi.mocked(notificationsModule.unregisterForNotificationsAsync).mockResolvedValue()
     vi.mocked(notificationsModule.getLastNotificationResponse).mockReset()
     vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
     vi.mocked(notificationsModule.clearLastNotificationResponse).mockReset()
@@ -427,6 +430,7 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+    expect(notificationsModule.unregisterForNotificationsAsync).not.toHaveBeenCalled()
 
     await TestRenderer.act(async () => {
       await latestResult?.disablePushNotifications()
@@ -454,6 +458,29 @@ describe('usePushNotifications', () => {
 
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
     expect(latestResult?.registrationStatus).toBe('disabled')
+  })
+
+  it('rotates an FCM token owned by another account before registering this one', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+    vi.mocked(notificationsModule.getDevicePushTokenAsync)
+      .mockResolvedValueOnce({ type: 'fcm', data: 'account-a-token' })
+      .mockResolvedValue({ type: 'fcm', data: 'account-b-token' })
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(400, {
+      error: 'Push subscription endpoint is already registered to a different user.',
+      errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER',
+    }, 'Failed with status 400'))
+
+    await renderHarness()
+
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(1, API.notifications.subscribe,
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-a-token', p256dh: 'fcm', auth: 'fcm' }) }))
+    expect(notificationsModule.unregisterForNotificationsAsync).toHaveBeenCalledTimes(1)
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(2, API.notifications.subscribe,
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-b-token', p256dh: 'fcm', auth: 'fcm' }) }))
+    expect(latestResult?.expoPushToken).toBe('account-b-token')
+    expect(latestResult?.registrationStatus).toBe('registered')
   })
 
   it('leaves registration undetermined until the user is prompted', async () => {
@@ -531,6 +558,7 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('sync-failed')
     expect(latestResult?.isSupported).toBe(true)
     expect(latestResult?.isEnabled).toBe(false)
+    expect(notificationsModule.unregisterForNotificationsAsync).not.toHaveBeenCalled()
 
     mocks.apiClient.mockResolvedValue(undefined)
     await TestRenderer.act(async () => {

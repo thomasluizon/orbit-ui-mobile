@@ -2,6 +2,8 @@ import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import { Menu } from '@/components/ui/menu'
+import { Icon } from '@/components/ui/icon'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -348,6 +350,76 @@ describe('HabitRow menu (mobile)', () => {
     __resetTestHostConfig()
   })
 
+  it('matches the drawn menu for an overdue parent on a free plan', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk', isOverdue: true, hasSubHabits: true })}
+        hasChildren hasProAccess={false} actions={{ onAddSubHabit: vi.fn(), onMoveParent: vi.fn(),
+          onSkip: vi.fn(), onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+          onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }} />)
+    })
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.title).toBe('Walk')
+    expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
+      'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
+    ])
+    expect(menu.props.items.map((item: { icon?: string }) => item.icon)).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(menu.props.items[0].badge).toBe('Pro')
+    expect(menu.props.items[8].destructive).toBe(true)
+    pressMoreButton(renderer)
+    const icons = renderer!.root.findAllByType(Icon)
+    expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
+      'subtask', 'arrows-move', 'player-skip-forward', 'calendar-time', 'pencil',
+      'copy', 'checkbox', 'list-tree', 'trash',
+    ])
+    expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>
+      icon.props.size === 20 && icon.props.strokeWidth === 2)).toBe(true)
+    expect(icons[8].props.color).toBe(createTokensV2('purple', 'dark').statusBad)
+  })
+
+  it('omits overdue and child actions when their row conditions do not apply', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read' })} hasProAccess
+        actions={{ onAddSubHabit: vi.fn(), onReschedule: vi.fn(), onDrillInto: vi.fn(), onEnterSelectMode: vi.fn() }} />)
+    })
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.items.map((item: { id: string }) => item.id)).toEqual(['add', 'select'])
+    expect(menu.props.items[0].badge).toBeUndefined()
+    expect(menu.props.title).toBe('Read')
+  })
+
+  it('keeps drill navigation when stored children are filtered out of the visible row', () => {
+    const onDrillInto = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Morning routine', hasSubHabits: true })}
+          hasChildren={false} actions={{ onDrillInto }} />,
+      )
+    })
+
+    const menu = renderer!.root.findByType(Menu)
+    expect(menu.props.items.map((item: { id: string }) => item.id)).toContain('drill')
+    TestRenderer.act(() => menu.props.onSelect('drill'))
+    expect(onDrillInto).toHaveBeenCalledOnce()
+  })
+
+  it('removes the menu while selecting rows', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Walk' })} isSelectMode
+        actions={{ onEnterSelectMode: vi.fn(), onEdit: vi.fn() }} />)
+    })
+    expect(renderer!.root.findByType(Menu).props.open).toBe(false)
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'habits.actions.more' })).toHaveLength(0)
+  })
+
   it('keeps only the second row menu open when another row opens', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -364,7 +436,7 @@ describe('HabitRow menu (mobile)', () => {
     expect(collectStrings(renderer!.toJSON())).toContain('common.edit')
 
     TestRenderer.act(() => (triggers[1]!.props.onPress as () => void)())
-    expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
+    expect(collectStrings(renderer!.toJSON())).toContain('habits.actions.delete')
     expect(collectStrings(renderer!.toJSON())).not.toContain('common.edit')
   })
 

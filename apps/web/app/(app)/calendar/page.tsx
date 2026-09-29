@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction, type ReactNode } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from 'react'
 import {
   addMonths,
   addDays,
@@ -69,6 +69,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useUIStore } from '@/stores/ui-store'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useToday } from '../today-provider'
 import {
   CalendarHeader,
@@ -93,6 +95,7 @@ interface CalendarMonthFeedbackProps {
   createLabel: string
   createVariant: 'primary' | 'secondary'
   onCreate: () => void
+  createRefusal?: ReactNode
 }
 
 function CalendarMonthFeedback({
@@ -102,6 +105,7 @@ function CalendarMonthFeedback({
   createLabel,
   createVariant,
   onCreate,
+  createRefusal,
 }: Readonly<CalendarMonthFeedbackProps>) {
   if (state !== 'empty' && state !== 'future') return null
   return (
@@ -112,6 +116,7 @@ function CalendarMonthFeedback({
           {createLabel}
         </PillButton>
       ) : null}
+      <div aria-live="polite" aria-atomic="true" className="w-full max-w-[560px]">{createRefusal}</div>
     </div>
   )
 }
@@ -307,6 +312,9 @@ function CalendarPageContent({
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const { isOnline } = useOffline()
+  const [showCreateRefusal, setShowCreateRefusal] = useAccountScopedState(false)
+  useEffect(() => { if (isOnline) setShowCreateRefusal(false) }, [isOnline, setShowCreateRefusal])
   const logHabit = useLogHabit()
 
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
@@ -652,8 +660,9 @@ function CalendarPageContent({
   const monthSlideClass = resolveMonthSlideClass(monthSlide)
 
   const openHabitCreation = useCallback(() => {
+    if (!isOnline) { setShowCreateRefusal(true); return }
     setShowCreateModal(true)
-  }, [setShowCreateModal])
+  }, [isOnline, setShowCreateRefusal, setShowCreateModal])
 
   const viewSelector = (
     <SegmentedControl<CalendarView>
@@ -721,9 +730,9 @@ function CalendarPageContent({
                   <CalendarMonthLegend
                     state={monthDisplayState}
                     loggableLabel={t('calendar.legend.loggable')}
-                    fullLabel={t('calendar.dayCell.full')}
-                    partialLabel={t('calendar.dayCell.partial')}
-                    noneLabel={t('calendar.dayCell.none')}
+                    fullLabel={t('calendar.legend.full')}
+                    partialLabel={t('calendar.legend.partial')}
+                    noneLabel={t('calendar.legend.none')}
                   />
 
                   <MonthRecurringFilter
@@ -739,6 +748,7 @@ function CalendarPageContent({
                     createLabel={t('habits.createHabit')}
                     createVariant={calendarActionVariant(isWideDesktop)}
                     onCreate={openHabitCreation}
+                    createRefusal={monthDisplayState === 'empty' && showCreateRefusal && !isOnline ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
                   />
 
                   <CalendarDayCardSlot loading={monthDisplayState === 'loading'} label={t('calendar.loading')}>

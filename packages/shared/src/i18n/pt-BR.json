@@ -235,7 +235,8 @@
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
       },
       "offline": {
-        "reason": "A Astra precisa de conexão. Reconecte-se e tente de novo. O registro de hábitos continua funcionando offline."
+        "placeholder": "Sem conexão",
+        "reason": "Sem conexão. A Astra volta quando a conexão voltar."
       }
     }
   },
@@ -336,8 +337,8 @@
   "auth": {
     "signIn": "Entrar",
     "enterCode": "Digite o código",
-    "email": "E-mail",
-    "emailPlaceholder": "voce@exemplo.com",
+    "email": "Email",
+    "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
     "turnstileLoading": "Verificando sua conexão…",
     "turnstileFailed": "A verificação de segurança não carregou.",
@@ -483,9 +484,13 @@
     },
     "actions": {
       "more": "Mais ações",
+      "menuTitle": "Hábito",
+      "addSubHabit": "Adicionar sub-hábito",
+      "moveUnder": "Mover para outro hábito",
+      "delete": "Apagar",
       "duplicate": "Duplicar",
       "skip": "Pular",
-      "openSubHabits": "Abrir sub-hábitos",
+      "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como incompleto",
       "reschedule": "Reagendar"
     },
@@ -912,22 +917,21 @@
       "empty": "Nada agendado"
     },
     "legend": {
-      "today": "Hoje",
-      "loggable": "Pode registrar",
-      "done": "Feito",
-      "partial": "Parcial",
-      "missed": "Perdido"
+      "loggable": "pode registrar",
+      "full": "tudo registrado",
+      "partial": "em parte",
+      "none": "nada registrado"
     },
     "dayCell": {
-      "none": "Sem registro",
-      "partial": "Parcialmente feito",
-      "full": "Feito",
-      "notScheduled": "Não programado",
-      "future": "Ainda por vir",
+      "none": "nada registrado",
+      "partial": "em parte",
+      "full": "tudo registrado",
+      "notScheduled": "nada programado",
+      "future": "ainda não chegou",
       "of": "de",
-      "today": "Hoje",
-      "selected": "Selecionado",
-      "readOnly": "Somente leitura"
+      "today": "hoje",
+      "selected": "selecionado",
+      "readOnly": "somente leitura"
     },
     "bestStreak": "Melhor sequência",
     "totalLogs": "Registros",
@@ -954,14 +958,14 @@
       "action": "Ver o Pro"
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
-    "goToDay": "Abrir dia",
+    "goToDay": "Abrir este dia no Hoje",
     "goToCurrentMonth": "Ir para o mês atual",
     "goToCurrentWeek": "Ir para a semana atual",
     "view": {
       "switchLabel": "Visualização do calendário",
       "month": "Mês",
       "week": "Semana",
-      "range": "Intervalo",
+      "range": "Período",
       "agenda": "Agenda"
     },
     "range": {
@@ -982,7 +986,6 @@
     "status": {
       "completed": "feito",
       "missed": "sem registro",
-      "upcoming": "Próximo",
       "indulged": "cedeu",
       "resisted": "resistiu"
     },
@@ -1082,8 +1085,7 @@
   "chat": {
     "title": "Astra",
     "offline": {
-      "title": "Você está sem conexão",
-      "description": "A Astra precisa de internet. Reconecte para continuar a conversa."
+      "title": "Você está sem conexão"
     },
     "pendingOp": {
       "risk": {
@@ -1605,7 +1607,11 @@
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "currentDevice": "Este aparelho",
-      "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
+      "devices": "Aparelhos com aviso",
+      "devicesCount": "{count} de {max}",
+      "alertsOnThisDevice": "Avisos neste aparelho",
+      "devicesUnavailable": "Não foi possível carregar os aparelhos.",
+      "pushDeviceLimit": "Desligue os avisos em outro aparelho para usar este."
     },
     "allowance": {
       "title": "Mensagens de hoje",
@@ -2380,6 +2386,7 @@
   },
   "upgrade": {
     "title": "Assinatura",
+    "pitchTitle": "Orbit Pro",
     "alreadyPro": "Você está no plano Pro",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -2594,7 +2601,15 @@
   },
   "offline": {
     "title": "Você está sem conexão",
-    "description": "Confira sua internet e tente de novo."
+    "description": "Confira sua internet e tente de novo.",
+    "create": {
+      "title": "Criar hábito",
+      "reason": "Criar precisa de conexão porque o hábito nasce no servidor. Volte quando a conexão voltar."
+    },
+    "calendar": {
+      "title": "Sincronizar a agenda",
+      "reason": "A agenda do Google não responde sem conexão. Os compromissos já carregados continuam à vista."
+    }
   },
   "undo": {
     "habitDeleted": "Hábito excluído",
