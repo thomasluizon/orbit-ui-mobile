@@ -665,7 +665,8 @@ export const PostApiChatResponse = zod.object({
 })),
   "stateFingerprint": zod.string()
 })).nullish(),
-  "previewFingerprint": zod.string().nullish()
+  "previewFingerprint": zod.string().nullish(),
+  "actionKey": zod.string().nullish()
 })).nullish(),
   "policyDenials": zod.array(zod.object({
   "operationId": zod.string(),
