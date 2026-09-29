@@ -11,9 +11,9 @@ import {
 describe('fresh-start utils', () => {
   it('names review and permanent data deletion in both locales', () => {
     expect(en.profile.freshStart.reviewDeletion).toBe('Review deletion')
-    expect(ptBR.profile.freshStart.reviewDeletion).toBe('Revisar exclusão')
+    expect(ptBR.profile.freshStart.reviewDeletion).toBe('Revisar')
     expect(en.profile.freshStart.deleteData).toBe('Delete data')
-    expect(ptBR.profile.freshStart.deleteData).toBe('Excluir dados')
+    expect(ptBR.profile.freshStart.deleteData).toBe('Apagar dados')
   })
   it('keeps the deleted and preserved key lists stable', () => {
     expect(FRESH_START_DELETED_ITEM_KEYS).toHaveLength(7)
