@@ -124,6 +124,18 @@ describe('mobile useHabitForm', () => {
     expect(form.current.form.getValues('days')).toEqual([])
   })
 
+  it('deselects one weekday from daily and restores the unrestricted schedule', () => {
+    const form = renderHabitForm({ initialData: { frequencyUnit: 'Day', frequencyQuantity: 1, days: [] } })
+
+    act(() => form.current.toggleDay('Monday', true))
+    expect(form.current.form.getValues('days')).toEqual(
+      form.current.daysList.map((day) => day.value).filter((day) => day !== 'Monday'),
+    )
+
+    act(() => form.current.toggleDay('Monday', false))
+    expect(form.current.form.getValues('days')).toEqual([])
+  })
+
   it('validateAll flags a missing title and clears once one is provided', () => {
     const form = renderHabitForm()
     expect(form.current.validateAll()).toBe('habits.form.titleRequired')

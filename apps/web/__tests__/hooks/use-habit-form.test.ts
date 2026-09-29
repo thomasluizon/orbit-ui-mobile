@@ -149,6 +149,20 @@ describe('useHabitForm', () => {
   })
 
   describe('toggleDay', () => {
+    it('deselects one weekday from daily and restores the unrestricted schedule', () => {
+      const { result } = renderHook(() =>
+        useHabitForm({ initialData: { frequencyUnit: 'Day', frequencyQuantity: 1, days: [] } }),
+      )
+
+      act(() => result.current.toggleDay('Monday', true))
+      expect(result.current.form.getValues('days')).toEqual(
+        result.current.daysList.map((day) => day.value).filter((day) => day !== 'Monday'),
+      )
+
+      act(() => result.current.toggleDay('Monday', false))
+      expect(result.current.form.getValues('days')).toEqual([])
+    })
+
     it('adds day to selection', () => {
       const { result } = renderHook(() =>
         useHabitForm({

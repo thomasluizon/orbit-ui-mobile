@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import { parseAPIDate } from '../utils/dates'
 import {
   canLogHabitOnDate,
@@ -90,6 +92,29 @@ describe('habit card helpers', () => {
     expect(computeHabitFlexibleProgressLabel(habit, translator)).toContain(
       'habits.frequency.flexibleProgress',
     )
+  })
+
+  it.each([
+    { messages: ptBR, expected: 'Todo dia' },
+    { messages: en, expected: 'Every day' },
+  ])('shows $expected for daily and all-seven fixed-day row metadata', ({ messages, expected }) => {
+    const translate = (key: string) => {
+      if (key === 'habits.frequency.everyDay') return messages.habits.frequency.everyDay
+      if (key.startsWith('dates.daysShort.')) {
+        const day = key.slice('dates.daysShort.'.length) as keyof typeof messages.dates.daysShort
+        return messages.dates.daysShort[day]
+      }
+      return key
+    }
+    const daily = createMockHabit({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [] })
+    const everyFixedDay = createMockHabit({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    })
+
+    expect(computeHabitFrequencyLabel(daily, translate)).toBe(expected)
+    expect(computeHabitFrequencyLabel(everyFixedDay, translate)).toBe(expected)
   })
 
   it.each([

@@ -156,7 +156,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByLabelText('habits.form.understood')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
-    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     view.unmount()
@@ -190,6 +190,20 @@ describe('HabitFormFields', () => {
     const view = renderForm(formHelpers)
 
     expect(screen.getByText('Every day')).toBeDefined()
+    expect(formHelpers.daysList.every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
+
+    formHelpers.testValues.days = formHelpers.daysList.map((day) => day.value).filter((day) => day !== 'Monday')
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'Monday' })).toHaveAttribute('aria-pressed', 'false')
+    expect(formHelpers.daysList.slice(1).every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+
+    formHelpers.testValues.days = []
+    view.rerenderForm()
+    expect(formHelpers.daysList.every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
 
     formHelpers.testValues.dueTime = '07:00'
     view.rerenderForm()
@@ -384,7 +398,7 @@ describe('HabitFormFields', () => {
     expect(onSuggestSetup).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
-    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     expect(screen.getByText('checklist-editor')).toBeDefined()
   })
