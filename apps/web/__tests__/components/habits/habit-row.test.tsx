@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -13,6 +13,18 @@ import { HabitRow } from '@/components/habits/habit-row'
 
 describe('HabitRow overflow menus', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it.each([false, true])('connects the row overflow to its %s wide menu', async (wide) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: wide, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />)
+    const row = screen.getByTestId('habit-row')
+    const button = within(row).getByRole('button', { name: 'habits.actions.more' })
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(button)
+    expect(await screen.findByRole('menu')).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveAttribute('role', 'menu')
+  })
 
   it('matches the drawn menu for an overdue parent on a free plan', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
@@ -116,6 +128,41 @@ function matchingHabitHoverBackgrounds(element: Element): string[] {
 }
 
 describe('HabitRow canonical content', () => {
+  it('omits the structural column by default and indents only a child body', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
+    const row = screen.getByTestId('habit-row')
+    expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
+    expect(row.style.paddingInlineStart).toBe('')
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '24px' })
+  })
+
+  it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {
+    const onToggleExpand = vi.fn()
+    const onToggleSelection = vi.fn()
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} structuralColumn selectMode selected
+      hasChildren expanded childProgress={{ done: 1, total: 2 }} actions={{ onToggleExpand, onToggleSelection }} />)
+    const row = screen.getByTestId('habit-row')
+    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'disclosure')
+    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[0]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
+    expect(row.children[0]!.querySelector('[style*="--primary"]')).toBeNull()
+    fireEvent.click(row.children[1]!)
+    expect(onToggleExpand).toHaveBeenCalledOnce()
+    expect(onToggleSelection).not.toHaveBeenCalled()
+    expect(within(row).queryByRole('button', { name: /habits\.statusDot/ })).toBeNull()
+    expect(within(row).getByRole('img', { name: 'habits.statusDot.empty, 1/2' })).toBeInTheDocument()
+  })
+
+  it('keeps the leaf spacer and a named status glyph while selecting', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn selectMode completionReadOnly />)
+    const row = screen.getByTestId('habit-row')
+    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.children[1]).toHaveAttribute('aria-hidden', 'true')
+    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
+    expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
+    expect(within(row).queryByTestId('habit-status-toggle')).toBeNull()
+  })
   it('renders title and meta, not descriptions or tags', () => {
     render(
       <HabitRow
@@ -178,7 +225,7 @@ describe('HabitRow check circle accessible name', () => {
     }
     render(<HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly={readOnly}
       completionReason="Logging stops 7 days back."
-      hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
+      structuralColumn hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     for (const label of ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'common.edit',
@@ -203,7 +250,7 @@ describe('HabitRow check circle accessible name', () => {
   it('keeps collapse available and disables a leaf checkmark on an old day', () => {
     const onToggleExpand = vi.fn()
     const { rerender } = render(<HabitRow habit={createMockHabit({ title: 'Read' })}
-      completionReadOnly hasChildren expanded childProgress={{ done: 0, total: 1 }}
+      structuralColumn completionReadOnly hasChildren expanded childProgress={{ done: 0, total: 1 }}
       actions={{ onToggleExpand }} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
     expect(onToggleExpand).toHaveBeenCalledOnce()
@@ -267,6 +314,7 @@ describe('HabitRow check circle accessible name', () => {
     const panel = renderRowInPanel(
       <HabitRow
         habit={createMockHabit({ title: 'Meditate' })}
+        structuralColumn
         hasChildren
         actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn() }}
       />,
@@ -284,6 +332,7 @@ describe('HabitRow check circle accessible name', () => {
     const panel = renderRowInPanel(
       <HabitRow
         habit={createMockHabit({ title: 'Meditate' })}
+        structuralColumn
         selectMode
         actions={{ onDetail: vi.fn(), onToggleSelection: vi.fn() }}
       />,
@@ -325,6 +374,7 @@ describe('HabitRow check circle accessible name', () => {
     render(
       <HabitRow
         habit={createMockHabit({ title: 'Meditate' })}
+        structuralColumn
         hasChildren
         childProgress={{ done: 0, total: 1 }}
         actions={{ onDetail, onLog, onToggleExpand, onEdit }}

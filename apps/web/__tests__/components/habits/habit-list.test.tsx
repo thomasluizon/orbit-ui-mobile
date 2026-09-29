@@ -175,6 +175,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
     childProgress,
     state,
     selectMode,
+    structuralColumn,
     selected,
     canLog,
     completionReadOnly,
@@ -184,6 +185,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
     childProgress?: { done: number; total: number }
     state?: string
     selectMode?: boolean
+    structuralColumn?: boolean
     selected?: boolean
     canLog?: boolean
     completionReadOnly?: boolean
@@ -202,6 +204,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
     <div
       data-testid={`habit-card-${habit.id}`}
       data-select-mode={selectMode ? 'yes' : 'no'}
+      data-structural-column={structuralColumn ? 'yes' : 'no'}
       data-selected={selected ? 'yes' : 'no'}
       data-state={state}
       data-can-log={canLog ? 'yes' : 'no'}
@@ -2626,6 +2629,7 @@ describe('HabitList', () => {
 
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
+    expect(screen.getByTestId('habit-card-child')).toHaveAttribute('data-structural-column', 'yes')
     fireEvent.click(screen.getByTestId('edit-child'))
     expect(drillRefreshCurrent).not.toHaveBeenCalled()
 
@@ -2912,6 +2916,7 @@ describe('HabitList', () => {
     )
 
     expect(screen.getByTestId('habit-card-overdue-1')).toHaveAttribute('data-select-mode', 'yes')
+    expect(screen.getByTestId('habit-card-overdue-1')).toHaveAttribute('data-structural-column', 'yes')
 
     fireEvent.click(screen.getByTestId('select-overdue-1'))
 
