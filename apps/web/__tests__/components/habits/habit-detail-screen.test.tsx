@@ -373,9 +373,12 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
 
-    fireEvent.click(within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
+    notNow.focus()
+    fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine:9:0')).toBeVisible()
+    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine:9:0').closest('section'))
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])

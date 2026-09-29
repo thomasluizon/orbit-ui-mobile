@@ -1,4 +1,5 @@
 import React from 'react'
+import { AccessibilityInfo } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDateTime, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -502,9 +503,12 @@ describe('HabitDetailScreen', () => {
     expect(textsOf(tree.root)).not.toContain('habits.detail.slipping')
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
 
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
     TestRenderer.act(() => { pressPillButton(proposal, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0')
+    expect(focus).toHaveBeenCalledOnce()
+    focus.mockRestore()
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
