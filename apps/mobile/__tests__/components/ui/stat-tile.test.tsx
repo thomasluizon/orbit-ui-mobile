@@ -1,6 +1,9 @@
 import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import { Resvg } from '@resvg/resvg-js'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
@@ -29,6 +32,36 @@ describe('StatTile (mobile)', () => {
     })
     const value = tree.root.findAllByType('Text').find((node: any) => node.props.children === 12)
     expect(StyleSheet.flatten(value.props.style).fontVariant).toEqual(['tabular-nums'])
+  })
+
+  it.each([
+    { platform: 'web', screenWidth: 412, tileBorder: 0 },
+    { platform: 'web', screenWidth: 1352, tileBorder: 0 },
+    { platform: 'mobile', screenWidth: 412, tileBorder: 2 },
+    { platform: 'mobile', screenWidth: 1352, tileBorder: 2 },
+  ])('fits every weekday value in the $platform progress grid at $screenWidth px', ({ platform, screenWidth, tileBorder }) => {
+    const gridWidth = Math.min(screenWidth - 32, 740)
+    const columns = screenWidth >= 768 ? 4 : 2
+    const tileWidth = (gridWidth - 12 * (columns - 1)) / columns
+    const contentWidth = tileWidth - 48 - tileBorder
+    const fontFile = require.resolve('@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf')
+
+    for (const bundle of [en, ptBR]) {
+      for (const weekday of Object.values(bundle.dates.daysValue)) {
+        let tree: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => {
+          tree = TestRenderer.create(<StatTile value={weekday} label="Best weekday" valueSize="lg" />)
+        })
+        const value = tree!.root.findAllByType('Text').find(
+          (node: { props: { children: unknown } }) => node.props.children === weekday,
+        )!
+        const size = StyleSheet.flatten(value.props.style).fontSize as number
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="40" font-family="Space Grotesk" font-size="${size}" font-weight="600">${weekday}</text></svg>`
+        const bounds = new Resvg(svg, { font: { fontFiles: [fontFile], loadSystemFonts: false } }).getBBox()
+        expect(bounds, weekday).not.toBeNull()
+        expect(bounds!.width, `${weekday} in ${platform} at ${screenWidth}px`).toBeLessThan(contentWidth)
+      }
+    }
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

@@ -756,12 +756,12 @@ describe('mobile ProgressContent', () => {
       StyleSheet.flatten(sectionHeadings[1]!.props.style as TextStyle),
     )
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
-      .map((node) => ({ label: node.props.label, value: node.props.value }))
+      .map((node) => ({ label: node.props.label, value: node.props.value, valueSize: node.props.valueSize }))
     expect(figures).toEqual([
-      { label: 'progressScreen.window.completionRate', value: '75%' },
-      { label: 'progressScreen.window.activeDays', value: 12 },
-      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysValue.thursday' },
-      { label: 'progressScreen.window.topHabit', value: 'Read' },
+      { label: 'progressScreen.window.completionRate', value: '75%', valueSize: undefined },
+      { label: 'progressScreen.window.activeDays', value: 12, valueSize: undefined },
+      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysValue.thursday', valueSize: 'lg' },
+      { label: 'progressScreen.window.topHabit', value: 'Read', valueSize: undefined },
     ])
   })
 

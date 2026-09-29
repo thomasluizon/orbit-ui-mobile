@@ -8,6 +8,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
   const isEmpty = state === 'empty'
   const isLoading = state === 'loading'
   const shownValue = isEmpty ? props.emptyLabel : String(props.value)
+  const defaultFontSize = props.valueSize === 'lg' ? 'var(--fs-lg)' : 24
 
   return (
     <div
@@ -27,7 +28,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           style={{
             color: isEmpty ? 'var(--fg-3)' : 'var(--fg-1)',
             fontFamily: isEmpty ? 'var(--font-mono)' : 'var(--font-display)',
-            fontSize: isEmpty ? 12 : 24,
+            fontSize: isEmpty ? 12 : defaultFontSize,
             fontWeight: isEmpty ? 500 : 600,
             fontVariantNumeric: 'tabular-nums',
             lineHeight: '24px',

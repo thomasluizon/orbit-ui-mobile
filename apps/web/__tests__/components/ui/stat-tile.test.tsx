@@ -16,6 +16,11 @@ describe('StatTile', () => {
     expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
+  it('uses the large type token for a weekday value', () => {
+    render(<StatTile value="Wednesday" label="Best weekday" valueSize="lg" />)
+    expect(screen.getByText('Wednesday')).toHaveStyle({ fontSize: 'var(--fs-lg)' })
+  })
+
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {
     render(<StatTile state="empty" emptyLabel="No data" label="Top habit" />)
     const renderedColor = screen.getByText('No data').style.color

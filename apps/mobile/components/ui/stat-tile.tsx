@@ -27,6 +27,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           numberOfLines={1}
           style={[
             state === 'empty' ? styles.emptyValue : styles.value,
+            state === 'default' && props.valueSize === 'lg' ? styles.largeValue : undefined,
             { color: state === 'empty' ? tokens.fg3 : tokens.fg1 },
           ]}
         >
@@ -61,6 +62,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     maxWidth: '100%',
   },
+  largeValue: { fontSize: 22 },
   emptyValue: {
     fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
