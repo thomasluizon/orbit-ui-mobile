@@ -11,8 +11,10 @@ const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
 const dismissMutateMock = vi.fn()
 const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[] }))
+const clockState = vi.hoisted(() => ({ language: 'en', uses24HourClock: true }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => clockState.language,
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}(${JSON.stringify(params)})` : key,
 }))
@@ -27,7 +29,7 @@ vi.mock('next/link', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: createMockProfile({ hasProAccess: true }) }),
+  useProfile: () => ({ profile: createMockProfile({ hasProAccess: true, uses24HourClock: clockState.uses24HourClock }) }),
   useHasProAccess: () => true,
 }))
 
@@ -98,6 +100,8 @@ describe('CalendarSyncPage pagination', () => {
     vi.mocked(toast.error).mockReset()
     pageState.reviewMode = false
     pageState.suggestions = []
+    clockState.language = 'en'
+    clockState.uses24HourClock = true
   })
 
   it('renders only the first page of events and reveals more on demand', () => {
@@ -153,6 +157,22 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
 
     expect(screen.getByText('Work')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM - 8:15 PM'],
+    ['en', true, '19:30 - 20:15'],
+  ])('shows imported event times with %s and the saved clock', (language, uses24HourClock, expected) => {
+    clockState.language = language
+    clockState.uses24HourClock = uses24HourClock
+    useCalendarEventsMock.mockReturnValue({
+      data: { status: 'connected', events: [{ ...buildEvents(1)[0]!, startTime: '19:30', endTime: '20:15' }] },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+    renderPage()
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it('shows text-bearing recovery when importing an event is blocked', async () => {

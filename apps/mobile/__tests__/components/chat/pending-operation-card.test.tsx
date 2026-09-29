@@ -16,7 +16,7 @@ vi.mock('react-native', async (importOriginal) => ({
   I18nManager: { isRTL: false },
 }))
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en' }, t: (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -32,6 +32,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
@@ -356,6 +357,21 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).toContain('chat.operation.invalid')
   })
 
+  it('edits due time through a localized TimeField and submits the wire value', async () => {
+    const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'due_time',
+      valueType: 'time', newValue: '19:30', proposedValue: '19:30', isEditable: true }] }
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const { tree } = renderCard({ ...preview, items: [listItem] }, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const dueTime = tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.due_time' })
+    expect(dueTime.props.value).toBe('7:30 pm')
+    TestRenderer.act(() => dueTime.props.onChangeText('8:15 PM'))
+    await TestRenderer.act(async () => { press(tree, 'common.save').props.onPress(); await Promise.resolve() })
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { due_time: '20:15' } }],
+    })
+  })
+
   it('edits scheduled reminder rows and submits the complete typed list', async () => {
     const scheduled = [{ when: 'same_day', time: '08:00' }]
     const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'scheduled_reminders',
@@ -366,7 +382,7 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => press(tree, 'chat.operation.list.dayBefore').props.onPress())
     TestRenderer.act(() => press(tree, 'chat.operation.list.sameDay').props.onPress())
     TestRenderer.act(() => press(tree, 'chat.operation.list.dayBefore').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.scheduled_reminders 1: chat.operation.list.time' }).props.onChangeText('19:00'))
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.scheduled_reminders 1: chat.operation.list.time' }).props.onChangeText('7:00 PM'))
     TestRenderer.act(() => press(tree, 'chat.operation.list.add').props.onPress())
     expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'chat.operation.field.scheduled_reminders 2: chat.operation.list.time')).toHaveLength(1)
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.remove chat.operation.field.scheduled_reminders 2' }).props.onPress())

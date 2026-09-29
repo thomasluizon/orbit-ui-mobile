@@ -343,6 +343,7 @@ describe('ProfilePage', () => {
       'profile.language.title',
       'profile.settingsRows.timezone',
       'profile.settingsRows.weekStart',
+      'settings.clock.title',
       'profile.settingsRows.export',
       'profile.settingsRows.signOut',
       'profile.settingsRows.startOver',
@@ -369,8 +370,19 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('places the clock choice between week start and language', () => {
+    mockProfileState.current.profile = createMockProfile({ uses24HourClock: true })
+    render(<ProfilePage />)
+    const week = screen.getByRole('button', { name: /profile.settingsRows.weekStart/i })
+    const clock = screen.getByRole('button', { name: /settings.clock.title/i })
+    const language = screen.getByRole('button', { name: /profile.language.title/i })
+    expect(week.compareDocumentPosition(clock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(clock.compareDocumentPosition(language) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(clock).toHaveTextContent('settings.clock.hour24')
+  })
+
   it('opens each inline preference directly and sends Support to its form', () => {
-    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart']) {
+    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart', 'settings.clock.title']) {
       const view = render(<ProfilePage />)
       mockRouterPush.mockClear()
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))

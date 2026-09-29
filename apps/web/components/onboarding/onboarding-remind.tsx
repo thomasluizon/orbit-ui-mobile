@@ -1,5 +1,7 @@
 'use client'
 
+import { useTimeFormat } from '@/hooks/use-time-format'
+
 import { useTranslations } from 'next-intl'
 import { getOnboardingRemindCopy, getOnboardingReminderPreviewTime, type OnboardingRemindState } from '@orbit/shared/utils'
 import { OrbitMark } from '@/components/ui/orbit-mark'
@@ -13,7 +15,8 @@ interface OnboardingRemindProps {
 
 export function OnboardingRemind({ state, title, dueTime, isLive }: Readonly<OnboardingRemindProps>) {
   const t = useTranslations('onboarding.flow.remind')
-  const previewTime = getOnboardingReminderPreviewTime(dueTime)
+  const { displayTime } = useTimeFormat()
+  const previewTime = displayTime(getOnboardingReminderPreviewTime(dueTime))
   const { titleKey, bodyKey } = getOnboardingRemindCopy(state, isLive)
   if (state !== 'ask') return <Message title={t(titleKey)} body={t(bodyKey)} />
   return (

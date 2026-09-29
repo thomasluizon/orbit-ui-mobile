@@ -9,6 +9,7 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
 }))
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 
 const t = ((key: string) => key) as Parameters<typeof ReminderSection>[0]['t']
 

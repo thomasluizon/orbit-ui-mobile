@@ -205,6 +205,22 @@ describe('usePreferenceControls', () => {
     )
   })
 
+  it('queues the clock choice and restores the previous value on failure', async () => {
+    mocks.profile = makeProfile({ uses24HourClock: true })
+    const hook = await renderControls()
+    const mutation = asMutation(hook.current.clockFormatMutation)
+    const context = mutation.onMutate?.(false)
+    expect(mocks.patchProfile).toHaveBeenCalledWith({ uses24HourClock: false })
+    expect(context).toEqual({ previous: true })
+    await mutation.mutationFn(false)
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setClockFormat', scope: 'profile', endpoint: API.profile.clockFormat,
+      method: 'PUT', payload: { uses24HourClock: false }, dedupeKey: 'profile-clock-format',
+    }))
+    mutation.onError?.(new Error('offline'), false, context)
+    expect(mocks.patchProfile).toHaveBeenLastCalledWith({ uses24HourClock: true })
+  })
+
   it('writes the selected timezone through the offline queue', async () => {
     mocks.profile = makeProfile({ timeZone: 'UTC' })
     const hook = await renderControls()

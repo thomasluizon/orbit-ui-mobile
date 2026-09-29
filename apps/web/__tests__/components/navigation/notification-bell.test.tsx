@@ -48,6 +48,10 @@ vi.mock('@/hooks/use-notifications', () => ({
 function showInbox() {
   return render(<><NotificationInbox /><NotificationDeleteNotice /></>)
 }
+function deleteFromSheet(title: string) {
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${title}\\.`) }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^(Delete|Apagar)$/ }))
+}
 function seed(count: number) {
   state.notifications = Array.from({ length: count }, (_, index) => createMockNotification({
     id: String(index), title: `Alert ${index}`, url: '/progress', isRead: false,
@@ -81,16 +85,42 @@ afterEach(() => {
 
 describe('alerts', () => {
   let textStyles: string
+  let layoutRules: { selector: string; media: string; declarations: Record<string, string> }[]
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
     const rules: string[] = []
+    layoutRules = []
     compiled.root.walkRules((rule) => {
+      const declarations: Record<string, string> = {}
+      rule.walkDecls((declaration) => { declarations[declaration.prop] = declaration.value })
+      layoutRules.push({ selector: rule.selector, media: rule.parent?.type === 'atrule' ? rule.parent.params : '', declarations })
       if (rule.selector.startsWith('.text-')) {
         rule.walkDecls('color', (declaration) => { rules.push(`${rule.selector} { color: ${declaration.value}; }`) })
       }
     })
     textStyles = rules.join('\n')
+  })
+
+  it('aligns the list with the header title at 1352px and caps it at 560px', () => {
+    seed(1)
+    showInbox()
+    const heading = screen.getByRole('heading', { name: en.notifications.title })
+    const back = screen.getByRole('button', { name: en.common.back })
+    const list = screen.getByRole('list', { name: en.notifications.title })
+    expect(heading.parentElement).toHaveClass('ps-2', 'gap-2')
+    expect(back).toHaveClass('size-11')
+    expect(list.parentElement).toHaveClass('lg:ms-12', 'lg:ps-3')
+    expect(list).toHaveClass('lg:max-w-[560px]', 'lg:px-0')
+    const wideRule = (selector: string, property: string) => layoutRules.find((rule) =>
+      rule.selector === selector && rule.media === '(width >= 64rem)',
+    )?.declarations[property]
+    expect(1352).toBeGreaterThan(1024)
+    expect(wideRule('.lg\\:ms-12', 'margin-inline-start')).toBe('calc(var(--spacing) * 12)')
+    expect(wideRule('.lg\\:ps-3', 'padding-inline-start')).toBe('calc(var(--spacing) * 3)')
+    expect(12 * 4 + 3 * 4).toBe(8 + 44 + 8)
+    expect(wideRule('.lg\\:max-w-\\[560px\\]', 'max-width')).toBe('560px')
+    expect(wideRule('.lg\\:px-0', 'padding-inline')).toBe('0px')
   })
 
   it.each(['dark', 'light'].flatMap((mode) =>
@@ -183,6 +213,7 @@ describe('alerts', () => {
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {
     seed(1)
     showInbox()
+    expect(screen.queryByRole('button', { name: 'Delete: Alert 0' })).toBeNull()
     for (const name of [en.notifications.markAllRead, en.notifications.deleteAll]) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
@@ -211,7 +242,7 @@ describe('alerts', () => {
   it('identifies the queued delete with a neutral trash glyph beside undo', () => {
     seed(1)
     showInbox()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
+    deleteFromSheet('Alert 0')
     const notice = screen.getByRole('status')
     const expected = document.createElement('div')
     expected.innerHTML = renderToStaticMarkup(<Trash2 size={20} />)
@@ -233,7 +264,7 @@ describe('alerts', () => {
       expect(indicator.querySelector('[data-notification-count]')).toHaveTextContent(String(count))
     }
     expectCount(2)
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
+    deleteFromSheet('Alert 0')
     expectCount(1)
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteUndo }))
     expectCount(2)
@@ -344,12 +375,11 @@ describe('alerts', () => {
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
   })
 
-  it('keeps delete beside the row and offers undo until the queue commits', () => {
+  it('opens the row sheet and offers undo until its delete commits', () => {
     seed(2)
     showInbox()
-    const remove = screen.getByRole('button', { name: 'Delete: Alert 0' })
-    expect(remove.parentElement).toBe(screen.getAllByRole('listitem')[0])
-    fireEvent.click(remove)
+    expect(screen.getAllByRole('listitem')[0]!.querySelectorAll('button')).toHaveLength(1)
+    deleteFromSheet('Alert 0')
     expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()
     expect(state.remove).not.toHaveBeenCalled()
     void act(() => vi.advanceTimersByTime(4000))
@@ -358,7 +388,7 @@ describe('alerts', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
     void act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
+    deleteFromSheet('Alert 0')
     void act(() => vi.advanceTimersByTime(5000))
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()
@@ -375,7 +405,7 @@ describe('alerts', () => {
     expect(state.clear).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
     expect(screen.getAllByRole('listitem')).toHaveLength(50)
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
+    deleteFromSheet('Alert 0')
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAllAction }))
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)

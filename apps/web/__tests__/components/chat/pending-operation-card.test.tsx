@@ -7,7 +7,7 @@ import { sheetTestControls } from '../../support/sheet-double'
 const capturedSheet = vi.hoisted(() => ({ onConfirm: undefined as (() => void) | undefined }))
 const capturedVerification = vi.hoisted(() => ({ onVerify: undefined as ((id: string, challengeId: string, code: string, token: string) => Promise<unknown>) | undefined }))
 const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean) | undefined }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: Record<string, string | number>) => {
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -33,6 +33,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     open ? (capturedSheet.onConfirm = onConfirm, <button type="button" onClick={onConfirm}>confirm-sheet</button>) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,
@@ -400,6 +401,21 @@ describe('PendingOperationCard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('chat.operation.invalid')
   })
 
+  it('edits due time through a localized TimeField and submits the wire value', async () => {
+    const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'due_time',
+      valueType: 'time', newValue: '19:30', proposedValue: '19:30', isEditable: true }] }
+    revise.mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [listItem] })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+    const dueTime = screen.getByRole('textbox', { name: 'chat.operation.field.due_time' })
+    expect(dueTime).toHaveValue('7:30 pm')
+    fireEvent.change(dueTime, { target: { value: '8:15 PM' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { due_time: '20:15' } }],
+    }))
+  })
+
   it('edits scheduled reminder rows and submits the complete typed list', async () => {
     const scheduled = [{ when: 'same_day', time: '08:00' }]
     const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'scheduled_reminders',
@@ -410,7 +426,7 @@ describe('PendingOperationCard', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'chat.operation.list.dayBefore' }))
     fireEvent.click(screen.getByRole('radio', { name: 'chat.operation.list.sameDay' }))
     fireEvent.click(screen.getByRole('radio', { name: 'chat.operation.list.dayBefore' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.scheduled_reminders 1: chat.operation.list.time' }), { target: { value: '19:00' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.scheduled_reminders 1: chat.operation.list.time' }), { target: { value: '7:00 PM' } })
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.list.add' }))
     expect(screen.getByRole('textbox', { name: 'chat.operation.field.scheduled_reminders 2: chat.operation.list.time' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.remove chat.operation.field.scheduled_reminders 2' }))

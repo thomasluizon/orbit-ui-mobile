@@ -114,6 +114,13 @@ describe('WrappedPage', () => {
     expect(screen.getAllByRole('main')).toHaveLength(1)
   })
 
+  it('places the back control inside the capped cover frame', () => {
+    render(<WrappedPage />)
+    const main = screen.getByRole('main')
+    expect(main).toHaveClass('max-w-[900px]')
+    expect(main).toContainElement(screen.getByRole('button', { name: 'common.backToProfile' }))
+  })
+
   it('exits the cover to Profile while player close only returns to the cover', () => {
     render(<WrappedPage />)
 

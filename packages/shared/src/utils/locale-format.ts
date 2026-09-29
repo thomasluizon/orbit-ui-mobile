@@ -133,7 +133,7 @@ export function resolveSystemLocale(locale?: string | null): SupportedLocale {
   return locale?.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en'
 }
 
-export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
+function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
   try {
     const resolved = getDateTimeFormat(getIntlLocale(locale), {
       hour: 'numeric',
@@ -142,6 +142,10 @@ export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
   } catch {
     return '24h'
   }
+}
+
+export function resolveHourCycle(uses24HourClock: boolean | undefined, locale?: string | null): 'h23' | 'h12' {
+  return (uses24HourClock ?? (detectDefaultTimeFormat(locale) === '24h')) ? 'h23' : 'h12'
 }
 
 export function formatLocaleDate(
@@ -223,23 +227,21 @@ export function formatLocaleTime(
   )
 }
 
-export function formatDeviceDate(
-  value: DateInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleDate(value, getSystemLocale(), options)
+export interface TimeDisplay {
+  hourCycle: 'h23' | 'h12'
+  locale: string
+  displayTime: (time: string | null | undefined) => string
+  displayClock: (value: Date | string) => string
 }
 
-export function formatDeviceDateTime(
-  value: DateInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleDateTime(value, getSystemLocale(), options)
-}
+export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
+  const hourCycle = resolveHourCycle(uses24HourClock, locale)
+  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hourCycle }
 
-export function formatDeviceTime(
-  value: TimeInput,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  return formatLocaleTime(value, getSystemLocale(), options)
+  return {
+    hourCycle,
+    locale,
+    displayTime: (time: string | null | undefined): string => time ? formatLocaleTime(time, locale, options) : '',
+    displayClock: (value: Date | string): string => formatLocaleDateTime(value, locale, options),
+  }
 }

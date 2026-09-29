@@ -16,7 +16,18 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
-import { updateTimezoneRequestSchema, type Profile } from '@orbit/shared/types/profile'
+import {
+  setAiSummaryRequestSchema,
+  setClockFormatRequestSchema,
+  setLanguageRequestSchema,
+  setMarketingEmailConsentRequestSchema,
+  setNameRequestSchema,
+  setProactiveAstraRequestSchema,
+  setThemePreferenceRequestSchema,
+  setWeekStartDayRequestSchema,
+  updateTimezoneRequestSchema,
+  type Profile,
+} from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
 import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
@@ -600,7 +611,7 @@ const MUTATION_SCOPES = {
   markNotificationRead: 'notifications', markAllNotificationsRead: 'notifications',
   deleteNotification: 'notifications', deleteAllNotifications: 'notifications',
   createApiKey: 'apiKeys', deleteApiKey: 'apiKeys', dismissCalendarPrompt: 'calendar',
-  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setColorScheme: 'profile',
+  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setClockFormat: 'profile', setColorScheme: 'profile',
   setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile',
   setProactiveAstra: 'profile', setMarketingConsent: 'profile', completeOnboarding: 'profile',
   dismissImportPrompt: 'profile', resetProfile: 'profile',
@@ -764,11 +775,26 @@ async function clearDeletedOfflineEntity(mutation: PersistedQueuedMutation): Pro
   await clearOfflineEntity(mutation.entityType, mutation.targetEntityId)
 }
 
+function getSuccessfulProfilePatch(mutation: PersistedQueuedMutation): Partial<Profile> | null {
+  switch (mutation.type) {
+    case 'setName': return setNameRequestSchema.parse(mutation.payload)
+    case 'setLanguage': return setLanguageRequestSchema.parse(mutation.payload)
+    case 'setWeekStartDay': return setWeekStartDayRequestSchema.parse(mutation.payload)
+    case 'setClockFormat': return setClockFormatRequestSchema.parse(mutation.payload)
+    case 'setThemePreference': return setThemePreferenceRequestSchema.parse(mutation.payload)
+    case 'setTimeZone': return updateTimezoneRequestSchema.parse(mutation.payload)
+    case 'setAiSummary': return { aiSummaryEnabled: setAiSummaryRequestSchema.parse(mutation.payload).enabled }
+    case 'setProactiveAstra': return { proactiveAstraEnabled: setProactiveAstraRequestSchema.parse(mutation.payload).enabled }
+    case 'setMarketingConsent': return { marketingEmailConsent: setMarketingEmailConsentRequestSchema.parse(mutation.payload).enabled }
+    default: return null
+  }
+}
+
 function applySuccessfulProfileMutation(mutation: PersistedQueuedMutation): void {
-  if (mutation.type !== 'setTimeZone') return
-  const { timeZone } = updateTimezoneRequestSchema.parse(mutation.payload)
+  const patch = getSuccessfulProfilePatch(mutation)
+  if (!patch) return
   queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
-    profile ? { ...profile, timeZone } : profile,
+    profile ? { ...profile, ...patch } : profile,
   )
 }
 

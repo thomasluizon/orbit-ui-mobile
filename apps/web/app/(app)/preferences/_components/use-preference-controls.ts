@@ -14,6 +14,7 @@ import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
+  updateClockFormat,
   updateLanguage,
   updateTimezone,
 } from '@/lib/actions/profile'
@@ -94,6 +95,19 @@ export function usePreferenceControls() {
     },
   })
 
+  const clockFormatMutation = useAccountScopedMutation({
+    mutationFn: (uses24HourClock: boolean, intendedAccountId) =>
+      updateClockFormat({ uses24HourClock }, intendedAccountId),
+    onMutate: (uses24HourClock) => {
+      const previous = profile?.uses24HourClock
+      patchProfile({ uses24HourClock })
+      return { previous }
+    },
+    onError: (_error, _value, context) => {
+      patchProfile({ uses24HourClock: context?.previous })
+    },
+  })
+
   const timeZoneMutation = useAccountScopedMutation({
     mutationFn: (timeZone: string, intendedAccountId) =>
       updateTimezone({ timeZone }, intendedAccountId),
@@ -144,5 +158,6 @@ export function usePreferenceControls() {
     toggleShowGeneral,
     timeZoneMutation,
     weekStartMutation,
+    clockFormatMutation,
   }
 }

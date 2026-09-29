@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
-import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Gift, Home, User } from '@/components/ui/icons'
 
 const TARGET_ICONS = {
   'nav.today': Home,
@@ -14,21 +14,20 @@ const TARGET_ICONS = {
   'notifications.habit': CircleDot,
 }
 
-export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
+export function NotificationRow({ item, onOpen }: Readonly<{
   item: NotificationItem
   onOpen: (item: NotificationItem) => void
-  onDelete: (item: NotificationItem) => void
 }>) {
   const t = useTranslations()
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
   const TargetIcon = targetKey ? TARGET_ICONS[targetKey] : null
   return (
-    <li data-read={item.isRead} className="flex items-stretch gap-1 rounded-[var(--r-well)]"
+    <li data-read={item.isRead} className="rounded-[var(--r-well)]"
       style={item.isRead ? undefined : { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
       <button type="button" onClick={() => onOpen(item)}
         style={{ transition: 'background-color var(--dur-hover) var(--ease-standard)' }}
         aria-label={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
-        className="orbit-notification-row flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left hover:bg-[var(--bg-hover)]">
+        className="orbit-notification-row flex min-h-11 w-full min-w-0 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left hover:bg-[var(--bg-hover)]">
         <span aria-hidden="true" data-unread-column="" className="flex w-2 shrink-0 self-stretch items-center">
           {!item.isRead ? <span data-unread-dot="" className="size-2 rounded-full bg-[var(--fg-1)]" /> : null}
         </span>
@@ -45,12 +44,6 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
             <TargetIcon size={16} className="text-[var(--fg-3)]" aria-hidden="true" />{t(targetKey)}
           </span> : null}
         </span>
-      </button>
-      <button type="button" aria-label={t('notifications.deleteNotification', { title: item.title })}
-        style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
-        onClick={() => onDelete(item)}
-        className="grid size-11 shrink-0 cursor-pointer place-items-center self-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]">
-        <Trash2 size={20} aria-hidden="true" className="text-[var(--status-bad)]" />
       </button>
     </li>
   )

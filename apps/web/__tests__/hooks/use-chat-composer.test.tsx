@@ -237,6 +237,16 @@ function textFile(name: string, content: string, size = content.length) {
 }
 
 describe('web useChatComposer streaming send', () => {
+  it('sends the profile clock preference to Astra', async () => {
+    mocks.state.profile = createMockProfile({ uses24HourClock: true })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Hello') })
+    const formData = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context.timeFormat).toBe('24h')
+  })
+
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(
       frame('{"type":"step","domain":"habits","access":"read"}'),

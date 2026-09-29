@@ -19,6 +19,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import java.text.DateFormatSymbols
 import kotlin.math.floor
 
 class OrbitWidgetService : RemoteViewsService() {
@@ -90,6 +91,7 @@ data class ApiHabit(
 data class HabitWidgetResponse(
     val dayOffset: Int,
     val language: String?,
+    val uses24HourClock: Boolean? = null,
     val currentStreak: Int?,
     val items: List<ApiHabit>?,
     val emptyReason: String? = null
@@ -261,6 +263,7 @@ class OrbitWidgetFactory(
     private var habitsSession: String? = null
     private var headerLabel: String = "Today"
     private var lang: String = "en"
+    private var uses24HourClock: Boolean? = null
     private var colorModes: WidgetColorModes = defaultColorModes()
     private val gson = Gson()
 
@@ -517,6 +520,7 @@ class OrbitWidgetFactory(
             }
 
             lang = detectLanguage(widgetData.language)
+            uses24HourClock = widgetData.uses24HourClock
             val streak = widgetData.currentStreak ?: 0
             val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
             habits = dayState.habits
@@ -824,7 +828,7 @@ class OrbitWidgetFactory(
             return
         }
 
-        val formattedTime = formatTime(dueTime)
+        val formattedTime = formatWidgetTime(dueTime, uses24HourClock, Locale.forLanguageTag(lang))
         if (habit.isOverdue && !habit.isCompleted) {
             views.setTextViewText(R.id.item_time_overdue, formattedTime)
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
@@ -847,11 +851,6 @@ class OrbitWidgetFactory(
         return (dp * context.resources.displayMetrics.density).toInt()
     }
 
-    private fun formatTime(time: String): String {
-        val parts = time.split(":")
-        return if (parts.size >= 2) "${parts[0]}:${parts[1]}" else time
-    }
-
     override fun getLoadingView(): RemoteViews? = null
 
     override fun getViewTypeCount(): Int = 2
@@ -860,4 +859,15 @@ class OrbitWidgetFactory(
 
     override fun hasStableIds(): Boolean = false
 
+}
+
+internal fun formatWidgetTime(time: String, uses24HourClock: Boolean?, locale: Locale): String {
+    val parts = time.split(":")
+    if (parts.size < 2) return time
+    val hour = parts[0].toIntOrNull() ?: return time
+    val minute = parts[1].toIntOrNull() ?: return time
+    if (hour !in 0..23 || minute !in 0..59) return time
+    if (uses24HourClock != false) return "%02d:%02d".format(Locale.ROOT, hour, minute)
+    val period = DateFormatSymbols.getInstance(locale).amPmStrings[if (hour < 12) 0 else 1]
+    return "%d:%02d %s".format(locale, (hour + 11) % 12 + 1, minute, period)
 }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { formatLocaleTime } from '@orbit/shared/utils'
+import { formatLocaleTime, formatLocaleDateTime } from '@orbit/shared/utils'
 
 import { useTimeFormat } from '@/hooks/use-time-format'
 
@@ -49,6 +49,10 @@ describe('mobile useTimeFormat', () => {
 
     expect(result.displayTime('14:30')).toBe(
       formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
+    )
+    expect(result.hourCycle).toBe(hourCycle)
+    expect(result.displayClock('2026-04-06T19:30:00')).toBe(
+      formatLocaleDateTime('2026-04-06T19:30:00', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
     )
   })
 

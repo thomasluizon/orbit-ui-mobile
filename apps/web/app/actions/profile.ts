@@ -8,6 +8,7 @@ import type {
   SetProactiveAstraRequest,
   SetMarketingEmailConsentRequest,
   SetWeekStartDayRequest,
+  SetClockFormatRequest,
   SetThemePreferenceRequest,
   UserDataExport,
 } from '@orbit/shared'
@@ -80,6 +81,16 @@ export async function updateWeekStartDay(
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.weekStartDay, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, intendedAccountId))
+}
+
+export async function updateClockFormat(
+  data: SetClockFormatRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.profile.clockFormat, {
     method: 'PUT',
     body: JSON.stringify(data),
   }, intendedAccountId))

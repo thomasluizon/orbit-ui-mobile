@@ -42,12 +42,17 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
-vi.mock('react-i18next', () => ({
+vi.mock('react-i18next', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-i18next')>(),
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
     i18n: { language: 'en-US' },
   }),
+}))
+
+vi.mock('@/hooks/use-time-format', () => ({
+  useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))

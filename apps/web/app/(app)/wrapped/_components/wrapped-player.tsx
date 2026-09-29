@@ -94,7 +94,7 @@ export function WrappedPlayer({
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
       style={{ background: 'var(--bg)' }}
     >
-      <div className="mx-auto flex w-full flex-1 flex-col md:max-w-[480px]">
+      <div data-testid="wrapped-frame" className="mx-auto flex w-full max-w-[900px] flex-1 flex-col">
         <div className="flex justify-end" style={{ padding: '12px 16px 4px' }}>
           <button
             ref={closeRef}
