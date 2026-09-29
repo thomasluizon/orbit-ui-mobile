@@ -60,6 +60,8 @@ let mockTrialExpired = false
 let mockTrialDaysLeft: number | null = null
 let mockTrialUrgent = false
 let mockIsOnline = true
+let mockIsStatusLoading = false
+let mockIsStatusError = false
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -88,8 +90,8 @@ vi.mock('@/hooks/use-subscription-status', () => ({
           subscriptionEndedAtUtc: mockProfile.subscriptionEndedAt ?? null,
         }
       : null,
-    isLoading: false,
-    isError: false,
+    isLoading: mockIsStatusLoading,
+    isError: mockIsStatusError,
     refetch: mockRefetchStatus,
   }),
 }))
@@ -200,6 +202,8 @@ describe('UpgradePage subscription management', () => {
     mockTrialDaysLeft = null
     mockTrialUrgent = false
     mockIsOnline = true
+    mockIsStatusLoading = false
+    mockIsStatusError = false
     mockPlans = null
     mockIsLoadingPlans = false
     mockIsPlansError = false
@@ -290,6 +294,21 @@ describe('UpgradePage subscription management', () => {
           : state === 'lifetime' ? 'upgrade.billing.plan.lifetime' : 'upgrade.billing.plan.monthly',
       })).toBeInTheDocument()
     }
+  })
+
+  it('keeps the title line empty until paid status resolves', () => {
+    mockProfile = null
+    mockIsStatusLoading = true
+    const view = render(<UpgradePage />)
+    expect(screen.getByRole('heading', { level: 1 })).toBeEmptyDOMElement()
+    expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
+
+    mockProfile = { id: 'u1', hasProAccess: true, isTrialActive: false, subscriptionSource: 'stripe', aiMessagesUsed: 0, aiMessagesLimit: 20 }
+    mockHasProAccess = true
+    mockIsStatusLoading = false
+    view.rerender(<UpgradePage />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 
   it('shows billing loading state for Pro users', () => {

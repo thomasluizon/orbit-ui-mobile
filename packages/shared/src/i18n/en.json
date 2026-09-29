@@ -2380,6 +2380,7 @@
   },
   "upgrade": {
     "title": "Subscription",
+    "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",

@@ -205,6 +205,7 @@ describe('UpgradeScreen', () => {
   it('shows the pricing section for a free user', async () => {
     const tree = await renderScreen()
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
   })
 
   it('does not put subscription status in the trial pitch', async () => {
@@ -220,18 +221,34 @@ describe('UpgradeScreen', () => {
       node.type === 'Text'
         && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
+  })
+
+  it.each(['stripe', 'play'] as const)('titles the paid %s dashboard as a subscription', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.title')).toHaveLength(1)
+  })
+
+  it('titles the lapsed notice as a subscription', async () => {
+    mocks.lapseReason = 'expired'
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.title')).toHaveLength(1)
   })
 
   it.each([
     ['loading', true, false, 'common.loading'],
     ['load-failed', false, true, 'upgrade.billing.error'],
   ] as const)('renders the %s status outcome', async (_state, statusLoading, statusError, label) => {
+    mocks.profile = null
     mocks.statusLoading = statusLoading
     mocks.statusError = statusError
     const tree = await renderScreen()
     expect(
       tree.root.findAll((node) => node.props.children === label || node.props.label === label).length,
     ).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === (statusLoading ? '' : 'upgrade.title'))).toHaveLength(1)
   })
 
   it.each([
