@@ -4,7 +4,7 @@ import { createTokensV2 } from '@/lib/theme'
 export type CreateGoalTokens = ReturnType<typeof createTokensV2>
 export type CreateGoalStyles = ReturnType<typeof createStyles>
 
-export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
+export function createStyles(tokens: CreateGoalTokens) {
   return StyleSheet.create({
     scroll: {
       flex: 1,
@@ -12,7 +12,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
     form: {
       paddingTop: 8,
       paddingHorizontal: 16,
-      paddingBottom: Math.max(bottomInset, 16) + 24,
+      paddingBottom: 32,
       gap: 16,
     },
     row: {

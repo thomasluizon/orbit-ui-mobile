@@ -329,7 +329,6 @@ export function createStyles(tokens: AppTokens) {
       lineHeight: 32,
     },
     emojiSheetContent: {
-      flex: 1,
       paddingHorizontal: 24,
       paddingBottom: 24,
       gap: 12,
@@ -376,9 +375,6 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiCategoryTabTextActive: {
       color: tokens.fg1,
-    },
-    emojiModalList: {
-      flex: 1,
     },
     emojiCategorySection: {
       paddingBottom: 16,
