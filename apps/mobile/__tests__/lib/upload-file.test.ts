@@ -14,8 +14,8 @@ vi.stubGlobal('fetch', fetchMock)
 
 const signed = {
   key: 'user-1/abc.webp',
-  signedUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/uploads/user-1/abc.webp?token=jwt',
-  publicUrl: 'https://project.supabase.co/storage/v1/object/public/uploads/user-1/abc.webp',
+  signedUrl: 'https://uploads.example.com/storage/v1/object/upload/sign/uploads/user-1/abc.webp?token=jwt',
+  publicUrl: 'https://uploads.example.com/storage/v1/object/public/uploads/user-1/abc.webp',
 }
 
 const localUpload: LocalUpload = {

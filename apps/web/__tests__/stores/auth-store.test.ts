@@ -11,10 +11,53 @@ import { useChatStore } from '@/stores/chat-store'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
 import { accountStorageKey } from '@/lib/account-storage-key'
+import { QueryObserver } from '@tanstack/query-core'
+import { profileKeys } from '@orbit/shared/query'
+import { getQueryClient } from '@/lib/query-client'
+import { sessionAwareFetch } from '@/lib/api-fetch'
+
+const posthogMocks = vi.hoisted(() => ({
+  identifyPostHogUser: vi.fn(),
+  resetPostHogUser: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog', () => posthogMocks)
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
+
+describe('the first session check under a query in flight', () => {
+  it('settles the mounted observer after the account boundary', async () => {
+    const queryClient = getQueryClient()
+    useAuthStore.setState({ heldAccountId: null })
+    let answer: (profile: { name: string }) => void = () => {}
+    const serverAnswer = new Promise<{ name: string }>((resolve) => { answer = resolve })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: profileKeys.detail(),
+      queryFn: () => serverAnswer,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('fetching'))
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-a' }),
+      })
+
+      await useAuthStore.getState().checkSession()
+      answer({ name: 'answered' })
+
+      await vi.waitFor(() => expect(observer.getCurrentResult()).toMatchObject({
+        status: 'success', fetchStatus: 'idle', data: { name: 'answered' },
+      }))
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
+  })
+})
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -37,6 +80,7 @@ describe('auth store', () => {
       sessionRefreshFailed: false,
     })
     mockFetch.mockReset()
+    vi.clearAllMocks()
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -75,6 +119,7 @@ describe('auth store', () => {
         email: 'thomas@example.com',
       },
     })
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1')
   })
 
   it('asks the replacement account for marketing consent', () => {
@@ -88,7 +133,7 @@ describe('auth store', () => {
   it('resets account state and restores each account prompt record', () => {
     useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
     useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
-    useUIStore.getState().setFilters({ search: 'previous' })
+    useUIStore.getState().setSearchQuery('previous')
     useUIStore.getState().selectAllHabits(['habit-a'])
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     useOnboardingDraftStore.getState().bufferColorScheme('purple')
@@ -100,7 +145,7 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
 
     expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
-    expect(useUIStore.getState().activeFilters).toEqual({})
+    expect(useUIStore.getState().searchQuery).toBe('')
     expect(useUIStore.getState().activeCelebration).toBeNull()
     expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
     expect(useTourStore.getState().isActive).toBe(false)
@@ -133,6 +178,7 @@ describe('auth store', () => {
     await useAuthStore.getState().checkSession()
 
     expect(getHeldAccountId()).toBe('account-a')
+    expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('account-a')
   })
 
   it('drops a persisted draft from another account on a cold session', async () => {
@@ -168,10 +214,17 @@ describe('auth store', () => {
   it('logs out and calls the BFF logout endpoint', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().logout()
+    unsubscribe()
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -180,28 +233,30 @@ describe('auth store', () => {
     })
   })
 
-  it('removes the Supabase storage entry when the Orbit account changes', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'publishable-test-key'
-    const key = 'sb-wdscxamegetmhqldqsdg-auth-token'
+  it('does not start a mounted API query after logout removes the session cookie', async () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
-    localStorage.setItem(key, 'account-a-session')
-
-    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2' }))
-
-    expect(localStorage.getItem(key)).toBeNull()
-  })
-
-  it('removes the Supabase storage entry on Orbit logout', async () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'publishable-test-key'
-    const key = 'sb-wdscxamegetmhqldqsdg-auth-token'
-    useAuthStore.getState().setAuth(makeLoginResponse())
-    localStorage.setItem(key, 'account-a-session')
-
-    await useAuthStore.getState().logout()
-
-    expect(localStorage.getItem(key)).toBeNull()
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') return Promise.resolve({ ok: true })
+      return Promise.resolve(new Response(null, { status: 401 }))
+    })
+    const queryClient = getQueryClient()
+    let releaseInitial: (value: string) => void = () => {}
+    const initialRequest = new Promise<string>((resolve) => { releaseInitial = resolve })
+    const queryFn = vi.fn()
+      .mockImplementationOnce(() => initialRequest)
+      .mockImplementation(() => sessionAwareFetch('/api/profile'))
+    const observer = new QueryObserver(queryClient, { queryKey: ['logout-401'], queryFn })
+    const unsubscribe = observer.subscribe(() => {})
+    try {
+      await useAuthStore.getState().logout()
+      releaseInitial('previous account')
+      expect(queryFn).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+      expect(mockFetch).not.toHaveBeenCalledWith('/api/profile')
+    } finally {
+      unsubscribe()
+      queryClient.clear()
+    }
   })
 
   it('keeps the session when browser cookie locking is unavailable', async () => {
@@ -351,8 +406,14 @@ describe('auth store', () => {
       json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    const resetAtSignedOut = vi.fn()
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) resetAtSignedOut(posthogMocks.resetPostHogUser.mock.calls.length)
+    })
 
     await useAuthStore.getState().confirmSessionRefreshFailure()
+    unsubscribe()
+    expect(resetAtSignedOut).toHaveBeenCalledWith(1)
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,

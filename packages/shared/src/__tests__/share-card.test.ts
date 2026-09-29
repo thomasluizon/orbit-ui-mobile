@@ -3,6 +3,7 @@ import {
   buildRecapRequestUrl,
   buildShareCardStats,
   formatCompletionRate,
+  getClosedMonthFromWrappedParams,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
@@ -25,6 +26,27 @@ describe('buildRecapRequestUrl', () => {
   it('targets the recap endpoint with the period query', () => {
     expect(buildRecapRequestUrl('week')).toBe('/api/gamification/recap?period=week')
     expect(buildRecapRequestUrl('year')).toBe('/api/gamification/recap?period=year')
+  })
+
+  it('requests the closed month named by a notification', () => {
+    expect(buildRecapRequestUrl('month', { year: 2024, month: 2 }))
+      .toBe('/api/gamification/recap?period=month&year=2024&month=2')
+  })
+})
+
+describe('getClosedMonthFromWrappedParams', () => {
+  it('reads the exact month from a notification URL', () => {
+    expect(getClosedMonthFromWrappedParams({ wrapped: 'month', year: '2024', month: '2' }))
+      .toEqual({ year: 2024, month: 2 })
+  })
+
+  it.each([
+    { wrapped: 'year', year: '2024', month: '2' },
+    { wrapped: 'month', year: '2024', month: '13' },
+    { wrapped: 'month', year: '2024x', month: '2' },
+    { wrapped: 'month', year: ['2024'], month: '2' },
+  ])('ignores invalid closed month parameters', (params) => {
+    expect(getClosedMonthFromWrappedParams(params)).toBeNull()
   })
 })
 

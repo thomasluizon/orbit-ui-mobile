@@ -18,11 +18,9 @@ function makeParams(
     currentActiveView: "today",
     isSelectMode: false,
     pinnedDateStr: null,
-    filters: {},
     setShowScrollTop: vi.fn(),
     setRenderBulkActionBar: vi.fn(),
     setActiveView: vi.fn(),
-    setFilters: vi.fn(),
     closeSearch: vi.fn(),
     ...overrides,
   };

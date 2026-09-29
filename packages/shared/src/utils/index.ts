@@ -1,6 +1,7 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
 export { parseAPIDate, formatAPIDate } from './dates'
+export { getAllDoneOnDate, isHabitLoggedOnDate } from './all-done'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
 export { isRecord } from './is-record'
@@ -51,12 +52,8 @@ export type {
   CalendarSyncParsedRecurrence,
   CalendarSyncTranslationAdapter,
 } from './calendar-sync'
-export {
-  buildGoogleCalendarOAuthOptions,
-  GOOGLE_CALENDAR_CONSENT_QUERY_PARAMS,
-  GOOGLE_CALENDAR_OAUTH_QUERY_PARAMS,
-  GOOGLE_CALENDAR_READONLY_SCOPE,
-} from './google-calendar-auth'
+export { buildGoogleAuthorizeUrl, bytesToHex, GOOGLE_CALENDAR_READONLY_SCOPE } from './google-oauth'
+export type { GoogleAuthPurpose } from './google-oauth'
 export {
   applyChecklistTemplate,
   CHECKLIST_TEMPLATE_STORAGE_KEY,
@@ -257,9 +254,11 @@ export {
 export { formatNotificationRelativeTime } from './notification-time'
 export type { NotificationGlyph } from './notification-actions'
 export {
+  getNotificationDestination,
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -364,6 +363,7 @@ export {
 export type { NormalizedDrillDetail } from './drill-navigation'
 export {
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   findHabitInTree,
   getTomorrowDateString,
@@ -412,13 +412,14 @@ export type {
 } from './retrospective'
 export {
   buildRecapRequestUrl,
+  getClosedMonthFromWrappedParams,
   buildShareCardStats,
   formatCompletionRate,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export type { ClosedMonth, RecapSharePeriod, ShareCardStat } from './share-card'
 export { buildWrappedSlides } from './wrapped'
 export type { WrappedSlide, WrappedSlideId } from './wrapped'
 export {
@@ -455,8 +456,8 @@ export type {
 export {
   buildAgentScopeOptions,
   buildMcpConfigJson,
+  getMcpEndpointUrl,
   MCP_CONFIG_TABS,
-  MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from './advanced-settings'

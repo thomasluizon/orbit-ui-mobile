@@ -1032,7 +1032,14 @@ describe('HabitList', () => {
   })
 
   it('keeps handled taps enabled on the all-done list', () => {
-    seedHabits([])
+    visibilityMockState.useRealTodayVisibility = true
+    seedHabits([createMockHabit({
+      id: 'done-today',
+      scheduledDates: [TODAY],
+      dueDate: TODAY,
+      isCompleted: false,
+      isLoggedInRange: true,
+    })])
     mockHabitsData.totalCount = 1
     let tree: any
 

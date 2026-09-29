@@ -31,7 +31,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useMountedAfterOpen } from '@/hooks/use-mounted-after-open'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
-import { useTotalHabitCount } from '@/hooks/use-habits'
+import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -39,6 +39,7 @@ import {
   getReferralLevelMilestone,
   getMilestoneShareAchievementKey,
   getMilestoneShareStreakKey,
+  hasOpenPromptBlockingOverlay,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/lib/actions/calendar'
@@ -109,7 +110,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const hasPendingOnboardingAnswers = useOnboardingHasPendingAnswers()
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
-  const totalHabitCount = useTotalHabitCount()
+  const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
 
   useEffect(() => {
     const cleanup = useAuthStore.getState().startExpiryMonitor()
@@ -131,15 +132,22 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
+  const [calendarPromptOffered, setCalendarPromptOffered] = useState(false)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
 
   const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
   const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
-    if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+    if (!calendarPromptCriteriaMet) setCalendarPromptOffered(false)
+  }
+  if (calendarPromptCriteriaMet && !calendarPromptOffered && !anotherOverlayOpen) {
+    setCalendarPromptOffered(true)
+    setShowCalendarPrompt(true)
   }
 
   const [showImportPrompt, setShowImportPrompt] = useState(false)
+  const [importPromptOffered, setImportPromptOffered] = useState(false)
 
   const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
     calendarPromptCriteriaMet,
@@ -149,12 +157,16 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useState(importPromptCriteriaMet)
   if (importPromptCriteriaMet !== previousImportCriteriaMet) {
     setPreviousImportCriteriaMet(importPromptCriteriaMet)
-    if (importPromptCriteriaMet) setShowImportPrompt(true)
+    if (!importPromptCriteriaMet) setImportPromptOffered(false)
+  }
+  if (importPromptCriteriaMet && !importPromptOffered && !anotherOverlayOpen) {
+    setImportPromptOffered(true)
+    setShowImportPrompt(true)
   }
 
   const handleCreate = useCallback(() => {
     if (activeView === 'goals') {
-      if (!hasProAccess) {
+      if (profile !== undefined && !hasProAccess) {
         setRouteTransitionIntent('forward')
         router.push('/upgrade')
         return
@@ -162,14 +174,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       setShowCreateGoalModal(true)
       return
     }
-    if (!hasProAccess && totalHabitCount >= 10) {
+    if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
       router.push('/upgrade')
       return
     }
     setShowCreateModal(true)
-    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [activeView, hasProAccess, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
+  }, [activeView, profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)

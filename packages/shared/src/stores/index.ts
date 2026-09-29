@@ -53,6 +53,7 @@ export {
 export {
   createTourUIState,
   createUIStoreState,
+  hasOpenPromptBlockingOverlay,
   getPersistedUIState,
   getTourSessionUIState,
   migratePersistedUIState,

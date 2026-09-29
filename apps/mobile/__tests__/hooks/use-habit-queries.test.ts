@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
   return {
     captured: [] as CapturedQuery[],
     apiClient: vi.fn(),
+    setQueryData: vi.fn(),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
       mocks.captured.push(options)
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
+  useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -69,6 +71,7 @@ function lastQuery(): CapturedQuery {
 beforeEach(() => {
   mocks.captured = []
   mocks.apiClient.mockReset()
+  mocks.setQueryData.mockReset()
   mocks.useQuery.mockClear()
   mocks.isAuthenticated = true
 })
@@ -93,6 +96,21 @@ describe('useHabits (mobile query hook)', () => {
 
     await lastQuery().queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?dateFrom=2025-01-01&dateTo=2025-01-01')
+  })
+
+  it('loads every dated page and records the complete item count', async () => {
+    const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01', includeOverdue: true, includeGeneral: true }
+    const general = { id: 'general', isGeneral: true }
+    mocks.apiClient
+      .mockResolvedValueOnce({ items: [...Array.from({ length: 50 }, (_, index) => ({ id: `habit-${index}` })), general],
+        page: 1, pageSize: 50, totalCount: 51, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'habit-50' }, general],
+        page: 2, pageSize: 50, totalCount: 51, totalPages: 2 })
+    renderHookCapture(() => useHabits(filters))
+    const items = await lastQuery().queryFn() as { id: string }[]
+    expect(items).toHaveLength(52)
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?dateFrom=2025-01-01&dateTo=2025-01-01&includeOverdue=true&includeGeneral=true&page=2')
+    expect(mocks.setQueryData).toHaveBeenCalledWith(habitKeys.listTotalCount(filters), 51)
   })
 })
 

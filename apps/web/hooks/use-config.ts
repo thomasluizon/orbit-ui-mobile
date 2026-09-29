@@ -19,6 +19,7 @@ export function useConfig() {
     queryKey: configKeys.detail(),
     queryFn: fetchConfig,
     staleTime: 30 * 60 * 1000,
+    refetchInterval: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     placeholderData: DEFAULT_CONFIG,
   })

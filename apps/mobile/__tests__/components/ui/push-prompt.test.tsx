@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PushPrompt } from '@/components/ui/push-prompt'
+import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -49,6 +51,31 @@ vi.mock('@/hooks/use-push-notifications', () => ({
     ...pushState,
     requestPermission,
   }),
+}))
+
+vi.mock('expo-router', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: {
+      hasCompletedOnboarding: true,
+      hasCompletedTour: true,
+      hasImportedCalendar: false,
+    },
+    invalidate: vi.fn(),
+  }),
+}))
+
+vi.mock('@/components/bottom-sheet-modal', () => ({
+  BottomSheetModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+    open ? React.createElement('Sheet', null, children) : null,
+}))
+
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -116,6 +143,7 @@ function findPressableByText(root: any, label: string) {
 
 describe('PushPrompt (mobile)', () => {
   beforeEach(() => {
+    useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
     storage.clear()
     requestPermission.mockClear()
     stopExitAnimation.mockClear()
@@ -131,6 +159,41 @@ describe('PushPrompt (mobile)', () => {
     })
 
     expect(requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('waits until the create modal closes before showing', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<PushPrompt />)
+    })
+    expect(() => tree.root.findByProps({ children: 'pushPrompt.title' })).toThrow()
+
+    await TestRenderer.act(() => {
+      useUIStore.getState().setShowCreateModal(false)
+    })
+    expect(tree.root.findByProps({ children: 'pushPrompt.title' })).toBeDefined()
+  })
+
+  it('shows only one prompt when push and calendar become eligible together', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<><PushPrompt /><CalendarImportPrompt /></>)
+    })
+
+    await TestRenderer.act(() => {
+      useUIStore.getState().setShowCreateModal(false)
+    })
+
+    expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
+    expect(tree.root.findByProps({ children: 'pushPrompt.title' })).toBeDefined()
+
+    await TestRenderer.act(() => {
+      findPressableByText(tree.root, 'pushPrompt.later').props.onPress()
+    })
+
+    expect(tree.root.findAllByType('Sheet')).toHaveLength(1)
   })
 
   it('requests permission only after tapping Enable', async () => {

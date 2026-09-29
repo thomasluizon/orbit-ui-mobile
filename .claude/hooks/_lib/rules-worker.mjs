@@ -95,7 +95,8 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
         "owed by a HUMAN after the pull request exists (D7): only a human grants visual completion, the\n" +
         "run merges nothing unattended, and a fresh worktree cannot authenticate, so the attempt can\n" +
         "only ever fail. Two workers finished their tickets and then lost the delivery to exactly this.\n" +
-        "Tests are Vitest unit and behaviour tests; no Playwright, no e2e/, no dev server, no emulator.",
+        "Run the full Vitest suites, including headless Chromium geometry tests. No Playwright,\n" +
+        "no e2e/, no layout guard, no dev server, no emulator.",
     }
   }
   return null

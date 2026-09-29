@@ -1,11 +1,11 @@
 import { create } from 'zustand'
+import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
-import { profileKeys } from '@orbit/shared/query'
+import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
-import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
-import { clearSupabaseSession } from '@/lib/supabase'
+import { clearGoogleErrorLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
   getToken,
   setToken,
@@ -113,7 +113,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<(() => boolean) | null>
+  login: (token: string, refreshToken: string | null, user: User, expectedEpoch?: number) => Promise<(() => boolean) | null>
   logout: () => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -156,6 +156,10 @@ function isTokenExpired(token: string): boolean {
 
 function isCurrentSessionEpoch(epoch: number): boolean {
   return sessionEpoch === epoch
+}
+
+function matchesExpectedSessionEpoch(expectedEpoch?: number): boolean {
+  return expectedEpoch === undefined || isCurrentSessionEpoch(expectedEpoch)
 }
 
 function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
@@ -207,14 +211,15 @@ async function clearSessionCredentials(
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     sessionEpoch += 1
     credentialVersion += 1
+    resetPostHogUser()
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
       isLoading: false,
       expiresAt: null,
     })
     await clearAllTokens()
-    await clearPendingGoogleAuthSession()
-    await clearSupabaseSession()
+    clearPendingGoogleAuthSession()
+    clearGoogleErrorLogin()
     await clearWidgetToken().catch(() => {})
     return { epoch: sessionEpoch, refreshToken }
   })
@@ -238,7 +243,7 @@ async function runSessionTeardown(
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
 
-  queryClient.clear()
+  void resetAccountQueries(queryClient, 'signed-out')
   if (!(await runSessionTeardownStep(epoch, clearPersistedQueryCache))) return null
   if (!(await runSessionTeardownStep(epoch, () => setQueryCacheScope(null)))) return null
 
@@ -440,14 +445,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   expiresAt: null,
 
-  login: async (token, refreshToken, user) => {
+  login: async (token, refreshToken, user, expectedEpoch) => {
+    if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
-        await clearPendingGoogleAuthSession()
-        await clearSupabaseSession()
+        if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
+        clearPendingGoogleAuthSession()
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -465,9 +471,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         })
         return getSessionGeneration()
       })
+      if (!loginSession) return null
       ownership = loginSession
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
-      queryClient.clear()
+      void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await setQueryCacheScope(user.userId)
@@ -489,17 +496,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!isCurrentSessionEpoch(ownership.epoch)) return null
         queryClient.setQueryData(profileKeys.detail(), profile)
 
-        if (profile.language && i18n.language !== profile.language) {
-          void i18n.changeLanguage(profile.language)
-        }
-
-        setRuntimeTheme({
-          scheme: (profile.colorScheme as Parameters<typeof setRuntimeTheme>[0]['scheme']) ?? 'purple',
-          themeMode:
-            profile.themePreference === 'light' || profile.themePreference === 'dark'
-              ? profile.themePreference
-              : undefined,
-        })
+        applyProfilePresentation(profile)
 
         hydratedUser = {
           ...user,
@@ -516,6 +513,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      clearGoogleErrorLogin()
+      identifyPostHogUser(user.userId, previousAccountId)
       return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {
       await runSessionTeardown({
@@ -626,6 +625,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: false })
       useReviewReminderStore.getState().setAccountScope(get().user?.userId ?? null)
+      const restoredUserId = get().user?.userId
+      if (restoredUserId) identifyPostHogUser(restoredUserId)
 
       profileHydrationInFlight = (async () => {
         await hydrateSessionProfile()

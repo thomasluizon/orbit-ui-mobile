@@ -10,6 +10,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   login: vi.fn(),
+  getSessionGeneration: vi.fn(),
   replace: vi.fn(),
   completeGoogleAuthFromUrl: vi.fn(),
   getStoredReferralCode: vi.fn(),
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   clearStoredAuthReturnUrl: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   clearPendingGoogleAuthSession: vi.fn(),
+  allowGoogleErrorLogin: vi.fn(),
   setPendingGoogleAuthCallbackUrl: vi.fn(),
   pendingGoogleSession: {
     callbackUrl: null as string | null,
@@ -42,6 +44,7 @@ vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'orbit://auth-callback',
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
+  allowGoogleErrorLogin: mocks.allowGoogleErrorLogin,
   setPendingGoogleAuthCallbackUrl: mocks.setPendingGoogleAuthCallbackUrl,
   extractGoogleAuthParams: () => ({}),
   resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
@@ -52,6 +55,7 @@ vi.mock('@/lib/google-auth', () => ({
   completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl,
 }))
 vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: mocks.getSessionGeneration,
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) =>
     selector({ login: mocks.login }),
 }))
@@ -74,6 +78,7 @@ vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({
     token: 'old-access', refreshToken: 'old-refresh', userId: 'old-user',
     name: 'Old', email: 'old@example.com',
@@ -89,6 +94,25 @@ beforeEach(() => {
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
 })
 
+it.each(['logout', 'replacement login'])('does not install an exchanged account after %s', async (_change) => {
+  let releaseExchange!: (value: unknown) => void
+  mocks.completeGoogleAuthFromUrl.mockReturnValue(new Promise((resolve) => {
+    releaseExchange = resolve
+  }))
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledOnce())
+  mocks.getSessionGeneration.mockReturnValue({ epoch: 1, credentialVersion: 1 })
+  await TestRenderer.act(async () => {
+    releaseExchange({ token: 'old-access', refreshToken: 'old-refresh', userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    await Promise.resolve()
+  })
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
+
 it('ignores a saved callback without a pending Google attempt', async () => {
   mocks.rawUrl = 'orbit://auth-callback#access_token=old&refresh_token=old-refresh'
   mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
@@ -101,6 +125,17 @@ it('ignores a saved callback without a pending Google attempt', async () => {
 
   expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
   expect(mocks.login).not.toHaveBeenCalled()
+})
+
+it('opens the login error screen without storing a session when the code exchange fails', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValue(new Error('API rejected the code'))
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.allowGoogleErrorLogin).toHaveBeenCalledOnce()
+  expect(mocks.replace).toHaveBeenCalledWith('/login?googleError=1')
 })
 
 it('leaves referral and navigation untouched when callback login loses ownership', async () => {

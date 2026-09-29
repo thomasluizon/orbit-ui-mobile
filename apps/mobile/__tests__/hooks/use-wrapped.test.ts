@@ -117,6 +117,14 @@ describe('mobile useWrapped', () => {
     expect(parsed).toMatchObject({ period: 'year' })
   })
 
+  it('requests and caches a notified closed month separately from the current month', async () => {
+    await renderWrapped('month', { closedMonth: { year: 2024, month: 2 } })
+    const options = firstQueryOptions()
+    expect(options.queryKey).toEqual(['gamification', 'recap', 'month', 2024, 2])
+    await options.queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=month&year=2024&month=2')
+  })
+
   it('respects an explicit enabled: false flag', async () => {
     await renderWrapped('week', { enabled: false })
     expect(firstQueryOptions().enabled).toBe(false)

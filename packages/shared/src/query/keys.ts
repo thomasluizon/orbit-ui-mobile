@@ -2,6 +2,7 @@ export const habitKeys = {
   all: ['habits'] as const,
   lists: () => [...habitKeys.all, 'list'] as const,
   list: (filters: Record<string, unknown>) => [...habitKeys.lists(), filters] as const,
+  listTotalCount: (filters: Record<string, unknown>) => [...habitKeys.all, 'listTotalCount', filters] as const,
   count: () => [...habitKeys.all, 'count'] as const,
   details: () => [...habitKeys.all, 'detail'] as const,
   detail: (id: string) => [...habitKeys.details(), id] as const,
@@ -54,7 +55,12 @@ export const gamificationKeys = {
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
   streak: () => [...gamificationKeys.all, 'streak'] as const,
-  recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
+  recap: (period: string, closedMonth?: { year: number; month: number } | null) => [
+    ...gamificationKeys.all,
+    'recap',
+    period,
+    ...(period === 'month' && closedMonth ? [closedMonth.year, closedMonth.month] : []),
+  ] as const,
   streakHistory: () => [...gamificationKeys.all, 'streak-history'] as const,
   xpHistory: (range: string) => [...gamificationKeys.all, 'xp-history', range] as const,
 }

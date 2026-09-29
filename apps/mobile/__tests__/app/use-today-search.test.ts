@@ -13,9 +13,7 @@ const viewSyncCallbacks = {
   setShowScrollTop: vi.fn(),
   setRenderBulkActionBar: vi.fn(),
   setActiveView: vi.fn(),
-  setFilters: vi.fn(),
 }
-const emptyFilters = {}
 
 function renderTodaySearch(): TodaySearch {
   let current!: TodaySearch
@@ -72,7 +70,6 @@ describe('useTodaySearch (mobile)', () => {
         currentActiveView,
         isSelectMode: false,
         pinnedDateStr: null,
-        filters: emptyFilters,
         ...viewSyncCallbacks,
         closeSearch: search.closeSearch,
       })

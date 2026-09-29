@@ -11,6 +11,7 @@ vi.mock('dompurify', () => ({
 }))
 
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { useUIStore } from '@/stores/ui-store'
 
 describe('AppOverlay', () => {
   beforeEach(() => {
@@ -24,6 +25,14 @@ describe('AppOverlay', () => {
       </AppOverlay>,
     )
     expect(container.innerHTML).toBe('')
+  })
+
+  it('tracks an open dialog until it closes', () => {
+    const { rerender } = render(<AppOverlay open onOpenChange={vi.fn()} title="Create habit" />)
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
+
+    rerender(<AppOverlay open={false} onOpenChange={vi.fn()} title="Create habit" />)
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
 
   it('renders title when open', async () => {

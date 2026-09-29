@@ -1,6 +1,18 @@
 import { vi } from 'vitest'
 import React from 'react'
 
+vi.mock('posthog-react-native', () => ({
+  PostHog: class {
+    identify = vi.fn()
+    reset = vi.fn()
+    capture = vi.fn(async () => {})
+    screen = vi.fn(async () => {})
+    optIn = vi.fn(async () => {})
+    optOut = vi.fn(async () => {})
+  },
+  PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
 vi.mock('expo-secure-store', () => {

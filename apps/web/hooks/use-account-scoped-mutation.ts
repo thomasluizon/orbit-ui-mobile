@@ -7,9 +7,10 @@ import {
   type MutateOptions,
   type UseMutationOptions,
 } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChanged, withAccountIntent } from '@/lib/client-action'
-import { getAccountGeneration, getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 
 interface ScopedVariables<TVariables> {
   input: TVariables
@@ -80,7 +81,10 @@ export function useAccountScopedMutation<
     } finally {
       if (variables.generation !== getAccountGeneration()
         || variables.intendedAccountId !== getHeldAccountId()) {
-        void queryClient.resetQueries()
+        void resetAccountQueries(
+          queryClient,
+          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
+        )
       }
     }
   }
@@ -88,7 +92,12 @@ export function useAccountScopedMutation<
     stillHeld(variables) ? onSuccess(data, variables.input, result, context) : undefined
   scopedOptions.onError = (error, variables, result, context) => {
     if (reportsAccountChanged(error)) {
-      if (sameGeneration(variables)) queryClient.clear()
+      if (sameGeneration(variables)) {
+        void resetAccountQueries(
+          queryClient,
+          useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out',
+        )
+      }
       reportAccountChanged()
       return
     }
@@ -98,7 +107,8 @@ export function useAccountScopedMutation<
     if (stillHeld(variables, error)) {
       return onSettled?.(data, error, variables.input, result, context)
     }
-    if (variables.intendedAccountId === getHeldAccountId()) {
+    if (variables.intendedAccountId === getHeldAccountId()
+      || variables.intendedAccountId === null) {
       return queryClient.invalidateQueries()
     }
   }

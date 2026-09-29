@@ -9,13 +9,19 @@ import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDependents,
+  checkTodayAllDoneOrDefer,
+  getTodayHabitList,
+  getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
+  buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
+  getFriendlyErrorMessage,
   normalizeHabits,
+  buildChildrenIndex,
   plural,
   optimisticRemoveHabits,
 } from '@orbit/shared/utils'
@@ -70,6 +76,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+import { captureHabitLogged } from '@/lib/posthog'
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -88,7 +95,9 @@ export {
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
-  const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
+  const t = useTranslations()
+  const { showError } = useAppToast()
+  const { setStreakCelebration, checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: ({
@@ -100,6 +109,7 @@ export function useLogHabit() {
     }) => logHabitAction(habitId, date ? { date } : undefined),
 
     onMutate: ({ habitId, date }) => {
+      const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
@@ -112,10 +122,10 @@ export function useLogHabit() {
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists }
+      return { previousLists, hadPendingListRefetch, retryAllDoneDate: null as string | null }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -123,9 +133,11 @@ export function useLogHabit() {
           }
         }
       }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'errors.logHabit'))
     },
 
-    onSuccess: (response, variables) => {
+    onSuccess: (response, variables, context: { hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
+      captureHabitLogged()
       const loggedHabit = findHabitInList(
         queryClient
           .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
@@ -165,18 +177,31 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
-      const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
-        habitKeys.list(activeFilters),
-      )
-      if (habitsData) {
-        const normalized = normalizeHabits(habitsData)
-        checkAllDoneCelebration(normalized)
+      const today = formatAPIDate(new Date())
+      if (!variables.date || variables.date === today) {
+        updateHabitListsForDate(queryClient, today, (habits) => {
+          const habit = findHabitInList(habits, variables.habitId)
+          return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+        })
       }
+      const shouldRetryAllDone = checkTodayAllDoneOrDefer(queryClient, today, variables.date,
+        context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)
+      if (context && shouldRetryAllDone) context.retryAllDoneDate = today
     },
 
-    onSettled: (_response, error, { habitId }) => {
+    onSettled: (_response, error, { habitId }, context) => {
       if (error) return
-      invalidateHabitDependents(queryClient, habitId)
+      if (!context?.retryAllDoneDate) {
+        invalidateHabitDependents(queryClient, habitId)
+        return
+      }
+      const today = context.retryAllDoneDate
+      invalidateHabitDependents(queryClient, habitId, false)
+      return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
+        if (!habitsData) return
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+      })
     },
   })
 }
@@ -534,9 +559,30 @@ export function useBulkDeleteHabits() {
 
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
+  const { checkAllDoneCelebration } = useUIStore.getState()
 
   return useAccountScopedMutation({
     mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
+
+    onSuccess: (result, items) => {
+      const today = formatAPIDate(new Date())
+      const successfulIds = result.results.flatMap((entry) => {
+        const item = items[entry.index]
+        return entry.status === 'Success' && item?.habitId === entry.habitId &&
+          (!item.date || item.date === today) ? [item.habitId] : []
+      })
+      if (successfulIds.length === 0) return
+      updateHabitListsForDate(queryClient, today, (habits) =>
+        successfulIds.reduce((current, id) => {
+          const habit = findHabitInList(current, id)
+          return habit ? optimisticPatchHabit(current, id, buildSuccessfulLogPatch(habit)) : current
+        }, habits))
+      const habitsData = getTodayHabitList(queryClient, today)
+      if (habitsData) {
+        const normalized = normalizeHabits(habitsData)
+        checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
+      }
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

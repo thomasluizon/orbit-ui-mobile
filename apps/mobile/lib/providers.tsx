@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { resetAccountQueries } from '@orbit/shared/query'
 import {
   useFonts,
   Rubik_400Regular,
@@ -28,6 +29,10 @@ import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
+import { PostHogProvider } from 'posthog-react-native'
+import { useSegments } from 'expo-router'
+import { useConfig } from '@/hooks/use-config'
+import { applyPostHogGate, captureScreen, posthog } from './posthog'
 import './i18n'
 
 void SplashScreen.preventAutoHideAsync()
@@ -42,6 +47,25 @@ interface ProvidersProps {
 
 function OfflineManager() {
   useOffline(true)
+  return null
+}
+
+function PostHogGate() {
+  const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
+  const enabled = isFetchedAfterMount && !isFetching && config.features.analytics?.enabled === true
+  const segments = useSegments()
+  const screen = segments.join('/') || 'index'
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  useEffect(() => {
+    void applyPostHogGate(enabled).then(() => {
+      if (enabled) captureScreen(screen)
+    })
+  }, [enabled, screen])
+
   return null
 }
 
@@ -77,7 +101,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
         try { await restoreQueryCache() } catch {}
         syncWidgetDataSafely()
       } else {
-        queryClient.clear()
+        void resetAccountQueries(queryClient, 'signed-out')
         try { await clearPersistedQueryCache() } catch {}
       }
 
@@ -128,9 +152,17 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 export function Providers({ children }: Readonly<ProvidersProps>) {
-  return (
+  const content = (
     <QueryClientProvider client={queryClient}>
+      {posthog && <PostHogGate />}
       <AuthInitializer>{children}</AuthInitializer>
     </QueryClientProvider>
+  )
+
+  if (!posthog) return content
+  return (
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false, captureTouches: false }}>
+      {content}
+    </PostHogProvider>
   )
 }

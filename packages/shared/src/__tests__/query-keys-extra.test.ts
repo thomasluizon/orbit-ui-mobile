@@ -20,6 +20,12 @@ describe('habit query keys', () => {
     expect(habitKeys.trends('30d')).toEqual(['habits', 'trends', '30d'])
   })
 
+  it('keeps list total counts outside the list prefix so a list scan never reads a count', () => {
+    const count = habitKeys.listTotalCount({ dateFrom: '2025-01-02' })
+    expect(count).toEqual(['habits', 'listTotalCount', { dateFrom: '2025-01-02' }])
+    expect(count.slice(0, habitKeys.lists().length)).not.toEqual(habitKeys.lists())
+  })
+
   it('nests full-detail under the fullDetails prefix', () => {
     const detail = habitKeys.fullDetail('h-9')
     expect(detail.slice(0, habitKeys.fullDetails().length)).toEqual(habitKeys.fullDetails())
@@ -30,6 +36,8 @@ describe('goal and gamification keys', () => {
   it('builds progress history and recap keys', () => {
     expect(goalKeys.progressHistory('g-1')).toEqual(['goals', 'progress-history', 'g-1'])
     expect(gamificationKeys.recap('week')).toEqual(['gamification', 'recap', 'week'])
+    expect(gamificationKeys.recap('month', { year: 2024, month: 2 }))
+      .toEqual(['gamification', 'recap', 'month', 2024, 2])
     expect(gamificationKeys.streakHistory()).toEqual(['gamification', 'streak-history'])
     expect(gamificationKeys.xpHistory('90d')).toEqual(['gamification', 'xp-history', '90d'])
   })

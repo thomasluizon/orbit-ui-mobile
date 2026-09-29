@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitScheduleChild, HabitScheduleItem } from '../types/habit'
+import { getAllDoneOnDate, isHabitSkippedOnDate } from '../utils/all-done'
+import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import {
   buildOptimisticSkipPatch,
   findHabitInList,
@@ -110,8 +112,23 @@ describe('buildOptimisticSkipPatch', () => {
     vi.useRealTimers()
   })
 
-  it('marks recurring habits completed', () => {
-    expect(buildOptimisticSkipPatch(makeItem({ frequencyUnit: 'Day' }))).toEqual({ isCompleted: true })
+  it('marks recurring habits completed with a skipped instance for today', () => {
+    const patch = buildOptimisticSkipPatch(makeItem({ frequencyUnit: 'Day' }))
+    expect(patch).toMatchObject({
+      isCompleted: true,
+      instances: [{ date: '2026-04-06', status: 'Completed', logId: null }],
+    })
+  })
+
+  it('does not count a pending recurring skip when the other due habit is logged', () => {
+    const date = '2026-04-06'
+    const skipped = makeItem({ id: 'skipped', dueDate: date, scheduledDates: [date] })
+    const logged = makeItem({ id: 'logged', dueDate: date, scheduledDates: [date], isLoggedInRange: true })
+    const normalized = normalizeHabits([{ ...skipped, ...buildOptimisticSkipPatch(skipped) }, logged])
+
+    expect(isHabitSkippedOnDate(normalized.get('skipped')!, date)).toBe(true)
+    expect(getAllDoneOnDate(normalized, buildChildrenIndex(normalized), date))
+      .toEqual({ allDone: false, count: 1 })
   })
 
   it('postpones one-time habits to tomorrow', () => {

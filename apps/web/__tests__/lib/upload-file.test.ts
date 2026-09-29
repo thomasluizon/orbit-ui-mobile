@@ -18,8 +18,8 @@ const { uploadFile } = await import('@/lib/upload-file')
 
 const signed = {
   key: 'user-1/abc.png',
-  signedUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/uploads/user-1/abc.png?token=jwt',
-  publicUrl: 'https://project.supabase.co/storage/v1/object/public/uploads/user-1/abc.png',
+  signedUrl: 'https://uploads.example.com/storage/v1/object/upload/sign/uploads/user-1/abc.png?token=jwt',
+  publicUrl: 'https://uploads.example.com/storage/v1/object/public/uploads/user-1/abc.png',
 }
 
 function makeFile(type = 'image/png'): File {

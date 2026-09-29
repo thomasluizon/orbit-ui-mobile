@@ -13,7 +13,6 @@ import {
 import {
   clearStoredReferralCode,
   clearStoredAuthReturnUrl,
-  consumeStoredAuthReturnUrl,
   getSafeReturnUrl,
   isAuthReturnUrlAttemptCurrent,
   getStoredReferralCode,
@@ -22,6 +21,7 @@ import {
 } from '@/lib/auth-flow'
 import {
   AUTH_CALLBACK_URL,
+  allowGoogleErrorLogin,
   clearPendingGoogleAuthSession,
   extractGoogleAuthParams,
   resolveGoogleAuthCallbackUrl,
@@ -29,7 +29,7 @@ import {
   usePendingGoogleAuthSession,
 } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
-import { useAuthStore } from '@/stores/auth-store'
+import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
@@ -121,18 +121,21 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     if (processedRef.current || sessionCallbackUrl || isPendingGoogleAuthSession) return
     let mounted = true
-    async function recoverCallback() {
+    function recoverCallback() {
       try {
-        if (candidateUrl) await setPendingGoogleAuthCallbackUrl(candidateUrl)
+        if (candidateUrl && !setPendingGoogleAuthCallbackUrl(candidateUrl)) {
+          allowGoogleErrorLogin()
+          router.replace('/login?googleError=1')
+        }
       } catch (error: unknown) {
         if (mounted) setErrorState(resolveCallbackError(error))
       } finally {
         if (mounted) setCheckedLink(true)
       }
     }
-    void recoverCallback()
+    recoverCallback()
     return () => { mounted = false }
-  }, [candidateUrl, isPendingGoogleAuthSession, resolveCallbackError, sessionCallbackUrl])
+  }, [candidateUrl, isPendingGoogleAuthSession, resolveCallbackError, router, sessionCallbackUrl])
 
   useEffect(() => {
     if (processedRef.current) return
@@ -141,30 +144,28 @@ export default function AuthCallbackScreen() {
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
     processedRef.current = true
     const resolvedCallbackUrl = sessionCallbackUrl
+    const sessionEpoch = getSessionGeneration().epoch
 
     async function handleCallback() {
       try {
-        await clearPendingGoogleAuthSession(returnUrlAttemptId)
         const callbackParams = extractGoogleAuthParams(resolvedCallbackUrl)
-        if (callbackParams.error === 'access_denied') {
-          const storedReturnUrl = await consumeStoredAuthReturnUrl(returnUrlAttemptId)
-          if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
-          router.replace(storedReturnUrl ? getSafeReturnUrl(storedReturnUrl) : '/login')
-          return
-        }
+        if (callbackParams.error) throw new Error('Authentication failed')
 
         const referralCode = await getStoredReferralCode()
+        if (sessionEpoch !== getSessionGeneration().epoch) return
         const response = await completeGoogleAuthFromUrl(
           resolvedCallbackUrl,
           i18n.language,
           referralCode ?? undefined,
         )
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        if (sessionEpoch !== getSessionGeneration().epoch) return
 
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId,
           name: response.name,
           email: response.email,
-        })
+        }, sessionEpoch)
         if (!isCurrentLoginSession?.()) return
 
         if (referralCode) {
@@ -181,9 +182,11 @@ export default function AuthCallbackScreen() {
         if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
         const returnUrl = getSafeReturnUrl(storedReturnUrl)
         router.replace(returnUrl)
-      } catch (error: unknown) {
-        const nextErrorState = resolveCallbackError(error)
-        setErrorState(nextErrorState)
+      } catch {
+        if (sessionEpoch !== getSessionGeneration().epoch) return
+        clearPendingGoogleAuthSession(returnUrlAttemptId)
+        allowGoogleErrorLogin()
+        router.replace('/login?googleError=1')
       }
     }
 

@@ -5,6 +5,8 @@ import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stag
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
+const API_PATH = join(root, "compose-prompt", "repo-api")
+const LANDING_PATH = join(root, "compose-prompt", "repo-landing")
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
 const ticket = (overrides = {}) => ({
   blockedBy: { nodes: [], totalCount: 0 },
@@ -33,14 +35,14 @@ const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
   const real = realOrchestratorConfig()
-  const staged = stageWithConfig("compose-prompt", TOOL, { ...real, repos: { ui: REPO_PATH } })
+  const staged = stageWithConfig("compose-prompt", TOOL, { ...real, repos: { ui: REPO_PATH, api: API_PATH, landing: LANDING_PATH } })
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
 
   check(TOOL, "refuses a missing repo key", ["--issue", "ORB-215", "--out", out], { status: 2, stderr: /usage: compose-prompt\.mjs/ }, options())
   check(TOOL, "refuses a relative output path", ["--issue", "ORB-215", "--repo", "ui", "--out", "prompts/orb-215.md"], { status: 2, stderr: /usage: compose-prompt\.mjs/ }, options())
-  check(TOOL, "refuses a repo key the config does not declare", ["--issue", "ORB-215", "--repo", "ghost", "--out", out], { status: 2, stderr: /unknown repo key "ghost"; declared: ui/ }, options())
+  check(TOOL, "refuses a repo key the config does not declare", ["--issue", "ORB-215", "--repo", "ghost", "--out", out], { status: 2, stderr: /unknown repo key "ghost"; declared: ui, api, landing/ }, options())
   check(
     TOOL,
     "refuses an output path inside a declared repository",
@@ -98,9 +100,44 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
-    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
+    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) &&
+      /NEVER open the app in a browser and never start a dev or production server/.test(prompt) &&
+      /Playwright, Maestro or Cypress/.test(prompt) &&
+      /nothing under `e2e\/`/.test(prompt) &&
+      /no layout guard/.test(prompt) &&
+      /no navigating to localhost/.test(prompt) &&
+      /no logging in to the app/.test(prompt),
     prompt,
   )
+  T(
+    `${TOOL}: the UI brief requires complete Vitest evidence including available Chromium geometry`,
+    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
+      /including any headless Chromium geometry tests they launch/.test(prompt) &&
+      !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
+      /That Chromium use is permitted within Vitest/.test(prompt),
+    prompt,
+  )
+  for (const [repoKey, repoPath] of [["api", API_PATH], ["landing", LANDING_PATH]]) {
+    const otherOut = join(root, "compose-prompt", `${repoKey}.md`)
+    check(
+      TOOL,
+      `composes the ${repoKey} order`,
+      ["--issue", "ORB-215", "--repo", repoKey, "--worktree", repoPath, "--out", otherOut],
+      { status: 0 },
+      options(ticketPlan(ticket({ labels: [{ name: `repo:${repoKey}` }] }))),
+    )
+    const otherPrompt = composed(otherOut)
+    T(
+      `${TOOL}: ${repoKey} keeps the browser boundary without UI test requirements`,
+      /NEVER open the app in a browser and never start a dev or production server/.test(otherPrompt) &&
+        /Playwright, Maestro or Cypress/.test(otherPrompt) &&
+        /nothing under `e2e\/`/.test(otherPrompt) &&
+        /no layout guard/.test(otherPrompt) &&
+        !/Vitest suites are required evidence/.test(otherPrompt) &&
+        !/Chromium geometry tests/.test(otherPrompt),
+      otherPrompt,
+    )
+  }
   /**
    * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
    * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and

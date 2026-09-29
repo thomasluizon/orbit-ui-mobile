@@ -8,6 +8,16 @@ type ChildContainer = {
 
 export type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
+export const optimisticSkipMarker = '__optimisticSkip' as const
+
+export function buildSuccessfulLogPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
+  return {
+    isCompleted: true,
+    isLoggedInRange: true,
+    ...(habit.isFlexible ? { flexibleCompleted: (habit.flexibleCompleted ?? 0) + 1 } : {}),
+  }
+}
+
 /** Returns tomorrow's date formatted for the API (used to postpone one-time habits). */
 export function getTomorrowDateString(): string {
   const tomorrow = new Date()
@@ -49,8 +59,18 @@ export function findHabitInList(
  */
 export function buildOptimisticSkipPatch(
   habit: HabitTreeNode,
-): Partial<HabitScheduleItem> {
-  if (habit.frequencyUnit !== null) return { isCompleted: true }
+): Partial<HabitScheduleItem> & { [optimisticSkipMarker]?: true } {
+  if (habit.frequencyUnit !== null) {
+    const date = formatAPIDate(new Date())
+    return {
+      isCompleted: true,
+      instances: [
+        ...habit.instances.filter((instance) => instance.date !== date),
+        { date, status: 'Completed', logId: null },
+      ],
+      [optimisticSkipMarker]: true,
+    }
+  }
 
   const dueDate = getTomorrowDateString()
   return {

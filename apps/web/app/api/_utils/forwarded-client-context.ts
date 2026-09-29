@@ -2,15 +2,12 @@ import type { NextRequest } from 'next/server'
 
 const IP_PATTERN = /^[\d.:a-fA-F]+$/
 
-const GEO_COUNTRY_HEADERS = [
-  ['x-vercel-ip-country', 'X-Vercel-IP-Country'],
-  ['cf-ipcountry', 'CF-IPCountry'],
-  ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
-] as const
+const GEO_COUNTRY_HEADERS = ['cf-ipcountry', 'cloudfront-viewer-country'] as const
 
 const PASS_THROUGH_HEADERS = [
   ['accept-language', 'Accept-Language'],
   ['x-orbit-time-zone', 'X-Orbit-Time-Zone'],
+  ['cloudfront-viewer-country', 'CloudFront-Viewer-Country'],
 ] as const
 
 const TIME_ZONE_PATTERN = /^[A-Za-z0-9_./+-]{1,100}$/
@@ -79,7 +76,7 @@ function countryCodeFromTimeZone(value: string | null): string | null {
 }
 
 function resolveOrbitCountryCode(request: NextRequest): string | null {
-  for (const [headerName] of GEO_COUNTRY_HEADERS) {
+  for (const headerName of GEO_COUNTRY_HEADERS) {
     const countryCode = sanitizeClientCountryCode(request.headers.get(headerName))
     if (countryCode) return countryCode
   }
@@ -97,25 +94,14 @@ export function buildForwardedClientHeaders(request: NextRequest): Record<string
   const headers: Record<string, string> = {}
 
   const cfConnectingIp = sanitizeClientIp(request.headers.get('cf-connecting-ip'))
-  const vercelForwardedIp = sanitizeClientIp(request.headers.get('x-vercel-forwarded-for'))
   const forwardedIp = sanitizeClientIp(request.headers.get('x-forwarded-for'))
   const realIp = sanitizeClientIp(request.headers.get('x-real-ip'))
-  const clientIp = cfConnectingIp || vercelForwardedIp || forwardedIp || realIp
+  const clientIp = cfConnectingIp || forwardedIp || realIp
   if (clientIp) {
     headers['X-Forwarded-For'] = clientIp
   }
-  if (cfConnectingIp) {
-    headers['CF-Connecting-IP'] = cfConnectingIp
-  }
   if (realIp) {
     headers['X-Real-IP'] = realIp
-  }
-
-  for (const [headerName, forwardedHeaderName] of GEO_COUNTRY_HEADERS) {
-    const value = request.headers.get(headerName)?.trim()
-    if (value) {
-      headers[forwardedHeaderName] = value
-    }
   }
 
   for (const [headerName, forwardedHeaderName] of PASS_THROUGH_HEADERS) {

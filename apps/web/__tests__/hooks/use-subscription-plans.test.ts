@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -9,6 +9,7 @@ import {
   monthlyEquivalent,
 } from '@/hooks/use-subscription-plans'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
+import { setAccountId } from '@/lib/account-scope'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -90,9 +91,14 @@ describe('monthlyEquivalent', () => {
 
 describe('useSubscriptionPlans', () => {
   beforeEach(() => {
+    setAccountId('subscription-test-account')
     mockFetch.mockReset()
     vi.unstubAllGlobals()
     vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(() => {
+    setAccountId(null)
   })
 
   it('fetches subscription plans', async () => {

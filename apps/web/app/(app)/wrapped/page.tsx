@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { useSearchParams } from 'next/navigation'
+import { getClosedMonthFromWrappedParams, type ClosedMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
@@ -11,17 +12,34 @@ import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
 
 export default function WrappedPage() {
+  const searchParams = useSearchParams()
+  const notifiedMonth = getClosedMonthFromWrappedParams({
+    wrapped: searchParams.get('wrapped'),
+    year: searchParams.get('year'),
+    month: searchParams.get('month'),
+  })
+  const notifiedMonthKey = notifiedMonth ? `${notifiedMonth.year}-${notifiedMonth.month}` : 'current'
+
+  return <WrappedPageContent key={notifiedMonthKey} notifiedMonth={notifiedMonth} />
+}
+
+function WrappedPageContent({ notifiedMonth }: Readonly<{ notifiedMonth: ClosedMonth | null }>) {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
-  const [period, setPeriod] = useState<RecapSharePeriod>('week')
+  const [selection, setSelection] = useState<{ period: RecapSharePeriod; closedMonth: ClosedMonth | null }>(() => ({
+    period: notifiedMonth ? 'month' : 'week',
+    closedMonth: notifiedMonth,
+  }))
+  const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
+    closedMonth,
   })
 
   function selectPeriod(next: RecapSharePeriod) {
-    setPeriod(next)
+    setSelection({ period: next, closedMonth: null })
     setIsPlaying(false)
   }
 

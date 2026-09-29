@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { getQueryClient } from '@/lib/query-client'
-import { clearSupabaseSession } from '@/lib/supabase'
+import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
@@ -25,7 +26,7 @@ function reloadWhenCookieReplacesAccount(
   if (!accountSwitchPending) {
     accountSwitchPending = true
     accountGeneration += 1
-    getQueryClient().clear()
+    void resetAccountQueries(getQueryClient(), 'signed-in')
     startAccountScopedSession(heldAccountId, cookieAccountId)
     if ('location' in globalThis) globalThis.location.reload()
   }
@@ -101,11 +102,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
-    clearSupabaseSession()
+    if (get().heldAccountId && get().heldAccountId !== loginResponse.userId) resetPostHogUser()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
-    getQueryClient().clear()
+    void resetAccountQueries(getQueryClient(), 'signed-in')
     startAccountScopedSession(get().heldAccountId, loginResponse.userId, true)
     sessionRecoveryUser = null
     set({
@@ -118,6 +119,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
       sessionRefreshFailed: false,
     })
+    identifyPostHogUser(loginResponse.userId)
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
@@ -129,7 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        getQueryClient().clear()
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -143,13 +145,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
+      if (accountId) identifyPostHogUser(accountId)
       return
     }
     if (session.kind === 'inactive') {
+      resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      getQueryClient().clear()
-      clearSupabaseSession()
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -161,8 +164,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
-      clearSupabaseSession()
       sessionRecoveryUser ??= get().user
+      resetPostHogUser()
       set({
         isAuthenticated: false,
         user: null,
@@ -183,7 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        getQueryClient().clear()
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -197,11 +200,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
+      if (accountId) identifyPostHogUser(accountId)
     } else if (session.kind === 'inactive') {
+      resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      getQueryClient().clear()
-      clearSupabaseSession()
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -226,7 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
-        getQueryClient().clear()
+        void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
@@ -240,11 +244,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
+      if (accountId) identifyPostHogUser(accountId)
     } else if (session.kind === 'inactive') {
+      resetPostHogUser()
       startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
-      getQueryClient().clear()
-      clearSupabaseSession()
+      void resetAccountQueries(getQueryClient(), 'signed-out')
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -287,13 +292,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
-    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     accountSwitchPending = false
     accountGeneration += 1
-    getQueryClient().clear()
+    void resetAccountQueries(getQueryClient(), 'signed-out')
     startAccountScopedSession(get().heldAccountId, null)
     sessionRecoveryUser = null
+    resetPostHogUser()
     set({
       isAuthenticated: false,
       heldAccountId: null,
@@ -301,7 +306,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       expiresAt: null,
       sessionRefreshFailed: false,
     })
-
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }

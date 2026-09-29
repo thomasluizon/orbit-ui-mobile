@@ -7,6 +7,7 @@ import {
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
+import { createMockHabit } from './factories';
 
 function createStoreHarness() {
   let state = {} as UIStoreState;
@@ -41,17 +42,14 @@ describe("shared ui store", () => {
     vi.useRealTimers();
   });
 
-  it("merges filters and updates view/search state", () => {
+  it("updates view and search state", () => {
     const store = createStoreHarness();
-    const { setFilters, setSearchQuery, setActiveView } = store.getState();
+    const { setSearchQuery, setActiveView } = store.getState();
 
-    setFilters({ dateFrom: "2026-04-06" });
-    setFilters({ dateTo: "2026-04-06" });
     setSearchQuery("focus");
     setActiveView("goals");
 
     expect(store.getState()).toMatchObject({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
       searchQuery: "focus",
       activeView: "goals",
     });
@@ -79,21 +77,16 @@ describe("shared ui store", () => {
     expect(store.getState().selectedHabitIds.size).toBe(0);
   });
 
-  it("shows all-done celebration for completed top-level habits on today filters", () => {
+  it("shows all-done celebration for a logged habit due today", () => {
     const store = createStoreHarness();
-    store.setState({
-      activeFilters: { dateFrom: "2026-04-06", dateTo: "2026-04-06" },
-    });
-
+    const habit = createMockHabit({ id: 'habit', isCompleted: false, isLoggedInRange: true, scheduledDates: ['2026-04-06'] });
     store.getState().checkAllDoneCelebration(
-      new Map([
-        ["parent-1", { parentId: null, isCompleted: true }],
-        ["child-1", { parentId: "parent-1", isCompleted: false }],
-      ]),
+      new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );
 
     expect(store.getState().allDoneCelebration).toBe(true);
     expect(store.getState().allDoneCelebratedDate).toBe("2026-04-06");
+    expect(store.getState().activeCelebration?.payload).toEqual({ count: 1 });
   });
 
   it("clears the last created habit id after the timeout", async () => {
@@ -153,9 +146,8 @@ describe("shared ui store", () => {
     expect(store.getState().streakCelebration).toEqual({ streak: 5 });
   });
 
-  it("creates a canonical tour ui state with no filters", () => {
+  it("creates a canonical tour ui state", () => {
     expect(createTourUIState()).toEqual({
-      activeFilters: {},
       activeView: "today",
       searchQuery: "",
       selectedFrequency: null,
@@ -175,9 +167,7 @@ describe("shared ui store", () => {
   it("returns cloned persisted ui state snapshots", () => {
     const store = createStoreHarness();
 
-    store.getState().setFilters({ dateFrom: "2026-04-06" });
     store.setState({
-      activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
       searchQuery: "focus",
       selectedTagIds: ["focus"],
     });
@@ -185,14 +175,9 @@ describe("shared ui store", () => {
     const snapshot = getPersistedUIState(store.getState());
 
     store.setState({
-      activeFilters: { dateFrom: "2026-04-07" },
       selectedTagIds: ["health"],
     });
 
-    expect(snapshot.activeFilters).toEqual({
-      dateFrom: "2026-04-06",
-      includeOverdue: true,
-    });
     expect(snapshot.selectedTagIds).toEqual(["focus"]);
     expect(snapshot).not.toHaveProperty("searchQuery");
   });
@@ -206,15 +191,10 @@ describe("shared ui store", () => {
     expect(snapshot).not.toHaveProperty("followToday");
   });
 
-  it("excludes active search filters from the persisted snapshot", () => {
+  it("excludes active search from the persisted snapshot", () => {
     const store = createStoreHarness();
-    store.setState({
-      activeFilters: { dateFrom: "2026-04-06", search: "focus" },
-    });
-
-    expect(getPersistedUIState(store.getState()).activeFilters).toEqual({
-      dateFrom: "2026-04-06",
-    });
+    store.getState().setSearchQuery('focus');
+    expect(getPersistedUIState(store.getState())).not.toHaveProperty('searchQuery');
   });
 
   it("drops legacy day-selection and search keys when migrating persisted state", () => {
@@ -232,8 +212,8 @@ describe("shared ui store", () => {
     expect(migrated).not.toHaveProperty("selectedDate");
     expect(migrated).not.toHaveProperty("followToday");
     expect(migrated).not.toHaveProperty("searchQuery");
+    expect(migrated).not.toHaveProperty("activeFilters");
     expect(migrated).toEqual({
-      activeFilters: {},
       activeView: "all",
       selectedFrequency: "Month",
       selectedTagIds: ["deep-work"],

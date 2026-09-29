@@ -11,14 +11,31 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
   const onboarding = await page.request.put('/api/profile/onboarding')
   expect(onboarding.ok()).toBeTruthy()
 
+  const tour = await page.request.put('/api/profile/tour')
+  expect(tour.ok()).toBeTruthy()
+
   const importPrompt = await page.request.put('/api/profile/import-prompt/dismiss')
   expect(importPrompt.ok()).toBeTruthy()
 
+  const marketingConsent = await page.request.put('/api/profile/marketing-consent', {
+    data: { enabled: false },
+  })
+  expect(marketingConsent.ok()).toBeTruthy()
+
   await warmBackend(page.request)
 
-  await page.evaluate(() => {
-    window.localStorage.setItem('orbit_trial_expired_seen', '1')
-  })
+  const session = await page.request.get('/api/auth/session')
+  expect(session.ok()).toBeTruthy()
+  const { accountId } = (await session.json()) as { accountId: string | null }
+  expect(accountId).toBeTruthy()
+
+  await page.evaluate((id) => {
+    window.localStorage.setItem(`orbit_trial_expired_seen:${id}`, '1')
+    window.localStorage.setItem(
+      `orbit_tour_sections:v1:${id}`,
+      JSON.stringify({ habits: true, goals: true, chat: true, calendar: true, profile: true }),
+    )
+  }, accountId)
 
   await page.context().storageState({ path: STORAGE_STATE_PATH })
 })

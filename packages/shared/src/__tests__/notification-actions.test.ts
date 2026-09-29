@@ -1,11 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getNotificationDestination,
   getNotificationDetailActionVisibility,
   getNotificationGlyph,
   isViewableNotificationUrl,
+  resolveNotificationUrl,
 } from '../utils/notification-actions'
 
 describe('notification-actions', () => {
+  it.each([
+    ['/progress', '/streak'],
+    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?wrapped=month&year=2026&month=8'],
+    ['/progress?', '/streak'],
+    ['/progress?other=value', '/streak'],
+    ['/', '/'],
+    ['/chat', '/chat'],
+    ['/profile', '/profile'],
+    ['/calendar-sync', '/calendar-sync'],
+    ['/calendar-sync?mode=review', '/calendar-sync?mode=review'],
+    ['/streak', '/streak'],
+    ['//evil.example', null],
+    ['https://evil.example', null],
+    ['/social/x', null],
+    ['/public-profile/x', null],
+    ['/u/example', null],
+  ])('resolves %s to %s', (url, expected) => {
+    expect(resolveNotificationUrl(url)).toBe(expected)
+    expect(getNotificationDestination(url)).toEqual(expected ? { url: expected } : null)
+    expect(getNotificationDetailActionVisibility({ url, isRead: false }).canView)
+      .toBe(expected !== null)
+  })
+
+  it('does not provide a destination for a missing URL', () => {
+    expect(getNotificationDestination(null)).toBeNull()
+    expect(getNotificationDetailActionVisibility({ url: null, isRead: false }).canView).toBe(false)
+  })
+
   it('accepts safe internal URLs', () => {
     expect(isViewableNotificationUrl('/habits/1')).toBe(true)
     expect(isViewableNotificationUrl('/')).toBe(true)
@@ -41,6 +71,8 @@ describe('notification-actions', () => {
 
   it('maps streak notifications to the flame glyph', () => {
     expect(getNotificationGlyph({ url: '/streak', habitId: null })).toBe('streak')
+    expect(getNotificationGlyph({ url: '/progress', habitId: null })).toBe('streak')
+    expect(getNotificationGlyph({ url: '/progress?other=value', habitId: null })).toBe('streak')
   })
 
   it('maps Astra-produced notifications to the sparkles glyph', () => {

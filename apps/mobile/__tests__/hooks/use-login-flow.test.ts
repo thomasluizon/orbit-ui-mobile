@@ -158,6 +158,12 @@ beforeEach(() => {
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
 })
 
+it('shows the localized Google callback error when login renders after reconnect fails', async () => {
+  mocks.params = { googleError: '1' }
+  await renderLoginFlow()
+  expect(mocks.showError).toHaveBeenCalledWith('auth.errors.googleError')
+})
+
 afterEach(() => vi.unstubAllEnvs())
 
 it('requires a fresh bridge token for each mobile auth request', async () => {

@@ -1,5 +1,8 @@
 name: Android Release
 
+# Repository variables: PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY,
+# STAGING_EXPO_PUBLIC_POSTHOG_KEY.
+
 # Carry the dispatch inputs in the run title so `gh run list` identifies every
 # release without opening it: the default title is the workflow name, which
 # makes a list of past runs indistinguishable from one another.
@@ -22,7 +25,6 @@ on:
         type: choice
         options:
           - internal
-          - closed
           - open
           - production
       clear_cache:
@@ -42,18 +44,32 @@ on:
 
 permissions:
   contents: read
+  deployments: write
 
 jobs:
   release-android:
     name: Build and publish Android app
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
+      deployment: false
     env:
       EAS_BUILD_PROFILE: production
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      - name: Validate track branch
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_TRACK" != internal ] && [ "$GITHUB_REF_NAME" != main ]; then
+            echo "::error::Open and production Android releases must run from main" >&2
+            exit 1
+          fi
       # First step on purpose: every later step can fail, and when one does the
       # log must still say what was being shipped and how to reproduce it. Run
       # 29512207801 failed in an early guard and recorded nothing about the
@@ -184,8 +200,8 @@ jobs:
           done
 
       # Google Play's API track names differ from this workflow's user-facing track
-      # input: "closed" testing is the alpha track and "open" testing is the beta
-      # track. eas.json's submit profiles held that mapping; keep it in one explicit
+      # input: "open" testing is the beta track. eas.json's submit profiles
+      # held that mapping; keep it in one explicit
       # place now that the upload talks to the Play Developer API directly. Resolved
       # here rather than next to the upload so an unmappable track fails in seconds
       # instead of after the ~15 minute Gradle build.
@@ -198,7 +214,6 @@ jobs:
 
           case "${RELEASE_TRACK}" in
             internal) play_track="internal" ;;
-            closed) play_track="alpha" ;;
             open) play_track="beta" ;;
             production) play_track="production" ;;
             *)
@@ -256,13 +271,37 @@ jobs:
       - name: Resolve build target
         shell: bash
         env:
-          PROD_API_BASE: https://api.useorbit.org
+          RELEASE_TRACK: ${{ inputs.track }}
+          STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
+          PRODUCTION_POSTHOG_KEY: ${{ vars.PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY }}
         run: |
           set -euo pipefail
 
-          echo "BUILD_API_BASE=${PROD_API_BASE}" >> "${GITHUB_ENV}"
-          echo "BUILD_EAS_PROFILE=production" >> "${GITHUB_ENV}"
-          echo "Build target: PROD (api_base=${PROD_API_BASE})"
+          case "${RELEASE_TRACK}" in
+            internal)
+              build_api_base="https://api-staging.useorbit.org"
+              deployment_environment="staging"
+              build_posthog_key="${STAGING_POSTHOG_KEY}"
+              ;;
+            open|production)
+              build_api_base="https://api.useorbit.org"
+              deployment_environment="production"
+              build_posthog_key="${PRODUCTION_POSTHOG_KEY}"
+              ;;
+            *)
+              echo "::error::Unknown release track: ${RELEASE_TRACK}"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "BUILD_API_BASE=${build_api_base}"
+            echo "BUILD_POSTHOG_KEY=${build_posthog_key}"
+            echo "DEPLOYMENT_ENVIRONMENT=${deployment_environment}"
+            echo "BUILD_EAS_PROFILE=production"
+          } >> "${GITHUB_ENV}"
+          echo "Build target: ${deployment_environment} (api_base=${build_api_base})"
+          echo "| API base | \`${build_api_base}\` |" >> "${GITHUB_STEP_SUMMARY}"
 
       # EXPO_NO_METRO_WORKSPACE_ROOT pins Metro's root to apps/mobile instead of the
       # monorepo root, matching what scripts/android-release-apk.js has always set for
@@ -276,6 +315,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
         run: |
           set -euo pipefail
 
@@ -339,6 +379,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
@@ -448,6 +489,42 @@ jobs:
           tracks: ${{ env.PLAY_TRACK }}
           status: completed
           mappingFile: apps/mobile/android/app/build/outputs/mapping/release/mapping.txt
+
+      - name: Record Android deployment
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ inputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+          RELEASE_TRACK: ${{ inputs.track }}
+          DEPLOYMENT_ENVIRONMENT: ${{ env.DEPLOYMENT_ENVIRONMENT }}
+          BUILD_API_BASE: ${{ env.BUILD_API_BASE }}
+        run: |
+          set -euo pipefail
+
+          deployment=$(jq -n \
+            --arg sha "${GITHUB_SHA}" \
+            --arg environment "${DEPLOYMENT_ENVIRONMENT}" \
+            --arg version "${APP_VERSION}" \
+            --arg code "${ANDROID_VERSION_CODE}" \
+            --arg track "${RELEASE_TRACK}" \
+            --arg api_base "${BUILD_API_BASE}" \
+            '{ref: $sha, task: "android-release", environment: $environment,
+              description: ("Android " + $version + " (" + $code + ") to " + $track),
+              auto_merge: false, required_contexts: [],
+              payload: {app_version: $version, android_version_code: $code,
+                track: $track, api_base: $api_base}}' |
+            gh api "repos/${GITHUB_REPOSITORY}/deployments" --method POST --input -)
+          deployment_id=$(jq -er '.id | select(type == "number")' <<< "${deployment}")
+
+          jq -n \
+            --arg log_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{state: "success", log_url: $log_url, auto_inactive: false}' |
+            gh api "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
+              --method POST --input - > /dev/null
+
+          echo "Android deployment ${deployment_id}: ${DEPLOYMENT_ENVIRONMENT}, ${APP_VERSION} (${ANDROID_VERSION_CODE}), ${GITHUB_SHA}"
+          echo "| GitHub deployment | \`${deployment_id}\` |" >> "${GITHUB_STEP_SUMMARY}"
 
       # The build materializes the Firebase config, the decoded upload keystore and
       # the keystore passwords into the checkout, so they are removed whatever the

@@ -98,7 +98,7 @@ function resetStores() {
     homeEntryDismissed: false,
     armedPrompt: null,
   })
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], showCreateModal: false, openOverlayIds: [] })
 }
 
 describe('MarketingConsentPrompt (mobile)', () => {
@@ -180,6 +180,25 @@ describe('MarketingConsentPrompt (mobile)', () => {
     })
 
     expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+  })
+
+  it('waits for the create modal to close before showing the armed prompt', async () => {
+    useUIStore.getState().setShowCreateModal(true)
+    const tree = await renderArmed()
+    await settle()
+
+    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(0)
+    expect(useReferralPromptStore.getState().promptedMilestoneKeys).not.toContain(
+      MARKETING_CONSENT_MILESTONE_KEY,
+    )
+
+    await TestRenderer.act(async () => {
+      useUIStore.getState().setShowCreateModal(false)
+      await Promise.resolve()
+    })
+    await settle()
+
+    expect(findByType(tree, 'BottomSheetOpen')).toHaveLength(1)
   })
 
   it('opts in through the offline queue and patches the profile on accept', async () => {

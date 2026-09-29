@@ -19,9 +19,10 @@ const REFRESH_ACTION_STYLE = {
 export function UpdateAvailableBanner() {
   const t = useTranslations()
   const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
+  const reloadReason = useVersionGateStore((s) => s.reloadReason)
   const [dismissed, setDismissed] = useState(false)
 
-  if (!upgradeRequired || dismissed) return null
+  if (!reloadReason && (!upgradeRequired || dismissed)) return null
 
   return (
     <div
@@ -44,7 +45,11 @@ export function UpdateAvailableBanner() {
           color: 'var(--fg-2)',
         }}
       >
-        {t('forceUpdate.banner')}
+        {reloadReason === 'accountChanged'
+          ? t('errors.api.accountChanged')
+          : reloadReason === 'appUpdated'
+            ? t('errors.api.appUpdated')
+            : t('forceUpdate.banner')}
       </span>
       <button
         type="button"
@@ -53,22 +58,24 @@ export function UpdateAvailableBanner() {
         onClick={() => globalThis.location.reload()}
       >
         <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
-        {t('forceUpdate.refresh')}
+        {reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}
       </button>
-      <button
-        type="button"
-        aria-label={t('common.dismiss')}
-        className="icon-btn hover:text-[var(--fg-1)]"
-        style={{
-          width: 40,
-          height: 40,
-          margin: '-10px -8px',
-          color: 'var(--fg-3)',
-        }}
-        onClick={() => setDismissed(true)}
-      >
-        <X size={18} strokeWidth={1.8} aria-hidden="true" />
-      </button>
+      {!reloadReason && (
+        <button
+          type="button"
+          aria-label={t('common.dismiss')}
+          className="icon-btn hover:text-[var(--fg-1)]"
+          style={{
+            width: 40,
+            height: 40,
+            margin: '-10px -8px',
+            color: 'var(--fg-3)',
+          }}
+          onClick={() => setDismissed(true)}
+        >
+          <X size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      )}
     </div>
   )
 }

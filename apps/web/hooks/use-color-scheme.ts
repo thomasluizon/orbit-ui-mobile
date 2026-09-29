@@ -17,6 +17,7 @@ import {
   normalizeColorScheme,
   normalizeThemeMode,
 } from '@/lib/theme-dom'
+import { useIsClient } from '@/hooks/use-is-client'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -29,6 +30,7 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 }
 
 export function useColorScheme() {
+  const isClient = useIsClient()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() =>
     normalizeColorScheme(getCookie('orbit_color_scheme')),
   )
@@ -141,8 +143,8 @@ export function useColorScheme() {
   }, [currentScheme])
 
   return {
-    currentScheme,
-    currentTheme,
+    currentScheme: isClient ? currentScheme : 'purple',
+    currentTheme: isClient ? currentTheme : 'dark',
     applyScheme,
     applyTheme,
     toggleTheme,

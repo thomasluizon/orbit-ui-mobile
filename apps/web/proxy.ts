@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
   '/delete-account',
   '/turnstile-bridge',
   '/.well-known',
+  '/ingest',
 ]
 
 function isPublicPath(pathname: string): boolean {
@@ -68,10 +69,10 @@ async function applyRefreshedSession(
 }
 
 function createContentSecurityPolicy(nonce: string): string {
-  const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
-
-  const websocketUrl = new URL(supabaseUrl.origin)
-  websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  const uploadBucketOrigin = process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN
+    ? new URL(process.env.NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN).origin
+    : null
+  const apiOrigin = new URL(accountEventApiBase()).origin
   const developmentScriptSource =
     process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
@@ -80,9 +81,9 @@ function createContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
     "frame-src https://challenges.cloudflare.com",
-    `img-src 'self' blob: data: ${supabaseUrl.origin}`,
+    `img-src 'self' blob: data: ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin} ${new URL(accountEventApiBase()).origin}`,
+    `connect-src 'self' ${apiOrigin}${uploadBucketOrigin ? ` ${uploadBucketOrigin}` : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -104,6 +105,26 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+    : null
+  const requestHost = request.headers.get('host')
+  if (
+    pathname !== '/api/health' &&
+    siteUrl &&
+    siteUrl.hostname !== 'localhost' &&
+    requestHost &&
+    requestHost.toLowerCase() !== siteUrl.host
+  ) {
+    const redirectUrl = new URL(siteUrl.origin)
+    redirectUrl.pathname = pathname
+    redirectUrl.search = request.nextUrl.search
+    return secureResponse(
+      NextResponse.redirect(redirectUrl, 308),
+      contentSecurityPolicy,
+    )
+  }
+
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
@@ -122,18 +143,16 @@ export async function proxy(request: NextRequest) {
     : { token: null, refreshedTokens: null }
 
   if (!session.token && !isPublic) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const url = new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
+    url.search = request.nextUrl.search
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
       url.searchParams.set('returnUrl', pathname)
     }
     return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }
 
-  if (session.token && pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    url.search = ''
+  if (session.token && pathname === '/login' && request.nextUrl.searchParams.get('googleError') !== '1') {
+    const url = new URL('/', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')
     return secureResponse(
       await applyRefreshedSession(
         NextResponse.redirect(url),
@@ -153,5 +172,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/:path*'],
+  matcher: ['/((?!api/health$).*)'],
 }

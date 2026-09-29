@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
@@ -98,6 +99,25 @@ describe('useChatPendingOperations', () => {
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
+  })
+
+  it('offers the reload prompt when a chat action is no longer recognized', async () => {
+    mocks.confirmPendingOperation.mockRejectedValue(new UnrecognizedActionError('Unknown action'))
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+    const onUnexpectedOutcome = vi.fn()
+
+    void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(toast.error).toHaveBeenCalledWith('errors.api.appUpdated', expect.objectContaining({
+      id: 'app-updated',
+      duration: Infinity,
+      action: expect.objectContaining({ label: 'errors.api.reload', onClick: expect.any(Function) }),
+    }))
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+    expect(onExecuted).not.toHaveBeenCalled()
+    expect(onUnexpectedOutcome).not.toHaveBeenCalled()
   })
 
   it('prepares a step-up by confirming then issuing a challenge with the active locale', async () => {

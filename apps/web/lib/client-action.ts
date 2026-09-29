@@ -1,11 +1,13 @@
 'use client'
 
 import { createApiClientError } from '@orbit/shared'
+import { unstable_isUnrecognizedActionError } from 'next/navigation'
 import { toast } from 'sonner'
 import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
 import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 let activeAccountIntent: string | null | undefined
 
@@ -34,6 +36,7 @@ export function reportAccountChanged(): void {
   const message = translateApiFetchMessage('errors.api.accountChanged')
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
+  useVersionGateStore.getState().requireReload('accountChanged')
   toast.error(message, {
     id: 'account-changed',
     duration: Infinity,
@@ -61,11 +64,36 @@ export async function applyServerActionFailure<T>(result: ServerActionResult<T>)
   await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
+export async function runServerActionResult<T>(
+  action: Promise<ServerActionResult<T>>,
+): Promise<ServerActionResult<T>> {
+  let result: ServerActionResult<T>
+  try {
+    result = await action
+  } catch (error: unknown) {
+    if (unstable_isUnrecognizedActionError(error)) {
+      const message = translateApiFetchMessage('errors.api.appUpdated')
+      const reloadLabel = translateApiFetchMessage('errors.api.reload')
+      if (message && reloadLabel) {
+        useVersionGateStore.getState().requireReload('appUpdated')
+        toast.error(message, {
+          id: 'app-updated',
+          duration: Infinity,
+          action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
+        })
+        return new Promise<ServerActionResult<T>>(() => {})
+      }
+    }
+    throw error
+  }
+  await applyServerActionFailure(result)
+  return result
+}
+
 export async function runServerAction<T>(
   action: Promise<ServerActionResult<T>>,
 ): Promise<T> {
-  const result = await action
-  await applyServerActionFailure(result)
+  const result = await runServerActionResult(action)
   if (result.ok) return result.data
 
   throw createApiClientError(

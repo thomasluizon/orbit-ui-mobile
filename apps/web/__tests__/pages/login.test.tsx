@@ -91,14 +91,6 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mockShowError }),
 }))
 
-vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({
-    auth: {
-      signInWithOAuth: vi.fn(),
-    },
-  }),
-}))
-
 const { mockIsOnline } = vi.hoisted(() => ({ mockIsOnline: { value: true } }))
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline.value }),

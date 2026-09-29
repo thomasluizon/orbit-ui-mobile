@@ -2,16 +2,28 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAgentScopeOptions,
   buildMcpConfigJson,
+  getMcpEndpointUrl,
   MCP_CONFIG_TABS,
-  MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '../utils/advanced-settings'
 
 describe('advanced settings utils', () => {
-  it('keeps the shared mcp endpoint stable', () => {
-    expect(MCP_ENDPOINT_URL).toBe('https://api.useorbit.org/mcp')
-    expect(buildMcpConfigJson()).toContain(MCP_ENDPOINT_URL)
+  const productionApiBase = 'https://api.useorbit.org'
+
+  it.each([
+    ['https://api-staging.useorbit.org', 'https://api-staging.useorbit.org/mcp'],
+    ['https://api-staging.useorbit.org/', 'https://api-staging.useorbit.org/mcp'],
+    [productionApiBase, `${productionApiBase}/mcp`],
+  ])('derives the MCP endpoint from %s', (apiBase, endpoint) => {
+    expect(getMcpEndpointUrl(apiBase)).toBe(endpoint)
+    expect(JSON.parse(buildMcpConfigJson(endpoint)).mcpServers.orbit.url).toBe(endpoint)
+  })
+
+  it('trims any run of trailing slashes in linear time', () => {
+    const slashes = '/'.repeat(100_000)
+    expect(getMcpEndpointUrl(`https://api.useorbit.org${slashes}`)).toBe('https://api.useorbit.org/mcp')
+    expect(getMcpEndpointUrl(`${slashes}x${slashes}`)).toBe(`${slashes}x/mcp`)
   })
 
   it('defines the supported config tabs', () => {
