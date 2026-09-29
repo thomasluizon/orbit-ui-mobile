@@ -11,7 +11,6 @@ import {
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal } from '@orbit/shared/types/goal'
 import { clearContextualSuggestionIfCurrent, prepareChatRequest } from '@orbit/shared/stores'
@@ -47,15 +46,9 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import {
-  Gift,
-  Lock,
-  Snowflake,
-} from '@/components/ui/icons'
+import { Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
-import { ListRow } from '@/components/ui/list-row'
-import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -74,11 +67,11 @@ import { useUIStore } from '@/stores/ui-store'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
-function Section({ title, children, compact = false }: Readonly<{ title: string; children: ReactNode; compact?: boolean }>) {
+function Section({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
   const headingId = useId()
   return (
-    <section className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`} aria-labelledby={headingId}>
-      <h2 id={headingId} className={compact ? 'text-[14px] font-medium text-[var(--fg-2)]' : 'text-[20px] font-medium text-[var(--fg-1)]'}>{title}</h2>
+    <section className="flex flex-col gap-4" aria-labelledby={headingId}>
+      <h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
       {children}
     </section>
   )
@@ -130,9 +123,6 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   return (
     <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
-      <div className="flex w-full flex-col gap-3" aria-hidden="true">
-        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
-      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
@@ -541,7 +531,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
   const t = useTranslations()
   if (!gamificationAvailable) {
     return (
-      <Section compact title={t('progressScreen.sections.achievements')}>
+      <Section title={t('progressScreen.sections.achievements')}>
         <div className="w-full">
           <LockedCard
             title={t('progressScreen.achievements.lockedTitle')}
@@ -565,7 +555,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         </div>
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
-      <Section compact title={t('progressScreen.sections.achievements')}>
+      <Section title={t('progressScreen.sections.achievements')}>
         {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
@@ -575,7 +565,6 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
 export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
-  const router = useRouter()
   const isDesktop = useIsDesktop()
   const account = useProfile()
   const goals = useGoals()
@@ -600,15 +589,6 @@ export function ProgressContent() {
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
-      <RowList>
-        <ListRow
-          accessibilityLabel={t('profile.wrappedTitle')}
-          icon={<Gift size={24} strokeWidth={1.8} aria-hidden="true" />}
-          title={t('profile.wrappedTitle')}
-          description={t('profile.wrappedHint')}
-          onClick={() => router.push('/wrapped')}
-        />
-      </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {empty ? <div className="pt-12"><GoalsEmptyState /></div> : null}

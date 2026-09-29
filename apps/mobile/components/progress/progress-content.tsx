@@ -44,15 +44,9 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import {
-  Gift,
-  Lock,
-  Snowflake,
-} from '@/components/ui/icons'
+import { Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
-import { ListRow } from '@/components/ui/list-row'
-import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -72,8 +66,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
-function Section({ title, children, tokens, compact = false }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2; compact?: boolean }>) {
-  return <View style={[styles.section, compact ? styles.compactSection : undefined]}><Text accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
+function Section({ title, children, tokens }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2 }>) {
+  return <View style={styles.section}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>{children}</View>
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
@@ -462,7 +456,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   const { width } = useWindowDimensions()
   if (!gamificationAvailable) {
     return (
-      <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}>
+      <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
         <View style={styles.windowLock}>
           <LockedCard
             title={t('progressScreen.achievements.lockedTitle')}
@@ -485,7 +479,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <View style={styles.xpRow}><Text style={[styles.progressTitle, { color: tokens.fg1 }]}>{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</Text><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</Text></View>
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
-      <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}>
+      <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
         {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} wide={wide} />)}</View></View>)}
       </Section>
     </>
@@ -497,9 +491,6 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const columns = width >= 768 ? 4 : 2
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
-      <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
-        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
-      </View>
       <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 4 / columns }, (_, row) => (
           <View key={row} style={styles.loadingTileRow}>
@@ -526,7 +517,6 @@ export function ProgressContent() {
   const goalCardRefs = useRef(new Map<string, View>())
   const pageHeadingRef = useRef<Text>(null)
   const { t } = useTranslation()
-  const router = useRouter()
   const { width } = useWindowDimensions()
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
@@ -569,15 +559,6 @@ export function ProgressContent() {
       {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
-      <RowList>
-        <ListRow
-          accessibilityLabel={t('profile.wrappedTitle')}
-          icon={<Gift size={24} strokeWidth={1.8} color={tokens.fg1} />}
-          title={t('profile.wrappedTitle')}
-          description={t('profile.wrappedHint')}
-          onClick={() => router.push('/wrapped')}
-        />
-      </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {empty ? <View style={styles.empty}><GoalsEmptyState /></View> : null}
@@ -590,10 +571,10 @@ export function ProgressContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
-  section: { gap: 16 }, compactSection: { gap: 12 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 }, compactTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
+  section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
   streakSection: { width: '100%', maxWidth: 560, gap: 12 },
   streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },

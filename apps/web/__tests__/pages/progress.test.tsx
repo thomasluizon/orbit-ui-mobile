@@ -192,13 +192,11 @@ function getStreakStatus(): HTMLElement {
 describe('ProgressContent', () => {
   let textStyles: string
 
-  it('keeps the Wrapped fallback as the first Progresso entry', () => {
+  it('opens Progresso with its drawn sections and no Wrapped entry', () => {
     render(<ProgressPage />)
-    const firstAction = screen.getAllByRole('button')[0]
-
-    expect(firstAction).toHaveAccessibleName('profile.wrappedTitle')
-    fireEvent.click(firstAction!)
-    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+    expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 2 })[0]).toHaveTextContent('progressScreen.sections.streak')
   })
 
   beforeAll(async () => {
@@ -521,10 +519,9 @@ describe('ProgressContent', () => {
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
     expect(screen.getByRole('progressbar', { name: 'progressScreen.loading' })).toHaveAttribute('aria-busy', 'true')
     expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
-      'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
+      'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
     ])
-    expect(screen.getAllByRole('button')).toHaveLength(1)
-    expect(screen.getByRole('button')).toHaveAccessibleName('profile.wrappedTitle')
+    expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
@@ -543,7 +540,7 @@ describe('ProgressContent', () => {
     mocks[query].isError = true
     const { rerender } = render(<ProgressPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(screen.getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -667,6 +664,8 @@ describe('ProgressContent', () => {
       'progressScreen.sections.window',
       'progressScreen.sections.achievements',
     ])
+    expect(headings[3]!.className).toBe(headings[1]!.className)
+    expect(headings[3]!.className).toBe(headings[2]!.className)
     const regions = screen.getAllByRole('region')
     expect(regions).toHaveLength(headings.length)
     for (const [index, region] of regions.entries()) {

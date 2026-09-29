@@ -58,6 +58,24 @@ function achievementCopy(
 }
 
 describe('achievement i18n coverage', () => {
+  it.each([
+    { locale: 'en', bundle: en, gettingStarted: 'Getting started', together: 'Together' },
+    { locale: 'pt-BR', bundle: ptBR, gettingStarted: 'Primeiros passos', together: 'Em grupo' },
+  ])('uses sentence case for achievement categories in $locale', ({ bundle, gettingStarted, together }) => {
+    expect(bundle.gamification.categories.GettingStarted).toBe(gettingStarted)
+    expect(bundle.gamification.categories.Together).toBe(together)
+    for (const category of Object.values(bundle.gamification.categories)) {
+      expect(category).not.toMatch(/\p{Ll}\s+\p{Lu}/u)
+    }
+  })
+
+  it.each([
+    { locale: 'en', bundle: en, legend: ['day active', 'day frozen', 'day missed'] },
+    { locale: 'pt-BR', bundle: ptBR, legend: ['dia ativo', 'dia congelado', 'dia sem registro'] },
+  ])('uses the drawn streak legend in $locale', ({ bundle, legend }) => {
+    expect([bundle.progressScreen.streak.active, bundle.progressScreen.streak.frozen, bundle.progressScreen.streak.missed]).toEqual(legend)
+  })
+
   it.each(BACKEND_ACHIEVEMENT_KEYS)(
     'has en name and description for "%s"',
     (key) => {

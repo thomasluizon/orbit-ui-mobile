@@ -291,15 +291,13 @@ function findProgressHeadingFocusTarget(root: TestNode) {
 }
 
 describe('mobile ProgressContent', () => {
-  it('keeps the Wrapped fallback as the first Progresso entry', async () => {
+  it('opens Progresso with its drawn sections and no Wrapped entry', async () => {
     const tree = await renderProgress()
-    const firstAction = tree.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
-    )[0]!
-
-    expect(firstAction.props.accessibilityLabel).toBe('profile.wrappedTitle')
-    TestRenderer.act(() => (firstAction.props.onPress as () => void)())
-    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.wrappedTitle')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'profile.wrappedHint')).toHaveLength(0)
+    const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')
+    expect(headings[0]?.props.children).toBe('progressScreen.title')
+    expect(headings[1]?.props.children).toBe('progressScreen.sections.streak')
   })
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
@@ -587,7 +585,6 @@ describe('mobile ProgressContent', () => {
     expect(announcements[0]?.props).toMatchObject({ accessible: true, accessibilityLabel: 'progressScreen.loading', accessibilityState: { busy: true } })
     const units = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('skeleton-unit-'))
     expect(units.map((unit) => unit.props.testID)).toEqual([
-      'skeleton-unit-settings', 'skeleton-unit-settings',
       'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile',
       'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
     ])
@@ -752,6 +749,11 @@ describe('mobile ProgressContent', () => {
         expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()
       }
     }
+    const sectionHeadings = labels.map((label) => tree.root.findAll((node) => node.type === 'Text'
+      && node.props.accessibilityRole === 'header' && node.props.children === label)[0]!)
+    expect(StyleSheet.flatten(sectionHeadings[3]!.props.style as TextStyle)).toEqual(
+      StyleSheet.flatten(sectionHeadings[1]!.props.style as TextStyle),
+    )
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
       .map((node) => ({ label: node.props.label, value: node.props.value }))
     expect(figures).toEqual([

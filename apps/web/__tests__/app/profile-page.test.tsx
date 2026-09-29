@@ -239,7 +239,6 @@ describe('ProfilePage', () => {
       'profile.groups.ending',
     ])
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
-    expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
     expect(screen.getByText('profile.widgetTitle')).toBeInTheDocument()
     expect(screen.getByText('calendar.profileButton')).toBeInTheDocument()
     expect(screen.getByText('profile.support.title')).toBeInTheDocument()
