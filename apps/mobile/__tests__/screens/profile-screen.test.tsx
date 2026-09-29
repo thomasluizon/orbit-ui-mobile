@@ -2,6 +2,7 @@ import React from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { StepUpTimingRecord } from '@orbit/shared/utils'
@@ -71,6 +72,8 @@ const {
   mockStepUpVerified,
   mockCreateGrant,
   mockApiKeys,
+  mockTranslate,
+  mockLocale,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -105,6 +108,8 @@ const {
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
+  mockTranslate: { current: (key: string) => key },
+  mockLocale: { current: 'en' },
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -142,8 +147,8 @@ vi.mock('react-i18next', () => ({
     init: () => {},
   },
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en', changeLanguage: mockChangeLanguage },
+    t: (key: string) => mockTranslate.current(key),
+    i18n: { language: mockLocale.current, changeLanguage: mockChangeLanguage },
   }),
 }))
 
@@ -507,6 +512,8 @@ function findButtonByText(
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
+    mockTranslate.current = (key) => key
+    mockLocale.current = 'en'
     mockApiClient.mockReset()
     mockPerformQueuedApiMutation.mockReset()
     mockShareAsync.mockReset().mockResolvedValue(undefined)
@@ -549,6 +556,60 @@ describe('ProfileScreen', () => {
     }
   })
 
+  it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', async () => {
+    mockLocale.current = 'pt-BR'
+    mockTranslate.current = (key) => {
+      let message: unknown = ptBR
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string' ? message : key
+    }
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const groupText = (node: unknown): string => {
+      if (typeof node === 'string' || typeof node === 'number') return String(node)
+      if (!node || typeof node !== 'object' || !('children' in node)) return ''
+      const rendered = node as { type: unknown; props: { label?: string; value?: string }; children: unknown[] }
+      const rowContent = rendered.type === 'SettingsRowStub'
+        ? `${rendered.props.label ?? ''}${rendered.props.value ?? ''}`
+        : ''
+      return rowContent + rendered.children.map(groupText).join('')
+    }
+    const inOrder = (group: string, labels: string[]) => {
+      const content = groupText(tree.root.findByProps({ testID: `profile-settings-group-${group}` }))
+      let previous = -1
+      for (const label of labels) {
+        const position = content.indexOf(label, previous + 1)
+        expect(position, `${label} in ${group}`).toBeGreaterThan(previous)
+        previous = position
+      }
+    }
+    inOrder('you', [
+      'Fuso horário', 'Semana começa em', 'Idioma', 'Português do Brasil',
+      'Tema', 'Exportar os meus dados',
+    ])
+    inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
+    inOrder('notifications', [
+      'Análise de uso', 'Os lembretes de cada hábito ficam no próprio hábito.',
+    ])
+    expect(tree.root.findAll((node: { props: { testID?: string } }) =>
+      node.props.testID === 'marketing-consent-section')).toHaveLength(1)
+    inOrder('more', [
+      'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
+      'Ajuda e suporte', 'Sobre o Orbit',
+    ])
+    inOrder('ending', ['Sair da conta', 'Começar de novo', 'Apagar a conta'])
+    expect(groupText(tree.root.findByProps({ testID: 'profile-settings-group-you' }))).not.toContain('Plano')
+    expect(groupText(tree.root)).not.toContain('Compartilhar progresso')
+  })
+
   it('renders every feature destination as a grouped settings row with its hint', async () => {
     const tree = await renderProfileScreen()
 
@@ -567,17 +628,15 @@ describe('ProfileScreen', () => {
       ).toBeGreaterThan(0)
     }
 
-    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.settingsRows.wrapped').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
       'profile.widgetHint',
     )
-    expect(findRowByLabel(tree, 'calendar.profileButton').props.hint).toBe(
-      'calendar.profileHint',
+    expect(findRowByLabel(tree, 'profile.calendarSync.title').props.hint).toBe(
+      'profile.calendarSync.hint',
     )
-    expect(findRowByLabel(tree, 'profile.support.title').props.hint).toBe(
-      'profile.support.description',
-    )
-    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.support.rowTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.aboutRow').props.hint).toBeUndefined()
 
     const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
     expect(more.findAllByType('RowListStub')[0].props.rowCount).toBeGreaterThan(1)
@@ -585,12 +644,11 @@ describe('ProfileScreen', () => {
       more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
         .map((node: SettingsRowStubNode) => node.props.label),
     ).toEqual([
-      'profile.wrappedTitle',
+      'profile.settingsRows.wrapped',
       'profile.widgetTitle',
-      'calendar.profileButton',
-      'profile.support.title',
-      'profile.sections.aboutHelp',
-      'shareCard.entry',
+      'profile.calendarSync.title',
+      'profile.support.rowTitle',
+      'profile.aboutRow',
     ])
 
     for (const movedLabel of [
@@ -622,21 +680,23 @@ describe('ProfileScreen', () => {
 
   it('keeps every profile setting reachable by its accessible name', async () => {
     const tree = await renderProfileScreen()
+    expect(tree.root.findAll((node: SettingsRowStubNode) =>
+      node.type === 'SettingsRowStub' &&
+      ['profile.subscription.plan', 'shareCard.entry'].includes(node.props.label ?? ''))).toHaveLength(0)
     const accessibleNames = [
       'profile.settingsRows.editName',
       'profile.language.title',
       'profile.settingsRows.timezoneValue',
-      'settings.weekStartDay.title',
-      'profile.subscription.plan',
-      'profile.wrappedTitle',
+      'profile.settingsRows.weekStart',
+      'profile.settingsRows.wrapped',
       'profile.widgetTitle',
-      'calendar.profileButton',
-      'profile.support.title',
-      'profile.sections.aboutHelp',
-      'dataExport.button',
-      'profile.logout',
-      'profile.freshStart.button',
-      'profile.deleteAccount.button',
+      'profile.calendarSync.title',
+      'profile.support.rowTitle',
+      'profile.aboutRow',
+      'profile.settingsRows.export',
+      'profile.settingsRows.signOut',
+      'profile.settingsRows.startOver',
+      'profile.settingsRows.deleteAccount',
     ]
 
     for (const accessibilityLabel of accessibleNames) {
@@ -650,19 +710,15 @@ describe('ProfileScreen', () => {
       ).toHaveLength(1)
     }
     const themeChoices = tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode')
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme')
     expect(themeChoices.some((choice: { props: { style: { flexWrap?: string; maxWidth?: string } } }) =>
       choice.props.style.flexWrap === 'wrap' && choice.props.style.maxWidth === '100%')).toBe(true)
   })
 
-  it('keeps the share card reachable outside Ending things', async () => {
+  it('keeps the share card off Perfil', async () => {
     const tree = await renderProfileScreen()
-    const shareCardEntry = findRowByLabel(tree, 'shareCard.entry')
-    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
-
-    expect(shareCardEntry).toBeDefined()
     expect(
-      ending.findAll(
+      tree.root.findAll(
         (node: SettingsRowStubNode) =>
           node.type === 'SettingsRowStub' && node.props.label === 'shareCard.entry',
       ),
@@ -676,7 +732,7 @@ describe('ProfileScreen', () => {
       (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
     ) as SettingsRowStubNode[]
 
-    expect(rows[0]?.props.label).toBe('profile.logout')
+    expect(rows[0]?.props.label).toBe('profile.settingsRows.signOut')
   })
 
   it('puts Fresh Start directly after Sign out', async () => {
@@ -686,7 +742,7 @@ describe('ProfileScreen', () => {
       (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
     ).map((node: SettingsRowStubNode) => node.props.label)
 
-    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+    expect(labels.slice(0, 2)).toEqual(['profile.settingsRows.signOut', 'profile.settingsRows.startOver'])
   })
 
   it('keeps Delete account last in the three-row ending group', async () => {
@@ -697,9 +753,9 @@ describe('ProfileScreen', () => {
     ).map((node: SettingsRowStubNode) => node.props.label)
 
     expect(labels).toEqual([
-      'profile.logout',
-      'profile.freshStart.button',
-      'profile.deleteAccount.button',
+      'profile.settingsRows.signOut',
+      'profile.settingsRows.startOver',
+      'profile.settingsRows.deleteAccount',
     ])
   })
 
@@ -1204,11 +1260,11 @@ describe('ProfileScreen', () => {
       (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
     ) as SettingsRowStubNode[]
 
-    expect(youRows.at(-1)?.props.label).toBe('dataExport.button')
+    expect(youRows.at(-1)?.props.label).toBe('profile.settingsRows.export')
     expect(
       endingGroup.findAll(
         (node: SettingsRowStubNode) =>
-          node.type === 'SettingsRowStub' && node.props.label === 'dataExport.button',
+          node.type === 'SettingsRowStub' && node.props.label === 'profile.settingsRows.export',
       ),
     ).toHaveLength(0)
   })
@@ -1223,10 +1279,10 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'dataExport.button').props.onPress?.()
+      findRowByLabel(tree, 'profile.settingsRows.export').props.onPress?.()
       await Promise.resolve()
     })
-    expect(findRowByLabel(tree, 'dataExport.button').props.value).toBe(
+    expect(findRowByLabel(tree, 'profile.settingsRows.export').props.value).toBe(
       'dataExport.preparing',
     )
 
@@ -1274,7 +1330,7 @@ describe('ProfileScreen', () => {
           node.props.testID === 'marketing-consent-section',
       ),
     ).toHaveLength(1)
-    expect(nodeText(notificationsGroup)).toContain('profile.analytics.description')
+    expect(nodeText(notificationsGroup)).not.toContain('profile.analytics.description')
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
@@ -1297,7 +1353,7 @@ describe('ProfileScreen', () => {
         (node: { children: unknown[] }) =>
           node.children.includes('profile.settingsRows.remindersNote'),
       ),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     expect(
       notificationsGroup.findAll(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
@@ -1331,7 +1387,7 @@ describe('ProfileScreen', () => {
 
   it('redirects gated feature rows to upgrade for free users', async () => {
     const tree = await renderProfileScreen()
-    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
+    const calendarRow = findRowByLabel(tree, 'profile.calendarSync.title')
 
     await TestRenderer.act(async () => {
       calendarRow.props.onPress?.()
@@ -1352,7 +1408,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.wrappedTitle').props.onPress?.()
+      findRowByLabel(tree, 'profile.settingsRows.wrapped').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')
@@ -1368,14 +1424,14 @@ describe('ProfileScreen', () => {
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.support.title').props.onPress?.()
+      findRowByLabel(tree, 'profile.support.rowTitle').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/support')
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.sections.aboutHelp').props.onPress?.()
+      findRowByLabel(tree, 'profile.aboutRow').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
@@ -1383,7 +1439,7 @@ describe('ProfileScreen', () => {
 
   it('opens each inline preference directly and sends Support to its form', async () => {
     const tree = await renderProfileScreen()
-    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+    for (const label of ['profile.language.title', 'profile.settingsRows.weekStart']) {
       mockRouterPush.mockClear()
       await TestRenderer.act(async () => {
         findRowByLabel(tree, label).props.onPress?.()
@@ -1392,22 +1448,13 @@ describe('ProfileScreen', () => {
       expect(mockRouterPush).not.toHaveBeenCalled()
     }
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'preferences.themeMode').length).toBeGreaterThan(0)
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme').length).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.support.title').props.onPress?.()
+      findRowByLabel(tree, 'profile.support.rowTitle').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/support')
     expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
-  })
-
-  it('routes the plan row to upgrade with the profile return path', async () => {
-    const tree = await renderProfileScreen()
-    await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.subscription.plan').props.onPress?.()
-      await Promise.resolve()
-    })
-    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/upgrade', params: { from: '/profile' } })
   })
 
   it('refreshes push permission when the app becomes active', async () => {
@@ -1461,7 +1508,7 @@ describe('ProfileScreen', () => {
     expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setLanguage', payload: { language: 'pt-BR' } }))
 
     TestRenderer.act(() => {
-      findRowByLabel(tree, 'settings.weekStartDay.title').props.onPress?.()
+      findRowByLabel(tree, 'profile.settingsRows.weekStart').props.onPress?.()
     })
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
@@ -1523,7 +1570,7 @@ describe('ProfileScreen', () => {
       error: null,
     }
     const tree = await renderProfileScreen()
-    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
+    const calendarRow = findRowByLabel(tree, 'profile.calendarSync.title')
 
     await TestRenderer.act(async () => {
       calendarRow.props.onPress?.()

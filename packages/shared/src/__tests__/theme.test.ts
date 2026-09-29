@@ -45,16 +45,6 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /const titleColor = danger \? 'var\(--status-bad-text\)'/,
   },
   {
-    name: 'web share-card fetch error',
-    path: 'apps/web/components/share/share-card-panel.tsx',
-    pattern: /isLoading && isError[\s\S]*?fontSize: 14, color: 'var\(--status-bad-text\)'/,
-  },
-  {
-    name: 'web share-card action error',
-    path: 'apps/web/components/share/share-card-panel.tsx',
-    pattern: /hasError[\s\S]*?fontSize: 13, color: 'var\(--status-bad-text\)'/,
-  },
-  {
     name: 'web API-key list load error',
     path: 'apps/web/components/profile/profile-api-keys.tsx',
     pattern: /if \(loadError\)[\s\S]*?text-\[var\(--status-bad-text\)\][\s\S]*?\{t\('orbitMcp\.apiKeysError'\)\}/,
@@ -153,11 +143,6 @@ const BAD_TEXT_SOURCE_SITES = [
     name: 'mobile settings row title',
     path: 'apps/mobile/components/ui/settings-row.tsx',
     pattern: /const titleColor = danger \? tokens\.statusBadText/,
-  },
-  {
-    name: 'mobile share-card errors',
-    path: 'apps/mobile/components/share/share-card-panel.tsx',
-    pattern: /errorText[\s\S]*?color: tokens\.statusBadText/,
   },
 ] as const
 

@@ -70,6 +70,7 @@ export function AstraAllowancePanel({
       </View>
       {!profile.isLifetimePro ? (
         <View style={styles.actionRow}>
+          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 111 controls this action under D42. */}
           <PillButton
             variant="ghost"
             size="sm"

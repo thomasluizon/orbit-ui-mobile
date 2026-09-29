@@ -226,12 +226,10 @@
       "m-overlay-milestone-share-milestone-share-prompt",
       "m-overlay-referral-referral-drawer",
       "m-overlay-referral-referral-prompt",
-      "m-overlay-share-share-card-panel",
       "m-route-wrapped",
       "overlay-milestone-share-milestone-share-prompt",
       "overlay-referral-referral-drawer",
       "overlay-referral-referral-prompt",
-      "overlay-share-share-card-panel",
       "route-wrapped"
     ]
   },
@@ -319,6 +317,14 @@
     {
       "surfaceId": "m-overlay-ui-selection-field",
       "decision": "Mobile radio groups use the RadioGroup primitive for keyboard navigation; no second implementation is needed."
+    },
+    {
+      "surfaceId": "m-overlay-share-share-card-panel",
+      "decision": "Perfil as drawn has no share entry, and the share card panel had no other entry point, so ticket 906 deleted it."
+    },
+    {
+      "surfaceId": "overlay-share-share-card-panel",
+      "decision": "Perfil as drawn has no share entry, and the share card panel had no other entry point, so ticket 906 deleted it."
     }
   ],
   "excluded": [
