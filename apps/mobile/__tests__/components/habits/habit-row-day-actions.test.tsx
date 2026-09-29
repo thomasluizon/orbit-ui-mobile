@@ -51,9 +51,9 @@ describe('mobile habit row on an old day', () => {
     TestRenderer.act(() => more.props.onPress())
     const items = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
     const labels = items.map((item: TestNode) => item.findByType('Text').props.children)
-    for (const label of [i18n.t('habits.form.addSubHabit'), i18n.t('habits.moveParent.button'),
+    for (const label of [i18n.t('habits.actions.addSubHabit'), i18n.t('habits.actions.moveUnder'),
       i18n.t('common.edit'), i18n.t('habits.actions.duplicate'), i18n.t('common.select'),
-      i18n.t('habits.actions.openSubHabits'), i18n.t('habits.deleteHabit')]) {
+      i18n.t('habits.actions.openSubHabits'), i18n.t('habits.actions.delete')]) {
       expect(labels).toContain(label)
     }
     expect(labels).not.toContain(i18n.t('habits.actions.skip'))

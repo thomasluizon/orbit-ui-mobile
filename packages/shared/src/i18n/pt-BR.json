@@ -482,11 +482,15 @@
     },
     "actions": {
       "more": "Mais ações",
+      "menuTitle": "Hábito",
+      "addSubHabit": "Adicionar sub-hábito",
+      "moveUnder": "Mover para outro hábito",
+      "delete": "Apagar",
       "duplicate": "Duplicar",
       "skip": "Pular",
-      "openSubHabits": "Abrir sub-hábitos",
+      "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como incompleto",
-      "reschedule": "Reagendar com IA"
+      "reschedule": "Reagendar"
     },
     "reschedule": {
       "title": "Reagendar com IA",

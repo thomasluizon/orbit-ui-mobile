@@ -65,20 +65,21 @@ function buildMenuItems(
   canDrillInto: boolean,
   hasProAccess: boolean,
   completionReadOnly: boolean,
+  state: HabitStatus,
 ): MenuItem[] {
   const items: MenuItem[] = []
-  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit'), badge: hasProAccess ? undefined : 'Pro' })
-  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
-  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip') })
-  if (actions.onReschedule && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
-  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
-  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
-  if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select') })
+  if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask', badge: hasProAccess ? undefined : 'Pro' })
+  if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
+  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule'), icon: 'calendar-time' })
+  if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
+  if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
+  if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select'), icon: 'checkbox' })
   if (canDrillInto && actions.onDrillInto) {
-    items.push({ id: 'drill', label: t('habits.actions.openSubHabits') })
+    items.push({ id: 'drill', label: t('habits.actions.openSubHabits'), icon: 'list-tree' })
   }
   if (actions.onDelete) {
-    items.push({ id: 'delete', label: t('habits.deleteHabit'), destructive: true })
+    items.push({ id: 'delete', label: t('habits.actions.delete'), icon: 'trash', destructive: true })
   }
   return items
 }
@@ -157,7 +158,7 @@ export function HabitRowTrailing({
     if (ownsActiveMenu.current) activeHabitMenuClose = null
   }, [])
   const reasonId = useId()
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly, state)
   const statusLabel = availableStatusLabel(completionStatusUnavailable, t(statusDotLabelKey))
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionDisabled = completionIsDisabled(completionReadOnly, canLog, isDone)
@@ -219,7 +220,7 @@ export function HabitRowTrailing({
           <Menu
             open={menuOpen}
             anchorRef={menuAnchorRef}
-            title={t('habits.actions.more')}
+            title={habit.title || t('habits.actions.menuTitle')}
             items={menuItems}
             onClose={closeMenu}
             onSelect={(id) => {
