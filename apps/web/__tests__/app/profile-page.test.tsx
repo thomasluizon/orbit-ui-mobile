@@ -19,6 +19,10 @@ const {
   mockApiKeys,
   mockCreateApiKey,
   mockRequestApiKeyCreationChallenge,
+  mockApplyTheme,
+  mockUpdateWeekStartDay,
+  mockUpdateLanguage,
+  mockTogglePush,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -33,6 +37,10 @@ const {
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockCreateApiKey: vi.fn(),
   mockRequestApiKeyCreationChallenge: vi.fn(),
+  mockApplyTheme: vi.fn(),
+  mockUpdateWeekStartDay: vi.fn(),
+  mockUpdateLanguage: vi.fn(),
+  mockTogglePush: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -46,6 +54,20 @@ vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
   updateProactiveAstra: mockUpdateProactiveAstra,
+  updateWeekStartDay: mockUpdateWeekStartDay,
+  updateLanguage: mockUpdateLanguage,
+}))
+
+vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  usePushNotificationPreferences: () => ({
+    supported: true,
+    subscribed: false,
+    permission: 'default',
+    loading: false,
+    status: 'not-registered',
+    togglePush: mockTogglePush,
+  }),
 }))
 
 vi.mock('@/lib/actions/api-keys', () => ({
@@ -77,7 +99,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-color-scheme', () => ({
-  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: vi.fn() }),
+  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: mockApplyTheme }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -108,7 +130,6 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
-  useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
 
@@ -120,8 +141,8 @@ vi.mock('@/hooks/use-gamification', () => ({
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => 'account-a',
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: vi.fn() }),
+  useAuthStore: (selector: (state: { logout: () => void; isAuthenticated: boolean }) => unknown) =>
+    selector({ logout: vi.fn(), isAuthenticated: true }),
   useHeldAccountId: () => 'user-1',
 }))
 
@@ -190,6 +211,10 @@ describe('ProfilePage', () => {
     mockApiKeys.current = []
     mockCreateApiKey.mockReset()
     mockRequestApiKeyCreationChallenge.mockReset().mockResolvedValue(undefined)
+    mockApplyTheme.mockReset()
+    mockUpdateWeekStartDay.mockReset().mockResolvedValue(undefined)
+    mockUpdateLanguage.mockReset().mockRejectedValue(new Error('save failed'))
+    mockTogglePush.mockReset().mockResolvedValue(undefined)
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -240,23 +265,22 @@ describe('ProfilePage', () => {
       'profile.language.title',
       'profile.settingsRows.timezone',
       'settings.weekStartDay.title',
-      'preferences.themeMode',
       'profile.subscription.plan',
       'dataExport.button',
       'profile.logout',
       'profile.freshStart.button',
       'profile.deleteAccount.button',
-      'profile.support.title',
     ]
 
     for (const name of accessibleNames) {
       expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
+    expect(screen.getByRole('group', { name: 'preferences.themeMode' })).toBeInTheDocument()
     for (const name of [
       'profile.wrappedTitle',
-      'profile.widgetTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
+      'profile.support.title',
     ]) {
       expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
@@ -266,6 +290,65 @@ describe('ProfilePage', () => {
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('opens each inline preference directly and sends Support to its form', () => {
+    for (const label of ['profile.language.title', 'settings.weekStartDay.title']) {
+      const view = render(<ProfilePage />)
+      mockRouterPush.mockClear()
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      view.unmount()
+    }
+    render(<ProfilePage />)
+    const themeChoices = screen.getByRole('group', { name: 'preferences.themeMode' })
+    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
+    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
+    expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
+    expect(screen.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
+  })
+
+  it('changes the inline theme and general habits preference', () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem')
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
+    expect(mockApplyTheme).toHaveBeenCalledWith('light')
+
+    const showGeneral = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
+    fireEvent.click(showGeneral)
+    expect(showGeneral).toHaveAttribute('aria-checked', 'true')
+    expect(write).toHaveBeenCalledWith(expect.stringContaining('orbit_show_general_on_today'), 'true')
+    write.mockRestore()
+  })
+
+  it('routes the plan row to upgrade and opens widget help inline', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile\.subscription\.plan/i }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+
+    fireEvent.click(screen.getByRole('button', { name: /profile\.widgetTitle/i }))
+    expect(screen.getByRole('dialog', { name: 'profile.widgetTitle' })).toBeInTheDocument()
+  })
+
+  it('commits a week start choice from the inline picker', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /settings\.weekStartDay\.title/i }))
+    fireEvent.click(screen.getByRole('radio', { name: 'settings.weekStartDay.sunday' }))
+    expect(mockUpdateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, 'account-a')
+  })
+
+  it('submits a language choice from the inline picker', async () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile\.language\.title/i }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Português' }))
+    await waitFor(() => expect(mockUpdateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a'))
+  })
+
+  it('uses the inline notification switch to toggle browser push', () => {
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'settings.notifications.title' }))
+    expect(mockTogglePush).toHaveBeenCalledOnce()
   })
 
   it('keeps the share card reachable outside Ending things', () => {
@@ -310,14 +393,11 @@ describe('ProfilePage', () => {
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
 
     expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
-    expect(freeMore.getByRole('link', { name: /profile\.widgetTitle/i })).toHaveAttribute('href', '/advanced')
+    expect(freeMore.getByRole('button', { name: /profile\.widgetTitle/i })).toBeInTheDocument()
     const calendarGate = freeMore.getByRole('link', { name: /calendar\.profileButton/i })
     expect(calendarGate).toHaveAttribute('href', '/upgrade')
     expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
-    const supportRow = freeMore.getByRole('button', { name: /profile\.support\.title/i })
-    fireEvent.click(supportRow)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(useUIStore.getState().astraEntryPointIntent).toBe('support')
+    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
     expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
 
@@ -641,6 +721,10 @@ describe('ProfilePage', () => {
     expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade')
     const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
     const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
+    const proactiveRow = proactiveSwitch.closest('[data-testid="profile-value-row"]')
+    const summaryRow = summarySwitch.closest('[data-testid="profile-value-row"]')
+    expect(summaryRow?.parentElement).not.toBe(proactiveRow?.parentElement)
+    expect(summaryRow?.parentElement?.getAttribute('style')).toContain('border-top: 1px solid var(--hairline)')
     fireEvent.click(proactiveSwitch)
     fireEvent.click(summarySwitch)
     expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, 'account-a')

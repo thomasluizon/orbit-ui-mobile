@@ -128,6 +128,21 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(payload)
 }
 
+function profileForRequest(req: IncomingMessage): unknown {
+  const authorization = req.headers.authorization
+  if (!authorization?.startsWith('Bearer ')) return profileFixture
+  const encodedPayload = authorization.slice('Bearer '.length).split('.')[1]
+  if (!encodedPayload) return profileFixture
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as unknown
+    const session = z.object({ hermeticProfile: profileSchema.optional() }).parse(payload)
+    return session.hermeticProfile ?? profileFixture
+  } catch {
+    return null
+  }
+}
+
 function handleCatchAll(method: string, pathname: string, res: ServerResponse): void {
   log(`unmapped ${method} ${pathname}`)
   if (method === 'POST' && pathname === '/api/auth/refresh') {
@@ -155,7 +170,12 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   const route = routes.find((entry) => entry.method === method && entry.path === pathname)
   if (route) {
     log(`${method} ${pathname}`)
-    sendJson(res, 200, route.body)
+    const body = pathname === '/api/profile' ? profileForRequest(req) : route.body
+    if (body === null) {
+      sendJson(res, 400, { error: 'Invalid hermetic profile session' })
+      return
+    }
+    sendJson(res, 200, body)
     return
   }
 

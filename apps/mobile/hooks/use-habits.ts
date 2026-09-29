@@ -17,6 +17,7 @@ import {
   buildOptimisticSkipPatch,
   findHabitInList,
   formatAPIDate,
+  getFriendlyErrorMessage,
   normalizeHabits,
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
@@ -228,7 +229,7 @@ function rollbackDatedHabitLists(
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
-  const { showInfo } = useAppToast()
+  const { showInfo, showError } = useAppToast()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useMutation<
@@ -315,7 +316,7 @@ export function useLogHabit() {
       return { previousLists, previousLogs, previousCalendars }
     },
 
-    onError: (_err, variables, context) => {
+    onError: (error, variables, context) => {
       if (context?.previousLists && !variables.date) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -356,6 +357,7 @@ export function useLogHabit() {
               : currentCalendar)
         }
       }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
     },
 
     onSuccess: (response, variables) => {

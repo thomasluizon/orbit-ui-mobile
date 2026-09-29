@@ -8,7 +8,8 @@ import {
   type UseMutationOptions,
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { getHeldAccountId } from '@/stores/auth-store'
+import { resetAccountQueries } from '@orbit/shared/query'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -101,7 +102,7 @@ export function useAccountScopedMutation<
       } finally {
         if (getAccountGeneration() !== variables.accountGeneration
           || getHeldAccountId() !== variables.intendedAccountId) {
-          void queryClient.resetQueries()
+          void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
         }
       }
     }
@@ -112,7 +113,9 @@ export function useAccountScopedMutation<
   }
   scopedOptions.onError = (error, variables, onMutateResult, context) => {
     if (reportsAccountChanged(error)) {
-      if (getHeldAccountId() === variables.intendedAccountId && getAccountGeneration() === variables.accountGeneration) queryClient.clear()
+      if (getHeldAccountId() === variables.intendedAccountId && getAccountGeneration() === variables.accountGeneration) {
+        void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
+      }
       showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
       return
     }
@@ -122,7 +125,7 @@ export function useAccountScopedMutation<
     if (stillHeld(variables, error)) {
       return onSettled?.(data, error, variables.input, onMutateResult, context)
     }
-    if (getHeldAccountId() === variables.intendedAccountId) {
+    if (getHeldAccountId() === variables.intendedAccountId || variables.intendedAccountId === null) {
       return queryClient.invalidateQueries()
     }
   }

@@ -1,4 +1,5 @@
 export { achievementEmoji } from './achievement-emoji'
+export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
@@ -689,6 +690,7 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
+export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,

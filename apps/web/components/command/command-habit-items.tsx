@@ -1,21 +1,24 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Circle } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { habitInitial, type CommandHabitEntry } from '@orbit/shared/utils'
 import { HabitMatchLine } from '@/components/search/habit-match-line'
 import { CommandRow } from './command-row'
-import type { CommandHabitEntry } from './build-command-habit-list'
 
-function habitLeading(emoji: string | null | undefined): ReactNode {
-  if (emoji) {
+export function commandHabitValue({ habit, parentTitle }: CommandHabitEntry): string {
+  return parentTitle ? `${parentTitle} ${habit.title} ${habit.id}` : `${habit.title} ${habit.id}`
+}
+
+function habitLeading(habit: NormalizedHabit): ReactNode {
+  if (habit.emoji) {
     return (
-      <span className="text-[16px] leading-none" aria-hidden>
-        {emoji}
+      <span className="text-[18px] leading-none" aria-hidden>
+        {habit.emoji}
       </span>
     )
   }
-  return <Circle size={20} strokeWidth={1.8} aria-hidden />
+  return <span className="text-[14px] font-medium leading-none text-[var(--fg-3)]" aria-hidden>{habitInitial(habit.title)}</span>
 }
 
 interface CommandHabitItemsProps {
@@ -30,21 +33,20 @@ interface CommandHabitItemsProps {
 export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
   return (
     <>
-      {entries.map(({ habit, parentTitle }) => (
-        <CommandRow
-          key={habit.id}
-          disabled={disabled}
-          leading={habitLeading(habit.emoji)}
-          description={<HabitMatchLine habit={habit} query={query} />}
-          label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}
-          value={
-            parentTitle
-              ? `${parentTitle} ${habit.title} ${habit.id}`
-              : `${habit.title} ${habit.id}`
-          }
-          onSelect={() => onSelectHabit(habit)}
-        />
-      ))}
+      {entries.map((entry) => {
+        const { habit, parentTitle } = entry
+        return (
+          <CommandRow
+            key={habit.id}
+            disabled={disabled}
+            leading={habitLeading(habit)}
+            description={<HabitMatchLine habit={habit} query={query} />}
+            label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}
+            value={commandHabitValue(entry)}
+            onSelect={() => onSelectHabit(habit)}
+          />
+        )
+      })}
     </>
   )
 }

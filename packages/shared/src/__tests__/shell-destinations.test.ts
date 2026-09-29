@@ -9,8 +9,6 @@ describe('resolveShellDestination', () => {
     ['/calendar-sync', 'calendario'],
     ['/goals/123', 'progresso'],
     ['/wrapped', 'progresso'],
-    ['/preferences', 'perfil'],
-    ['/advanced', 'perfil'],
     ['/profile/security', 'perfil'],
     ['/notifications', 'hoje'],
     ['/account/billing', 'perfil'],

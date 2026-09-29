@@ -47,9 +47,7 @@
       "m-block-chat-suggestion-chips",
       "m-overlay-chat-breakdown-suggestion",
       "m-overlay-chat-pending-operation-card",
-      "m-route-ai-settings",
       "m-route-chat",
-      "route-ai-settings",
       "route-chat"
     ],
     "Orbit Avisos": [
@@ -160,8 +158,6 @@
       "m-overlay-profile-advanced-sections",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
-      "m-route-advanced",
-      "m-route-preferences",
       "m-route-tabs-profile",
       "overlay-advanced-advanced-sections",
       "overlay-components-delete-account-modal",
@@ -170,9 +166,7 @@
       "overlay-components-preference-picker-sheet",
       "overlay-marketing-consent-marketing-consent-prompt",
       "overlay-profile-profile-api-keys",
-      "route-advanced",
       "route-delete-account",
-      "route-preferences",
       "route-profile"
     ],
     "Orbit Pro": [
@@ -242,6 +236,30 @@
     ]
   },
   "deleted": [
+    {
+      "surfaceId": "route-advanced",
+      "decision": "Perfil owns the settings previously reached through the web Avançado route."
+    },
+    {
+      "surfaceId": "m-route-advanced",
+      "decision": "Perfil owns the settings previously reached through the mobile Avançado route."
+    },
+    {
+      "surfaceId": "route-preferences",
+      "decision": "Perfil owns the settings previously reached through the web Preferências route."
+    },
+    {
+      "surfaceId": "m-route-preferences",
+      "decision": "Perfil owns the settings previously reached through the mobile Preferências route."
+    },
+    {
+      "surfaceId": "route-ai-settings",
+      "decision": "Perfil owns both Astra controls previously reached through the web AI settings route."
+    },
+    {
+      "surfaceId": "m-route-ai-settings",
+      "decision": "Perfil owns both Astra controls previously reached through the mobile AI settings route."
+    },
     {
       "surfaceId": "route-insights",
       "decision": "D69: the /insights route is absent; Orbit Progresso owns its figures."

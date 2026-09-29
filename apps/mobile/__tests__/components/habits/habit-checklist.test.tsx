@@ -1,9 +1,11 @@
 import { createElement, useState, type ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { StyleSheet } from 'react-native'
 
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { i18n } from '@/lib/i18n'
+import { createTokensV2 } from '@/lib/theme'
 
 interface RenderedNode {
   type: unknown
@@ -107,6 +109,24 @@ function pressMoveUp(tree: RenderedTree) {
     onPress()
   })
 }
+
+describe('HabitChecklist checked rows', () => {
+  it('dims a checked label without striking it', () => {
+    let tree: RenderedTree | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitChecklist items={[{ text: 'Done task', isChecked: true }]} interactive />,
+      )
+    })
+    const label = tree!.root.findAll((node) =>
+      node.type === 'Text' && (node as RenderedNode & { children?: unknown[] }).children?.includes('Done task') === true,
+    )[0]
+    expect(label).toBeDefined()
+    const style = StyleSheet.flatten(label!.props.style) as Record<string, unknown>
+    expect(style.color).toBe(createTokensV2('purple', 'dark').fg3)
+    expect(style.textDecorationLine).not.toBe('line-through')
+  })
+})
 
 describe('HabitChecklist editable rows', () => {
   it('keeps a draft with its row through an optimistic reorder and rollback', () => {

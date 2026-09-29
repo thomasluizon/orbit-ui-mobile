@@ -78,7 +78,6 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
-vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
@@ -93,6 +92,11 @@ vi.mock('@tanstack/react-query', () => ({
     mutate: (value: unknown) => options.mutationFn?.(value),
     isPending: false,
   }),
+}))
+
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: vi.fn(async () => {}),
 }))
 
 vi.mock('@/lib/query-client', () => ({
@@ -131,7 +135,6 @@ import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
 import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
-import ProfilePage from '@/app/(app)/profile/page'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -307,22 +310,6 @@ describe('web useChatComposer streaming send', () => {
       const context = JSON.parse((request.body as FormData).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
     }
-  })
-
-  it('sends Support row intent with the first problem description', async () => {
-    mocks.pathname = '/profile'
-    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
-    render(<ProfilePage />)
-    const { result } = renderHook(() => useChatComposer())
-
-    fireEvent.click(screen.getByRole('button', { name: /profile\.support\.title/i }))
-    await act(async () => { await result.current.sendMessage('my streak reset after I travelled') })
-
-    const [, request] = mocks.fetch.mock.calls[0]!
-    const formData = request.body as FormData
-    expect(formData.get('message')).toBe('my streak reset after I travelled')
-    const context = JSON.parse(formData.get('clientContext') as string)
-    expect(context.entryPointIntent).toBe('support')
   })
 
   it.each([
@@ -1343,6 +1330,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1357,6 +1345,7 @@ describe('web useChatComposer streaming send', () => {
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

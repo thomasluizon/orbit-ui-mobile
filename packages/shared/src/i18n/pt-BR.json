@@ -264,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navegar",
-      "select": "Selecionar",
+      "select": "Escolher",
       "back": "Voltar",
       "close": "Fechar"
     },
@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
       "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
@@ -1216,8 +1217,7 @@
         "today": "Hoje",
         "gamification": "Conquistas",
         "notifications": "Notificações",
-        "subscriptions": "Assinar",
-        "aiSettings": "Configurações de IA"
+        "subscriptions": "Assinar"
       }
     },
     "conflict": {
@@ -1614,7 +1614,7 @@
     "apiKeys": {
       "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
       "unlock": "Ver Pro",
-      "open": "Abrir as chaves",
+      "open": "Gerenciar chaves de API",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "newKeyName": "Nova chave",
@@ -1639,12 +1639,10 @@
       "account": "Conta",
       "preferences": "Preferências",
       "communication": "Comunicação",
-      "aiFeatures": "Recursos de IA",
       "aboutHelp": "Sobre e Ajuda",
       "advanced": "Avançado",
       "accountActions": "Ações da conta",
       "subscription": "Assinatura",
-      "aiFeaturesHint": "Resumo diário, check-ins proativos",
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
@@ -2020,7 +2018,7 @@
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
-      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, em Recursos de IA, e pode se opor ao processamento automatizado entrando em contato com a gente."
+      "body": "A assistente de IA do Orbit, a Astra, processa seus dados de hábitos e de chat para gerar resumos, retrospectivas e sugestões. Isso é só um apoio e não toma decisões com efeito jurídico sobre você. Você pode desativar os resumos da IA quando quiser, no Perfil, e pode se opor ao processamento automatizado entrando em contato com a gente."
     },
     "minors": {
       "title": "Requisito de idade",
@@ -2045,12 +2043,6 @@
   },
   "trial": {
     "proBadge": "Período de teste",
-    "banner": {
-      "freeLine": "Plano gratuito",
-      "daysLeft": "{days} dia restante | {days} dias restantes",
-      "lastDay": "O teste acaba hoje",
-      "upgrade": "Assinar"
-    },
     "expired": {
       "eyebrow": "Teste encerrado",
       "heading": "Seu teste Pro acabou",
@@ -2399,7 +2391,7 @@
       "trialEyebrow": "Seu teste Pro está ativo",
       "trialDaysLeft": "Falta {days} dia de teste | Faltam {days} dias de teste",
       "trialLastDay": "Último dia do teste",
-      "trialHeading": "As 50 por dia ficam, ou voltam a ser 5.",
+      "trialHeading": "Pro: 50 mensagens da Astra por dia.",
       "trialCta": "Manter o Pro",
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "Dez vezes mais Astra.",
@@ -2716,9 +2708,6 @@
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
-    "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",
@@ -2770,7 +2759,9 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
+      "empty": "Uma meta acompanha o que você quer alcançar: crie a partir de um hábito ou peça à Astra.",
+      "createAction": "Criar meta",
+      "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Todas",
       "progress": "{current} / {target} {unit}",
@@ -3111,9 +3102,6 @@
     "themeMode": "Aparência",
     "themeModeLight": "Claro",
     "themeModeDark": "Escuro"
-  },
-  "aiSettings": {
-    "title": "Recursos de IA"
   },
   "about": {
     "title": "Sobre e Ajuda",

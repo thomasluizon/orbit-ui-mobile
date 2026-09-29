@@ -15,7 +15,6 @@ import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epo
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
-import ProfileScreen from '@/app/(tabs)/profile'
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -372,35 +371,6 @@ describe('mobile useChatComposer', () => {
       const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
     }
-  })
-
-  it('sends Support row intent with the first problem description', async () => {
-    mocks.pathname = '/profile'
-    mocks.state.profile = createMockProfile({ plan: 'free', hasProAccess: false })
-    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
-    let profileTree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      profileTree = TestRenderer.create(<ProfileScreen />)
-      mountedTrees.push(profileTree)
-      await Promise.resolve()
-    })
-    const supportRow = profileTree.root.find((node: { props: { accessibilityRole?: string }; children: unknown[] }) => {
-      const text = (child: unknown): string => {
-        if (typeof child === 'string') return child
-        if (!child || typeof child !== 'object' || !('children' in child)) return ''
-        return (child as { children: unknown[] }).children.map(text).join('')
-      }
-      return node.props.accessibilityRole === 'button' && text(node).includes('profile.support.title')
-    })
-    const composer = await renderComposer()
-
-    TestRenderer.act(() => { supportRow.props.onPress() })
-    await TestRenderer.act(async () => { await composer.current.sendMessage('my streak reset after I travelled') })
-
-    const [formData] = mocks.openChatStream.mock.calls[0]!
-    expect((formData as { get(name: string): string | null }).get('message')).toBe('my streak reset after I travelled')
-    const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
-    expect(context.entryPointIntent).toBe('support')
   })
 
   it.each([
@@ -1411,6 +1381,7 @@ describe('mobile useChatComposer', () => {
   it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    useChatStore.getState().setDraft('Unsent note')
     useChatStore.getState().setContextualSuggestion({
       id: 'habit-detail-help',
       label: 'Ask about Read',
@@ -1423,6 +1394,7 @@ describe('mobile useChatComposer', () => {
 
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me improve my habit named Read')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
     appendFormPart.mockRestore()
   })
 

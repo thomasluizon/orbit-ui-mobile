@@ -1,8 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
-import { Shell412 } from './shell-412'
 import { ShellScrollerProvider } from './shell-scroller-context'
 import { ShellWide } from './shell-wide'
 
@@ -17,13 +15,11 @@ interface FlowShellProps {
   notice?: ReactNode
 }
 
-function contentClassName(mode: FlowShellMode, wide: boolean): string {
+function contentClassName(mode: FlowShellMode): string {
   if (mode === 'document') return 'min-h-full w-full'
   if (mode === 'detail') return 'mx-auto flex min-h-full w-full max-w-[740px] flex-col px-4 py-6'
   if (mode === 'onboarding') {
-    return wide
-      ? 'mx-auto flex min-h-full w-full max-w-[560px] flex-col'
-      : 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8'
+    return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 lg:max-w-[560px] lg:px-0 lg:py-0'
   }
   return 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0'
 }
@@ -40,7 +36,6 @@ function flowModeName(mode: FlowShellMode): string {
 }
 
 export function FlowShell({ action, children, header, mode = 'card', notice }: Readonly<FlowShellProps>) {
-  const wide = useIsWideDesktop()
   if (mode === 'full') {
     return (
       <ShellScrollerProvider>
@@ -61,7 +56,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
       data-shell="flow"
       data-flow-mode={flowModeName(mode)}
       data-nav={false}
-      className={contentClassName(mode, wide)}
+      className={contentClassName(mode)}
     >
       <div
         className={contentFrameClassName(mode)}
@@ -74,26 +69,18 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   const pinnedAction = action ? (
     <div
       data-flow-action=""
-      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 md:[&_button]:w-auto md:[&>div]:items-end ${onboarding && wide ? 'max-w-[560px]' : 'max-w-[408px]'}`}
+      className={`mx-auto flex w-full justify-end px-4 [&_button]:w-full md:px-0 md:[&_button]:w-auto md:[&>div]:items-end ${onboarding ? 'max-w-[408px] lg:max-w-[560px]' : 'max-w-[408px]'}`}
     >
       {action}
     </div>
   ) : undefined
-  const shellHeader = onboarding && wide && header
-    ? <div className="mx-auto w-full max-w-[560px]">{header}</div>
+  const shellHeader = onboarding && header
+    ? <div className="mx-auto w-full lg:max-w-[560px]">{header}</div>
     : header
 
-  if (wide) {
-    return (
-      <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={notice}>
-        {content}
-      </ShellWide>
-    )
-  }
-
   return (
-    <Shell412 nav={false} action={pinnedAction} header={header} notice={notice}>
+    <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={notice}>
       {content}
-    </Shell412>
+    </ShellWide>
   )
 }

@@ -132,7 +132,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           <AstraGlyph size={20} color="currentColor" />
         </button>
       ) : null}
-      <div className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]">
+      <div data-composer-input-row className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:outline has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:-outline-offset-2 has-[textarea:focus-visible]:outline-[var(--primary)] @max-[400px]:flex-wrap @max-[400px]:justify-end">
         <textarea
           rows={1}
           data-composer-input
@@ -143,7 +143,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onChange={(event) => props.onChangeValue(event.target.value)}
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
-          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 @max-[400px]:basis-full @max-[400px]:[field-sizing:content]"
         />
 
         {props.onAttachFile ? (
@@ -152,7 +152,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.file}
             disabled={inputDisabled}
             onClick={props.onAttachFile}
-            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <FileText size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -164,7 +164,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.image}
             disabled={inputDisabled}
             onClick={props.onAttachImage}
-            className="flex size-11 shrink-0 items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
           >
             <ImageIcon size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -176,7 +176,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}
-            className={`flex size-11 shrink-0 items-center justify-center border-0 transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
           >
             {isRecording ? (
               <Square size={16} fill="currentColor" aria-hidden="true" />
@@ -227,7 +227,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
       data-state={props.state}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
+      className="@container flex shrink-0 flex-col gap-3 border-t border-[var(--hairline)] bg-[var(--bg)] p-4"
     >
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
         <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />

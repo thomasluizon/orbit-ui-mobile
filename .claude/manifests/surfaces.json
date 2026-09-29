@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 203,
-  "cellCount": 868,
+  "surfaceCount": 197,
+  "cellCount": 844,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -69,114 +69,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-advanced",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/web/app/(app)/advanced/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-advanced",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/web/app/(app)/advanced/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-advanced",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/web/app/(app)/advanced/page.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-advanced",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/web/app/(app)/advanced/page.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-ai-settings",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
-        "apps/web/app/(app)/ai-settings/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-ai-settings",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
-        "apps/web/app/(app)/ai-settings/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-ai-settings",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
-        "apps/web/app/(app)/ai-settings/page.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-ai-settings",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
-        "apps/web/app/(app)/ai-settings/page.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "route-calendar-sync",
       "platform": "web",
       "kind": "route",
@@ -669,70 +561,6 @@
         "apps/web/components/today/today-astra.tsx"
       ],
       "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-preferences",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
-        "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-preferences",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
-        "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-preferences",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
-        "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-preferences",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-labels.ts",
-        "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
-        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx"
-      ],
-      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -743,10 +571,14 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
+        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
+        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/astra-allowance-panel.tsx",
+        "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
@@ -762,10 +594,14 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
+        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
+        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/astra-allowance-panel.tsx",
+        "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
@@ -781,10 +617,14 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
+        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
+        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/astra-allowance-panel.tsx",
+        "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
@@ -800,10 +640,14 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
+        "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
+        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/astra-allowance-panel.tsx",
+        "apps/web/components/profile/astra-settings-controller.tsx",
         "apps/web/components/profile/profile-nav-icon.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
@@ -3310,7 +3154,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3337,7 +3180,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3364,7 +3206,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3391,7 +3232,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3418,7 +3258,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3445,7 +3284,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3472,7 +3310,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -3499,7 +3336,6 @@
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
         "apps/web/components/ui/expiry-warning.tsx",
         "apps/web/components/ui/update-available-banner.tsx",
         "apps/web/hooks/use-onboarding-flush.ts",
@@ -6182,7 +6018,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6210,7 +6045,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6238,7 +6072,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6266,7 +6099,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6294,7 +6126,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6322,7 +6153,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6350,7 +6180,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6378,7 +6207,6 @@
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
         "apps/mobile/components/today/today-astra.tsx",
-        "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6595,118 +6423,6 @@
       "href": "/about",
       "ownedFiles": [
         "apps/mobile/app/about.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-advanced",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/advanced.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/mobile/app/advanced.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-advanced",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/advanced.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/mobile/app/advanced.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-advanced",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/advanced.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/mobile/app/advanced.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-advanced",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/advanced.tsx",
-      "href": "/advanced",
-      "ownedFiles": [
-        "apps/mobile/app/advanced.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-ai-settings",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/ai-settings.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/mobile/app/ai-settings-styles.ts",
-        "apps/mobile/app/ai-settings.tsx",
-        "apps/mobile/components/profile/ai-settings-sections.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-ai-settings",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/ai-settings.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/mobile/app/ai-settings-styles.ts",
-        "apps/mobile/app/ai-settings.tsx",
-        "apps/mobile/components/profile/ai-settings-sections.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-ai-settings",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/ai-settings.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/mobile/app/ai-settings-styles.ts",
-        "apps/mobile/app/ai-settings.tsx",
-        "apps/mobile/components/profile/ai-settings-sections.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-ai-settings",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/ai-settings.tsx",
-      "href": "/ai-settings",
-      "ownedFiles": [
-        "apps/mobile/app/ai-settings-styles.ts",
-        "apps/mobile/app/ai-settings.tsx",
-        "apps/mobile/components/profile/ai-settings-sections.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7139,66 +6855,6 @@
       "href": "/notifications",
       "ownedFiles": [
         "apps/mobile/app/notifications.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-preferences",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-labels.ts",
-        "apps/mobile/app/preferences.tsx",
-        "apps/mobile/hooks/use-persistent-reminder.ts"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-preferences",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-labels.ts",
-        "apps/mobile/app/preferences.tsx",
-        "apps/mobile/hooks/use-persistent-reminder.ts"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-preferences",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-labels.ts",
-        "apps/mobile/app/preferences.tsx",
-        "apps/mobile/hooks/use-persistent-reminder.ts"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-preferences",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/preferences.tsx",
-      "href": "/preferences",
-      "ownedFiles": [
-        "apps/mobile/app/preferences-labels.ts",
-        "apps/mobile/app/preferences.tsx",
-        "apps/mobile/hooks/use-persistent-reminder.ts"
       ],
       "state": "default",
       "theme": "dark",

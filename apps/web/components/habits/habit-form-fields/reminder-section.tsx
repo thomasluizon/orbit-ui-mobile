@@ -104,7 +104,7 @@ export function ReminderSection({
       <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
         {permission.showNotice ? <>
           {t('habits.form.reminderPermissionNeeded')}{' '}
-          <Link href="/preferences" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
+          <Link href="/profile" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
             {t('habits.form.reminderSettingsAction')}
           </Link>
         </> : null}

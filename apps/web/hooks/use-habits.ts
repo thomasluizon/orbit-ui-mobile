@@ -133,6 +133,8 @@ export {
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
   return useAccountScopedMutation({
@@ -183,7 +185,7 @@ export function useLogHabit() {
       return { previousLists, previousCalendars }
     },
 
-    onError: (_err, variables, context) => {
+    onError: (error, variables, context) => {
       if (!variables.date && context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -191,23 +193,24 @@ export function useLogHabit() {
           }
         }
       }
-      if (!variables.date) return
-
-      const date = variables.date
-      const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
-      for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
-        if (!previousCalendar) continue
-        queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
-          currentCalendar
-            ? rollbackOptimisticCalendarHabitLog(
-                currentCalendar,
-                previousCalendar,
-                variables.habitId,
-                date,
-                optimisticLogId,
-              )
-            : currentCalendar)
+      if (variables.date) {
+        const date = variables.date
+        const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+        for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
+          if (!previousCalendar) continue
+          queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
+            currentCalendar
+              ? rollbackOptimisticCalendarHabitLog(
+                  currentCalendar,
+                  previousCalendar,
+                  variables.habitId,
+                  date,
+                  optimisticLogId,
+                )
+              : currentCalendar)
+        }
       }
+      showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
     },
 
     onSuccess: (response, variables) => {

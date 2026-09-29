@@ -264,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navigate",
-      "select": "Select",
+      "select": "Choose",
       "back": "Back",
       "close": "Close"
     },
@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "List options",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
       "readOnly": "Logging stops 7 days back. You can still edit, move and delete here.",
@@ -1216,8 +1217,7 @@
         "today": "Today",
         "gamification": "Achievements",
         "notifications": "Notifications",
-        "subscriptions": "Upgrade",
-        "aiSettings": "AI settings"
+        "subscriptions": "Upgrade"
       }
     },
     "conflict": {
@@ -1614,7 +1614,7 @@
     "apiKeys": {
       "description": "To connect Orbit to other tools through the API or an MCP client.",
       "unlock": "See Pro",
-      "open": "Open the keys",
+      "open": "Manage API keys",
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "newKeyName": "New key",
@@ -1639,12 +1639,10 @@
       "account": "Account",
       "preferences": "Preferences",
       "communication": "Communication",
-      "aiFeatures": "AI Features",
       "aboutHelp": "About & Help",
       "advanced": "Advanced",
       "accountActions": "Account actions",
       "subscription": "Subscription",
-      "aiFeaturesHint": "Daily summary, proactive check-ins",
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
@@ -2020,7 +2018,7 @@
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",
-      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in AI Settings, and you may object to automated processing by contacting us."
+      "body": "Orbit's AI assistant, Astra, processes your habit and chat data to generate summaries, retrospectives, and suggestions. This is assistive only and does not make legally significant decisions about you. You can disable AI summaries at any time in Profile, and you may object to automated processing by contacting us."
     },
     "minors": {
       "title": "Age Requirement",
@@ -2045,12 +2043,6 @@
   },
   "trial": {
     "proBadge": "Trial",
-    "banner": {
-      "freeLine": "Free plan",
-      "daysLeft": "{days} day left | {days} days left",
-      "lastDay": "Trial ends today",
-      "upgrade": "Subscribe"
-    },
     "expired": {
       "eyebrow": "Trial ended",
       "heading": "Your Pro trial has ended",
@@ -2399,7 +2391,7 @@
       "trialEyebrow": "Your Pro trial is active",
       "trialDaysLeft": "{days} trial day left | {days} trial days left",
       "trialLastDay": "Last day of the trial",
-      "trialHeading": "The 50 a day stay, or go back to 5.",
+      "trialHeading": "Pro: 50 Astra messages a day.",
       "trialCta": "Keep Pro",
       "freeEyebrow": "You are on the free plan",
       "freeHeading": "Ten times more Astra.",
@@ -2716,9 +2708,6 @@
     "loading": "Loading your progress",
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
-    "empty": "Nothing to measure yet",
-    "emptyAction": "Start a habit",
-    "startHabit": "View habits",
     "sections": {
       "streak": "Streak",
       "goals": "Goals",
@@ -2770,7 +2759,9 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "empty": "No goals yet. A habit is the next useful step.",
+      "empty": "A goal tracks what you want to achieve: start from a habit or ask Astra.",
+      "createAction": "Create goal",
+      "request": "Help me create a goal.",
       "filterEmpty": "No goals match this view.",
       "clearFilter": "All goals",
       "progress": "{current} / {target} {unit}",
@@ -3111,9 +3102,6 @@
     "themeMode": "Appearance",
     "themeModeLight": "Light",
     "themeModeDark": "Dark"
-  },
-  "aiSettings": {
-    "title": "AI Features"
   },
   "about": {
     "title": "About & Help",

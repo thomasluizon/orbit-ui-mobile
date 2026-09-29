@@ -45,7 +45,7 @@ export default function SearchScreen() {
   }
   function selectHabit(id: string) {
     if (logHabit.isPending || skipHabit.isPending) return
-    if (commandPage === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: back, onError: onActionError })
+    if (commandPage === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: back })
     else if (commandPage === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: back, onError: onActionError })
     else router.push(`/habits/${id}`)
   }

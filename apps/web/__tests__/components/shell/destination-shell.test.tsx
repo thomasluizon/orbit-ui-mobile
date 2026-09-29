@@ -54,25 +54,8 @@ vi.mock('@/components/ui/fab', () => ({
     <button type="button" aria-label={label} onClick={onClick} />
   ),
 }))
-vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, header, tabBar, fab, notice, composer }: {
-    children: ReactNode
-    header?: ReactNode
-    tabBar?: ReactNode
-    fab?: ReactNode
-    notice?: ReactNode
-    composer?: ReactNode
-  }) => (
-    <div data-testid="compact-shell">
-      {header ? <div data-shell-header="">{header}</div> : null}
-      <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
-      {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
-      {tabBar}{fab}
-    </div>
-  ),
-}))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -85,18 +68,21 @@ vi.mock('@/components/shell/shell-wide', () => ({
     paletteHint?: string
     onPalette?: () => void
     paletteLabel?: string
+    tabBar?: ReactNode
+    fab?: ReactNode
   }) => (
-    <div data-testid="wide-shell">
+    <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
       <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
-      {account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />}
-      {onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
-      {paletteHint ? <kbd>{paletteHint}</kbd> : null}
+      {mocks.wide && (account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />)}
+      {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
+      {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
-      {items?.map((item) => (
+      {mocks.wide ? items?.map((item) => (
         <button type="button" key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={() => onSelect?.(item.id)}>{item.label}</button>
-      ))}
-      {onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      )) : tabBar}
+      {mocks.wide && onCreate ? <button type="button" aria-label="wide-create" onClick={onCreate} /> : null}
+      {!mocks.wide ? fab : null}
     </div>
   ),
 }))
@@ -412,8 +398,6 @@ describe('DestinationShell', () => {
   })
 
   it.each([
-    '/preferences',
-    '/advanced',
     '/profile/security',
     '/account/billing',
   ])('selects Profile for its secondary route %s', (pathname) => {
@@ -449,13 +433,10 @@ describe('DestinationShell', () => {
   it.each([
     '/',
     '/about',
-    '/advanced',
-    '/ai-settings',
     '/calendar-sync',
     '/calendar',
     '/chat',
     '/onboarding',
-    '/preferences',
     '/profile',
     '/progress',
     '/retrospective',

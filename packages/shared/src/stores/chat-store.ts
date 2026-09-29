@@ -23,6 +23,26 @@ export interface ChatStoreState {
   setContextualSuggestion: (suggestion: ChatStoreState['contextualSuggestion']) => void
 }
 
+type ContextualSuggestion = NonNullable<ChatStoreState['contextualSuggestion']>
+type ContextualChat = Pick<ChatStoreState, 'contextualSuggestion' | 'setContextualSuggestion'>
+
+export function clearContextualSuggestionIfCurrent(chat: ContextualChat, id: string): void {
+  if (chat.contextualSuggestion?.id === id) chat.setContextualSuggestion(null)
+}
+
+export function publishContextualSuggestion(getChat: () => ContextualChat, suggestion: ContextualSuggestion): () => void {
+  getChat().setContextualSuggestion(suggestion)
+  return () => clearContextualSuggestionIfCurrent(getChat(), suggestion.id)
+}
+
+export function prepareChatRequest(
+  chat: Pick<ChatStoreState, 'draft' | 'setDraft' | 'setContextualSuggestion'>,
+  request: ContextualSuggestion,
+): void {
+  if (chat.draft) chat.setContextualSuggestion(request)
+  else chat.setDraft(request.prompt)
+}
+
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
     messages: [],

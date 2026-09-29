@@ -49,10 +49,15 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Test', email: 'test@example.com' } }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
-vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
-vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: () => null }))
 vi.mock('@/components/shell/shell-412', () => ({
   Shell412: ({ children, composer, tabBar }: {
+    children: ReactNode
+    composer?: ReactNode
+    tabBar?: ReactNode
+  }) => <main>{children}{composer}{tabBar}</main>,
+}))
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, composer, tabBar }: {
     children: ReactNode
     composer?: ReactNode
     tabBar?: ReactNode
@@ -112,7 +117,7 @@ function TodayHarness() {
 }
 
 function enterSelection() {
-  fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.listOptions' }))
   fireEvent.click(screen.getByRole('menuitem', { name: 'common.select' }))
 }
 

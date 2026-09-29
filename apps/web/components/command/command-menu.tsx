@@ -1,17 +1,17 @@
 "use client"
 
-import { type KeyboardEvent } from 'react'
+import { type KeyboardEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
-import { buildSearchEntries, type CommandHabitEntry, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildSearchEntries, searchCommands, type CommandHabitEntry, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { Button } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
-import { CommandHabitItems } from './command-habit-items'
+import { CommandHabitItems, commandHabitValue } from './command-habit-items'
 import { CommandGroups } from './command-groups'
 import { CommandHabitSkeleton, CommandKeyHint, CommandSearchField, GROUP_CLASS } from './command-menu-chrome'
 import type { CommandNavigationItem } from './command-palette'
@@ -40,6 +40,17 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const entries = buildSearchEntries(search.data, search.query, page)
   const pageLabel = page === 'log' ? t('command.page.log') : t('command.page.skip')
   const showResults = resultsMode && page === null && !!search.query
+  const visibleEntries = !search.busy && !search.isError ? entries : []
+  const firstCommand = page === null
+    ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations' && !(showResults && visibleEntries.length === 0 && command.id === 'create'))[0]
+    : undefined
+  const firstDestination = navItems.find((item) => item.label.toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase()))
+  const firstValue = visibleEntries.length > 0
+    ? showResults ? visibleEntries[0]!.habit.id : commandHabitValue(visibleEntries[0]!)
+    : firstCommand?.id ?? firstDestination?.id ?? ''
+  const [selection, setSelection] = useState({ first: firstValue, selected: firstValue })
+  if (selection.first !== firstValue) setSelection({ first: firstValue, selected: firstValue })
+  const selectedValue = selection.first === firstValue ? selection.selected : firstValue
   function run(action: () => void) { action(); onClose() }
   function back() { setPage(null); search.changeText('') }
   function chooseCommand(id: SearchCommandId) {
@@ -48,7 +59,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   }
   function chooseHabit(id: string) {
     if (logHabit.isPending || skipHabit.isPending) return
-    if (page === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
+    if (page === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: () => { back(); onClose() } })
     else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
     else run(() => router.push(`/habits/${id}`))
   }
@@ -57,7 +68,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'p-2' : 'h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
       {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
@@ -71,9 +82,9 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
       </div>
     </CommandList>
     <div className="flex flex-wrap items-center gap-4 px-4 py-3 shadow-[inset_0_1px_0_var(--hairline)]">
-      <CommandKeyHint keys={['↑', '↓']} label={t('command.hints.navigate')} />
+      <CommandKeyHint keys={['↑↓']} label={t('command.hints.navigate')} />
       <CommandKeyHint keys={['↵']} label={t('command.hints.select')} />
-      <CommandKeyHint keys={['Esc']} label={t(page ? 'command.hints.back' : 'command.hints.close')} />
+      <CommandKeyHint keys={['esc']} label={t(page ? 'command.hints.back' : 'command.hints.close')} />
     </div>
   </Command>
 }
