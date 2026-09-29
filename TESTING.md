@@ -39,7 +39,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Suite | Where | Command | What it proves |
 |---|---|---|---|
 | Web unit | `apps/web` | `npm test -w @orbit/web` (`vitest run`) | web component / hook / server-action behavior via data-attributes, not classes |
-| Mobile unit | `apps/mobile` | `npm test -w @orbit/mobile` (`vitest run`) | mobile component / hook behavior (`@testing-library/react-native`, query by role / testID) |
+| Mobile unit | `apps/mobile` | `npm test -w @orbit/mobile` (`vitest run`) | mobile component / hook behavior (`@testing-library/react-native`, query by role / testID), plus `__tests__/components/ui/sheet-callers.test.ts`, a source guard that resolves every `<Sheet>` body's style and fails on a stretch |
 | Android widget host instrumented | `apps/mobile/modules/orbit-widget/android/src/androidTest` | `cd apps/mobile/android && .\gradlew.bat :orbit-widget:connectedDebugAndroidTest` | on a booted API 31+ device or emulator, the real `AppWidgetHostView` selects the compact and expanded size-keyed headers and preserves their synced text; this is a local gate because CI has no emulator |
 | Shared unit | `packages/shared` | `npm test -w @orbit/shared` (`vitest run`, + `@fast-check/vitest` property tests) | the Zod contract, utils, validation, query keys, and theme data |
 | All unit | root | `npm test` (`turbo run test`) | the three unit suites above; CI adds coverage thresholds |
