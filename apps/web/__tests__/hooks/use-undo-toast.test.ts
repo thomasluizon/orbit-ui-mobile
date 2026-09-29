@@ -47,4 +47,30 @@ describe('useUndoToast', () => {
     pressKey({ key: 'z', ctrlKey: true })
     expect(restore).not.toHaveBeenCalled()
   })
+
+  it('only runs the visible undo shortcut when other undos are pending', () => {
+    const { result } = renderHook(() => useUndoToast())
+    const visibleRestore = vi.fn()
+    const firstPendingRestore = vi.fn()
+    const secondPendingRestore = vi.fn()
+    act(() => {
+      result.current('Visible undo', visibleRestore)
+      result.current('First pending undo', firstPendingRestore)
+      result.current('Second pending undo', secondPendingRestore)
+    })
+
+    expect(useAppToastStore.getState().queue.map((item) => item.toast.message)).toEqual([
+      'First pending undo', 'Second pending undo',
+    ])
+    pressKey({ key: 'z', ctrlKey: true })
+    expect(visibleRestore).toHaveBeenCalledOnce()
+    expect(firstPendingRestore).not.toHaveBeenCalled()
+    expect(secondPendingRestore).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('First pending undo')
+    pressKey({ key: 'z', ctrlKey: true })
+    expect(visibleRestore).toHaveBeenCalledOnce()
+    expect(firstPendingRestore).toHaveBeenCalledOnce()
+    expect(secondPendingRestore).not.toHaveBeenCalled()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Second pending undo')
+  })
 })

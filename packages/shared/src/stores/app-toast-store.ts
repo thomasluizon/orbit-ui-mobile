@@ -41,14 +41,20 @@ function enqueueToast(set: SetState, get: GetState, toast: StoredToast, onDismis
   )) return undefined
 
   const nextToast = { id: ++toastCounter, toast: { ...toast, message }, onDismiss } as AppToastItem
+  let discarded: AppToastItem[] = []
   set((current) => {
     if (!current.currentToast || !hasRemovalPath(current.currentToast.toast)) {
+      discarded = current.currentToast ? [current.currentToast] : []
       return { currentToast: nextToast }
     }
     const blockerIndex = current.queue.findIndex((item) => !hasRemovalPath(item.toast))
-    if (blockerIndex >= 0) return { queue: [...current.queue.slice(0, blockerIndex), nextToast] }
+    if (blockerIndex >= 0) {
+      discarded = current.queue.slice(blockerIndex)
+      return { queue: [...current.queue.slice(0, blockerIndex), nextToast] }
+    }
     return { queue: [...current.queue, nextToast] }
   })
+  discarded.forEach((item) => item.onDismiss?.())
   return nextToast.id
 }
 

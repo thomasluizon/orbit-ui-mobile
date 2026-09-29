@@ -46,6 +46,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
           className="h-dvh min-h-dvh w-full overflow-hidden"
         >
           {children}
+          <AppToastHost placement="page" />
         </div>
       </ShellScrollerProvider>
     )

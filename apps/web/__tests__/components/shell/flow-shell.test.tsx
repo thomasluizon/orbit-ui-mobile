@@ -86,6 +86,14 @@ describe('FlowShell', () => {
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 
+  it('keeps feedback reachable in the shell-free full flow', () => {
+    const view = render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+    act(() => { useAppToastStore.getState().showError('Connection failed') })
+
+    expect(view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]'))
+      .toBeInTheDocument()
+  })
+
   it('provides registration to the full flow without claiming scroll ownership', () => {
     render(
       <FlowShell mode="full">

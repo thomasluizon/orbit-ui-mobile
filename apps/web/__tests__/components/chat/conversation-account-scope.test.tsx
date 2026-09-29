@@ -1,6 +1,6 @@
 import { createRef } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { count?: number }) =>
@@ -16,7 +16,7 @@ vi.mock('@/components/ui/app-bar', () => ({
 }))
 
 vi.mock('@/components/shell/composer', () => ({
-  Composer: () => null,
+  Composer: () => <div data-testid="conversation-composer" />,
 }))
 
 vi.mock('@/components/chat/chat-empty-state', () => ({
@@ -45,6 +45,8 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
 
 import { AstraConversation } from '@/components/chat/conversation'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
@@ -113,6 +115,7 @@ it('shows follow-ups only under the latest AI message and sends their origin', (
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   holdAccount('user-1')
+  useAppToastStore.setState({ currentToast: null, queue: [] })
 })
 
 afterEach(() => {
@@ -129,4 +132,16 @@ it('closes the goal drawer Astra opened when another account replaces the tab', 
   await replaceAccountWith('user-2')
 
   expect(screen.queryByLabelText('goal-detail')).not.toBeInTheDocument()
+})
+
+it('pins an actionable toast above the conversation composer', async () => {
+  const reload = vi.fn()
+  const view = render(<AstraConversation chat={buildChat()} notice={<AppToastHost />} />)
+  act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
+
+  await screen.findByText('App updated')
+  const notice = view.container.querySelector('[data-shell-notice]')
+  expect(notice?.nextElementSibling).toHaveAttribute('data-testid', 'conversation-composer')
+  fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+  expect(reload).toHaveBeenCalledOnce()
 })

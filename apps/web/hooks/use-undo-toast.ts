@@ -3,11 +3,12 @@
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 /**
  * Shows an "Undo" snackbar for a just-completed destructive action and wires the
  * web-only Ctrl/Cmd+Z shortcut to the same undo. The shortcut listener is bound
- * while the toast is visible and removed once the toast is dismissed,
+ * only while the toast is visible and removed once the toast is dismissed,
  * or the undo fires. `message` is already localized; `performRestore` runs the undo.
  */
 export function useUndoToast() {
@@ -43,7 +44,9 @@ export function useUndoToast() {
           !event.shiftKey &&
           event.key.toLowerCase() === 'z'
         ) {
+          if (useAppToastStore.getState().currentToast?.id !== state.toastId) return
           event.preventDefault()
+          event.stopImmediatePropagation()
           settle()
         }
       }

@@ -17,6 +17,7 @@ interface WrappedPlayerProps {
   recap: Recap
   period: RecapSharePeriod
   onClose: () => void
+  notice?: ReactNode
 }
 
 type PageDirection = 'back' | 'forward'
@@ -26,6 +27,7 @@ export function WrappedPlayer({
   recap,
   period,
   onClose,
+  notice,
 }: Readonly<WrappedPlayerProps>) {
   const t = useTranslations()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
@@ -118,6 +120,7 @@ export function WrappedPlayer({
           />
           {!isLast && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
+        {notice !== undefined ? <div data-shell-notice="" className="shrink-0 px-4">{notice}</div> : null}
         <PlayerPager
           count={slides.length}
           index={index}

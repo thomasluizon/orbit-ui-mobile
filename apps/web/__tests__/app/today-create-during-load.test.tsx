@@ -14,24 +14,38 @@ const state = vi.hoisted(() => ({
   count: 0,
   countLoaded: false,
   isOnline: true,
+  pathname: '/',
+  wide: false,
+  authenticated: true,
   push: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: state.push, prefetch: vi.fn() }),
-  usePathname: () => '/',
+  usePathname: () => state.pathname,
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('next/dynamic', () => ({
-  default: () => ({ open }: { open: boolean }) => open ? <h1 id="habit-form-title">Create habit</h1> : null,
+  default: () => ({ open, notice }: { open?: boolean; notice?: React.ReactNode }) =>
+    open === undefined ? <div data-conversation-body="">{notice}</div> : open ? <h1 id="habit-form-title">Create habit</h1> : null,
 }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/components/shell/destination-shell', () => ({
-  DestinationShell: ({ children, onCreate, notice, createRefusal }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode }) => (
-    <><button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-testid="notice-slot">{notice}</div>{children}</>
+  DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
+    <>
+      {state.pathname === '/wrapped' ? children : (
+        <>
+          <div data-shell-background="" inert={conversationOpen && !state.wide || undefined} aria-hidden={conversationOpen && !state.wide || undefined}>
+            <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
+          </div>
+          {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
+        </>
+      )}
+    </>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
@@ -62,7 +76,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => 'account-a',
   useAuthStore: Object.assign(
-    (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }),
+    (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: state.authenticated }),
     { getState: () => ({ startExpiryMonitor: () => () => {} }) },
   ),
 }))
@@ -79,7 +93,6 @@ vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
-vi.mock('@/components/ui/toast', () => ({ Toast: ({ message }: { message: string }) => <div>{message}</div> }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))
@@ -100,6 +113,7 @@ vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: () => null }))
 vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: () => null }))
 
 import AppLayout from '@/app/(app)/layout'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 describe('Today create during first load', () => {
   beforeEach(() => {
@@ -109,7 +123,11 @@ describe('Today create during first load', () => {
     state.count = 0
     state.countLoaded = false
     state.isOnline = true
+    state.pathname = '/'
+    state.wide = false
+    state.authenticated = true
     state.push.mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
   afterEach(() => localStorage.clear())
@@ -215,5 +233,41 @@ describe('Today create during first load', () => {
     state.isOnline = false
     view.rerender(<AppLayout><div>Today</div></AppLayout>)
     expect(screen.queryByText('offline.create.reason')).not.toBeInTheDocument()
+  })
+
+  it('shows queued feedback at the bottom of signed-out About', async () => {
+    state.pathname = '/about'
+    state.authenticated = false
+    const view = render(<AppLayout><div>About</div></AppLayout>)
+    act(() => { useAppToastStore.getState().showError('Account unavailable') })
+
+    await screen.findByText('Account unavailable')
+    expect(view.container.querySelector('[data-toast-page-host]')).toHaveTextContent('Account unavailable')
+    expect(view.container.querySelector('[data-shell-notice]')).toBeNull()
+  })
+
+  it('shows the Reload action in the active compact Astra dialog', async () => {
+    useUIStore.getState().setAstraConversationOpen(true)
+    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    act(() => {
+      useAppToastStore.getState().showQueued('App updated', 'Reload', vi.fn())
+    })
+
+    await screen.findByText('App updated')
+    const dialog = screen.getByRole('dialog', { name: 'Astra conversation' })
+    expect(dialog).toHaveTextContent('App updated')
+    expect(dialog.querySelector('button')).toHaveTextContent('Reload')
+    expect(view.container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
+    expect(view.container.querySelector('[data-shell-notice]')).not.toHaveTextContent('App updated')
+  })
+
+  it('keeps feedback in the shell notice when the conversation is a side panel', async () => {
+    state.wide = true
+    useUIStore.getState().setAstraConversationOpen(true)
+    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    act(() => { useAppToastStore.getState().showError('Sync failed') })
+
+    await screen.findByText('Sync failed')
+    expect(view.container.querySelector('[data-shell-notice]')).toHaveTextContent('Sync failed')
   })
 })
