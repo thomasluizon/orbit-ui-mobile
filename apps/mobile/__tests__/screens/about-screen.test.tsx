@@ -14,7 +14,16 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
-const mocks = vi.hoisted(() => ({
+const mocks = vi.hoisted((): {
+  nativeVersion: string | null
+  configVersion: string | undefined
+  email: string
+  isAuthenticated: boolean
+  push: ReturnType<typeof vi.fn>
+  useProfile: ReturnType<typeof vi.fn>
+} => ({
+  nativeVersion: '1.0.0',
+  configVersion: '1.0.0',
   email: 'profile-account-with-a-long-address@example.com',
   isAuthenticated: true,
   push: vi.fn(),
@@ -27,6 +36,9 @@ vi.mock('react-i18next', () => ({
     en,
   ) as string }),
 }))
+
+vi.mock('expo-application', () => ({ get nativeApplicationVersion() { return mocks.nativeVersion } }))
+vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { version: mocks.configVersion } } } }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.push }),
@@ -71,6 +83,26 @@ describe('AboutScreen', () => {
     mocks.push.mockClear()
     mocks.useProfile.mockClear()
     mocks.isAuthenticated = true
+    mocks.nativeVersion = '1.0.0'
+    mocks.configVersion = '1.0.0'
+  })
+
+  it('shows the installed APK version the API header sends, not the bundled config version', () => {
+    mocks.nativeVersion = '1.3.39'
+    mocks.configVersion = '1.1.4'
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    expect(textContent(tree.root)).toContain('1.3.39')
+    expect(textContent(tree.root)).not.toContain('1.1.4')
+  })
+
+  it('renders no version row when no version resolves', () => {
+    mocks.nativeVersion = null
+    mocks.configVersion = undefined
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    expect(textContent(tree.root)).toContain('Orbit')
+    expect(tree.root.findAll((node) => node.props.testID === 'about-fact-version')).toHaveLength(0)
   })
 
   it('renders the About identity, real facts, and four destinations in order', () => {
