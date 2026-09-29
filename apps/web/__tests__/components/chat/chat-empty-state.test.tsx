@@ -70,6 +70,17 @@ describe('ChatEmptyState', () => {
     expect(screen.getByText('aiDisclosure.notMedicalAdvice')).toBeInTheDocument()
   })
 
+  it('offers a requested contextual action at once, while the habit list is still on its way', () => {
+    astraSuggestions.current = null
+    const onSelect = vi.fn()
+    render(<ChatEmptyState onSelectSuggestion={vi.fn()} contextualAction={{ label: 'Create a goal', onSelect }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+
+    expect(onSelect).toHaveBeenCalledOnce()
+    expect(screen.getByText('chat.suggestion.prompt')).toBeInTheDocument()
+  })
+
   it('renders the drawn title and the prompt over the suggestions', () => {
     render(<ChatEmptyState onSelectSuggestion={vi.fn()} />)
 

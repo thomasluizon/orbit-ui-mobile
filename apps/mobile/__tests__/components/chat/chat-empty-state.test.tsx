@@ -45,7 +45,11 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
   })
 }
 
-function renderEmptyState(items: HabitScheduleItem[] | null, onSelectSuggestion = vi.fn()) {
+function renderEmptyState(
+  items: HabitScheduleItem[] | null,
+  onSelectSuggestion = vi.fn(),
+  contextualAction?: { label: string; onSelect: () => void },
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
     queryClient.setQueryData(
@@ -57,7 +61,7 @@ function renderEmptyState(items: HabitScheduleItem[] | null, onSelectSuggestion 
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState styles={styles} onSelectSuggestion={onSelectSuggestion} />
+        <ChatEmptyState styles={styles} onSelectSuggestion={onSelectSuggestion} contextualAction={contextualAction} />
       </QueryClientProvider>,
     )
   })
@@ -149,6 +153,18 @@ describe('ChatEmptyState (mobile)', () => {
       'chat.suggestion.splitHabit:Caminhar',
       'chat.suggestion.goals',
     ])
+  })
+
+  it('offers a requested contextual action at once, while the habit list is still on its way', () => {
+    habitRequest.apiClient.mockImplementationOnce(() => new Promise(() => {}))
+    const onSelect = vi.fn()
+    const { tree } = renderEmptyState(null, vi.fn(), { label: 'Criar uma meta', onSelect })
+
+    expect(suggestionLabels(tree)).toEqual(['Criar uma meta'])
+    TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.props?.accessibilityLabel === 'Criar uma meta' && node.props?.onPress)[0].props.onPress()
+    })
+    expect(onSelect).toHaveBeenCalledTimes(1)
   })
 
   it('keeps a long habit title on one line inside its suggestion', () => {

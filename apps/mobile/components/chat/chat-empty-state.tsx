@@ -18,21 +18,22 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
   function ChatEmptyState({ styles, onSelectSuggestion, contextualAction }, ref) {
     const { t } = useTranslation();
     const suggestions = useAstraSuggestions();
+    const hasOpeners = suggestions !== null || contextualAction !== undefined;
 
     return (
       <View ref={ref} style={styles.emptyState}>
         <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
           <EmptyState mark="astra" title={t("chat.empty.title")} />
-          {suggestions === null ? null : (
+          {hasOpeners ? (
             <View style={styles.emptySuggestions}>
               <Text style={styles.emptyPrompt}>{t("chat.suggestion.prompt")}</Text>
               <SuggestionChips
-                suggestions={suggestions}
+                suggestions={suggestions ?? []}
                 onSelect={onSelectSuggestion}
                 contextualAction={contextualAction}
               />
             </View>
-          )}
+          ) : null}
           <Text style={styles.aiDisclaimer}>
             {t("aiDisclosure.notMedicalAdvice")}
           </Text>

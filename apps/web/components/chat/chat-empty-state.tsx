@@ -15,11 +15,12 @@ interface ChatEmptyStateProps {
 export function ChatEmptyState({ onSelectSuggestion, contextualAction }: Readonly<ChatEmptyStateProps>) {
   const t = useTranslations()
   const suggestions = useAstraSuggestions()
+  const hasOpeners = suggestions !== null || contextualAction !== undefined
 
   return (
     <div className="flex h-full min-h-[420px] flex-col justify-center" style={{ gap: 24 }} aria-live="off">
       <EmptyState mark="astra" title={t('chat.empty.title')} />
-      {suggestions === null ? null : (
+      {hasOpeners ? (
         <div className="flex flex-col items-center" style={{ gap: 8 }}>
           <p
             className="m-0 text-center"
@@ -27,9 +28,9 @@ export function ChatEmptyState({ onSelectSuggestion, contextualAction }: Readonl
           >
             {t('chat.suggestion.prompt')}
           </p>
-          <SuggestionChips suggestions={suggestions} onSelect={onSelectSuggestion} contextualAction={contextualAction} />
+          <SuggestionChips suggestions={suggestions ?? []} onSelect={onSelectSuggestion} contextualAction={contextualAction} />
         </div>
-      )}
+      ) : null}
       <p
         className="m-0 self-center text-center"
         style={{
