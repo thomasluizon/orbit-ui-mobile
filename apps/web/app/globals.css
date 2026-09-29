@@ -1858,7 +1858,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   overflow-wrap: anywhere;
 }
 .error-surface--in-shell {
-  padding: 48px 0 0;
+  padding: 48px 16px 0;
 }
 .error-surface-title {
   font-family: var(--font-display);

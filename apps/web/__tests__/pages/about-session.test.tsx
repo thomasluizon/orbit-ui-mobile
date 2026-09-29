@@ -129,6 +129,7 @@ it('renders an unauthenticated unknown public path without the shell', () => {
   mocks.pathname = '/terms/x'
   render(<AppLayout><AppNotFound /></AppLayout>)
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+  expect(screen.getByRole('main')).toHaveClass('min-h-dvh')
   expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).not.toBeInTheDocument()
   expect(screen.queryByTestId('composer')).not.toBeInTheDocument()
 })
