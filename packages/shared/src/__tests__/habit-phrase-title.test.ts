@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
+import { applyHabitPhraseRead } from '../utils/habit-form-helpers'
+import { readHabitPhrase } from '../utils/habit-phrase-parser'
 
 describe('getHabitPhraseTitle', () => {
   it.each([
@@ -25,6 +27,36 @@ describe('getHabitPhraseTitle', () => {
       cadence: true,
       dueTime: false,
     })).toBe('Read at 8am')
+  })
+
+  it('keeps an interval after removing the only weekday from a phrase', () => {
+    const setOneTime = vi.fn()
+    const target = {
+      setOneTime,
+      setRecurring: vi.fn(),
+      setFlexible: vi.fn(),
+      setGeneral: vi.fn(),
+      setField: vi.fn(),
+    }
+    const applied = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), '', false,
+      { cadence: false, dueTime: false }, target)
+    const finalPhrase = 'Run every 2 weeks'
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(finalPhrase, 'en'), '', false, applied, target)
+
+    expect(setOneTime).toHaveBeenCalledOnce()
+    expect(ownership.cadence).toBe(true)
+    expect(getHabitPhraseTitle(finalPhrase, 'en', ownership)).toBe(finalPhrase)
+  })
+
+  it('removes an applied time while keeping an unapplied interval', () => {
+    expect(getHabitPhraseTitle('Run every 2 weeks at 8am', 'en', {
+      cadence: true,
+      dueTime: true,
+    })).toBe('Run every 2 weeks')
+  })
+
+  it('keeps onboarding interval title stripping', () => {
+    expect(getHabitPhraseTitle('Clean every 2 weeks', 'en')).toBe('Clean')
   })
 
   it.each([

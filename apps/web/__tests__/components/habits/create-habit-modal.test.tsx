@@ -9,7 +9,7 @@ import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
-import { ApiClientError } from '@orbit/shared/utils'
+import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/shared/utils'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -33,6 +33,7 @@ const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
   onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
   onSuggestionContextChange: undefined as undefined | (() => void),
+  onPhraseOwnershipChange: undefined as undefined | ((ownership: { cadence: boolean; dueTime: boolean }) => void),
 }))
 
 vi.mock('next-intl', () => ({
@@ -177,6 +178,7 @@ vi.mock('./habit-form-fields', () => ({
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
     mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
+    mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
     return (
       <div data-testid="habit-form-fields">
         {onSuggestSetup && (
@@ -212,6 +214,7 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   }) => {
     mockHabitFormFieldsState.onSuggestSetup = onSuggestSetup
     mockHabitFormFieldsState.onSuggestionContextChange = onSuggestionContextChange
+    mockHabitFormFieldsState.onPhraseOwnershipChange = onPhraseOwnershipChange
     return (
       <div data-testid="habit-form-fields">
         {onSuggestSetup && (
@@ -430,6 +433,31 @@ describe('CreateHabitModal', () => {
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
+  })
+
+  it('keeps an unapplied interval in a one-time habit title', async () => {
+    const phrase = 'Run every 2 weeks'
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? phrase : undefined)
+    mockFormGetValues.mockReturnValue({ title: phrase, frequencyUnit: null, frequencyQuantity: null, dueTime: '' })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    const setOneTime = vi.fn()
+    const target = {
+      setOneTime,
+      setRecurring: vi.fn(),
+      setFlexible: vi.fn(),
+      setGeneral: vi.fn(),
+      setField: vi.fn(),
+    }
+    const initial = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), '', false,
+      { cadence: false, dueTime: false }, target)
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), '', false, initial, target)
+    act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
+    expect(setOneTime).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
   })
 
   it('omits nested sub-habits from a Free create request', async () => {

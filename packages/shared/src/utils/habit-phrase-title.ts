@@ -44,10 +44,13 @@ function removeOrphanedGlue(
 export function getHabitPhraseTitle(
   sentence: string,
   locale: SupportedLocale,
-  applied: AppliedHabitPhraseFields = { cadence: true, dueTime: true },
+  applied?: AppliedHabitPhraseFields,
 ): string {
   const read = readHabitPhrase(sentence, locale)
-  const consumed = read.consumed.filter((token) => token.kind === 'time' ? applied.dueTime : applied.cadence)
+  const consumed = read.consumed.filter((token) => {
+    if (!applied) return true
+    return token.kind === 'time' ? applied.dueTime : applied.cadence && read.cadence !== null
+  })
   if (consumed.length === 0) return sentence.trim()
 
   const characters = sentence.split('')
