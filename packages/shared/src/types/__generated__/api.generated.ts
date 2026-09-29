@@ -1931,6 +1931,13 @@ export const PutApiProfileWeekStartDayBody = zod.object({
 export const PutApiProfileWeekStartDayResponse = zod.void()
 
 
+export const PutApiProfileClockFormatBody = zod.object({
+  "uses24HourClock": zod.boolean()
+})
+
+export const PutApiProfileClockFormatResponse = zod.void()
+
+
 export const PutApiProfileThemePreferenceBody = zod.object({
   "themePreference": zod.string().nullable()
 })
