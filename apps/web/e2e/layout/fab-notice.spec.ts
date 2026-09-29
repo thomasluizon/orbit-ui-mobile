@@ -30,6 +30,8 @@ for (const width of [412, 600] as const) {
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
       await page.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
       await expect(page.locator('[data-habit-title="Beber água"]')).toBeVisible()
+      await expect(page.getByRole('menu', { name: ptBr.habits.listOptions })).toHaveCount(0)
+      await expect(page.locator('.orbit-sheet-backdrop')).toHaveCount(0)
       const fab = page.locator('[data-shell-fab]')
       const notice = page.locator('[data-shell-notice]')
       const composer = page.locator('[data-shell-pinned-slot]')
