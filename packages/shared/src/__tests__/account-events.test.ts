@@ -128,4 +128,81 @@ describe('account events', () => {
     stopFresh()
     client.clear()
   })
+
+  it('reports only the first failed open of a resumed stream, then refreshes when it opens', async () => {
+    const open = vi.fn()
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockResolvedValueOnce({ ok: false, body: null })
+      .mockResolvedValueOnce(closedStream())
+    const calls = await recordStreamCallbacks(open, { resumed: true }, 6000)
+    expect(open).toHaveBeenCalledTimes(3)
+    expect(calls).toEqual(['failure', 'open', 'reconnect'])
+  })
+
+  it('does not report a failed first open before the stream ever opened', async () => {
+    const open = vi.fn()
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockResolvedValueOnce(closedStream())
+    const calls = await recordStreamCallbacks(open, {}, 2000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(calls).toEqual(['open', 'reconnect'])
+  })
+
+  it('refreshes once for each gap after a cursorless stream closes', async () => {
+    const open = vi.fn()
+      .mockResolvedValueOnce(closedStream())
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockResolvedValueOnce(closedStream())
+      .mockResolvedValueOnce(closedStream())
+    const calls = await recordStreamCallbacks(open, {}, 11000)
+    expect(open).toHaveBeenCalledTimes(5)
+    expect(calls).toEqual(['open', 'reconnect', 'failure', 'open', 'reconnect', 'open', 'reconnect'])
+  })
+
+  it('leaves a gap after an event id to the server replay', async () => {
+    const open = vi.fn()
+      .mockResolvedValueOnce(closedStream(`id: epoch.1\nevent: changes\ndata: ${JSON.stringify(payload)}\n\n`))
+      .mockRejectedValueOnce(new Error('ticket unavailable'))
+      .mockResolvedValueOnce(closedStream())
+    const calls = await recordStreamCallbacks(open, { resumed: true }, 3000)
+    expect(open.mock.calls.map((call) => call[1])).toEqual([null, 'epoch.1', 'epoch.1'])
+    expect(calls).toEqual(['open', 'reconnect', 'reconnect'])
+  })
 })
+
+function closedStream(frame = '') {
+  return { ok: true, body: new ReadableStream<Uint8Array>({
+    start(stream) {
+      if (frame) stream.enqueue(new TextEncoder().encode(frame))
+      stream.close()
+    },
+  }) }
+}
+
+async function recordStreamCallbacks(
+  open: Parameters<typeof consumeAccountEventStream>[0]['open'],
+  options: { resumed?: boolean },
+  duration: number,
+): Promise<string[]> {
+  const controller = new AbortController()
+  const calls: string[] = []
+  vi.useFakeTimers()
+  try {
+    const running = consumeAccountEventStream({
+      ...options,
+      open,
+      signal: controller.signal,
+      onEvent: () => {},
+      onOpen: () => { calls.push('open') },
+      onFirstFailure: () => { calls.push('failure') },
+      onReconnect: () => { calls.push('reconnect') },
+    })
+    await vi.advanceTimersByTimeAsync(duration)
+    controller.abort()
+    await running
+  } finally {
+    vi.useRealTimers()
+  }
+  return calls
+}

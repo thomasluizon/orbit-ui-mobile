@@ -14,7 +14,7 @@ export function AccountEventConnection(): null {
   useEffect(() => {
     let controller: AbortController | null = null
     let lastEventId: string | null = null
-    let hasOpened = false
+    let resumed = false
     function close() {
       controller?.abort()
       controller = null
@@ -23,13 +23,11 @@ export function AccountEventConnection(): null {
     function syncVisibility() {
       close()
       if (document.visibilityState !== 'visible') return
-      if (hasOpened && !lastEventId) {
-        invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
-      }
       controller = new AbortController()
       void consumeAccountEventStream({
         signal: controller.signal,
         lastEventId,
+        resumed,
         open: async (signal, lastEventId) => {
           const ticketResponse = await fetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
           if (!ticketResponse.ok) throw new Error('Event ticket unavailable')
@@ -42,22 +40,16 @@ export function AccountEventConnection(): null {
             headers: lastEventId ? { 'Last-Event-ID': lastEventId } : undefined,
           })
         },
-        onOpen: (openedAt) => {
-          hasOpened = true
-          invalidateAccountQueriesBefore(queryClient, openedAt)
-        },
-        onReconnect: (lastEventId) => {
-          setAccountEventOrigin(null)
-          if (!lastEventId) {
-            invalidateAccountEvent(queryClient, { type: 'resync', payload: { v: 1, changes: [] } }, null)
-          }
-        },
+        onOpen: (openedAt) => invalidateAccountQueriesBefore(queryClient, openedAt),
+        onFirstFailure: (failedAt) => invalidateAccountQueriesBefore(queryClient, failedAt),
+        onReconnect: () => setAccountEventOrigin(null),
         onEvent: (event) => {
           if (event.id) lastEventId = event.id
           if (event.type === 'ready') setAccountEventOrigin(event.connectionId)
           else invalidateAccountEvent(queryClient, event, getAccountEventOrigin())
         },
       })
+      resumed = true
     }
     document.addEventListener('visibilitychange', syncVisibility)
     syncVisibility()
