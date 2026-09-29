@@ -286,6 +286,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               placeholderTextColor={tokens.fg3}
               autoCapitalize="characters"
               autoCorrect={false}
+              autoFocus
               textAlign="center"
               returnKeyType="done"
               onSubmitEditing={() => {

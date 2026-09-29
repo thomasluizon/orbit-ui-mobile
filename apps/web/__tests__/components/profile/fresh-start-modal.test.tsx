@@ -133,6 +133,16 @@ describe('FreshStartModal', () => {
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
   })
 
+  it('moves focus to the confirm field, never leaving it on the disabled Delete data', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
+    review.focus()
+    fireEvent.click(review)
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveFocus()
+  })
+
   it('confirm button is disabled when text is not ORBIT', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
 

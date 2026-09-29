@@ -166,6 +166,12 @@ describe('FreshStartModal', () => {
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
   })
 
+  it('moves focus to the confirm field, never leaving it on the disabled Delete data', async () => {
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(input(tree).props.autoFocus).toBe(true)
+  })
+
   it('pins both steps\' actions in the sheet footer, never in the scrolling body', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
 

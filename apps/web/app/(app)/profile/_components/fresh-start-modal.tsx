@@ -334,6 +334,7 @@ function FreshStartConfirmStep({
         onChange={onConfirmTextChange}
         placeholder={t('profile.freshStart.confirmPlaceholder')}
         autoComplete="off"
+        autoFocus
         onSubmit={() => {
           if (isConfirmed && !loading) onReset()
         }}
