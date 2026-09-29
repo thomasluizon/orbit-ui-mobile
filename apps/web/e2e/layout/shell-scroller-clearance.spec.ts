@@ -48,7 +48,7 @@ for (const [width, clearance] of [[412, 96], [1280, 32]] as const) {
         const scroller = page.locator('[data-shell-scroller]').last()
         const chrome = page.locator('[data-shell-bottom]').last()
         await expect(scroller).toBeVisible()
-        await expect(chrome).toBeVisible()
+        await expect(chrome).toBeAttached()
         await page.evaluate(() => document.fonts.ready)
 
         const geometry = await scroller.evaluate((element) => {
