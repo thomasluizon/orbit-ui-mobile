@@ -65,13 +65,13 @@
     "markAllReadError": "Não foi possível marcar os avisos como lidos. Tente de novo.",
     "deleteError": "Não foi possível apagar o aviso. Tente de novo.",
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
-    "markAllRead": "Marcar todas",
-    "markAsRead": "Marcar lida",
-    "markRead": "Marcar {title} como lida",
+    "markAllRead": "Marcar tudo como lido",
+    "markAsRead": "Marcar como lido",
+    "markRead": "Marcar {title} como lido",
     "deleteAll": "Limpar tudo",
     "deleteAllAction": "Apagar",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
-    "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
+    "deleteAllConfirmDescription": "{count, plural, one {O aviso sai da lista.} other {Os # avisos saem da lista.}} Não há como desfazer.",
     "delete": "Apagar",
     "deleteNotification": "Apagar: {title}",
     "deleteUndo": "Desfazer",
@@ -87,7 +87,7 @@
     "read": "lido",
     "unread": "sem ler",
     "habit": "Hábito",
-    "openIn": "Abrir {target}"
+    "openIn": "Abrir em {target}"
   },
   "persistentReminder": {
     "label": "Lembrete fixo",
