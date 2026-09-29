@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createApiClientError, formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDateTime, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   rescheduleError: null as Error | null,
   rescheduleRefetch: vi.fn(),
   language: 'en',
+  uses24HourClock: undefined as boolean | undefined,
 }))
 
 vi.mock('next-intl', () => ({
@@ -119,6 +120,7 @@ vi.mock('@/hooks/use-profile', () => ({
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
       language: mocks.language,
+      uses24HourClock: mocks.uses24HourClock,
       weekStartDay: 1,
       timeZone: mocks.timeZone,
     } : undefined,
@@ -285,6 +287,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = null
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
+    mocks.uses24HourClock = undefined
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
@@ -770,17 +773,24 @@ describe('HabitDetailScreen', () => {
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
+    mocks.language = 'en'
+    mocks.uses24HourClock = true
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     const loggedCell = screen.getByTestId('history-day-26-inside')
     const unloggedCell = screen.getByTestId('history-day-28-inside')
-    const loggedTime = new Date('2026-08-26T12:00:00Z').toLocaleTimeString('en', {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    const loggedTime = formatLocaleDateTime('2026-08-26T12:00:00Z', 'en', { hour: 'numeric', minute: '2-digit', hourCycle: 'h23' })
     expect(loggedCell).toHaveAccessibleName(/Wednesday, August 26, 2026/)
     expect(loggedCell.getAttribute('aria-label')).toContain(loggedTime)
     expect(unloggedCell).toHaveAccessibleName('Friday, August 28, 2026')
+  })
+
+  it('announces logged time in 12-hour format under a 24-hour locale', () => {
+    mocks.language = 'pt-BR'
+    mocks.uses24HourClock = false
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const loggedTime = formatLocaleDateTime('2026-08-26T12:00:00Z', 'pt-BR', { hour: 'numeric', minute: '2-digit', hourCycle: 'h12' })
+    expect(screen.getByTestId('history-day-26-inside').getAttribute('aria-label')).toContain(loggedTime)
   })
 
   it.each(['2026-08-29', '2026-08-28'])(
@@ -873,7 +883,7 @@ describe('HabitDetailScreen', () => {
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
     }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', 'habits.form.reminder10min, habits.form.reminder30min, 08:00')
+    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', 'habits.form.reminder10min, habits.form.reminder30min, 8:00 AM')
   })
 
   it('keeps the five content blocks in one column and discloses avoid-only fields', () => {
@@ -924,12 +934,19 @@ describe('HabitDetailScreen', () => {
     expect(strip.parentElement).not.toHaveClass('overflow-x-auto')
   })
 
-  it('formats the due time in the header without seconds', () => {
-    mocks.detail = { ...makeDetail(), dueTime: '08:00:00' }
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('uses %s and the saved clock in the header and time row', (language, uses24HourClock, expected, excluded) => {
+    mocks.language = language
+    mocks.uses24HourClock = uses24HourClock
+    mocks.detail = { ...makeDetail(), dueTime: '19:30' }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
     const header = view.container.querySelector('[data-habit-detail-content] header')
-    expect(header).toHaveTextContent('8:00')
-    expect(header).not.toHaveTextContent('08:00:00')
+    expect(header).toHaveTextContent(expected)
+    expect(header).not.toHaveTextContent(excluded)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.time')).toHaveAttribute('data-value', expected)
   })
 
   it('persists each inline detail editor through its dedicated patch', async () => {

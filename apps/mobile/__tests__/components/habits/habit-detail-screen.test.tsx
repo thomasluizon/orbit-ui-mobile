@@ -1,7 +1,7 @@
 import React from 'react'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApiClientError, formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDateTime, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -68,6 +68,7 @@ const mocks = vi.hoisted(() => ({
   rescheduleError: null as Error | null,
   rescheduleRefetch: vi.fn(),
   language: 'en',
+  uses24HourClock: undefined as boolean | undefined,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -223,6 +224,7 @@ vi.mock('@/hooks/use-profile', () => ({
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
       language: mocks.language,
+      uses24HourClock: mocks.uses24HourClock,
       weekStartDay: 1,
       timeZone: mocks.timeZone,
     } : undefined,
@@ -385,6 +387,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = null
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
+    mocks.uses24HourClock = undefined
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
   })
 
@@ -834,6 +837,8 @@ describe('HabitDetailScreen', () => {
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
+    mocks.language = 'en'
+    mocks.uses24HourClock = true
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -841,13 +846,21 @@ describe('HabitDetailScreen', () => {
 
     const loggedLabel = tree!.root.findByProps({ testID: 'history-day-26-inside' }).props.accessibilityLabel
     const unloggedLabel = tree!.root.findByProps({ testID: 'history-day-28-inside' }).props.accessibilityLabel
-    const loggedTime = new Date('2026-08-26T12:00:00Z').toLocaleTimeString('en', {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    const loggedTime = formatLocaleDateTime('2026-08-26T12:00:00Z', 'en', { hour: 'numeric', minute: '2-digit', hourCycle: 'h23' })
     expect(loggedLabel).toContain('Wednesday, August 26, 2026')
     expect(loggedLabel).toContain(loggedTime)
     expect(unloggedLabel).toBe('Friday, August 28, 2026')
+  })
+
+  it('announces logged time in 12-hour format under a 24-hour locale', () => {
+    mocks.language = 'pt-BR'
+    mocks.uses24HourClock = false
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const loggedTime = formatLocaleDateTime('2026-08-26T12:00:00Z', 'pt-BR', { hour: 'numeric', minute: '2-digit', hourCycle: 'h12' })
+    expect(tree!.root.findByProps({ testID: 'history-day-26-inside' }).props.accessibilityLabel).toContain(loggedTime)
   })
 
   it.each(['2026-08-29', '2026-08-28'])(
@@ -972,7 +985,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    expect(tree!.root.findByProps({ title: 'habits.detail.reminders' }).props.value).toBe('habits.form.reminder10min, habits.form.reminder30min, 08:00')
+    expect(tree!.root.findByProps({ title: 'habits.detail.reminders' }).props.value).toBe('habits.form.reminder10min, habits.form.reminder30min, 8:00 AM')
   })
 
   it('keeps the five content blocks in one column and discloses avoid-only fields', () => {
@@ -1026,13 +1039,21 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ testID: 'detail-strip' }).props.size).toBe(16)
   })
 
-  it('formats the due time in the header without seconds', () => {
-    mocks.detail = { ...makeDetail(), dueTime: '08:00:00' }
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('uses %s and the saved clock in the header and time row', (language, uses24HourClock, expected, excluded) => {
+    mocks.language = language
+    mocks.uses24HourClock = uses24HourClock
+    mocks.detail = { ...makeDetail(), dueTime: '19:30' }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const header = JSON.stringify(tree!.root.findByProps({ testID: 'header-log' }).parent.parent.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))
-    expect(header).toContain('8:00')
-    expect(header).not.toContain('08:00:00')
+    expect(header).toContain(expected)
+    expect(header).not.toContain(excluded)
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    expect(tree!.root.findByProps({ title: 'habits.detail.time' }).props.value).toBe(expected)
   })
 
   it('persists each inline detail editor through its dedicated patch', async () => {

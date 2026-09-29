@@ -14,7 +14,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const profileRef = vi.hoisted(() => ({
-  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string } | undefined,
+  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string; uses24HourClock: boolean } | undefined,
 }))
 const authRef = vi.hoisted(() => ({ isAuthenticated: true }))
 const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
@@ -51,6 +51,7 @@ vi.mock('@/stores/auth-store', () => {
 })
 vi.mock('@/lib/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
+  updateClockFormat: vi.fn(),
   updateLanguage: vi.fn(),
   updateTimezone: vi.fn(),
 }))
@@ -92,7 +93,7 @@ describe('usePreferenceControls', () => {
     mockFetch.mockReset()
     mockPatchProfile.mockReset()
     localStorage.clear()
-    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC' }
+    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC', uses24HourClock: true }
     authRef.isAuthenticated = true
     heldAccount.id = 'account-a'
     Object.defineProperty(globalThis, 'location', {
@@ -199,6 +200,19 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenLastCalledWith({ weekStartDay: 0 })
+  })
+
+  it('writes and rolls back the profile clock choice', async () => {
+    const { updateClockFormat } = await import('@/lib/actions/profile')
+    vi.mocked(updateClockFormat).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('offline'))
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+
+    await act(async () => { await result.current.clockFormatMutation.mutateAsync(false) })
+    expect(mockPatchProfile).toHaveBeenCalledWith({ uses24HourClock: false })
+    expect(updateClockFormat).toHaveBeenCalledWith({ uses24HourClock: false }, 'account-a')
+
+    await act(async () => { await result.current.clockFormatMutation.mutateAsync(false).catch(() => undefined) })
+    expect(mockPatchProfile).toHaveBeenLastCalledWith({ uses24HourClock: true })
   })
 
   it('writes the selected timezone and updates the profile optimistically', async () => {

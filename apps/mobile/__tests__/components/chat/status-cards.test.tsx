@@ -8,9 +8,13 @@ import { CalendarCard } from '@/components/chat/calendar-card'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({ push: vi.fn() }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), language: 'pt-BR', uses24HourClock: false }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu', uses24HourClock: mocks.uses24HourClock } }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({
+  t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+  i18n: { language: mocks.language },
+}) }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} /> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
@@ -27,7 +31,7 @@ function render(element: React.ReactElement) {
 }
 
 describe('Astra status cards on mobile', () => {
-  beforeEach(() => mocks.push.mockReset())
+  beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
 
   it('labels the day ring and opens Today', () => {
     const tree = render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
@@ -75,6 +79,17 @@ describe('Astra status cards on mobile', () => {
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.calendarCard.open'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/calendar')
+  })
+
+  it.each([
+    ['pt-BR', false, '7:30 PM', '19:30'],
+    ['en', true, '19:30', '7:30 PM'],
+  ])('shows a timed calendar event with %s and the saved clock', (language, uses24HourClock, expected, excluded) => {
+    mocks.language = language
+    mocks.uses24HourClock = uses24HourClock
+    const tree = render(<CalendarCard calendarCard={{ events: [{ title: 'Meeting', start: '2026-09-26T19:30:00', end: null, isAllDay: false }], surfaceId: 'calendar' }} />)
+    expect(renderedText(tree.toJSON())).toContain(expected)
+    expect(renderedText(tree.toJSON())).not.toContain(excluded)
   })
 
   it('shows disabled sync without a failure mark', () => {

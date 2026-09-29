@@ -1,6 +1,7 @@
 'use client'
 
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useRouter } from 'next/navigation'
 import type { CalendarCard as CalendarCardData } from '@orbit/shared/types/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
@@ -9,14 +10,13 @@ import { Button } from '@/components/ui/pill-button'
 
 export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: CalendarCardData }>) {
   const t = useTranslations()
-  const locale = useLocale()
+  const { displayClock } = useTimeFormat()
   const router = useRouter()
-  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' })
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => ({
     id: `event-${index}`,
     label: event.title,
     wrapLabel: true,
-    meta: event.isAllDay ? t('chat.calendarCard.allDay') : time.format(new Date(event.start)),
+    meta: event.isAllDay ? t('chat.calendarCard.allDay') : displayClock(event.start),
   }))
   if (calendarCard.sync) {
     const failed = calendarCard.sync.enabled && calendarCard.sync.status !== 'Idle'

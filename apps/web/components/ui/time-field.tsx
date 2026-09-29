@@ -2,18 +2,21 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
+import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
-  detectDefaultTimeFormat,
-  formatTimeParts,
-  formatTimeFieldInput,
-  from12Hour,
+  resolveHourCycle,
+  changeTimeFieldInput,
+  commitTimeFieldPickerDraft,
+  initialTimeFieldPickerDraft,
+  presentTimeFieldValue,
+  selectTimeFieldHour,
+  selectTimeFieldMinute,
+  selectTimeFieldPeriod,
   HOURS_12,
   HOURS_24,
   MINUTES,
   padTimePart,
-  parseTimeParts,
   to12Hour,
   type DayPeriod,
 } from '@orbit/shared/utils'
@@ -29,25 +32,6 @@ interface TimeColumnProps {
   formatValue: (value: number | string) => string
   label: string
   onSelect: (value: number | string) => void
-}
-
-const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
-const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
-
-function presentTime(value: Time24 | '', hourCycle: 'h23' | 'h12'): string {
-  if (!value || hourCycle === 'h23') return value
-  const [hourText, minute] = value.split(':')
-  const hour = Number(hourText)
-  return `${hour % 12 || 12}:${minute} ${hour < 12 ? 'am' : 'pm'}`
-}
-
-function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null {
-  if (hourCycle === 'h23') return TIME_24_PATTERN.test(value) ? value as Time24 : null
-  const match = TIME_12_PATTERN.exec(value.trim())
-  if (!match) return null
-  const hour12 = Number(match[1])
-  const hour24 = (hour12 % 12) + (match[3]!.toLowerCase() === 'pm' ? 12 : 0)
-  return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
 function TimeOption({
@@ -209,12 +193,12 @@ export function TimeField({
   const locale = useLocale()
   const generatedId = useId()
   const { profile } = useProfile()
-  const uses24HourClock = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
-  const resolvedHourCycle = hourCycle ?? (uses24HourClock ? 'h23' : 'h12')
+  const resolvedProfileHourCycle = resolveHourCycle(profile?.uses24HourClock, locale)
+  const resolvedHourCycle = hourCycle ?? resolvedProfileHourCycle
   const resolvedLabel = label ?? ariaLabel ?? placeholder ?? t('common.selectTime')
   const inputId = id ?? generatedId
   const descriptionId = useId()
-  const presentedValue = presentTime(value, resolvedHourCycle)
+  const presentedValue = presentTimeFieldValue(value, resolvedHourCycle)
   const [inputDraft, setInputDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
@@ -224,28 +208,25 @@ export function TimeField({
   const { hour12, period } = to12Hour(pickerDraft.hour24)
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextValue = resolvedHourCycle === 'h23'
-      ? formatTimeFieldInput(event.target.value, inputDraft ?? presentedValue)
-      : event.target.value
-    setInputDraft(nextValue)
-    if (!nextValue) {
+    const change = changeTimeFieldInput(event.target.value, inputDraft ?? presentedValue, resolvedHourCycle)
+    setInputDraft(change.draft)
+    if (change.clear) {
       onClear?.()
       return
     }
-    const parsed = parseTypedTime(nextValue, resolvedHourCycle)
-    if (parsed) onChange(parsed)
+    if (change.parsed) onChange(change.parsed)
   }
 
   function openPicker() {
     const now = new Date()
-    setPickerDraft(parseTimeParts(value) ?? { hour24: now.getHours(), minute: now.getMinutes() })
+    setPickerDraft(initialTimeFieldPickerDraft(value, now))
     setOpen(true)
   }
 
   function applyDraft() {
     closeSheet(() => {
       setOpen(false)
-      onChange(formatTimeParts(pickerDraft) as Time24)
+      onChange(commitTimeFieldPickerDraft(pickerDraft))
     })
   }
 
@@ -286,10 +267,7 @@ export function TimeField({
               formatValue={(option) => padTimePart(Number(option))}
               label={t('common.hours')}
               onSelect={(option) =>
-                setPickerDraft((current) => ({
-                  ...current,
-                  hour24: resolvedHourCycle === 'h23' ? Number(option) : from12Hour(Number(option), period),
-                }))
+                setPickerDraft((current) => selectTimeFieldHour(current, Number(option), resolvedHourCycle))
               }
             />
             <TimeColumn
@@ -297,7 +275,7 @@ export function TimeField({
               selected={pickerDraft.minute}
               formatValue={(option) => padTimePart(Number(option))}
               label={t('common.minutes')}
-              onSelect={(option) => setPickerDraft((current) => ({ ...current, minute: Number(option) }))}
+              onSelect={(option) => setPickerDraft((current) => selectTimeFieldMinute(current, Number(option)))}
             />
             {resolvedHourCycle === 'h23' ? null : (
               <TimeColumn
@@ -306,10 +284,7 @@ export function TimeField({
                 formatValue={String}
                 label={t('common.amPm')}
                 onSelect={(option) =>
-                  setPickerDraft((current) => ({
-                    ...current,
-                    hour24: from12Hour(to12Hour(current.hour24).hour12, option as DayPeriod),
-                  }))
+                  setPickerDraft((current) => selectTimeFieldPeriod(current, option as DayPeriod))
                 }
               />
             )}

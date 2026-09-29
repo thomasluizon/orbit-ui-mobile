@@ -485,11 +485,12 @@ export function canInlineEditHabitSchedule(
 export function formatHabitDetailReminderValue(
   habit: Pick<NormalizedHabit, 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'>,
   translate: (key: string) => string,
+  formatTime: (time: string) => string,
 ): string {
   if (!habit.reminderEnabled) return translate('habits.detail.noValue')
   const values = [
     ...habit.reminderTimes.map((minutes) => formatHabitReminderLabel(minutes, translate)),
-    ...habit.scheduledReminders.map((reminder) => reminder.time),
+    ...habit.scheduledReminders.map((reminder) => formatTime(reminder.time)),
   ]
   return values.length ? values.join(', ') : translate('habits.detail.noValue')
 }

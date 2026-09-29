@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { formatLocaleTime } from '@orbit/shared/utils'
+import { formatLocaleTime, formatLocaleDateTime } from '@orbit/shared/utils'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
 vi.mock('next-intl', () => ({
@@ -23,6 +23,10 @@ describe('useTimeFormat', () => {
 
     expect(result.current.displayTime('14:30')).toBe(
       formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
+    )
+    expect(result.current.hourCycle).toBe(hourCycle)
+    expect(result.current.displayClock('2026-04-06T19:30:00')).toBe(
+      formatLocaleDateTime('2026-04-06T19:30:00', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
     )
   })
 

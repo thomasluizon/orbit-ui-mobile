@@ -295,6 +295,22 @@ describe('mobile offline queue', () => {
     })
   })
 
+  it('keeps only the latest offline clock choice for replay', () => {
+    enqueue(makeMutation({
+      id: 'clock-1', type: 'setClockFormat', scope: 'profile', method: 'PUT',
+      endpoint: '/api/profile/clock-format', dedupeKey: 'profile-clock-format',
+      payload: { uses24HourClock: true },
+    }))
+    enqueue(makeMutation({
+      id: 'clock-2', type: 'setClockFormat', scope: 'profile', method: 'PUT',
+      endpoint: '/api/profile/clock-format', dedupeKey: 'profile-clock-format',
+      payload: { uses24HourClock: false },
+    }))
+    expect(getAll()).toEqual([expect.objectContaining({
+      id: 'clock-2', type: 'setClockFormat', payload: { uses24HourClock: false },
+    })])
+  })
+
   it('keeps a dependent onboarding habit attached when auto-sync replaces its timezone write', () => {
     enqueue(makeMutation({
       id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
