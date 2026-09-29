@@ -909,7 +909,12 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileScreen()
 
     const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
-    expect(nodeText(apiKeys)).toContain('common.proBadge')
+    const badges = apiKeys.findAll((node: { type: unknown; props: { testID?: string } }) =>
+      typeof node.type === 'string'
+      && typeof node.props.testID === 'string' && node.props.testID.startsWith('badge-'))
+    expect(badges.map((badge: { props: { testID?: string } }) => badge.props.testID))
+      .toEqual(['badge-solid', 'badge-solid'])
+    expect(badges.map(nodeText)).toEqual(['common.proBadge', 'common.proBadge'])
     expect(nodeText(apiKeys)).not.toContain('trial.proBadge')
   })
 

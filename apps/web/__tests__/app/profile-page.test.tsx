@@ -650,7 +650,9 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
-    expect(apiKeys.getAllByText('common.proBadge')).toHaveLength(2)
+    const badges = apiKeys.getAllByText('common.proBadge')
+    expect(badges).toHaveLength(2)
+    expect(badges.map((badge) => badge.dataset.variant)).toEqual(['solid', 'solid'])
     expect(apiKeys.queryByText('trial.proBadge')).not.toBeInTheDocument()
   })
 
