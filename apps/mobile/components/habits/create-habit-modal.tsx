@@ -613,17 +613,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 16,
       gap: 24,
     },
-    fieldLabel: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg2,
-    },
     subHabitsSection: {
-      gap: 8,
-    },
-    subHabitsHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
       gap: 8,
     },
     subHabitsList: {
