@@ -7,6 +7,8 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   calendarImportEventsKey,
+  calendarImportRouteRequestKey,
+  calendarImportTitleKey,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
@@ -22,10 +24,91 @@ import {
   reconcileCalendarAutoSyncGrantRevocation,
   resolveCalendarEventsGrantRevocation,
   resolveCalendarImportEvents,
+  resolveCalendarImportConnectionStep,
   resolveCalendarImportSelection,
+  runCalendarSyncNowWithFeedback,
+  selectInitialCalendarImportEvent,
+  shouldOpenCalendarImportSheet,
+  shouldPromptForCalendarConnection,
 } from '../utils/calendar-sync'
 
 describe('calendar-sync utils', () => {
+  const importEvent = {
+    id: 'event-1', title: 'Meeting', description: null, startDate: '2026-09-12',
+    startTime: '09:00', endTime: '10:00', isRecurring: false,
+    recurrenceRule: null, reminders: [],
+  }
+
+  it('offers unimported events only after the calendar connects, while review uses suggestions', () => {
+    expect(resolveCalendarImportEvents(false, [], undefined)).toEqual([])
+    expect(resolveCalendarImportEvents(false, [], { status: 'not-connected' })).toEqual([])
+    const suggestion = {
+      id: 'suggestion-1', googleEventId: importEvent.id,
+      discoveredAtUtc: '2026-09-12T08:00:00Z', event: importEvent,
+    }
+    expect(resolveCalendarImportEvents(true, [suggestion], { status: 'not-connected' }))
+      .toEqual([importEvent])
+    expect(resolveCalendarImportEvents(false, [suggestion], {
+      status: 'connected', events: [importEvent, { ...importEvent, id: 'imported', isImported: true }],
+    })).toEqual([importEvent])
+    expect(calendarImportEventsKey(true, 0, [importEvent])).toBe('review:0:event-1')
+  })
+
+  it('selects a requested importable event and rejects an imported or missing event', () => {
+    const imported = { ...importEvent, id: 'imported', isImported: true }
+    expect([...selectInitialCalendarImportEvent(importEvent.id, false, [importEvent], 1)!])
+      .toEqual([importEvent.id])
+    expect([...selectInitialCalendarImportEvent(imported.id, false, [imported], 1)!])
+      .toEqual([])
+    expect([...selectInitialCalendarImportEvent('missing', false, [importEvent], 1)!])
+      .toEqual([])
+    expect(selectInitialCalendarImportEvent(importEvent.id, true, [importEvent], 1)).toBeNull()
+    expect(selectInitialCalendarImportEvent(null, false, [importEvent], 1)).toBeNull()
+    expect([...resolveCalendarImportSelection(importEvent.id, false, [importEvent, imported], 1, new Set(), null)])
+      .toEqual([importEvent.id])
+  })
+
+  it('reports a failed sync only for the account that started it', async () => {
+    const failures: unknown[] = []
+    let generation = 1
+    const reportFailure = (error: unknown) => { failures.push(error) }
+    const failure = new Error('sync failed')
+    await runCalendarSyncNowWithFeedback(async () => 'synced', reportFailure, () => generation)
+    expect(failures).toEqual([])
+    await runCalendarSyncNowWithFeedback(async () => { throw failure }, reportFailure, () => generation)
+    expect(failures).toEqual([failure])
+    await runCalendarSyncNowWithFeedback(async () => {
+      generation = 2
+      throw new Error('previous account failed')
+    }, reportFailure, () => generation)
+    expect(failures).toEqual([failure])
+  })
+
+  it('shows the connect step only for an online browsing account with settled disconnected state', () => {
+    expect(shouldPromptForCalendarConnection(false, false, true, true)).toBe(true)
+    expect(shouldPromptForCalendarConnection(true, false, true, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, true, true, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, false, false, true)).toBe(false)
+    expect(shouldPromptForCalendarConnection(false, false, true, false)).toBe(false)
+    expect(resolveCalendarImportConnectionStep('events', false, true, false, true, true)).toBe('error')
+    expect(resolveCalendarImportConnectionStep('events', false, true, false, false, true)).toBe('events')
+    expect(resolveCalendarImportConnectionStep('events', false, false, false, true, true)).toBe('not-connected')
+    expect(resolveCalendarImportConnectionStep('events', false, false, true, true, true)).toBe('events')
+  })
+
+  it('opens the import sheet for Pro entry points and gives review routes priority', () => {
+    expect(shouldOpenCalendarImportSheet(true, true, false)).toBe(true)
+    expect(shouldOpenCalendarImportSheet(true, false, true)).toBe(true)
+    expect(shouldOpenCalendarImportSheet(true, false, false)).toBe(false)
+    expect(shouldOpenCalendarImportSheet(false, true, true)).toBe(false)
+    expect(calendarImportRouteRequestKey(true, true)).toBe('review')
+    expect(calendarImportRouteRequestKey(true, false)).toBe('review')
+    expect(calendarImportRouteRequestKey(false, true)).toBe('import')
+    expect(calendarImportRouteRequestKey(false, false)).toBe('')
+    expect(calendarImportTitleKey(true)).toBe('calendar.autoSync.reviewModeTitle')
+    expect(calendarImportTitleKey(false)).toBe('calendar.title')
+  })
+
   it('keeps imported events out of manual import and preserves review selection on refresh', () => {
     const event = {
       id: 'available', title: 'Meeting', description: null, startDate: '2026-09-12',
