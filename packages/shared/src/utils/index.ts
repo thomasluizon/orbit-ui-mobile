@@ -166,7 +166,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
+export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
 export {
   canSnapshotOnboardingEntry,
   getOnboardingDisplayStep,

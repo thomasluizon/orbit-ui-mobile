@@ -12,6 +12,7 @@ import { buildReferralUrl } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
+import { getPublicOrigin } from '@/lib/public-origin'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import {
@@ -95,7 +96,7 @@ export function MilestoneSharePrompt() {
   const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
   const variant = visibleKey ? resolveVariant(visibleKey, profile) : null
   const cachedReferral = queryClient.getQueryData<ReferralDashboard>(referralKeys.all)
-  const referralUrl = buildReferralUrl(cachedReferral?.code)
+  const referralUrl = buildReferralUrl(cachedReferral?.code, getPublicOrigin())
 
   function dismiss() {
     setVisibleKey(null)

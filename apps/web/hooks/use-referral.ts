@@ -7,6 +7,7 @@ import { API } from '@orbit/shared/api'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import { getPublicOrigin } from '@/lib/public-origin'
 
 export function useReferral() {
   const query = useQuery({
@@ -19,7 +20,7 @@ export function useReferral() {
   const stats = query.data?.stats ?? null
 
   // react-doctor-disable-next-line exhaustive-deps -- code aliases query.data.code and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const referralUrl = useMemo(() => buildReferralUrl(code), [code])
+  const referralUrl = useMemo(() => buildReferralUrl(code, getPublicOrigin()), [code])
 
   return {
     ...query,
