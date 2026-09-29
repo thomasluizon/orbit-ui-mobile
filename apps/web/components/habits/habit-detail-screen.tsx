@@ -9,6 +9,7 @@ import {
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
   buildHabitStripModel,
+  buildRescheduleProposalLabels,
   buildRescheduleUpdateRequest,
   capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
@@ -21,6 +22,7 @@ import {
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
+  getHabitDaysWithoutLog,
   getHabitLogDateDecision,
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
@@ -33,9 +35,10 @@ import {
   parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
-import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
+import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { AppBar } from '@/components/ui/app-bar'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
@@ -252,29 +255,67 @@ function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ vi
   return <div className="grid grid-cols-3 gap-4">{values.map((item) => <div key={item.label} className="min-w-0 text-center"><p className="font-[var(--font-display)] text-2xl font-semibold tabular-nums text-[var(--fg-1)]">{item.value}</p><p className="truncate text-sm text-[var(--fg-2)]">{item.label}</p></div>)}</div>
 }
 
-function RescheduleBlock({ habit, slipping, overdue, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {
-  const t = useTranslations('habits.detail')
+function useHabitRescue({ habitId, slipping, overdue, hasProAccess, locale }: Readonly<{ habitId: string; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {
+  const query = useRescheduleSuggestion({ habitId, locale, enabled: slipping && overdue && hasProAccess })
+  return { query, open: slipping && overdue && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
+}
+
+function SlippingLine({ visible, metrics, createdAtUtc, today }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date }>) {
+  const t = useTranslations()
+  if (!visible || !metrics) return null
+  return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today), streak: metrics.currentStreak })}</p>
+}
+
+const rescueCardClass = 'flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]'
+
+function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date }>) {
+  const t = useTranslations()
   const router = useRouter()
   const { showError } = useAppToast()
+  const { displayTime } = useTimeFormat()
   const updateHabit = useUpdateHabit()
-  const isWideDesktop = useIsWideDesktop()
-  const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && overdue && hasProAccess })
-  if (!slipping || !overdue || extractBackendErrorCode(query.error) === 'HABIT_NOT_OVERDUE') return null
-  if (!hasProAccess) return <Surface><ListRow title={t('slipping')} value={t('proGate')} onClick={() => router.push('/upgrade')} /></Surface>
-  const accept = async () => {
-    if (!query.suggestion) return
+  const filledVariant = useIsWideDesktop() ? 'secondary' : 'primary'
+  const [dismissed, setDismissed] = useAccountScopedState(false)
+  if (!open || dismissed) return null
+  const notNow = <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => setDismissed(true)}>{t('habits.reschedule.dismiss')}</PillButton>
+  if (!hasProAccess) {
+    return (
+      <div className={rescueCardClass}>
+        <div className="flex items-center gap-2"><AstraGlyph size={20} color="var(--fg-1)" /><Badge>{t('habits.detail.proGate')}</Badge></div>
+        <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.reschedule.freePrompt')}</p>
+        <div className="flex flex-wrap gap-2">
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:855 (D42) */}
+          <PillButton variant={filledVariant} size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
+          {notNow}
+        </div>
+      </div>
+    )
+  }
+  const accept = async (suggestion: RescheduleSuggestion) => {
     try {
-      await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, query.suggestion) })
+      await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, suggestion) })
+      setDismissed(true)
     } catch {
-      showError(t('rescheduleWriteError'))
+      showError(t('habits.detail.rescheduleWriteError'))
     }
   }
+  const suggestion = query.error ? null : query.suggestion
+  const labels = suggestion ? buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }) : null
   return (
-    <Proposed proposed scope="block" label={t('proposed')}>
-      <div className="flex flex-col gap-4 p-4">
-        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p role="status" className="mt-1 text-sm text-[var(--fg-3)]">{query.error ? t('rescheduleError') : query.suggestion?.rationale ?? t('rescheduleLoading')}</p></div>
-        {query.error ? <div className="self-start"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('retry')}</PillButton></div> : null}
-        {query.suggestion && !query.error ? <div className="self-start"><PillButton variant={isWideDesktop ? 'secondary' : 'primary'} size="sm" loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton></div> : null}
+    <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
+      <div className={rescueCardClass}>
+        {suggestion && labels ? <>
+          <div className="flex flex-col gap-1">
+            <p data-testid="rescue-proposed-schedule" className="font-[var(--font-display)] text-[20px] font-medium tabular-nums">{labels.dateLabel}{labels.timeLabel ? ` · ${labels.timeLabel}` : ''}</p>
+            {labels.scheduleLabel ? <p className="text-sm text-[var(--fg-2)]">{labels.scheduleLabel}</p> : null}
+          </div>
+          <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{suggestion.rationale}</p>
+          <p className="text-xs text-[var(--fg-3)]">{t('habits.detail.rescheduleFinePrint')}</p>
+          <div className="flex flex-wrap gap-2"><PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</div>
+        </> : <>
+          <p role="status" className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
+          {query.error ? <div className="flex flex-wrap gap-2"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</div> : null}
+        </>}
       </div>
     </Proposed>
   )
@@ -369,6 +410,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasProAccess = profile.hasProAccess
+  const language = profile.language ?? locale
+  const rescue = useHabitRescue({ habitId, slipping, overdue, hasProAccess, locale: language })
   const dueTime = displayTime(habit?.dueTime)
   const headerSummary = summary && dueTime && !summary.includes(habit?.dueTime ?? '')
     ? `${summary} · ${dueTime}`
@@ -496,16 +539,16 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
-      <RescheduleBlock habit={habit} slipping={slipping} overdue={overdue} hasProAccess={hasProAccess} locale={profile.language ?? locale} />
-      {strip ? <section className="habit-detail-strip flex flex-col gap-2 pt-6" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><div className="pt-2"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></section> : null}
-      <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile.language ?? locale} weekStartsOn={profile.weekStartDay} />
+      {strip ? <section className="habit-detail-strip flex flex-col gap-2 pt-6" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} /><div className="pt-2"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></section> : null}
+      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} />
+      <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} />
       <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true" className="mt-3">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div></Surface>
-      <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={profile.language ?? locale} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary ?? ''} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
+      <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary ?? ''} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
       <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
-      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), profile.language ?? locale, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), language, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
         const pending = pendingDateLog
         setPendingDateLog(null)
         if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)
