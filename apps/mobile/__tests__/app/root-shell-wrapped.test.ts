@@ -2,6 +2,7 @@ import React, { useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
 import RootLayout from '@/app/_layout'
+import { Shell412 } from '@/components/shell/shell-412'
 import {
   getFailedNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
@@ -20,6 +21,7 @@ const createState = vi.hoisted(() => ({
   countLoaded: false,
   push: vi.fn(),
   showCreate: vi.fn(),
+  setLastDestination: vi.fn(),
 }))
 
 vi.mock('expo-router', () => {
@@ -106,7 +108,7 @@ vi.mock('@/stores/ui-store', () => ({
       setShowCreateModal: createState.showCreate,
       todayFabHidden: false,
       lastDestination: 'hoje',
-      setLastDestination: vi.fn(),
+      setLastDestination: createState.setLastDestination,
     }),
 }))
 vi.mock('@/stores/referral-prompt-store', () => ({
@@ -219,6 +221,7 @@ describe('Wrapped root shell', () => {
     createState.countLoaded = false
     createState.push.mockClear()
     createState.showCreate.mockClear()
+    createState.setLastDestination.mockClear()
     resetPendingNotificationDeletesForTests()
   })
 
@@ -259,6 +262,26 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
     expect(findByTestId(tree, 'composer-marker')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
+  })
+
+  it('keeps the signed-out not-found screen clear of bottom chrome and below the safe area', async () => {
+    authState.isAuthenticated = false
+    routeState.pathname = '/nao-existe'
+    routeState.segments = ['+not-found']
+    const tree = await renderRoot()
+
+    expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
+  })
+
+  it('does not remember a destination from an unmatched path below a known prefix', async () => {
+    routeState.pathname = '/calendar/bad'
+    routeState.segments = ['+not-found']
+    const tree = await renderRoot()
+
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
+    expect(createState.setLastDestination).not.toHaveBeenCalled()
   })
 
   it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings', '/calendar-sync'])(

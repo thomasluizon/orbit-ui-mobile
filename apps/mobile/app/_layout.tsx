@@ -329,7 +329,7 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
+            safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
             composer={shellChrome.composer || isNotFound ? (
               <Composer
@@ -356,7 +356,7 @@ function RootLayoutNav() {
         ) : (
           <Shell412
             nav={false}
-            safeAreaTop={pathname === '/search'}
+            safeAreaTop={isNotFound || pathname === '/search'}
             notice={getNoNavigationNotice(
               isAuthenticated,
               topSegment,

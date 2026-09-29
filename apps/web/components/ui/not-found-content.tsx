@@ -1,13 +1,11 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useNotFoundShell } from '@/components/shell/destination-shell'
 import { PillLink } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 
 export function NotFoundContent({ inShell = false }: Readonly<{ inShell?: boolean }>) {
   const t = useTranslations()
-  useNotFoundShell()
   return (
     <section className={`error-surface${inShell ? ' error-surface--in-shell' : ''}`} data-state="not-found">
       <OrbitMark size={40} />

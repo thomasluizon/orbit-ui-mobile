@@ -6,14 +6,13 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
@@ -51,16 +50,6 @@ interface ShellComposerSlotContextValue {
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 const ShellHeaderSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
-const NotFoundShellContext = createContext<((visible: boolean) => void) | null>(null)
-
-export function useNotFoundShell() {
-  const setNotFoundVisible = useContext(NotFoundShellContext)
-  useLayoutEffect(() => {
-    setNotFoundVisible?.(true)
-    return () => setNotFoundVisible?.(false)
-  }, [setNotFoundVisible])
-}
-
 function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
   const register = useCallback((nextRenderer: ComposerRenderer) => {
@@ -143,7 +132,6 @@ export function DestinationShell({
   onCreate,
   createRefusal,
 }: Readonly<DestinationShellProps>) {
-  const [notFoundVisible, setNotFoundVisible] = useState(false)
   const registeredComposer = useShellComposerHost()
   const registeredHeader = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
@@ -155,21 +143,18 @@ export function DestinationShell({
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotContext.Provider value={registeredComposer.value}>
         <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
-          <NotFoundShellContext.Provider value={setNotFoundVisible}>
-            <DestinationShellContent
-              header={registeredHeader.content}
-              notice={hostedNotice}
-              composer={registeredComposer.content ?? composer}
-              conversation={conversation}
-              conversationOpen={conversationOpen}
-              conversationLabel={conversationLabel}
-              onCreate={onCreate}
-              createRefusal={createRefusal}
-              notFoundVisible={notFoundVisible}
-            >
-              {children}
-            </DestinationShellContent>
-          </NotFoundShellContext.Provider>
+          <DestinationShellContent
+            header={registeredHeader.content}
+            notice={hostedNotice}
+            composer={registeredComposer.content ?? composer}
+            conversation={conversation}
+            conversationOpen={conversationOpen}
+            conversationLabel={conversationLabel}
+            onCreate={onCreate}
+            createRefusal={createRefusal}
+          >
+            {children}
+          </DestinationShellContent>
         </ShellHeaderSlotContext.Provider>
       </ShellComposerSlotContext.Provider>
     </ShellNoticeSlotProvider>
@@ -186,11 +171,12 @@ function DestinationShellContent({
   conversationLabel,
   onCreate,
   createRefusal,
-  notFoundVisible,
-}: Readonly<DestinationShellProps & { header?: ReactNode; notFoundVisible: boolean }>) {
+}: Readonly<DestinationShellProps & { header?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
+  const params = useParams<{ missing?: string[] }>()
+  const notFoundVisible = Array.isArray(params.missing)
   const previousPathname = useRef(pathname)
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
@@ -203,8 +189,8 @@ function DestinationShellContent({
   const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
-    if (destination && pathname !== '/upgrade') setLastDestination(destination)
-  }, [destination, pathname, setLastDestination])
+    if (destination && !notFoundVisible && pathname !== '/upgrade') setLastDestination(destination)
+  }, [destination, notFoundVisible, pathname, setLastDestination])
   useEffect(() => {
     if (previousPathname.current === pathname) return
     previousPathname.current = pathname
