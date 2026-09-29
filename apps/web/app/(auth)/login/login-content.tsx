@@ -31,7 +31,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return (
-    <div className="flex w-full flex-col gap-8 px-2 pb-4 pt-8 min-[336px]:px-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+    <div data-testid="login-column" className="flex w-full flex-col gap-8 px-2 py-4 min-[336px]:px-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
       {flow.referralCode && !account && <ReferralBanner t={t} />}
       <Lockup />
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{flow.successMessage}</p>

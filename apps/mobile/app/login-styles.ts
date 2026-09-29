@@ -5,9 +5,10 @@ export function createLoginStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: tokens.bg },
     container: { flex: 1 },
-    scrollContent: { flexGrow: 1, alignItems: 'center' },
-    scrollWide: { justifyContent: 'center', padding: 32 },
-    formColumn: { width: '100%', paddingTop: 32, paddingHorizontal: 16, paddingBottom: 16, gap: 32 },
+    scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
+    scrollKeyboardOpen: { justifyContent: 'flex-start' },
+    scrollWide: { padding: 32 },
+    formColumn: { width: '100%', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 16, gap: 32 },
     panel: { width: 420, padding: 32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
       borderWidth: 1, borderColor: tokens.hairlineGhost },
     step: { gap: 24 },
