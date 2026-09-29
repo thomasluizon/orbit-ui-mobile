@@ -214,7 +214,7 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
-      "placeholder": "Ask Astra",
+      "placeholder": "Ask Astra for something",
       "send": "Send",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",
@@ -264,7 +264,7 @@
     },
     "hints": {
       "navigate": "Navigate",
-      "select": "Select",
+      "select": "Choose",
       "back": "Back",
       "close": "Close"
     },
@@ -403,6 +403,7 @@
     }
   },
   "habits": {
+    "listOptions": "List options",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
       "readOnly": "Logging stops 7 days back. You can still edit, move and delete here.",
@@ -501,12 +502,13 @@
     "backToHabits": "All habits",
     "completed": "completed",
     "drillProgress": "{done} of {total} done",
-    "skipConfirmTitle": "Skip Habit",
-    "skipConfirmMessage": "This will advance the due date to the next scheduled occurrence without logging it as completed.",
-    "skipConfirmMessageFlexible": "This will reduce the required completions for this period by 1.",
+    "skipConfirmTitle": "Skip {name}?",
+    "skipConfirmMessage": "The due date advances to the next occurrence, with nothing logged.",
+    "skipConfirmMessageFlexible": "Skipping spends one of the week's slots, with nothing logged.",
+    "skipConfirmMessageFlexibleMonth": "Skipping spends one of the month's slots, with nothing logged.",
     "skipConfirmButton": "Skip",
-    "postponeConfirmTitle": "Postpone Task",
-    "postponeConfirmMessage": "This will move the task to tomorrow.",
+    "postponeConfirmTitle": "Postpone {name}?",
+    "postponeConfirmMessage": "It moves to tomorrow, with nothing logged.",
     "postponeConfirmButton": "Postpone",
     "deleteConfirmTitle": "Delete Habit",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",
@@ -2041,12 +2043,6 @@
   },
   "trial": {
     "proBadge": "Trial",
-    "banner": {
-      "freeLine": "Free plan",
-      "daysLeft": "{days} day left | {days} days left",
-      "lastDay": "Trial ends today",
-      "upgrade": "Subscribe"
-    },
     "expired": {
       "eyebrow": "Trial ended",
       "heading": "Your Pro trial has ended",
@@ -2712,9 +2708,6 @@
     "loading": "Loading your progress",
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
-    "empty": "Nothing to measure yet",
-    "emptyAction": "Start a habit",
-    "startHabit": "View habits",
     "sections": {
       "streak": "Streak",
       "goals": "Goals",
@@ -2766,7 +2759,9 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "empty": "No goals yet. A habit is the next useful step.",
+      "empty": "A goal tracks what you want to achieve: start from a habit or ask Astra.",
+      "createAction": "Create goal",
+      "request": "Help me create a goal.",
       "filterEmpty": "No goals match this view.",
       "clearFilter": "All goals",
       "progress": "{current} / {target} {unit}",
@@ -3015,7 +3010,7 @@
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank"
+      "tierTileLabel": "Streak tier"
     }
   },
   "stepUp": {

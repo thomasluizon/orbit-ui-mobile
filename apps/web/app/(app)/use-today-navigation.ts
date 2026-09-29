@@ -19,6 +19,7 @@ export interface TodayDateNavBundle {
   onGoToNextDay: () => void
   previousLabel: string
   todayLabel: string
+  goToTodayLabel: string
   nextLabel: string
 }
 
@@ -83,10 +84,14 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
     router.push('/')
   }, [router, setActiveView])
 
-  const dayName = useMemo(
-    () => formatLocaleDate(selectedDate, locale, { weekday: 'long' }),
-    [selectedDate, locale],
-  )
+  const dayName = useMemo(() => {
+    if (selectedDateStr === today) return t('dates.today')
+    const todayDate = new Date(`${today}T00:00:00`)
+    if (selectedDateStr === formatAPIDate(subDays(todayDate, 1))) return t('dates.yesterday')
+    if (selectedDateStr === formatAPIDate(addDays(todayDate, 1))) return t('dates.tomorrow')
+    const weekday = formatLocaleDate(selectedDate, locale, { weekday: 'long' })
+    return weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1)
+  }, [selectedDateStr, today, selectedDate, locale, t])
   const numericDate = useMemo(
     () => formatLocaleDate(selectedDate, locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
     [selectedDate, locale],
@@ -104,7 +109,8 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
       onGoToToday: goToToday,
       onGoToNextDay: goToNextDay,
       previousLabel: t('dates.previousDay'),
-      todayLabel: t('dates.goToToday'),
+      todayLabel: t('dates.today'),
+      goToTodayLabel: t('dates.goToToday'),
       nextLabel: t('dates.nextDay'),
     }),
     [

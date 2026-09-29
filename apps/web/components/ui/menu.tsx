@@ -97,7 +97,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
             className="orbit-menu-item"
             onClick={() => onActivate(item.id)}
           >
-            {item.icon ? <Icon name={item.icon} size={20} /> : null}
+            {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
             <span className="orbit-menu-label">{item.label}</span>
             {item.badge ? <Badge>{item.badge}</Badge> : null}
           </button>

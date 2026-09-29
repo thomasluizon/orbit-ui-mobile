@@ -204,7 +204,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
           disabled ? styles.disabled : null,
         ]}
       >
-        {item.icon ? <Icon color={tokens.fg2} name={item.icon} size={20} /> : null}
+        {item.icon ? <Icon color={tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
         <Text
           numberOfLines={1}
           style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}

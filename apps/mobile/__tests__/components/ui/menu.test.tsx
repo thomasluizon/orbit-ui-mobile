@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
+import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.unmock('@/components/ui/sheet')
@@ -30,6 +31,16 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('matches menu icon stroke to medium-weight labels', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Menu open title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]} />)
+      await Promise.resolve()
+    })
+    expect(tree.root.findByType(Checkbox).props.strokeWidth).toBe(2)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it('uses a sheet at 412 and keeps the destructive item last', async () => {
     let tree: any
     await TestRenderer.act(async () => {

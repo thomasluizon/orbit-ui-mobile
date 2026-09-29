@@ -334,13 +334,11 @@ export function useSkipHabit() {
         queryKey: habitKeys.lists(),
       })
 
-      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
-      if (!date) {
-        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
-          const habit = findHabitInList(items, habitId)
-          return habit ? optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit)) : items
-        })
-      }
+      const skippedDate = date ?? formatAPIDate(new Date())
+      updateHabitListsForDate(queryClient, skippedDate, (items) => {
+        const habit = findHabitInList(items, habitId)
+        return habit ? optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate)) : items
+      })
 
       return { previousLists }
     },

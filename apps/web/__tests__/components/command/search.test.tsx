@@ -55,6 +55,69 @@ beforeEach(() => {
 })
 
 describe('habit search', () => {
+  it.each([false, true])('selects the first habit when results load in resultsMode=%s', async (resultsMode) => {
+    mocks.query.mockReturnValue(result([], true))
+    const view = mount(resultsMode)
+    expect(screen.getByRole('option', { name: 'Create habit' })).toHaveAttribute('data-selected', 'true')
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk' }),
+      createMockHabit({ id: 'run', title: 'Run' }),
+    ]))
+    view.rerender(<NextIntlClientProvider locale="en" messages={en}><CommandMenu resultsMode={resultsMode} navItems={[]} onCreateHabit={vi.fn()} onClose={vi.fn()} /></NextIntlClientProvider>)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('data-selected', 'true'))
+  })
+
+  it('selects the first habit when the compact search page loads', async () => {
+    mocks.query.mockReturnValue(result([], true))
+    const view = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    expect(screen.getByRole('option', { name: 'Create habit' })).toHaveAttribute('data-selected', 'true')
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk' }),
+      createMockHabit({ id: 'run', title: 'Run' }),
+    ]))
+    view.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('data-selected', 'true'))
+  })
+
+  it('selects and opens a destination-only search on the compact page', async () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'Today' } })
+    const destination = screen.getByRole('option', { name: 'Today' })
+    expect(destination).toHaveAttribute('data-selected', 'true')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mocks.push).toHaveBeenCalledWith('/')
+  })
+
+  it('uses the initial in search and palette habit rows', () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
+    const palette = mount()
+    const paletteWell = screen.getByRole('option', { name: 'Walk' }).firstElementChild
+    expect(paletteWell).toHaveTextContent('W')
+    expect(paletteWell?.querySelector('svg')).toBeNull()
+    palette.unmount()
+    mount(true)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    return screen.findByRole('option', { name: /Open Walk/ }).then((option) => {
+      expect(option.firstElementChild).toHaveTextContent('W')
+      expect(option.querySelectorAll('svg')).toHaveLength(1)
+    })
+  })
+
+  it.each(['en', 'pt-BR'])('renders the natural-case select copy with lowercase presentation in %s', (locale) => {
+    mount(false, locale)
+    const select = locale === 'en' ? en.command.hints.select : ptBR.command.hints.select
+    expect(select).toBe(locale === 'en' ? 'Choose' : 'Escolher')
+    expect(screen.getByText(select)).toHaveClass('lowercase')
+  })
+
+  it('sizes the palette habit glyph slot and emoji as drawn', () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: '🚶' })]))
+    mount()
+    const well = screen.getByRole('option', { name: 'Walk' }).firstElementChild
+    expect(well).toHaveClass('size-6')
+    expect(well?.firstElementChild).toHaveClass('text-[18px]')
+  })
   it('lets the shell scroll results while the palette keeps its own list scroller', () => {
     const page = mount(true)
     expect(page.container.querySelector('[cmdk-list]')).not.toHaveClass('overflow-y-auto')

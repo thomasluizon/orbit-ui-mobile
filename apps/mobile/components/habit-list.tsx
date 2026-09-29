@@ -525,6 +525,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
     const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
+    const [habitToSkip, setHabitToSkip] = useState<{ habit: NormalizedHabit; date: string } | null>(null)
+    const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
+    if (skipStateDate !== selectedDateStr) {
+      setSkipStateDate(selectedDateStr)
+      setHabitToSkip(null)
+    }
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
       useState<NormalizedHabit | null>(null)
@@ -1216,7 +1222,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           confirmedResolutionsRef.current !== confirmedResolutions
         ) return
         recordHabitResolution(confirmedResolutions, habitId, 'skip')
-        markRecentlyCompleted(habitId)
         if (settlementData) {
           settleParentAutomatically(habitId, {
             data: settlementData,
@@ -1228,7 +1233,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       } catch {
       }
     }, [
-      markRecentlyCompleted,
       accountTimeZone,
       profile,
       recordHabitResolution,
@@ -1484,7 +1488,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const rowActionHandlers: RowActionHandlers = {
       toggle: (habitId, intent) => { void handleDirectToggle(habitId, intent) },
-      skip: (habit) => { void skipHabit(habit) },
+      skip: (habit) => setHabitToSkip({ habit, date: selectedDateStr }),
       reschedule: (habit) => {
         setHabitToReschedule(habit)
         setShowRescheduleSheet(true)
@@ -1669,6 +1673,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           deleteHabitName={deleteConfirmation.name}
           deleteDescendantCount={deleteConfirmation.descendantCount}
           duplicateHabitName={habitToDuplicate?.title ?? null}
+          habitToSkip={habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null}
           parentPrompt={getVisibleParentPrompt(parentPrompt, selectedDateStr)}
           onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
@@ -1677,6 +1682,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }}
           onConfirmDuplicate={() => void confirmDuplicate()}
           onCancelDuplicate={() => setHabitToDuplicate(null)}
+          onConfirmSkip={() => {
+            const habit = habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null
+            setHabitToSkip(null)
+            if (habit) void skipHabit(habit)
+          }}
+          onCancelSkip={() => setHabitToSkip(null)}
           onConfirmParent={() => void confirmParentSettlement()}
           onCancelParent={() => setParentPromptQueue(
             (current) => shiftParentPrompt(current, selectedDateStr),
