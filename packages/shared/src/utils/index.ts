@@ -272,6 +272,7 @@ export {
   resolveSystemLocale,
   splitMonthYear,
 } from './locale-format'
+export type { TimeDisplay } from './locale-format'
 export {
   DAY_PERIODS,
   formatTimeParts,

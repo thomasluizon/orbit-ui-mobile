@@ -149,28 +149,32 @@ function PickerContent({
   commitSelection: (apply: () => void) => void
 }>) {
   const {
-    activePicker, mounted, selectedLanguage, currentTheme, timeZone, themeModeOptions,
-    pickerTitles, timeZoneSearchLabel, timeZoneNoResultsLabel, timeZoneShowMoreLabel,
-    onLanguageChange, onThemeModeChange, onTimeZoneChange,
+    activePicker, mounted, selectedLanguage, currentTheme, timeZone, uses24HourClock, weekStartDay,
+    themeModeOptions, clockFormatOptions, weekStartOptions, pickerTitles, timeZoneSearchLabel,
+    timeZoneNoResultsLabel, timeZoneShowMoreLabel, onLanguageChange, onThemeModeChange,
+    onTimeZoneChange, onClockFormatChange, onWeekStartChange,
   } = props
-  return <>
-      {activePicker === 'language' ? (
+  switch (activePicker) {
+    case 'language':
+      return (
         <PickerOptions
           label={pickerTitles.language}
           options={LANGUAGE_OPTIONS}
           selected={mounted ? selectedLanguage : null}
           onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
         />
-      ) : null}
-      {activePicker === 'theme' ? (
+      )
+    case 'theme':
+      return (
         <PickerOptions
           label={pickerTitles.theme}
           options={themeModeOptions}
           selected={mounted ? currentTheme : null}
           onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
         />
-      ) : null}
-      {activePicker === 'timeZone' ? (
+      )
+    case 'timeZone':
+      return (
         <TimeZoneOptions
           selected={mounted ? timeZone : null}
           searchLabel={timeZoneSearchLabel}
@@ -178,34 +182,28 @@ function PickerContent({
           showMoreLabel={timeZoneShowMoreLabel}
           onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
         />
-      ) : null}
-  </>
-}
-
-function ClockPickerContent({ props, commitSelection }: Readonly<{
-  props: PreferencePickerSheetProps
-  commitSelection: (apply: () => void) => void
-}>) {
-  const { activePicker, mounted, selectedLanguage, uses24HourClock, weekStartDay, clockFormatOptions,
-    weekStartOptions, pickerTitles, onClockFormatChange, onWeekStartChange } = props
-  return <>
-      {activePicker === 'clock' ? (
+      )
+    case 'clock':
+      return (
         <PickerOptions
           label={pickerTitles.clock}
           options={clockFormatOptions}
           selected={resolveHourCycle(uses24HourClock, selectedLanguage) === 'h23' ? '24h' : '12h'}
           onCommit={(value) => commitSelection(() => onClockFormatChange(value === '24h'))}
         />
-      ) : null}
-      {activePicker === 'weekStart' ? (
+      )
+    case 'weekStart':
+      return (
         <PickerOptions
           label={pickerTitles.weekStart}
           options={weekStartOptions}
           selected={mounted && (weekStartDay === 0 || weekStartDay === 1) ? weekStartDay : null}
           onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
         />
-      ) : null}
-  </>
+      )
+    default:
+      return null
+  }
 }
 
 export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
@@ -223,7 +221,6 @@ export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps
         {pickerDescriptions[activePicker]}
       </p> : null}
       <PickerContent props={props} commitSelection={commitSelection} />
-      <ClockPickerContent props={props} commitSelection={commitSelection} />
     </Sheet>
   )
 }

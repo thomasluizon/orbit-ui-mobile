@@ -362,63 +362,61 @@ function PickerContent({ props, commitSelection }: Readonly<{
   props: PreferencePickerSheetProps
   commitSelection: (apply: () => void) => void
 }>) {
-  const { activePicker, tokens, pickerTitles, selectedLanguage, currentTheme,
-    timeZone, themeModeOptions, timeZoneSearchLabel, timeZoneNoResultsLabel,
-    timeZoneShowMoreLabel, onLanguageChange, onThemeModeChange, onTimeZoneChange } = props
-  return <>
-        {activePicker === 'language' ? (
-          <PickerOptions
-            label={pickerTitles.language}
-            options={LANGUAGE_OPTIONS}
-            selected={selectedLanguage}
-            onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
-          />
-        ) : null}
-        {activePicker === 'theme' ? (
-          <PickerOptions
-            label={pickerTitles.theme}
-            options={themeModeOptions}
-            selected={currentTheme}
-            onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
-          />
-        ) : null}
-        {activePicker === 'timeZone' ? (
-          <TimeZoneOptions
-            tokens={tokens}
-            selected={timeZone}
-            searchLabel={timeZoneSearchLabel}
-            noResultsLabel={timeZoneNoResultsLabel}
-            showMoreLabel={timeZoneShowMoreLabel}
-            onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
-          />
-        ) : null}
-  </>
-}
-
-function ClockPickerContent({ props, commitSelection }: Readonly<{
-  props: PreferencePickerSheetProps
-  commitSelection: (apply: () => void) => void
-}>) {
-  const { activePicker, pickerTitles, selectedLanguage, uses24HourClock, clockFormatOptions,
-    weekStartDay, weekStartOptions, onClockFormatChange, onWeekStartChange } = props
-  return <>
-        {activePicker === 'clock' ? (
-          <PickerOptions
-            label={pickerTitles.clock}
-            options={clockFormatOptions}
-            selected={resolveHourCycle(uses24HourClock, selectedLanguage) === 'h23' ? '24h' : '12h'}
-            onCommit={(value) => commitSelection(() => onClockFormatChange(value === '24h'))}
-          />
-        ) : null}
-        {activePicker === 'weekStart' ? (
-          <PickerOptions
-            label={pickerTitles.weekStart}
-            options={weekStartOptions}
-            selected={weekStartDay === 0 || weekStartDay === 1 ? weekStartDay : null}
-            onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
-          />
-        ) : null}
-  </>
+  const { activePicker, tokens, pickerTitles, selectedLanguage, currentTheme, timeZone, uses24HourClock,
+    weekStartDay, themeModeOptions, clockFormatOptions, weekStartOptions, timeZoneSearchLabel,
+    timeZoneNoResultsLabel, timeZoneShowMoreLabel, onLanguageChange, onThemeModeChange, onTimeZoneChange,
+    onClockFormatChange, onWeekStartChange } = props
+  switch (activePicker) {
+    case 'language':
+      return (
+        <PickerOptions
+          label={pickerTitles.language}
+          options={LANGUAGE_OPTIONS}
+          selected={selectedLanguage}
+          onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
+        />
+      )
+    case 'theme':
+      return (
+        <PickerOptions
+          label={pickerTitles.theme}
+          options={themeModeOptions}
+          selected={currentTheme}
+          onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
+        />
+      )
+    case 'timeZone':
+      return (
+        <TimeZoneOptions
+          tokens={tokens}
+          selected={timeZone}
+          searchLabel={timeZoneSearchLabel}
+          noResultsLabel={timeZoneNoResultsLabel}
+          showMoreLabel={timeZoneShowMoreLabel}
+          onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
+        />
+      )
+    case 'clock':
+      return (
+        <PickerOptions
+          label={pickerTitles.clock}
+          options={clockFormatOptions}
+          selected={resolveHourCycle(uses24HourClock, selectedLanguage) === 'h23' ? '24h' : '12h'}
+          onCommit={(value) => commitSelection(() => onClockFormatChange(value === '24h'))}
+        />
+      )
+    case 'weekStart':
+      return (
+        <PickerOptions
+          label={pickerTitles.weekStart}
+          options={weekStartOptions}
+          selected={weekStartDay === 0 || weekStartDay === 1 ? weekStartDay : null}
+          onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
+        />
+      )
+    default:
+      return null
+  }
 }
 
 export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
@@ -438,7 +436,6 @@ export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps
         </Text>
       ) : null}
       <PickerContent props={props} commitSelection={commitSelection} />
-      <ClockPickerContent props={props} commitSelection={commitSelection} />
     </View>
   </Sheet>
 }

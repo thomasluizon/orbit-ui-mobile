@@ -227,7 +227,7 @@ export function formatLocaleTime(
   )
 }
 
-interface TimeDisplay {
+export interface TimeDisplay {
   hourCycle: 'h23' | 'h12'
   locale: string
   displayTime: (time: string | null | undefined) => string
