@@ -23,7 +23,7 @@ interface LoadedContentProps {
   stats: ReferralStats | null
   referralUrl: string
   copied: boolean
-  interactionError: boolean
+  copyFailed: boolean
   onCopy: () => void
 }
 
@@ -31,7 +31,7 @@ function LoadedContent({
   stats,
   referralUrl,
   copied,
-  interactionError,
+  copyFailed,
   onCopy,
 }: Readonly<LoadedContentProps>) {
   const t = useTranslations()
@@ -67,7 +67,7 @@ function LoadedContent({
         </div>
       </div>
 
-      {interactionError ? (
+      {copyFailed ? (
         <p role="alert" className="px-4 text-sm text-[var(--fg-2)]">
           {t('referral.drawer.actionFailed')}
         </p>
@@ -131,7 +131,7 @@ function ReferralDrawerContent({
   const t = useTranslations()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const [interactionError, setInteractionError] = useState(false)
+  const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
   const [canShare] = useState(() =>
     typeof navigator !== 'undefined' && typeof navigator.share === 'function',
   )
@@ -141,11 +141,11 @@ function ReferralDrawerContent({
     if (!referralUrl) return
     try {
       await navigator.clipboard.writeText(referralUrl)
-      setInteractionError(false)
+      setFailedAction(null)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      setInteractionError(true)
+      setFailedAction('copy')
     }
   }
 
@@ -159,9 +159,9 @@ function ReferralDrawerContent({
           : undefined,
         url: referralUrl,
       })
-      setInteractionError(false)
+      setFailedAction(null)
     } catch {
-      setInteractionError(true)
+      setFailedAction('share')
     }
   }
 
@@ -172,6 +172,11 @@ function ReferralDrawerContent({
       title={t('referral.drawer.title')}
       actions={isLoaded && canShare ? (
         <DialogActionPair>
+          {failedAction === 'share' ? (
+            <p role="alert" className="m-0 text-center text-sm text-[var(--fg-2)]">
+              {t('referral.drawer.actionFailed')}
+            </p>
+          ) : null}
           <PillButton onClick={() => void shareLink()}>
             {t('referral.drawer.share')}
           </PillButton>
@@ -196,7 +201,7 @@ function ReferralDrawerContent({
             stats={stats}
             referralUrl={referralUrl}
             copied={copied}
-            interactionError={interactionError}
+            copyFailed={failedAction === 'copy'}
             onCopy={() => void copyLink()}
           />
         ) : null}

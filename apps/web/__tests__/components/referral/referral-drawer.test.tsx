@@ -154,6 +154,25 @@ describe('ReferralDrawer', () => {
     })
   })
 
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn().mockRejectedValue(new Error('share failed')) })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.share' }))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+  })
+
+  it('shows a failed copy in the body, beside the link', async () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.copyLink' }))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-body"]')).not.toBeNull()
+  })
+
   it('pins Share in the sheet footer and keeps only the copy control in the body', () => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
