@@ -1052,6 +1052,15 @@ describe('HabitDetailScreen', () => {
     expect(header.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === '')).toBe(false)
   })
 
+  it('omits the empty read-only schedule row for a habit without a frequency', () => {
+    mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.schedule' })).toHaveLength(0)
+  })
+
   it('persists each inline detail editor through its dedicated patch', async () => {
     mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
     let tree: ReturnType<typeof TestRenderer.create>

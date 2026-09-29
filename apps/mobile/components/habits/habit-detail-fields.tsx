@@ -86,6 +86,7 @@ function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: N
 function ScheduleField({ habit, summary, open, tokens, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; tokens: Tokens; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const { t } = useTranslation()
   const editable = canInlineEditHabitSchedule(habit)
+  if (!editable && !summary) return null
   return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={onCancel} onSave={onSave} /> : null}</>
 }
 
