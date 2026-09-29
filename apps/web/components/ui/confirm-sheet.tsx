@@ -16,9 +16,13 @@ interface ConfirmSheetProps {
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
+  /** Starts the action on press while the controlled sheet closes. */
+  confirmImmediately?: boolean
+  loading?: boolean
+  onCloseComplete?: () => void
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
-  /** Runs after the sheet is gone when the person confirms. It has to hide the sheet. */
+  /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */
   onConfirm: () => void
 }
 
@@ -31,6 +35,9 @@ export function ConfirmSheet({
   cancelLabel,
   destructive = false,
   inlineActions = false,
+  confirmImmediately = false,
+  loading = false,
+  onCloseComplete,
   onCancel,
   onConfirm,
 }: Readonly<ConfirmSheetProps>) {
@@ -38,6 +45,8 @@ export function ConfirmSheet({
   const isDesktop = useIsDesktop()
   const { sheetRef, closeSheet } = useSheetHost()
   const cancelRef = useRef<HTMLButtonElement>(null)
+  const onCloseCompleteRef = useRef(onCloseComplete)
+  useEffect(() => { onCloseCompleteRef.current = onCloseComplete }, [onCloseComplete])
   const [lifecycle, setLifecycle] = useState({
     lastOpen: open, mounted: open, closing: false, generation: 0,
   })
@@ -57,6 +66,7 @@ export function ConfirmSheet({
       closing: false,
       generation: current.lastOpen ? current.generation + 1 : current.generation,
     }) : current)
+    onCloseCompleteRef.current?.()
   }, [])
 
   useEffect(() => {
@@ -65,13 +75,17 @@ export function ConfirmSheet({
 
   if (!lifecycle.mounted) return null
 
-  const actionsDisabled = lifecycle.closing || !open
+  const actionsDisabled = lifecycle.closing || !open || loading
   const cancel = () => {
     if (actionsDisabled) return
     closeSheet()
   }
   const confirm = () => {
     if (actionsDisabled) return
+    if (confirmImmediately) {
+      onConfirm()
+      return
+    }
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
@@ -85,6 +99,7 @@ export function ConfirmSheet({
       matchedWidth={!inlineActions}
       size={inlineActions ? 'sm' : 'md'}
       disabled={actionsDisabled}
+      loading={loading}
       onClick={confirm}
     >
       {confirmLabel}
