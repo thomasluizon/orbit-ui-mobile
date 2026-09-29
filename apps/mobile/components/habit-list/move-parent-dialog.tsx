@@ -140,7 +140,7 @@ export function MoveParentDialog({
             {t('common.cancel')}
           </PillButton>
           <PillButton disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
-            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
+            {t('habits.moveParent.confirm')}
           </PillButton>
         </View>
       }

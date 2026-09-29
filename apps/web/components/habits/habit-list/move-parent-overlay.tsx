@@ -135,7 +135,7 @@ export function MoveParentOverlay({
             onClick={onConfirm}
 
           >
-            {isMoving ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
+            {t('habits.moveParent.confirm')}
           </PillButton>
         </div>
       }

@@ -384,7 +384,7 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
-  it('locks the sheet and swaps to the moving label while pending', () => {
+  it('locks the sheet and keeps the Move label while pending', () => {
     const { tree: idle } = renderDialog()
     expect(idle.root.findAll((node) => node.type === SheetDouble)[0]!.props.onClose).toBeTypeOf('function')
 
@@ -395,9 +395,8 @@ describe('MoveParentDialog', () => {
     )
     expect(sheets[0]!.props.onClose).toBeUndefined()
 
-    expect(flattenRenderedText(tree.toJSON())).toContain(
-      'habits.moveParent.moving',
-    )
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.moveParent.confirm')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.moveParent.moving')
 
     const busyButtons = tree.root.findAll(
       (node) =>
