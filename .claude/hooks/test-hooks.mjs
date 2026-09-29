@@ -258,12 +258,10 @@ T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm
 T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
 T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm run dev", { env: {}, cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // Ordinary work a worker MUST still be able to do. A gate that blocks the test run gets switched off.
-for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
+for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run", "npx vitest run apps/web", "npm test --workspace=@orbit/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
   T(`worker-browser: ${command} allows`, worker(command), null)
 }
-for (const file of ["apps/web/__tests__/support/chromium.test.ts", "apps/web/__tests__/components/dates/date-surfaces.test.tsx", "apps/web/__tests__/components/ui/pill-button.test.tsx"]) {
-  T(`worker-browser: Vitest may run ${file}`, worker(`npx vitest run ${file}`), null)
-}
+T("worker-browser: refusal retains e2e and layout guard bans", /no e2e\//.test(worker("npx playwright test")?.message ?? "") && /no layout guard/.test(worker("npx playwright test")?.message ?? ""), true)
 // The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
 // `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
 // aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.
