@@ -92,6 +92,7 @@ export const API = {
 
   notifications: {
     list: '/api/notifications',
+    subscriptions: '/api/notifications/subscriptions',
     markRead: (id: string) => `/api/notifications/${id}/read` as const,
     markAllRead: '/api/notifications/read-all',
     delete: (id: string) => `/api/notifications/${id}` as const,

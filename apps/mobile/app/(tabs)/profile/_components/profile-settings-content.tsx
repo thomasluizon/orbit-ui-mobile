@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, Linking, Pressable, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { WidgetInfoSheet } from '@/components/profile/advanced-sections'
 import { buildProfilePickerLabels, buildWeekStartOptions, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from '@orbit/shared/utils'
@@ -50,9 +51,9 @@ import { usePreferenceControls } from '@/app/use-preference-controls'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import {
   PreferencePickerSheet,
-  PushNotificationSection,
   PersistentReminderRow,
 } from '@/components/profile/preferences-sections'
+import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { useSheetHost } from '@/components/ui/sheet'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
@@ -270,6 +271,11 @@ export function ProfileSettingsContent({
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const preferenceControls = usePreferenceControls()
   const pushPreferences = usePushNotifications()
+  const pushSubscriptions = usePushSubscriptions(pushPreferences.expoPushToken)
+  const refreshPushSubscriptions = pushSubscriptions.refresh
+  useFocusEffect(useCallback(() => {
+    void refreshPushSubscriptions()
+  }, [refreshPushSubscriptions]))
   const { isSupported: pushSupported, refreshPermissionStatus } = pushPreferences
   const persistentReminder = usePersistentReminder()
   useEffect(() => {
@@ -280,13 +286,14 @@ export function ProfileSettingsContent({
     return () => subscription.remove()
   }, [pushSupported, refreshPermissionStatus])
   async function handlePushToggle() {
-    if (pushPreferences.isEnabled) {
+    if (pushSubscriptions.isCurrentDeviceRegistered) {
       await pushPreferences.disablePushNotifications()
     } else if (pushPreferences.permissionStatus === 'denied') {
       await Linking.openSettings()
     } else {
       await pushPreferences.requestPermission()
     }
+    await pushSubscriptions.refresh()
   }
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
@@ -362,19 +369,19 @@ export function ProfileSettingsContent({
           </SettingsRow>
         )}
       />
-      <PushNotificationSection
+      <PushDevicesRow
         tokens={tokens}
-        t={t}
-        pushSupported={pushPreferences.isSupported}
-        pushEnabled={pushPreferences.isEnabled}
-        pushRegistered={pushPreferences.isRegistered}
-        pushLoading={pushPreferences.isLoading}
+        count={pushSubscriptions.count}
+        max={pushSubscriptions.max}
+        currentDeviceRegistered={pushSubscriptions.isCurrentDeviceRegistered}
+        supported={pushPreferences.isSupported}
+        loading={pushPreferences.isLoading || pushSubscriptions.isLoading}
+        error={pushSubscriptions.isError}
         permissionStatus={pushPreferences.permissionStatus}
         registrationStatus={pushPreferences.registrationStatus}
         onToggle={() => void handlePushToggle()}
         onOpenSettings={() => void Linking.openSettings()}
-        showSectionLabel={false}
-        contained
+        onRetry={() => void pushSubscriptions.refresh()}
       />
       {persistentReminder.isSupported ? (
         <RowList>

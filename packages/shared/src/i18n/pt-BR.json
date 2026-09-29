@@ -1608,7 +1608,11 @@
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "currentDevice": "Este aparelho",
-      "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
+      "devices": "Aparelhos com aviso",
+      "devicesCount": "{count} de {max}",
+      "alertsOnThisDevice": "Avisos neste aparelho",
+      "devicesUnavailable": "Não foi possível carregar os aparelhos.",
+      "pushDeviceLimit": "Desligue os avisos em outro aparelho para usar este."
     },
     "allowance": {
       "title": "Mensagens de hoje",
