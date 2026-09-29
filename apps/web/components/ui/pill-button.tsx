@@ -49,8 +49,8 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
     width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,
-    paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
-    paddingInlineStart: !iconOnly && leadingIcon ? sizeSpec.paddingX - 2 : undefined,
+    paddingInlineStart: iconOnly ? 0 : leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
+    paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
     fontSize: sizeSpec.fontSize,
     gap: iconOnly ? 0 : sizeSpec.gap,
   }
