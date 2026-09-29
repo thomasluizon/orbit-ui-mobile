@@ -270,7 +270,7 @@ Designing any of these is the defect, not the omission.
   conversation panel.
 - **The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.
 - **The persistent reminder.** Perfil has no switch for an ongoing Android notification with the
-  streak and today's progress, and no platform replaces it (ticket 963).
+  streak and today's progress, and no platform replaces it.
 
 ## Identity & anchor (locked)
 

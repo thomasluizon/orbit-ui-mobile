@@ -1025,14 +1025,15 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders only the drawn Notifications rows and the recorded usage analytics switch', () => {
+  it('renders only the drawn Notifications rows and the recorded deviations, in order', () => {
     render(<ProfilePage />)
 
     const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
-    const controls = ['button', 'switch', 'link'].flatMap((role) =>
-      within(notificationsGroup).queryAllByRole(role).map((control) =>
-        `${role}: ${control.getAttribute('aria-label') ?? control.textContent}`),
-    )
+    const controls = [...notificationsGroup.querySelectorAll('button, a, input')].map((control) =>
+      `${control.getAttribute('role') ?? control.tagName.toLowerCase()}: ${control.getAttribute('aria-label') ?? control.textContent}`)
+    const textLines = [...notificationsGroup.querySelectorAll('*')]
+      .filter((element) => element.children.length === 0 && element.textContent.trim())
+      .map((element) => element.textContent)
 
     expect(controls).toEqual([
       'button: profile.marketingEmails.accept',
@@ -1040,7 +1041,18 @@ describe('ProfilePage', () => {
       'switch: profile.analytics.title',
       'switch: profile.settingsRows.alertsOnThisDevice',
     ])
-    expect(within(notificationsGroup).getByText('profile.settingsRows.remindersNote')).toBeInTheDocument()
+    expect(textLines).toEqual([
+      'profile.groups.notifications',
+      'profile.marketingEmails.question',
+      'profile.marketingEmails.questionDescription',
+      'profile.marketingEmails.accept',
+      'profile.marketingEmails.decline',
+      'profile.analytics.title',
+      'profile.settingsRows.devices',
+      '0 of 5',
+      'profile.settingsRows.currentDevice',
+      'profile.settingsRows.remindersNote',
+    ])
   })
 
   it('restores the analytics switch and explains a failed local save', async () => {

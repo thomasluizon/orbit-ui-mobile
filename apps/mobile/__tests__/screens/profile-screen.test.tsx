@@ -77,6 +77,7 @@ const {
   mockAddAppStateListener,
   mockRemoveAppStateListener,
   mockConversationOpen,
+  mockRealConsentSection,
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
@@ -116,6 +117,7 @@ const {
   mockRemoveAppStateListener: vi.fn(),
   mockAddAppStateListener: vi.fn(),
   mockConversationOpen: { current: false },
+  mockRealConsentSection: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
@@ -327,12 +329,17 @@ vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => React.createElement('ThemeToggle'),
 }))
 
-vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
-  MarketingConsentSection: ({ trailingRow }: { trailingRow?: React.ReactNode }) =>
-    React.createElement('MarketingConsentSectionStub', {
-      testID: 'marketing-consent-section',
-    }, trailingRow),
-}))
+vi.mock('@/components/marketing-consent/marketing-consent-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/marketing-consent/marketing-consent-section')>()
+  return {
+    MarketingConsentSection: (props: React.ComponentProps<typeof actual.MarketingConsentSection>) =>
+      mockRealConsentSection.current
+        ? React.createElement(actual.MarketingConsentSection, props)
+        : React.createElement('MarketingConsentSectionStub', {
+          testID: 'marketing-consent-section',
+        }, props.trailingRow),
+  }
+})
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => null,
@@ -559,6 +566,7 @@ describe('ProfileScreen', () => {
     mockRemoveAppStateListener.mockReset()
     mockAddAppStateListener.mockReset().mockReturnValue({ remove: mockRemoveAppStateListener })
     mockConversationOpen.current = false
+    mockRealConsentSection.current = false
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
     mockSearchParams.current = {}
@@ -1461,8 +1469,9 @@ describe('ProfileScreen', () => {
     ).not.toHaveLength(0)
   })
 
-  it('renders only the drawn Notifications rows and the recorded usage analytics switch', async () => {
+  it('renders only the drawn Notifications rows and the recorded deviations, in order', async () => {
     mockPushSupported.current = true
+    mockRealConsentSection.current = true
     const tree = await renderProfileScreen()
     const notificationsGroup = tree.root.findByProps({ testID: 'profile-settings-group-notifications' })
     const controls = notificationsGroup.findAll(
@@ -1471,15 +1480,30 @@ describe('ProfileScreen', () => {
         ['switch', 'button', 'link'].includes(node.props.accessibilityRole ?? '') &&
         typeof node.props.onPress === 'function',
     )
+    const textLines = notificationsGroup.findAll(
+      (node: { type: unknown; children: unknown[] }) =>
+        node.type === 'Text' && node.children.every((child) => typeof child === 'string'),
+    ).map(nodeText).filter(Boolean)
 
+    expect(textLines).toEqual([
+      'profile.groups.notifications',
+      'profile.marketingEmails.question',
+      'profile.marketingEmails.questionDescription',
+      'profile.marketingEmails.accept',
+      'profile.marketingEmails.decline',
+      'profile.analytics.title',
+      'profile.settingsRows.devices',
+      '0 of 5',
+      'profile.settingsRows.currentDevice',
+      'profile.settingsRows.remindersNote',
+    ])
     expect(controls.map((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      `${node.props.accessibilityRole}: ${node.props.accessibilityLabel}`)).toEqual([
+      `${node.props.accessibilityRole}: ${node.props.accessibilityLabel ?? nodeText(node)}`)).toEqual([
+      'button: profile.marketingEmails.accept',
+      'button: profile.marketingEmails.decline',
       'switch: profile.analytics.title',
       'switch: profile.settingsRows.alertsOnThisDevice',
     ])
-    expect(notificationsGroup.findAll((node: { props: { testID?: string } }) =>
-      node.props.testID === 'marketing-consent-section')).toHaveLength(1)
-    expect(nodeText(notificationsGroup)).toContain('profile.settingsRows.remindersNote')
   })
 
   it('restores the analytics switch and announces a failed local save', async () => {
