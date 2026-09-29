@@ -23,7 +23,7 @@ describe('HabitRow overflow menus', () => {
   it.each([['en', en.habits.actions.reschedule], ['pt-BR', ptBR.habits.actions.reschedule]])('shows the %s reschedule label on an overdue row', (_locale, label) => {
     localeMock.rescheduleLabel = label
     const onReschedule = vi.fn()
-    render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} actions={{ onReschedule }} />)
+    render(<HabitRow habit={createMockHabit({ title: 'Run', isOverdue: true })} state="overdue" actions={{ onReschedule }} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
     const item = screen.getByRole('menuitem', { name: label })
     expect(label).toBe(_locale === 'en' ? 'Reschedule' : 'Reagendar')
