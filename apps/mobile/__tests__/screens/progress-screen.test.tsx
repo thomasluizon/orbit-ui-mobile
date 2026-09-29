@@ -760,7 +760,7 @@ describe('mobile ProgressContent', () => {
     expect(figures).toEqual([
       { label: 'progressScreen.window.completionRate', value: '75%' },
       { label: 'progressScreen.window.activeDays', value: 12 },
-      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysLong.thursday' },
+      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysValue.thursday' },
       { label: 'progressScreen.window.topHabit', value: 'Read' },
     ])
   })

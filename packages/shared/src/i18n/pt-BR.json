@@ -374,6 +374,15 @@
       "friday": "Sexta-feira",
       "saturday": "Sábado",
       "sunday": "Domingo"
+    },
+    "daysValue": {
+      "monday": "segunda",
+      "tuesday": "terça",
+      "wednesday": "quarta",
+      "thursday": "quinta",
+      "friday": "sexta",
+      "saturday": "sábado",
+      "sunday": "domingo"
     }
   },
   "auth": {
@@ -2891,7 +2900,7 @@
     },
     "achievements": {
       "first_orbit": {
-        "name": "Primeira Órbita",
+        "name": "Primeira órbita",
         "description": "Crie seu primeiro hábito"
       },
       "liftoff": {
@@ -2899,27 +2908,27 @@
         "description": "Complete seu primeiro hábito"
       },
       "mission_control": {
-        "name": "Controle de Missão",
+        "name": "Controle de missão",
         "description": "Crie sua primeira meta"
       },
       "onboarding_complete": {
-        "name": "Tudo Pronto",
+        "name": "Tudo pronto",
         "description": "Conclua sua lista de configuração"
       },
       "week_warrior": {
-        "name": "Guerreiro da Semana",
+        "name": "Guerreiro da semana",
         "description": "Alcance uma sequência de 7 dias"
       },
       "fortnight_focus": {
-        "name": "Foco Quinzenal",
+        "name": "Foco quinzenal",
         "description": "Alcance uma sequência de 14 dias"
       },
       "monthly_master": {
-        "name": "Mestre Mensal",
+        "name": "Mestre mensal",
         "description": "Alcance uma sequência de 30 dias"
       },
       "quarter_champion": {
-        "name": "Campeão Trimestral",
+        "name": "Campeão trimestral",
         "description": "Alcance uma sequência de 90 dias"
       },
       "centurion": {
@@ -2927,23 +2936,23 @@
         "description": "Alcance uma sequência de 100 dias"
       },
       "year_of_discipline": {
-        "name": "Ano de Disciplina",
+        "name": "Ano de disciplina",
         "description": "Alcance uma sequência de 365 dias"
       },
       "half_year_hero": {
-        "name": "Herói do Semestre",
+        "name": "Herói do semestre",
         "description": "Alcance uma sequência de 180 dias"
       },
       "streak_titan": {
-        "name": "Titã da Sequência",
+        "name": "Titã da sequência",
         "description": "Alcance uma sequência de 500 dias"
       },
       "getting_momentum": {
-        "name": "Ganhando Ritmo",
+        "name": "Ganhando ritmo",
         "description": "Complete 10 hábitos no total"
       },
       "building_habits": {
-        "name": "Construindo Hábitos",
+        "name": "Construindo hábitos",
         "description": "Complete 50 hábitos no total"
       },
       "dedicated": {
@@ -2959,11 +2968,11 @@
         "description": "Complete 1.000 hábitos no total"
       },
       "goal_setter": {
-        "name": "Definidor de Metas",
+        "name": "Definidor de metas",
         "description": "Crie 3 metas"
       },
       "goal_crusher": {
-        "name": "Destruidor de Metas",
+        "name": "Destruidor de metas",
         "description": "Complete sua primeira meta"
       },
       "overachiever": {
@@ -2971,19 +2980,19 @@
         "description": "Complete 5 metas"
       },
       "dream_maker": {
-        "name": "Realizador de Sonhos",
+        "name": "Realizador de sonhos",
         "description": "Complete 10 metas"
       },
       "perfect_day": {
-        "name": "Dia Perfeito",
+        "name": "Dia perfeito",
         "description": "Complete todos os hábitos em um dia"
       },
       "perfect_week": {
-        "name": "Semana Perfeita",
+        "name": "Semana perfeita",
         "description": "Complete todos os hábitos por 7 dias consecutivos"
       },
       "perfect_month": {
-        "name": "Mês Perfeito",
+        "name": "Mês perfeito",
         "description": "Complete todos os hábitos por 30 dias consecutivos"
       },
       "early_bird": {
@@ -2991,7 +3000,7 @@
         "description": "Complete um hábito antes das 7h (10 vezes)"
       },
       "night_owl": {
-        "name": "Coruja Noturna",
+        "name": "Coruja noturna",
         "description": "Complete um hábito após as 22h (10 vezes)"
       },
       "comeback": {
@@ -2999,23 +3008,23 @@
         "description": "Retome após 7+ dias de inatividade"
       },
       "bad_habit_breaker": {
-        "name": "Quebrador de Maus Hábitos",
+        "name": "Quebrador de maus hábitos",
         "description": "Alcance 30 dias sem um mau hábito"
       },
       "first_cheer": {
-        "name": "Boas Energias",
+        "name": "Boas energias",
         "description": "Envie ou receba seu primeiro incentivo"
       },
       "first_friend": {
-        "name": "Primeiro Amigo",
+        "name": "Primeiro amigo",
         "description": "Adicione seu primeiro amigo"
       },
       "squad_goals": {
-        "name": "Esquadrão Completo",
+        "name": "Esquadrão completo",
         "description": "Alcance 5 amigos"
       },
       "cheerleader": {
-        "name": "Líder de Torcida",
+        "name": "Líder de torcida",
         "description": "Envie 25 incentivos"
       },
       "show_off": {
@@ -3027,19 +3036,19 @@
         "description": "Veja sua primeira Retrospectiva"
       },
       "team_player": {
-        "name": "Espírito de Equipe",
+        "name": "Espírito de equipe",
         "description": "Entre no seu primeiro desafio cooperativo"
       },
       "mission_accomplished": {
-        "name": "Missão Cumprida",
+        "name": "Missão cumprida",
         "description": "Complete um desafio cooperativo"
       },
       "battle_buddy": {
-        "name": "Parceiro de Batalha",
+        "name": "Parceiro de batalha",
         "description": "Inicie uma dupla de responsabilidade"
       },
       "streak_immortal": {
-        "name": "Sequência Imortal",
+        "name": "Sequência imortal",
         "description": "Alcance uma sequência de 1000 dias"
       },
       "unstoppable": {

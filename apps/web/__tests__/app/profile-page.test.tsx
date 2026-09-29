@@ -267,11 +267,13 @@ describe('ProfilePage', () => {
         : key
     }
     mockProfileState.current = {
-      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR' }),
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR', weekStartDay: 1 }),
       isLoading: false,
       error: null,
     }
     render(<ProfilePage />)
+
+    expect(screen.getByRole('button', { name: /Semana começa em/ })).toHaveTextContent('segunda')
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
       'Você', 'Astra', 'Notificações', 'Mais do Orbit', 'Encerrar',

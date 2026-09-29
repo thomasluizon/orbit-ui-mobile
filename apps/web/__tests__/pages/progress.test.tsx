@@ -679,7 +679,7 @@ describe('ProgressContent', () => {
     expect(figures).toEqual([
       '75%progressScreen.window.completionRate',
       '12progressScreen.window.activeDays',
-      'dates.daysLong.thursdayprogressScreen.window.bestWeekday',
+      'dates.daysValue.thursdayprogressScreen.window.bestWeekday',
       'ReadprogressScreen.window.topHabit',
     ])
   })

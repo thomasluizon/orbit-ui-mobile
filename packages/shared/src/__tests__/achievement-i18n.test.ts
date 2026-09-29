@@ -59,6 +59,18 @@ function achievementCopy(
 
 describe('achievement i18n coverage', () => {
   it.each([
+    { locale: 'en', bundle: en },
+    { locale: 'pt-BR', bundle: ptBR },
+  ])('uses sentence case for every achievement name in $locale', ({ bundle }) => {
+    const properNouns = new Set(['Orbit', 'Astra'])
+    for (const [key, achievement] of Object.entries(bundle.gamification.achievements)) {
+      const words = achievement.name.match(/\p{L}+/gu) ?? []
+      const capitalizedLaterWords = words.slice(1).filter((word) => /^\p{Lu}/u.test(word) && !properNouns.has(word))
+      expect(capitalizedLaterWords, `${key}: ${achievement.name}`).toEqual([])
+    }
+  })
+
+  it.each([
     { locale: 'en', bundle: en, gettingStarted: 'Getting started', together: 'Together' },
     { locale: 'pt-BR', bundle: ptBR, gettingStarted: 'Primeiros passos', together: 'Em grupo' },
   ])('uses sentence case for achievement categories in $locale', ({ bundle, gettingStarted, together }) => {

@@ -4,7 +4,7 @@ import { buildWeekStartOptions, LANGUAGE_OPTIONS } from './preferences-options'
 interface ProfilePreferenceInputs {
   profile: Pick<Profile, 'isTrialActive' | 'hasProAccess' | 'timeZone' | 'weekStartDay'> | undefined
   selectedLanguage: string
-  weekStartOptions: ReadonlyArray<{ value: number; label: string }>
+  translate: (key: 'dates.daysValue.monday' | 'dates.daysValue.sunday') => string
 }
 
 interface ProfilePreferenceValues {
@@ -17,7 +17,7 @@ interface ProfilePreferenceValues {
 export function deriveProfilePreferenceValues({
   profile,
   selectedLanguage,
-  weekStartOptions,
+  translate,
 }: ProfilePreferenceInputs): ProfilePreferenceValues {
   return {
     planLabelKey: profile?.isTrialActive
@@ -27,7 +27,9 @@ export function deriveProfilePreferenceValues({
         : 'profile.subscription.free',
     timeZone: profile?.timeZone ?? undefined,
     languageLabel: LANGUAGE_OPTIONS.find((language) => language.value === selectedLanguage)?.label,
-    weekStartLabel: weekStartOptions.find((option) => option.value === profile?.weekStartDay)?.label,
+    weekStartLabel: profile?.weekStartDay === undefined
+      ? undefined
+      : translate(profile.weekStartDay === 1 ? 'dates.daysValue.monday' : 'dates.daysValue.sunday'),
   }
 }
 
