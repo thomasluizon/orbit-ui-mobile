@@ -238,8 +238,8 @@ describe('Hoje date control', () => {
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
     expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
     expect(screen.getByText('Wednesday').parentElement).not.toHaveClass('text-center')
-    expect(screen.getByText('Wednesday').parentElement).toHaveClass('max-[399px]:min-w-[150px]')
-    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).toHaveClass('max-[399px]:flex-wrap')
+    expect(screen.getByText('Wednesday').parentElement).toHaveClass('flex-[1_0_auto]', 'max-w-full')
+    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).toHaveClass('flex-wrap')
     expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[22px]')
   })
 
@@ -259,6 +259,17 @@ describe('Hoje date control', () => {
     expect(jump).toHaveAttribute('data-size', 'sm')
     fireEvent.click(jump)
     expect(onGoToToday).toHaveBeenCalledOnce()
+  })
+
+  it('lets an off-today date keep its preferred width as controls wrap at 400px and enlarged text', () => {
+    render(<TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} />)
+    const date = screen.getByText('Quarta-feira').parentElement
+    const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
+    expect(row).toHaveClass('flex-wrap')
+    expect(row).not.toHaveClass('max-[399px]:flex-wrap')
+    expect(date).toHaveClass('flex-[1_0_auto]', 'max-w-full')
+    expect(date).not.toHaveClass('max-[399px]:min-w-[150px]')
+    expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
   })
 
   it('disables the forward step at the instance horizon', () => {

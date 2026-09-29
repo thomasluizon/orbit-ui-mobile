@@ -69,7 +69,7 @@ export function TodayDateControl({
   ]
 
   return (
-    <div className="flex min-h-[53px] items-center gap-1 px-2 max-[399px]:flex-wrap max-[399px]:justify-end">
+    <div className="flex min-h-[53px] flex-wrap items-center justify-end gap-1 px-2">
       <button
         type="button"
         aria-label={previousLabel}
@@ -78,7 +78,7 @@ export function TodayDateControl({
       >
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      <div className="min-w-0 flex-1 text-start max-[399px]:min-w-[150px]" title={`${dayName}, ${numericDate}`}>
+      <div className="min-w-0 max-w-full flex-[1_0_auto] text-start" title={`${dayName}, ${numericDate}`}>
         <p className="m-0 [overflow-wrap:anywhere] font-display text-[22px] font-medium tracking-[-0.02em] text-[var(--fg-1)]">{dayName}</p>
         <p className="m-0 [overflow-wrap:anywhere] font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{numericDate}</p>
       </div>
