@@ -18,7 +18,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           })).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
 
-          const gaps = await page.getByTestId('login-column').evaluate((column) => {
+          const gaps = await page.locator('main > div').first().evaluate((column) => {
             const main = column.closest('main')
             if (!main) throw new Error('Sign-in column has no layout container')
             const mainBounds = main.getBoundingClientRect()
