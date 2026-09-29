@@ -340,7 +340,7 @@ describe('ProgressContent', () => {
     expect(within(card).queryByText((content) => content.startsWith('progressScreen.goals.progress'))).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.completed' }))
     expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.clearFilter' }))
     expect(getGoalCard('Read 12 Books')).toBeInTheDocument()
   })
@@ -464,6 +464,8 @@ describe('ProgressContent', () => {
 
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    useChatStore.setState({ draft: '', contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
@@ -595,20 +597,23 @@ describe('ProgressContent', () => {
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const { container } = render(<ProgressPage />)
-    expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
-    expect(screen.getAllByRole('button')).toHaveLength(1)
-    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('href', '/')
+    const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
+    expect(action).toHaveAttribute('data-variant', 'primary')
+    fireEvent.click(action)
+    expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
-  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global empty action for desktop=%s as a %s link', (isDesktop, variant) => {
+  it.each([false, true])('renders the global goal action as primary for desktop=%s', (isDesktop) => {
     mocks.isDesktop = isDesktop
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     render(<ProgressPage />)
 
-    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('data-variant', variant)
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
   })
 
   it('starts a goal request from the in-section goals-empty action', () => {
@@ -622,6 +627,20 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
+  it('keeps an unsent Astra draft when starting a goal', () => {
+    useChatStore.getState().setDraft('Unsent note')
+    render(<ProgressContent />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.createAction' }))
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'progress-create-goal',
+      label: 'progressScreen.goals.createAction',
+      prompt: 'progressScreen.goals.request',
+    })
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
@@ -630,7 +649,8 @@ describe('ProgressContent', () => {
     if (record === 'xp') mocks.account.profile.totalXp = 150
     if (record === 'achievement') mocks.gamification.profile.achievementsEarned = 1
     render(<ProgressPage />)
-    expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
+    if (record === 'goal') expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
+    else expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
   })
 
@@ -843,6 +863,18 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')).toBeInTheDocument()
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
+  })
+
+  it('keeps the goal action as the only filled action when streak repair is available', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    render(<ProgressContent />)
+
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
+    expect(screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').closest('button')).toHaveAttribute('data-variant', 'secondary')
   })
 
   it('closes the goal detail when another account replaces the tab', async () => {
@@ -1098,14 +1130,14 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('href', '/')
+    expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
     expect(screen.queryByText('progressScreen.window.empty')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(mocks.retrospectiveHook).not.toHaveBeenCalled()
     expect(mocks.retrospective.refetch).not.toHaveBeenCalled()
-    expect(ptBR.progressScreen.emptyAction).toBe('Começar um hábito')
-    expect(en.progressScreen.emptyAction).toBe('Start a habit')
+    expect(ptBR.progressScreen.goals.createAction).toBe('Criar meta')
+    expect(en.progressScreen.goals.createAction).toBe('Create goal')
   })
 
   it('shows the window empty state when an account with progress has no habits in the period', () => {
@@ -1120,6 +1152,7 @@ describe('ProgressContent', () => {
       expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
       expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
+      expect(screen.getByRole('link', { name: 'progressScreen.window.emptyAction' })).toHaveAttribute('data-variant', 'secondary')
       expect(screen.queryByText('0%')).not.toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)

@@ -2712,8 +2712,6 @@
     "loading": "Carregando seu progresso",
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",

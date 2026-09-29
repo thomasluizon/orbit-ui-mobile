@@ -2712,8 +2712,6 @@
     "loading": "Loading your progress",
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
-    "empty": "Nothing to measure yet",
-    "emptyAction": "Start a habit",
     "sections": {
       "streak": "Streak",
       "goals": "Goals",
