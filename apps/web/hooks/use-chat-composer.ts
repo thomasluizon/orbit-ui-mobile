@@ -132,7 +132,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const today = options.today ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone)
   const selectedDate = options.selectedDate ?? today
   const surface = resolveComposerChipSurface(options.pathname ?? '/')
-  const habitsQuery = useHabits({ dateFrom: selectedDate, dateTo: selectedDate, includeOverdue: selectedDate === today, includeGeneral: options.includeGeneral || undefined }, undefined, { completeDay: true })
+  const habitsQuery = useHabits(surface === 'progress'
+    ? {}
+    : { dateFrom: selectedDate, dateTo: selectedDate, includeOverdue: selectedDate === today, includeGeneral: options.includeGeneral || undefined },
+  undefined, { completeDay: true })
   const detailId = surface === 'habitDetail' ? options.pathname?.split('/')[2] ?? null : null
   const detailQuery = useHabitDetail(detailId)
 

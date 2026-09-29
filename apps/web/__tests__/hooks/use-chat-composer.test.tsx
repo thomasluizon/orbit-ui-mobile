@@ -1423,6 +1423,12 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.composerProps.suggestions).toEqual([])
   })
 
+  it('queries every habit when choosing Progress goal chips', () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    renderHook(() => useChatComposer({ pathname: '/progress' }))
+    expect(mocks.state.habitFilters.at(-1)).toEqual({})
+  })
+
   it('sends a live suggestion label in the transport payload', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })

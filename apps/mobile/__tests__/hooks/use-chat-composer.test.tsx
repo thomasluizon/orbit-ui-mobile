@@ -1433,6 +1433,12 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.suggestions).toEqual([])
   })
 
+  it('queries every habit when choosing Progress goal chips', async () => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    await renderComposer({ pathname: '/progress' })
+    expect(mocks.state.habitFilters.at(-1)).toEqual({})
+  })
+
   it('sends a live suggestion label as the transport message', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
