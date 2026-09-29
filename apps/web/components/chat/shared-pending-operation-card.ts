@@ -1,6 +1,6 @@
 import { createElement, Fragment, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { usePendingOperationCardState } from '@/hooks/use-pending-operation-card-state'
-import { renderPendingOperationCard, type PendingOperationCardLabels, type PendingOperationCardRenderers as CoreRenderers, type PendingOperationVerificationProps } from '@orbit/shared/chat'
+import { pendingOperationExecutionPatch, renderPendingOperationCard, type PendingOperationCardLabels, type PendingOperationCardRenderers as CoreRenderers, type PendingOperationVerificationProps, type PendingOperationMessageState } from '@orbit/shared/chat'
 import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { usePendingOperationRevision } from '@/hooks/use-pending-operation-revision'
@@ -19,12 +19,14 @@ export interface PendingOperationCardProps {
   onVerifyStepUp: PendingOperationVerificationProps['onVerify']
   pendingOperation: PendingAgentOperation
   focusTitleOnMount?: boolean
+  savedState?: PendingOperationMessageState
+  onStateChange?: (patch: PendingOperationMessageState) => void
   render: PendingOperationCardRenderers
 }
 
 export type PendingOperationCardAdapterProps = Pick<
   PendingOperationCardProps,
-  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'onOpenTarget' | 'pendingOperation' | 'focusTitleOnMount'
+  'onConfirmExecute' | 'onPrepareStepUp' | 'onVerifyStepUp' | 'onRevise' | 'onRefresh' | 'onOpenTarget' | 'pendingOperation' | 'focusTitleOnMount' | 'savedState' | 'onStateChange'
 >
 
 export function SharedPendingOperationCard({
@@ -37,21 +39,26 @@ export function SharedPendingOperationCard({
   onVerifyStepUp,
   pendingOperation,
   focusTitleOnMount,
+  savedState,
+  onStateChange,
   render,
 }: Readonly<PendingOperationCardProps>): ReactNode {
-  const revision = usePendingOperationRevision(pendingOperation, onRevise, onRefresh)
+  const revision = usePendingOperationRevision(savedState?.operation ?? pendingOperation, onRevise, onRefresh, onStateChange, savedState)
   const card = usePendingOperationCardState({
     pendingOperationId: pendingOperation.id,
     previewFingerprint: revision.operation.previewFingerprint,
     authorizationVersion: revision.authorizationVersion,
+    settledState: savedState,
     onConfirmExecute: async (id) => {
       const result = await onConfirmExecute(id)
-      if (result.stale) revision.markStale()
+      if (result.stale) { revision.markStale(); onStateChange?.({ stale: true }) }
+      if (!result.stale) onStateChange?.(pendingOperationExecutionPatch(result))
       return result
     },
     onPrepareStepUp: async (id) => {
       const result = await onPrepareStepUp(id)
-      if (!result.ok && result.stale) revision.markStale()
+      if (!result.ok && result.stale) { revision.markStale(); onStateChange?.({ stale: true }) }
+      if (!result.ok && !result.stale) onStateChange?.({ status: 'failed', canRetry: true })
       return result
     },
   })
@@ -61,6 +68,8 @@ export function SharedPendingOperationCard({
   return renderPendingOperationCard({
     card: {
       ...card, revision, onOpenTarget, focusTitleOnMount,
+      completeStepUp: (result) => { card.completeStepUp(result); onStateChange?.(pendingOperationExecutionPatch(result)) },
+      dismiss: () => { card.dismiss(); onStateChange?.({ dismissed: true }) },
       confirmOpen: card.confirmOpen && !revision.stale,
       preparedStepUp: revision.stale ? undefined : card.preparedStepUp,
       closingStepUp: revision.stale ? card.preparedStepUp ?? card.closingStepUp : card.closingStepUp,
@@ -76,7 +85,7 @@ export function SharedPendingOperationCard({
     onVerifyStepUp: async (...args) => {
       if (staleRef.current || !card.preparedStepUp || !card.isCurrent()) return { ok: false }
       const result = await onVerifyStepUp(...args)
-      if (result.stale) revision.markStale()
+      if (result.stale) { revision.markStale(); onStateChange?.({ stale: true }) }
       return result
     },
     pendingOperation: revision.operation,

@@ -11,7 +11,10 @@ import {
   partitionMessageActions,
   selectMessageOperationBlocks,
   stripChatDirectives,
+  updatePendingOperationMessage,
+  attachClarificationPreview,
 } from '@orbit/shared/chat'
+import { useChatStore } from '@/stores/chat-store'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { PillButton } from '@/components/ui/pill-button'
@@ -223,6 +226,10 @@ export function MessageBubble({
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
+                pendingOperation={message.clarificationPreviews?.[action.clarificationRequest.operationId]}
+                onPreview={(operation) => useChatStore.getState().transitionMessage(message.id, (current) => attachClarificationPreview(current, action.clarificationRequest.operationId, operation))}
+                savedState={message.pendingOperationStates?.[message.clarificationPreviews?.[action.clarificationRequest.operationId]?.id ?? '']}
+                onStateChange={(operationId, patch) => useChatStore.getState().transitionMessage(message.id, (current) => updatePendingOperationMessage(current, operationId, patch))}
                 clarificationRequest={action.clarificationRequest}
                 entityName={action.entityName}
                 onPendingOperationRevise={onPendingOperationRevise}
@@ -242,6 +249,8 @@ export function MessageBubble({
               <PendingOperationCard
                 key={pendingOperation.id}
                 pendingOperation={pendingOperation}
+                savedState={message.pendingOperationStates?.[pendingOperation.id]}
+                onStateChange={(patch) => useChatStore.getState().transitionMessage(message.id, (current) => updatePendingOperationMessage(current, pendingOperation.id, patch))}
                 onRevise={onPendingOperationRevise}
                 onRefresh={onPendingOperationRefresh}
                 onOpenTarget={onActionChipClick}

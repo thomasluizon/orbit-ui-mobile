@@ -193,6 +193,8 @@ export function PendingOperationCard({
   onPrepareStepUp,
   onVerifyStepUp,
   focusTitleOnMount,
+  savedState,
+  onStateChange,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -206,6 +208,8 @@ export function PendingOperationCard({
     onPrepareStepUp={onPrepareStepUp}
     onVerifyStepUp={onVerifyStepUp}
     focusTitleOnMount={focusTitleOnMount}
+    savedState={savedState}
+    onStateChange={onStateChange}
     render={pendingOperationRenderers}
     labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
   />

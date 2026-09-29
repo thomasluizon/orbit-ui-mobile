@@ -5,21 +5,29 @@ import { createTokensV2 } from '@/lib/theme'
 import { Check, Copy } from '@/components/ui/icons'
 
 import { MessageBubble } from '@/components/message-bubble'
+import { useChatStore } from '@/stores/chat-store'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { renderedText } from '../support/react-test-renderer'
-import { makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const realClarification = vi.hoisted(() => ({ current: false }))
+const resolveClarification = vi.hoisted(() => vi.fn())
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  realClarification.current = false
+  resolveClarification.mockReset()
+})
 
 interface TestNode {
   type: unknown
   props: {
     children?: unknown
     onPress?: (...args: unknown[]) => unknown
+    onChangeText?: (value: string) => void
     accessibilityLabel?: string
     [key: string]: unknown
   }
@@ -57,6 +65,10 @@ vi.mock('@/hooks/use-time-format', () => ({
 
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
 
+vi.mock('@/hooks/use-resolve-clarification', () => ({
+  useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }),
+}))
+
 const push = vi.fn()
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push }),
@@ -83,7 +95,7 @@ describe('MessageBubble write blocks (mobile)', () => {
 
   it('shows one real preview block and finishes it in place', async () => {
     const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
-      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low',
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
       confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
     } } })
     const onOpenTarget = vi.fn()
@@ -100,6 +112,186 @@ describe('MessageBubble write blocks (mobile)', () => {
     expect(blocks(tree)).toHaveLength(1)
     await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('keeps an approved preview settled after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const onOpenTarget = vi.fn()
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const props = { onActionChipClick: onOpenTarget, onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => {
+      const current = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble {...props} message={current} />
+    }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.done')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(renderedText(tree.root)).toContain('status.done')
+    await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+    expect(useChatStore.getState().messages).toHaveLength(1)
+  })
+
+  it('keeps a rejected preview rejected after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const onPendingOperationRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true } })
+    const StoredBubble = () => {
+      const message = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble message={message} onPendingOperationRevise={onPendingOperationRevise} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
+    }
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.reject')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.rejected')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(renderedText(tree.root)).toContain('chat.operation.rejected')
+  })
+
+  it('keeps a failed approval retryable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: 'temporary' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: {
+        operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+        confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+      } } })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.failed')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('status.failed')
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('status.done')
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an expired preview stale after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: confirm, onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a stale revision blocked after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const revise = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.reject')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.stale')
+    expect(renderedText(tree.root)).not.toContain('chat.operation.approve')
+    expect(revise).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a rejected refresh unavailable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: refresh,
+      onPendingOperationConfirmExecute: vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' }),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    const refreshButton = () => tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.refresh' && typeof node.props.onPress === 'function')[0]
+    expect(refreshButton()).toBeDefined()
+    await TestRenderer.act(async () => { refreshButton()!.props.onPress!(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.staleUnavailable')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.staleUnavailable')
+    expect(refreshButton()).toBeUndefined()
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an edited item marked after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const original = message.pendingOperations![0]!.items![0]!
+    const edited = { ...original, entityName: 'Drink water', fields: [{ ...original.fields[0]!, newValue: 'Drink water' }] }
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: {
+      cancelled: false, preview: { items: [edited], changes: [], changeTargetCount: 1, previewFingerprint: 'habit-preview-2' },
+    } })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(() => { press(tree, 'chat.operation.edit')() })
+    await TestRenderer.act(() => { tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.operation.field.title')[0]!.props.onChangeText!('Drink water') })
+    await TestRenderer.act(async () => { press(tree, 'common.save')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.edited')
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.edited')
+    expect(renderedText(tree.root)).toContain('Drink water')
+  })
+
+  it('keeps a clarification preview in the message after remount', async () => {
+    realClarification.current = true
+    useChatStore.setState({ messages: [makeClarificationPreviewMessage()] })
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    resolveClarification.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
+    await TestRenderer.act(async () => { press(tree, 'habits.clarification.quickAction.daily')(); await Promise.resolve() })
+    expect(renderedText(tree.root)).toContain('chat.operation.approve')
+    expect(useChatStore.getState().messages[0]?.clarificationPreviews?.['00000000-0000-0000-0000-000000000001']).toEqual(pendingOperation)
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<StoredBubble />) })
+    const output = renderedText(tree.root)
+    expect(output).toContain('chat.operation.approve')
+    expect(output).toContain('chat.operation.edit')
+    expect(output).toContain('chat.operation.reject')
+    expect(resolveClarification).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an approved create_goal preview as a goal', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_goal', sourceName: 'create_goal', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'goal-created',
+    } } })
+    const onOpenTarget = vi.fn()
+    let tree!: TestInstance
+    await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={makeHeldGoalMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />) })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve')(); await Promise.resolve() })
+    await TestRenderer.act(() => { press(tree, 'chat.action.open')() })
+    expect(onOpenTarget).toHaveBeenCalledWith('goal-created', 'CreateGoal')
   })
 
   it('keeps a failed approval in one preview block', async () => {
@@ -138,10 +330,14 @@ vi.mock('@/components/chat/breakdown-suggestion', () => ({
   BreakdownSuggestion: (props: Record<string, unknown>) =>
     require('react').createElement('BreakdownSuggestion', props),
 }))
-vi.mock('@/components/chat/clarification-card', () => ({
-  ClarificationCard: (props: Record<string, unknown>) =>
-    require('react').createElement('ClarificationCard', props),
-}))
+vi.mock('@/components/chat/clarification-card', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/chat/clarification-card')>()
+  return {
+    ClarificationCard: (props: Record<string, unknown>) => require('react').createElement(
+      realClarification.current ? actual.ClarificationCard : 'ClarificationCard', props,
+    ),
+  }
+})
 vi.mock('@/components/chat/habit-list-card', () => ({
   HabitListCard: ({ habitList }: { habitList: { items: { id: string; title: string; status: string }[] } }) => {
     const React = require('react')

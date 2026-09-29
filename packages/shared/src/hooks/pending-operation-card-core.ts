@@ -35,8 +35,9 @@ export function createPendingOperationAuthorizationState(
   sourceId: string,
   sourceFingerprint: string | null | undefined,
   authorizationVersion = 0,
+  settled?: Partial<Pick<PendingOperationAuthorizationState, 'status' | 'completedOperation' | 'canRetry' | 'dismissed'>>,
 ): PendingOperationAuthorizationState {
-  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, completedOperation: undefined, canRetry: false, dismissed: false }
+  return { sourceId, sourceFingerprint, authorizationVersion, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: settled?.status, completedOperation: settled?.completedOperation, canRetry: settled?.canRetry ?? false, dismissed: settled?.dismissed ?? false }
 }
 
 export function matchesPendingOperationAuthorization(

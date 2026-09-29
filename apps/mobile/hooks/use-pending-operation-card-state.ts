@@ -33,18 +33,20 @@ export function usePendingOperationCardState({
   pendingOperationId,
   previewFingerprint,
   authorizationVersion = 0,
+  settledState,
   onConfirmExecute,
   onPrepareStepUp,
 }: Readonly<{
   pendingOperationId: string
   previewFingerprint?: string | null
   authorizationVersion?: number
+  settledState?: Partial<Pick<PendingOperationCardState, 'status' | 'completedOperation' | 'canRetry' | 'dismissed'>>
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
 }>): PendingOperationCardState {
   const [busy, setBusy] = useState(false)
   const [authorization, setAuthorization] = useState(() =>
-    createPendingOperationAuthorizationState(pendingOperationId, previewFingerprint, authorizationVersion))
+    createPendingOperationAuthorizationState(pendingOperationId, previewFingerprint, authorizationVersion, settledState))
   const synchronized = reconcilePendingOperationAuthorizationState(
     authorization, pendingOperationId, previewFingerprint, authorizationVersion)
   if (synchronized !== authorization) setAuthorization(synchronized)

@@ -143,6 +143,27 @@ export interface PendingOperationCardActions {
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
 
+const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
+  create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
+  duplicate_habit: 'DuplicateHabit', move_habit: 'MoveHabit', move_habit_parent: 'MoveHabit',
+  log_habit: 'LogHabit', skip_habit: 'SkipHabit', update_checklist: 'UpdateHabit',
+  link_goals_to_habit: 'UpdateHabit', reorder_habits: 'ReorderHabits',
+  bulk_update_habit_emojis: 'UpdateHabit', bulk_update_habits: 'UpdateHabit',
+  bulk_reschedule_habits: 'UpdateHabit', bulk_log_habits: 'BulkLogHabits',
+  bulk_skip_habits: 'BulkSkipHabits', bulk_create_habits: 'CreateHabit',
+  create_goal: 'CreateGoal', update_goal: 'UpdateGoal', update_goal_status: 'UpdateGoalStatus',
+  update_goal_progress: 'UpdateGoalProgress', link_habits_to_goal: 'LinkHabitsToGoal',
+  reorder_goals: 'ReorderGoals',
+  suggest_breakdown: null, delete_habit: null, bulk_delete_habits: null, delete_goal: null,
+  assign_tags: null, create_tag: null, update_tag: null, delete_tag: null,
+  update_profile_preferences: null, set_ai_memory: null, set_ai_summary: null,
+  update_notifications: null, delete_notifications: null, manage_calendar_sync: null,
+  create_checklist_template: null, delete_checklist_template: null,
+  delete_user_facts: null, manage_subscription: null, manage_api_keys: null,
+  send_support_request: null, manage_account: null,
+  CreateHabit: 'CreateHabit', UpdateHabit: 'UpdateHabit', CreateGoal: 'CreateGoal', UpdateGoal: 'UpdateGoal',
+}
+
 function completedTargetControl<Node>(
   targetId: string | null | undefined,
   entityName: string,
@@ -152,7 +173,9 @@ function completedTargetControl<Node>(
 ): Node | undefined {
   const operation = card.completedOperation
   if (card.status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
-  const navigation = getActionChipNavigation({ type: operation.sourceName, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
+  const actionType = NAVIGABLE_OPERATION_ACTIONS[operation.sourceName]
+  if (!actionType) return undefined
+  const navigation = getActionChipNavigation({ type: actionType, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
   return navigation.navigable
     ? render.button({ label: labels.open, accessibleName: labels.openNamed(entityName), variant: 'ghost', onClick: () => card.onOpenTarget?.(navigation.entityId, navigation.actionType) })
     : undefined

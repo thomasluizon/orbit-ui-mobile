@@ -115,6 +115,43 @@ export function makeHeldHabitMessage(overrides: Partial<ChatMessage> = {}): Chat
   }
 }
 
+export function makeHeldGoalMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  const message = makeHeldHabitMessage()
+  return {
+    ...message,
+    pendingOperations: [makePendingAgentOperation({
+      id: 'held-goal',
+      capabilityId: 'goals.write',
+      displayName: 'CreateGoal',
+      riskClass: 'Low',
+      confirmationRequirement: 'None',
+      previewFingerprint: 'goal-preview',
+      changeTargetCount: 1,
+      items: [{
+        itemId: 'new-goal', entityId: null, entityName: 'Run 10 km', stateFingerprint: 'goal-state',
+        fields: [{ entityId: 'new-goal', entityName: 'Run 10 km', field: 'title', oldValue: null, newValue: 'Run 10 km', valueType: 'string' }],
+      }],
+    })],
+    ...overrides,
+  }
+}
+
+export function makeClarificationPreviewMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  return makeHeldHabitMessage({
+    pendingOperations: [],
+    actions: [makeActionResult({
+      type: 'CreateHabit', status: 'NeedsClarification', entityName: 'Beber água',
+      clarificationRequest: {
+        question: 'habits.clarification.questionFallback',
+        operationId: '00000000-0000-0000-0000-000000000001',
+        missingArgumentKey: 'frequency_unit',
+        quickActions: [{ label: 'habits.clarification.quickAction.daily', value: 'daily' }],
+      },
+    })],
+    ...overrides,
+  })
+}
+
 export function makeBulkCreateResponse(
   statuses: Array<'Success' | 'Failed'>,
 ): BulkCreateResponse {

@@ -21,6 +21,7 @@ interface TestTreeRoot extends TestNode {
 
 interface TestInstance {
   root: TestTreeRoot
+  update(element: React.ReactNode): void
 }
 
 interface TestRendererApi {
@@ -186,10 +187,11 @@ describe('ClarificationCard (mobile)', () => {
   it('replaces the question with an editable pending preview', async () => {
     const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
     const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const onPreview = vi.fn()
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'PendingConfirmation' }, pendingOperation })
     let tree!: TestInstance
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />)
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} onPreview={onPreview} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />)
     })
     const [firstButton] = findPressables(tree.root)
     await TestRenderer.act(async () => { await firstButton!.props.onPress!() })
@@ -200,6 +202,10 @@ describe('ClarificationCard (mobile)', () => {
     expect(output).toContain('chat.operation.reject')
     expect(announce).toHaveBeenCalledWith('chat.operation.pendingTitle')
     expect(output).not.toContain('habits.clarification.errorGeneric')
+    expect(onPreview).toHaveBeenCalledWith(pendingOperation)
+    await TestRenderer.act(() => { tree.update(<></>) })
+    await TestRenderer.act(() => { tree.update(<ClarificationCard clarificationRequest={baseClarification} pendingOperation={pendingOperation} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />) })
+    expect(renderedText(tree.root)).toContain('chat.operation.approve')
   })
 
   it.each<{ name: string; error: Error; expectedKey: string }>([

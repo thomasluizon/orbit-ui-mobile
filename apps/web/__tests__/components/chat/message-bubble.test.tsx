@@ -18,6 +18,11 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
+const resolveClarification = vi.fn()
+vi.mock('@/hooks/use-resolve-clarification', () => ({
+  useResolveClarification: () => ({ mutateAsync: resolveClarification, isPending: false }),
+}))
+
 const push = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
@@ -46,8 +51,9 @@ vi.mock('@/components/chat/goal-list-card', () => ({
 }))
 
 import { MessageBubble } from '@/components/chat/message-bubble'
+import { useChatStore } from '@/stores/chat-store'
 import type { ChatMessage } from '@orbit/shared/types/chat'
-import { makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
@@ -454,7 +460,7 @@ describe('MessageBubble', () => {
 
   it('shows one real preview block and finishes it in place', async () => {
     const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
-      operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low',
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
       confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
     } } })
     const onOpenTarget = vi.fn()
@@ -469,6 +475,174 @@ describe('MessageBubble', () => {
     expect(screen.queryByText('chat.operation.outcome.Succeeded')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.action.openEntity:{"name":"Beber água"}' }))
     expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+  })
+
+  it('keeps an approved preview settled after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const onOpenTarget = vi.fn()
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+    } } })
+    const props = { onActionChipClick: onOpenTarget, onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => {
+      const current = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble {...props} message={current} />
+    }
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.done')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+    expect(screen.getByText('status.done')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.action.openEntity:{"name":"Beber água"}' }))
+    expect(onOpenTarget).toHaveBeenCalledWith('habit-created', 'CreateHabit')
+    expect(useChatStore.getState().messages).toHaveLength(1)
+  })
+
+  it('keeps a rejected preview rejected after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const onPendingOperationRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true } })
+    const StoredBubble = () => {
+      const message = useChatStore((state) => state.messages[0]!)
+      return <MessageBubble message={message} onPendingOperationRevise={onPendingOperationRevise} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
+    }
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
+    await screen.findByText('chat.operation.rejected chat.pendingOp.capability.habits-write')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+    expect(screen.getByText('chat.operation.rejected chat.pendingOp.capability.habits-write')).toBeInTheDocument()
+  })
+
+  it('keeps a failed approval retryable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: 'temporary' })
+      .mockResolvedValueOnce({ ok: true, response: { operation: {
+        operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low',
+        confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created',
+      } } })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: confirm,
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.failed')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByText('status.failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.done')
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an expired preview stale after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const confirm = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: confirm, onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('chat.operation.stale')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByText('chat.operation.stale')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a stale revision blocked after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const revise = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationRefresh: vi.fn(),
+      onPendingOperationConfirmExecute: vi.fn(), onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
+    await screen.findByText('chat.operation.stale')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByText('chat.operation.stale')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+    expect(revise).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a rejected refresh unavailable after the bubble remounts', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage()] })
+    const refresh = vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationRefresh: refresh,
+      onPendingOperationConfirmExecute: vi.fn().mockResolvedValue({ ok: false, stale: true, error: 'expired' }),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByRole('button', { name: 'chat.operation.refresh' })
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.refresh' }))
+    await screen.findByText('chat.operation.staleUnavailable')
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByText('chat.operation.staleUnavailable')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.refresh' })).not.toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an edited item marked after the bubble remounts', async () => {
+    const message = makeHeldHabitMessage()
+    useChatStore.setState({ messages: [message] })
+    const original = message.pendingOperations![0]!.items![0]!
+    const edited = { ...original, entityName: 'Drink water', fields: [{ ...original.fields[0]!, newValue: 'Drink water' }] }
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: {
+      cancelled: false, preview: { items: [edited], changes: [], changeTargetCount: 1, previewFingerprint: 'habit-preview-2' },
+    } })
+    const callbacks = { onPendingOperationRevise: revise, onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.title' }), { target: { value: 'Drink water' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await screen.findByText(/chat.operation.edited/)
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByText(/chat.operation.edited/)).toBeInTheDocument()
+    expect(screen.getByText('Drink water')).toBeInTheDocument()
+  })
+
+  it('keeps a clarification preview in the message after remount', async () => {
+    useChatStore.setState({ messages: [makeClarificationPreviewMessage()] })
+    resolveClarification.mockResolvedValueOnce({ ok: true, data: {
+      operation: { status: 'PendingConfirmation' },
+      pendingOperation: makeHeldHabitMessage().pendingOperations![0]!,
+    } })
+    const callbacks = { onPendingOperationRevise: vi.fn(), onPendingOperationConfirmExecute: vi.fn(),
+      onPendingOperationPrepareStepUp: vi.fn(), onPendingOperationVerifyStepUp: vi.fn() }
+    const StoredBubble = () => <MessageBubble message={useChatStore((state) => state.messages[0]!)} {...callbacks} />
+    const first = render(<StoredBubble />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.clarification.quickAction.daily' }))
+    await screen.findByRole('button', { name: 'chat.operation.approve' })
+    first.unmount()
+    render(<StoredBubble />)
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
+    expect(resolveClarification).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an approved create_goal preview as a goal', async () => {
+    const confirm = vi.fn().mockResolvedValue({ ok: true, response: { operation: {
+      operationId: 'create_goal', sourceName: 'create_goal', riskClass: 'Low',
+      confirmationRequirement: 'None', status: 'Succeeded', targetId: 'goal-created',
+    } } })
+    const onOpenTarget = vi.fn()
+    render(<MessageBubble message={makeHeldGoalMessage()} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={confirm} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onActionChipClick={onOpenTarget} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await screen.findByText('status.done')
+    fireEvent.click(screen.getByRole('button', { name: 'chat.action.openEntity:{"name":"Run 10 km"}' }))
+    expect(onOpenTarget).toHaveBeenCalledWith('goal-created', 'CreateGoal')
   })
 
   it('keeps a failed approval in its preview block', async () => {

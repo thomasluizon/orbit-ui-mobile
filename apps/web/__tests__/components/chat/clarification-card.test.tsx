@@ -100,8 +100,9 @@ describe('ClarificationCard', () => {
 
   it('replaces the question with an editable pending preview', async () => {
     const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const onPreview = vi.fn()
     mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'PendingConfirmation' }, pendingOperation } })
-    render(<ClarificationCard clarificationRequest={baseClarification} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    const first = render(<ClarificationCard clarificationRequest={baseClarification} onPreview={onPreview} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
     const announcement = document.querySelector('span[role="status"]')
     fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
     await waitFor(() => expect(screen.getByText('Beber água')).toBeInTheDocument())
@@ -111,6 +112,10 @@ describe('ClarificationCard', () => {
     expect(announcement).toHaveTextContent('chat.operation.pendingTitle')
     expect(screen.getByRole('heading', { name: 'chat.pendingOp.capability.habits-write' })).toHaveFocus()
     expect(screen.queryByText('habits.clarification.errorGeneric')).not.toBeInTheDocument()
+    expect(onPreview).toHaveBeenCalledWith(pendingOperation)
+    first.unmount()
+    render(<ClarificationCard clarificationRequest={baseClarification} pendingOperation={pendingOperation} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
   })
 
   it('shows expired error when the resolve returns 404', async () => {
