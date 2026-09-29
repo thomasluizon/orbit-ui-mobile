@@ -61,7 +61,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
       return (
         <View style={[styles.slide, styles.introSlide]} testID="wrapped-slide-intro">
           <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={motionFinalStyle}><OrbitMark size={48} /></Animated.View>
-          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.introTitle, motionFinalStyle, { color: tokens.fg1 }]}>
+          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} accessibilityRole="header" style={[styles.introTitle, motionFinalStyle, { color: tokens.fg1 }]}>
             {t(`wrapped.slides.intro.${period}`)}
           </Animated.Text>
           <Animated.Text nativeID="wrapped-motion-part-2" entering={enter(2, reducedMotion)} style={[styles.caption, motionFinalStyle, { color: tokens.fg3 }]}>
@@ -96,7 +96,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
     case 'consistency':
       return (
         <View style={[styles.slide, styles.weekdaySlide]} testID="wrapped-slide-consistency">
-          <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>
+          <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
           <WeekdayColumns values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
@@ -126,6 +126,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           <Animated.Text
             nativeID="wrapped-motion-part-1"
             entering={enter(1, reducedMotion)}
+            accessibilityRole="header"
             numberOfLines={2}
             style={[styles.topHabitTitle, motionFinalStyle, { color: tokens.fg1 }]}
           >
@@ -345,7 +346,7 @@ function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, r
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
-      <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>
+      <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>
       <Animated.View testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.sharePreview, motionFinalStyle]}>
         <View style={styles.sharePreviewCard}>
           <ShareCard ref={shareRef} recap={recap} />

@@ -104,12 +104,15 @@ describe('mobile WrappedSlide', () => {
     expect(introParts[0]?.props.nativeID).toBe('wrapped-motion-part-0')
     expect((introParts[0]?.props.children as React.ReactElement).type).toBe(OrbitMark)
     expect(introParts[1]?.props.children).toBe('wrapped.slides.intro.week')
+    expect(introParts[1]?.props.accessibilityRole).toBe('header')
     const weekday = renderSlide(slides.find((slide) => slide.id === 'consistency')!)
     const weekdayTitle = weekday.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.title' && typeof node.type === 'string')[0]!
     expect(StyleSheet.flatten(weekdayTitle.props.style)).toMatchObject({ fontSize: 28 })
+    expect(weekdayTitle.props.accessibilityRole).toBe('header')
     const share = renderSlide(slides.find((slide) => slide.id === 'share')!)
     const shareTitle = share.root.findAll((node) => node.props.children === 'wrapped.slides.share.title' && typeof node.type === 'string')[0]!
     expect(StyleSheet.flatten(shareTitle.props.style)).toMatchObject({ fontSize: 28 })
+    expect(shareTitle.props.accessibilityRole).toBe('header')
   })
 
   it('shows an 88px well with the habit initial when emoji is absent', () => {
@@ -162,6 +165,7 @@ describe('mobile WrappedSlide', () => {
     ])
     expect(parts[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
     expect(parts[0]!.props.accessibilityElementsHidden).toBe(true)
+    expect(parts[1]!.props.accessibilityRole).toBe('header')
     expect(tree.root.findAll((node) => node.props.children === topHabit.habit.emoji).length).toBeGreaterThan(0)
     expect(parts.filter((part) => part.props.importantForAccessibility !== 'no-hide-descendants')
       .map((part) => part.props.children)).toEqual([
