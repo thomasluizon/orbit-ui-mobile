@@ -562,6 +562,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         timeFormat: detectDefaultTimeFormat(i18n.language),
         currentAppArea: "chat",
         supportsHabitListCard: true,
+        supportsHabitListDoneStatus: true,
         supportsGoalListCard: true,
         supportsMetricsCard: true,
         supportsPeriodInsightCard: true,
