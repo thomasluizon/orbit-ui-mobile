@@ -521,9 +521,7 @@ export function applyHabitPhraseRead(
   target.setRecurring()
   target.setField('frequencyUnit', 'Day')
   target.setField('frequencyQuantity', 1)
-  target.setField('days', read.cadence === 'daily'
-    ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    : read.days)
+  target.setField('days', read.days)
   return nextOwnership
 }
 
@@ -616,7 +614,10 @@ export function buildHabitUnderstandingSentence(
   const intervalKey = isFlexible
     ? getHabitFlexibleIntervalUnderstandingKey(frequencyUnit, quantity)
     : getHabitRecurringIntervalUnderstandingKey(frequencyUnit, quantity)
-  if (days.length > 0) {
+  if (!isFlexible && frequencyUnit === 'Day' && quantity === 1 &&
+    (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
+    key = 'habits.form.understoodDaily'
+  } else if (days.length > 0) {
     const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
     const listLocale = locale === 'en' ? 'en-GB' : locale
     key = labels.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
@@ -624,8 +625,6 @@ export function buildHabitUnderstandingSentence(
       style: 'long',
       type: 'conjunction',
     }).format(labels)
-  } else if (!isFlexible && frequencyUnit === 'Day' && quantity === 1) {
-    key = 'habits.form.understoodDaily'
   } else if (intervalKey) {
     key = intervalKey
     values.count = quantity
