@@ -53,7 +53,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
-  const sheetId = `sheet:${overlayId}`
+  const modalId = `modal:${overlayId}`
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const exitActionRef = useRef<(() => void) | null>(null)
@@ -75,19 +75,19 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
   useEffect(() => {
     if (!modalFocusOwnerActive) return
     registerOverlay({
-      id: sheetId,
+      id: modalId,
       dismiss: () => {
         if (onCloseRef.current) requestClose()
       },
     })
-    registerModalFocusOwner(sheetId)
-    registerOpenOverlay(sheetId)
+    registerModalFocusOwner(modalId)
+    registerOpenOverlay(modalId)
     return () => {
-      unregisterOverlay(sheetId)
-      unregisterModalFocusOwner(sheetId)
-      unregisterOpenOverlay(sheetId)
+      unregisterOverlay(modalId)
+      unregisterModalFocusOwner(modalId)
+      unregisterOpenOverlay(modalId)
     }
-  }, [modalFocusOwnerActive, sheetId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
+  }, [modalFocusOwnerActive, modalId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
 
   function runExit() {
     const exitAction = exitActionRef.current
@@ -136,7 +136,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
               </div>
             )}
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
-              <AppToastHost placement="sheet" sheetId={sheetId} />
+              <AppToastHost placement="modal" modalId={modalId} />
             </div>
             {actions == null ? null : (
               <footer className="orbit-sheet-actions" data-slot="sheet-actions">

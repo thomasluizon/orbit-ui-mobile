@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -19,9 +20,8 @@ vi.stubGlobal(
 const mockPush = vi.fn()
 const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
-const mockRegisterOpenOverlay = vi.fn()
-const mockUnregisterOpenOverlay = vi.fn()
 const mockLogHabitMutate = vi.fn()
+const mockSkipHabitMutate = vi.fn()
 
 interface NormalizedHabitQueryData {
   topLevelHabits: NormalizedHabit[]
@@ -66,24 +66,10 @@ vi.mock('@/hooks/use-is-client', () => ({
   useIsClient: () => true,
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: {
-    setActiveView: typeof mockSetActiveView
-    registerOpenOverlay: typeof mockRegisterOpenOverlay
-    unregisterOpenOverlay: typeof mockUnregisterOpenOverlay
-    openOverlayIds: string[]
-  }) => unknown) => selector({
-    setActiveView: mockSetActiveView,
-    registerOpenOverlay: mockRegisterOpenOverlay,
-    unregisterOpenOverlay: mockUnregisterOpenOverlay,
-    openOverlayIds: [],
-  }),
-}))
-
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mockLogHabitMutate }),
-  useSkipHabit: () => ({ mutate: vi.fn() }),
+  useSkipHabit: () => ({ mutate: mockSkipHabitMutate }),
 }))
 
 import {
@@ -91,8 +77,13 @@ import {
   CommandPaletteBackground,
 } from '@/components/command/command-palette'
 import { Sheet } from '@/components/ui/sheet'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useShellStore } from '@/stores/shell-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 
 const NavIcon = () => <svg data-testid="nav-icon" />
 const navItems = [
@@ -109,6 +100,8 @@ function renderPalette() {
 }
 
 beforeEach(() => {
+  useUIStore.setState({ openOverlayIds: [], setActiveView: mockSetActiveView })
+  useAppToastStore.setState({ currentToast: null, queue: [] })
   mockSetPaletteOpen.mockImplementation((value: boolean) => {
     useShellStore.setState({ paletteOpen: value })
   })
@@ -125,10 +118,9 @@ beforeEach(() => {
   }
   mockPush.mockClear()
   mockLogHabitMutate.mockClear()
+  mockSkipHabitMutate.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
-  mockRegisterOpenOverlay.mockClear()
-  mockUnregisterOpenOverlay.mockClear()
 })
 
 describe('CommandPalette', () => {
@@ -137,7 +129,7 @@ describe('CommandPalette', () => {
     expect(
       screen.getByRole('combobox', { name: 'command.title' }),
     ).toHaveAttribute('placeholder', 'command.placeholder')
-    expect(mockRegisterOpenOverlay).toHaveBeenCalledTimes(1)
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
   })
 
   it('names the dialog after the palette title instead of the input placeholder', () => {
@@ -201,6 +193,87 @@ describe('CommandPalette', () => {
       { habitId: 'h1', intent: 'log' },
       { onSuccess: expect.any(Function) },
     )
+  })
+
+  it('keeps failed Skip feedback inside the palette while its mutation settles', async () => {
+    mockSkipHabitMutate.mockImplementation((_input, callbacks: { onError: (error: Error) => void }) => {
+      callbacks.onError(new Error('Skip failed'))
+    })
+    render(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
+    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('errors.updateHabit'))
+    expect(palette.querySelector('[role="status"]')).toHaveAttribute('aria-live', 'polite')
+    expect(mockSkipHabitMutate).toHaveBeenCalledOnce()
+  })
+
+  it('shows the account-change Reload notice from a failed Skip mutation inside the palette', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async (_input: { habitId: string }) => {
+        throw Object.assign(new Error('Account changed'), { code: ACCOUNT_CHANGED_ERROR_CODE, status: 409 })
+      },
+    }), { wrapper })
+    mockSkipHabitMutate.mockImplementation((input, callbacks) => result.current.mutate(input, callbacks))
+    render(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('errors.api.accountChanged'))
+    expect(palette).toContainElement(screen.getByRole('button', { name: 'errorScreen.reload' }))
+    expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
+  })
+
+  it('keeps account-change Reload operable inside the open palette', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    mockSkipHabitMutate.mockImplementation(() => {
+      useAppToastStore.getState().showToast({
+        kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
+      })
+    })
+    render(
+      <CommandPaletteBackground>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+      </CommandPaletteBackground>,
+    )
+
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    fireEvent.click(screen.getByText('Run'))
+
+    const palette = screen.getByRole('dialog', { name: 'command.title' })
+    const background = document.querySelector('[data-command-palette-background]')
+    expect(background).toHaveAttribute('inert')
+    expect(mockSkipHabitMutate).toHaveBeenCalledWith(
+      { habitId: 'h1' }, expect.objectContaining({ onError: expect.any(Function) }),
+    )
+    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('Account changed'))
+    const reloadButton = screen.getByRole('button', { name: 'Reload' })
+    reloadButton.focus()
+    expect(reloadButton).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(reload).toHaveBeenCalledOnce()
+    expect(palette.querySelector('[role="status"]')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
   it('closes when Escape is pressed in the focused search input', async () => {
@@ -318,6 +391,9 @@ describe('CommandPalette', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
     const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
+    act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
+    await waitFor(() => expect(sheetDialog.querySelector('[role="status"]')).toHaveTextContent('Still here'))
+    expect(document.querySelector('[aria-label="command.title"] [role="status"]')).toBeNull()
     await waitFor(() =>
       expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
     )
@@ -325,7 +401,7 @@ describe('CommandPalette', () => {
     await user.keyboard('{Escape}')
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
-    expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[role="status"]')).toBeInTheDocument()
     expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
     await waitFor(() => expect(paletteInput).toHaveFocus())
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Dialog } from '@base-ui/react/dialog'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -34,12 +34,14 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -55,7 +57,7 @@ function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; seco
 
 const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
 
-function DoneShell({ onSelect, children }: Readonly<{ onSelect: (id: string) => void; children: ReactNode }>) {
+function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string }>) {
   const t = useTranslations()
   const items = useMemo(() => [
     { id: 'hoje', label: t('nav.today'), icon: 'home' },
@@ -67,7 +69,7 @@ function DoneShell({ onSelect, children }: Readonly<{ onSelect: (id: string) => 
     const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
     return <Icon size={24} strokeWidth={active ? 2 : 1.5} />
   } }))} onSelect={onSelect} />
-  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar}>
+  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<AppToastHost placement="modal" modalId={modalId} />}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-6 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
 }
@@ -171,6 +173,14 @@ export function OnboardingFlow() {
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
   const [overlayOpen, setOverlayOpen] = useState(true)
+  const modalId = `modal:${useId()}`
+  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+  useEffect(() => {
+    if (!overlayOpen) return
+    registerOpenOverlay(modalId)
+    return () => unregisterOpenOverlay(modalId)
+  }, [modalId, overlayOpen, registerOpenOverlay, unregisterOpenOverlay])
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
   const { dueTime } = schedule
@@ -365,9 +375,9 @@ export function OnboardingFlow() {
   }
 
   const overlay = step === ONBOARDING_DONE_STEP ? (
-    <DoneShell onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneShell>
+    <DoneShell modalId={modalId} onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneShell>
   ) : (
-    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={<>{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><DecisionContent {...decisionProps} /></FlowShell>
   )
   return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

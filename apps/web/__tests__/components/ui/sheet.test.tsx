@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -6,10 +6,37 @@ import { describe, expect, it, vi } from 'vitest'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { AppToastHost } from '@/components/ui/app-toast-host'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Sheet', () => {
+  it('places an actionable toast only in the topmost sheet', async () => {
+    const undo = vi.fn()
+    useUIStore.setState({ openOverlayIds: [] })
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    render(
+      <>
+        <div data-shell-notice=""><AppToastHost /></div>
+        <Sheet title="Lower sheet">
+          <button type="button">Lower action</button>
+          <Sheet title="Upper sheet"><button type="button">Upper action</button></Sheet>
+        </Sheet>
+      </>,
+    )
+
+    act(() => { useAppToastStore.getState().showQueued('Removed', 'Undo', undo) })
+
+    const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true })
+    const upper = screen.getByRole('dialog', { name: 'Upper sheet' })
+    await waitFor(() => expect(upper.querySelector('[role="status"]')).toHaveTextContent('Removed'))
+    expect(lower.querySelector('[role="status"]')).toBeNull()
+    expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(undo).toHaveBeenCalledOnce()
+    expect(upper.querySelector('[role="status"]')).toBeNull()
+  })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)
     expect(screen.getByRole('dialog', { name: 'Reschedule with AI' })).toBeInTheDocument()
