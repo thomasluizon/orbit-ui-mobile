@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getPendingGoogleAuthVerifier, markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { AUTH_CALLBACK_URL, getPendingGoogleAuthVerifier, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { i18n } from '@/lib/i18n'
@@ -1505,13 +1505,38 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('dismisses the persistent reminder when checkAuth finds no token', async () => {
+  it('leaves an anonymous Google callback and account state intact when checkAuth finds no token', async () => {
     getTokenMock.mockResolvedValue(null)
+    const generation = getSessionGeneration()
+    const callbackUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=state`
+    markPendingGoogleAuthSession(1010, 'verifier', 'state')
+    expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 1010)).toBe(true)
+
+    await expect(useAuthStore.getState().checkAuth()).resolves.toBe(false)
+
+    expect(getSessionGeneration()).toEqual(generation)
+    expect(getPendingGoogleAuthVerifier('state')).toBe('verifier')
+    expect(renderHookValue(usePendingGoogleAuthSession)).toMatchObject({ callbackUrl, returnUrlAttemptId: 1010 })
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isLoading: false })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(clearPersistedQueryCacheMock).not.toHaveBeenCalled()
+    expect(setQueryCacheScopeMock).not.toHaveBeenCalled()
+    expect(offlineQueueClearMock).not.toHaveBeenCalled()
+    expect(cancelPersistentReminderMock).not.toHaveBeenCalled()
+  })
+
+  it('tears down a signed-in session when checkAuth finds no token', async () => {
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
+    getTokenMock.mockResolvedValue(null)
+    const generation = getSessionGeneration()
 
     const isValid = await useAuthStore.getState().checkAuth()
 
     expect(isValid).toBe(false)
     expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
+    expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
+    expect(clearAllTokensMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState().sessionPhase).toBe('signed-out')
   })
 
   it('clears queued work and offline state before establishing a new session on login', async () => {

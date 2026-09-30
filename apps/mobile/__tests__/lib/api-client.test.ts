@@ -13,6 +13,7 @@ function headersWithRequestId(requestId: string) {
 }
 
 const {
+  authStateMock,
   getTokenMock,
   clearAllTokensMock,
   fetchMock,
@@ -24,6 +25,7 @@ const {
   markUpgradeRequiredMock,
   routerReplaceMock,
 } = vi.hoisted(() => ({
+  authStateMock: { sessionPhase: 'signed-out', isAuthenticated: false },
   getTokenMock: vi.fn(),
   clearAllTokensMock: vi.fn(),
   fetchMock: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => authStateMock },
   refreshSession: refreshSessionMock,
   clearSessionAndResetAuth: clearSessionAndResetAuthMock,
   getSessionGeneration: getSessionGenerationMock,
@@ -64,6 +67,8 @@ vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
   beforeEach(() => {
+    authStateMock.sessionPhase = 'signed-out'
+    authStateMock.isAuthenticated = false
     setAccountEventOrigin(null)
     getTokenMock.mockReset()
     clearAllTokensMock.mockReset()
@@ -160,6 +165,75 @@ describe('mobile apiClient', () => {
         }),
       }),
     )
+  })
+
+  it('surfaces an anonymous config 401 without session recovery or navigation', async () => {
+    getTokenMock.mockResolvedValue(null)
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+
+    await expect(apiClient(API.config.get)).rejects.toMatchObject({ status: 401 })
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('preserves the anonymous 401 payload and request id for the caller', async () => {
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'Invalid verification code' }), {
+      status: 401, headers: { 'x-orbit-request-id': 'invalid-code-request' },
+    }))
+
+    await expect(apiClient(API.auth.verifyCode, { method: 'POST' })).rejects.toMatchObject({
+      status: 401, message: 'Invalid verification code',
+      data: { error: 'Invalid verification code', requestId: 'invalid-code-request' },
+    })
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not tear down an anonymous caller of the refresh endpoint', async () => {
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(null, { status: 401 }))
+
+    await expect(apiClient(API.auth.refresh)).rejects.toMatchObject({ status: 401 })
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('tears down a store that remains signed in after its token disappears', async () => {
+    authStateMock.sessionPhase = 'signed-in'
+    authStateMock.isAuthenticated = true
+    getTokenMock.mockResolvedValue(null)
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
+    fetchMock.mockResolvedValue(new Response(null, { status: 401 }))
+
+    await expect(apiClient(API.config.get)).rejects.toMatchObject({ status: 401 })
+
+    expect(refreshSessionMock).toHaveBeenCalledOnce()
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledOnce()
+    expect(routerReplaceMock).toHaveBeenCalledExactlyOnceWith('/login')
+  })
+
+  it('retries an anonymous request with a token published while the request was in flight', async () => {
+    getTokenMock.mockResolvedValueOnce(null).mockResolvedValue('new-token')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })))
+
+    await expect(apiClient(API.config.get)).resolves.toEqual({ ok: true })
+
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer new-token' }),
+    }))
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
   it('retries once after a 401 when refresh succeeds', async () => {
@@ -261,11 +335,10 @@ describe('mobile apiClient', () => {
       return Promise.resolve({ status: 'refreshed', token: session.accessToken })
     })
     clearSessionAndResetAuthMock.mockImplementation(
-      (expectedEpoch: number, expectedCredentialVersion?: number | null) => {
+      (observation: { epoch: number; credentialVersion: number }) => {
         if (
-          expectedEpoch !== session.epoch
-          || (expectedCredentialVersion != null
-            && expectedCredentialVersion !== session.credentialVersion)
+          observation.epoch !== session.epoch
+          || observation.credentialVersion !== session.credentialVersion
         ) {
           return Promise.resolve(false)
         }
