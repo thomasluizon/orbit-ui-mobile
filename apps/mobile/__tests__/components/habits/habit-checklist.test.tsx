@@ -6,6 +6,7 @@ import { StyleSheet, type ViewStyle } from 'react-native'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 interface RenderedNode {
   type: unknown
@@ -214,4 +215,19 @@ describe('HabitChecklist editable rows', () => {
 
     expect(StyleSheet.flatten(style)).toMatchObject({ paddingHorizontal: 8 })
   })
+})
+
+
+it('keeps the reset glyph above the graphic floor on a pressed card child', () => {
+  let tree: RenderedTree | undefined
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive onReset={vi.fn()} />)
+  })
+  const reset = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('habits.form.resetChecklist'))[0]!
+  const style = reset.props.style as (state: { pressed: boolean }) => ViewStyle
+  const fill = StyleSheet.flatten(style({ pressed: true })).backgroundColor as string
+  const children = reset.props.children
+  const icon = (typeof children === 'function' ? children({ pressed: true }) : children) as ReactElement<{ color: string }>
+  const tokens = createTokensV2('orange', 'dark')
+  expect(contrastOnSurface(icon.props.color, [tokens.bg, tokens.bgCard, fill])).toBeGreaterThanOrEqual(3)
 })

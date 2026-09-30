@@ -150,7 +150,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
               style={{ width: 36, height: 36 }}
               onClick={onReset}
             >

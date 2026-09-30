@@ -356,7 +356,7 @@ export function HabitChecklist({
               onPress={onReset}
               hitSlop={9}
             >
-              <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
+              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
           {interactive && (

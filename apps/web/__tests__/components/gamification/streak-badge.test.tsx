@@ -26,6 +26,8 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
+import { HabitChecklist } from '@/components/habits/habit-checklist'
+
 import { StreakBadge } from '@/components/gamification/streak-badge'
 
 describe('StreakBadge', () => {
@@ -115,4 +117,24 @@ describe('StreakBadge hover paint in Chromium', () => {
       await page.close()
     }
   })
+  it('keeps the reset glyph above the graphic floor on a hovered card child', async () => {
+    const { container } = render(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive onReset={vi.fn()} />)
+    const declarations = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style><div style="background:var(--bg-card)">${container.innerHTML}</div>`)
+      const reset = page.locator('button[aria-label="habits.form.resetChecklist"]')
+      await reset.hover()
+      await reset.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
+      const paint = await reset.evaluate((element) => ({
+        fill: getComputedStyle(element).backgroundColor,
+        icon: getComputedStyle(element.querySelector('svg')!).color,
+      }))
+      const variables = resolveWebThemeVariables('orange', 'dark')
+      expect(contrastOnSurface(paint.icon, [variables['--bg']!, variables['--bg-card']!, paint.fill])).toBeGreaterThanOrEqual(3)
+    } finally {
+      await page.close()
+    }
+  })
+
 })
