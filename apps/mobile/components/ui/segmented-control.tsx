@@ -42,7 +42,7 @@ function SegmentOption<TValue extends string>({
           ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
           : styles.unselected,
         disabled ? styles.disabled : null,
-        pressed ? styles.pressed : null,
+        pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
       ]}
     >
       <Text numberOfLines={1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>

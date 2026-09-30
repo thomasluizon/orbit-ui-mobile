@@ -107,7 +107,7 @@ export function ReminderSection({
           <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
             {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
           </Text>
-          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={({ pressed }) => [{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start", borderRadius: 999, overflow: "hidden" }, pressed && { backgroundColor: tokens.bgHover }]} onPress={permission.openSettings}>
             <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
               {t("common.openSettings")}
             </Text>
@@ -124,15 +124,16 @@ export function ReminderSection({
                 <Pressable
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   style={({ pressed }) => [
+                    { borderRadius: 999, overflow: "hidden" },
                     reminderTimes.length + scheduledReminderCount <= 1 && { opacity: 0.45 },
-                    pressed && { transform: [{ scale: 0.96 }] },
+                    pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
                   ]}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
                 >
-                  <X size={16} color={tokens.primary} strokeWidth={2.2} />
+                  <X size={16} color={tokens.fg2} strokeWidth={2.2} />
                 </Pressable>
               </View>
             ))}
@@ -147,7 +148,7 @@ export function ReminderSection({
           {!atLimit ? <Pressable
             style={({ pressed }) => [
               sectionStyles.addButton,
-              pressed && { transform: [{ scale: 0.96 }] },
+              pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
             ]}
             hitSlop={{ top: 4, bottom: 4 }}
             accessibilityRole="button"
@@ -199,7 +200,7 @@ export function ReminderSection({
                         style={({ pressed }) => [
                           sectionStyles.unitButton,
                           customUnit === unit && sectionStyles.unitButtonActive,
-                          pressed && { transform: [{ scale: 0.96 }] },
+                          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
                         ]}
                         hitSlop={{ top: 6, bottom: 6 }}
                         accessibilityRole="button"
@@ -223,9 +224,10 @@ export function ReminderSection({
                     {(["before", "after"] as const).map((direction) => (
                       <Pressable
                         key={direction}
-                        style={[
+                        style={({ pressed }) => [
                           sectionStyles.unitButton,
                           customDirection === direction && sectionStyles.unitButtonActive,
+                          pressed && { backgroundColor: tokens.bgHover },
                         ]}
                         accessibilityRole="button"
                         accessibilityState={{ selected: customDirection === direction }}
@@ -244,7 +246,7 @@ export function ReminderSection({
                   <Pressable
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
-                      pressed && { transform: [{ scale: 0.96 }] },
+                      pressed && { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] },
                     ]}
                     hitSlop={4}
                     accessibilityRole="button"

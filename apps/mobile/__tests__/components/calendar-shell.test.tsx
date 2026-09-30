@@ -1,3 +1,4 @@
+import { expectPressFill } from '../support/press-feedback';
 import React from "react";
 import { __setWindowDimensions } from "@/test-mocks/react-native";
 import { StyleSheet } from "react-native";
@@ -176,6 +177,8 @@ describe("CalendarHeader year navigation (mobile)", () => {
     expect(StyleSheet.flatten(month.props.style).fontSize).toBe(28);
     const year = tree!.root.findAll((node) => node.type === "Text" && node.props.children === 2026)[0]!;
     expect(StyleSheet.flatten(year.props.style)).toMatchObject({ fontSize: width >= 1024 ? 14 : 12 });
+
+    for (const label of ['Previous month', 'Next month', 'Go to current month', 'Select year']) expectPressFill(tree!, label, tokens.bgHover, 999);
 
     pressByAccessibilityLabel(tree!, "Previous month");
     pressByAccessibilityLabel(tree!, "Next month");
