@@ -37,8 +37,8 @@ async function readHitBoxOnceStill(control: Locator) {
   return control.boundingBox()
 }
 
-async function readTargetGeometry(control: Locator) {
-  return control.evaluate((element) => {
+async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
+  return control.evaluate((element, fillPseudo) => {
     const bounds = element.getBoundingClientRect()
     const hit = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom }
     const pixels = (value: string) => Number.parseFloat(value) || 0
@@ -56,15 +56,23 @@ async function readTargetGeometry(control: Locator) {
       hit.bottom = Math.max(hit.bottom, top + height)
     }
     const fill = element.querySelector('[data-press-fill]') ?? element
-    const fillBox = fill.getBoundingClientRect()
-    const fillStyle = getComputedStyle(fill)
+    const fillStyle = getComputedStyle(fill, fillPseudo)
+    const fillBox = fillPseudo ? {
+      left: bounds.left + pixels(fillStyle.left), top: bounds.top + pixels(fillStyle.top),
+      right: bounds.right - pixels(fillStyle.right), bottom: bounds.bottom - pixels(fillStyle.bottom),
+      width: bounds.width - pixels(fillStyle.left) - pixels(fillStyle.right),
+      height: bounds.height - pixels(fillStyle.top) - pixels(fillStyle.bottom),
+    } : fill.getBoundingClientRect()
     const probe = document.createElement('span')
     probe.style.backgroundColor = 'var(--bg-hover)'
     element.append(probe)
     const hoverFill = getComputedStyle(probe).backgroundColor
+    probe.style.backgroundColor = 'var(--bg-hover-opaque)'
+    const opaqueHoverFill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return {
       hoverFill,
+      opaqueHoverFill,
       hit,
       painted: { left: fillBox.left, top: fillBox.top, right: fillBox.right, bottom: fillBox.bottom },
       width: fillBox.width,
@@ -73,30 +81,30 @@ async function readTargetGeometry(control: Locator) {
       opacity: fillStyle.opacity,
       radius: Math.min(pixels(fillStyle.borderTopLeftRadius), fillBox.width / 2, fillBox.height / 2),
     }
-  })
+  }, fillPseudo ?? null)
 }
 
-async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover') {
+async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
   await expect(control).toBeVisible()
   await readHitBoxOnceStill(control)
   await control.page().mouse.move(0, 0)
-  const resting = await readTargetGeometry(control)
+  const resting = await readTargetGeometry(control, fillPseudo)
   await control.hover()
   await expect.poll(async () => {
-    const hovered = await readTargetGeometry(control)
+    const hovered = await readTargetGeometry(control, fillPseudo)
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
   }, { message: 'the painted hit area responds to hover' }).toBe(true)
-  const geometry = await readTargetGeometry(control)
-  if (fillToken) expect(geometry.background, 'the neutral interaction uses bg-hover').toBe(geometry.hoverFill)
+  const geometry = await readTargetGeometry(control, fillPseudo)
+  if (fillToken) expect(geometry.background, `the interaction uses ${fillToken}`).toBe(fillToken === '--bg-hover-opaque' ? geometry.opaqueHoverFill : geometry.hoverFill)
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
     expect(geometry.painted[edge], `the fill reaches the ${edge} hit edge including pseudo-elements`).toBeCloseTo(geometry.hit[edge], 1)
   }
   expect(geometry.radius).toBeCloseTo(radius === 'pill' ? Math.min(geometry.width, geometry.height) / 2 : radius, 1)
 }
 
-async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover') {
-  await expectHoverOnHitArea(control, radius, fillToken)
-  const geometry = await readTargetGeometry(control)
+async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
+  await expectHoverOnHitArea(control, radius, fillToken, fillPseudo)
+  const geometry = await readTargetGeometry(control, fillPseudo)
   expect(geometry.width).toBeGreaterThanOrEqual(44)
   expect(geometry.height).toBeGreaterThanOrEqual(44)
 }
@@ -140,7 +148,7 @@ for (const width of [412, 1280] as const) {
         fixture.innerHTML = markup
         document.querySelector('main')!.append(fixture)
       }, renderCompactTargetInventory())
-      await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: /Sequência/ }), 'pill')
+      await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: /Sequência/ }), 'pill', '--bg-hover-opaque', '::after')
       for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
         await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: label, exact: true }), 'pill')
       }
@@ -220,7 +228,7 @@ for (const width of [412, 1280] as const) {
         await step.hover()
         await expectFullTouchTarget(step.getByRole('button', { name: label }), 'pill')
       }
-      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 'pill')
+      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.habits.form.clearChecklist, exact: true }), 8)
       const time = disclosure.getByRole('textbox', { name: ptBr.habits.form.exactTime })
       await time.fill('08:00')
       await time.press('Tab')
@@ -271,10 +279,10 @@ for (const width of [412, 1280] as const) {
         await context.route(new RegExp(`${API.calendar.autoSyncSuggestions}$`), (route) => route.fulfill({ json: [suggestion] }))
         await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
         await context.route(new RegExp(`${API.calendar.events}[?]`), (route) => route.fulfill({ json: [] }))
-        await page.goto('/calendar')
-        await expect(page.getByRole('radiogroup')).toBeVisible()
-        await page.evaluate(() => window.history.pushState(null, '', '/calendar?mode=review'))
+        await page.goto('/calendar?mode=review')
         const sheet = page.getByRole('dialog', { name: ptBr.calendar.autoSync.reviewModeTitle, exact: true })
+        await expect(sheet).toBeVisible()
+        await expect(sheet.getByText(suggestion.event.title, { exact: true })).toBeVisible()
         await expectFullTouchTarget(sheet.getByRole('button', { name: new RegExp(`^(${ptBr.calendar.selectAll}|${ptBr.calendar.deselectAll})$`) }), 'pill')
         await expectFullTouchTarget(sheet.getByRole('button', { name: ptBr.calendar.autoSync.dismissSuggestion }), 'pill')
       })

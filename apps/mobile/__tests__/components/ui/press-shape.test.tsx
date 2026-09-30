@@ -220,12 +220,13 @@ describe('pressed hit area shapes', () => {
     })
   })
 
-  it('paints and releases the whole streak target with the neutral fill', () => {
+  it('layers the neutral press fill over the whole opaque streak target', () => {
     withTree(<StreakBadge streak={3} />, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
+      expect(pressedFill(control, true)).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgElev })
       expect(pressedFill(control, false).backgroundColor).toBe(tokens.bgElev)
+      expect(pressedFill(control, true).borderWidth ?? 0).toBe(0)
     })
   })
 

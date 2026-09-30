@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 
 export function useReferral() {
   const query = useQuery({
@@ -17,7 +18,7 @@ export function useReferral() {
   const stats = query.data?.stats ?? null
 
   const referralUrl = useMemo(
-    () => buildReferralUrl(query.data?.code ?? null),
+    () => buildReferralUrl(query.data?.code ?? null, APP_LINK_ORIGIN),
     [query.data?.code],
   )
 

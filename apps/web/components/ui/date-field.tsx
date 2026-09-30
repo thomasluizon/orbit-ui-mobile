@@ -169,7 +169,7 @@ export function DateField({
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-3 rounded-sm hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
@@ -184,7 +184,7 @@ export function DateField({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color]"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
               style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -192,7 +192,7 @@ export function DateField({
           </span>
           <button
             type="button"
-            className={`p-3 rounded-sm hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >

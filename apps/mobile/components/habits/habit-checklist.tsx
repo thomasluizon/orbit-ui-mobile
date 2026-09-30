@@ -98,7 +98,6 @@ function EditableChecklistItem({
           ]}
           onPress={onMoveUp}
           disabled={isFirst}
-
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
@@ -111,7 +110,6 @@ function EditableChecklistItem({
           ]}
           onPress={onMoveDown}
           disabled={isLast}
-
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
@@ -354,9 +352,8 @@ export function HabitChecklist({
                 pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onReset}
-
             >
-              <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
+              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
           {interactive && (
@@ -368,7 +365,6 @@ export function HabitChecklist({
                 pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onClear}
-
             >
               <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
             </Pressable>
@@ -426,8 +422,7 @@ export function HabitChecklist({
           <Pressable
             accessibilityRole="button"
             onPress={clearAll}
-            style={({ pressed }) => [styles.clearButton, pressed ? { backgroundColor: tokens.bgHover } : null]}
-
+            style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
@@ -473,17 +468,17 @@ function createStyles(tokens: AppTokens) {
     fontVariant: ['tabular-nums'],
   },
   actionButton: {
+    overflow: 'hidden',
     width: 44,
     height: 44,
     borderRadius: 999,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearButton: {
+  clearAction: {
     minHeight: 44,
     minWidth: 44,
-    borderRadius: 999,
+    borderRadius: 8,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -525,10 +520,10 @@ function createStyles(tokens: AppTokens) {
     gap: 4,
   },
   moveButton: {
+    overflow: 'hidden',
+    borderRadius: 999,
     width: 44,
     height: 44,
-    borderRadius: 999,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -550,10 +545,10 @@ function createStyles(tokens: AppTokens) {
     borderBottomColor: 'transparent',
   },
   itemAction: {
+    overflow: 'hidden',
     width: 44,
     height: 44,
     borderRadius: 999,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },

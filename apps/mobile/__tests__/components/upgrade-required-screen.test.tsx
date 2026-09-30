@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import Constants from 'expo-constants'
 import { useUIStore } from '@/stores/ui-store'
 
 interface TestNode {
@@ -40,7 +41,7 @@ vi.mock('react-native', async () => ({
 vi.mock('@/lib/app-version', () => ({ getAppVersion: () => '1.0.0' }))
 
 vi.mock('expo-constants', () => ({
-  default: { expoConfig: { android: { package: 'org.useorbit.app' } } },
+  default: { expoConfig: require('../../app.config.js')() },
 }))
 
 vi.mock('@/lib/i18n', () => ({
@@ -84,11 +85,15 @@ function findPressables(root: TestTreeRoot): TestNode[] {
 
 describe('UpgradeRequiredScreen', () => {
   beforeEach(() => {
-    openUrlMock.mockClear()
+    openUrlMock.mockReset().mockResolvedValue(undefined)
+    vi.stubEnv('ORBIT_APP_VARIANT', 'production')
+    Constants.expoConfig = require('../../app.config.js')()
     stateRef.upgradeRequired = false
     stateRef.minVersion = null
     useUIStore.setState({ openOverlayIds: [] })
   })
+
+  afterEach(() => vi.unstubAllEnvs())
 
   it('renders nothing when no upgrade is required', async () => {
     let tree: TestInstance | null = null
@@ -132,4 +137,29 @@ describe('UpgradeRequiredScreen', () => {
 
     expect(openUrlMock).toHaveBeenCalledWith('market://details?id=org.useorbit.app')
   })
+  it.each([false, true])('opens only the staging listing with web fallback %s', async (webFallback) => {
+    vi.stubEnv('ORBIT_APP_VARIANT', 'staging')
+    Constants.expoConfig = require('../../app.config.js')()
+    stateRef.upgradeRequired = true
+    if (webFallback) openUrlMock.mockRejectedValueOnce(new Error('No market handler'))
+    let tree: TestInstance | null = null
+    await TestRenderer.act(() => { tree = TestRenderer.create(<UpgradeRequiredScreen />) })
+    const [pressable] = findPressables(tree!.root)
+    await TestRenderer.act(() => { pressable!.props.onPress?.() })
+    expect(openUrlMock).toHaveBeenCalledWith('market://details?id=org.useorbit.app.staging')
+    if (webFallback) expect(openUrlMock).toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=org.useorbit.app.staging')
+    expect(openUrlMock).not.toHaveBeenCalledWith('market://details?id=org.useorbit.app')
+    expect(openUrlMock).not.toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=org.useorbit.app')
+  })
+
+  it('opens the production listing when the runtime manifest is unavailable', async () => {
+    Constants.expoConfig = null
+    stateRef.upgradeRequired = true
+    let tree: TestInstance | null = null
+    await TestRenderer.act(() => { tree = TestRenderer.create(<UpgradeRequiredScreen />) })
+    const [pressable] = findPressables(tree!.root)
+    await TestRenderer.act(() => { pressable!.props.onPress?.() })
+    expect(openUrlMock).toHaveBeenCalledWith('market://details?id=org.useorbit.app')
+  })
+
 })

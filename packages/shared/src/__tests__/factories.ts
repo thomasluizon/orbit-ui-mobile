@@ -1,4 +1,9 @@
-import type { NormalizedHabit, RescheduleSuggestion } from '../types/habit'
+import type {
+  HabitScheduleChild,
+  HabitScheduleItem,
+  NormalizedHabit,
+  RescheduleSuggestion,
+} from '../types/habit'
 import type { Goal } from '../types/goal'
 import type { Profile } from '../types/profile'
 import type { NotificationItem } from '../types/notification'
@@ -42,6 +47,80 @@ export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): Norma
     isLoggedInRange: false,
     instances: [],
     searchMatches: null,
+    ...overrides,
+  }
+}
+
+
+export function createMockHabitScheduleChild(
+  overrides: Partial<HabitScheduleChild> = {},
+): HabitScheduleChild {
+  return {
+    id: 'child-1',
+    title: 'Stretch',
+    description: null,
+    frequencyUnit: 'Day',
+    frequencyQuantity: 1,
+    isBadHabit: false,
+    isCompleted: false,
+    isGeneral: false,
+    isFlexible: false,
+    days: [],
+    dueDate: '2025-01-01',
+    dueTime: null,
+    dueEndTime: null,
+    endDate: null,
+    scheduledDates: [],
+    isOverdue: false,
+    position: null,
+    checklistItems: [],
+    tags: [],
+    children: [],
+    hasSubHabits: false,
+    flexibleTarget: null,
+    flexibleCompleted: null,
+    isLoggedInRange: false,
+    instances: [],
+    ...overrides,
+  }
+}
+
+
+export function createMockHabitScheduleItem(
+  overrides: Partial<HabitScheduleItem> = {},
+): HabitScheduleItem {
+  return {
+    id: 'habit-1',
+    title: 'Exercise',
+    description: null,
+    frequencyUnit: 'Day',
+    frequencyQuantity: 1,
+    isBadHabit: false,
+    isCompleted: false,
+    isGeneral: false,
+    isFlexible: false,
+    days: [],
+    dueDate: '2025-01-01',
+    dueTime: null,
+    dueEndTime: null,
+    endDate: null,
+    position: null,
+    checklistItems: [],
+    createdAtUtc: '2025-01-01T00:00:00Z',
+    scheduledDates: [],
+    isOverdue: false,
+    reminderEnabled: false,
+    reminderTimes: [],
+    scheduledReminders: [],
+    slipAlertEnabled: false,
+    tags: [],
+    children: [],
+    hasSubHabits: false,
+    flexibleTarget: null,
+    flexibleCompleted: null,
+    isLoggedInRange: false,
+    linkedGoals: [],
+    instances: [],
     ...overrides,
   }
 }

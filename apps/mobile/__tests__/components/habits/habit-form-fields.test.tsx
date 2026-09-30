@@ -32,7 +32,7 @@ function translateTestValue(key: string, values?: Record<string, unknown>): stri
   )
 }
 
-vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
+vi.mock('react-hook-form', () => ({ useController: () => ({ field: { ref: vi.fn() } }), useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: 'en' } }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),

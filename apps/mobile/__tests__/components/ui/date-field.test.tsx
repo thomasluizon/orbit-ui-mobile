@@ -12,8 +12,9 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 0 } }),
 }))
 
+const themeState = vi.hoisted(() => ({ mode: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: themeState.mode }),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -39,6 +40,34 @@ function dayTargets(tree: any) {
 }
 
 describe('DateField (mobile)', () => {
+  it.each(['dark', 'light'] as const)('paints month and year controls with the hover role in %s', (mode) => {
+    themeState.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    TestRenderer.act(() => tree.root.findByType(Pressable).props.onPress())
+    const navigation = tree.root.findAllByType(Pressable).filter(
+      (node: { props: { accessibilityState?: { selected?: boolean } } }) =>
+        node.props.accessibilityState?.selected === undefined,
+    ).slice(1)
+    expect(navigation).toHaveLength(3)
+    for (const control of navigation) {
+      expect(flatten(control.props.style({ pressed: false })).backgroundColor).toBeUndefined()
+      expect(flatten(control.props.style({ pressed: true }))).toMatchObject({
+        backgroundColor: tokens.bgHover,
+        overflow: 'hidden',
+      })
+    }
+    const [previous, year, next] = navigation
+    TestRenderer.act(() => year.props.onPress())
+    for (const control of [previous, next]) {
+      expect(control.props.disabled).toBe(true)
+      expect(flatten(control.props.style({ pressed: true })).backgroundColor).toBeUndefined()
+    }
+    expect(flatten(year.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => tree.unmount())
+    themeState.mode = 'dark'
+  })
+
   it('uses the approved graphic role on its field trigger', () => {
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     const tokens = createTokensV2('purple', 'dark')
@@ -91,7 +120,8 @@ describe('DateField (mobile)', () => {
       expect(target.props.hitSlop).toBeUndefined()
       expect(resting.minHeight ?? resting.height).toBe(44)
       expect(resting.minWidth ?? resting.width).toBe(44)
-      expect(pressed).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 8, overflow: 'hidden' })
+      expect(pressed).toMatchObject({ borderRadius: 8, overflow: 'hidden' })
+      expect(pressed.backgroundColor).toBe(target.props.disabled ? undefined : tokens.bgHover)
       expect(resting.backgroundColor).toBeUndefined()
       if (label !== 'common.selectYear') expect(target.props.disabled).toBe(mode === 'years')
     }

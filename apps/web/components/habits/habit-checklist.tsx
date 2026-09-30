@@ -150,7 +150,7 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
               style={{ minWidth: 44, minHeight: 44 }}
               onClick={onReset}
             >
@@ -230,7 +230,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,

@@ -1,3 +1,6 @@
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import { useMemo } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
@@ -756,4 +759,48 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })
 
+})
+
+
+describe('CalendarDayDetail mixed-type family carry', () => {
+  const loggedDate = '2026-09-28'
+    function badParentWithGoodChildLog(): CalendarMonthResponse {
+      return {
+        habits: [
+          createMockHabitScheduleItem({
+            id: 'bad-parent',
+            title: 'Bad parent',
+            isBadHabit: true,
+            frequencyUnit: 'Week',
+            dueDate: '2026-09-29',
+            scheduledDates: ['2026-09-29'],
+            instances: [{ date: '2026-09-29', status: 'Pending', logId: null }],
+            children: [
+              createMockHabitScheduleChild({
+                id: 'good-child',
+                title: 'Good child',
+                frequencyUnit: 'Week',
+                frequencyQuantity: 3,
+                dueDate: '2026-10-19',
+                scheduledDates: [loggedDate],
+                isLoggedInRange: true,
+                instances: [{ date: loggedDate, status: 'Completed', logId: 'good-child-log' }],
+              }),
+            ],
+            hasSubHabits: true,
+          }),
+        ],
+        logs: { 'bad-parent': [] },
+      }
+    }
+
+  it('labels a good sub-habit log under a bad parent as completed, not as a slip', () => {
+    const dayMap = buildCalendarDayMap(badParentWithGoodChildLog(),
+      { from: '2026-09-01', to: '2026-09-30' }, new Date('2026-09-29T12:00:00'))
+    renderDetail({ dateStr: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
+    expect(screen.getByText('Good child')).toBeInTheDocument()
+    expect(screen.getByLabelText(en.calendar.status.completed)).toBeInTheDocument()
+    expect(screen.queryByLabelText(en.calendar.status.indulged)).not.toBeInTheDocument()
+    expect(screen.queryByText('Bad parent')).not.toBeInTheDocument()
+  })
 })

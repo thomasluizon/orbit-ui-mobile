@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42: there are exactly two sources, this document and the granted canvas.**
 The twenty-one-screen Claude Design export is committed at
-`design/canvas/`, with the design system's 174 token values under
+`design/canvas/`, with the design system's 177 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
@@ -387,6 +387,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
 --bg-hover        rgba(250,250,250,0.13)      /* THE hover surface -> #28282A. 1.26:1 against the resting card */
+--bg-hover-opaque rgba(250,250,250,0.13)      /* overlay on an opaque control -> #39393B over elev. 1.477:1 step */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
 --border-control  rgba(255,255,255,0.08)      /* border: encloses a control. Same value today, separate role */
@@ -438,6 +439,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
+--bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
@@ -557,7 +559,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
 
-**Two hover stacks exist, and they measure differently. Read the paint order, not the token.**
+**Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 
 1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
    hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
@@ -566,6 +568,13 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
    `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
    NOT clear the text floor. The unread notification row is that case, on both platforms: the
    wrapper carries `--bg-card` and the inner control hovers.
+
+3. **Layer over an opaque control.** Keep the resting fill and composite `--bg-hover-opaque`
+   (`bgHoverOpaque` on Android) above it. Dark uses the existing hover value, alpha 0.13 over
+   `--bg-elev`, resolving to `#39393B` with a **1.477:1** hover step. Light uses ink alpha 0.11
+   over white, resolving to `#E4E4E4` with a **1.271:1** step. Alpha 0.10 rounds to `#E6E6E7`
+   and measures only 1.247:1. Text on the opaque hover layer takes `--fg-2` or lighter:
+   `--fg-2` measures **6.974:1 dark** and **7.858:1 light**; dark `--fg-3` falls below 4.5.
 
 **On a hover child inside a card, text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
 stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
@@ -1072,6 +1081,8 @@ Neutral control hover and press fills use `--bg-hover` (`bgHover` on Android), c
 target at its own radius. Primary-filled actions use `--primary-hover` on hover and
 `--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
 feedback, including when reduced motion suppresses the scale.
+A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
+to `--bg-hover`, and light uses the stronger opaque-control hover value.
 
 - **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.26:1** , which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
 - **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.

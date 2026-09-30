@@ -304,6 +304,17 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     throw toUnauthorizedError(requestId)
   }
 
+  if (response.status === 401 && tokenUsed === null) {
+    const latestToken = await getToken()
+    const { useAuthStore } = await import('@/stores/auth-store')
+    if (!latestToken && !useAuthStore.getState().isAuthenticated) {
+      return {
+        data: await parseApiResponse<T>(response, requestId, path, schema),
+        authorizingToken: null,
+      }
+    }
+  }
+
   if (response.status === 401 && path !== API.auth.refresh) {
     return handleUnauthorized<T>(path, effectiveOptions, requestId, tokenUsed, schema)
   }

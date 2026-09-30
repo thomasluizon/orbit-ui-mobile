@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
@@ -38,7 +38,23 @@ vi.mock('@/components/ui/sheet', () => ({
 describe('AboutPage', () => {
   beforeEach(() => {
     mocks.push.mockClear()
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
     useAuthStore.setState({ isAuthenticated: true })
+  })
+
+  afterEach(() => { vi.unstubAllEnvs() })
+
+  it('shows the short commit of the served build as the version', () => {
+    render(<AboutPage />)
+    expect(screen.getByTestId('about-fact-version-value')).toHaveTextContent('3f9c2ab')
+    expect(screen.queryByText(/0\.0\.1/)).not.toBeInTheDocument()
+  })
+
+  it('renders no version row when the build carries no commit', () => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', undefined)
+    render(<AboutPage />)
+    expect(screen.getByText('Orbit')).toBeInTheDocument()
+    expect(screen.queryByTestId('about-fact-version')).not.toBeInTheDocument()
   })
 
   it('renders the About identity, real facts, and four destinations in order', () => {
@@ -48,7 +64,7 @@ describe('AboutPage', () => {
     expect(screen.getByText('Orbit')).toBeInTheDocument()
     expect(screen.getByText(ptBR.about.tagline)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Sobre' })).toBeInTheDocument()
-    expect(screen.getByText('0.0.1')).toBeInTheDocument()
+    expect(screen.getByText('3f9c2ab')).toBeInTheDocument()
     expect(screen.getByText(mocks.email)).toBeInTheDocument()
     expect(screen.queryByTestId('about-credit')).not.toBeInTheDocument()
 

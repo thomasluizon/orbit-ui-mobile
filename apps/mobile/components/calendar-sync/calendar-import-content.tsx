@@ -261,7 +261,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
         router.replace('/login?googleError=1')
         return
       }
-      router.replace('/auth-callback')
     } catch {
       allowGoogleErrorLogin()
       router.replace('/login?googleError=1')

@@ -98,6 +98,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       reset: vi.fn(),
       setValue: mockSetValue,
       getValues: mockGetValues,
+      trigger: vi.fn().mockResolvedValue(true),
       formState: { isDirty: false, errors: {} },
     },
     isOneTime: false,
@@ -338,9 +339,9 @@ describe('CreateHabitModal (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain(parentHabit ? 'common.create' : 'habits.createHabit')
   })
 
-  it('names the new habit and explains the empty disabled action without a subtitle', () => {
+  it('names the new habit and keeps its empty submit action available', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
-    expect(findSubmit(tree.root).props.disabled).toBe(true)
+    expect(findSubmit(tree.root).props.disabled).not.toBe(true)
     expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')[0].props.title).toBe('habits.form.newHabit')
     expect(hasText(tree.root, 'habits.form.createWhy')).toBe(true)
     expect(hasText(tree.root, 'habits.form.createDescription')).toBe(false)

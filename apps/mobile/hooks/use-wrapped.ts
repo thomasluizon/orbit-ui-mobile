@@ -9,11 +9,13 @@ import {
   buildWrappedSlides,
   isRecapShareEmpty,
   readAccountScopedFlag,
+  withShareLinkOrigin,
   type RecapSharePeriod,
   type ClosedRecapMonth,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { useAuthStore } from '@/stores/auth-store'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
@@ -32,7 +34,10 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
 
   const query = useQuery({
     queryKey: gamificationKeys.recap(period, closedMonth?.year, closedMonth?.month),
-    queryFn: async () => recapResponseSchema.parse(await apiClient<unknown>(buildRecapRequestUrl(period, closedMonth))),
+    queryFn: async () => {
+      const recap = recapResponseSchema.parse(await apiClient<unknown>(buildRecapRequestUrl(period, closedMonth)))
+      return { ...recap, shareDeepLink: withShareLinkOrigin(recap.shareDeepLink, APP_LINK_ORIGIN) }
+    },
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })

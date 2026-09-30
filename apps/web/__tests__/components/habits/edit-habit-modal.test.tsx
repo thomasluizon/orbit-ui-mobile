@@ -64,6 +64,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       resetField: mockFormResetField,
       setValue: mockFormSetValue,
       getValues: mockFormGetValues,
+      trigger: vi.fn().mockResolvedValue(true),
       watch: mockFormWatch,
       register: mockFormRegister,
       formState: { isValid: true, isDirty: false, dirtyFields: {} },
@@ -412,14 +413,14 @@ describe('EditHabitModal', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('shows validation error when form validation fails', () => {
+  it('shows validation error when form validation fails', async () => {
     mockValidateAll.mockReturnValue('End date must be after start date')
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
     const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
-    expect(mockShowError).toHaveBeenCalledWith('End date must be after start date')
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('End date must be after start date'))
     expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
   })
 
