@@ -445,6 +445,20 @@ describe('proxy', () => {
     expect(clearSessionCookies).not.toHaveBeenCalled()
   })
 
+  it('carries the Astra launch query to login from anonymous onboarding', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    await proxy(createRequest('/?astra=open'))
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('astra')).toBe('open')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+  })
+
   it('redirects authenticated users away from login', async () => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: 'valid-token',

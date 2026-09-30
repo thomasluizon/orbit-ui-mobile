@@ -143,6 +143,14 @@ describe('Google sign in', () => {
   })
 })
 
+it('keeps the Astra query from the anonymous notification redirect through Google sign-in', () => {
+  vi.stubGlobal('location', { assign: mocks.assign })
+  mocks.search = 'astra=open&returnUrl=%2F'
+  const { result } = renderHook(() => useLoginFlow())
+  act(() => { result.current.signInWithGoogle() })
+  expect(sessionStorage.getItem('auth_return_url')).toBe('/?astra=open')
+})
+
 it.each(['/profile', '/chat'])('carries the destination of a notification clicked while signed out through Google sign in (%s)', (url) => {
   vi.stubGlobal('location', { assign: mocks.assign })
   mocks.search = `notificationUrl=${encodeURIComponent(url)}&returnUrl=%2F`
@@ -292,6 +300,14 @@ describe('useLoginFlow verify-code success', () => {
     expect(mocks.setAuth).toHaveBeenCalledWith(loginResponse)
     expect(mocks.push).toHaveBeenCalledWith('/dashboard')
     expect(result.current.isSubmitting).toBe(false)
+  })
+
+  it('keeps the Astra query from the anonymous notification redirect after code verification', async () => {
+    mocks.search = 'astra=open&returnUrl=%2F'
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(async () => { await result.current.verifyCode('123456') })
+    expect(mocks.push).toHaveBeenCalledWith('/?astra=open')
   })
 
   it('returns to the destination of a notification clicked while signed out', async () => {

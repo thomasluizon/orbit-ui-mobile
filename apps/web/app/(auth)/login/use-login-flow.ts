@@ -98,6 +98,7 @@ export function useLoginFlow() {
   function getReturnUrl() {
     const destination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
     if (destination) return destination.opensAstra ? '/?astra=open' : destination.url
+    if (searchParams.get('astra') === 'open') return '/?astra=open'
     const url = searchParams.get('returnUrl')
     return url && url.startsWith('/') && !url.startsWith('//') ? url : '/'
   }
