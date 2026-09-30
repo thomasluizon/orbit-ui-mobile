@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarEventsResponseSchema, type CalendarSyncEvent } from '@orbit/shared/types'
 import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 
@@ -33,8 +33,8 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
         }
         throw new Error(msg)
       }
-      const data = (await res.json()) as CalendarSyncEvent[]
-      return { status: 'connected', events: data }
+      const events = calendarEventsResponseSchema.parse(await res.json())
+      return { status: 'connected', events }
     },
     enabled: options?.enabled ?? true,
     retry: false,

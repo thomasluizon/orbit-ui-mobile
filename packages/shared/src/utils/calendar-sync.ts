@@ -1,20 +1,8 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
-import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
+import type { CalendarAutoSyncStatus, CalendarSyncEvent, CalendarSyncSuggestion } from '../types/calendar'
 import { plural } from './plural'
 
-export interface CalendarSyncEvent {
-  id: string
-  title: string
-  description: string | null
-  startDate: string | null
-  startTime: string | null
-  endTime: string | null
-  isRecurring: boolean
-  recurrenceRule: string | null
-  reminders: number[]
-  calendarId?: string
-  calendarName?: string
-}
+export type { CalendarSyncEvent } from '../types/calendar'
 
 export interface CalendarSyncParsedRecurrence {
   frequencyUnit?: FrequencyUnit

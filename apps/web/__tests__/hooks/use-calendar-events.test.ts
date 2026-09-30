@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { ZodError } from 'zod'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 
 const mockFetch = vi.fn()
@@ -22,6 +24,23 @@ describe('useCalendarEvents', () => {
   })
 
   it('returns the connected event list on a successful fetch', async () => {
+    const events = [createMockCalendarSyncEvent()]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(events) })
+    const { result } = renderHook(() => useCalendarEvents(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 })
+    expect(result.current.data).toEqual({ status: 'connected', events })
+  })
+
+  it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useCalendarEvents(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.fetchStatus).toBe('idle'))
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error).toBeInstanceOf(ZodError)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('returns an empty connected list when no events are available', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
     const { result } = renderHook(() => useCalendarEvents(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { calendarKeys } from '@orbit/shared/query'
-import type { CalendarSyncEvent } from '@orbit/shared'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
+import { ZodError } from 'zod'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 
 import {
   useCalendarEvents,
@@ -20,20 +22,6 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-function buildEvent(id: string): CalendarSyncEvent {
-  return {
-    id,
-    title: `Event ${id}`,
-    description: null,
-    startDate: '2025-01-01',
-    startTime: null,
-    endTime: null,
-    isRecurring: false,
-    recurrenceRule: null,
-    reminders: [],
-  }
-}
-
 function captureQueryFn(): () => Promise<CalendarEventsResult> {
   let captured: (() => Promise<CalendarEventsResult>) | null = null
   mocks.useQuery.mockImplementation(
@@ -42,8 +30,7 @@ function captureQueryFn(): () => Promise<CalendarEventsResult> {
       return { data: undefined }
     },
   )
-  useCalendarEvents()
-  return captured!
+  return () => captured!()
 }
 
 describe('mobile useCalendarEvents', () => {
@@ -66,20 +53,40 @@ describe('mobile useCalendarEvents', () => {
 
   it('returns a connected result with the fetched events', async () => {
     const queryFn = captureQueryFn()
-    mocks.apiClient.mockResolvedValue([buildEvent('a'), buildEvent('b')])
+    useCalendarEvents()
+    const events = [createMockCalendarSyncEvent({ id: 'a' }), createMockCalendarSyncEvent({ id: 'b' })]
+    mocks.apiClient.mockResolvedValue(events)
 
     const result = await queryFn()
 
     expect(result).toEqual({
       status: 'connected',
-      events: [buildEvent('a'), buildEvent('b')],
+      events,
     })
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events')
   })
 
-  it('coerces a non-array payload to an empty connected list', async () => {
+  it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
     const queryFn = captureQueryFn()
-    mocks.apiClient.mockResolvedValue(null)
+    useCalendarEvents()
+    mocks.apiClient.mockResolvedValue(body)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: [...calendarKeys.all, 'manual-fetch'],
+      queryFn,
+    })
+    const result = await observer.refetch()
+
+    expect(result.isError).toBe(true)
+    expect(result.error).toBeInstanceOf(ZodError)
+    expect(result.data).toBeUndefined()
+    queryClient.clear()
+  })
+
+  it('returns an empty connected list when no events are available', async () => {
+    const queryFn = captureQueryFn()
+    useCalendarEvents()
+    mocks.apiClient.mockResolvedValue([])
 
     const result = await queryFn()
 
@@ -88,6 +95,7 @@ describe('mobile useCalendarEvents', () => {
 
   it('maps a not-connected error to the not-connected status', async () => {
     const queryFn = captureQueryFn()
+    useCalendarEvents()
     mocks.apiClient.mockRejectedValue(new Error('Google Calendar is not connected'))
 
     const result = await queryFn()
@@ -97,6 +105,7 @@ describe('mobile useCalendarEvents', () => {
 
   it('maps an Unauthorized error to the not-connected status', async () => {
     const queryFn = captureQueryFn()
+    useCalendarEvents()
     mocks.apiClient.mockRejectedValue(new Error('Unauthorized'))
 
     const result = await queryFn()
@@ -106,6 +115,7 @@ describe('mobile useCalendarEvents', () => {
 
   it('rethrows unrelated network errors so the query surfaces them', async () => {
     const queryFn = captureQueryFn()
+    useCalendarEvents()
     mocks.apiClient.mockRejectedValue(new Error('Internal server error'))
 
     await expect(queryFn()).rejects.toThrow('Internal server error')

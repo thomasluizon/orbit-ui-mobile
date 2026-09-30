@@ -12,6 +12,26 @@ import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
 import type { SyncChangesV2Response } from '../types/sync'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
+import type { CalendarSyncEvent } from '../types/calendar'
+
+export function createMockCalendarSyncEvent(
+  overrides: Partial<CalendarSyncEvent> = {},
+): CalendarSyncEvent {
+  return {
+    id: 'event-1',
+    title: 'Exercise',
+    description: null,
+    startDate: '2025-01-01',
+    startTime: null,
+    endTime: null,
+    isRecurring: false,
+    recurrenceRule: null,
+    reminders: [],
+    calendarId: 'calendar-1',
+    calendarName: 'Personal',
+    ...overrides,
+  }
+}
 
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {

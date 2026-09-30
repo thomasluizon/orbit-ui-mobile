@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarEventsResponseSchema, type CalendarSyncEvent } from '@orbit/shared/types'
 import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
@@ -20,8 +20,8 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
     queryKey: CALENDAR_EVENTS_KEY,
     queryFn: async () => {
       try {
-        const data = await apiClient<CalendarSyncEvent[]>(API.calendar.events)
-        return { status: 'connected', events: Array.isArray(data) ? data : [] }
+        const events = calendarEventsResponseSchema.parse(await apiClient<unknown>(API.calendar.events))
+        return { status: 'connected', events }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : ''
         if (
