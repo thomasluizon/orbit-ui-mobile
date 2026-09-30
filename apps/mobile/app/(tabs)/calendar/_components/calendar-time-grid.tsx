@@ -244,7 +244,7 @@ function AllDayChip({
         style={{
           flexShrink: 1,
           fontFamily: "Geist_500Medium",
-          fontSize: 11,
+          fontSize: 12,
           color: completed || isFuture ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
         }}

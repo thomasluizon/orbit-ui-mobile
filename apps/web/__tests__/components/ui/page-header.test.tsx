@@ -53,6 +53,7 @@ describe('PageHeader', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const fontSize = (element: Element) => getComputedStyle(element).fontSize
         expect(await page.getByText('April', { exact: true }).evaluate(fontSize)).toBe('28px')
+        expect(await page.getByRole('button', { name: 'Select year' }).evaluate(fontSize)).toBe(width >= 1024 ? '14px' : '12px')
         expect(await page.locator('[data-legal-document-content] header p').first().evaluate(fontSize)).toBe(width < 640 ? '22px' : '28px')
         expect(await page.getByRole('heading', { level: 2, name: 'Your privacy' }).evaluate(fontSize)).toBe('17px')
         expect(await page.getByText('Your privacy matters.', { exact: true }).evaluate(fontSize)).toBe('16px')

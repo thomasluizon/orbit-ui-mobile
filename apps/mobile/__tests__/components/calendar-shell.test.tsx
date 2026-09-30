@@ -1,4 +1,5 @@
 import React from "react";
+import { __setWindowDimensions } from "@/test-mocks/react-native";
 import { StyleSheet } from "react-native";
 import { describe, it, expect, vi } from "vitest";
 import en from "@orbit/shared/i18n/en.json";
@@ -102,7 +103,8 @@ describe("CalendarHeader year navigation (mobile)", () => {
     expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Select year")).toHaveLength(0);
   });
 
-  it("renders the month and year, fires month handlers, and has no year-skip arrows", () => {
+  it.each([412, 1352])("renders the month and year with their drawn sizes at %ipx", (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
     const onPreviousMonth = vi.fn();
     const onNextMonth = vi.fn();
     const onCurrentMonth = vi.fn();
@@ -133,6 +135,8 @@ describe("CalendarHeader year navigation (mobile)", () => {
     expect(texts).toContain(2026);
     const month = tree!.root.findAll((node) => node.type === "Text" && node.props.children === "April")[0]!;
     expect(StyleSheet.flatten(month.props.style).fontSize).toBe(28);
+    const year = tree!.root.findAll((node) => node.type === "Text" && node.props.children === 2026)[0]!;
+    expect(StyleSheet.flatten(year.props.style)).toMatchObject({ fontSize: width >= 1024 ? 14 : 12 });
 
     pressByAccessibilityLabel(tree!, "Previous month");
     pressByAccessibilityLabel(tree!, "Next month");

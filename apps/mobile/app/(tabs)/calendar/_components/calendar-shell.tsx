@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/icons";
 import {
   Modal,
+  useWindowDimensions,
   Pressable,
   StyleSheet,
   Text,
@@ -126,6 +127,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
+    yearTitleWide: { fontSize: 14 },
     yearBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.55)',
@@ -201,6 +203,7 @@ export function CalendarHeader({
   showMonthNavigation = true,
   tokens,
 }: Readonly<CalendarHeaderProps>) {
+  const { width } = useWindowDimensions();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   const [isYearOpen, setIsYearOpen] = useState(false);
@@ -239,7 +242,7 @@ export function CalendarHeader({
           hitSlop={4}
           style={({ pressed }) => [styles.yearButton, pressed && styles.monthLabelButtonPressed]}
         >
-          <Text style={styles.yearTitle}>{year}</Text>
+          <Text style={[styles.yearTitle, width >= 1024 && styles.yearTitleWide]}>{year}</Text>
         </Pressable>
       </View>
       <Pressable
@@ -269,7 +272,7 @@ export function CalendarHeader({
       </View> : <View style={[styles.titleLine, styles.hiddenNavigation]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View style={styles.monthLabelGroup}>
           <View style={styles.monthLabelButton}><Text style={styles.monthTitle} numberOfLines={1}>{monthLabel}</Text></View>
-          <View style={styles.yearButton}><Text style={styles.yearTitle}>{year}</Text></View>
+          <View style={styles.yearButton}><Text style={[styles.yearTitle, width >= 1024 && styles.yearTitleWide]}>{year}</Text></View>
         </View>
         <View style={styles.monthNavButton} />
         <View style={styles.monthNavButton} />

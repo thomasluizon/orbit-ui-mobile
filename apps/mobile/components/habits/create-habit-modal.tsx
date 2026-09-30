@@ -658,7 +658,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: 'transparent',
       color: tokens.fg1,
       fontFamily: 'Geist_400Regular',
-      fontSize: 15,
+      fontSize: 14,
       borderWidth: 0,
       borderRadius: 0,
       paddingVertical: 8,

@@ -222,6 +222,7 @@ describe('CreateHabitModal (mobile)', () => {
     })
     const input = tree.root.findAll((node: any) => node.type === 'TextInput' && node.props.focusBorder === false)[0]
     expect(input).toBeDefined()
+    expect(StyleSheet.flatten(input.props.style)).toMatchObject({ fontSize: 14 })
     let row = input.parent
     while (row && StyleSheet.flatten(row.props.style)?.borderWidth !== 1) row = row.parent
     if (!row) throw new Error('Expected a bordered sub-habit row')
