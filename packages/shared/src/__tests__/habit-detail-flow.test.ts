@@ -13,6 +13,7 @@ import {
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   formatHabitDetailReminderValue,
+  getHabitDaysWithoutLog,
   getHabitHistoryLog,
   getHabitStartDate,
   parseHabitHistoryDate,
@@ -328,6 +329,14 @@ describe('habit detail flow model', () => {
     }
     expect(isHabitSlipping(recurring, metrics, [log('2026-08-20')], today, 'UTC')).toBe(true)
     expect(isHabitSlipping(recurring, metrics, [log('2026-08-27')], today, 'UTC')).toBe(false)
+  })
+
+  it('counts the calendar days without a log for the slipping line', () => {
+    const accountToday = parseAPIDate('2026-08-28')
+    expect(getHabitDaysWithoutLog({ lastCompletedDate: '2026-08-25' }, '2026-08-01T12:00:00Z', accountToday, 'UTC')).toBe(3)
+    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-20T12:00:00Z', accountToday, 'UTC')).toBe(9)
+    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-20T02:00:00Z', accountToday, 'America/Sao_Paulo')).toBe(10)
+    expect(getHabitDaysWithoutLog({ lastCompletedDate: null }, '2026-08-19T20:00:00Z', accountToday, 'Asia/Tokyo')).toBe(9)
   })
 
   it('does not call a newly created habit slipping', () => {

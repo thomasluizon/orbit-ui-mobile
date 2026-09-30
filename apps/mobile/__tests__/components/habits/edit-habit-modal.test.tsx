@@ -6,6 +6,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -225,6 +226,13 @@ describe('EditHabitModal (mobile)', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
     expect(mockPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('pins Cancel and Save in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderModal()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('blocks the fields and disables save while the habit detail is loading', async () => {

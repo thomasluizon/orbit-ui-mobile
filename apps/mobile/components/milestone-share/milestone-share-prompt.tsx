@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
@@ -8,6 +8,7 @@ import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
@@ -127,6 +128,40 @@ export function MilestoneSharePrompt() {
       open
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
+      actions={(
+        <>
+          {hasError ? (
+            <Text
+              accessibilityRole="alert"
+              style={[styles.errorText, { width: '100%' }]}
+            >
+              {t('milestoneShare.shareError')}
+            </Text>
+          ) : null}
+          <DialogActionPair>
+            <PillButton
+              variant="ghost"
+              accessibleName={t('milestoneShare.later')}
+              onClick={dismiss}
+            >
+              {t('milestoneShare.later')}
+            </PillButton>
+            <PillButton
+              loading={isSharing}
+              disabled={isSharing}
+              onClick={() =>
+                void share({
+                  shareTitle: t('milestoneShare.shareTitle'),
+                  shareText: t('milestoneShare.shareText'),
+                  url: referralUrl,
+                })
+              }
+            >
+              {t('milestoneShare.share')}
+            </PillButton>
+          </DialogActionPair>
+        </>
+      )}
     >
       <View style={styles.content}>
           <View style={styles.cardWrap}>
@@ -134,42 +169,6 @@ export function MilestoneSharePrompt() {
           </View>
 
           <Text style={styles.body}>{t('milestoneShare.body')}</Text>
-
-          {hasError ? (
-            <Text style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
-          ) : null}
-
-          <View style={styles.actions}>
-            <PillButton
-
-              loading={isSharing}
-              disabled={isSharing}
-              onClick={() => void share({
-                shareTitle: t('milestoneShare.shareTitle'),
-                shareText: t('milestoneShare.shareText'),
-                url: referralUrl,
-              })}
-
-
-            >
-              {t('milestoneShare.share')}
-            </PillButton>
-            <Pressable
-              onPress={dismiss}
-              accessibilityRole="button"
-              accessibilityLabel={t('milestoneShare.later')}
-              style={({ pressed }) => [
-                styles.laterButton,
-                pressed ? styles.laterButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
-                  {t('milestoneShare.later')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
       </View>
     </Sheet>) : null
   )
@@ -178,9 +177,7 @@ export function MilestoneSharePrompt() {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 24,
       gap: 16,
       alignItems: 'center',
     },
@@ -199,26 +196,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusBadText,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-      paddingTop: 4,
-    },
-    laterButton: {
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    laterButtonPressed: {
-      transform: [{ scale: 0.98 }],
-    },
-    laterText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    laterTextPressed: {
-      color: tokens.fg1,
     },
   })
 }

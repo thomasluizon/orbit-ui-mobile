@@ -50,6 +50,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function renderPrompt() {
   const client = new QueryClient({
@@ -123,6 +124,24 @@ describe('MarketingConsentPrompt', () => {
     })
     await settle()
     expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('pins Accept and Decline in the sheet footer, never in the scrolling body', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('uses a ghost pill for Decline', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +10,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -107,28 +108,31 @@ export function AstraImportPrompt() {
         void markSeen()
       }}
       title={t('onboarding.wizard.importTitle')}
+      actions={(
+        <DialogActionPair>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('onboarding.wizard.importNotNow')}
+            onClick={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void markSeen()
+              })
+            }
+          >
+            {t('onboarding.wizard.importNotNow')}
+          </PillButton>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+          <PillButton onClick={() => void handleImport()}>
+            {t('onboarding.wizard.importButton')}
+          </PillButton>
+        </DialogActionPair>
+      )}
     >
       <View style={styles.content}>
         <Text style={styles.description}>
           {t('onboarding.wizard.importDescription')}
         </Text>
-        <View style={styles.spacer} />
-        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-        <PillButton  onClick={() => void handleImport()}>
-          {t('onboarding.wizard.importButton')}
-        </PillButton>
-        <Pressable
-          style={styles.quietRow}
-          onPress={() =>
-            closeSheet(() => {
-              unregisterOpenOverlay(promptId)
-              void markSeen()
-            })
-          }
-          accessibilityRole="button"
-        >
-          <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
-        </Pressable>
       </View>
     </Sheet>) : null
   )
@@ -137,29 +141,13 @@ export function AstraImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      gap: 12,
-      paddingHorizontal: 24,
       paddingTop: 8,
-      paddingBottom: 8,
     },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
-      color: tokens.fg2,
-    },
-    spacer: {
-      height: 16,
-    },
-    quietRow: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingBottom: 8,
-    },
-    quietText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
+      textAlign: 'center',
       color: tokens.fg2,
     },
   })

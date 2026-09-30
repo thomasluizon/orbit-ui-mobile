@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -25,20 +26,17 @@ vi.mock('@/components/milestone-share/milestone-share-card', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-  }: {
-    children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
+
+const shareCard = vi.hoisted(() => ({ hasError: false }))
 
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     shareRef: { current: null },
     isSharing: false,
-    hasError: false,
+    hasError: shareCard.hasError,
     share: vi.fn(),
   }),
 }))
@@ -48,6 +46,7 @@ const TestRenderer = require('react-test-renderer')
 type RenderedNode = {
   type: unknown
   props: Record<string, unknown>
+  findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
 }
 type RenderedTree = {
   root: { findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
@@ -73,6 +72,7 @@ function resetStores() {
 describe('MilestoneSharePrompt (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    shareCard.hasError = false
     resetStores()
   })
 
@@ -133,6 +133,45 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('pins Share and Later in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.later', 'milestoneShare.share'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    shareCard.hasError = true
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    const alerts = (slot: 'SheetBody' | 'SheetActions') => tree.root
+      .findAll((node) => node.type === slot)[0]!
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+      .map((node) => node.props.children)
+
+    expect(alerts('SheetActions')).toEqual(['milestoneShare.shareError'])
+    expect(alerts('SheetBody')).toEqual([])
+  })
+
+  it('uses a ghost pill for Later', async () => {
+    const tree = await render()
+    await armMilestoneShare('share-streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    const later = tree.root.findAll((node) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
+    expect(later.props.variant).toBe('ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {
