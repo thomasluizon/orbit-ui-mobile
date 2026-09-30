@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -67,6 +67,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     viewport: { width: number; height: number },
     { container, backLabel }: ReturnType<typeof renderPage>,
   ) {
+    await act(async () => {})
     const page = await browser.newPage({ viewport })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)

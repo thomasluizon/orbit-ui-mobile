@@ -67,38 +67,44 @@ describe('WrappedPage', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
   })
 
-  it('keeps the reload guidance on the cover and inside the player', () => {
+  it('keeps the reload guidance on the cover and inside the player', async () => {
     useVersionGateStore.getState().requireReload('appUpdated')
     render(<WrappedPage />)
+    await act(async () => {})
 
     expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
 
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
   })
 
-  it('keeps the version banner dismissed when the player opens', () => {
+  it('keeps the version banner dismissed when the player opens', async () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<WrappedPage />)
+    await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
-  it('starts on the week period with the ready cover', () => {
+  it('starts on the week period with the ready cover', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
     expect(screen.getByTestId('period')).toHaveTextContent('week')
     expect(screen.getByTestId('cover-state')).toHaveTextContent('ready')
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
 
-  it('opens a notification-carried closed month instead of the current period', () => {
+  it('opens a notification-carried closed month instead of the current period', async () => {
     mocks.searchParams = new URLSearchParams('period=month&year=2026&month=8')
     render(<WrappedPage />)
+    await act(async () => {})
 
     expect(screen.getByTestId('period')).toHaveTextContent('month')
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
@@ -113,10 +119,11 @@ describe('WrappedPage', () => {
     })
   })
 
-  it('selects the next notified closed month when only the query changes', () => {
+  it('selects the next notified closed month when only the query changes', async () => {
     mocks.searchParams = new URLSearchParams('period=month&year=2026&month=8')
     const { rerender } = render(<WrappedPage />)
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
 
     mocks.searchParams = new URLSearchParams('period=month&year=2026&month=9')
@@ -130,56 +137,68 @@ describe('WrappedPage', () => {
     })
   })
 
-  it('opens the player only after Start is pressed with a recap present', () => {
+  it('opens the player only after Start is pressed with a recap present', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
   })
 
-  it('changing the period stops playback and switches the fetched period', () => {
+  it('changing the period stops playback and switches the fetched period', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'month' }))
     expect(screen.getByTestId('period')).toHaveTextContent('month')
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
 
-  it('keeps an empty recap on the empty cover and refuses to open the player', () => {
+  it('keeps an empty recap on the empty cover and refuses to open the player', async () => {
     mocks.wrapped = { recap: { id: 'recap-empty' }, slides: [], isEmpty: true, isLoading: false, isError: false }
     render(<WrappedPage />)
+    await act(async () => {})
     expect(screen.getByTestId('cover-state')).toHaveTextContent('empty')
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
 
-  it('keeps a missing paused recap non-actionable', () => {
+  it('keeps a missing paused recap non-actionable', async () => {
     mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: false }
     render(<WrappedPage />)
+    await act(async () => {})
     expect(screen.getByTestId('cover-state')).toHaveTextContent('loading')
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
 
-  it('provides exactly one main landmark', () => {
+  it('provides exactly one main landmark', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
     expect(screen.getAllByRole('main')).toHaveLength(1)
   })
 
-  it('places the back control inside the capped cover frame', () => {
+  it('places the back control inside the capped cover frame', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
     const main = screen.getByRole('main')
     expect(main).toHaveClass('max-w-[900px]')
     expect(main).toContainElement(screen.getByRole('button', { name: 'common.backToProfile' }))
   })
 
-  it('exits the cover to Profile while player close only returns to the cover', () => {
+  it('exits the cover to Profile while player close only returns to the cover', async () => {
     render(<WrappedPage />)
+    await act(async () => {})
 
     fireEvent.click(screen.getByRole('button', { name: 'common.backToProfile' }))
     expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
 
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'close-player' }))
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
     expect(goBackOrFallback).toHaveBeenCalledTimes(1)
@@ -197,6 +216,7 @@ describe('WrappedPage', () => {
     const reload = vi.fn()
     const view = render(<WrappedPage />)
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
     act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
 
     await screen.findByText('App updated')

@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 
@@ -48,6 +49,7 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setAccountEventOrigin('chat-connection')
     setApiFetchTranslate((key) => key)
     useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -189,9 +191,8 @@ describe('useChatPendingOperations', () => {
     void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
-      kind: 'neutral', message: 'errors.api.appUpdated', actionLabel: 'errors.api.reload', onAction: expect.any(Function),
-    })
+    expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
+    expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(onUnexpectedOutcome).not.toHaveBeenCalled()

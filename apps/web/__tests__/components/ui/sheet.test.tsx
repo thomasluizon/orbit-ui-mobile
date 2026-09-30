@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { runServerAction } from '@/lib/client-action'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
@@ -16,6 +17,15 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
+function NestedReloadSheets() {
+  const [upperOpen, setUpperOpen] = useState(true)
+  return <><UpdateAvailableBanner /><AppToastHost /><Sheet title="Lower sheet">
+    {upperOpen ? <Sheet title="Upper sheet" onClose={() => setUpperOpen(false)}>
+      <button type="button" onClick={() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) }}>Save</button>
+    </Sheet> : null}
+  </Sheet></>
+}
+
 describe('Sheet', () => {
   it('announces a stale action once inside the active dialog', async () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
@@ -29,6 +39,25 @@ describe('Sheet', () => {
     expect(region).toHaveTextContent('errors.api.appUpdated')
     expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
     expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+  })
+
+  it('keeps one reload notice in the topmost sheet and restores the lower host on close', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+    render(<NestedReloadSheets />)
+    await act(async () => {})
+    const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true }).querySelector('[data-update-live-region]')
+    const upper = screen.getByRole('dialog', { name: 'Upper sheet' }).querySelector('[data-update-live-region]')
+    expect(lower).toBeEmptyDOMElement()
+    expect(upper).toBeEmptyDOMElement()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    expect(lower).toBeEmptyDOMElement()
+    expect(upper).toHaveTextContent('errors.api.appUpdated')
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upper sheet' })).toBeNull())
+    expect(lower).toHaveTextContent('errors.api.appUpdated')
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
   })
 

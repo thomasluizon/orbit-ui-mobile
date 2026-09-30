@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesBefore } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import { fetchWithUpgradeGuidance } from './api-fetch'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
 interface TicketResponse { ticket: string; apiBase: string }
@@ -31,12 +32,12 @@ export function AccountEventConnection(): null {
         signal: controller.signal,
         lastEventId,
         open: async (signal, lastEventId) => {
-          const ticketResponse = await fetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
+          const ticketResponse = await fetchWithUpgradeGuidance(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
           if (!ticketResponse.ok) throw new Error('Event ticket unavailable')
           const { ticket, apiBase } = await ticketResponse.json() as TicketResponse
           const url = new URL(API.events.stream, apiBase)
           url.searchParams.set('ticket', ticket)
-          return fetch(url, {
+          return fetchWithUpgradeGuidance(url, {
             signal,
             cache: 'no-store',
             headers: lastEventId ? { 'Last-Event-ID': lastEventId } : undefined,

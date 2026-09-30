@@ -1,8 +1,14 @@
+import { createElement } from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import AuthLayout from '@/app/(auth)/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 const payload = {
   error: 'Rate limited', requestId: 'request-reference', limit: 1, count: 2,
@@ -10,8 +16,34 @@ const payload = {
 }
 
 describe('client response throttle adapter', () => {
-  beforeEach(() => { useThrottleStore.getState().clear() })
+  beforeEach(() => { useThrottleStore.getState().clear(); useVersionGateStore.setState(useVersionGateStore.getInitialState()) })
   afterEach(() => { vi.unstubAllGlobals() })
+
+  it('records an auth upgrade refusal without consuming or replaying the response', async () => {
+    const refused = new Response('Upgrade required', { status: 426 })
+    const fetchMock = vi.fn(async () => refused)
+    vi.stubGlobal('fetch', fetchMock)
+    const response = await fetchWithThrottle('/api/auth/send-code')
+    expect(response).toBe(refused)
+    expect(await response.text()).toBe('Upgrade required')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useVersionGateStore.getState().upgradeRequired).toBe(true)
+  })
+
+  it('keeps upgrade guidance and Refresh in the owning auth layout after Send code fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 426 })))
+    render(createElement(AuthLayout, null, createElement('button', {
+      type: 'button', onClick: () => {
+        void fetchAuthEndpoint('/api/auth/send-code', { email: 'person@example.test' }).catch(() => {})
+      },
+    }, 'Send code')))
+    await act(async () => {})
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Send code' })) })
+    expect(region).toHaveTextContent('forceUpdate.banner')
+    expect(screen.getByRole('button', { name: 'forceUpdate.refresh' })).toBeEnabled()
+  })
 
   it('publishes a deadline without consuming the caller response or replaying the request', async () => {
     const refused = Response.json(payload, { status: 429 })

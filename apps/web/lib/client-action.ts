@@ -52,6 +52,7 @@ export function accountIntentWithOrigin(accountId: string | null): string | null
 }
 
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
+  if (!result.ok && result.status === 426) useVersionGateStore.getState().markUpgradeRequired(null)
   if (!result.ok && reportsAccountChanged(result)) {
     reportAccountChanged()
     throw createApiClientError(result.status, { error: result.error, errorCode: result.code }, result.error)

@@ -1,3 +1,4 @@
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { afterEach, expect, it, vi } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
@@ -20,6 +21,15 @@ afterEach(() => {
   invalidateQueries.mockClear()
   queryClientState.current?.clear()
   queryClientState.current = null
+})
+
+it('records an upgrade refusal from the account event ticket', async () => {
+  useVersionGateStore.setState(useVersionGateStore.getInitialState())
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 426 })))
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(useVersionGateStore.getState().upgradeRequired).toBe(true))
+  view.unmount()
 })
 
 it('refreshes a query fetched while the first ticket request failed', async () => {

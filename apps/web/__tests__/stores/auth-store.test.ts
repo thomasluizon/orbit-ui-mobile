@@ -1,3 +1,4 @@
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryObserver } from '@tanstack/query-core'
 import { profileKeys } from '@orbit/shared/query'
@@ -35,6 +36,13 @@ vi.mock('@/lib/posthog', () => posthogMocks)
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
+
+it('keeps reload guidance available when the session endpoint needs an upgrade', async () => {
+  useVersionGateStore.setState(useVersionGateStore.getInitialState())
+  mockFetch.mockResolvedValue(new Response(null, { status: 426 }))
+  await useAuthStore.getState().checkSession()
+  expect(useVersionGateStore.getState().upgradeRequired).toBe(true)
+})
 
 describe('the first session check under a query in flight', () => {
   it('settles a mounted observer after the account boundary', async () => {
@@ -385,7 +393,7 @@ describe('auth store', () => {
     })))
 
     useAuthStore.getState().adoptAccountFromSignal(null)
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/session'))
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined))
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
@@ -612,7 +620,7 @@ describe('auth store', () => {
       await vi.runOnlyPendingTimersAsync()
 
       expect(typeof cleanup).toBe('function')
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
       cleanup()
     })
 
@@ -630,7 +638,7 @@ describe('auth store', () => {
       await vi.advanceTimersByTimeAsync(60000)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
       cleanup()
     })
 

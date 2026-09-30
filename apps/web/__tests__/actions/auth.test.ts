@@ -32,6 +32,11 @@ describe('auth server actions', () => {
     })
   })
 
+  it('preserves upgrade-required status during confirmation', async () => {
+    mockFetch.mockResolvedValue(new Response(null, { status: 426 }))
+    await expect(confirmDeletionAction('123456', 'account-a')).resolves.toMatchObject({ ok: false, status: 426 })
+  })
+
   function mockApiResponse(body: unknown, status = 200) {
     mockFetch.mockResolvedValue({
       ok: status >= 200 && status < 300,

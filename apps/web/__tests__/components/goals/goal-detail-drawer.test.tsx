@@ -357,10 +357,10 @@ describe('GoalDetailDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
+    await waitFor(() => expect(screen.getByText('goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}')).toHaveTextContent(
       'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
     ))
-    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getAllByRole('status').filter((region) => region.textContent)).toHaveLength(1)
   })
 
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
