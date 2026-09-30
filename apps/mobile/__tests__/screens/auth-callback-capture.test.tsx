@@ -132,7 +132,9 @@ vi.mock('@/lib/capture-mode', () => ({
 }))
 
 describe('AuthCallbackScreen capture retention', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const { clearPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
+    await clearPendingGoogleAuthSession()
     vi.useFakeTimers()
     mocks.retainEmptyCallback = true
     mocks.replace.mockClear()
@@ -206,6 +208,9 @@ describe('AuthCallbackScreen capture retention', () => {
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    const { markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } = await import('@/lib/google-auth-callback')
+    await markPendingGoogleAuthSession(mocks.sessionReturnUrlAttemptId, 'verifier', 'expected')
+    setPendingGoogleAuthCallbackUrl(mocks.sessionCallbackUrl, mocks.sessionReturnUrlAttemptId)
     mocks.complete.mockRejectedValue(new Error('API rejected the code'))
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
@@ -220,6 +225,9 @@ describe('AuthCallbackScreen capture retention', () => {
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    const { markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } = await import('@/lib/google-auth-callback')
+    await markPendingGoogleAuthSession(mocks.sessionReturnUrlAttemptId, 'verifier', 'expected')
+    setPendingGoogleAuthCallbackUrl(mocks.sessionCallbackUrl, mocks.sessionReturnUrlAttemptId)
     await TestRenderer.act(async () => {
       renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()

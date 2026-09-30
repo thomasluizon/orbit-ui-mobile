@@ -6,9 +6,9 @@ import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { clearStoredAuthReturnUrl, clearStoredReferralCode,
   getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode,
   isAuthReturnUrlAttemptCurrent } from '@/lib/auth-flow'
-import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthParams,
+import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, completePendingGoogleAuthSession, extractGoogleAuthParams,
   recoverPendingGoogleAuthCallbackUrl, resolveGoogleAuthCallbackUrl,
-  usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
+  usePendingGoogleAuthSession, type GoogleAuthCompletion } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { captureBuildEnabled, shouldRetainEmptyAuthCallback } from '@/lib/capture-mode'
@@ -60,7 +60,7 @@ export default function AuthCallbackScreen() {
     processed.current = true
     returnUrlAttemptRef.current = returnUrlAttemptId
     const sessionEpoch = getSessionGeneration().epoch
-    async function handleCallback(url: string) {
+    async function handleCallback(url: string): Promise<GoogleAuthCompletion> {
       try {
         if (extractGoogleAuthParams(url).error) throw new Error('Authentication failed')
         const referral = await getStoredReferralCode()
@@ -70,10 +70,7 @@ export default function AuthCallbackScreen() {
         await clearPendingGoogleAuthSession(returnUrlAttemptId)
         if (sessionEpoch !== getSessionGeneration().epoch) return
         if (response.wasReactivated) {
-          accountBackEpochRef.current = sessionEpoch
-          setAccountBack(response)
-          setState('account')
-          return
+          return { status: 'reactivated', response, sessionEpoch }
         }
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId, name: response.name, email: response.email,
@@ -87,12 +84,20 @@ export default function AuthCallbackScreen() {
         if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
         router.replace(getSafeReturnUrl(storedReturnUrl))
       } catch {
-        if (sessionEpoch !== getSessionGeneration().epoch) return
+        if (!ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
         await clearPendingGoogleAuthSession(returnUrlAttemptId)
-        setState('failed')
+        return { status: 'failed' }
       }
     }
-    void handleCallback(sessionCallbackUrl)
+    void completePendingGoogleAuthSession(returnUrlAttemptId, () => handleCallback(sessionCallbackUrl))
+      .then((outcome) => {
+        if (!outcome || !ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
+        if (outcome.status === 'failed') { setState('failed'); return }
+        accountBackEpochRef.current = outcome.sessionEpoch
+        setAccountBack(outcome.response)
+        setState('account')
+      })
+      .catch(() => setState('failed'))
   }, [i18n.language, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
 
   useEffect(() => {
