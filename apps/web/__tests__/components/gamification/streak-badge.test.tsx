@@ -16,10 +16,15 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { weekStartDay: 0 } }),
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -27,6 +32,7 @@ vi.mock('@/lib/plural', () => ({
 }))
 
 import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { DateField } from '@/components/ui/date-field'
 
 import { StreakBadge } from '@/components/gamification/streak-badge'
 
@@ -77,7 +83,7 @@ describe('StreakBadge', () => {
 })
 
 
-describe('StreakBadge hover paint in Chromium', () => {
+describe('Control hover paint in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -110,9 +116,75 @@ describe('StreakBadge hover paint in Chromium', () => {
         pointerEvents: getComputedStyle(element, '::after').pointerEvents,
       }))
       expect(paint.base).toBe(resting)
+      expect(paint.layer.replaceAll(' ', '')).toBe(variables['--bg-hover-opaque'])
       expect(contrastOnSurface(resting, [paint.base, paint.layer])).toBeGreaterThanOrEqual(1.25)
       expect(contrastOnSurface(paint.text, [paint.base, paint.layer])).toBeGreaterThanOrEqual(4.5)
       expect(paint.pointerEvents).toBe('none')
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('uses the hover role on date-field navigation in %s', async (mode) => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const variables = resolveWebThemeVariables('orange', mode)
+    const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${document.body.innerHTML}`)
+      for (const label of ['common.previousMonth', 'common.selectYear', 'common.nextMonth']) {
+        const control = page.getByRole('button', { name: label })
+        const rest = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        expect(rest).toBe('rgba(0, 0, 0, 0)')
+        await control.hover()
+        await control.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
+        const fill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        expect(fill.replaceAll(' ', '')).toBe(variables['--bg-hover'])
+      }
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('uses the hover role on editable checklist actions in %s', async (mode) => {
+    const { container } = render(<HabitChecklist items={[{ text: 'Read', isChecked: false }]} editable />)
+    const variables = resolveWebThemeVariables('orange', mode)
+    const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
+      const drag = page.locator('input').first().locator('..').locator('div[aria-hidden="true"]').first()
+      const controls = [drag, ...['duplicateChecklistItem', 'removeChecklistItem'].map((key) =>
+        page.getByRole('button', { name: `habits.form.${key}`, exact: true }),
+      )]
+      for (const control of controls) {
+        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+        await control.hover()
+        await control.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
+        const fill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        expect(fill.replaceAll(' ', '')).toBe(variables['--bg-hover'])
+      }
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('uses the hover role on checklist reset and clear in %s', async (mode) => {
+    const { container } = render(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive />)
+    const variables = resolveWebThemeVariables('orange', mode)
+    const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
+      for (const key of ['resetChecklist', 'clearChecklist']) {
+        const control = page.getByRole('button', { name: `habits.form.${key}` })
+        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+        await control.hover()
+        await control.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
+        const fill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        expect(fill.replaceAll(' ', '')).toBe(variables['--bg-hover'])
+      }
     } finally {
       await page.close()
     }

@@ -39,6 +39,11 @@ const translationMockState = vi.hoisted(() => ({
   translate: (key: string, _params?: Record<string, unknown>) => key,
 }))
 
+const themeState = vi.hoisted(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: themeState.mode }),
+}))
+
 translationMockState.translate = (key, params) => i18n.t(key, params)
 
 vi.mock('react-i18next', () => ({
@@ -111,6 +116,58 @@ function pressMoveUp(tree: RenderedTree) {
     onPress()
   })
 }
+
+function pressPaint(node: RenderedNode, pressed: boolean) {
+  const style = node.props.style as (state: { pressed: boolean }) => ViewStyle
+  return StyleSheet.flatten(style({ pressed }))
+}
+
+describe('HabitChecklist press paint', () => {
+  it.each(['dark', 'light'] as const)('uses the hover role for editable actions in %s', (mode) => {
+    themeState.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const tree = renderChecklist()
+    for (const key of ['moveChecklistItemUp', 'moveChecklistItemDown', 'duplicateChecklistItem', 'removeChecklistItem']) {
+      const controls = tree.root.findAll((node) =>
+        node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t(`habits.form.${key}`),
+      )
+      expect(controls).toHaveLength(2)
+      for (const control of controls) {
+        expect(pressPaint(control, false).backgroundColor).toBeUndefined()
+        expect(pressPaint(control, true).backgroundColor).toBe(control.props.disabled ? undefined : tokens.bgHover)
+        expect(pressPaint(control, true).overflow).toBe('hidden')
+      }
+    }
+    const clear = tree.root.findAll((node) => node.type === 'Pressable' && !node.props.accessibilityLabel)[0]!
+    expect(pressPaint(clear, false).backgroundColor).toBeUndefined()
+    expect(pressPaint(clear, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden' })
+    themeState.mode = 'dark'
+  })
+
+  it.each(['dark', 'light'] as const)('paints reset and clear feedback in %s', (mode) => {
+    themeState.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    let tree!: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitChecklist items={[{ text: 'Read', isChecked: true }]} interactive />)
+    })
+    for (const key of ['resetChecklist', 'clearChecklist']) {
+      const controls = tree.root.findAll((node) =>
+        node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t(`habits.form.${key}`),
+      )
+      expect(controls).toHaveLength(1)
+      const control = controls[0]!
+      expect(pressPaint(control, false).backgroundColor).toBeUndefined()
+      expect(pressPaint(control, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden' })
+      if (key === 'resetChecklist') {
+        const children = control.props.children as (state: { pressed: boolean }) => ReactElement<{ color: string }>
+        expect(children({ pressed: false }).props.color).toBe(tokens.primary)
+        expect(children({ pressed: true }).props.color).toBe(tokens.fg2)
+      }
+    }
+    themeState.mode = 'dark'
+  })
+})
 
 describe('HabitChecklist checked rows', () => {
   it('dims a checked label without striking it', () => {
