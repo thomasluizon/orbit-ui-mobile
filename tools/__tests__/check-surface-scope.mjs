@@ -175,16 +175,38 @@ export const cases = () => {
   const dateField = "apps/mobile/components/ui/date-field.tsx"
   const calendarPaths = [dateField]
   const calendarViolation = { path: dateField, before: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />", after: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />" }
-  const badCalendar = stageProducerRepository("producer-calendar-fg4", calendarPaths, calendarViolation)
-  check("check-surface-scope.mjs", "rejects the date field calendar on its StyleSheet field", ["--root", badCalendar], {
-    status: 1,
-    stderr: /apps\/mobile\/components\/ui\/date-field\.tsx:331: --fg-4 on field, dark ratio 2\.728, GRAPHIC floor 3\.00/,
-  })
-  const goodCalendar = stageProducerRepository("producer-calendar-fg3", calendarPaths)
-  check("check-surface-scope.mjs", "accepts the date field calendar in both modes", ["--root", goodCalendar], {
-    status: 0,
-    stdout: /Surface scope guard passed/,
-  })
+  for (const lineShift of [0, 2]) {
+    const badCalendar = stageProducerRepository(`producer-calendar-fg4-shift-${lineShift}`, calendarPaths, calendarViolation)
+    const calendarPath = join(badCalendar, dateField)
+    const source = readFileSync(calendarPath, "utf8").replace(calendarViolation.after, "\n".repeat(lineShift) + calendarViolation.after)
+    writeFileSync(calendarPath, source)
+    const calendarParts = source.split(calendarViolation.after)
+    if (calendarParts.length !== 2) throw new Error("date field fixture must contain exactly one changed Calendar icon")
+    const calendarLine = calendarParts[0].split("\n").length
+    const diagnostic = new RegExp(`^Surface scope guard failed\\.\\r?\\n${dateField.replaceAll(".", "\\.")}:${calendarLine}: --fg-4 on field, dark ratio 2\\.728, GRAPHIC floor 3\\.00\\r?\\n?$`)
+    const result = check("check-surface-scope.mjs", `rejects the date field calendar on its StyleSheet field after ${lineShift} added lines`, ["--root", badCalendar], {
+      status: 1,
+      stderr: diagnostic,
+    })
+    for (const [field, before, after] of [
+      ["file", dateField, "apps/mobile/components/ui/other-field.tsx"],
+      ["line", `:${calendarLine}:`, `:${calendarLine + 1}:`],
+      ["token", "--fg-4", "--fg-3"],
+      ["surface", "on field", "on canvas"],
+      ["ratio", "2.728", "3.032"],
+      ["floor", "GRAPHIC floor 3.00", "TEXT floor 4.50"],
+    ]) {
+      T(`calendar diagnostic rejects a wrong ${field} after ${lineShift} added lines`, !diagnostic.test(result.stderr.replace(before, after)))
+    }
+    T(`calendar diagnostic rejects a missing violation after ${lineShift} added lines`, !diagnostic.test(""))
+    const goodCalendar = stageProducerRepository(`producer-calendar-fg3-shift-${lineShift}`, calendarPaths)
+    const goodPath = join(goodCalendar, dateField)
+    writeFileSync(goodPath, readFileSync(goodPath, "utf8").replace(calendarViolation.before, "\n".repeat(lineShift) + calendarViolation.before))
+    check("check-surface-scope.mjs", `accepts the date field calendar in both modes after ${lineShift} added lines`, ["--root", goodCalendar], {
+      status: 0,
+      stdout: /Surface scope guard passed/,
+    })
+  }
 
   const siblingStyles = stageRepository("sibling-styles", { mobile: `import { X } from '@/components/ui/icons'
 const styles = StyleSheet.create({ canvas: { backgroundColor: tokens.bg }, field: { backgroundColor: tokens.bgField } })
