@@ -3,12 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
+import { buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
+import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
+const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true, checklistItems: 0, subHabitItems: 1 }
@@ -53,9 +56,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
 
-vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({
-  HabitEmojiSelector: ({ onSelect }: { onSelect: (emoji: string) => void }) => <button type="button" onClick={() => onSelect('🏃')}>emoji</button>,
-}))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ onItemsChange, proposedItemCount }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void; proposedItemCount?: number }) => (
     <button data-proposed-item-count={proposedItemCount} type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
@@ -132,6 +132,53 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it('shows one unresolved reading before corrections and the Astra ask, without an understood card', () => {
+    renderForm(createFormHelpers({ title: 'Beber mais água quando der' }), vi.fn(), false, true)
+    expect(screen.getAllByText('habits.form.unresolved')).toHaveLength(1)
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
+    const unresolved = screen.getByText('habits.form.unresolved')
+    const corrections = screen.getByRole('button', { name: 'Monday' })
+    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    expect(unresolved.compareDocumentPosition(corrections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it.each([false, true])('allows emoji selection and clearing with no sentence, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    const view = renderForm(formHelpers, undefined, false, true, lockedGeneral)
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true }))
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it('keeps an inferred emoji available after cadence and time are removed', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run', emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00' })
+    const view = renderForm(formHelpers)
+    expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
+    formHelpers.testValues.frequencyUnit = null
+    formHelpers.testValues.dueTime = ''
+    view.rerenderForm()
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it('uses a bare compact details row', () => {
+    renderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingInlineStart: '0px', paddingBlock: '4px' })
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.aiMessagesUsed = 0
@@ -151,7 +198,7 @@ describe('HabitFormFields', () => {
   })
 
   it('shows the understanding preview and applies correction controls', () => {
-    const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
+    const formHelpers = createFormHelpers({ title: 'Run', frequencyUnit: 'Week', frequencyQuantity: 3 })
     const view = renderForm(formHelpers)
     expect(screen.getByLabelText('habits.form.understood')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
@@ -414,14 +461,22 @@ describe('HabitFormFields', () => {
   it.each([
     ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
     ['schedule mode', () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))],
-    ['emoji', () => fireEvent.click(screen.getByRole('button', { name: 'emoji' }))],
+    ['emoji', async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+      fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    }],
   ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
-    renderForm(createFormHelpers({ title: 'Run', frequencyQuantity: 3 }), async () => SETUP_PROPOSAL)
+    const helpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
+    renderForm(helpers, async () => {
+      applySuggestionSchedule(setupPatch, helpers)
+      return SETUP_PROPOSAL
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
 
-    correct()
+    await correct()
 
     expect(screen.getByText('habits.form.understood')).toBeDefined()
   })
@@ -446,6 +501,7 @@ describe('HabitFormFields', () => {
     mockProfileState.hasProAccess = true
     const formHelpers = createFormHelpers({ title: 'Build a stronger routine' })
     renderForm(formHelpers, () => {
+      applySuggestionSchedule(setupPatch, formHelpers)
       formHelpers.testValues.checklistItems = [{ text: 'Prepare', isChecked: false }]
       return COMBINED_PROPOSAL
     }, true)
@@ -462,16 +518,11 @@ describe('HabitFormFields', () => {
   })
 
   it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
-    renderForm(
-      createFormHelpers({
-        title: 'Run',
-        frequencyQuantity: 3,
-        checklistItems: [{ text: 'Shoes', isChecked: false }],
-      }),
-      () => SETUP_PROPOSAL,
-      true,
-    )
-
+    const helpers = createFormHelpers({ title: 'Run', checklistItems: [{ text: 'Shoes', isChecked: false }] })
+    renderForm(helpers, () => {
+      applySuggestionSchedule(setupPatch, helpers)
+      return SETUP_PROPOSAL
+    }, true)
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
     expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()

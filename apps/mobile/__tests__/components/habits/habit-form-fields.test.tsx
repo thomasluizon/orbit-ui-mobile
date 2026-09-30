@@ -2,6 +2,8 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 
@@ -44,7 +46,13 @@ vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
-vi.mock('@/components/habits/habit-form-fields/habit-understanding', () => ({ HabitUnderstanding: (props: Record<string, unknown>) => React.createElement('HabitUnderstanding', props) }))
+vi.mock('@/components/ui/sheet', async () => {
+  const sheetDouble = await import('@/__tests__/support/sheet-double')
+  return {
+    ...sheetDouble,
+    Sheet: (props: React.ComponentProps<typeof sheetDouble.Sheet>) => React.createElement(sheetDouble.Sheet, props, props.headerAccessory, props.children),
+  }
+})
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'checklist' }) }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
@@ -68,11 +76,63 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it('shows one unresolved reading and corrections before the ask without an understood card', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Beber mais água quando der' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn()} readPhraseLocally />)
+      await Promise.resolve()
+    })
+    const nodes = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string')
+    expect(nodes.filter((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === 'habits.form.unresolved')).toHaveLength(1)
+    expect(nodes.filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
+    const readingIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.unresolved')
+    const correctionIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Monday')
+    const askIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.askAstra')
+    expect(correctionIndex).toBeGreaterThan(readingIndex)
+    expect(askIndex).toBeGreaterThan(correctionIndex)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfileState.aiMessagesUsed = 0
     mockProfileState.hasProAccess = false
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  })
+
+  it.each([false, true])('selects and clears an emoji without a sentence, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally lockedGeneral={lockedGeneral} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    await TestRenderer.act(() => buttons('habits.form.emoji: 🏃')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true })
+    await TestRenderer.act(() => tree!.update(renderNode()))
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    expect(buttons('habits.form.emojiRemove')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiRemove')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it('keeps an inferred emoji editable after removing cadence and time', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run', emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00' })
+    const values = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
+    expect(tree!.root.findByType(HabitUnderstanding).props.sentence).not.toBeNull()
+    values.frequencyUnit = null
+    values.dueTime = ''
+    await TestRenderer.act(() => tree!.update(renderNode()))
+    expect(tree!.root.findByType(HabitUnderstanding).props.sentence).toBeNull()
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    expect(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === '🏃').length).toBeGreaterThan(0)
+    await TestRenderer.act(() => buttons('habits.form.emojiRemove')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
   it('uses the understanding-first composition and wires both correction modes', async () => {
@@ -82,7 +142,7 @@ describe('HabitFormFields mobile', () => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
       await Promise.resolve()
     })
-    const understanding = tree.root.findByType('HabitUnderstanding')
+    const understanding = tree.root.findByType(HabitUnderstanding)
     expect(understanding.props.scheduleLocked).toBe(false)
     expect(understanding.props.value).toBe('Run')
     expect(understanding.props.labels.field).toBe('habits.form.describe')
@@ -103,9 +163,9 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day')
-    expect(tree.root.findByType('HabitUnderstanding').props.daily).toBe(true)
-    tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every day')
+    expect(tree.root.findByType(HabitUnderstanding).props.daily).toBe(true)
+    tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday')
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
 
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
@@ -115,7 +175,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day at 07:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every day at 07:00')
 
     controlValues.days = ['Monday']
     controlValues.dueTime = '08:00'
@@ -124,8 +184,8 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every Mon at 08:00')
-    expect(tree.root.findByType('HabitUnderstanding').props.daily).toBe(false)
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every Mon at 08:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.daily).toBe(false)
 
     controlValues.days = []
     controlValues.isFlexible = true
@@ -137,7 +197,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('3 times a week, any day at 09:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('3 times a week, any day at 09:00')
 
     controlValues.isFlexible = false
     controlValues.frequencyUnit = null
@@ -147,7 +207,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('At 15:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('At 15:00')
   })
 
   it('applies a time-only local phrase without inventing a cadence', async () => {
@@ -173,7 +233,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
 
-    const understanding = tree.root.findByType('HabitUnderstanding')
+    const understanding = tree.root.findByType(HabitUnderstanding)
     TestRenderer.act(() => understanding.props.onQuantityChange(4))
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
     controlValues.title = 'Run'
@@ -202,7 +262,7 @@ describe('HabitFormFields mobile', () => {
     })
 
     expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
-    const understanding = tree.root.findByType('HabitUnderstanding')
+    const understanding = tree.root.findByType(HabitUnderstanding)
     expect(understanding.props.scheduleLocked).toBe(true)
     TestRenderer.act(() => {
       understanding.props.onToggleDay('Monday')
@@ -364,7 +424,7 @@ describe('HabitFormFields mobile', () => {
     expect(ask.props.disabled).toBe(true)
     expect(ask.props.accessibilityState.disabled).toBe(true)
 
-    const understanding = tree.root.findByType('HabitUnderstanding')
+    const understanding = tree.root.findByType(HabitUnderstanding)
     understanding.props.onToggleDay('Monday')
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
 
@@ -423,7 +483,7 @@ describe('HabitFormFields mobile', () => {
     expect(onSuggestSetup).toHaveBeenCalledOnce()
 
     await TestRenderer.act(async () => {
-      tree.root.findByType('HabitUnderstanding').props.onValueChange('Build a calmer routine')
+      tree.root.findByType(HabitUnderstanding).props.onValueChange('Build a calmer routine')
       await Promise.resolve()
     })
     ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
@@ -457,14 +517,14 @@ describe('HabitFormFields mobile', () => {
       ask.props.onPress()
       await Promise.resolve()
     })
-    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(true)
+    expect(tree.root.findByType(HabitUnderstanding).props.proposed).toBe(true)
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
     const proposedBreakdownCount = tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length
     expect(proposedBreakdownCount).toBeGreaterThan(0)
 
-    TestRenderer.act(() => tree.root.findByType('HabitUnderstanding').props.onToggleDay('Monday'))
+    TestRenderer.act(() => tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday'))
 
-    expect(tree.root.findByType('HabitUnderstanding').props.proposed).toBe(false)
+    expect(tree.root.findByType(HabitUnderstanding).props.proposed).toBe(false)
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(proposedBreakdownCount)
   })
@@ -525,5 +585,34 @@ describe('HabitFormFields mobile', () => {
 
     TestRenderer.act(() => resolveProposal())
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field')).toHaveLength(0)
+  })
+})
+
+interface UnderstandingTestNode {
+  type: unknown
+  props: Readonly<Record<string, unknown>>
+  findAll(predicate: (node: UnderstandingTestNode) => boolean): UnderstandingTestNode[]
+}
+
+describe('mobile understanding sentence', () => {
+  it.each(['motion', 'emoji'])('replaces the sentence without leftover %s effects', async (effect) => {
+    useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const props = { ...tree!.root.findByType(HabitUnderstanding).props, value: 'Run', sentence: 'A' }
+    await TestRenderer.act(async () => { tree!.update(<HabitUnderstanding {...props} />); await Promise.resolve() })
+    if (effect === 'emoji') {
+      expect(tree!.root.findAllByType(AstraGlyph)).toHaveLength(0)
+      expect(tree!.root.findAll((node: UnderstandingTestNode) => node.props.testID === 'habit-suggest-emoji')).toHaveLength(0)
+    } else expect(tree!.root.findAll((node: UnderstandingTestNode) =>
+      (node.props.entering !== undefined || node.props.exiting !== undefined) &&
+      node.findAll((child) => child.type === 'Text' && child.props.children === 'A').length > 0,
+    )).toHaveLength(0)
+    await TestRenderer.act(async () => { tree!.update(<HabitUnderstanding {...props} sentence="B" />); await Promise.resolve() })
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'A')).toHaveLength(0)
+    expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'B')).toHaveLength(1)
   })
 })

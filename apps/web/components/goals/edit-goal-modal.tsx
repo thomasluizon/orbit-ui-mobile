@@ -162,6 +162,7 @@ export function EditGoalModal({
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.detail.edit')}
         actions={(
           <DialogActionPair>

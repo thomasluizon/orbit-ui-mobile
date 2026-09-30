@@ -7,5 +7,7 @@ export interface SheetProps {
   headerAccessory?: React.ReactNode
   actions?: React.ReactNode
   onClose?: () => void
+  /** Receives dismissal attempts while the host blocks closing. */
+  onAttemptDismiss?: () => void
   children?: React.ReactNode
 }

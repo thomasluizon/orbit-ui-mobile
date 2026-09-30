@@ -580,14 +580,12 @@ export function buildHabitAstraFallbackCopy(
   translate: UnderstandingTranslator,
   allowance: number,
 ): {
-  unresolved: string
   limitMessage: string
   readingLabel: string
   askLabel: string
   costLabel: string
 } {
   return {
-    unresolved: translate('habits.form.unresolved'),
     limitMessage: translate('habits.form.localReadLimit', { allowance }),
     readingLabel: translate('habits.form.astraReading'),
     askLabel: translate('habits.form.askAstra'),
