@@ -12,6 +12,10 @@ vi.mock('@/app/actions/notifications', () => ({
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
+  resolveServerSession: vi.fn(),
+}))
 
 async function settleWithin<T>(promise: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -134,6 +138,27 @@ describe('sign-out through the real notifications action wrapper', () => {
     await settleWithin(useAuthStore.getState().logout())
     expect(subscription.unsubscribe).toHaveBeenCalledOnce()
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('ends the same-account endpoint after the server confirms the account and the upstream release fails', async () => {
+    const { subscription } = await installSignedInBrowser()
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const serverActions = await vi.importActual<typeof import('@/app/actions/notifications')>('@/app/actions/notifications')
+    const payload = btoa(JSON.stringify({
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'account-a',
+    }))
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: `header.${payload}.signature`, expiresAt: null, refreshed: false, refreshFailed: false,
+    })
+    actions.unsubscribePush.mockImplementation(serverActions.unsubscribePush)
+    const upstream = vi.fn().mockRejectedValue(new TypeError('Release failed'))
+    vi.stubGlobal('fetch', upstream)
+    const { releasePushSubscription } = await import('@/hooks/use-push-notification-preferences')
+
+    await expect(releasePushSubscription('account-a')).rejects.toThrow('Release failed')
+
+    expect(upstream).toHaveBeenCalledWith(expect.stringContaining('/api/notifications/unsubscribe'), expect.objectContaining({ method: 'POST' }))
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
   })
 
   it.each(['success', 'account refusal'] as const)('settles a pending release without dropping the endpoint before late %s', async (outcome) => {
