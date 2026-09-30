@@ -343,7 +343,9 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     }
     const initialFocus = !autoFocusApplied.current
     autoFocusApplied.current = true
-    if (inputDisabled && (initialFocus || focusedTarget.current === 'input')) composerRef.current?.focus()
+    if (inputDisabled && (initialFocus || focusedTarget.current === 'input')) {
+      composerRef.current?.setNativeProps({ hasTVPreferredFocus: true })
+    }
     else if (!inputDisabled && (initialFocus || focusedTarget.current === 'container')) focusTarget.current?.focus()
   }, [inputDisabled, props.autoFocus])
   const testID = [
@@ -365,7 +367,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
       }}
       onBlur={() => { focusedTarget.current = null }}
       testID={testID}
-      accessibilityState={{ disabled: inputDisabled, busy: props.state === 'sending' }}
+      accessibilityState={{ busy: props.state === 'sending' }}
       style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
