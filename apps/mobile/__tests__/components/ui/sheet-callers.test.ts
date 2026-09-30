@@ -93,6 +93,10 @@ describe('Sheet callers (mobile)', () => {
     expect(bodies.length).toBeGreaterThan(30)
   })
 
+  it('counts the calendar year picker sheet', () => {
+    expect(bodies.filter((body) => body.location.startsWith('app/(tabs)/calendar/_components/calendar-shell.tsx:'))).toHaveLength(1)
+  })
+
   it('never stretches a sheet body', () => {
     const stretched = bodies
       .filter((body) => body.style !== null && STRETCH_PROPERTIES.test(body.style))

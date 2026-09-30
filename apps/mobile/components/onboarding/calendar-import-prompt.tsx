@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -7,6 +7,7 @@ import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -89,27 +90,30 @@ export function CalendarImportPrompt() {
         void dismissPrompt()
       }}
       title={t('onboarding.wizard.calendarTitle')}
+      actions={(
+        <DialogActionPair>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('common.later')}
+            onClick={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void dismissPrompt()
+              })
+            }
+          >
+            {t('common.later')}
+          </PillButton>
+          <PillButton onClick={handleImport}>
+            {t('onboarding.wizard.calendarButton')}
+          </PillButton>
+        </DialogActionPair>
+      )}
     >
       <View style={styles.content}>
         <Text style={styles.description}>
           {t('onboarding.wizard.calendarDescription')}
         </Text>
-        <View style={styles.spacer} />
-        <PillButton  onClick={handleImport}>
-          {t('onboarding.wizard.calendarButton')}
-        </PillButton>
-        <Pressable
-          style={styles.quietRow}
-          onPress={() =>
-            closeSheet(() => {
-              unregisterOpenOverlay(promptId)
-              void dismissPrompt()
-            })
-          }
-          accessibilityRole="button"
-        >
-          <Text style={styles.quietText}>{t('common.later')}</Text>
-        </Pressable>
       </View>
     </Sheet>) : null
   )
@@ -118,29 +122,13 @@ export function CalendarImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      gap: 16,
-      paddingHorizontal: 24,
       paddingTop: 8,
-      paddingBottom: 8,
     },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
-      color: tokens.fg2,
-    },
-    spacer: {
-      height: 16,
-    },
-    quietRow: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingBottom: 8,
-    },
-    quietText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
+      textAlign: 'center',
       color: tokens.fg2,
     },
   })

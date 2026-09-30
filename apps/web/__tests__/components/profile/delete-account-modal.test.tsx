@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -109,6 +110,12 @@ describe('DeleteAccountModal', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('pins Send code and Cancel in the sheet footer, never in the scrolling body', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.deleteAccount.sendCode'])
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
   it('cancels before requesting an account deletion code', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
@@ -210,6 +217,15 @@ describe('DeleteAccountModal', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('shows a failed send in the pinned footer, beside Send code', async () => {
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
   it('renders nothing while closed', () => {

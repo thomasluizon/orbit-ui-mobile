@@ -172,4 +172,26 @@ describe('MoveParentOverlay', () => {
     fireEvent.keyDown(firstDestination, { key: 'ArrowDown' })
     expect(root).toHaveFocus()
   })
+
+  it('keeps the Move label on the busy confirm button while the move runs', () => {
+    render(
+      <MoveParentOverlay
+        t={(key) => key}
+        open
+        isMoving
+        movingHabitTitle="Exercise"
+        movingHabitParentId={null}
+        options={[makeOption({ id: 'root-a', label: 'Morning' })]}
+        selectedMoveParentId="root-a"
+        canSubmit={false}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        onSelectOption={vi.fn()}
+      />,
+    )
+
+    const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
+    expect(within(actions).getByRole('button', { name: 'habits.moveParent.confirm' })).toHaveAttribute('aria-busy', 'true')
+    expect(actions.textContent).not.toContain('habits.moveParent.moving')
+  })
 })

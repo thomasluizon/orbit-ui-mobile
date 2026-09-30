@@ -1,15 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
 import { getAllDoneOnDate } from '../utils/all-done'
+import { optimisticSkipMarker } from '../utils/habit-optimistic'
 
 const date = '2025-03-10'
 
 describe('getAllDoneOnDate', () => {
-  it('keeps a flexible habit open until its window target is reached', () => {
-    const habit = createMockHabit({ id: 'flexible', isFlexible: true, flexibleTarget: 2,
-      flexibleCompleted: 1, isCompleted: true, isLoggedInRange: true, scheduledDates: [date] })
+  it.each([false, true])('counts one flexible log with completed flag %s before the weekly target', (isCompleted) => {
+    const habit = createMockHabit({ id: 'flexible', isFlexible: true, frequencyUnit: 'Week', flexibleTarget: 2,
+      flexibleCompleted: 1, isCompleted, isLoggedInRange: true, scheduledDates: [date] })
+    expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date))
+      .toEqual({ allDone: true, count: 1 })
+  })
+
+  it('counts a flexible log without weekly progress totals', () => {
+    const habit = createMockHabit({ isFlexible: true, isLoggedInRange: true, scheduledDates: [date] })
+    expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date))
+      .toEqual({ allDone: true, count: 1 })
+  })
+
+  it.each([0, 1, 2])('keeps an unlogged flexible habit open with weekly progress %s', (flexibleCompleted) => {
+    const habit = createMockHabit({ isFlexible: true, frequencyUnit: 'Week', flexibleTarget: 2,
+      flexibleCompleted, scheduledDates: [date] })
     expect(getAllDoneOnDate(new Map([[habit.id, habit]]), new Map(), date))
       .toEqual({ allDone: false, count: 0 })
+  })
+
+  it('keeps the day open when another due habit remains unlogged', () => {
+    const logged = createMockHabit({ id: 'flexible', isFlexible: true, flexibleTarget: 2,
+      flexibleCompleted: 1, isLoggedInRange: true, scheduledDates: [date] })
+    const open = createMockHabit({ id: 'open', scheduledDates: [date] })
+    expect(getAllDoneOnDate(new Map([logged, open].map((habit) => [habit.id, habit])), new Map(), date))
+      .toEqual({ allDone: false, count: 1 })
+  })
+
+  it('waits for a pending flexible skip and excludes a confirmed skip from the log count', () => {
+    const logged = createMockHabit({ id: 'logged', isLoggedInRange: true, scheduledDates: [date] })
+    const skipped = createMockHabit({ id: 'skipped', isFlexible: true, flexibleTarget: 0,
+      flexibleCompleted: 0, scheduledDates: [date] })
+    const pendingSkip = { ...skipped, [optimisticSkipMarker]: date }
+    const habits = new Map([logged, pendingSkip].map((habit) => [habit.id, habit]))
+    expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: false, count: 1 })
+    habits.set(skipped.id, skipped)
+    expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: true, count: 1 })
   })
 
   it('resolves a skipped occurrence without counting it as a positive log', () => {

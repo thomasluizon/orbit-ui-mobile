@@ -21,6 +21,8 @@ import { getTodayBoundary } from './today-date'
 export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
 const HISTORY_LOOKBACK_DAYS = 365
+/** A habit is slipping only while its 30-day completion rate is below this percentage. */
+export const HABIT_SLIPPING_RATE_LIMIT = 50
 
 interface HabitScheduleSource {
   createdAtUtc: string
@@ -260,11 +262,24 @@ export function isHabitSlipping(
   today: Date,
   accountTimeZone: string | null | undefined,
 ): boolean {
-  if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= 50) return false
+  if (!metrics || metrics.currentStreak !== 0 || metrics.monthlyCompletionRate >= HABIT_SLIPPING_RATE_LIMIT) return false
   const cutoff = formatAPIDate(addDays(today, -2))
   if (formatAPIDateInTimeZone(new Date(habit.createdAtUtc), accountTimeZone) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
   return habit.isBadHabit ? recentlyLogged : !recentlyLogged
+}
+
+/** Calendar days without a completion up to the account's today: after the last completion, or from the
+ *  creation day in the account timezone, both ends included, when there is none. */
+export function getHabitDaysWithoutLog(
+  metrics: Pick<HabitMetrics, 'lastCompletedDate'>,
+  createdAtUtc: string,
+  today: Date,
+  accountTimeZone: string | null | undefined,
+): number {
+  if (metrics.lastCompletedDate) return differenceInCalendarDays(today, parseAPIDate(metrics.lastCompletedDate))
+  const createdDate = parseAPIDate(formatAPIDateInTimeZone(new Date(createdAtUtc), accountTimeZone))
+  return differenceInCalendarDays(today, createdDate) + 1
 }
 
 export function shouldShowHabitMetrics(habit: Pick<HabitDetail, 'frequencyUnit' | 'isGeneral'>): boolean {

@@ -607,7 +607,7 @@ describe('useLogHabit', () => {
     }
   })
 
-  it('keeps a flexible habit open after its first of two required logs', async () => {
+  it('celebrates after the first flexible log before the weekly target is met', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
@@ -619,8 +619,11 @@ describe('useLogHabit', () => {
         isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 }),
     ])
     const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
-    await act(async () => { await result.current.mutateAsync({ habitId: 'flexible', intent: 'log' }) })
     expect(useUIStore.getState().activeCelebration).toBeNull()
+    await act(async () => { await result.current.mutateAsync({ habitId: 'flexible', intent: 'log' }) })
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
   })
 
   it('does not celebrate from a first page with an unseen due habit', async () => {

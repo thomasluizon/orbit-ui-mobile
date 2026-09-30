@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet } from '@/components/ui/sheet'
@@ -32,22 +33,20 @@ interface LoadedContentProps {
   stats: ReferralStats | null
   referralUrl: string
   copied: boolean
-  interactionError: boolean
+  copyFailed: boolean
   tokens: ReturnType<typeof createTokensV2>
   styles: ReturnType<typeof createStyles>
   onCopy: () => void
-  onShare: () => void
 }
 
 function LoadedContent({
   stats,
   referralUrl,
   copied,
-  interactionError,
+  copyFailed,
   tokens,
   styles,
   onCopy,
-  onShare,
 }: Readonly<LoadedContentProps>) {
   const { t } = useTranslation()
   const progress = stats && stats.maxReferrals > 0
@@ -82,13 +81,7 @@ function LoadedContent({
         </View>
       </View>
 
-      <View style={styles.gutter}>
-        <PillButton onClick={onShare}>
-          {t('referral.drawer.share')}
-        </PillButton>
-      </View>
-
-      {interactionError ? (
+      {copyFailed ? (
         <Text accessibilityRole="alert" style={styles.actionError}>
           {t('referral.drawer.actionFailed')}
         </Text>
@@ -160,7 +153,8 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const [interactionError, setInteractionError] = useState(false)
+  const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
+  const isLoaded = !isLoading && !isError
 
   const shareLink = useCallback(async () => {
     if (!referralUrl) return
@@ -172,9 +166,9 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
         title: t('referral.share.title'),
         message: `${referralMessage} ${referralUrl}`,
       })
-      setInteractionError(false)
+      setFailedAction(null)
     } catch {
-      setInteractionError(true)
+      setFailedAction('share')
     }
   }, [referralUrl, stats, t])
 
@@ -183,16 +177,39 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
     try {
       Clipboard.setString(referralUrl)
       AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
-      setInteractionError(false)
+      setFailedAction(null)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      setInteractionError(true)
+      setFailedAction('copy')
     }
   }, [referralUrl, t])
 
   return (
-    <Sheet open onClose={onClose} title={t('referral.drawer.title')}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={t('referral.drawer.title')}
+      actions={
+        isLoaded ? (
+          <>
+            {failedAction === 'share' ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.shareError, { width: '100%' }]}
+              >
+                {t('referral.drawer.actionFailed')}
+              </Text>
+            ) : null}
+            <DialogActionPair>
+              <PillButton onClick={() => void shareLink()}>
+                {t('referral.drawer.share')}
+              </PillButton>
+            </DialogActionPair>
+          </>
+        ) : undefined
+      }
+    >
       <View style={styles.content}>
         {isLoading ? (
           <View style={styles.loadingContainer} accessibilityRole="progressbar">
@@ -200,16 +217,15 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
           </View>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
-        {!isLoading && !isError ? (
+        {isLoaded ? (
           <LoadedContent
             stats={stats}
             referralUrl={referralUrl}
             copied={copied}
-            interactionError={interactionError}
+            copyFailed={failedAction === 'copy'}
             tokens={tokens}
             styles={styles}
             onCopy={copyLink}
-            onShare={() => void shareLink()}
           />
         ) : null}
       </View>
@@ -226,7 +242,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       gap: 16,
-      paddingBottom: 24,
     },
     gutter: {
       paddingHorizontal: 16,
@@ -272,6 +287,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
+      color: tokens.fg2,
+    },
+    shareError: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center',
       color: tokens.fg2,
     },
     progressBlock: {
