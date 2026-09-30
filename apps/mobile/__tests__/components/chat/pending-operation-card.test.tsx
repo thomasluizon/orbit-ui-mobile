@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, ScrollView, Text, TextInput } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
@@ -309,6 +309,42 @@ describe('PendingOperationCard (mobile)', () => {
       expect(text?.props.style).toMatchObject({ color: foreground })
     }
     expect(body.findAllByType(ScrollView)).toHaveLength(0)
+  })
+
+  it('toggles weekday chips inside their pill press fill and saves the chosen days', async () => {
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const fields = [{ ...firstItem.fields[0]!, field: 'days', valueType: 'text', newValue: 'Monday' }]
+    const { tree } = renderCard({ ...preview, items: [{ ...firstItem, fields }] }, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const tokens = createTokensV2('purple', 'dark')
+    const chip = (label: string) => tree.root.findAllByType(Pressable).find((node: any) => renderedText(node.props.children) === label)
+    const fill = (label: string, pressed: boolean) => StyleSheet.flatten(chip(label).props.style({ pressed }))
+
+    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.selectionBg })
+    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' })
+    expect(fill('dates.daysLong.monday', true).backgroundColor).toBe(tokens.bgHover)
+    expect(fill('dates.daysLong.tuesday', true).backgroundColor).toBe(tokens.bgHover)
+
+    TestRenderer.act(() => chip('dates.daysLong.tuesday').props.onPress())
+    TestRenderer.act(() => chip('dates.daysLong.monday').props.onPress())
+    expect(chip('dates.daysLong.tuesday').props.accessibilityState).toMatchObject({ selected: true })
+    expect(chip('dates.daysLong.monday').props.accessibilityState).toMatchObject({ selected: false })
+    await TestRenderer.act(async () => {
+      press(tree, 'common.save').props.onPress()
+      await Promise.resolve()
+    })
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { days: ['Tuesday'] } }],
+    })
+  })
+
+  it('paints the remove control press fill inside its round hit area', () => {
+    const { tree } = renderCard(preview, vi.fn())
+    const remove = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === 'chat.operation.remove Run')
+    const tokens = createTokensV2('purple', 'dark')
+
+    expect(StyleSheet.flatten(remove.props.style({ pressed: true }))).toMatchObject({ width: 44, height: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    expect(StyleSheet.flatten(remove.props.style({ pressed: false })).backgroundColor).toBe('transparent')
   })
 
   it('shows editor search only when more than eight items are available', () => {

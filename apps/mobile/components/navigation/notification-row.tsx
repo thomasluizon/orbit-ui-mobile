@@ -62,7 +62,7 @@ export function NotificationRow({ item, onOpen }: Readonly<{
 
 const styles = StyleSheet.create({
   wrapper: { borderRadius: 12 },
-  row: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
+  row: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },

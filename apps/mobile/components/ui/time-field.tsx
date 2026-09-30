@@ -54,6 +54,11 @@ interface TimeColumnProps {
   onSelect: (value: number | string) => void
 }
 
+function pressedOptionBackground(tokens: Tokens, selected: boolean, pressed: boolean) {
+  if (selected) return pressed ? tokens.primaryPressed : tokens.primary
+  return pressed ? tokens.bgHover : 'transparent'
+}
+
 function TimeOption({
   formattedValue,
   onSelect,
@@ -78,9 +83,9 @@ function TimeOption({
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       onPress={onActivate}
-      style={[
+      style={({ pressed }) => [
         styles.option,
-        { backgroundColor: selected ? tokens.primary : 'transparent' },
+        { backgroundColor: pressedOptionBackground(tokens, selected, pressed) },
       ]}
     >
       <Text
@@ -389,7 +394,8 @@ const styles = StyleSheet.create({
   columnContent: { paddingVertical: 4 },
   option: {
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
     height: ROW_HEIGHT,
     justifyContent: 'center',
   },

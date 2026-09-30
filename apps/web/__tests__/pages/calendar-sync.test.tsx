@@ -563,8 +563,11 @@ describe('CalendarSyncPage', () => {
     renderPage()
 
     const button = await screen.findByText('Weekly review')
-    expect(button.closest('button')).not.toBeDisabled()
-    expect(button.closest('button')?.parentElement?.className).toContain('hover:bg-[var(--bg-elev)]')
+    const hitArea = button.closest('button')
+    expect(hitArea).not.toBeDisabled()
+    expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
+    expect(hitArea?.className).toContain('rounded-[12px]')
+    expect(hitArea?.parentElement?.className).not.toContain('hover:bg-')
   })
 
   it('shows select all / deselect all toggle', async () => {

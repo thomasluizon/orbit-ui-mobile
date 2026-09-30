@@ -416,6 +416,23 @@ describe('PendingOperationCard', () => {
     }))
   })
 
+  it('toggles weekday chips and submits the days left selected', async () => {
+    const daysItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'days', valueType: 'text', newValue: 'Monday' }] }
+    revise.mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [daysItem] })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+    expect(screen.getByRole('button', { name: 'dates.daysLong.monday' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'dates.daysLong.tuesday' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'dates.daysLong.tuesday' }))
+    fireEvent.click(screen.getByRole('button', { name: 'dates.daysLong.monday' }))
+    expect(screen.getByRole('button', { name: 'dates.daysLong.tuesday' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'dates.daysLong.monday' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { days: ['Tuesday'] } }],
+    }))
+  })
+
   it('edits scheduled reminder rows and submits the complete typed list', async () => {
     const scheduled = [{ when: 'same_day', time: '08:00' }]
     const listItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'scheduled_reminders',

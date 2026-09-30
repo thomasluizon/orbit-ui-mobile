@@ -21,10 +21,6 @@ function getBodyStyle(compact: boolean, hasAction: boolean) {
   return [styles.body, compact ? styles.compactBody : null, hasAction ? styles.bodyWithAction : null]
 }
 
-function getFormPressedStyle(inForm: boolean, pressed: boolean, backgroundColor: string) {
-  return inForm && pressed ? { backgroundColor } : null
-}
-
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
   return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
@@ -46,7 +42,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = getBodyStyle(compact, !!action)
   const body: ReactNode = (
-    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
@@ -67,12 +63,12 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled), getFormPressedStyle(inForm, bodyPressed, tokens.bgHover)]}>{body}</Pressable>
+        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, pressed ? { backgroundColor: tokens.bgHover } : null]}>
           {({ pressed }) => (
-            <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+            <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { transform: [{ scale: 0.96 }] } : null]}>
               <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
             </AnimatedContent>
           )}
@@ -85,11 +81,11 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
   formRow: { marginHorizontal: 8, borderRadius: 12, overflow: 'hidden' },
-  body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' },
+  body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
   compactBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 12 },
-  bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
+  bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   bodyWithAction: { paddingEnd: 0 },
-  action: { padding: 16, paddingStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
+  action: { width: 44, height: 44, margin: 16, marginStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },

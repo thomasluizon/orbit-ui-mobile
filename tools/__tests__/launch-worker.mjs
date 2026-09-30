@@ -313,8 +313,8 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     JSON.stringify(plan),
   )
   T(
-    `${TOOL}: the default tier resolves gpt-6-sol at high reasoning effort`,
-    plan !== null && plan.model === "gpt-6-sol" && plan.args.includes('model_reasoning_effort="high"'),
+    `${TOOL}: the default tier resolves gpt-6.1-sol at high reasoning effort`,
+    plan !== null && plan.engine === "codex" && plan.model === "gpt-6.1-sol" && plan.args.includes('model_reasoning_effort="high"'),
     JSON.stringify(plan?.args),
   )
   const mechanicalDryRun = check(TOOL, "--dry-run resolves the mechanical tier", [...argv, "--tier", "mechanical", "--dry-run"], { status: 0 }, options)
@@ -322,6 +322,8 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   T(
     `${TOOL}: each tier reports itself and resolves a different argument vector`,
     mechanicalPlan.tier === "mechanical" &&
+      mechanicalPlan.engine === "codex" &&
+      mechanicalPlan.model === "gpt-6.1-sol" &&
       mechanicalPlan.args.includes('model_reasoning_effort="medium"') &&
       JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
     JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),

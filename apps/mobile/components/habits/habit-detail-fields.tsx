@@ -54,7 +54,7 @@ function TimeEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: Norma
 
 function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected })
-  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={[styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: selected ? tokens.selectionBg : tokens.bg }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
+  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={({ pressed }) => [styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.selectionBg : tokens.bg }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
 }
 
 function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]; tokens: Tokens; onChange: (unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]) => void }>) {
@@ -65,7 +65,7 @@ function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof
 function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tokens: Tokens; onChange: (days: string[]) => void }>) {
   const { t } = useTranslation()
   const toggle = (day: string) => onChange(toggleHabitDaySelection(days, day, HABIT_DETAIL_WEEKDAYS, days.length === 0))
-  return <View style={styles.chips}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={[styles.dayChip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: selected ? tokens.selectionBg : tokens.bg }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
+  return <View style={styles.chips}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.selectionBg : tokens.bg }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
 }
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 8, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
-  dayChip: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
+  chip: { borderRadius: 999, overflow: 'hidden', borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
+  dayChip: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
   chipText: { fontFamily: 'Geist_500Medium', fontSize: 13 },
 })

@@ -310,7 +310,8 @@ describe('HabitRow check circle accessible name', () => {
     expect(body).toHaveAttribute('data-habit-row-body')
     expect(body).not.toHaveAttribute('data-habit-row-control')
     fireEvent.mouseOver(body)
-    expect(matchingHabitHoverBackgrounds(panel)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(body)).toEqual(['var(--bg-hover)'])
+    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
     expect(matchingHabitHoverBackgrounds(ring)).toEqual([])
   })
 

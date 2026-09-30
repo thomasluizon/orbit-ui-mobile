@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -252,37 +252,6 @@ function createStyles(tokens: AppTokensV2) {
       gap: 4,
       paddingTop: 4,
       paddingBottom: 8,
-    },
-    moveOption: {
-      borderRadius: 14,
-      borderWidth: 1,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    moveOptionDefault: {
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-    },
-    moveOptionRoot: {
-      borderStyle: 'dashed',
-      borderColor: tokens.hairlineStrong,
-      backgroundColor: 'transparent',
-    },
-    moveOptionSelected: {
-      borderWidth: 1.5,
-      borderColor: tokens.primary,
-      backgroundColor: tintFromPrimary(tokens, 0.1),
-    },
-    moveOptionDisabled: {
-      opacity: 0.5,
-    },
-    moveOptionPressed: {
-      backgroundColor: tokens.bgHover,
-    },
-    moveOptionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
     },
     rail: {
       width: 20,

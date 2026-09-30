@@ -34,7 +34,7 @@ describe('YearPicker (mobile)', () => {
     expect(tree!.root.findByProps({ testID: 'year-picker-scroll' }).props.nestedScrollEnabled).toBe(true)
 
     const selectedCell = tree!.root.findByProps({ accessibilityLabel: '2026' })
-    const targetStyle = StyleSheet.flatten(selectedCell.props.style) as {
+    const targetStyle = StyleSheet.flatten(selectedCell.props.style({ pressed: false })) as {
       height: number
       marginBottom: number
     }
@@ -43,26 +43,20 @@ describe('YearPicker (mobile)', () => {
     expect(scrollTo).toHaveBeenCalledWith({ y: 3 * renderedRowHeight, animated: false })
     expect(targetStyle.height).toBe(44)
 
-    const renderPill = selectedCell.props.children
-    expect(renderPill).toBeTypeOf('function')
-
-    const pill = renderPill({ pressed: false }) as React.ReactElement<{ style: unknown }>
-    expect(StyleSheet.flatten(pill.props.style)).toMatchObject({
-      height: 32,
-      borderRadius: 16,
+    expect(StyleSheet.flatten(selectedCell.props.style({ pressed: false }))).toMatchObject({
+      height: 44,
+      borderRadius: 999,
+      overflow: 'hidden',
+      backgroundColor: tokens.primary,
     })
 
-    const pressedPill = renderPill({ pressed: true }) as React.ReactElement<{ style: unknown }>
-    expect(StyleSheet.flatten(pressedPill.props.style)).toMatchObject({
+    expect(StyleSheet.flatten(selectedCell.props.style({ pressed: true }))).toMatchObject({
+      backgroundColor: tokens.primaryPressed,
       transform: [{ scale: 0.96 }],
     })
 
     const unselectedCell = tree!.root.findByProps({ accessibilityLabel: '2025' })
-    const renderUnselectedPill = unselectedCell.props.children
-    const pressedUnselectedPill = renderUnselectedPill({ pressed: true }) as React.ReactElement<{
-      style: unknown
-    }>
-    expect(StyleSheet.flatten(pressedUnselectedPill.props.style)).toMatchObject({
+    expect(StyleSheet.flatten(unselectedCell.props.style({ pressed: true }))).toMatchObject({
       backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     })

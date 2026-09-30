@@ -170,7 +170,7 @@ export function ReminderSection({
                   style={({ pressed }) => [
                     sectionStyles.dropdownItem,
                     pressed && {
-                      backgroundColor: tokens.bgElev,
+                      backgroundColor: tokens.bgHover,
                       transform: [{ scale: 0.98 }],
                     },
                   ]}
@@ -259,7 +259,7 @@ export function ReminderSection({
                 style={({ pressed }) => [
                   sectionStyles.dropdownItem,
                   pressed && {
-                    backgroundColor: tokens.bgElev,
+                    backgroundColor: tokens.bgHover,
                     transform: [{ scale: 0.98 }],
                   },
                 ]}

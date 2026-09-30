@@ -183,9 +183,7 @@ describe('mobile Today Astra', () => {
       node.findAll((child) => child.props.children === 'todayAstra.openConversation').length > 0,
     )[0]
     if (!pressedAction) throw new Error('Pressed proactive action did not render')
-    expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>)).toMatchObject({
-      backgroundColor: '#333333',
-    })
+    expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
     const pressedLabel = pressedAction.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
     expect((StyleSheet.flatten(pressedLabel?.props.style) as Record<string, unknown>)).toMatchObject({ color: '#ffffff' })
     const onPressOut = pressedAction.props.onPressOut

@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
   item: {
     alignItems: 'center',
     borderRadius: 12,
+    overflow: 'hidden',
     flexDirection: 'row',
     gap: 12,
     minHeight: 48,

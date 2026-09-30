@@ -185,6 +185,26 @@ describe('ChatEmptyState (mobile)', () => {
     expect(suggestionLabels(tree)).toEqual(['chat.suggestion.week', 'chat.suggestion.goals'])
   })
 
+  it('clips each pressed suggestion fill to the pill that owns its hit area', () => {
+    const { tree } = renderEmptyState([
+      makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
+    ])
+    const chips = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+    )
+
+    expect(chips).toHaveLength(4)
+    for (const chip of chips) {
+      TestRenderer.act(() => chip.props.onPressIn())
+      expect(StyleSheet.flatten(chip.props.style)).toMatchObject({
+        minHeight: 44,
+        borderRadius: 999,
+        overflow: 'hidden',
+        backgroundColor: tokens.bgHover,
+      })
+    }
+  })
+
   it('sends the shown text when a suggestion is pressed', () => {
     const { tree, onSelectSuggestion } = renderEmptyState([
       makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),

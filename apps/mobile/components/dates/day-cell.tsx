@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 import { Pressable, StyleSheet, Text, View, type AccessibilityState } from 'react-native'
@@ -7,19 +8,24 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>) {
+type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>
+
+/** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
+function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
+  return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
+}
+
+function DayCellContents({ props, outcome, size, tokens }: ContentsProps) {
   const stroke = 2
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const fraction = props.scheduled && props.done !== undefined ? Math.max(0, Math.min(1, props.done / props.scheduled)) : 0.5
-  const fill = outcome === 'full'
-    ? tokens.fg1
-    : 'transparent'
+  const fill = outcome === 'full' ? tokens.fg1 : 'transparent'
   const borderColor = outcome === 'none' ? tokens.statusEmpty : 'transparent'
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
-    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
+    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
@@ -42,14 +48,14 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
   )
 }
 
-function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>) {
+function HabitHistoryContents({ props, outcome, size, tokens }: ContentsProps) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled'
   let textColor = tokens.fg2
   if (outcome === 'full') textColor = tokens.bg
   else if (missed) textColor = tokens.fg3
   return (
-    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+    <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
@@ -61,30 +67,38 @@ type MobileDayCellProps = DayCellProps & {
 }
 
 export function DayCell(props: Readonly<MobileDayCellProps>) {
+  const [pressed, setPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? 44
+  const interactive = Boolean(props.loggable) && !props.outsideMonth
   const containerStyle = [
     styles.container,
-    { width: size, height: size, borderRadius: size / 2 },
+    { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' as const },
     props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
+  const contents = props.habitHistory
+    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} />
+    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
 
-  if (props.loggable && !props.outsideMonth) {
+  if (interactive) {
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={buildDayCellAccessibleName(props, outcome)}
         accessibilityState={state}
         onPress={props.onPress}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
         testID={testID}
-        style={({ pressed }) => [containerStyle, pressed ? { backgroundColor: tokens.bgElev } : null]}
+        style={containerStyle}
       >
-        {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} /> : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />}
+        {contents}
+        {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       </Pressable>
     )
   }
@@ -99,13 +113,14 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
       testID={testID}
       style={containerStyle}
     >
-      {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} /> : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />}
+      {contents}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center' },
+  pressFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   disc: { alignItems: 'center', justifyContent: 'center' },
   arc: { position: 'absolute', top: 0, left: 0 },
   numeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
