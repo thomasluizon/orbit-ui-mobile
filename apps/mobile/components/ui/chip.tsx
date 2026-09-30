@@ -32,7 +32,7 @@ export function Chip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
       style={({ pressed }) => {
-        const pressedBackground = pressed ? tokens.bgElev2 : tokens.bgElev
+        const pressedBackground = pressed ? tokens.bgHover : tokens.bgElev
         return [
           styles.chip,
           {

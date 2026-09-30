@@ -150,8 +150,8 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.resetChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
-              style={{ width: 36, height: 36 }}
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
+              style={{ minWidth: 44, minHeight: 44 }}
               onClick={onReset}
             >
               <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -161,8 +161,8 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.clearChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
-              style={{ width: 36, height: 36 }}
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              style={{ minWidth: 44, minHeight: 44 }}
               onClick={onClear}
             >
               <X size={16} strokeWidth={1.8} aria-hidden="true" className="text-[var(--status-bad)]" />
@@ -230,7 +230,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="text-[var(--status-bad-text)] transition-opacity hover:opacity-80"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
@@ -310,8 +310,8 @@ function SortableChecklistItem({
         ref={setActivatorNodeRef}
         {...listeners}
         aria-hidden="true"
-        className="checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-elev)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
-        style={{ width: 36, height: 36 }}
+        className="checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
+        style={{ minWidth: 44, minHeight: 44 }}
       >
         <GripHorizontal size={16} strokeWidth={1.8} />
       </div>
@@ -338,8 +338,8 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
-        style={{ width: 36, height: 36 }}
+        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ minWidth: 44, minHeight: 44 }}
         disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
       >
@@ -349,8 +349,8 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
-        style={{ width: 36, height: 36 }}
+        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ minWidth: 44, minHeight: 44 }}
         onClick={() => onRemove(index)}
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-fast)] group-hover/remove:text-[var(--status-bad)]" />

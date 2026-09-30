@@ -112,6 +112,20 @@ function pressMoveUp(tree: RenderedTree) {
 }
 
 describe('HabitChecklist checked rows', () => {
+  it('paints each checklist icon action in its whole target', () => {
+    const tree = renderChecklist()
+    const labels = new Set(['moveChecklistItemUp', 'moveChecklistItemDown', 'duplicateChecklistItem', 'removeChecklistItem'].map((key) => i18n.t(`habits.form.${key}`)))
+    const buttons = tree.root.findAll((node) => node.type === 'Pressable' && labels.has(String(node.props.accessibilityLabel)))
+    expect(buttons.length).toBeGreaterThanOrEqual(6)
+    for (const button of buttons) {
+      const style = button.props.style as (state: { pressed: boolean }) => ViewStyle[]
+      const pressed = StyleSheet.flatten(style({ pressed: true }))
+      expect(button.props.hitSlop).toBeUndefined()
+      expect(pressed).toMatchObject({ width: 44, height: 44 })
+      if (!button.props.disabled) expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+    }
+  })
+
   it('dims a checked label without striking it', () => {
     let tree: RenderedTree | undefined
     TestRenderer.act(() => {

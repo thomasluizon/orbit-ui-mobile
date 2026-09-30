@@ -61,13 +61,14 @@ function DatePickerMonthNav({
     <View style={styles.monthNav}>
       <Pressable
         onPress={onPrevMonth}
-        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+
         accessibilityRole="button"
         accessibilityLabel={t('common.previousMonth')}
         disabled={pickerMode === 'years'}
         style={({ pressed }) => [
+          styles.navControl,
           pickerMode === 'years' ? styles.navHidden : null,
-          pressed ? { opacity: 0.2 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg3} />
@@ -79,10 +80,10 @@ function DatePickerMonthNav({
         ) : null}
         <Pressable
           onPress={onToggleMode}
-          hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+
           accessibilityRole="button"
           accessibilityLabel={t('common.selectYear')}
-          style={({ pressed }) => (pressed ? { opacity: 0.2 } : undefined)}
+          style={({ pressed }) => [styles.yearControl, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
           <Text
             style={[
@@ -97,13 +98,14 @@ function DatePickerMonthNav({
 
       <Pressable
         onPress={onNextMonth}
-        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+
         accessibilityRole="button"
         accessibilityLabel={t('common.nextMonth')}
         disabled={pickerMode === 'years'}
         style={({ pressed }) => [
+          styles.navControl,
           pickerMode === 'years' ? styles.navHidden : null,
-          pressed ? { opacity: 0.2 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg3} />
@@ -369,6 +371,8 @@ const DAY_TARGET_SIZE = 44
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
+    navControl: { width: 44, height: 44, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    yearControl: { minWidth: 44, minHeight: 44, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
     trigger: {
       flexDirection: 'row',
       alignItems: 'center',

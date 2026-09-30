@@ -184,7 +184,7 @@ export function DateField({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="relative text-xs font-medium rounded-md px-1 py-1 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-2"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium rounded-lg px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color]"
               style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}

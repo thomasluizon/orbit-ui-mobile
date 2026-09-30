@@ -124,10 +124,11 @@ export function ReminderSection({
                 <Pressable
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   style={({ pressed }) => [
+                    { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
                     reminderTimes.length + scheduledReminderCount <= 1 && { opacity: 0.45 },
                     pressed && { transform: [{ scale: 0.96 }] },
                   ]}
-                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
@@ -149,7 +150,7 @@ export function ReminderSection({
               sectionStyles.addButton,
               pressed && { transform: [{ scale: 0.96 }] },
             ]}
-            hitSlop={{ top: 4, bottom: 4 }}
+
             accessibilityRole="button"
             onPress={() => {
               setShowAddReminder(!showAddReminder);
@@ -201,7 +202,7 @@ export function ReminderSection({
                           customUnit === unit && sectionStyles.unitButtonActive,
                           pressed && { transform: [{ scale: 0.96 }] },
                         ]}
-                        hitSlop={{ top: 6, bottom: 6 }}
+
                         accessibilityRole="button"
                         onPress={() => setCustomUnit(unit)}
                       >
@@ -229,7 +230,7 @@ export function ReminderSection({
                         ]}
                         accessibilityRole="button"
                         accessibilityState={{ selected: customDirection === direction }}
-                        hitSlop={{ top: 6, bottom: 6 }}
+
                         onPress={() => setCustomDirection(direction)}
                       >
                         <Text style={[
@@ -244,9 +245,10 @@ export function ReminderSection({
                   <Pressable
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
+                      { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
                       pressed && { transform: [{ scale: 0.96 }] },
                     ]}
-                    hitSlop={4}
+
                     accessibilityRole="button"
                     accessibilityLabel={t("common.add")}
                     onPress={addCustomReminder}

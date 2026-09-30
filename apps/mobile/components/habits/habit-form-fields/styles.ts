@@ -65,6 +65,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     addButton: {
+      minHeight: 44,
+      minWidth: 44,
       flexDirection: "row",
       alignItems: "center",
       alignSelf: "flex-start",
@@ -132,6 +134,8 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 4,
     },
     unitButton: {
+      minHeight: 44,
+      minWidth: 44,
       paddingHorizontal: 8,
       paddingVertical: 8,
       borderRadius: radius.full,
@@ -152,8 +156,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     customAddButton: {
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       borderRadius: radius.full,
       backgroundColor: tokens.primary,
       alignItems: "center",

@@ -143,7 +143,6 @@ export function Sheet({
         <Pressable
           accessibilityLabel={t('common.close')}
           accessibilityRole="button"
-          hitSlop={8}
           onPress={() => requestClose()}
           style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
         >
@@ -253,7 +252,7 @@ function createStyles(tokens: Tokens) {
       width: 44,
     },
     pressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     body: {

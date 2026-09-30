@@ -12,7 +12,7 @@ interface StreakBadgeProps {
 }
 
 /**
- * Kit streak entry point: 40px circled button (1.5px hairline-strong ring, translucent well)
+ * Kit streak entry point: 44px circled button (1.5px hairline-strong ring, translucent well)
  * with the 🔥 flame emoji and a tabular count. Tapping opens the streak section in Progresso;
  * the press stops propagation so the Today header's go-to-today Pressable does not fire.
  */
@@ -35,13 +35,12 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
-      hitSlop={2}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.badge,
         {
           borderColor: tokens.hairlineStrong,
-          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+          backgroundColor: pressed ? tokens.bgHover : tokens.bgElev,
         },
         pressed ? styles.pressed : null,
       ]}
@@ -77,8 +76,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    minWidth: 40,
-    height: 40,
+    minWidth: 44,
+    minHeight: 44,
     paddingHorizontal: 8,
     borderRadius: 999,
     overflow: 'hidden',

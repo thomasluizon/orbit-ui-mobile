@@ -94,11 +94,11 @@ function EditableChecklistItem({
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isFirst ? { opacity: 0.7 } : null,
+            pressed && !isFirst ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveUp}
           disabled={isFirst}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
+
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
@@ -107,11 +107,11 @@ function EditableChecklistItem({
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isLast ? { opacity: 0.7 } : null,
+            pressed && !isLast ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveDown}
           disabled={isLast}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
+
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
@@ -130,7 +130,7 @@ function EditableChecklistItem({
         style={({ pressed }) => [
           styles.itemAction,
           duplicateDisabled ? { opacity: 0.35 } : null,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleDuplicate}
         disabled={duplicateDisabled}
@@ -142,7 +142,7 @@ function EditableChecklistItem({
         accessibilityLabel={t('habits.form.removeChecklistItem')}
         style={({ pressed }) => [
           styles.itemAction,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleRemove}
       >
@@ -351,10 +351,10 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.resetChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onReset}
-              hitSlop={9}
+
             >
               <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
             </Pressable>
@@ -365,10 +365,10 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.clearChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onClear}
-              hitSlop={9}
+
             >
               <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
             </Pressable>
@@ -426,8 +426,8 @@ export function HabitChecklist({
           <Pressable
             accessibilityRole="button"
             onPress={clearAll}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
-            hitSlop={14}
+            style={({ pressed }) => [styles.clearButton, pressed ? { backgroundColor: tokens.bgHover } : null]}
+
           >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
@@ -473,11 +473,21 @@ function createStyles(tokens: AppTokens) {
     fontVariant: ['tabular-nums'],
   },
   actionButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  clearButton: {
+    minHeight: 44,
+    minWidth: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   clearText: {
     fontFamily: 'Geist_500Medium',
@@ -509,14 +519,16 @@ function createStyles(tokens: AppTokens) {
     paddingVertical: 4,
   },
   moveButtons: {
-    width: 24,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
   moveButton: {
-    width: 24,
-    height: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -538,9 +550,10 @@ function createStyles(tokens: AppTokens) {
     borderBottomColor: 'transparent',
   },
   itemAction: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
