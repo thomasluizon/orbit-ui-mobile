@@ -11,7 +11,6 @@ import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
-  applySuggestionEmoji,
   applySuggestionSchedule,
   selectSuggestedSubHabitTitles,
 } from './create-habit-modal/apply-suggestion'
@@ -102,7 +101,7 @@ function resolveCreateSheetTitle(
   isSubHabitMode: boolean,
   t: (key: string) => string,
 ): string {
-  return t(isSubHabitMode ? 'habits.createSubHabit' : 'habits.createHabit')
+  return t(isSubHabitMode ? 'habits.createSubHabit' : 'habits.form.newHabit')
 }
 
 // react-doctor-disable-next-line no-giant-component -- form-modal shell already decomposed into create-habit-modal/* and HabitFormFields subcomponents; the remaining body is cohesive submit/suggest/reset orchestration, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -127,7 +126,6 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
-  const emojiSuggestion = useHabitSuggestion()
   const { config } = useConfig()
   const hasProAccess = useHasProAccess()
   const { showError, showSuccess, showInfo } = useAppToast()
@@ -473,42 +471,6 @@ export function CreateHabitModal({
     }
   }, [canUseSubHabits, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
-  const handleSuggestEmoji = useCallback(async () => {
-    flushBufferedInputsRef.current()
-    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
-    const title = currentTitle.trim()
-    if (title.length === 0) return
-    suggestionRequests.updateContext(suggestionSessionId, currentTitle)
-    const request = suggestionRequests.begin()
-    if (!request) return
-    const requestRevision = suggestionRevision.advance()
-
-    try {
-      const response = await emojiSuggestion.mutateAsync({ title, language: i18n.language })
-      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
-        request,
-        coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
-      const patch = buildHabitFormPatchFromSuggestion(response)
-      if (applySuggestionEmoji(patch, formHelpers.form)) {
-        showSuccess(t('habits.form.aiSuggestApplied'))
-      } else {
-        showInfo(t('habits.form.aiSuggestEmpty'))
-      }
-    } catch (error: unknown) {
-      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
-        request,
-        coalesceFormText(formHelpers.form.getValues('title')),
-      )) return
-      showError(
-        extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
-          : t('habits.form.aiSuggestError'),
-      )
-    } finally {
-      suggestionRequests.finish()
-    }
-  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
@@ -544,21 +506,25 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
         actions={(
-          <DialogActionPair>
-            <PillButton
-              variant="ghost"
-              disabled={isPending}
-              onClick={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              disabled={submitDisabled}
-              onClick={() => void handleSubmit()}
-            >
-              {t('common.create')}
-            </PillButton>
-          </DialogActionPair>
+          <View style={{ gap: 16 }}>
+            {watchedTitle.trim().length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('habits.form.createWhy')}</Text> : null}
+            <DialogActionPair>
+              <PillButton
+                variant="ghost"
+                disabled={isPending}
+                onClick={dismissGuard.requestDismiss}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
+                disabled={submitDisabled}
+                hint={watchedTitle.trim().length === 0 ? t('habits.form.createWhy') : undefined}
+                onClick={() => void handleSubmit()}
+              >
+                {isSubHabitMode ? t('common.create') : t('habits.createHabit')}
+              </PillButton>
+            </DialogActionPair>
+          </View>
         )}
       >
         <View style={styles.scrollContent}>
@@ -578,9 +544,7 @@ export function CreateHabitModal({
             onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
-            onSuggestEmoji={() => void handleSuggestEmoji()}
-            isSuggesting={suggestion.isPending || emojiSuggestion.isPending}
-            isSuggestingEmoji={emojiSuggestion.isPending}
+            isSuggesting={suggestion.isPending}
             readPhraseLocally
             lockedGeneral={lockedGeneral}
             onUpgrade={navigateToUpgrade}

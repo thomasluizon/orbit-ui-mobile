@@ -28,6 +28,7 @@ export type SheetTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<SheetProps['headerAccessory'], React.ReactNode>>,
   Assert<IsExactWidth<SheetProps['actions'], React.ReactNode>>,
   Assert<IsExactWidth<SheetProps['onClose'], (() => void) | undefined>>,
+  Assert<IsExactWidth<SheetProps['onAttemptDismiss'], (() => void) | undefined>>,
   Assert<IsExactWidth<SheetProps['children'], React.ReactNode>>,
 ]
 
