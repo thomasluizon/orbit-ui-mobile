@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { Linking, Modal, ScrollView, Text, View } from 'react-native'
-import appConfig from '@/app.json'
+import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { PillButton } from '@/components/ui/pill-button'
@@ -33,7 +33,7 @@ export function UpgradeRequiredScreen() {
   const openStore = async () => {
     setBusy(true)
     setFailed(false)
-    const packageName = appConfig.expo.android.package
+    const packageName = Constants.expoConfig?.android?.package ?? 'org.useorbit.app'
     const webUrl = `https://play.google.com/store/apps/details?id=${packageName}`
     try {
       try { await Linking.openURL(`market://details?id=${packageName}`) }
