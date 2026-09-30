@@ -5,7 +5,7 @@ import {
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -157,6 +157,7 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
 }
 
 type MobileComposerProps = ComposerProps & {
+  autoFocus?: boolean
   onInputFocus?: () => void
   onInputBlur?: () => void
 }
@@ -213,6 +214,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           onFocus={() => {
             setFocused(true)
             props.onInputFocus?.()
+            props.onOpenConversation?.()
           }}
           onBlur={() => {
             setFocused(false)
@@ -331,6 +333,12 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
   const focusTarget = useRef<TextInput>(null)
+  const composerRef = useRef<View>(null)
+  useEffect(() => {
+    if (!props.autoFocus) return
+    if (inputDisabled) composerRef.current?.focus()
+    else focusTarget.current?.focus()
+  }, [inputDisabled, props.autoFocus])
   const testID = [
     'composer',
     props.state,
@@ -340,6 +348,8 @@ export function Composer(props: Readonly<MobileComposerProps>) {
 
   return (
     <View
+      ref={composerRef}
+      focusable={props.autoFocus}
       testID={testID}
       accessibilityState={{ disabled: inputDisabled, busy: props.state === 'sending' }}
       style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
