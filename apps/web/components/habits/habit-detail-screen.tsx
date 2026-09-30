@@ -145,6 +145,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
 }>) {
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useAccountScopedState(false)
+  const [descriptionOpen, setDescriptionOpen] = useAccountScopedState(false)
   const [title, setTitle] = useAccountScopedState(habit.title)
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -161,20 +162,23 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
     if (await onRename(next)) setEditing(false)
   }
   return (
-    <header className="flex items-start gap-4 px-4 pb-6 pt-2 sm:px-0">
-      <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
-      <div className="min-w-0 flex-1 pt-1">
-        {editing ? (
-          <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-[22px] font-semibold sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
-        ) : (
-          <h1 ref={headingRef} tabIndex={-1} className="max-w-full truncate font-[var(--font-display)] text-[22px] font-semibold sm:text-[28px] text-[var(--fg-1)]">
-            <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
-          </h1>
-        )}
-        {summary ? <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p> : null}
-        {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
+    <header className="px-4 pt-2 sm:px-0">
+      <div data-habit-detail-header-row="" className="flex items-start gap-4">
+        <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
+        <div className="min-w-0 flex-1 pt-1">
+          {editing ? (
+            <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-[var(--font-display)] text-[22px] font-semibold sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
+          ) : (
+            <h1 ref={headingRef} tabIndex={-1} className="max-w-full truncate font-[var(--font-display)] text-[22px] font-semibold sm:text-[28px] text-[var(--fg-1)]">
+              <button type="button" onClick={() => setEditing(true)} className="-my-2 block min-w-11 max-w-full truncate border-0 bg-transparent py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
+            </h1>
+          )}
+          {summary ? <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p> : null}
+        </div>
+        <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
       </div>
-      <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
+      {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div></div> : null}
+      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span className={`block ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button></div> : null}
     </header>
   )
 }
@@ -556,10 +560,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
-      <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
-      <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
-      <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
-      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2 pt-6" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /><div className="pt-2"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></section> : null}
+      <div>
+        <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
+        <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
+      </div>
+      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /><div className="pt-2"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></section> : null}
       <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} returnFocus={() => stripRef.current?.focus()} />
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} />
       <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true" className="mt-3">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div></Surface>
