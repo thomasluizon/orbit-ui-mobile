@@ -65,17 +65,17 @@ function collectComponentFiles(directory: string): string[] {
   })
 }
 
-function renderPhraseField() {
+function renderPhraseField(sentence: string | null = null) {
   return render(
     <HabitUnderstanding
-      value=""
+      value={sentence ? "Run" : ""}
       emoji="\u{1F3C3}"
       days={[]}
       dayOptions={[]}
       quantity={1}
       mode="fixed"
       intervalWeeks={1}
-      sentence={null}
+      sentence={sentence}
       consumed={[]}
       onValueChange={vi.fn()}
       onEmojiSelect={vi.fn()}
@@ -89,6 +89,32 @@ function renderPhraseField() {
 }
 
 describe('habit form focus treatments', () => {
+  it('replaces a readable sentence in place without retaining the old copy', () => {
+    const view = renderPhraseField('A')
+    const props = { value: 'Run', emoji: '', days: [], dayOptions: [], quantity: 1, mode: 'fixed' as const, intervalWeeks: 1, consumed: [], onValueChange: vi.fn(), onEmojiSelect: vi.fn(), onToggleDay: vi.fn(), onQuantityChange: vi.fn(), onModeChange: vi.fn(), onIntervalWeeksChange: vi.fn(), labels: understandingLabels }
+    view.rerender(<HabitUnderstanding {...props} sentence="B" />)
+    expect(screen.queryByText('A')).toBeNull()
+    expect(screen.getByText('B')).toBeInTheDocument()
+  })
+
+  it('keeps the emoji well as the only emoji control', () => {
+    renderPhraseField('Every day')
+    expect(screen.queryByTestId('habit-suggest-emoji')).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
+  })
+
+  it('gives the phrase and sub-habit inputs one replacement focus ring', () => {
+    const view = renderPhraseField()
+    const phrase = screen.getByRole('textbox', { name: understandingLabels.field })
+    expect(phrase).toHaveClass('focus-visible:outline-none')
+    expect(phrase.parentElement).toHaveClass('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
+    view.unmount()
+    render(<SubHabitEditor subHabits={[{ id: 'sub-1', value: 'Warm up' }]} onUpdateSubHabit={vi.fn()} onRemoveSubHabit={vi.fn()} onAddSubHabit={vi.fn()} />)
+    const input = screen.getByRole('textbox')
+    expect(input).toHaveClass('focus-visible:outline-none')
+    expect(input.parentElement).toHaveClass('has-[input:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
+  })
+
   it('restores a system outline that outranks utilities in forced colors', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
       .replaceAll('\r\n', '\n')
