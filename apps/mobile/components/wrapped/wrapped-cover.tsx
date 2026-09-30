@@ -14,7 +14,6 @@ type WrappedCoverState = 'ready' | 'loading' | 'failed' | 'empty'
 
 interface WrappedCoverProps {
   tokens: Tokens
-  topInset: number
   period: RecapSharePeriod
   onSelectPeriod: (period: RecapSharePeriod) => void
   state: WrappedCoverState
@@ -24,7 +23,6 @@ interface WrappedCoverProps {
 
 export function WrappedCover({
   tokens,
-  topInset,
   period,
   onSelectPeriod,
   state,
@@ -36,7 +34,7 @@ export function WrappedCover({
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.cover, { paddingTop: topInset + 32 }, clearance > 0 ? { paddingBottom: clearance } : undefined]}
+      contentContainerStyle={[styles.cover, clearance > 0 ? { paddingBottom: clearance } : undefined]}
       style={styles.coverScroller}
       testID={`wrapped-cover-${state}`}
     >
