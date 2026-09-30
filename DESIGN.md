@@ -1068,6 +1068,11 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
 | a link | **380ms** | colour, plus an underline scaling from the leading edge |
 
+Neutral control hover and press fills use `--bg-hover` (`bgHover` on Android), clipped to the tap
+target at its own radius. Primary-filled actions use `--primary-hover` on hover and
+`--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
+feedback, including when reduced motion suppresses the scale.
+
 - **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.26:1** , which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
 - **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.
 - **A container suppresses its own hover while the pointer is on an interactive descendant.** Otherwise a button inside a card lights both, and the pointer appears to be in two places at once. On web, `:hover:not(:has(button:hover, a:hover, [role="button"]:hover))`.

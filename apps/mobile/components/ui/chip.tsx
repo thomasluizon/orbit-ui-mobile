@@ -33,7 +33,7 @@ export function Chip({
       accessibilityState={{ selected: active }}
       hitSlop={{ top: 6, bottom: 6 }}
       style={({ pressed }) => {
-        const pressedBackground = pressed ? tokens.bgElev2 : tokens.bgElev
+        const pressedBackground = pressed ? tokens.bgHover : tokens.bgElev
         return [
           styles.chip,
           {

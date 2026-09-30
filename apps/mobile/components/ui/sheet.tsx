@@ -254,7 +254,7 @@ function createStyles(tokens: Tokens) {
       width: 44,
     },
     pressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     body: {

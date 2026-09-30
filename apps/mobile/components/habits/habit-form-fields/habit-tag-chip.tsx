@@ -61,7 +61,7 @@ export function HabitTagChip({
       <Pressable
         style={({ pressed }) => [
           styles.tagChipMain,
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
         hitSlop={{ top: 4, bottom: 4 }}
         disabled={!selected && atLimit}
@@ -83,7 +83,7 @@ export function HabitTagChip({
         style={({ pressed }) => [
           styles.tagAction,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
         disabled={disabled}
         accessibilityRole="button"
@@ -101,7 +101,7 @@ export function HabitTagChip({
         style={({ pressed }) => [
           styles.tagAction,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
         disabled={disabled}
         accessibilityRole="button"

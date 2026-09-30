@@ -1,3 +1,5 @@
+import { createTokensV2 } from '@/lib/theme'
+import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -574,6 +576,44 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it.each([false, true])('expands and collapses child rows without changing selection (select mode: %s)', (selectMode) => {
+    const parent = createMockHabit({ scheduledDates: [TODAY], id: 'parent', title: 'Parent', hasSubHabits: true })
+    const child = createMockHabit({ scheduledDates: [TODAY], id: 'child', title: 'Child', parentId: parent.id })
+    const secondParent = createMockHabit({ scheduledDates: [TODAY], id: 'second-parent', title: 'Second parent', hasSubHabits: true })
+    const secondChild = createMockHabit({ scheduledDates: [TODAY], id: 'second-child', title: 'Second child', parentId: secondParent.id })
+    seedHabits([parent, child, secondParent, secondChild])
+    const selected = new Set([parent.id])
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted
+        isSelectMode={selectMode} selectedHabitIds={selected} onCreatePress={vi.fn()} />)
+    })
+    const parentRow = () => tree.root.findAllByType(HabitRow).find(
+      (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === parent.id,
+    )!
+    const disclosure = () => parentRow().findAll(
+      (node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' &&
+        (node.props.accessibilityLabel === 'common.collapse' || node.props.accessibilityLabel === 'common.expand'),
+    )[0]
+    const visibleIds = () => tree.root.findAllByType(HabitRow).map(
+      (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id,
+    )
+    expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
+    expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
+    TestRenderer.act(() => disclosure().props.onPress())
+    expect(disclosure().props.accessibilityLabel).toBe('common.expand')
+    expect(disclosure().props.accessibilityState).toEqual({ expanded: false })
+    expect(visibleIds()).toEqual([parent.id, secondParent.id, secondChild.id])
+    TestRenderer.act(() => disclosure().props.onPress())
+    expect(disclosure().props.accessibilityLabel).toBe('common.collapse')
+    expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
+    expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
+    expect(toggleSelectionCascade).not.toHaveBeenCalled()
+    expect(selected).toEqual(new Set([parent.id]))
+    expect(parentRow().props.isSelected).toBe(true)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('removes only confirmed bulk replay habits from the current selection', () => {
@@ -1888,6 +1928,9 @@ describe('HabitList', () => {
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
     expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
     expect(tree.root.findByType('FlatList').props.renderItem({ item: child, index: 0 }).props.structuralColumn).toBe(true)
+    let headerTree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType('FlatList').props.ListHeaderComponent) })
+    expectPressFill(headerTree, 'common.back', createTokensV2().bgHover, 999)
   })
 
   it('explains filtered empty drills and offers Show completed when it can reveal children', () => {

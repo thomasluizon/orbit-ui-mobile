@@ -1,3 +1,5 @@
+import { expectPressFill } from '../../support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
 import { StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -534,4 +536,12 @@ describe('Sheet close path (mobile)', () => {
     expect(dismiss).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
   })
+})
+
+it('fills the real sheet header close target with the neutral interaction token', async () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => { tree = TestRenderer.create(<Sheet open title="Options" onClose={vi.fn()} />); await Promise.resolve() })
+  let headerTree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { headerTree = TestRenderer.create(tree!.root.findByType(TrueSheet).props.header) })
+  expectPressFill(headerTree, 'common.close', createTokensV2().bgHover, 999)
 })
