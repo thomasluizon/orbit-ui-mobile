@@ -14,7 +14,7 @@ import { apiFetch } from '@/lib/api-fetch'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 function CaptureBannerMount({ onMount }: Readonly<{ onMount: (text: string) => void }>) {
-  useLayoutEffect(() => { onMount(document.querySelector('[data-update-live-region]')?.textContent ?? '') }, [onMount])
+  useLayoutEffect(() => { onMount(screen.getByRole('status').textContent) }, [onMount])
   return <UpdateAvailableBanner />
 }
 
