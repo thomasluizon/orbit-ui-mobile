@@ -177,14 +177,14 @@ export const cases = async () => {
     JSON.stringify(invocation),
   )
   T(
-    `${NAME}: the shipped default implementer is gpt-6-sol at high reasoning effort`,
-    invocation.model === "gpt-6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
+    `${NAME}: the shipped default implementer is gpt-6.1-sol at high reasoning effort`,
+    invocation.model === "gpt-6.1-sol" && invocation.args.includes('model_reasoning_effort="high"'),
     `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
   )
   const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
   T(
     `${NAME}: the shipped mechanical implementer keeps the model and lowers reasoning effort`,
-    mechanicalInvocation.model === invocation.model && mechanicalInvocation.args.includes('model_reasoning_effort="medium"'),
+    mechanicalInvocation.model === "gpt-6.1-sol" && mechanicalInvocation.model === invocation.model && mechanicalInvocation.args.includes('model_reasoning_effort="medium"'),
     JSON.stringify(mechanicalInvocation),
   )
 
@@ -237,10 +237,10 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude fallback engine runs claude, opus 5 by default and sonnet 5 mechanically`,
+    `${NAME}: the claude fallback engine runs claude with opus 5.5 on both tiers`,
     fallback.command === "claude" &&
-      fallback.models?.default?.model === "claude-opus-5" &&
-      fallback.models?.mechanical?.model === "claude-sonnet-5",
+      fallback.models?.default?.model === "claude-opus-5-5" &&
+      fallback.models?.mechanical?.model === "claude-opus-5-5",
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 

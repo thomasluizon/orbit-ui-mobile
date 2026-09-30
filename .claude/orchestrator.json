@@ -12,14 +12,14 @@
       ],
       "models": {
         "default": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "args": [
             "-c",
             "model_reasoning_effort=\"high\""
           ]
         },
         "mechanical": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "args": [
             "-c",
             "model_reasoning_effort=\"medium\""
@@ -40,10 +40,10 @@
       ],
       "models": {
         "default": {
-          "model": "claude-opus-5"
+          "model": "claude-opus-5-5"
         },
         "mechanical": {
-          "model": "claude-sonnet-5"
+          "model": "claude-opus-5-5"
         }
       }
     }
