@@ -122,8 +122,15 @@ for (const width of [412, 1280] as const) {
       for (const label of [ptBr.chat.attachFile, ptBr.chat.attachImage, ptBr.shell.composer.voice.start]) {
         await expectHoverOnHitArea(composer.getByRole('button', { name: label }), 'pill')
       }
-      await composer.locator('[data-composer-input]').fill('Como começo?')
-      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
+      await composer.locator('[data-composer-input]').focus()
+      const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+      await expect(conversation).toBeVisible()
+      await expect(composer).toBeHidden()
+      await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+      const conversationField = conversation.locator('[data-composer-input]')
+      await expect(conversationField).toBeFocused()
+      await conversationField.fill('Como começo?')
+      await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
 
       await page.goto('/about')
       await page.evaluate((markup) => {

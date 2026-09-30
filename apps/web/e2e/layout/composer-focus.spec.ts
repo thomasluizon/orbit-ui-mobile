@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import messages from '@orbit/shared/i18n/en.json'
 import { expectOneFieldIndicator } from './focus-indicators'
 
 async function expectOneControlRing(control: Locator, forcedColors: boolean): Promise<void> {
@@ -55,19 +54,15 @@ for (const width of [412, 1280] as const) {
       await page.goto('/')
 
       const pinnedComposer = page.locator('[data-shell-pinned-slot]')
-      await expectComposerKeyboardRings(page, pinnedComposer, false)
+      await pinnedComposer.locator('[data-composer-input]').focus()
+      const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+      await expect(conversation).toBeVisible()
+      await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+      await expect(conversation.locator('[data-composer-input]')).toBeFocused()
+      await expectComposerKeyboardRings(page, conversation, false)
       await page.emulateMedia({ forcedColors: 'active' })
-      await expectComposerKeyboardRings(page, pinnedComposer, true)
+      await expectComposerKeyboardRings(page, conversation, true)
       await page.emulateMedia({ forcedColors: 'none' })
-
-      if (width === 1280) {
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
-        const panel = page.locator('[data-shell-conversation="panel"]')
-        await expect(panel).toBeVisible()
-        await expectComposerKeyboardRings(page, panel, false)
-        await page.emulateMedia({ forcedColors: 'active' })
-        await expectComposerKeyboardRings(page, panel, true)
-      }
     })
   })
 }
