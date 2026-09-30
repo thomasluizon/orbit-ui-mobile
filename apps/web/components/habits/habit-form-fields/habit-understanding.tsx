@@ -77,29 +77,31 @@ export function HabitUnderstanding({
         ) : null}
       </div>
 
-      {sentence !== null ? (
-        <Proposed proposed={proposed} scope="block" label={labels.proposed}>
-          <section
-            aria-label={labels.understood}
-            className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
-            style={{ gap: 16 }}
-          >
-            <div className="flex items-center" style={{ gap: 12 }}>
-              <HabitEmojiSelector
-                selectedEmoji={emoji}
-                onSelect={onEmojiSelect}
-                isDisabled={isSuggestionDisabled}
-                wellSize={46}
-              />
-              <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
-            </div>
+      <Proposed proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
+        <section
+          aria-label={sentence !== null ? labels.understood : undefined}
+          className={sentence !== null ? "flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" : "flex flex-col"}
+          style={{ gap: 16 }}
+        >
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <HabitEmojiSelector
+              selectedEmoji={emoji}
+              onSelect={onEmojiSelect}
+              isDisabled={isSuggestionDisabled}
+              wellSize={46}
+            />
+            {sentence !== null ? <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span> : null}
+          </div>
 
-            <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
+          {sentence !== null ? (
+            <>
+              <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
 
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} />
-          </section>
-        </Proposed>
-      ) : null}
+              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} />
+            </>
+          ) : null}
+        </section>
+      </Proposed>
       {hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>

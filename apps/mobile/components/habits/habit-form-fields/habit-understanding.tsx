@@ -84,27 +84,29 @@ export function HabitUnderstanding({
         ) : null}
       </View>
 
-      {sentence !== null ? (
-        <Proposed proposed={proposed} scope="block" label={labels.proposed}>
-          <View accessibilityLabel={labels.understood} style={styles.preview}>
-            <View style={styles.previewHeader}>
-              <HabitEmojiSelector
-                selectedEmoji={emoji}
-                tokens={tokens}
-                styles={formStyles}
-                wellSize={46}
-                onSelect={onEmojiSelect}
-                isDisabled={isSuggestionDisabled}
-              />
-              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
-            </View>
-
-            <Text style={styles.sentence}>{sentence}</Text>
-
-            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} tokens={tokens} styles={styles} />
+      <Proposed proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
+        <View accessibilityLabel={sentence !== null ? labels.understood : undefined} style={sentence !== null ? styles.preview : undefined}>
+          <View style={styles.previewHeader}>
+            <HabitEmojiSelector
+              selectedEmoji={emoji}
+              tokens={tokens}
+              styles={formStyles}
+              wellSize={46}
+              onSelect={onEmojiSelect}
+              isDisabled={isSuggestionDisabled}
+            />
+            {sentence !== null ? <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text> : null}
           </View>
-        </Proposed>
-      ) : null}
+
+          {sentence !== null ? (
+            <>
+              <Text style={styles.sentence}>{sentence}</Text>
+
+              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} tokens={tokens} styles={styles} />
+            </>
+          ) : null}
+        </View>
+      </Proposed>
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
           <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
@@ -205,7 +207,10 @@ function createStyles(tokens: AppTokens) {
   })
 }
 
-type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'mode' | 'intervalWeeks' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'onModeChange' | 'onIntervalWeeksChange' | 'labels'> & { tokens: AppTokens; styles: ReturnType<typeof createStyles> }
+interface ScheduleCorrectionProps extends Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'mode' | 'intervalWeeks' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'onModeChange' | 'onIntervalWeeksChange' | 'labels'> {
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+}
 
 function ScheduleCorrections({ days, daily = false, dayOptions, quantity, mode, intervalWeeks, scheduleLocked = false, onToggleDay, onQuantityChange, onModeChange, onIntervalWeeksChange, labels, tokens, styles }: Readonly<ScheduleCorrectionProps>) {
   return (

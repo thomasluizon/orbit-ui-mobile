@@ -1,10 +1,9 @@
-import { radius } from '@/lib/theme'
 import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "orange", currentTheme: "light" }),
@@ -12,7 +11,7 @@ vi.mock("@/lib/use-app-theme", () => ({
 
 vi.mock("@/components/ui/proposed", () => ({
   Proposed: (props: Record<string, unknown>) =>
-    React.createElement("Proposed", props, props.children as React.ReactNode),
+    props.proposed ? React.createElement("Proposed", props, props.children as React.ReactNode) : props.children,
 }));
 
 vi.mock("@/components/habits/habit-form-fields/habit-emoji-selector", () => ({
@@ -226,7 +225,11 @@ describe("HabitUnderstanding mobile", () => {
 
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
     expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
-    expect(tree.root.findAll((node) => node.type === "HabitEmojiSelector")).toHaveLength(0);
+    const emojiSelectors = tree.root.findAll((node) => node.type === "HabitEmojiSelector");
+    expect(emojiSelectors).toHaveLength(1);
+    expect(emojiSelectors[0]!.props.selectedEmoji).toBe("🏃");
+    TestRenderer.act(() => (emojiSelectors[0]!.props.onSelect as (emoji: string) => void)(""));
+    expect(props.onEmojiSelect).toHaveBeenCalledWith("");
     expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === labels.unresolved)).toHaveLength(1);
     expect(button(tree, "Segunda-feira").props.accessibilityState).toEqual({ selected: true });
   });

@@ -46,6 +46,13 @@ vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
+vi.mock('@/components/ui/sheet', async () => {
+  const sheetDouble = await import('@/__tests__/support/sheet-double')
+  return {
+    ...sheetDouble,
+    Sheet: (props: React.ComponentProps<typeof sheetDouble.Sheet>) => React.createElement(sheetDouble.Sheet, props, props.headerAccessory, props.children),
+  }
+})
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: (props: Record<string, unknown>) => React.createElement('View', { ...props, testID: 'checklist' }) }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
@@ -90,6 +97,42 @@ describe('HabitFormFields mobile', () => {
     mockProfileState.aiMessagesUsed = 0
     mockProfileState.hasProAccess = false
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  })
+
+  it.each([false, true])('selects and clears an emoji without a sentence, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally lockedGeneral={lockedGeneral} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    await TestRenderer.act(() => buttons('habits.form.emoji: 🏃')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true })
+    await TestRenderer.act(() => tree!.update(renderNode()))
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    expect(buttons('habits.form.emojiRemove')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiRemove')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it('keeps an inferred emoji editable after removing cadence and time', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run', emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00' })
+    const values = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
+    expect(tree!.root.findByType(HabitUnderstanding).props.sentence).not.toBeNull()
+    values.frequencyUnit = null
+    values.dueTime = ''
+    await TestRenderer.act(() => tree!.update(renderNode()))
+    expect(tree!.root.findByType(HabitUnderstanding).props.sentence).toBeNull()
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+    expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
+    await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
+    expect(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === '🏃').length).toBeGreaterThan(0)
+    await TestRenderer.act(() => buttons('habits.form.emojiRemove')[0]!.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
   it('uses the understanding-first composition and wires both correction modes', async () => {

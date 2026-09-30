@@ -56,9 +56,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
 
-vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({
-  HabitEmojiSelector: ({ onSelect }: { onSelect: (emoji: string) => void }) => <button type="button" onClick={() => onSelect('🏃')}>emoji</button>,
-}))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ onItemsChange, proposedItemCount }: { onItemsChange?: (items: Array<{ text: string; isChecked: boolean }>) => void; proposedItemCount?: number }) => (
     <button data-proposed-item-count={proposedItemCount} type="button" onClick={() => onItemsChange?.([{ text: 'Edited', isChecked: false }])}>checklist-editor</button>
@@ -145,6 +142,36 @@ describe('HabitFormFields', () => {
     const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
     expect(unresolved.compareDocumentPosition(corrections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it.each([false, true])('allows emoji selection and clearing with no sentence, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    const view = renderForm(formHelpers, undefined, false, true, lockedGeneral)
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+    await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true }))
+    view.rerenderForm()
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+  })
+
+  it('keeps an inferred emoji available after cadence and time are removed', async () => {
+    const formHelpers = createFormHelpers({ title: 'Run', emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00' })
+    const view = renderForm(formHelpers)
+    expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
+    formHelpers.testValues.frequencyUnit = null
+    formHelpers.testValues.dueTime = ''
+    view.rerenderForm()
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
   it('uses a bare compact details row', () => {
@@ -434,7 +461,11 @@ describe('HabitFormFields', () => {
   it.each([
     ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
     ['schedule mode', () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))],
-    ['emoji', () => fireEvent.click(screen.getByRole('button', { name: 'emoji' }))],
+    ['emoji', async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+      fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    }],
   ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
     const helpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
     renderForm(helpers, async () => {
@@ -445,7 +476,7 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(screen.getByText('habits.form.understoodAstra')).toBeDefined())
 
-    correct()
+    await correct()
 
     expect(screen.getByText('habits.form.understood')).toBeDefined()
   })
