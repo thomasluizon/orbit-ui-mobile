@@ -1,19 +1,18 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
 } from "@/components/ui/icons";
 import {
-  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
+import { createTokensV2 } from "@/lib/theme";
 import { YearPicker } from "@/components/ui/year-picker";
-import { useUIStore } from "@/stores/ui-store";
+import { Sheet, useSheetHost } from "@/components/ui/sheet";
 
 interface CalendarHeaderProps {
   monthLabel: string;
@@ -126,23 +125,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
-    yearBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-    },
-    yearDialog: {
-      width: '100%',
-      maxWidth: 320,
-      backgroundColor: tokens.bgSheet,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      padding: 8,
-      ...shadowsV2.shadow2,
-    },
     legend: {
       flexDirection: "row",
       alignItems: "center",
@@ -204,19 +186,13 @@ export function CalendarHeader({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   const [isYearOpen, setIsYearOpen] = useState(false);
-  const yearOverlayId = useId();
-  const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay);
-  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay);
-
-  useEffect(() => {
-    if (!isYearOpen) return;
-    registerOpenOverlay(yearOverlayId);
-    return () => unregisterOpenOverlay(yearOverlayId);
-  }, [isYearOpen, registerOpenOverlay, unregisterOpenOverlay, yearOverlayId]);
+  const { sheetRef, closeSheet } = useSheetHost();
 
   const handleSelectYear = (nextYear: number) => {
-    onSelectYear(nextYear);
-    setIsYearOpen(false);
+    closeSheet(() => {
+      setIsYearOpen(false);
+      onSelectYear(nextYear);
+    });
   };
 
   return (
@@ -276,22 +252,21 @@ export function CalendarHeader({
       </View>}
       {viewSelector}
 
-      <Modal
-        visible={isYearOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsYearOpen(false)}
-      >
-        <Pressable style={styles.yearBackdrop} onPress={() => setIsYearOpen(false)}>
-          <View style={styles.yearDialog} onStartShouldSetResponder={() => true}>
-            <YearPicker
-              selectedYear={year}
-              onSelectYear={handleSelectYear}
-              tokens={tokens}
-            />
-          </View>
-        </Pressable>
-      </Modal>
+      {isYearOpen ? (
+        <Sheet
+          ref={sheetRef}
+          open
+          title={selectYearLabel}
+          onClose={() => setIsYearOpen(false)}
+          virtualizedBody
+        >
+          <YearPicker
+            selectedYear={year}
+            onSelectYear={handleSelectYear}
+            tokens={tokens}
+          />
+        </Sheet>
+      ) : null}
     </View>
   );
 }
