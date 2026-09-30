@@ -88,6 +88,22 @@ describe('UpdateAvailableBanner', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
+  it('shows guidance again when a fresh 426 arrives after Later', async () => {
+    useVersionGateStore.getState().markUpgradeRequired(null)
+    render(<UpdateAvailableBanner />)
+    await act(async () => {})
+    const region = screen.getByRole('status')
+    fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
+    expect(region).toBeEmptyDOMElement()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 426 })))
+    await act(async () => {
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 426 })
+    })
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('forceUpdate.banner')
+    expect(screen.getByRole('button', { name: 'forceUpdate.refresh' })).toBeEnabled()
+  })
+
   it('protects the brand line and leaves reload guidance translatable', async () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     const { container } = render(<UpdateAvailableBanner />)
