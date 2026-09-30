@@ -56,8 +56,6 @@ import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   titleInputRef?: RefObject<HTMLInputElement | null>
-  onSuggestEmoji?: () => void
-  isSuggestingEmoji?: boolean
 }
 
 function renderSubHabitChildren(
@@ -71,7 +69,6 @@ interface AstraFallbackProps {
   visible: boolean
   atLimit: boolean
   isSuggesting: boolean
-  unresolved: string
   limitMessage: string
   readingLabel: string
   askLabel: string
@@ -83,7 +80,6 @@ function AstraFallback({
   visible,
   atLimit,
   isSuggesting,
-  unresolved,
   limitMessage,
   readingLabel,
   askLabel,
@@ -93,13 +89,7 @@ function AstraFallback({
   if (!visible) return null
   return (
     <div className="flex flex-col" style={{ gap: 12 }}>
-      {atLimit ? (
-        <CapacityNotice message={limitMessage} />
-      ) : (
-        <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">
-          {unresolved}
-        </p>
-      )}
+      {atLimit ? <CapacityNotice message={limitMessage} /> : null}
       {isSuggesting ? (
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
@@ -230,9 +220,7 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
-  onSuggestEmoji,
   isSuggesting = false,
-  isSuggestingEmoji = false,
   readPhraseLocally = false,
   lockedGeneral = null,
   startDate,
@@ -400,9 +388,7 @@ export function HabitFormFields({
           controller.setTitle(value)
         }}
         onEmojiSelect={controller.setEmoji}
-        onSuggestEmoji={onSuggestEmoji}
-        isSuggestingEmoji={isSuggestingEmoji}
-        isSuggestionDisabled={isSuggesting || isSuggestingEmoji}
+        isSuggestionDisabled={isSuggesting}
         onToggleDay={(day) => controller.toggleDay(day, daily)}
         onQuantityChange={controller.setQuantity}
         onModeChange={controller.setScheduleMode}
@@ -422,8 +408,8 @@ export function HabitFormFields({
         <ListRow
           icon={detailsOpen ? 'chevron-down' : 'chevron-right'}
           title={t('habits.form.moreDetails')}
+          inset={false}
           chevron={false}
-          inForm
           onClick={() => {
             if (detailsOpen) {
               setDetailsOpen(false)
@@ -557,7 +543,7 @@ export function HabitFormFields({
       {displayedStartDate ? (
         <section className="flex flex-col" style={{ gap: 4 }}>
           <span className="text-xs text-[var(--fg-3)]">{t('habits.form.startDate')}</span>
-          <span className="text-[17px] text-[var(--fg-1)]">{formatLocaleDate(displayedStartDate, locale)}</span>
+          <span className="text-[17px] text-[var(--fg-1)]">{t('habits.form.startDateValue', { date: formatLocaleDate(displayedStartDate, locale) })}</span>
           <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.startDateReason')}</span>
         </section>
       ) : null}

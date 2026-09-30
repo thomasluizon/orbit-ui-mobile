@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { ListRow } from '@/components/ui/list-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
@@ -41,9 +43,12 @@ describe('list primitives on web', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('keeps required padding when a caller passes the legacy inset option', () => {
-    render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ padding: '16px', paddingInlineEnd: '16px' })
+  it('renders a bare compact row while preserving default card padding', () => {
+    const view = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInlineStart: '0px' })
+    expect(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')).toContain('--row-h-compact: 52px;')
+    view.rerender(<ListRow title="Tags" onClick={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: '76px', padding: '16px' })
   })
 
   it('owns the entire padded perimeter in adjacent body and action targets', () => {

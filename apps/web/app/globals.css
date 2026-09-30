@@ -478,6 +478,7 @@
 }
 
 :root {
+  --row-h-compact: 52px;
   background-color: var(--bg);
   color: var(--fg-1);
 
