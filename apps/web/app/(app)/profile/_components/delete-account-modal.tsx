@@ -6,6 +6,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { useOffline } from '@/hooks/use-offline'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
@@ -13,6 +14,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { TriangleAlert } from '@/components/ui/icons'
+import { ErrorState } from '@/components/ui/error-state'
 
 interface DeleteAccountModalProps {
   open: boolean
@@ -27,6 +29,7 @@ export function DeleteAccountModal({
 }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const router = useRouter()
+  const { isOnline } = useOffline()
   const { sheetRef, closeSheet } = useSheetHost()
   const accountId = useHeldAccountId()
   const [loading, setLoading] = useAccountScopedState(false)
@@ -53,7 +56,7 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
-    if (accountId === null) return
+    if (!isOnline || accountId === null) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     setLoading(true)
@@ -94,66 +97,72 @@ export function DeleteAccountModal({
       open
       onClose={() => handleOpenChange(false)}
       title={t('profile.deleteAccount.headingAreYouSure')}
-      actions={(
-        <>
-          {error ? (
-            <p
-              role="alert"
-              className="m-0"
-              style={{
-                width: '100%',
-                color: 'var(--status-bad-text)',
-                fontSize: 13,
-                textAlign: 'center',
-              }}
-            >
-              {error}
-            </p>
-          ) : null}
-          <DialogActionPair>
-            <PillButton
-              variant="ghost"
-              disabled={loading}
-              onClick={() => closeSheet()}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              variant="destructive"
-              disabled={loading || accountId === null}
-              loading={loading}
-              onClick={() => void handleRequestDeletion()}
-            >
-              {t('profile.deleteAccount.sendCode')}
-            </PillButton>
-          </DialogActionPair>
-        </>
-      )}
+      actions={
+        isOnline ? (
+          <>
+            {error ? (
+              <p
+                role="alert"
+                className="m-0"
+                style={{
+                  width: '100%',
+                  color: 'var(--status-bad-text)',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                {error}
+              </p>
+            ) : null}
+            <DialogActionPair>
+              <PillButton
+                variant="ghost"
+                disabled={loading}
+                onClick={() => closeSheet()}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
+                variant="destructive"
+                disabled={loading || accountId === null}
+                loading={loading}
+                onClick={() => void handleRequestDeletion()}
+              >
+                {t('profile.deleteAccount.sendCode')}
+              </PillButton>
+            </DialogActionPair>
+          </>
+        ) : undefined
+      }
     >
-      <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
-        <div
-          aria-hidden="true"
-          className="flex items-center justify-center rounded-full"
-          style={{
-            width: 80,
-            height: 80,
-            background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
-          }}
-        >
-          <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
+      {!isOnline ? (
+        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
+      ) : (
+        <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
+          <div
+            aria-hidden="true"
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: 80,
+              height: 80,
+              background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
+            }}
+          >
+            <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
+          </div>
+          <div className="flex flex-col" style={{ gap: 8 }}>
+            <p style={{ color: 'var(--status-bad-text)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
+              {t('profile.deleteAccount.warning')}
+            </p>
+            <p style={{ color: 'var(--fg-1)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
+              {warningMessage}
+            </p>
+            <p style={{ color: 'var(--fg-2)', fontSize: 16, lineHeight: 1.5 }}>
+              {t('profile.deleteAccount.warningDetail')}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col" style={{ gap: 8 }}>
-          <p style={{ color: 'var(--status-bad-text)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
-            {t('profile.deleteAccount.warning')}
-          </p>
-          <p style={{ color: 'var(--fg-1)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
-            {warningMessage}
-          </p>
-          <p style={{ color: 'var(--fg-2)', fontSize: 16, lineHeight: 1.5 }}>
-            {t('profile.deleteAccount.warningDetail')}
-          </p>
-        </div>
-      </div>
+      )}
     </Sheet>
   )
 }
