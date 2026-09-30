@@ -8,6 +8,7 @@ import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 let activeAccountIntent: string | null | undefined
 
@@ -35,6 +36,7 @@ export function reportAccountChanged(): void {
   const message = translateApiFetchMessage('errors.api.accountChanged')
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
+  useVersionGateStore.getState().requireReload('accountChanged')
   useAppToastStore.getState().showToast(reloadLabel
     ? { kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload() }
     : { kind: 'neutral', message })
@@ -73,6 +75,7 @@ export async function runServerActionResult<T>(
       const message = translateApiFetchMessage('errors.api.appUpdated')
       const reloadLabel = translateApiFetchMessage('errors.api.reload')
       if (message && reloadLabel) {
+        useVersionGateStore.getState().requireReload('appUpdated')
         useAppToastStore.getState().showToast({
           kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload(),
         })

@@ -131,18 +131,20 @@ export function WrappedPlayer({
           />
           {!isLast && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
-        {notice !== undefined ? <div data-shell-notice="" className="shrink-0 px-4">{notice}</div> : null}
-        <PlayerPager
-          count={slides.length}
-          index={index}
-          isFirst={isFirst}
-          isLast={isLast}
-          progressLabel={t('wrapped.progressLabel', { current: index + 1, total: slides.length })}
-          backLabel={t('wrapped.previous')}
-          forwardLabel={t('wrapped.next')}
-          forwardSlot={shareActions}
-          onPage={page}
-        />
+        <div className="sticky bottom-0 shrink-0 bg-[var(--bg)]">
+          {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
+          <PlayerPager
+            count={slides.length}
+            index={index}
+            isFirst={isFirst}
+            isLast={isLast}
+            progressLabel={t('wrapped.progressLabel', { current: index + 1, total: slides.length })}
+            backLabel={t('wrapped.previous')}
+            forwardLabel={t('wrapped.next')}
+            forwardSlot={shareActions}
+            onPage={page}
+          />
+        </div>
       </div>
     </div>
   )

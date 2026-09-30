@@ -37,6 +37,7 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-cover', () => ({
       <span data-testid="period">{period}</span>
       <span data-testid="cover-state">{state}</span>
       <button type="button" aria-label="month" onClick={() => onSelectPeriod('month')} />
+      <button type="button" aria-label="week" onClick={() => onSelectPeriod('week')} />
       <button type="button" aria-label="start" onClick={onStart} />
     </div>
   ),
@@ -53,6 +54,7 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-player', () => ({
 
 import WrappedPage from '@/app/(app)/wrapped/page'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 describe('WrappedPage', () => {
   beforeEach(() => {
@@ -62,6 +64,29 @@ describe('WrappedPage', () => {
     mocks.useWrapped.mockClear()
     mocks.wrapped = { recap: { id: 'recap-1' }, slides: [], isEmpty: false, isLoading: false, isError: false }
     useAppToastStore.setState({ currentToast: null, queue: [] })
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+  })
+
+  it('keeps the reload guidance on the cover and inside the player', () => {
+    useVersionGateStore.getState().requireReload('appUpdated')
+    render(<WrappedPage />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
+  })
+
+  it('keeps the version banner dismissed when the player opens', () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('starts on the week period with the ready cover', () => {
@@ -79,6 +104,29 @@ describe('WrappedPage', () => {
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
       active: false,
       closedMonth: { year: 2026, month: 8 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'week' }))
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('week', {
+      active: false,
+      closedMonth: undefined,
+    })
+  })
+
+  it('selects the next notified closed month when only the query changes', () => {
+    mocks.searchParams = new URLSearchParams('period=month&year=2026&month=8')
+    const { rerender } = render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+
+    mocks.searchParams = new URLSearchParams('period=month&year=2026&month=9')
+    rerender(<WrappedPage />)
+
+    expect(screen.getByTestId('period')).toHaveTextContent('month')
+    expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2026, month: 9 },
     })
   })
 

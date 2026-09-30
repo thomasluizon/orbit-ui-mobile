@@ -56,6 +56,15 @@ describe('buildRecapRequestUrl', () => {
       closedMonth: { year: 9999, month: 3 },
     })
   })
+
+  it.each([
+    ['year', '2024', '2'],
+    ['month', '2024', '13'],
+    ['month', '2024x', '2'],
+    ['month', ['2024'], '2'],
+  ])('ignores the invalid closed month in %s %s %s', (period, year, month) => {
+    expect(parseWrappedRouteSelection(period, year, month)).toEqual({ period })
+  })
 })
 
 describe('recapPeriodLabelKey', () => {
