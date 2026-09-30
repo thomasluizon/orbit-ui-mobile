@@ -513,6 +513,7 @@ describe('byte-exact mode colors', () => {
       bgElev: '#1C1C1E',
       bgElev2: 'rgba(250,250,250,0.12)',
       bgHover: 'rgba(250,250,250,0.13)',
+      bgHoverOpaque: 'rgba(250,250,250,0.13)',
       bgSunk: 'rgba(0,0,0,0.28)',
       hairline: 'rgba(255,255,255,0.08)',
       borderControl: 'rgba(255,255,255,0.08)',
@@ -536,6 +537,7 @@ describe('byte-exact mode colors', () => {
       bgElev: '#FFFFFF',
       bgElev2: '#FFFFFF',
       bgHover: 'rgba(9,9,11,0.06)',
+      bgHoverOpaque: 'rgba(9,9,11,0.11)',
       bgSunk: 'rgba(9,9,11,0.04)',
       hairline: 'rgba(9,9,11,0.08)',
       borderControl: 'rgba(9,9,11,0.08)',
@@ -774,5 +776,16 @@ describe('type roles', () => {
     expect(typeRoles.meta.family).toBe('mono')
     expect(typeRoles.num.family).toBe('mono')
     expect(typeRoles.body.family).toBe('sans')
+  })
+})
+
+
+describe('opaque control hover role', () => {
+  it.each(['dark', 'light'] as const)('clears the hover and foreground floors over elevation in %s', (mode) => {
+    const neutral = neutralColors[mode]
+    const layers = [neutral.bgElev, neutral.bgHoverOpaque]
+    expect(contrastOnSurface(neutral.bgElev, layers)).toBeGreaterThanOrEqual(1.25)
+    expect(contrastOnSurface(neutral.fg2, layers)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastOnSurface(neutral.fg2, layers)).toBeGreaterThanOrEqual(3)
   })
 })

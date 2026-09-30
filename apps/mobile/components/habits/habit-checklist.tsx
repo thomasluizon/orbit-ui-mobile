@@ -94,7 +94,7 @@ function EditableChecklistItem({
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isFirst ? { opacity: 0.7 } : null,
+            pressed && !isFirst ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveUp}
           disabled={isFirst}
@@ -107,7 +107,7 @@ function EditableChecklistItem({
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
           style={({ pressed }) => [
             styles.moveButton,
-            pressed && !isLast ? { opacity: 0.7 } : null,
+            pressed && !isLast ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPress={onMoveDown}
           disabled={isLast}
@@ -130,7 +130,7 @@ function EditableChecklistItem({
         style={({ pressed }) => [
           styles.itemAction,
           duplicateDisabled ? { opacity: 0.35 } : null,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleDuplicate}
         disabled={duplicateDisabled}
@@ -142,7 +142,7 @@ function EditableChecklistItem({
         accessibilityLabel={t('habits.form.removeChecklistItem')}
         style={({ pressed }) => [
           styles.itemAction,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
         ]}
         onPress={handleRemove}
       >
@@ -351,12 +351,12 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.resetChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onReset}
               hitSlop={9}
             >
-              <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
+              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
           )}
           {interactive && (
@@ -365,7 +365,7 @@ export function HabitChecklist({
               accessibilityLabel={t('habits.form.clearChecklist')}
               style={({ pressed }) => [
                 styles.actionButton,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onClear}
               hitSlop={9}
@@ -426,7 +426,7 @@ export function HabitChecklist({
           <Pressable
             accessibilityRole="button"
             onPress={clearAll}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
+            style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
             hitSlop={14}
           >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
@@ -473,11 +473,16 @@ function createStyles(tokens: AppTokens) {
     fontVariant: ['tabular-nums'],
   },
   actionButton: {
+    overflow: 'hidden',
     width: 36,
     height: 36,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  clearAction: {
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   clearText: {
     fontFamily: 'Geist_500Medium',
@@ -515,6 +520,8 @@ function createStyles(tokens: AppTokens) {
     gap: 4,
   },
   moveButton: {
+    overflow: 'hidden',
+    borderRadius: 999,
     width: 24,
     height: 26,
     alignItems: 'center',
@@ -538,6 +545,7 @@ function createStyles(tokens: AppTokens) {
     borderBottomColor: 'transparent',
   },
   itemAction: {
+    overflow: 'hidden',
     width: 36,
     height: 36,
     borderRadius: 999,
