@@ -134,22 +134,26 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
-      >
-        {step === 'info' ? (
-          <FreshStartInfoStep
-            deletedItems={deletedItems}
-            preservedItems={preservedItems}
+        actions={(
+          <FreshStartActions
+            step={step}
+            isConfirmed={isConfirmed}
+            loading={loading}
+            error={error}
             onCancel={() => closeSheet()}
             onContinue={() => setStep('confirm')}
+            onReset={() => void handleReset()}
           />
+        )}
+      >
+        {step === 'info' ? (
+          <FreshStartInfoStep deletedItems={deletedItems} preservedItems={preservedItems} />
         ) : (
           <FreshStartConfirmStep
             confirmText={confirmText}
             onConfirmTextChange={setConfirmText}
             isConfirmed={isConfirmed}
             loading={loading}
-            error={error}
-            onCancel={() => closeSheet()}
             onReset={() => void handleReset()}
           />
         )}
@@ -224,16 +228,78 @@ function ListBlock({
   )
 }
 
+function FreshStartActions({
+  step,
+  isConfirmed,
+  loading,
+  error,
+  onCancel,
+  onContinue,
+  onReset,
+}: Readonly<{
+  step: 'info' | 'confirm'
+  isConfirmed: boolean
+  loading: boolean
+  error: string
+  onCancel: () => void
+  onContinue: () => void
+  onReset: () => void
+}>) {
+  const t = useTranslations()
+
+  if (step === 'info') {
+    return (
+      <DialogActionPair>
+        <PillButton variant="ghost" onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton variant="caution" onClick={onContinue}>
+          {t('profile.freshStart.reviewDeletion')}
+        </PillButton>
+      </DialogActionPair>
+    )
+  }
+
+  return (
+    <>
+      {error ? (
+        <p
+          role="alert"
+          className="m-0"
+          style={{
+            width: '100%',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: 'var(--status-bad-text)',
+            textAlign: 'center',
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
+      <DialogActionPair>
+        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton
+          variant="caution"
+          disabled={!isConfirmed || loading}
+          loading={loading}
+          onClick={onReset}
+        >
+          {t('profile.freshStart.deleteData')}
+        </PillButton>
+      </DialogActionPair>
+    </>
+  )
+}
+
 function FreshStartInfoStep({
   deletedItems,
   preservedItems,
-  onCancel,
-  onContinue,
 }: Readonly<{
   deletedItems: string[]
   preservedItems: string[]
-  onCancel: () => void
-  onContinue: () => void
 }>) {
   const t = useTranslations()
 
@@ -252,16 +318,6 @@ function FreshStartInfoStep({
           itemIcon="keep"
         />
       </div>
-      <div style={{ paddingTop: 8 }}>
-        <DialogActionPair>
-          <PillButton variant="caution" matchedWidth onClick={onContinue}>
-            {t('profile.freshStart.reviewDeletion')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={onCancel}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
-      </div>
     </div>
   )
 }
@@ -271,16 +327,12 @@ function FreshStartConfirmStep({
   onConfirmTextChange,
   isConfirmed,
   loading,
-  error,
-  onCancel,
   onReset,
 }: Readonly<{
   confirmText: string
   onConfirmTextChange: (value: string) => void
   isConfirmed: boolean
   loading: boolean
-  error: string
-  onCancel: () => void
   onReset: () => void
 }>) {
   const t = useTranslations()
@@ -304,32 +356,11 @@ function FreshStartConfirmStep({
         onChange={onConfirmTextChange}
         placeholder={t('profile.freshStart.confirmPlaceholder')}
         autoComplete="off"
+        autoFocus
         onSubmit={() => {
           if (isConfirmed && !loading) onReset()
         }}
       />
-      {error && (
-        <p
-          role="alert"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--status-bad-text)',
-          }}
-        >
-          {error}
-        </p>
-      )}
-      <div style={{ paddingTop: 8 }}>
-        <DialogActionPair>
-          <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
-            {t('profile.freshStart.deleteData')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
-      </div>
     </div>
   )
 }

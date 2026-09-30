@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canPromptEngagement,
@@ -8,6 +8,7 @@ import {
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -129,6 +130,24 @@ export function ReviewMomentSheet() {
       open
       onClose={hideAndSnooze}
       title={title}
+      actions={(
+        <DialogActionPair>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('reviewMoment.notNow')}
+            onClick={requestSnooze}
+          >
+            {t('reviewMoment.notNow')}
+          </PillButton>
+          <PillButton
+            loading={isRequesting}
+            disabled={isRequesting}
+            onClick={() => void rate()}
+          >
+            {t('reviewMoment.cta')}
+          </PillButton>
+        </DialogActionPair>
+      )}
     >
       <View style={styles.content}>
           <View accessible accessibilityRole="image" accessibilityLabel={t('reviewMoment.eyebrow')}>
@@ -139,35 +158,6 @@ export function ReviewMomentSheet() {
               ? t('reviewMoment.streakBody', { count: variant.value })
               : t('reviewMoment.levelBody', { level: variant.value })}
           </Text>
-
-          <View style={styles.actions}>
-            <PillButton
-
-              loading={isRequesting}
-              disabled={isRequesting}
-              onClick={() => void rate()}
-
-            >
-              {t('reviewMoment.cta')}
-            </PillButton>
-            <Pressable
-              onPress={requestSnooze}
-              accessibilityRole="button"
-              accessibilityLabel={t('reviewMoment.notNow')}
-              style={({ pressed }) => [
-                styles.notNowButton,
-                pressed ? styles.notNowButtonPressed : null,
-              ]}
-            >
-              {({ pressed }) => (
-                <Text
-                  style={[styles.notNowText, pressed ? styles.notNowTextPressed : null]}
-                >
-                  {t('reviewMoment.notNow')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
       </View>
     </Sheet>) : null
   )
@@ -176,8 +166,6 @@ export function ReviewMomentSheet() {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
-      paddingHorizontal: 24,
-      paddingBottom: 24,
       gap: 16,
       alignItems: 'center',
     },
@@ -188,26 +176,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-    },
-    notNowButton: {
-      alignItems: 'center',
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-    notNowButtonPressed: {
-      transform: [{ scale: 0.98 }],
-    },
-    notNowText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    notNowTextPressed: {
-      color: tokens.fg1,
     },
   })
 }

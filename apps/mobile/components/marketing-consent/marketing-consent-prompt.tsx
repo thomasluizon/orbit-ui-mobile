@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -112,29 +113,25 @@ export function MarketingConsentPrompt() {
       open
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
+      actions={(
+        <DialogActionPair>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('marketingConsent.prompt.decline')}
+            onClick={() => answer(false)}
+          >
+            {t('marketingConsent.prompt.decline')}
+          </PillButton>
+          <PillButton onClick={() => answer(true)}>
+            {t('marketingConsent.prompt.accept')}
+          </PillButton>
+        </DialogActionPair>
+      )}
     >
       <View style={styles.content}>
         <Text style={styles.body}>
           {t('marketingConsent.prompt.body')}
         </Text>
-        <View style={styles.actions}>
-          <PillButton onClick={() => answer(true)}>
-            {t('marketingConsent.prompt.accept')}
-          </PillButton>
-          <Pressable
-            onPress={() => answer(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('marketingConsent.prompt.decline')}
-            style={({ pressed }) => [
-              styles.laterButton,
-              pressed ? styles.laterButtonPressed : null,
-            ]}
-          >
-            <Text style={styles.laterText}>
-              {t('marketingConsent.prompt.decline')}
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </Sheet>) : null
   )
@@ -144,9 +141,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: {
       alignItems: 'center',
-      paddingHorizontal: 24,
-      paddingBottom: 24,
-      gap: 16,
     },
     body: {
       maxWidth: 420,
@@ -155,23 +149,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    actions: {
-      alignSelf: 'stretch',
-      gap: 8,
-    },
-    laterButton: {
-      alignItems: 'center',
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-    laterButtonPressed: {
-      opacity: 0.6,
-    },
-    laterText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
     },
   })
 }

@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const TestRenderer = require('react-test-renderer')
@@ -116,6 +117,17 @@ describe('DeleteAccountModal', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['online', true, ['common.cancel', 'profile.deleteAccount.sendCode']],
+    ['offline', false, []],
+  ] as const)('pins the %s actions in the sheet footer, never in the scrolling body', async (_state, isOnline, footer) => {
+    mocks.isOnline.current = isOnline
+    const tree = await renderModal()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(footer)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
   it('cancels before requesting an account deletion code', async () => {
     const tree = await renderModal()
     TestRenderer.act(() => {
@@ -161,6 +173,23 @@ describe('DeleteAccountModal', () => {
 
     expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
+  })
+
+  it('shows a failed send in the pinned footer, beside Send code', async () => {
+    mocks.apiClient.mockRejectedValueOnce(new Error('private backend detail'))
+    const tree = await renderModal()
+
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const alerts = (slot: string) => tree.root
+      .findAll((node: { type: unknown }) => node.type === slot)[0]!
+      .findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+
+    expect(alerts('SheetActions')).toHaveLength(1)
+    expect(alerts('SheetBody')).toHaveLength(0)
   })
 
   it('enters the deletion step up only after the sheet dismisses', async () => {

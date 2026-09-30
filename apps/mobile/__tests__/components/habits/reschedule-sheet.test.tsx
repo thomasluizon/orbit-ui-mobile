@@ -14,6 +14,7 @@ const mockUpdateMutateAsync = vi.fn()
 const mockShowError = vi.fn()
 const mockRefetch = vi.fn()
 let mockProfile: { hasProAccess: boolean; language: string }
+let mockToday = '2026-08-17'
 let mockUpdateIsPending = false
 let mockReschedule: {
   suggestion: RescheduleSuggestion | null
@@ -26,6 +27,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mockProfile }) }))
+vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => mockToday }))
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
@@ -93,6 +95,7 @@ describe('RescheduleSheet (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockProfile = { hasProAccess: true, language: 'en' }
+    mockToday = '2026-08-17'
     mockUpdateIsPending = false
     mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
     __setWindowDimensions({ width: 390, height: 892, scale: 1, fontScale: 1 })
@@ -255,12 +258,19 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.reschedule.title')).toBe(false)
     expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
-    expect(JSON.stringify(date.props.children)).not.toContain('2026')
-    expect(JSON.stringify(date.props.children)).toMatch(/qui/i)
+    expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
     const glyph = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')[0]!
     expect(glyph.props.color).toBe(createTokensV2().fg1)
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
+  })
+
+  it('adds the year to a proposed date outside the account year', () => {
+    mockToday = '2026-12-30'
+    mockReschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2027-01-05', dueTime: null })
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
+    expect(date.props.children).toEqual(['Tue, Jan 5, 2027', ''])
   })
 
   it.each([[900, 'button-primary-sm'], [1024, 'button-secondary-sm']] as const)(

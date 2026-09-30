@@ -35,6 +35,8 @@ export {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  getHabitDaysWithoutLog,
+  HABIT_SLIPPING_RATE_LIMIT,
   getHabitHistoryLog,
   getHabitStartDate,
   habitHistoryCutoff,
@@ -273,6 +275,7 @@ export type {
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
 export { formatHabitDetailSummary } from './habit-detail-summary'
+export { buildRescheduleProposalLabels, type RescheduleProposalLabels } from './reschedule-proposal'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   capitalizeFirstLetter,

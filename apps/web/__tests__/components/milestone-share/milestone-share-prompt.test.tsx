@@ -25,11 +25,13 @@ vi.mock('@/components/milestone-share/milestone-share-card', () => ({
   },
 }))
 
+const shareCard = vi.hoisted(() => ({ hasError: false }))
+
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     captureRef: { current: null },
     isSharing: false,
-    hasError: false,
+    hasError: shareCard.hasError,
     canShareFiles: false,
     share: vi.fn(),
     download: vi.fn(),
@@ -40,6 +42,7 @@ import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-sha
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useEngagementPromptStore.setState({
@@ -74,6 +77,7 @@ async function settle() {
 describe('MilestoneSharePrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    shareCard.hasError = false
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     resetStores()
@@ -113,6 +117,36 @@ describe('MilestoneSharePrompt', () => {
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'share-streak-7',
     )
+  })
+
+  it('pins Download and Later in the sheet footer, never in the scrolling body', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.later', 'milestoneShare.download'])
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('shows a failed share in the pinned footer, beside Share', async () => {
+    shareCard.hasError = true
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    expect(screen.getByRole('alert').closest('[data-slot="sheet-actions"]')).not.toBeNull()
+  })
+
+  it('gives Later the shared press and a 44 pixel target, and spaces the pills 12 apart', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+
+    const later = screen.getByRole('button', { name: 'milestoneShare.later' })
+    expect(later).toHaveAttribute('data-variant', 'ghost')
+    expect(Number.parseFloat(later.style.height)).toBeGreaterThanOrEqual(44)
+    expect(screen.getByRole('button', { name: 'milestoneShare.download' }).parentElement!.style.gap).toBe('12px')
   })
 
   it('stays hidden while a celebration is in flight', async () => {

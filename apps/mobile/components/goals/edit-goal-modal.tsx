@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
-
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
@@ -173,6 +173,16 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.detail.edit')}
+        actions={(
+          <DialogActionPair>
+            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton onClick={() => void onSubmit()} disabled={isSubmitting} loading={isSubmitting}>
+              {t('common.save')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
         <View style={styles.form}>
           <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
@@ -215,25 +225,6 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
             deadline={deadline}
             onChangeDeadline={setDeadline}
           />
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-
-              disabled={isSubmitting}
-              onClick={dismissGuard.requestDismiss}
-
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              onClick={() => void onSubmit()}
-              disabled={isSubmitting}
-              loading={isSubmitting}
-            >
-              {t('common.save')}
-            </PillButton>
-          </View>
         </View>
       </Sheet>) : null}
       <DiscardChangesSheet
