@@ -39,7 +39,7 @@ export function SubHabitEditor({
                 style={{ minHeight: 54, gap: 8, padding: '0 8px 0 16px' }}
               >
                 <span className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]" aria-hidden="true">{index + 1}</span>
-                <input value={entry.value} type="text" maxLength={MAX_HABIT_TITLE_LENGTH} aria-label={t('habits.form.subHabitInputLabel', { index: index + 1 })} placeholder={t('habits.form.subHabitPlaceholder')} className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus-visible:outline-none" onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)} />
+                <input value={entry.value} type="text" maxLength={MAX_HABIT_TITLE_LENGTH} aria-label={t('habits.form.subHabitInputLabel', { index: index + 1 })} placeholder={t('habits.form.subHabitPlaceholder')} className="flex-1 min-w-0 bg-transparent text-[14px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus-visible:outline-none" onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)} />
                 <button type="button" aria-label={t('habits.form.removeSubHabit')} className="group/remove shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] transition-colors duration-[var(--dur-fast)]" onClick={() => onRemoveSubHabit(entry.id)}>
                   <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-fast)] group-hover/remove:text-[var(--status-bad)]" />
                 </button>

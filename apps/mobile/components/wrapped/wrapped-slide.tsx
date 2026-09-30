@@ -1,5 +1,5 @@
 import { useEffect, type Ref } from 'react'
-import { View } from 'react-native'
+import { View, useWindowDimensions } from 'react-native'
 import Animated, {
   Easing,
   Keyframe,
@@ -55,13 +55,14 @@ interface WrappedSlideProps {
 export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
+  const { width } = useWindowDimensions()
 
   switch (slide.id) {
     case 'intro':
       return (
         <View style={[styles.slide, styles.introSlide]} testID="wrapped-slide-intro">
           <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={motionFinalStyle}><OrbitMark size={48} /></Animated.View>
-          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} accessibilityRole="header" style={[styles.introTitle, motionFinalStyle, { color: tokens.fg1 }]}>
+          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} accessibilityRole="header" style={[styles.introTitle, width >= 1024 && styles.introTitleWide, motionFinalStyle, { color: tokens.fg1 }]}>
             {t(`wrapped.slides.intro.${period}`)}
           </Animated.Text>
           <Animated.Text nativeID="wrapped-motion-part-2" entering={enter(2, reducedMotion)} style={[styles.caption, motionFinalStyle, { color: tokens.fg3 }]}>

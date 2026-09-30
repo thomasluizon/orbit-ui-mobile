@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -57,6 +57,7 @@ function ProfileAccountFact({
 }
 
 export default function AboutScreen() {
+  const { width } = useWindowDimensions()
   const { t } = useTranslation()
   const pageEnd = useShellPageEnd()
   const router = useRouter()
@@ -88,7 +89,7 @@ export default function AboutScreen() {
         <View testID="about-content" style={styles.content}>
           <View testID="about-identity" style={styles.identity}>
             <OrbitMark size={48} accent />
-            <Text accessibilityLanguage="en" style={[styles.appName, { color: tokens.fg1 }]}>
+            <Text accessibilityLanguage="en" style={[styles.appName, width >= 768 && styles.appNameWide, { color: tokens.fg1 }]}>
               {t('common.appName')}
             </Text>
             <Text style={[styles.tagline, { color: tokens.fg2 }]}>
@@ -150,6 +151,7 @@ const styles = StyleSheet.create({
     lineHeight: 32.2,
     letterSpacing: -0.56,
   },
+  appNameWide: { fontSize: 34, lineHeight: 38.08, letterSpacing: -0.68 },
   tagline: {
     maxWidth: '100%',
     fontFamily: 'Geist_400Regular',

@@ -106,7 +106,7 @@ export function CelebrationPanel() {
       </svg>
       <div className="min-w-0 flex-1">
         <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
-        <p className="text-base leading-[1.45] text-[var(--fg-1)]">{line}</p>
+        <p className="text-[17px] leading-[1.45] text-[var(--fg-1)]">{line}</p>
       </div>
       <button ref={closeButtonRef} type="button" aria-label={t('close')} className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)]" onClick={dismiss}>
         <X aria-hidden="true" size={20} />

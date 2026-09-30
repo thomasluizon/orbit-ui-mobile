@@ -166,7 +166,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/widget_all_clear"
                     android:textColor="@color/widget_fg_1"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:fontFamily="sans-serif" />
             </LinearLayout>
 

@@ -388,7 +388,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
           data-testid="wrapped-motion-part"
           {...motionProps(2, reducedMotion)}
           role="alert"
-          style={{ fontSize: 13 }}
+          style={{ fontSize: 14 }}
         >
           <span style={{ color: 'var(--status-bad-text)' }}>{t('shareCard.shareError')}</span>
         </motion.p>
@@ -400,7 +400,7 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
         role="status"
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 13,
+          fontSize: 14,
           color: 'var(--fg-2)',
         }}
       >

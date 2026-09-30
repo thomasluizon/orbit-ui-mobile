@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
@@ -222,6 +223,8 @@ describe("ScheduledReminderSection", () => {
     (add!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });
+    const addText = tree.root.findAll((node) => node.type === "Text" && node.props.children === "common.add")[0]!;
+    expect(StyleSheet.flatten(addText.props.style)).toMatchObject({ fontSize: 14 });
     press(add!);
     expect(onSetScheduledReminders).toHaveBeenCalledWith([
       { when: "same_day", time: "09:00" },

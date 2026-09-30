@@ -307,7 +307,7 @@ export const HabitRow = memo(function HabitRow({
     if (!completionReadOnly) toggleStatusAction?.()
   }
 
-  const titleSize = isChild ? 14 : 16
+  const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12

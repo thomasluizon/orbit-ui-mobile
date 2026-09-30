@@ -75,12 +75,11 @@ export function CalendarHeader({
             aria-expanded={isYearOpen}
             aria-haspopup="dialog"
             onClick={() => setIsYearOpen(true)}
-            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
+            className="text-[length:var(--fs-xs)] lg:text-[length:var(--fs-sm)] touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             style={{
               height: 36,
               padding: '0 8px',
               fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--fs-sm)',
               fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
               color: 'var(--fg-1)',
@@ -108,7 +107,7 @@ export function CalendarHeader({
       </div> : <div className="flex min-w-0 items-center gap-2" aria-hidden="true" style={{ visibility: 'hidden' }}>
         <div className="flex items-center">
           <span style={{ padding: '0 8px', fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', fontWeight: 500 }}>{monthLabel}</span>
-          <span style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{year}</span>
+          <span className="text-[length:var(--fs-xs)] lg:text-[length:var(--fs-sm)]" style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{year}</span>
         </div>
         <span style={{ width: 44, height: 44 }} />
         <span style={{ width: 44, height: 44 }} />
@@ -237,7 +236,7 @@ function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 12,
           color: 'var(--fg-3)',
         }}
       >

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { StyleSheet, type TextStyle } from 'react-native'
 import { PageHeader } from '@/components/ui/page-header'
 import { press, renderNavigation } from './navigation-render'
 
@@ -14,6 +15,7 @@ describe('PageHeader', () => {
     const headings = tree.hosts().filter((node) => node.props.accessibilityRole === 'header')
     expect(headings).toHaveLength(1)
     expect(headings[0]?.props.children).toBe('About')
+    expect(StyleSheet.flatten(headings[0]?.props.style as TextStyle)).toMatchObject({ fontSize: 20 })
     tree.unmount()
   })
 })

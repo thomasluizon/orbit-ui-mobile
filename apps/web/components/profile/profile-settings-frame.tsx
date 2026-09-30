@@ -36,7 +36,7 @@ export function ProfileValueRow({ label, value, control }: Readonly<ProfileValue
         {label}
       </span>
       {value ? (
-        <span className="shrink-0 font-mono text-[13px] text-[var(--fg-3)]">
+        <span className="shrink-0 font-mono text-[12px] text-[var(--fg-3)]">
           {value}
         </span>
       ) : null}

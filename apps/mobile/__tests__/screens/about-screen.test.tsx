@@ -1,5 +1,6 @@
 import React from 'react'
 import { StyleSheet } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutScreen from '@/app/about'
@@ -103,6 +104,15 @@ describe('AboutScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
     expect(textContent(tree.root)).toContain('Orbit')
     expect(tree.root.findAll((node) => node.props.testID === 'about-fact-version')).toHaveLength(0)
+  })
+
+  it.each([412, 768])('renders the drawn identity size at %ipx', (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    let tree!: { root: TestNode; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Orbit')[0]!
+    expect(flattenedStyle(name).fontSize).toBe(width >= 768 ? 34 : 28)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('renders the About identity, real facts, and four destinations in order', () => {

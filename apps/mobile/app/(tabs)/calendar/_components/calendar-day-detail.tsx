@@ -409,7 +409,7 @@ function createStyles(tokens: Tokens) {
     summaryText: {
       color: tokens.fg3,
       fontFamily: 'Geist_400Regular',
-      fontSize: 14,
+      fontSize: 12,
     },
     emptyDayText: {
       color: tokens.fg3,
