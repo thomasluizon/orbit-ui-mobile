@@ -297,6 +297,8 @@ export function EditHabitModal({
   const handleSubmit = useCallback(async () => {
     if (!habit) return
     flushBufferedInputsRef.current()
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds,
@@ -416,11 +418,6 @@ export function EditHabitModal({
   }, [formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
 
-  const submitDisabled =
-    updateHabit.isPending ||
-    detailFieldsPending ||
-    watchedTitle.trim().length === 0
-
   return (
     <>
       {open ? (<Sheet
@@ -439,7 +436,8 @@ export function EditHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              disabled={submitDisabled}
+              disabled={detailFieldsPending}
+              loading={updateHabit.isPending || assignTags.isPending}
               onClick={() => void handleSubmit()}
             >
               {t('common.save')}

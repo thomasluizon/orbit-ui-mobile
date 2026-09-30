@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createMockHabit } from './factories'
+import { createMockHabit, createMockHabitScheduleItem } from './factories'
 import { getAllDoneOnDate } from '../utils/all-done'
-import { optimisticSkipMarker } from '../utils/habit-optimistic'
+import { buildOptimisticSkipPatch, optimisticSkipMarker } from '../utils/habit-optimistic'
 
 const date = '2025-03-10'
 
@@ -43,6 +43,16 @@ describe('getAllDoneOnDate', () => {
     expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: false, count: 1 })
     habits.set(skipped.id, skipped)
     expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: true, count: 1 })
+  })
+
+  it('keeps the day open while a flexible skip with unmet weekly progress is pending', () => {
+    const logged = createMockHabit({ id: 'logged', isLoggedInRange: true, scheduledDates: [date] })
+    const flexible = createMockHabit({ id: 'flexible', isFlexible: true, frequencyUnit: 'Week', flexibleTarget: 2,
+      flexibleCompleted: 0, scheduledDates: [date] })
+    const patch = buildOptimisticSkipPatch(createMockHabitScheduleItem({ id: 'flexible', isFlexible: true,
+      frequencyUnit: 'Week', flexibleTarget: 2, flexibleCompleted: 0 }), date)
+    const habits = new Map([logged, { ...flexible, ...patch }].map((habit) => [habit.id, habit]))
+    expect(getAllDoneOnDate(habits, new Map(), date)).toEqual({ allDone: false, count: 1 })
   })
 
   it('resolves a skipped occurrence without counting it as a positive log', () => {

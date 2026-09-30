@@ -8,6 +8,8 @@ import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
 
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from "@/components/calendar-sync/calendar-import-content";
+import AuthCallbackScreen from '@/app/auth-callback';
+import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback';
 import { PillButton } from '@/components/ui/pill-button';
 import { useTranslation } from 'react-i18next';
 function CalendarSyncScreen() {
@@ -52,6 +54,8 @@ const mocks = vi.hoisted(() => {
 
   return {
     apiClient: vi.fn(),
+    login: vi.fn(),
+    openBrowser: vi.fn(),
     queryClient,
     eventsQuery: {
       data: initialEventsQueryData(),
@@ -162,15 +166,41 @@ vi.mock("@/hooks/use-calendars", () => ({
   useSetSelectedCalendars: () => ({ mutate: vi.fn() }),
 }));
 
+vi.mock("@react-native-async-storage/async-storage", () => {
+  const entries = new Map<string, string>();
+  return {
+    default: {
+      getItem: (key: string) => Promise.resolve(entries.get(key) ?? null),
+      setItem: (key: string, value: string) => { entries.set(key, value); return Promise.resolve(); },
+      removeItem: (key: string) => { entries.delete(key); return Promise.resolve(); },
+    },
+  };
+});
+
 vi.mock("@/lib/api-client", () => ({
   apiClient: mocks.apiClient,
 }));
 
-vi.mock("@/lib/google-auth", () => ({
+vi.mock("@/lib/google-auth", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/google-auth")>(),
   startMobileGoogleAuth: mocks.startGoogleAuth,
 }));
 
+vi.mock("@/stores/auth-store", () => ({
+  getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
+  useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
+}));
+vi.mock("@/components/auth/login-content", () => ({ LoginContent: () => null }));
+vi.mock("expo-linking", () => ({ useLinkingURL: () => null }));
+vi.mock("expo-crypto", () => ({
+  getRandomBytesAsync: () => Promise.resolve(new Uint8Array(32).fill(1)),
+  digestStringAsync: () => Promise.resolve("challenge="),
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  CryptoEncoding: { BASE64: "base64" },
+}));
+
 vi.mock("expo-web-browser", () => ({
+  openAuthSessionAsync: mocks.openBrowser,
   WebBrowserResultType: { CANCEL: "cancel", DISMISS: "dismiss" },
 }));
 
@@ -307,7 +337,7 @@ describe("CalendarSyncScreen", () => {
     return tree!;
   }
 
-  it("starts calendar consent from the disconnected screen and opens the callback on success", async () => {
+  it("starts Google calendar consent and leaves callback navigation to the App Link", async () => {
     mocks.eventsQuery.data = { status: "not-connected" };
     mocks.startGoogleAuth.mockResolvedValue({ type: "success", url: "https://app.useorbit.org/auth-callback?code=google-code" });
 
@@ -317,7 +347,7 @@ describe("CalendarSyncScreen", () => {
     expect(tree.root.findAll((node) => node.type === 'Switch')).toHaveLength(0);
     const linkGlyph = tree.root.find((node) => node.type === LinkIcon);
     expect(linkGlyph.props.color).toBe('#111111');
-    expect(mocks.router.replace).toHaveBeenCalledWith("/auth-callback");
+    expect(mocks.router.replace).not.toHaveBeenCalled();
     expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
   });
 
@@ -338,6 +368,42 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
     expect(mocks.refetchAutoSyncState).toHaveBeenCalled();
+  });
+
+  it("exchanges calendar consent once when the App Link mounts two callback screens", async () => {
+    vi.stubEnv("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "web-client-id");
+    await clearPendingGoogleAuthSession();
+    const { startMobileGoogleAuth } = await vi.importActual<typeof import("@/lib/google-auth")>("@/lib/google-auth");
+    mocks.startGoogleAuth.mockImplementation(startMobileGoogleAuth);
+    mocks.eventsQuery.data = { status: "not-connected" };
+    mocks.login.mockResolvedValue(() => true);
+    mocks.apiClient.mockResolvedValue({
+      token: "access", refreshToken: "refresh", userId: "calendar-user",
+      name: "Calendar", email: "calendar@example.com",
+    });
+    const callbacks: ReturnType<typeof TestRenderer.create>[] = [];
+    mocks.openBrowser.mockImplementation((authorizeUrl: string, redirect: string) => {
+      const url = new URL(authorizeUrl);
+      expect(url.searchParams.get("prompt")).toBe("consent");
+      expect(url.searchParams.get("scope")).toContain("calendar.readonly");
+      callbacks.push(TestRenderer.create(<AuthCallbackScreen />));
+      callbacks.push(TestRenderer.create(<AuthCallbackScreen />));
+      return Promise.resolve({ type: "success", url: `${redirect}?code=calendar-code&state=${url.searchParams.get("state")}` });
+    });
+    try {
+      callbacks.push(await pressConnect());
+      await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith("/calendar?import=1"));
+      expect(mocks.apiClient.mock.calls.filter(([endpoint]) => endpoint === "/api/auth/google/code")).toHaveLength(1);
+      expect(mocks.login).toHaveBeenCalledTimes(1);
+      expect(mocks.router.replace).toHaveBeenCalledTimes(1);
+      expect(mocks.router.replace).not.toHaveBeenCalledWith("/login?googleError=1");
+    } finally {
+      TestRenderer.act(() => {
+        callbacks.forEach((callback) => callback.unmount());
+      });
+      await clearPendingGoogleAuthSession();
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each(["cancel", "dismiss"])("keeps the calendar open when consent returns %s", async (type) => {

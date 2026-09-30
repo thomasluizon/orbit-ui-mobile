@@ -75,6 +75,7 @@ vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
     watch: (field: string) => field === 'title' ? 'Test Habit' : field === 'scheduledReminders' ? [] : undefined,
     reset: vi.fn(),
     setValue: vi.fn(),
+    trigger: vi.fn().mockResolvedValue(true),
     formState: { isDirty: false },
   },
   validateAll: mocks.validateHabit,
@@ -143,7 +144,7 @@ it('keeps failed form feedback and its action reachable in the open sheet', asyn
 
   const dialog = screen.getByRole('dialog')
   fireEvent.submit(dialog.querySelector('form')!)
-  expect(mocks.validateHabit).toHaveBeenCalledOnce()
+  await waitFor(() => expect(mocks.validateHabit).toHaveBeenCalledOnce())
   await waitFor(() => expect(dialog.querySelector('[data-kind="neutral"]')).toHaveTextContent('Habit name is required'))
   expect(view.container.querySelector('[data-shell-notice] [data-kind]')).toBeNull()
 

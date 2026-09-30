@@ -271,10 +271,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
-}))
-vi.mock('@/components/shell/flow-shell', () => ({
-  FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => React.createElement('FlowShell', null, header, children),
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark', surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: ({ size, color }: { size: number; color?: string }) => React.createElement('AstraGlyph', { size, color }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
@@ -1240,6 +1237,72 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ title: 'habits.detail.slipAlert' })).toBeDefined()
   })
 
+  it('composes a single 24px gap from the header to the strip with no empty status slot', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const strip = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-strip-section')!
+    let parent = strip.parent
+    while (typeof parent.type !== 'string') parent = parent.parent
+    const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
+      if (typeof node.type !== 'string') return false
+      let owner = node.parent
+      while (owner && typeof owner.type !== 'string') owner = owner.parent as typeof owner
+      return owner === parent
+    })
+    const stripIndex = slots.indexOf(strip)
+    const headerStyle = (StyleSheet.flatten(slots[0]!.props.style) ?? {}) as { paddingBottom?: number; marginBottom?: number }
+    const stripStyle = StyleSheet.flatten(strip.props.style) as { paddingTop?: number; marginTop?: number }
+    const parentStyle = (StyleSheet.flatten(parent.props.contentContainerStyle ?? parent.props.style) ?? {}) as { gap?: number }
+    const gap = parentStyle.gap ?? 0
+    expect(gap * stripIndex + (headerStyle.paddingBottom ?? 0) + (headerStyle.marginBottom ?? 0)
+      + (stripStyle.paddingTop ?? 0) + (stripStyle.marginTop ?? 0)).toBe(24)
+    const region = parent.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(region.children).toHaveLength(0)
+    expect(StyleSheet.flatten(region.props.style)).toBeUndefined()
+    expect(gap).toBe(0)
+    const body = tree.root.findByType('ScrollView')
+    expect(StyleSheet.flatten(body.props.contentContainerStyle)).toMatchObject({ gap: 24 })
+  })
+
+  it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
+    mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const tags = tree.root.findAllByType('View').filter((node: TestNode) => node.props.testID === 'habit-detail-tags')
+    const description = tree.root.findAllByType('Pressable').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
+    expect(tags).toHaveLength(hasTags ? 1 : 0)
+    expect(description).toHaveLength(hasDescription ? 1 : 0)
+    for (const metadata of [...tags, ...description]) {
+      expect(StyleSheet.flatten(metadata.props.style)).toEqual({ paddingTop: 12 })
+    }
+    if (hasDescription) {
+      const target = tree.root.findByProps({ accessibilityLabel: 'A note about this routine' })
+      expect(target.props.accessibilityHint).toBe('habits.detail.viewDescription')
+      const line = StyleSheet.flatten(target.findByType('Text').props.style) as { lineHeight: number }
+      const spacing = StyleSheet.flatten(target.props.style) as { paddingTop: number }
+      expect(line.lineHeight + spacing.paddingTop + target.props.hitSlop.bottom).toBe(44)
+      expect(target.props.accessibilityState.expanded).toBe(false)
+      expect(target.findByType('Text').props.numberOfLines).toBe(1)
+      TestRenderer.act(() => target.props.onPress())
+      expect(target.props.accessibilityState.expanded).toBe(true)
+      expect(target.findByType('Text').props.numberOfLines).toBeUndefined()
+      TestRenderer.act(() => target.props.onPress())
+      expect(target.props.accessibilityState.expanded).toBe(false)
+    }
+  })
+
+  it('keeps a populated completion boundary inside the header block', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-30" />) })
+    const headerBlock = tree.root.findByType('ScrollView').findAllByType('View')[0]!
+    expect(textsOf(headerBlock)).toContain('habits.todayBoundary.future')
+    const region = headerBlock.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(region.children).toHaveLength(0)
+  })
+
   it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
@@ -1306,7 +1369,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false).find((node: TestNode) => textsOf(node).includes('habits.detail.moreDetails'))
     TestRenderer.act(() => disclosure!.props.onPress())
 
     TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
@@ -1631,10 +1694,15 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), id: targetId, createdAtUtc: '2026-08-29T08:00:00Z', children: [] }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId={targetId} parentId={parentId} date="2026-08-28" />) })
+    const region = tree!.root.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(region.children).toHaveLength(0)
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
     expect(mocks.log).not.toHaveBeenCalled()
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(0)
-    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.logDateUnavailable')).toBe(true)
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+    expect(textsOf(region)).toContain('habits.detail.logDateUnavailable')
   })
 
   it('logs a child date after its own creation without confirmation', async () => {

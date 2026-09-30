@@ -189,6 +189,20 @@ describe('notification server actions', () => {
 
 
   describe('unsubscribePush', () => {
+    it('opts into foreign-account release only when the cleanup caller requests it', async () => {
+      mock204()
+      await unsubscribePush({
+        endpoint: 'https://push.example.com/abc',
+        keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
+        releaseOtherAccount: true,
+      }, 'account-a')
+
+      const [, init] = mockFetch.mock.calls[0]!
+      expect(JSON.parse(init.body)).toEqual({
+        endpoint: 'https://push.example.com/abc', p256dh: 'p256dh-key', auth: 'auth-key',
+        releaseOtherAccount: true,
+      })
+    })
     it('sends POST to /api/notifications/unsubscribe with flattened keys', async () => {
       mock204()
 

@@ -1,7 +1,8 @@
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import React from 'react'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 vi.mock('next-intl', () => ({
@@ -66,5 +67,26 @@ describe('CalendarAgendaView', () => {
     expect(screen.getAllByTestId('calendar-agenda-loading-day')).toHaveLength(7)
     expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeDefined()
     expect(screen.queryByText('calendar.agenda.empty')).toBeNull()
+  })
+})
+
+
+describe('CalendarAgendaView sub-habit carry', () => {
+  it('keeps a logged sub-habit read-only and displays its own title and time', () => {
+    const day = formatAPIDate(startDate)
+    const entries = buildCalendarDayMap({ habits: [createMockHabitScheduleItem({
+      id: 'parent',
+      children: [createMockHabitScheduleChild({
+        id: 'child', title: 'Stretch', dueTime: '18:00', dueEndTime: '18:30',
+        instances: [{ date: day, status: 'Completed', logId: 'child-log' }],
+      })],
+    })], logs: {} }, { from: day, to: day })
+    render(<CalendarAgendaView startDate={startDate} dayMap={entries}
+      displayTime={(time) => time} displayWeekdayDate={(date) => `Day ${date.getDate()}`}
+      todayKey={day} isLoading={false} loadingLabel="common.loading" />)
+    expect(screen.getByText('Stretch')).toBeInTheDocument()
+    expect(screen.getByText('18:00')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('slider')).toBeNull()
   })
 })

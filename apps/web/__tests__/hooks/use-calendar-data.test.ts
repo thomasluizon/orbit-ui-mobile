@@ -84,6 +84,60 @@ describe('useCalendarData', () => {
     expect(jan15![0]!.title).toBe('Exercise')
   })
 
+  it('keeps only the requested month in the dayMap', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          habits: [
+            {
+              id: 'h-1',
+              title: 'Exercise',
+              isBadHabit: false,
+              dueTime: null,
+              frequencyUnit: 'Week',
+              frequencyQuantity: 1,
+              scheduledDates: ['2025-01-03'],
+              instances: [
+                { date: '2024-12-27', status: 'Overdue', logId: null },
+                { date: '2025-01-03', status: 'Overdue', logId: null },
+              ],
+              isCompleted: false,
+              isGeneral: false,
+              isFlexible: false,
+              days: [],
+              dueDate: '2024-12-27',
+              dueEndTime: null,
+              endDate: null,
+              position: 0,
+              checklistItems: [],
+              createdAtUtc: '2024-12-01T00:00:00Z',
+              isOverdue: true,
+              reminderEnabled: false,
+              reminderTimes: [],
+              scheduledReminders: [],
+              slipAlertEnabled: false,
+              tags: [],
+              children: [],
+              hasSubHabits: false,
+              description: null,
+              flexibleTarget: null,
+              flexibleCompleted: null,
+            },
+          ],
+          logs: { 'h-1': [] },
+        }),
+    })
+
+    const { result } = renderHook(() => useCalendarData(new Date(2025, 0, 1)), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect([...result.current.dayMap.keys()]).toEqual(['2025-01-03'])
+  })
+
   it('returns empty dayMap when no data', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -291,6 +345,71 @@ describe('useCalendarRangeChunked', () => {
 
     expect(result.current.dayMap.size).toBe(mockFetch.mock.calls.length)
     expect(result.current.error).toBeNull()
+  })
+
+  it('keeps a complete chunk day when the next chunk returns lookback instances for it', async () => {
+    const chunkBoundary = '2025-03-04'
+    const completeDay = {
+      ...habitScheduledOn('h-complete', chunkBoundary),
+      title: 'Complete',
+    }
+    const lookbackParent = {
+      ...habitScheduledOn('h-lookback', '2025-03-05'),
+      title: 'Lookback',
+      dueDate: '2025-03-01',
+      instances: [
+        { date: '2025-03-01', status: 'Overdue', logId: null },
+        { date: chunkBoundary, status: 'Overdue', logId: null },
+        { date: '2025-03-05', status: 'Pending', logId: null },
+      ],
+      children: [
+        {
+          ...habitScheduledOn('h-lookback-child', '2025-03-05'),
+          title: 'Lookback child',
+          dueDate: '2025-03-01',
+          isLoggedInRange: false,
+          instances: [{ date: chunkBoundary, status: 'Completed', logId: 'lookback-log' }],
+        },
+      ],
+      hasSubHabits: true,
+    }
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input)
+      const from = new URL(url, 'http://localhost').searchParams.get('dateFrom')
+      let body: unknown = { habits: [], logs: {} }
+      if (from === '2025-01-01') {
+        body = {
+          habits: [completeDay],
+          logs: {
+            'h-complete': [
+              { id: 'log-complete', date: chunkBoundary, value: 1, createdAtUtc: '2025-03-04T08:00:00Z' },
+            ],
+          },
+        }
+      } else if (from === '2025-03-05') {
+        body = { habits: [lookbackParent], logs: { 'h-lookback': [] } }
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
+    })
+
+    const { result } = renderHook(
+      () => useCalendarRangeChunked(new Date(2025, 0, 1), new Date(2025, 5, 30)),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.dayMap.get(chunkBoundary)).toEqual([
+      {
+        habitId: 'h-complete',
+        title: 'Complete',
+        status: 'completed',
+        isBadHabit: false,
+        dueTime: null,
+        isOneTime: false,
+      },
+    ])
+    expect(result.current.dayMap.has('2025-03-01')).toBe(false)
   })
 
   it('surfaces a chunk failure as the aggregate error', async () => {

@@ -61,13 +61,13 @@ function DatePickerMonthNav({
     <View style={styles.monthNav}>
       <Pressable
         onPress={onPrevMonth}
-        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
         accessibilityRole="button"
         accessibilityLabel={t('common.previousMonth')}
         disabled={pickerMode === 'years'}
         style={({ pressed }) => [
+          styles.monthNavButton,
           pickerMode === 'years' ? styles.navHidden : null,
-          pressed ? { opacity: 0.2 } : null,
+          pressed && pickerMode !== 'years' ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
         <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg3} />
@@ -79,10 +79,9 @@ function DatePickerMonthNav({
         ) : null}
         <Pressable
           onPress={onToggleMode}
-          hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
           accessibilityRole="button"
           accessibilityLabel={t('common.selectYear')}
-          style={({ pressed }) => (pressed ? { opacity: 0.2 } : undefined)}
+          style={({ pressed }) => [styles.yearButton, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
           <Text
             style={[
@@ -97,13 +96,13 @@ function DatePickerMonthNav({
 
       <Pressable
         onPress={onNextMonth}
-        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
         accessibilityRole="button"
         accessibilityLabel={t('common.nextMonth')}
         disabled={pickerMode === 'years'}
         style={({ pressed }) => [
+          styles.monthNavButton,
           pickerMode === 'years' ? styles.navHidden : null,
-          pressed ? { opacity: 0.2 } : null,
+          pressed && pickerMode !== 'years' ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
         <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg3} />
@@ -397,6 +396,22 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'space-between',
       marginBottom: 8,
       paddingHorizontal: 4,
+    },
+    monthNavButton: {
+      overflow: 'hidden',
+      width: 44,
+      height: 44,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    yearButton: {
+      overflow: 'hidden',
+      minWidth: 44,
+      minHeight: 44,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     monthLabelGroup: {
       flexDirection: 'row',

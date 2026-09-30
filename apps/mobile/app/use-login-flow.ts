@@ -260,8 +260,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
     try {
       const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
-      if (result.type === 'success') router.replace('/auth-callback')
-      else setErrorKey('auth.errors.googleError')
+      if (result.type !== 'success') setErrorKey('auth.errors.googleError')
     } catch { setErrorKey('auth.errors.googleError') }
     finally { busy.current = false; setIsGoogleLoading(false) }
   }

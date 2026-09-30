@@ -12,6 +12,7 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
+import { setAccountId } from '@/lib/account-scope'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => {
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => {
     aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
   }
   return {
+    useRealPush: false,
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
     finishOnboarding: vi.fn(),
@@ -51,11 +53,14 @@ vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }),
 }))
-vi.mock('@/hooks/use-push-notification-preferences', () => ({
-  usePushNotificationPreferences: () => mocks.push,
-  subscribeToPushNotifications: mocks.subscribe,
-  requestWebPushPermission: mocks.requestPermissionOnly,
-}))
+vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-push-notification-preferences')>()
+  return {
+    usePushNotificationPreferences: () => mocks.useRealPush ? original.usePushNotificationPreferences() : mocks.push,
+    subscribeToPushNotifications: mocks.subscribe,
+    requestWebPushPermission: mocks.requestPermissionOnly,
+  }
+})
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => <div>{header}{notice}{children}{action}</div>,
 }))
@@ -120,11 +125,14 @@ async function reachDone(isLive: boolean) {
 
 describe('OnboardingFlow state model', () => {
   afterEach(() => {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'serviceWorker')
     if (originalTimeZone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimeZone
   })
 
   beforeEach(() => {
+    mocks.useRealPush = false
     vi.clearAllMocks()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
@@ -450,6 +458,22 @@ describe('OnboardingFlow state model', () => {
     fireEvent.click(screen.getByRole('button', { name: 'back' }))
     expect(screen.getByTestId('schedule')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'skip' })).toBeNull()
+  })
+
+  it('offers reminder permission in anonymous onboarding through the real push state hook', async () => {
+    mocks.useRealPush = true
+    setAccountId(null)
+    vi.stubGlobal('Notification', { permission: 'default', requestPermission: vi.fn() })
+    vi.stubGlobal('PushManager', class PushManager {})
+    const registration = { pushManager: { getSubscription: vi.fn(async () => null) } }
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {
+      register: vi.fn(async () => registration), ready: Promise.resolve(registration),
+    } })
+    await reachReminder(false)
+    const allow = await screen.findByRole('button', { name: 'remind.allow' })
+    fireEvent.click(allow)
+    await waitFor(() => expect(mocks.requestPermissionOnly).toHaveBeenCalledOnce())
+    expect(mocks.subscribe).not.toHaveBeenCalled()
   })
 
   it('asks for browser permission on the signed-out path', async () => {

@@ -49,6 +49,7 @@ vi.mock('@/lib/auth-flow', () => ({
 }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
+  completePendingGoogleAuthSession: (_attempt: string, complete: () => Promise<void>) => complete(),
   clearPendingGoogleAuthSession: vi.fn(() => Promise.resolve()),
   extractGoogleAuthParams: () => ({}),
   setPendingGoogleAuthCallbackUrl: vi.fn(() => Promise.resolve(false)),

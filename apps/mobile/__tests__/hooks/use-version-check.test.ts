@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
       enabled: boolean
     } | null,
     platformOS: 'android' as 'android' | 'ios' | 'web',
+    nativeVersion: null as string | null,
     version: '1.0.0' as string | undefined,
     pkg: 'org.useorbit.app' as string | undefined,
     bundleId: 'org.useorbit.app' as string | undefined,
@@ -91,6 +92,12 @@ vi.mock('react-native', () => ({
   },
 }))
 
+vi.mock('expo-application', () => ({
+  get nativeApplicationVersion() {
+    return mocks.state.nativeVersion
+  },
+}))
+
 vi.mock('expo-constants', () => ({
   default: {
     get expoConfig() {
@@ -108,6 +115,7 @@ describe('useVersionCheck', () => {
     mocks.state.data = undefined
     mocks.state.lastOptions = null
     mocks.state.platformOS = 'android'
+    mocks.state.nativeVersion = null
     mocks.state.version = '1.0.0'
     mocks.state.pkg = 'org.useorbit.app'
     mocks.state.bundleId = 'org.useorbit.app'
@@ -124,6 +132,19 @@ describe('useVersionCheck', () => {
       versionCheckKeys.latest('android:org.useorbit.app'),
     )
     expect(mocks.state.lastOptions?.enabled).toBe(true)
+  })
+
+  it('reports the installed APK version the API header sends as the current version', () => {
+    mocks.state.nativeVersion = '1.3.39'
+    mocks.state.version = '1.1.4'
+    mocks.state.data = {
+      androidCheck: { shouldUpdate: true, storeVersion: '1.3.40' },
+      latestIosVersion: null,
+      iosStoreUrl: null,
+    }
+    const result = useVersionCheck()
+    expect(result.currentVersion).toBe('1.3.39')
+    expect(result.latestVersion).toBe('1.3.40')
   })
 
   it('reports updateAvailable=true on android when Play says shouldUpdate', () => {

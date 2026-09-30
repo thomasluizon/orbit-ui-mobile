@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
 import { notificationKeys, profileKeys } from '@orbit/shared/query'
-import { hasPendingGoogleAuthSession, markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { AUTH_CALLBACK_URL, getPendingGoogleAuthVerifier, hasPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
@@ -1564,6 +1564,38 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('leaves an anonymous Google callback and account state intact when checkAuth finds no token', async () => {
+    getTokenMock.mockResolvedValue(null)
+    const generation = getSessionGeneration()
+    const callbackUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=state`
+    await markPendingGoogleAuthSession('attempt-1010', 'verifier', 'state')
+    expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 'attempt-1010')).toBe(true)
+
+    await expect(useAuthStore.getState().checkAuth()).resolves.toBe(false)
+
+    expect(getSessionGeneration()).toEqual(generation)
+    expect(getPendingGoogleAuthVerifier('state')).toBe('verifier')
+    expect(renderHookValue(usePendingGoogleAuthSession)).toMatchObject({ callbackUrl, returnUrlAttemptId: 'attempt-1010' })
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isLoading: false })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(clearPersistedQueryCacheMock).not.toHaveBeenCalled()
+    expect(setQueryCacheScopeMock).not.toHaveBeenCalled()
+    expect(offlineQueueClearMock).not.toHaveBeenCalled()
+  })
+
+  it('tears down a signed-in session when checkAuth finds no token', async () => {
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
+    getTokenMock.mockResolvedValue(null)
+    const generation = getSessionGeneration()
+
+    const isValid = await useAuthStore.getState().checkAuth()
+
+    expect(isValid).toBe(false)
+    expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
+    expect(clearAllTokensMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState().sessionPhase).toBe('signed-out')
+  })
+
   it('filters queue ownership and clears offline state before establishing a new session on login', async () => {
     const order: string[] = []
     retainAccountMock.mockImplementation(() => {
@@ -1934,6 +1966,7 @@ describe('mobile auth store security paths', () => {
   })
 
   it('marks the session unauthenticated when initialize finds no token', async () => {
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true })
     getTokenMock.mockResolvedValue(null)
     markStepUpVerified('keys')
 

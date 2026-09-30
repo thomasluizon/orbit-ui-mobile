@@ -82,6 +82,19 @@ describe('useReferral', () => {
     expect(result.current.referralUrl).toBe('https://app.useorbit.org/r/XYZ789')
   })
 
+  it('uses the public staging origin for referral links', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app-staging.useorbit.org')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDashboard({ code: 'XYZ789' })),
+    })
+
+    const { result } = renderHook(() => useReferral(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.referralUrl).toBe('https://app-staging.useorbit.org/r/XYZ789')
+    vi.unstubAllEnvs()
+  })
+
   it('returns empty referralUrl when no code', () => {
     mockFetch.mockResolvedValue({
       ok: false,

@@ -44,6 +44,9 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQuery: mocks.useQuery,
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('expo-constants', () => ({
+  default: { expoConfig: { extra: { router: { origin: 'https://app-staging.useorbit.org' } } } },
+}))
 vi.mock('@/hooks/use-gamification', () => ({
   useReportEvent: () => ({ mutate: mocks.reportEvent }),
 }))
@@ -142,6 +145,8 @@ describe('mobile useWrapped', () => {
     const parsed = await options.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=year')
     expect(parsed).toMatchObject({ period: 'year' })
+    expect((parsed as { shareDeepLink: string }).shareDeepLink)
+      .toBe('https://app-staging.useorbit.org/r/ABC123?recap=week')
   })
 
   it('respects an explicit enabled: false flag', async () => {

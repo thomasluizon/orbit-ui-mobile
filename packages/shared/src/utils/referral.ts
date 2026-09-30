@@ -5,21 +5,33 @@ export function isValidReferralCode(value: string | null | undefined): value is 
   return typeof value === 'string' && value.length > 0 && REFERRAL_CODE_PATTERN.test(value)
 }
 
-export function buildReferralUrl(code: string | null | undefined): string {
-  if (!code) {
-    return ''
-  }
-
-  return `https://app.useorbit.org/r/${code}`
-}
-
-export function buildRecapShareUrl(
+export function buildReferralUrl(
   code: string | null | undefined,
-  period: string,
+  origin = 'https://app.useorbit.org',
 ): string {
   if (!code) {
     return ''
   }
 
-  return `https://app.useorbit.org/r/${code}?recap=${period}`
+  return `${origin}/r/${code}`
+}
+
+export function buildRecapShareUrl(
+  code: string | null | undefined,
+  period: string,
+  origin = 'https://app.useorbit.org',
+): string {
+  if (!code) {
+    return ''
+  }
+
+  return `${origin}/r/${code}?recap=${period}`
+}
+
+export function withShareLinkOrigin(link: string, origin: string): string {
+  if (!link) return link
+  const url = new URL(link)
+  const targetOrigin = new URL(origin).origin
+  if (url.origin === targetOrigin) return link
+  return `${targetOrigin}${url.pathname}${url.search}${url.hash}`
 }

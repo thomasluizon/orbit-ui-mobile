@@ -25,7 +25,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
       onClick={() => router.push('/progress')}
-      className="touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] hover:bg-[var(--bg-elev-2)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+      className="orbit-streak-badge touch-target appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
       style={{
         minWidth: 40,
         height: 40,
@@ -62,7 +62,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           fontFamily: 'var(--font-mono)',
           fontSize: 12,
           fontWeight: 500,
-          color: dormant ? 'var(--fg-3)' : 'var(--fg-1)',
+          color: dormant ? 'var(--streak-count-color, var(--fg-3))' : 'var(--fg-1)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
