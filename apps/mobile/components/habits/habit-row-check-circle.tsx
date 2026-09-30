@@ -65,6 +65,7 @@ export function CheckCircle({
           width: 44,
           height: 44,
           borderRadius: 999,
+          overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',

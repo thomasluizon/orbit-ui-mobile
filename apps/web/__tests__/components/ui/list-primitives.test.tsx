@@ -16,13 +16,14 @@ describe('list primitives on web', () => {
     const row = action.parentElement
     expect(row).toBe(container.firstElementChild)
     expect(row?.style.padding).toBe('')
-    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    expect(action).toHaveStyle({ margin: '16px', marginInlineStart: '0px' })
+    expect(action).toHaveClass('size-11', 'rounded-full')
     expect(action.firstElementChild).toHaveStyle({ width: '44px', height: '44px' })
     action.focus()
     expect(action).toHaveFocus()
     fireEvent.pointerEnter(action)
     fireEvent.pointerDown(action)
-    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    expect(action).toHaveStyle({ margin: '16px', marginInlineStart: '0px' })
     fireEvent.pointerUp(action)
     fireEvent.pointerLeave(action)
     fireEvent.click(action)
@@ -59,7 +60,7 @@ describe('list primitives on web', () => {
     expect(row).toHaveStyle({ minHeight: '52px' })
     expect(body.parentElement?.style.padding).toBe('')
     expect(body).toHaveStyle({ minHeight: '76px', padding: '16px', paddingInlineEnd: '0px' })
-    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    expect(action).toHaveStyle({ margin: '16px', marginInlineStart: '0px' })
     fireEvent.click(body)
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onRemove).not.toHaveBeenCalled()
@@ -190,5 +191,12 @@ describe('list primitives on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Privacy' }))
     expect(openProfile).toHaveBeenCalledOnce()
     expect(openPrivacy).toHaveBeenCalledOnce()
+  })
+
+  it('draws a divider above every actionable SettingsGroup entry except the first', () => {
+    render(<SettingsGroup items={[{ label: 'Account', onClick: vi.fn() }, { label: 'Privacy', onClick: vi.fn() }]} />)
+
+    expect(screen.getByRole('button', { name: 'Account' }).getAttribute('style')).not.toContain('border-top')
+    expect(screen.getByRole('button', { name: 'Privacy' }).getAttribute('style')).toContain('border-top: 1px solid var(--hairline)')
   })
 })

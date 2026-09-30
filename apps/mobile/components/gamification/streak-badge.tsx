@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
     height: 40,
     paddingHorizontal: 8,
     borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: 1.5,
   },
   pressed: {

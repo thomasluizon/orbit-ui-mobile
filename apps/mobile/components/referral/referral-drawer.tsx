@@ -259,11 +259,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       width: 44,
       height: 44,
       borderRadius: radius.full,
+      overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
     },
     copyButtonPressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     actionError: {

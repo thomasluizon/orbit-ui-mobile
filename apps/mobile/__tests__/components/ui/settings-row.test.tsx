@@ -52,6 +52,14 @@ describe('Switch', () => {
 })
 
 describe('SettingsRow', () => {
+  it('clips the pressed fill to its whole row hit area', () => {
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<SettingsRow label="Account" onPress={() => {}} />) })
+    const row = tree.root.find((node: any) => node.props.accessibilityLabel === 'Account' && node.props.accessibilityRole === 'button')
+    const pressed = StyleSheet.flatten(row.props.style({ pressed: true }))
+    expect(pressed).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
+  })
+
   it('draws the canonical ListRow leading icon geometry', () => {
     let tree: any
 

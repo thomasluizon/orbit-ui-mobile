@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
+    overflow: 'hidden',
   },
   disabled: {
     opacity: 0.4,

@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
   option: {
     alignItems: 'center',
     borderRadius: 8,
+    overflow: 'hidden',
     borderWidth: 2,
     justifyContent: 'center',
     minHeight: 44,

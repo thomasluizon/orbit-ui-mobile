@@ -117,6 +117,8 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   iconSlot: {
     width: 28,

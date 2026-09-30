@@ -53,10 +53,8 @@ export function CalendarSyncEventRow({
 
   return (
     <div
-      className={`flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]${importIssue === null ? ' hover:bg-[var(--bg-elev)]' : ''}`}
+      className="flex items-start"
       style={{
-        gap: 12,
-        padding: '0 16px',
         borderBottom: '1px solid var(--hairline)',
         background: importIssue
           ? 'var(--bg-elev)'
@@ -71,8 +69,8 @@ export function CalendarSyncEventRow({
         disabled={importIssue !== null}
         aria-pressed={selected}
         aria-describedby={importIssueId}
-        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
-        style={{ gap: 12, padding: '12px 0' }}
+        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer rounded-[12px] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed"
+        style={{ gap: 12, padding: 12, paddingInlineStart: 16, paddingInlineEnd: isReviewMode && suggestionId ? 0 : 16 }}
       >
         <span
           className="shrink-0"
@@ -194,7 +192,7 @@ export function CalendarSyncEventRow({
           disabled={dismissPending}
           aria-label={t('calendar.autoSync.dismissSuggestion')}
           className="icon-btn touch-target group/dismiss shrink-0 disabled:opacity-50"
-          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-3)' }}
+          style={{ width: 36, height: 36, marginTop: 8, marginInlineStart: 12, marginInlineEnd: 16, color: 'var(--fg-3)' }}
         >
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>

@@ -13,6 +13,8 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   bodyButton: {
     flex: 1,
@@ -21,6 +23,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   bodyButtonPressed: {
     transform: [{ scale: 0.96 }],
@@ -54,6 +58,7 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -61,6 +66,7 @@ export const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -71,7 +77,8 @@ export const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   menuItemLabel: {
     fontFamily: 'Geist_400Regular',

@@ -1,6 +1,8 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { AstraConversation } from '@/components/chat/conversation'
+import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
@@ -93,6 +95,17 @@ describe('AstraConversation header (mobile)', () => {
       (node: any) => node.props.accessibilityLabel === 'common.closeConversation',
     )
     expect(close).toHaveLength(1)
+
+    TestRenderer.act(() => close[0].props.onPressIn())
+    expect(StyleSheet.flatten(close[0].props.style)).toMatchObject({
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      overflow: 'hidden',
+      backgroundColor: createTokensV2('orange', 'dark').bgHover,
+    })
+    TestRenderer.act(() => close[0].props.onPressOut())
+    expect(StyleSheet.flatten(close[0].props.style).backgroundColor).toBe('transparent')
 
     TestRenderer.act(() => {
       close[0].props.onPress()

@@ -76,17 +76,19 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       width: 36,
       height: 36,
       borderRadius: 999,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
       flexShrink: 0,
     },
     monthNavButtonPressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     monthLabelButton: {
       height: 36,
       borderRadius: 999,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 4,
@@ -94,12 +96,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     weekLabelButton: {
       height: 36,
       borderRadius: 999,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 16,
     },
     monthLabelButtonPressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
     monthTitle: {
@@ -112,6 +115,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     yearButton: {
       height: 36,
       borderRadius: 999,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 4,
