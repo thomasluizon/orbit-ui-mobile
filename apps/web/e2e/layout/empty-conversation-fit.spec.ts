@@ -33,6 +33,10 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         await setLayoutProfileSession(context, profileSchema.parse({ ...profileFixture, language: locale }))
         await context.route(new RegExp(`${API.habits.list}(?:\\?.*)?$`), (route) => route.fulfill({ json: habits }))
         await page.goto('/')
+        await page.getByRole('button', { name: messages.habits.listOptions }).click()
+        await page.getByRole('menu', { name: messages.habits.listOptions })
+          .getByRole('menuitem', { name: messages.habits.refresh }).click()
+        await expect(page.locator('[data-habit-title="Rotina da casa"]')).toBeVisible()
         await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
         const presentation = viewport.width >= 1024 ? 'panel' : 'overlay'
         const conversation = page.locator(`[data-shell-conversation="${presentation}"]`)
