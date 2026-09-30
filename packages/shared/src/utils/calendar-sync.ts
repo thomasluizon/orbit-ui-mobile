@@ -2,6 +2,7 @@ import { MAX_HABIT_INTERVAL_WEEKS, type BulkCreateRequest, type FrequencyUnit } 
 import type {
   CalendarAutoSyncState,
   CalendarAutoSyncStatus,
+  CalendarSyncEvent,
   CalendarSyncSuggestion,
 } from '../types/calendar'
 import { plural } from './plural'
@@ -9,23 +10,7 @@ import { plural } from './plural'
 export const CALENDAR_RECONNECT_REQUIRED_ERROR_CODE = 'CALENDAR_RECONNECT_REQUIRED'
 export const CALENDAR_NOT_CONNECTED_ERROR_CODE = 'CALENDAR_NOT_CONNECTED'
 
-export interface CalendarSyncEvent {
-  id: string
-  title: string
-  description: string | null
-  startDate: string | null
-  startTime: string | null
-  startUtc?: string | null
-  recurrenceTimeZone?: string | null
-  endTime: string | null
-  isRecurring: boolean
-  recurrenceRule: string | null
-  reminders: number[]
-  calendarId?: string
-  calendarName?: string
-  isImported?: boolean | null
-  importedHabitId?: string | null
-}
+export type { CalendarSyncEvent } from '../types/calendar'
 
 export function filterCalendarSyncEventsByDate(
   events: CalendarSyncEvent[],
