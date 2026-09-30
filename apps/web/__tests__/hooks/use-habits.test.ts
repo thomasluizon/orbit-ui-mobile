@@ -226,7 +226,7 @@ function getCalendarStatus(
 ) {
   const calendar = queryClient.getQueryData<CalendarMonthResponse>(key)
   return calendar
-    ? buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+    ? buildCalendarDayMap(calendar, { from: '2025-01-01', to: '2025-01-31' }, new Date('2025-01-16T12:00:00Z'))
         .get(date)?.find((entry) => entry.habitId === habitId)?.status
     : undefined
 }

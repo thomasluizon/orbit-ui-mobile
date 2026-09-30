@@ -426,7 +426,7 @@ function getCalendarStatus(
   habitId = 'habit-1',
 ) {
   const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
-  return buildCalendarDayMap(calendar, new Date('2025-01-16T09:00:00Z'))
+  return buildCalendarDayMap(calendar, { from: '2025-01-01', to: '2025-01-31' }, new Date('2025-01-16T09:00:00Z'))
     .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
