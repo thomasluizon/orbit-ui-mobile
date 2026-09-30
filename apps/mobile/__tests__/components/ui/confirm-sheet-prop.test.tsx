@@ -1,5 +1,7 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { PillButton } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { sheetTestControls } from '../../support/sheet-double'
 
@@ -90,5 +92,25 @@ describe('ConfirmSheet controlled close', () => {
     TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(1)
     expect(props.onCancel).not.toHaveBeenCalled()
+  })
+})
+
+describe('DiscardChangesSheet', () => {
+  it('uses the destructive pill and finishes the prompt exit before discarding', () => {
+    sheetTestControls.defer(true)
+    const onDiscard = vi.fn()
+    const onKeepEditing = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<DiscardChangesSheet open onDiscard={onDiscard} onKeepEditing={onKeepEditing} />) })
+    const pills = tree!.root.findAllByType(PillButton)
+    const discard = pills.find((pill: { props: { children: string } }) => pill.props.children === 'common.discardChangesAction')
+    expect(discard).toBeDefined()
+    expect(discard!.props.variant).toBe('destructive')
+    TestRenderer.act(() => discard!.props.onClick())
+    expect(onDiscard).not.toHaveBeenCalled()
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree!.root.findAllByType(PillButton)).toHaveLength(0)
+    expect(onDiscard).toHaveBeenCalledOnce()
+    expect(onKeepEditing).not.toHaveBeenCalled()
   })
 })

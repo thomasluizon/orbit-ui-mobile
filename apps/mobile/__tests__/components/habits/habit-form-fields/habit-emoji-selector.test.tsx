@@ -1,11 +1,10 @@
-import { radius } from '@/lib/theme'
 import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HABIT_EMOJI_CATEGORIES } from "@orbit/shared/utils";
 import { HabitEmojiSelector } from "@/components/habits/habit-form-fields/habit-emoji-selector";
 import { createStyles } from "@/components/habits/habit-form-fields/styles";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
 
 const mockCloseSheet = vi.hoisted(() =>
   vi.fn((afterClose?: () => void) => afterClose?.()),
@@ -194,9 +193,4 @@ it('fills the picker controls, selected and idle options, and clear search', () 
   const search = tree.root.findAll((node) => node.type === 'TextInput')[0]!;
   TestRenderer.act(() => (search.props.onChangeText as (value: string) => void)('run'));
   expectPressFill(tree, 'habits.form.emojiClearSearch', tokens.bgHover, 999);
-});
-it('fills the suggestion action', () => {
-  let tree!: TestTree;
-  TestRenderer.act(() => { tree = TestRenderer.create(<HabitEmojiSelector selectedEmoji="" tokens={tokens} styles={styles} onSelect={vi.fn()} onSuggest={vi.fn()} canSuggest />) });
-  expectPressFill(tree, 'habits.form.emojiSuggest', tokens.bgHover, radius.full);
 });

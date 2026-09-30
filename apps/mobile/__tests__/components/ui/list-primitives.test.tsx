@@ -127,11 +127,12 @@ describe('list primitives on mobile', () => {
     expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
   })
 
-  it('keeps required padding when a caller passes the legacy inset option', () => {
+  it('renders a bare compact row while preserving default card padding', () => {
     const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
     const bodyStyle = StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))
-    expect(bodyStyle).toMatchObject({ padding: 16 })
-    expect(bodyStyle).not.toHaveProperty('paddingEnd')
+    expect(bodyStyle).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingStart: 0, paddingHorizontal: 0 })
+    const ordinary = render(<ListRow title="Tags" onClick={vi.fn()} />)
+    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 76, padding: 16 })
   })
 
   it('owns the entire padded perimeter in adjacent body and action targets', () => {

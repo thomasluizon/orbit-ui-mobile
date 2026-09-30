@@ -17,8 +17,8 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
-function getBodyStyle(compact: boolean, hasAction: boolean) {
-  return [styles.body, compact ? styles.compactBody : null, hasAction ? styles.bodyWithAction : null]
+function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean) {
+  return [styles.body, compact ? styles.compactBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null]
 }
 
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
@@ -37,10 +37,10 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = false, inForm = false, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = false, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
-  const bodyStyle = getBodyStyle(compact, !!action)
+  const bodyStyle = getBodyStyle(compact, !!action, inset)
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
   formRow: { marginHorizontal: 8, borderRadius: 12, overflow: 'hidden' },
   body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
   compactBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 12 },
+  bareBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 0, paddingStart: 0, paddingEnd: 0 },
   bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, margin: 16, marginStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
