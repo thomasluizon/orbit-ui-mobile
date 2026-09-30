@@ -89,15 +89,6 @@
     "habit": "Habit",
     "openIn": "Open in {target}"
   },
-  "persistentReminder": {
-    "label": "Persistent reminder",
-    "description": "Keep a quiet ongoing notification with your streak and today's progress.",
-    "channelName": "Ongoing reminder",
-    "titleStreak": "{streak}-day streak",
-    "titleNoStreak": "Start your streak today",
-    "body": "{completed}/{total} done today",
-    "bodyEmpty": "Nothing scheduled today"
-  },
   "common": {
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
@@ -1191,7 +1182,7 @@
       }
     },
     "empty": {
-      "title": "How did the day land?"
+      "title": "Talk to Astra about your routine"
     },
     "placeholder": "Ask Astra",
     "copy": "Copy",
@@ -1219,10 +1210,11 @@
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
     "suggestion": {
-      "prompt": "I can recap, plan, or help you adjust a habit.",
-      "meditated": "I meditated today",
-      "exercise": "Create a habit to exercise every morning",
-      "groceries": "I need to buy groceries tomorrow"
+      "prompt": "Some things you can ask",
+      "logHabit": "Log {habit}",
+      "week": "How the week went",
+      "splitHabit": "Split {habit}",
+      "goals": "How are my goals"
     },
     "action": {
       "changes": "Changes",
@@ -1841,22 +1833,12 @@
       "errorGeneric": "Something went wrong. Please try again."
     },
     "deleteAccount": {
-      "button": "Delete account",
-      "title": "Delete Account",
       "headingAreYouSure": "This deletes your account",
-      "headingConfirmCode": "Confirm with code",
-      "headingDeactivated": "Account deactivated",
       "warning": "You have time to change your mind. After that, the deletion is permanent and cannot be undone.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
       "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
-      "sending": "Sending...",
-      "codeInstructions": "Enter the 6-digit code sent to your email to confirm account deactivation.",
-      "confirmDelete": "Deactivate my account",
-      "deleting": "Processing...",
-      "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
-      "reactivated": "Your account deletion is cancelled.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }

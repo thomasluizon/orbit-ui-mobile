@@ -297,41 +297,6 @@ export function PushNotificationSection({
   )
 }
 
-export function PersistentReminderRow({
-  t,
-  enabled,
-  isLoading,
-  onToggle,
-}: Readonly<{ t: TranslationFn; enabled: boolean; isLoading: boolean; onToggle: () => void }>) {
-  return (
-    <SettingsRow
-      label={t('persistentReminder.label')}
-      desc={t('persistentReminder.description')}
-      accessory="none"
-      divider={false}
-    >
-      <View
-        pointerEvents={isLoading ? 'none' : 'auto'}
-        accessible={isLoading}
-        accessibilityRole={isLoading ? 'switch' : undefined}
-        accessibilityLabel={isLoading ? t('persistentReminder.label') : undefined}
-        accessibilityState={isLoading ? { checked: enabled, disabled: true } : undefined}
-      >
-        <View
-          accessibilityElementsHidden={isLoading}
-          importantForAccessibility={isLoading ? 'no-hide-descendants' : 'auto'}
-        >
-          <Switch
-            checked={enabled}
-            onChange={onToggle}
-            label={t('persistentReminder.label')}
-          />
-        </View>
-      </View>
-    </SettingsRow>
-  )
-}
-
 interface PreferencePickerSheetProps {
   tokens: Tokens
   activePicker: PreferencePicker | null

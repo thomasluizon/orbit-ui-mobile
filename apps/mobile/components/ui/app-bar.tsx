@@ -1,7 +1,8 @@
 import type { Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft } from '@/components/ui/icons'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -12,10 +13,10 @@ export function AppBar({ title, onBack, backLabel, action, titleRef, titleIsHead
     <View testID={onBack ? 'nav-header-back' : 'nav-header-plain'} style={styles.row}>
       <View style={styles.leading}>
         {onBack && (
-          <Pressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
+          <MotionPressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
             style={({ pressed }) => [styles.back, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
             <ChevronLeft size={24} strokeWidth={2} color={tokens.fg1} />
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
       <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>

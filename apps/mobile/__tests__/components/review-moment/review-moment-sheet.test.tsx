@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
@@ -24,9 +25,6 @@ vi.mock('@/components/ui/pill-button', () => ({
   }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
-vi.mock('@/components/ui/astra-avatar', () => ({
-  AstraAvatar: () => React.createElement('AstraAvatarStub'),
-}))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: undefined }),
@@ -47,6 +45,9 @@ vi.mock('@/hooks/use-review-reminder', () => ({
 }))
 
 const TestRenderer = require('react-test-renderer')
+
+const tokens = createTokensV2('orange', 'dark')
+const primaryTint = tintFromPrimary(tokens, 0.14)
 
 type RenderedNode = {
   type: unknown
@@ -138,7 +139,14 @@ describe('ReviewMomentSheet (mobile)', () => {
     await settle()
 
     expect(findByType(tree, 'Sheet')).toHaveLength(1)
-    expect(findByType(tree, 'AstraAvatarStub')).toHaveLength(1)
+    const mark = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.eyebrow',
+    )
+    expect(mark).toHaveLength(1)
+    const glyphs = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')
+    expect(glyphs.map((node) => node.props.color)).toEqual([tokens.fg1])
+    expect(JSON.stringify(tree.toJSON())).not.toContain(primaryTint)
+    expect(JSON.stringify(tree.toJSON())).not.toContain(tokens.primary)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.streakTitle')
     expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
       'review-streak-7',

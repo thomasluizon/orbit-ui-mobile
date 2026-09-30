@@ -3,20 +3,17 @@ import {
   __setOrbitWidgetModuleForTests,
   syncWidgetData,
 } from '@/lib/orbit-widget'
+import type { OrbitWidgetModuleType } from '../../modules/orbit-widget/src/OrbitWidget.types'
 
 const mocks = vi.hoisted(() => ({
   apiClientWithAuthorizingToken: vi.fn(),
   getToken: vi.fn(),
-  refreshPersistentReminder: vi.fn(),
 }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClientWithAuthorizingToken: mocks.apiClientWithAuthorizingToken,
 }))
 vi.mock('@/lib/secure-store', () => ({ getToken: mocks.getToken }))
-vi.mock('@/lib/persistent-reminder', () => ({
-  refreshPersistentReminder: mocks.refreshPersistentReminder,
-}))
 
 function tokenFor(accountId: string): string {
   const payload = btoa(JSON.stringify({ sub: accountId, email: `${accountId}@example.com` }))
@@ -24,23 +21,22 @@ function tokenFor(accountId: string): string {
 }
 
 describe('syncWidgetData account ownership', () => {
+  let widgetModule: OrbitWidgetModuleType
+
   beforeEach(() => {
     vi.clearAllMocks()
-    __setOrbitWidgetModuleForTests({
+    widgetModule = {
       saveToken: vi.fn(),
       clearToken: vi.fn(),
       syncTheme: vi.fn(),
       syncWidgetData: vi.fn(),
-      postPersistentReminder: vi.fn(),
-      cancelPersistentReminder: vi.fn(),
-    })
+    }
+    __setOrbitWidgetModuleForTests(widgetModule)
   })
 
-  it('does not refresh the reminder after the signed-in account changes', async () => {
+  it('labels the widget payload with the token that authorised its fetch', async () => {
     const authorizingToken = tokenFor('first-account')
-    mocks.getToken
-      .mockResolvedValueOnce(authorizingToken)
-      .mockResolvedValueOnce(tokenFor('second-account'))
+    mocks.getToken.mockResolvedValue(authorizingToken)
     mocks.apiClientWithAuthorizingToken.mockResolvedValue({
       data: { currentStreak: 8, items: [] },
       authorizingToken,
@@ -48,9 +44,30 @@ describe('syncWidgetData account ownership', () => {
 
     await syncWidgetData()
 
-    expect(mocks.refreshPersistentReminder).toHaveBeenCalledWith(
-      { currentStreak: 8, items: [] },
+    expect(widgetModule.syncWidgetData).toHaveBeenCalledExactlyOnceWith(
+      JSON.stringify({ currentStreak: 8, items: [] }),
       authorizingToken,
     )
+  })
+
+  it('sends nothing to the widget when the payload has no authorising account', async () => {
+    mocks.getToken.mockResolvedValue(tokenFor('first-account'))
+    mocks.apiClientWithAuthorizingToken.mockResolvedValue({
+      data: { currentStreak: 8, items: [] },
+      authorizingToken: null,
+    })
+
+    await syncWidgetData()
+
+    expect(widgetModule.syncWidgetData).not.toHaveBeenCalled()
+  })
+
+  it('fetches nothing while signed out', async () => {
+    mocks.getToken.mockResolvedValue(null)
+
+    await syncWidgetData()
+
+    expect(mocks.apiClientWithAuthorizingToken).not.toHaveBeenCalled()
+    expect(widgetModule.syncWidgetData).not.toHaveBeenCalled()
   })
 })

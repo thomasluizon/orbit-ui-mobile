@@ -12,40 +12,41 @@ export function createStyles(tokens: Tokens) {
     content: {
       flex: 1,
     },
-    emptyState: {
-      flex: 1,
-      position: "relative",
-    },
-    emptyContent: {
-      flex: 1,
+    headerClose: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
-      gap: 16,
-      paddingHorizontal: 32,
-      zIndex: 1,
     },
-    emptyTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 22,
-      letterSpacing: -0.22,
-      textAlign: "center",
-      color: tokens.fg1,
+    emptyState: {
+      flex: 1,
     },
-    emptyText: {
+    emptyContent: {
+      flexGrow: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 24,
+      paddingHorizontal: 16,
+    },
+    emptySuggestions: {
+      alignItems: "center",
+      gap: 8,
+    },
+    emptyPrompt: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
-      maxWidth: 280,
+      fontSize: 14,
+      lineHeight: 20,
       textAlign: "center",
-      color: tokens.fg2,
+      color: tokens.fg3,
     },
     aiDisclaimer: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: 12,
+      lineHeight: 16,
       textAlign: "center",
       maxWidth: 300,
-      marginTop: 4,
       color: tokens.fg3,
     },
     messageList: {

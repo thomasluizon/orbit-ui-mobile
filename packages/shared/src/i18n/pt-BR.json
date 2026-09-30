@@ -89,15 +89,6 @@
     "habit": "Hábito",
     "openIn": "Abrir em {target}"
   },
-  "persistentReminder": {
-    "label": "Lembrete fixo",
-    "description": "Mantenha uma notificação fixa e silenciosa com sua sequência e o progresso de hoje.",
-    "channelName": "Lembrete fixo",
-    "titleStreak": "Sequência de {streak} dias",
-    "titleNoStreak": "Comece sua sequência hoje",
-    "body": "{completed}/{total} concluídos hoje",
-    "bodyEmpty": "Nada agendado para hoje"
-  },
   "common": {
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
@@ -1191,7 +1182,7 @@
       }
     },
     "empty": {
-      "title": "Como foi seu dia?"
+      "title": "Fale com a Astra sobre a sua rotina"
     },
     "placeholder": "Pergunte à Astra",
     "copy": "Copiar",
@@ -1219,10 +1210,11 @@
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
     "suggestion": {
-      "prompt": "Posso resumir, planejar ou te ajudar a ajustar um hábito.",
-      "meditated": "Meditei hoje",
-      "exercise": "Criar um hábito de exercício toda manhã",
-      "groceries": "Preciso fazer compras amanhã"
+      "prompt": "Algumas coisas que dá para pedir",
+      "logHabit": "Registrar {habit}",
+      "week": "Como foi a semana",
+      "splitHabit": "Dividir {habit}",
+      "goals": "Como estão as metas"
     },
     "action": {
       "changes": "Alterações",
@@ -1841,22 +1833,12 @@
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
     "deleteAccount": {
-      "button": "Apagar a conta",
-      "title": "Apagar a conta",
       "headingAreYouSure": "Isso apaga a sua conta",
-      "headingConfirmCode": "Confirme com o código",
-      "headingDeactivated": "Conta desativada",
       "warning": "Você tem tempo para mudar de ideia. Depois disso, a conta é apagada de vez e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
-      "sending": "Enviando...",
-      "codeInstructions": "Digite o código de 6 dígitos que enviamos ao seu e-mail para confirmar a desativação da conta.",
-      "confirmDelete": "Desativar minha conta",
-      "deleting": "Processando...",
-      "deactivated": "Sua conta foi desativada. Ela será apagada de vez em {date}.",
-      "reactivated": "O pedido para apagar a sua conta foi cancelado.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }

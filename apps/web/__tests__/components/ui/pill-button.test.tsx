@@ -211,7 +211,7 @@ describe('PillButton', () => {
     ])
   })
 
-  it('uses separate hover color and interruptible press transform timings', () => {
+  it('transitions the scale property the press utility writes, apart from the hover colour', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     const button = screen.getByRole('button', { name: 'Continue' })
     expect(button).toHaveClass('orbit-pill-action', 'enabled:active:scale-[0.96]')
@@ -224,7 +224,8 @@ describe('PillButton', () => {
     expect(transitions).toHaveLength(1)
     expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
     expect(transitions[0]).toContain('opacity var(--dur-1) var(--ease-out)')
-    expect(transitions[0]).toContain('transform var(--dur-1) var(--ease-out)')
+    expect(transitions[0]).toContain('scale var(--dur-1) var(--ease-out)')
+    expect(transitions[0]).not.toContain('transform')
     const activeDurations: string[] = []
     css.walkRules('.orbit-pill-action:active:not(:disabled)', (rule) => {
       rule.walkDecls('transition-duration', (declaration) => { activeDurations.push(declaration.value) })
