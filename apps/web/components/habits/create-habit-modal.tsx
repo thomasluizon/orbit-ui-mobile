@@ -282,12 +282,13 @@ export function CreateHabitModal({
     })
   }, [formHelpers.form])
 
+  const createErrorKey = isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit'
+  const createErrorEntity = isSubHabitMode ? 'subHabit' : 'habit'
+
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       const submittingAccount = getAccountGeneration()
-
-      if (!isOnline) return
 
       if (isSubHabitMode && !canUseSubHabits) {
         navigateToUpgrade()
@@ -295,6 +296,8 @@ export function CreateHabitModal({
       }
 
       const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -305,6 +308,7 @@ export function CreateHabitModal({
         showError(error)
         return
       }
+      if (!isOnline) return
       const data = habitFormSchema.parse(formHelpers.form.getValues())
 
       try {
@@ -326,13 +330,13 @@ export function CreateHabitModal({
           getFriendlyErrorMessage(
             error,
             translate,
-            isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
-            isSubHabitMode ? 'subHabit' : 'habit',
+            createErrorKey,
+            createErrorEntity,
           ),
         )
       }
     },
-    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, closeSheet, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -457,7 +461,7 @@ export function CreateHabitModal({
                 <PillButton
                   formId={formId}
                   descriptionId={watchedTitle.trim().length === 0 ? `${formId}-create-reason` : undefined}
-                  disabled={isPending || !isOnline || watchedTitle.trim().length === 0}
+                  loading={isPending}
                 >
                   {isSubHabitMode ? t('common.create') : t('habits.createHabit')}
                 </PillButton>

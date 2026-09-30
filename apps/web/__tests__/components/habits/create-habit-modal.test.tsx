@@ -95,6 +95,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       reset: mockFormReset,
       setValue: mockFormSetValue,
       getValues: mockFormGetValues,
+      trigger: vi.fn().mockResolvedValue(true),
       watch: mockFormWatch,
       register: mockFormRegister,
       formState: { isValid: true },
@@ -570,14 +571,14 @@ describe('CreateHabitModal', () => {
     expect(screen.queryByText('habits.form.addSubHabit')).toBeNull()
   })
 
-  it('shows validation error when form validation fails', () => {
+  it('shows validation error when form validation fails', async () => {
     mockValidateAll.mockReturnValue('Validation failed!')
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     const form = screen.getByTestId('sheet').querySelector('form')
     fireEvent.submit(form!)
-    expect(mockShowError).toHaveBeenCalledWith('Validation failed!')
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('Validation failed!'))
     expect(mockCreateMutateAsync).not.toHaveBeenCalled()
     expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
   })
@@ -816,11 +817,11 @@ describe('CreateHabitModal', () => {
 })
 
 describe('create form copy', () => {
-  it('names the new habit and explains the empty disabled action without a subtitle', () => {
+  it('names the new habit and keeps its empty submit action available', () => {
     mockFormWatch.mockImplementation((field?: string) => field === 'title' ? '' : undefined)
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
     expect(screen.getByText('habits.form.newHabit')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeEnabled()
     expect(screen.getByText('habits.form.createWhy')).toBeInTheDocument()
     expect(screen.queryByText('habits.form.createDescription')).toBeNull()
   })

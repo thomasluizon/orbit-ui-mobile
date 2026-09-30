@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type Ref } from 'react'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
@@ -10,10 +10,12 @@ import { Proposed } from '@/components/ui/proposed'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
+  inputRef?: Ref<HTMLTextAreaElement>
   isSuggestionDisabled?: boolean
 }
 
 export function HabitUnderstanding({
+  inputRef,
   value,
   error,
   emoji,
@@ -59,6 +61,7 @@ export function HabitUnderstanding({
             ) : segment.text) : <span className="text-[var(--fg-3)]">{labels.placeholder}</span>}
           </p>
           <textarea
+            ref={inputRef}
             id="habit-phrase"
             value={value}
             rows={3}
