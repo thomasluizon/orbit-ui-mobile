@@ -245,13 +245,14 @@ function createStyles(tokens: AppTokens) {
       position: 'relative',
     },
     days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    day: { alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
+    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
     daySelected: { backgroundColor: tokens.primaryDim, borderColor: tokens.primary, borderWidth: 1.5 },
     dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stepButton: {
+      overflow: 'hidden',
       alignItems: 'center',
       backgroundColor: tokens.bgWell,
       borderColor: tokens.hairline,
@@ -269,7 +270,7 @@ function createStyles(tokens: AppTokens) {
       textAlign: 'center',
       fontVariant: ['tabular-nums'],
     },
-    pressed: { transform: [{ scale: 0.96 }] },
+    pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
     disabled: { opacity: 0.4 },
   })
 }

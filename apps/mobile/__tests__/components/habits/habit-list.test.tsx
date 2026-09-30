@@ -1,3 +1,5 @@
+import { createTokensV2 } from '@/lib/theme'
+import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -1926,6 +1928,9 @@ describe('HabitList', () => {
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
     expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
     expect(tree.root.findByType('FlatList').props.renderItem({ item: child, index: 0 }).props.structuralColumn).toBe(true)
+    let headerTree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType('FlatList').props.ListHeaderComponent) })
+    expectPressFill(headerTree, 'common.back', createTokensV2().bgHover, 999)
   })
 
   it('explains filtered empty drills and offers Show completed when it can reveal children', () => {

@@ -53,7 +53,7 @@ function EmojiSuggestButton({
       style={({ pressed }) => [
         styles.emojiSuggestButton,
         disabled ? styles.emojiSuggestButtonDisabled : null,
-        pressed ? { transform: [{ scale: 0.96 }] } : null,
+        pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
       ]}
       onPress={onSuggest}
       disabled={disabled}
@@ -63,9 +63,9 @@ function EmojiSuggestButton({
       accessibilityState={{ disabled, busy: isSuggesting }}
     >
       {isSuggesting ? (
-        <ActivityIndicator size="small" color={tokens.primary} />
+        <ActivityIndicator size="small" color={tokens.fg2} />
       ) : (
-        <AstraGlyph size={20} color={tokens.primary} />
+        <AstraGlyph size={20} color={tokens.fg2} />
       )}
     </Pressable>
   );
@@ -160,7 +160,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: 44, justifyContent: 'center', width: 44 }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -181,7 +181,7 @@ export function HabitEmojiSelector({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.emojiClearSearch")}
-                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                  style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
                   onPress={() => setQuery('')}
                 >
                   <X size={20} color={tokens.fg2} strokeWidth={1.8} />
@@ -201,9 +201,9 @@ export function HabitEmojiSelector({
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,
                       selected ? styles.emojiCategoryTabActive : null,
-                      pressed ? { transform: [{ scale: 0.96 }] } : null,
+                      pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                     ]}
-                    hitSlop={{ top: 4, bottom: 4 }}
+
                     onPress={() => handleSelectCategory(category.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t(category.labelKey)}
@@ -232,7 +232,7 @@ export function HabitEmojiSelector({
                           style={({ pressed }) => [
                             styles.emojiOption,
                             selected ? styles.emojiOptionSelected : null,
-                            pressed ? { transform: [{ scale: 0.96 }] } : null,
+                            pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                           ]}
                           disabled={isDisabled}
                           onPress={() => handleSelectEmoji(emoji)}

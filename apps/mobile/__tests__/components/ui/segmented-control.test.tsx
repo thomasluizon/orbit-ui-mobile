@@ -1,3 +1,5 @@
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { useState } from 'react'
 import { act } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -74,4 +76,17 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
     tree.unmount()
   })
+})
+
+it('fills an unselected segment without selecting it until activation', () => {
+  const onChange = vi.fn()
+  const tree = renderNavigation(<SegmentedControl options={options} value="all" onChange={onChange} label="Views" />)
+  const host = () => tree.hosts().find((node) => node.props.testID === 'segment-active-unselected-enabled')!
+  const resting = StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)
+  void act(() => (host().props as { onPressIn: () => void }).onPressIn())
+  expect(StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 8, overflow: 'hidden' })
+  expect(onChange).not.toHaveBeenCalled()
+  void act(() => (host().props as { onPressOut: () => void }).onPressOut())
+  expect(StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)).toEqual(resting)
+  tree.unmount()
 })

@@ -67,6 +67,7 @@ export function createSectionStyles(tokens: AppTokens) {
     addButton: {
       minHeight: 44,
       minWidth: 44,
+      overflow: "hidden",
       flexDirection: "row",
       alignItems: "center",
       alignSelf: "flex-start",
@@ -136,6 +137,7 @@ export function createSectionStyles(tokens: AppTokens) {
     unitButton: {
       minHeight: 44,
       minWidth: 44,
+      overflow: "hidden",
       paddingHorizontal: 8,
       paddingVertical: 8,
       borderRadius: radius.full,
@@ -150,7 +152,7 @@ export function createSectionStyles(tokens: AppTokens) {
     unitButtonText: {
       fontFamily: "Geist_500Medium",
       fontSize: 12,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     unitButtonTextActive: {
       color: tokens.fg1,
@@ -312,6 +314,7 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     emojiSuggestButton: {
+      overflow: "hidden",
       width: 44,
       height: 44,
       borderRadius: radius.full,
@@ -365,6 +368,10 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 0,
     },
     emojiCategoryTab: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
+      overflow: "hidden",
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: "transparent",
@@ -379,7 +386,7 @@ export function createStyles(tokens: AppTokens) {
     emojiCategoryTabText: {
       fontFamily: "Geist_500Medium",
       fontSize: 13,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     emojiCategoryTabTextActive: {
       color: tokens.fg1,
@@ -406,6 +413,7 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     emojiOption: {
+      overflow: "hidden",
       width: 44,
       height: 44,
       borderRadius: 12,
@@ -577,6 +585,11 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     tagChipMain: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
+      borderRadius: radius.full,
+      overflow: "hidden",
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
@@ -590,6 +603,12 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
     },
     tagAction: {
+      minWidth: 44,
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.full,
+      overflow: "hidden",
       paddingHorizontal: 4,
       paddingVertical: 8,
     },
@@ -654,6 +673,10 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     tagFormSave: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
+      overflow: "hidden",
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
@@ -665,8 +688,10 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fgOnPrimary,
     },
     tagFormCancel: {
-      width: 40,
-      height: 40,
+      borderRadius: radius.full,
+      overflow: "hidden",
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
     },

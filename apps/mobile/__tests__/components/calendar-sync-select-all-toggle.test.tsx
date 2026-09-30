@@ -15,11 +15,12 @@ interface TestNode {
   props: Record<string, unknown>
 }
 
-function renderToggle(allSelected: boolean, onToggle: () => void) {
+function renderToggle(allSelected: boolean, onToggle: () => void, disabled = false) {
   let tree: { root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] } }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <SelectAllToggle
+        disabled={disabled}
         allSelected={allSelected}
         onToggle={onToggle}
         selectAllLabel={selectAllLabel}
@@ -40,10 +41,12 @@ function getButton(tree: ReturnType<typeof renderToggle>) {
 }
 
 describe('mobile SelectAllToggle', () => {
-  it('paints the whole target without invisible slop', () => {
-    const button = getButton(renderToggle(false, vi.fn()))
+  it.each([false, true])('paints the whole target without invisible slop, disabled: %s', (disabled) => {
+    const button = getButton(renderToggle(false, vi.fn(), disabled))
     const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    expect(button.props.disabled).toBe(disabled)
     expect(button.props.hitSlop).toBeUndefined()
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', ...(disabled ? { opacity: 0.6 } : {}) })
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.bgHover })
   })
 

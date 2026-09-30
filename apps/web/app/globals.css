@@ -225,6 +225,8 @@
   outline-offset: 2px;
 }
 
+.orbit-sheet-close:active { background: var(--bg-hover); }
+
 .orbit-sheet-close:active,
 .orbit-menu-item:active {
   transform: scale(0.96);
@@ -1084,7 +1086,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     color var(--dur-hover-control) var(--ease-standard),
     transform var(--dur-fast) var(--ease-standard);
 }
-.icon-btn:active { transform: scale(0.96); }
+.icon-btn:active { background: var(--bg-hover); transform: scale(0.96); }
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }
 }
@@ -1229,6 +1231,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   button.chip:not(:disabled).chip-filled:hover { background: var(--primary-hover); }
   button.chip:not(:disabled).chip-ai:hover { background: rgba(var(--primary-rgb), 0.16); }
 }
+button.chip:not(:disabled):not(.chip-filled):active { background: var(--bg-hover); }
+button.chip:not(:disabled).chip-filled:active { background: var(--primary-pressed); }
 }
 
 /* Overlay body gutter — single source for full-bleed rows inside AppOverlay */

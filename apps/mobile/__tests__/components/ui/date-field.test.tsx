@@ -76,6 +76,28 @@ describe('DateField (mobile)', () => {
     }
   })
 
+  it.each(['days', 'years'])('paints every navigation target in %s mode and clears the fill on release', (mode) => {
+    const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const tokens = createTokensV2('purple', 'dark')
+    TestRenderer.act(() => tree.root.findByType(Pressable).props.onPress())
+    const control = (label: string) => tree.root.findAllByType(Pressable).find(
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === label,
+    )!
+    if (mode === 'years') TestRenderer.act(() => control('common.selectYear').props.onPress())
+    for (const label of ['common.previousMonth', 'common.selectYear', 'common.nextMonth']) {
+      const target = control(label)
+      const resting = flatten(target.props.style({ pressed: false }))
+      const pressed = flatten(target.props.style({ pressed: true }))
+      expect(target.props.hitSlop).toBeUndefined()
+      expect(resting.minHeight ?? resting.height).toBe(44)
+      expect(resting.minWidth ?? resting.width).toBe(44)
+      expect(pressed).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 8, overflow: 'hidden' })
+      expect(resting.backgroundColor).toBeUndefined()
+      if (label !== 'common.selectYear') expect(target.props.disabled).toBe(mode === 'years')
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('reports the picked day as a canonical date', () => {
     const onChange = vi.fn()
     const tree = render(<DateField value="2025-06-15" onChange={onChange} />)

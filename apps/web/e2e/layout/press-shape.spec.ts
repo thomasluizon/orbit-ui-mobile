@@ -9,16 +9,16 @@ import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { calendarAutoSyncStateSchema, calendarSyncSuggestionSchema } from '@orbit/shared/types/calendar'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { test } from './upgrade-fixtures'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   title: 'Beber água',
   dueDate: '2026-09-04',
   scheduledDates: ['2026-09-04'],
-  children: [],
-  hasSubHabits: false,
+  children: makeHabitScheduleItem().children.map((child) => ({ ...child, dueDate: '2026-09-04', scheduledDates: ['2026-09-04'] })),
+  hasSubHabits: true,
 }))
 const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
   items: [habit], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
@@ -74,7 +74,13 @@ async function readTargetGeometry(control: Locator) {
     const fill = element.querySelector('[data-press-fill]') ?? element
     const fillBox = fill.getBoundingClientRect()
     const fillStyle = getComputedStyle(fill)
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--bg-hover)'
+    element.append(probe)
+    const hoverFill = getComputedStyle(probe).backgroundColor
+    probe.remove()
     return {
+      hoverFill,
       hit,
       painted: { left: fillBox.left, top: fillBox.top, right: fillBox.right, bottom: fillBox.bottom },
       width: fillBox.width,
@@ -86,7 +92,7 @@ async function readTargetGeometry(control: Locator) {
   })
 }
 
-async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20) {
+async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover') {
   await expect(control).toBeVisible()
   await readHitBoxOnceStill(control)
   await control.page().mouse.move(0, 0)
@@ -97,14 +103,15 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
   }, { message: 'the painted hit area responds to hover' }).toBe(true)
   const geometry = await readTargetGeometry(control)
+  if (fillToken) expect(geometry.background, 'the neutral interaction uses bg-hover').toBe(geometry.hoverFill)
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
     expect(geometry.painted[edge], `the fill reaches the ${edge} hit edge including pseudo-elements`).toBeCloseTo(geometry.hit[edge], 1)
   }
   expect(geometry.radius).toBeCloseTo(radius === 'pill' ? Math.min(geometry.width, geometry.height) / 2 : radius, 1)
 }
 
-async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12) {
-  await expectHoverOnHitArea(control, radius)
+async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover') {
+  await expectHoverOnHitArea(control, radius, fillToken)
   const geometry = await readTargetGeometry(control)
   expect(geometry.width).toBeGreaterThanOrEqual(44)
   expect(geometry.height).toBeGreaterThanOrEqual(44)
@@ -154,8 +161,8 @@ for (const width of [412, 1280] as const) {
       await page.goto('/wrapped')
       const restingChip = page.locator('.chip:not(.chip-active)').first()
       const activeChip = page.locator('.chip.chip-active').first()
-      await expectHoverOnHitArea(restingChip, 'pill')
-      await expectHoverOnHitArea(activeChip, 'pill')
+      await expectHoverOnHitArea(restingChip, 'pill', '--bg-hover')
+      await expectHoverOnHitArea(activeChip, 'pill', '--bg-hover')
       for (const chip of [restingChip, activeChip]) {
         const chipBox = await chip.boundingBox()
         expect(chipBox!.height, 'a chip paints its whole 44px hit area').toBeGreaterThanOrEqual(44)
@@ -165,6 +172,7 @@ for (const width of [412, 1280] as const) {
     })
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
+      await context.route(new RegExp(`${API.habits.get(habit.id)}$`), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), ...habit }) }))
       await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
       await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
@@ -179,13 +187,19 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(row.locator('[data-habit-row-control="menu"]'), 'pill')
       await row.locator('[data-habit-row-control="menu"]').click()
       const menu = page.getByRole('menu', { name: habit.title })
+      await menu.getByRole('menuitem', { name: ptBr.habits.actions.openSubHabits }).click()
+      const drillBack = page.getByRole('button', { name: ptBr.common.back, exact: true })
+      await expectHoverOnHitArea(drillBack, 'pill', '--bg-hover')
+      await drillBack.click()
+      await row.locator('[data-habit-row-control="menu"]').click()
       await expectHoverOnHitArea(menu.getByRole('menuitem', { name: ptBr.habits.actions.delete }), 12)
       await menu.getByRole('menuitem', { name: ptBr.habits.actions.delete }).click()
       await expectHoverOnHitArea(page.getByRole('dialog').locator('.orbit-pill-action:enabled').first(), 'pill')
+      await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { name: ptBr.common.close }), 'pill', '--bg-hover')
 
       await page.goto('/calendar')
       for (const label of [ptBr.calendar.goToCurrentMonth, ptBr.common.selectYear, ptBr.common.previousMonth, ptBr.common.nextMonth]) {
-        await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
+        await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill', '--bg-hover')
       }
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
       await page.getByRole('button', { name: ptBr.common.selectYear }).click()
