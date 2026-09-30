@@ -26,19 +26,28 @@ export default function AuthCallbackScreen() {
   const login = useAuthStore((s) => s.login)
   const { callbackUrl: sessionCallbackUrl, isPending,
     returnUrlAttemptId: sessionReturnUrlAttemptId } = usePendingGoogleAuthSession()
-  const processed = useRef(false)
+  const processedAttemptRef = useRef<string | null>(null)
   const returnUrlAttemptRef = useRef<string | null>(null)
   const accountBackEpochRef = useRef<number | null>(null)
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [checkedLink, setCheckedLink] = useState(false)
+  const [outcomeAttemptId, setOutcomeAttemptId] = useState(sessionReturnUrlAttemptId)
+
+  if (outcomeAttemptId !== sessionReturnUrlAttemptId) {
+    setOutcomeAttemptId(sessionReturnUrlAttemptId)
+    setState('pending')
+    setAccountBack(null)
+    setLoading(false)
+    setCheckedLink(false)
+  }
   const candidateUrl = useMemo(() => resolveGoogleAuthCallbackUrl({
     sessionCallbackUrl, rawUrl, params, callbackUrl: AUTH_CALLBACK_URL,
   }), [params, rawUrl, sessionCallbackUrl])
 
   useEffect(() => {
-    if (processed.current || sessionCallbackUrl || isPending) return
+    if (processedAttemptRef.current !== null || sessionCallbackUrl || isPending) return
     let mounted = true
     async function recoverCallback() {
       try {
@@ -54,10 +63,11 @@ export default function AuthCallbackScreen() {
   }, [candidateUrl, isPending, sessionCallbackUrl])
 
   useEffect(() => {
-    if (processed.current || !sessionCallbackUrl || sessionReturnUrlAttemptId === null) return
+    if (!sessionCallbackUrl || sessionReturnUrlAttemptId === null) return
     const returnUrlAttemptId = sessionReturnUrlAttemptId
+    if (processedAttemptRef.current === returnUrlAttemptId) return
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
-    processed.current = true
+    processedAttemptRef.current = returnUrlAttemptId
     returnUrlAttemptRef.current = returnUrlAttemptId
     const sessionEpoch = getSessionGeneration().epoch
     async function handleCallback(url: string): Promise<GoogleAuthCompletion> {
@@ -97,11 +107,14 @@ export default function AuthCallbackScreen() {
         setAccountBack(outcome.response)
         setState('account')
       })
-      .catch(() => setState('failed'))
+      .catch(() => {
+        if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+        setState('failed')
+      })
   }, [i18n.language, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
 
   useEffect(() => {
-    if (shouldRetainEmptyAuthCallback(captureBuildEnabled) || processed.current || state !== 'pending'
+    if (shouldRetainEmptyAuthCallback(captureBuildEnabled) || processedAttemptRef.current !== null || state !== 'pending'
       || sessionCallbackUrl || isPending || !checkedLink) return
     const timeout = setTimeout(() => router.replace('/login'), 250)
     return () => clearTimeout(timeout)
