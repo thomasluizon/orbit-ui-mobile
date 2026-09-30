@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
+import * as Sentry from '@sentry/nextjs'
 import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
@@ -364,6 +365,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let teardownEpoch: number | null
     try {
       teardownEpoch = await withSessionCookieLock(async () => {
+        if (logoutEpoch !== getSessionEpoch()) return null
+        await import('@/hooks/use-push-notification-preferences')
+          .then((module) => module.releasePushSubscription())
+          .catch((error: unknown) => Sentry.captureException(error))
         if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()
         try {

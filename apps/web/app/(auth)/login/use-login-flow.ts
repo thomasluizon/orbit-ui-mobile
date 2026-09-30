@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import { isValidEmail, isValidReferralCode, isValidVerificationCode,
-  deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+  getNotificationDestination, deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useTurnstileToken } from '@/hooks/use-turnstile-token'
@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import { fetchAuthEndpoint, getCookieValue, handleVerifySuccess, isOfflinePreflight, resolveLoginErrorState } from './login-form-helpers'
+import { NOTIFICATION_URL_PARAM } from '@/lib/service-worker-registration'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 export function useLoginFlow() {
@@ -95,6 +96,8 @@ export function useLoginFlow() {
 
   function available() { return !busy.current && isOnline && !isOfflinePreflight() }
   function getReturnUrl() {
+    const destination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
+    if (destination) return destination.opensAstra ? '/?astra=open' : destination.url
     const url = searchParams.get('returnUrl')
     return url && url.startsWith('/') && !url.startsWith('//') ? url : '/'
   }

@@ -287,6 +287,67 @@ describe('proxy', () => {
     expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
+  it('serves the push service worker without a session and keeps the policy', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    expect(unstable_doesMiddlewareMatch({ config, url: 'http://localhost:3000/sw.js' })).toBe(true)
+
+    const response = await proxy(createRequest('/sw.js'))
+
+    expect(response).toMatchObject({ type: 'next' })
+    expect(response.headers.get('Content-Security-Policy')).toMatch(
+      /^default-src 'self'; script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+    )
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.redirect).not.toHaveBeenCalled()
+  })
+
+  it.each(['/sw.js/x', '/sw.jsx'])('still sends a signed-out %s to login', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    const response = await proxy(createRequest(path))
+
+    expect(response).toMatchObject({ type: 'redirect' })
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
+  })
+
+  it('keeps the notification a signed-out launch link carries on the way to login', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+
+    await proxy(createRequest('/?notificationUrl=%2Fprofile'))
+
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('notificationUrl')).toBe('/profile')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe('/')
+  })
+
+  it('stops browsers from caching the push service worker script', async () => {
+    const configuredHeaders = await nextConfig.headers?.()
+    const serviceWorkerHeaders = configuredHeaders?.find(({ source }) => source === '/sw.js')
+
+    expect(serviceWorkerHeaders?.headers).toContainEqual({
+      key: 'Cache-Control',
+      value: 'no-cache, no-store, must-revalidate',
+    })
+  })
+
   it('redirects protected routes to login when no session can be resolved', async () => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: null,

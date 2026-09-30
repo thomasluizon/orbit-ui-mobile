@@ -54,9 +54,10 @@ function installPushEnvironment() {
   Object.defineProperty(globalThis, 'Notification', { configurable: true, value: { permission: 'default', requestPermission } })
   Object.defineProperty(globalThis, 'PushManager', { configurable: true, value: class PushManager {} })
   const subscription = { toJSON: () => ({ endpoint: 'https://push.example/subscription' }), unsubscribe: vi.fn() }
+  const registration = { pushManager: { getSubscription: vi.fn(() => null), subscribe: vi.fn(() => subscription) } }
   Object.defineProperty(globalThis.navigator, 'serviceWorker', {
     configurable: true,
-    value: { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn(() => null), subscribe: vi.fn(() => subscription) } }) },
+    value: { register: vi.fn(async () => registration), getRegistration: vi.fn(async () => undefined), ready: Promise.resolve(registration) },
   })
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'AQ'
 }
