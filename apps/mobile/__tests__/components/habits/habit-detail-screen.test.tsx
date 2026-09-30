@@ -1240,24 +1240,67 @@ describe('HabitDetailScreen', () => {
   it('composes a single 24px gap from the header to the strip with no empty status slot', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const body = tree.root.findByType('ScrollView')
-    const slots = body.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
+    const strip = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-strip-section')!
+    let parent = strip.parent
+    while (typeof parent.type !== 'string') parent = parent.parent
+    const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
       if (typeof node.type !== 'string') return false
-      let parent = node.parent
-      while (parent && typeof parent.type !== 'string') parent = parent.parent as typeof parent
-      return parent === body
+      let owner = node.parent
+      while (owner && typeof owner.type !== 'string') owner = owner.parent as typeof owner
+      return owner === parent
     })
-    const stripIndex = slots.findIndex((node: { props: { testID?: string } }) => node.props.testID === 'habit-detail-strip-section')
-    const headerStyle = StyleSheet.flatten(slots[0]!.props.style) as { paddingBottom?: number; marginBottom?: number }
-    const stripStyle = StyleSheet.flatten(slots[stripIndex]!.props.style) as { paddingTop?: number; marginTop?: number }
-    const bodyStyle = StyleSheet.flatten(body.props.contentContainerStyle) as { gap: number }
-    expect(bodyStyle.gap * stripIndex + (headerStyle.paddingBottom ?? 0) + (headerStyle.marginBottom ?? 0)
+    const stripIndex = slots.indexOf(strip)
+    const headerStyle = (StyleSheet.flatten(slots[0]!.props.style) ?? {}) as { paddingBottom?: number; marginBottom?: number }
+    const stripStyle = StyleSheet.flatten(strip.props.style) as { paddingTop?: number; marginTop?: number }
+    const parentStyle = (StyleSheet.flatten(parent.props.contentContainerStyle ?? parent.props.style) ?? {}) as { gap?: number }
+    const gap = parentStyle.gap ?? 0
+    expect(gap * stripIndex + (headerStyle.paddingBottom ?? 0) + (headerStyle.marginBottom ?? 0)
       + (stripStyle.paddingTop ?? 0) + (stripStyle.marginTop ?? 0)).toBe(24)
-    expect(stripIndex).toBe(1)
-    const statuses = slots[0]!.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
-      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')
-    expect(statuses).toHaveLength(1)
-    expect(statuses[0]!.children).toHaveLength(0)
+    const region = parent.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(region.children).toHaveLength(0)
+    expect(StyleSheet.flatten(region.props.style)).toBeUndefined()
+    expect(gap).toBe(0)
+    const body = tree.root.findByType('ScrollView')
+    expect(StyleSheet.flatten(body.props.contentContainerStyle)).toMatchObject({ gap: 24 })
+  })
+
+  it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
+    mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const tags = tree.root.findAllByType('View').filter((node: TestNode) => node.props.testID === 'habit-detail-tags')
+    const description = tree.root.findAllByType('Pressable').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
+    expect(tags).toHaveLength(hasTags ? 1 : 0)
+    expect(description).toHaveLength(hasDescription ? 1 : 0)
+    for (const metadata of [...tags, ...description]) {
+      expect(StyleSheet.flatten(metadata.props.style)).toEqual({ paddingTop: 12 })
+    }
+    if (hasDescription) {
+      const target = tree.root.findByProps({ accessibilityLabel: 'A note about this routine' })
+      expect(target.props.accessibilityHint).toBe('habits.detail.viewDescription')
+      const line = StyleSheet.flatten(target.findByType('Text').props.style) as { lineHeight: number }
+      const spacing = StyleSheet.flatten(target.props.style) as { paddingTop: number }
+      expect(line.lineHeight + spacing.paddingTop + target.props.hitSlop.bottom).toBe(44)
+      expect(target.props.accessibilityState.expanded).toBe(false)
+      expect(target.findByType('Text').props.numberOfLines).toBe(1)
+      TestRenderer.act(() => target.props.onPress())
+      expect(target.props.accessibilityState.expanded).toBe(true)
+      expect(target.findByType('Text').props.numberOfLines).toBeUndefined()
+      TestRenderer.act(() => target.props.onPress())
+      expect(target.props.accessibilityState.expanded).toBe(false)
+    }
+  })
+
+  it('keeps a populated completion boundary inside the header block', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-30" />) })
+    const headerBlock = tree.root.findByType('ScrollView').findAllByType('View')[0]!
+    expect(textsOf(headerBlock)).toContain('habits.todayBoundary.future')
+    const region = headerBlock.findAll((node: { type: unknown; props: { accessibilityLiveRegion?: string } }) =>
+      node.type === 'View' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(region.children).toHaveLength(0)
   })
 
   it('sizes the 30-day strip from its content column without horizontal scrolling', () => {

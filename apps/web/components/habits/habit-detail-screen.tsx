@@ -178,7 +178,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
         <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
       </div>
       {habit.tags.length > 0 ? <div data-habit-detail-tags="" className="pt-3"><div className="flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div></div> : null}
-      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" aria-label={t('viewDescription')} aria-expanded={descriptionOpen} onClick={() => setDescriptionOpen((open) => !open)} className={`block min-h-11 w-full border-0 bg-transparent text-left text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</button></div> : null}
+      {habit.description ? <div data-habit-detail-description="" className="pt-3"><button type="button" title={t('viewDescription')} aria-expanded={descriptionOpen} onClick={() => setDescriptionOpen((open) => !open)} className="touch-target block w-full border-0 bg-transparent text-start text-sm text-[var(--fg-3)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><span className={`block ${descriptionOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{habit.description}</span></button></div> : null}
     </header>
   )
 }

@@ -1093,6 +1093,38 @@ describe('HabitDetailScreen', () => {
     expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
+  it.each([[false, false], [true, false], [false, true], [true, true]])('places optional tags (%s) and description (%s) below the header row', (hasTags, hasDescription) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: hasTags ? makeScopedParent().tags : [] })
+    mocks.detail = { ...makeDetail(), description: hasDescription ? 'A note about this routine' : null }
+    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+    const header = container.querySelector('[data-habit-detail-content] header')!
+    const row = header.querySelector('[data-habit-detail-header-row]')!
+    const metadata = Array.from(header.children).slice(1)
+    expect(metadata).toHaveLength(Number(hasTags) + Number(hasDescription))
+    expect(row).not.toHaveTextContent('Focus')
+    expect(row).not.toHaveTextContent('A note about this routine')
+    expect(header.querySelector('[data-habit-detail-tags]') !== null).toBe(hasTags)
+    expect(header.querySelector('[data-habit-detail-description]') !== null).toBe(hasDescription)
+    if (hasDescription) {
+      const target = screen.getByRole('button', { name: 'A note about this routine' })
+      expect(target).toHaveAttribute('aria-expanded', 'false')
+      expect(target).toHaveTextContent('A note about this routine')
+      fireEvent.click(target)
+      expect(target).toHaveAttribute('aria-expanded', 'true')
+      fireEvent.click(target)
+      expect(target).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+
+  it('keeps a populated completion boundary inside the header block', () => {
+    const { container } = render(<HabitDetailScreen habitId="habit-1" date="2026-08-30" />)
+    const column = container.querySelector('[data-habit-detail-content]')!
+    const headerBlock = column.firstElementChild!
+    expect(headerBlock).toHaveTextContent('habits.todayBoundary.future')
+    expect(headerBlock.nextElementSibling).toBe(screen.getByTestId('detail-strip').closest('section'))
+    expect(headerBlock.querySelector('[role="status"][aria-live="polite"]')).toBeEmptyDOMElement()
+  })
+
   it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
     render(<HabitDetailScreen habitId="habit-1" />)
     const strip = screen.getByTestId('detail-strip')
