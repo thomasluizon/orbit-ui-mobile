@@ -14,6 +14,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   params: {},
+  rawUrl: null as string | null,
   login: vi.fn(),
   getSessionGeneration: vi.fn(),
   replace: vi.fn(),
@@ -32,7 +33,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace }),
   useLocalSearchParams: () => mocks.params,
 }))
-vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
 vi.mock('@/lib/google-auth-callback', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/google-auth-callback')>()
   return {
@@ -78,6 +79,7 @@ vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.params = {}
+  mocks.rawUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=s`
   useAppToastStore.setState({ currentToast: null, queue: [] })
   mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.getStoredReferralCode.mockResolvedValue(null)
