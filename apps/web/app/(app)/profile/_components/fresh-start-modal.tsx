@@ -40,7 +40,7 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 15,
+          fontSize: 16,
           color: 'var(--fg-2)',
           lineHeight: 1.5,
           margin: 0,
@@ -342,7 +342,7 @@ function FreshStartConfirmStep({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 15,
+          fontSize: 16,
           color: 'var(--fg-2)',
           lineHeight: 1.55,
         }}

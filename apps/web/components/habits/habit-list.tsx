@@ -1240,6 +1240,7 @@ export function HabitList({
     options?: {
       isDrillCard?: boolean
       isDraggingList?: boolean
+      childPanelId?: string
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
@@ -1271,6 +1272,7 @@ export function HabitList({
         hasChildren={hasChildren}
         hasSubHabits={hasSubHabits}
         expanded={!collapsedIds.has(habit.id)}
+        childPanelId={options?.childPanelId}
         childProgress={hasChildren ? progress : undefined}
         showLinkedGoalDot={hasLinkedGoal}
         actions={{
@@ -1331,6 +1333,27 @@ export function HabitList({
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
+  function renderHabitTree(item: DragItem, panel: DragItem[], sortable: boolean): React.ReactNode {
+    const childPanelId = item.hasChildren ? `${dndContextId}-habit-children-${item.id}` : undefined
+    const row = renderHabitCard(
+      item.habit,
+      item.depth,
+      item.hasChildren,
+      item.hasSubHabits,
+      { isDraggingList: isDragging, childPanelId },
+    )
+    return (
+      <Fragment key={item.id}>
+        {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
+        {item.hasChildren ? (
+          <div id={childPanelId} hidden={collapsedIds.has(item.id)}>
+            {panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable))}
+          </div>
+        ) : null}
+      </Fragment>
+    )
+  }
+
   function renderMainContent(): React.ReactNode {
     if (drill.currentParent) {
       return (
@@ -1377,17 +1400,7 @@ export function HabitList({
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
               {activeDragPanels.map((panel) => (
                 <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
-                  {panel.map((item) => (
-                    <SortableHabitItem key={item.id} id={item.id}>
-                      {renderHabitCard(
-                        item.habit,
-                        item.depth,
-                        item.hasChildren,
-                        item.hasSubHabits,
-                        { isDraggingList: isDragging },
-                      )}
-                    </SortableHabitItem>
-                  ))}
+                  {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, true))}
                 </div>
               ))}
             </div>
@@ -1400,12 +1413,7 @@ export function HabitList({
       <div className="flex flex-col" style={{ gap: 12 }}>
         {dragPanels.map((panel) => (
           <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME}>
-            {panel.map((item) => renderHabitCard(
-              item.habit,
-              item.depth,
-              item.hasChildren,
-              item.hasSubHabits,
-            ))}
+            {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
           </div>
         ))}
       </div>

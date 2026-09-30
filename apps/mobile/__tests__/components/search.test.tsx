@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
@@ -110,6 +111,8 @@ describe('mobile search', () => {
     await mount()
     const command = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'Log a habit').length > 0)[0]!
     expect(command.findAll((node) => node.type === Check)).toHaveLength(1)
+    const label = command.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Log a habit')[0]!
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ fontSize: 17 })
   })
   it('keeps the habit group before create, actions and destinations', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))

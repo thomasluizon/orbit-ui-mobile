@@ -1,6 +1,6 @@
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, StyleSheet } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -1218,6 +1218,10 @@ describe('HabitDetailScreen', () => {
     const positions = orderedLabels.map((label) => rendered.indexOf(label))
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect(positions).toEqual([...positions].sort((first, second) => first - second))
+    for (const [label, fontSize] of [['habits.detail.history', 14], ['habits.detail.checklist', 14], ['habits.detail.moreDetails', 17]] as const) {
+      const heading = tree!.root.findAll((node: { type: unknown; props: { children?: unknown; style?: unknown } }) => node.type === 'Text' && node.props.children === label)[0]!
+      expect.soft(StyleSheet.flatten(heading.props.style)).toMatchObject({ fontSize })
+    }
     expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
 
     const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]

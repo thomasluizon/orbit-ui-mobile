@@ -183,7 +183,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors, tone: Markdo
     h3: {
       color: heading,
       fontFamily: 'Geist_400Regular',
-      fontSize: 18,
+      fontSize: 17,
       marginVertical: 4,
     },
     list: { marginVertical: 4 },

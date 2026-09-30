@@ -29,7 +29,7 @@ export const typeRoles = {
   },
   display: {
     family: 'sans',
-    size: 34,
+    size: 44,
     weight: 500,
     lineHeight: 1.15,
     letterSpacingEm: -0.01,
@@ -61,7 +61,7 @@ export const typeRoles = {
   },
   row: {
     family: 'sans',
-    size: 18,
+    size: 17,
     weight: 400,
     lineHeight: 1.3,
     colorToken: 'fg1',

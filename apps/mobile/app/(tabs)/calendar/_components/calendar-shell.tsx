@@ -4,6 +4,7 @@ import {
   ChevronRight,
 } from "@/components/ui/icons";
 import {
+  useWindowDimensions,
   Pressable,
   StyleSheet,
   Text,
@@ -106,7 +107,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     monthTitle: {
       fontFamily: 'SpaceGrotesk_500Medium',
-      fontSize: 34,
+      fontSize: 28,
       letterSpacing: -0.17,
       color: tokens.fg1,
       textAlign: "center",
@@ -125,6 +126,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
+    yearTitleWide: { fontSize: 14 },
     legend: {
       flexDirection: "row",
       alignItems: "center",
@@ -162,7 +164,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     legendLabel: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 12,
       color: tokens.fg3,
     },
   });
@@ -183,6 +185,7 @@ export function CalendarHeader({
   showMonthNavigation = true,
   tokens,
 }: Readonly<CalendarHeaderProps>) {
+  const { width } = useWindowDimensions();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   const [isYearOpen, setIsYearOpen] = useState(false);
@@ -215,7 +218,7 @@ export function CalendarHeader({
           hitSlop={4}
           style={({ pressed }) => [styles.yearButton, pressed && styles.monthLabelButtonPressed]}
         >
-          <Text style={styles.yearTitle}>{year}</Text>
+          <Text style={[styles.yearTitle, width >= 1024 && styles.yearTitleWide]}>{year}</Text>
         </Pressable>
       </View>
       <Pressable
@@ -245,7 +248,7 @@ export function CalendarHeader({
       </View> : <View style={[styles.titleLine, styles.hiddenNavigation]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View style={styles.monthLabelGroup}>
           <View style={styles.monthLabelButton}><Text style={styles.monthTitle} numberOfLines={1}>{monthLabel}</Text></View>
-          <View style={styles.yearButton}><Text style={styles.yearTitle}>{year}</Text></View>
+          <View style={styles.yearButton}><Text style={[styles.yearTitle, width >= 1024 && styles.yearTitleWide]}>{year}</Text></View>
         </View>
         <View style={styles.monthNavButton} />
         <View style={styles.monthNavButton} />

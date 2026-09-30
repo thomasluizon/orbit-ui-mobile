@@ -142,6 +142,8 @@ describe("CalendarTimeGrid (mobile)", () => {
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(0);
     expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
+    const label = tree.root.findAll((node) => node.type === "Text" && node.props.children === "Read")[0]!;
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ fontSize: 12 });
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
   });
 

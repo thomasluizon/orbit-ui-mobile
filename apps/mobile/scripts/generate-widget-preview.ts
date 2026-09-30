@@ -157,7 +157,7 @@ function previewSvg(
     return rowBackground + statusMark(row.status, centerY, colors) +
       `<text x="42" y="${rowTop + 20}" fill="${titleColor}" font-size="15">` +
       `${escaped(requiredResource(strings, row.nameKey))}</text>` +
-      `<text x="42" y="${rowTop + 36}" fill="${timeColor}" font-size="11" ` +
+      `<text x="42" y="${rowTop + 36}" fill="${timeColor}" font-size="12" ` +
       `letter-spacing="0.22">${row.time}</text>${extra}`
   }).join('')
 

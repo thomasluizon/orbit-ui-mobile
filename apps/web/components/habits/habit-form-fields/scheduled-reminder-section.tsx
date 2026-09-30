@@ -96,7 +96,7 @@ export function ScheduledReminderSection({
           <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
           <span
             className="text-[var(--fg-1)]"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500 }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
           >
             {t('habits.form.scheduledReminder')}
           </span>
@@ -147,7 +147,7 @@ export function ScheduledReminderSection({
             )}
 
             {atLimit && (
-              <p className="text-[13px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')}</p>
+              <p className="text-[14px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')}</p>
             )}
 
             {showForm && (
@@ -165,7 +165,7 @@ export function ScheduledReminderSection({
                     onClear={() => setTime('')}
                   />
                   <div className="flex justify-end gap-2">
-                    <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[13px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
+                    <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[14px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
                     <button type="button" aria-label={t('common.cancel')} className="habit-control-motion touch-target grid size-10 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => { setShowForm(false); setTime('') }}>
                       <X size={16} strokeWidth={1.8} aria-hidden="true" />
                     </button>

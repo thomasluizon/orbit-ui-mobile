@@ -1,10 +1,87 @@
-import { describe, it, expect } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 describe('StatTile', () => {
+  describe('weekday geometry in Chromium', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await launch
+    })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+      const font = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf')).toString('base64')
+      stylesheet = `${compiled.css}
+        @font-face { font-family: TestSpaceGrotesk; font-weight: 600; src: url(data:font/ttf;base64,${font}); }
+        :root { --font-display: TestSpaceGrotesk; }`
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 344, 360, 411, 412, 1352])('fits every localized weekday at %ipx', async (width) => {
+      const weekdays = [...Object.values(en.dates.daysValue), ...Object.values(ptBR.dates.daysValue)]
+      const { container } = render(
+        <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4" style={{ width: Math.min(width - 32, 740) }}>
+          {weekdays.map((weekday) => <StatTile key={weekday} value={weekday} label="Best weekday" valueSize="lg" />)}
+        </div>,
+      )
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const geometry = await page.locator('.stat-tile-large-value').evaluateAll((elements) => elements.map((element) => {
+          const valueBounds = element.getBoundingClientRect()
+          const tile = element.parentElement!
+          const tileBounds = tile.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const textWidth = range.getBoundingClientRect().width
+          return {
+            weekday: element.textContent,
+            size: Number.parseFloat(style.fontSize),
+            textWidth,
+            contentWidth: tile.clientWidth - Number.parseFloat(getComputedStyle(tile).paddingLeft) - Number.parseFloat(getComputedStyle(tile).paddingRight),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            inside: valueBounds.left >= tileBounds.left && valueBounds.right <= tileBounds.right
+              && valueBounds.top >= tileBounds.top && valueBounds.bottom <= tileBounds.bottom,
+          }
+        }))
+        for (const measured of geometry) {
+          expect(measured.size, measured.weekday!).toBe(width >= 344 && width < 412 ? 17 : 22)
+          expect(measured.textWidth, measured.weekday!).toBeLessThanOrEqual(measured.contentWidth)
+          expect(measured.scrollWidth, measured.weekday!).toBeLessThanOrEqual(measured.clientWidth)
+          expect(measured.inside, measured.weekday!).toBe(true)
+        }
+        if (width === 344) {
+          const nextSizeWidths = await page.locator('.stat-tile-large-value').evaluateAll((elements) => elements.map((element) => {
+            (element as HTMLElement).style.fontSize = 'var(--fs-lg)'
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            return range.getBoundingClientRect().width
+          }))
+          expect(Math.max(...nextSizeWidths), 'the next canvas size cannot fit the narrowest two-column tile').toBeGreaterThan(geometry[0]!.contentWidth)
+        }
+      } finally {
+        await page.close()
+      }
+    })
+  })
+
   it('renders value and label', () => {
     render(<StatTile  value="7 dias" label="Sequência" />)
     expect(screen.getByText('7 dias')).toBeInTheDocument()

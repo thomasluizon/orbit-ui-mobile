@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import type { PendingOperationExecutionResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
 
@@ -501,17 +502,26 @@ describe('PendingOperationCard', () => {
   it('dismisses the identity sheet when verification reports stale', async () => {
     sheetTestControls.defer(true)
     prepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
-    verifyStepUp.mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
+    let resolveVerification!: (result: PendingOperationExecutionResult) => void
+    verifyStepUp.mockImplementation(() => new Promise<PendingOperationExecutionResult>((resolve) => { resolveVerification = resolve }))
     const highRisk = makePendingAgentOperation({ ...preview, riskClass: 'High', confirmationRequirement: 'StepUp' })
     render(<PendingOperationCard pendingOperation={highRisk} onRevise={revise} onRefresh={vi.fn()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
     fireEvent.change(await screen.findByRole('textbox', { name: 'stepUp.codeLabel' }), { target: { value: '123456' } })
-    fireEvent.click(screen.getByRole('button', { name: 'stepUp.confirm' }))
-    await waitFor(() => expect(screen.getByText('chat.operation.stale')).toBeInTheDocument())
-    await waitFor(() => expect(sheetTestControls.isDismissPending).toBe(true))
-    expect(screen.getByText('stepUp.confirm').closest('button')).toBeDisabled()
+    const verifyButton = screen.getByRole('button', { name: 'stepUp.confirm' })
+    fireEvent.click(verifyButton)
+    expect(verifyButton).toBeDisabled()
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(screen.queryByText('chat.operation.stale')).not.toBeInTheDocument()
+    await act(async () => { resolveVerification({ ok: false, error: 'stale_preview', stale: true }) })
+    expect(screen.getByText('chat.operation.stale')).toBeInTheDocument()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(verifyButton).toBeDisabled()
     act(() => sheetTestControls.completeDismissal())
+    expect(sheetTestControls.isDismissPending).toBe(false)
     expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.stepUpAction' })).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   it('discards prepared identity approval after refresh returns the same fingerprint', async () => {
