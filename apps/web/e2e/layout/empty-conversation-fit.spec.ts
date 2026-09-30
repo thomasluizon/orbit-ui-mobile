@@ -12,7 +12,7 @@ import { setLayoutProfileSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
-  items: [makeHabitScheduleItem({ title: 'Rotina da casa', children: [], hasSubHabits: false })],
+  items: [makeHabitScheduleItem({ title: 'Rotina da casa', children: [], hasSubHabits: false, isOverdue: true })],
   totalCount: 1,
 })
 const VIEWPORTS = [

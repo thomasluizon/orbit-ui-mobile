@@ -103,7 +103,7 @@ describe('ChatEmptyState (mobile)', () => {
     content.setGap(Yoga.GUTTER_ALL, contentStyle.gap)
     content.setPadding(Yoga.EDGE_VERTICAL, contentStyle.paddingVertical ?? 0)
     content.setPadding(Yoga.EDGE_HORIZONTAL, contentStyle.paddingHorizontal ?? 0)
-    /** Intrinsic blocks exercise spare space and overflow, including wrapped suggestions and disclosure. */
+    /** Synthetic intrinsic blocks exercise spare space and overflow using the mounted content styles. */
     for (const intrinsicHeight of [244, 168, 48]) {
       const block = Yoga.Node.create()
       block.setHeight(intrinsicHeight)

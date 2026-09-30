@@ -39,10 +39,11 @@ function emptyChat(): ChatController {
 }
 
 const VIEWPORTS = [
-  { width: 1352, height: 600, panelWidth: 368 },
-  { width: 1352, height: 677, panelWidth: 368 },
-  { width: 1352, height: 915, panelWidth: 368 },
+  { width: 1352, height: 600, panelWidth: 380 },
+  { width: 1352, height: 677, panelWidth: 380 },
+  { width: 1352, height: 915, panelWidth: 380 },
   { width: 600, height: 677, panelWidth: 600 },
+  { width: 320, height: 600, panelWidth: 320 },
 ]
 
 const CASES = VIEWPORTS.flatMap((viewport) => (['en', 'pt-BR'] as const)
@@ -92,13 +93,15 @@ describe('Empty conversation geometry in Chromium', () => {
         const glyphTop = glyph.getBoundingClientRect().top
         const contentTop = empty.getBoundingClientRect().top
         const contentBottom = empty.getBoundingClientRect().bottom
+        const firstBlockTop = scroller.querySelector('[data-mark="astra"]')!.getBoundingClientRect().top
+        const lastBottomAtTop = disclaimer.getBoundingClientRect().bottom
         scroller.scrollTop = scroller.scrollHeight
         return {
           glyphTop, scrollerTop: bounds.top, scrollerBottom: bounds.bottom,
           disclaimerBottom: disclaimer.getBoundingClientRect().bottom,
           paddingBottom: parseFloat(getComputedStyle(scroller).paddingBottom),
           scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight,
-          contentTop, contentBottom,
+          contentTop, contentBottom, firstBlockTop, lastBottomAtTop,
           composerTop: document.querySelector('[data-testid="pinned-composer"]')!.getBoundingClientRect().top,
         }
       }, messages.aiDisclosure.notMedicalAdvice)
@@ -108,6 +111,8 @@ describe('Empty conversation geometry in Chromium', () => {
       expect(geometry.scrollerBottom).toBe(geometry.composerTop)
       if (height === 915) {
         expect(geometry.scrollHeight).toBe(geometry.clientHeight)
+        expect(Math.abs((geometry.firstBlockTop - geometry.scrollerTop)
+          - (geometry.scrollerBottom - geometry.lastBottomAtTop))).toBeLessThanOrEqual(1)
         expect(geometry.contentTop - geometry.scrollerTop).toBeCloseTo(16, 0)
         expect(geometry.scrollerBottom - geometry.contentBottom).toBeCloseTo(16, 0)
       }
