@@ -568,9 +568,6 @@ function createStyles(tokens: AppTokens) {
     borderBottomWidth: 1,
     borderBottomColor: tokens.hairline,
   },
-  interactiveItemPressed: {
-    backgroundColor: tokens.bgHover,
-  },
   checkbox: {
     width: 26,
     height: 26,
