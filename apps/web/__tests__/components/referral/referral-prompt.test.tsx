@@ -31,6 +31,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 function resetStores() {
   useReferralPromptStore.setState({
@@ -92,6 +93,24 @@ describe('ReferralPrompt', () => {
     expect(useReferralPromptStore.getState().promptedMilestoneKeys).toContain(
       'streak-7',
     )
+  })
+
+  it('pins the invite and Later actions in the sheet footer, never in the scrolling body', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it('uses a ghost pill for Later', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+
+    expect(screen.getByRole('button', { name: 'referral.prompt.later' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {

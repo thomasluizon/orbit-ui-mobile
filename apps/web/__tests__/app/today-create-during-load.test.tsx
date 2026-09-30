@@ -2,6 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const state = vi.hoisted(() => ({
@@ -87,9 +88,10 @@ vi.mock('@/stores/referral-prompt-store', () => ({
     armReferralPrompt: vi.fn(), armMilestoneSharePrompt: vi.fn(), armConsentPrompt: vi.fn(),
   }),
 }))
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ title, children }: { title?: string; children?: React.ReactNode }) =>
-    <div role="dialog">{title}{children}</div>,
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({ children, onClick, variant }: { children?: React.ReactNode; onClick?: () => void; variant?: string }) =>
+    <button type="button" data-variant={variant} onClick={onClick}>{children}</button>,
 }))
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
@@ -183,6 +185,30 @@ describe('Today create during first load', () => {
 
     await act(async () => useUIStore.getState().setShowCreateModal(false))
     expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['calendar', { hasImportedCalendar: false }, ['common.later', 'onboarding.wizard.calendarButton']],
+    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
+  ] as const)('pins the %s import actions in the sheet footer, never in the scrolling body', async (_prompt, flags, footer) => {
+    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
+    render(<AppLayout><div>Today</div></AppLayout>)
+    await act(async () => {})
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(footer)
+    expect(sheetActionsUseActionPair()).toBe(true)
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
+  it.each([
+    ['calendar', { hasImportedCalendar: false }, 'common.later'],
+    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
+  ] as const)('uses a ghost pill for the %s import dismissal', async (_prompt, flags, quiet) => {
+    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
+    render(<AppLayout><div>Today</div></AppLayout>)
+    await act(async () => {})
+
+    expect(screen.getByRole('button', { name: quiet })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('waits to offer calendar import while another sheet is open', async () => {

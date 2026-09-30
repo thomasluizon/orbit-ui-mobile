@@ -10,6 +10,7 @@ import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareK
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
@@ -140,6 +141,44 @@ export function MilestoneSharePrompt() {
       open
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
+      actions={(
+        <>
+          {hasError && (
+            <p
+              role="alert"
+              className="m-0 w-full"
+              style={{
+                textAlign: 'center',
+                fontSize: 14, color: 'var(--status-bad-text)',
+              }}
+            >
+              {t('milestoneShare.shareError')}
+            </p>
+          )}
+          <DialogActionPair>
+            <PillButton variant="ghost" onClick={dismiss}>
+              {t('milestoneShare.later')}
+            </PillButton>
+            <PillButton
+              variant={canShareFiles ? 'ghost' : 'primary'}
+              loading={isSharing}
+              disabled={isSharing}
+              onClick={() => void download()}
+            >
+              {t('milestoneShare.download')}
+            </PillButton>
+            {canShareFiles && (
+              <PillButton
+                loading={isSharing}
+                disabled={isSharing}
+                onClick={handleShare}
+              >
+                {t('milestoneShare.share')}
+              </PillButton>
+            )}
+          </DialogActionPair>
+        </>
+      )}
     >
       <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
@@ -156,52 +195,6 @@ export function MilestoneSharePrompt() {
           >
             {t('milestoneShare.body')}
           </p>
-
-          {hasError && (
-            <p role="alert" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
-              {t('milestoneShare.shareError')}
-            </p>
-          )}
-
-          <div className="flex w-full flex-col" style={{ gap: 16, maxWidth: 360, marginInline: 'auto' }}>
-            <div className="flex w-full" style={{ gap: 8 }}>
-              {canShareFiles && (
-                <PillButton
-
-                  loading={isSharing}
-                  disabled={isSharing}
-                  onClick={handleShare}
-
-                >
-                  {t('milestoneShare.share')}
-                </PillButton>
-              )}
-              <PillButton
-
-                variant={canShareFiles ? 'ghost' : 'primary'}
-                loading={isSharing}
-                disabled={isSharing}
-                onClick={() => void download()}
-
-              >
-                {t('milestoneShare.download')}
-              </PillButton>
-            </div>
-
-            <button
-              type="button"
-              onClick={dismiss}
-              className="w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.98] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-              style={{
-                padding: '12px 0',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              {t('milestoneShare.later')}
-            </button>
-          </div>
       </div>
     </Sheet>) : null
   )

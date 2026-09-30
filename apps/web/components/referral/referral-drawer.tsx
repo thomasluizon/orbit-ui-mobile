@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet } from '@/components/ui/sheet'
@@ -22,20 +23,16 @@ interface LoadedContentProps {
   stats: ReferralStats | null
   referralUrl: string
   copied: boolean
-  interactionError: boolean
-  canShare: boolean
+  copyFailed: boolean
   onCopy: () => void
-  onShare: () => void
 }
 
 function LoadedContent({
   stats,
   referralUrl,
   copied,
-  interactionError,
-  canShare,
+  copyFailed,
   onCopy,
-  onShare,
 }: Readonly<LoadedContentProps>) {
   const t = useTranslations()
   const progress = stats && stats.maxReferrals > 0
@@ -43,7 +40,7 @@ function LoadedContent({
     : 0
 
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    <div className="flex flex-col gap-4">
       <div>
         <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
         <div className="px-4">
@@ -70,15 +67,7 @@ function LoadedContent({
         </div>
       </div>
 
-      {canShare ? (
-        <div className="px-4 sm:flex sm:justify-center">
-          <PillButton onClick={onShare}>
-            {t('referral.drawer.share')}
-          </PillButton>
-        </div>
-      ) : null}
-
-      {interactionError ? (
+      {copyFailed ? (
         <p role="alert" className="px-4 text-sm text-[var(--fg-2)]">
           {t('referral.drawer.actionFailed')}
         </p>
@@ -142,20 +131,21 @@ function ReferralDrawerContent({
   const t = useTranslations()
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const [interactionError, setInteractionError] = useState(false)
+  const [failedAction, setFailedAction] = useState<'copy' | 'share' | null>(null)
   const [canShare] = useState(() =>
     typeof navigator !== 'undefined' && typeof navigator.share === 'function',
   )
+  const isLoaded = !isLoading && !isError
 
   async function copyLink() {
     if (!referralUrl) return
     try {
       await navigator.clipboard.writeText(referralUrl)
-      setInteractionError(false)
+      setFailedAction(null)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      setInteractionError(true)
+      setFailedAction('copy')
     }
   }
 
@@ -169,14 +159,37 @@ function ReferralDrawerContent({
           : undefined,
         url: referralUrl,
       })
-      setInteractionError(false)
+      setFailedAction(null)
     } catch {
-      setInteractionError(true)
+      setFailedAction('share')
     }
   }
 
   return (
-    <Sheet open onClose={() => onOpenChange(false)} title={t('referral.drawer.title')}>
+    <Sheet
+      open
+      onClose={() => onOpenChange(false)}
+      title={t('referral.drawer.title')}
+      actions={
+        isLoaded && canShare ? (
+            <>
+              {failedAction === 'share' ? (
+                <p
+                  role="alert"
+                  className="w-full m-0 text-center text-sm text-[var(--fg-2)]"
+                >
+                  {t('referral.drawer.actionFailed')}
+                </p>
+              ) : null}
+              <DialogActionPair>
+                <PillButton onClick={() => void shareLink()}>
+                  {t('referral.drawer.share')}
+                </PillButton>
+              </DialogActionPair>
+            </>
+          ) : undefined
+      }
+    >
       <div className="overlay-bleed">
         {isLoading ? (
           <output
@@ -190,15 +203,13 @@ function ReferralDrawerContent({
           </output>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
-        {!isLoading && !isError ? (
+        {isLoaded ? (
           <LoadedContent
             stats={stats}
             referralUrl={referralUrl}
             copied={copied}
-            interactionError={interactionError}
-            canShare={canShare}
+            copyFailed={failedAction === 'copy'}
             onCopy={() => void copyLink()}
-            onShare={() => void shareLink()}
           />
         ) : null}
       </div>

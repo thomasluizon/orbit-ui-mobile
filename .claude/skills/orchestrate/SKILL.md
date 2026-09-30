@@ -1286,8 +1286,11 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 
 | Role | Model |
 |---|---|
-| Orchestrator | Opus 5 @ high, or Sol @ high |
+| Orchestrator | Opus 5.5 @ high, or Sol 6.1 @ high |
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default` or `mechanical` tier |
+
+The shipped worker is `codex`: both tiers use `gpt-6.1-sol`, with `high` reasoning effort on
+`default` and `medium` on `mechanical`. Both `claude` fallback tiers use `claude-opus-5-5`.
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
@@ -1364,14 +1367,15 @@ the switch explains.** `tools/__tests__/_harness.mjs:127` reads the live config 
 `worker` set to `claude` the engine under test is the claude block and exactly four assertions fail,
 two in each of two files:
 
-- `tools/__tests__/orchestrator-config.mjs:98-102`, the shipped-default pin, which asserts
-  `gpt-6-sol` at high reasoning effort.
-- `tools/__tests__/orchestrator-config.mjs:103-108`, which asserts the mechanical tier keeps the
-  default tier's model, false because the two claude tiers name different models.
-- `tools/__tests__/launch-worker.mjs:274-277`, which pins `gpt-6-sol` and
+- `tools/__tests__/orchestrator-config.mjs`, the shipped-default pin, which asserts
+  `gpt-6.1-sol` at high reasoning effort.
+- `tools/__tests__/orchestrator-config.mjs`, which asserts the mechanical tier keeps the
+  default tier's `gpt-6.1-sol` model at medium reasoning effort, false because both Claude tiers
+  use `claude-opus-5-5`.
+- `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
   `model_reasoning_effort="high"` through `--dry-run` against the real config.
-- `tools/__tests__/launch-worker.mjs:279-286`, which pins `model_reasoning_effort="medium"` on the
-  mechanical tier the same way.
+- `tools/__tests__/launch-worker.mjs`, which pins `gpt-6.1-sol` and
+  `model_reasoning_effort="medium"` on the mechanical tier the same way.
 
 Expect all four, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (4)`.
 `--only orchestrator-config` cannot see the launch-worker pair; run both, or run the whole gate.

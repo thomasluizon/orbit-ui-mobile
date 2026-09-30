@@ -5,6 +5,7 @@ import { ReviewMomentSheet } from '@/components/review-moment/review-moment-shee
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -16,13 +17,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode
-    onClick?: () => void
-  }) => React.createElement('PillButtonStub', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 
@@ -154,6 +150,25 @@ describe('ReviewMomentSheet (mobile)', () => {
     expect(useEngagementPromptStore.getState().lastPromptedAtIso).not.toBeNull()
   })
 
+  it('pins Rate and Not now in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render()
+    await armReview('review-streak-7')
+    await settle()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.notNow', 'reviewMoment.cta'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('uses a ghost pill for Not now', async () => {
+    const tree = await render()
+    await armReview('review-streak-7')
+    await settle()
+    const quiet = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.notNow')[0]!
+    expect(quiet.props.variant).toBe('ghost')
+  })
+
   it('shows the level variant for a level key', async () => {
     const tree = await render()
     await armReview('review-level-5')
@@ -250,7 +265,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await armReview('review-streak-7')
     await settle()
 
-    const cta = findByType(tree, 'PillButtonStub')
+    const cta = findByType(tree, 'PillButtonStub').filter((node) => node.props.variant !== 'ghost')
     expect(cta).toHaveLength(1)
 
     await TestRenderer.act(async () => {
