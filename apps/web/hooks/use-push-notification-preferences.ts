@@ -225,7 +225,7 @@ export async function releasePushSubscription(accountId = getHeldAccountId()): P
         await settlePushCleanupBeforeAbort(withAccountIntent(accountId,
           () => unsubscribePushForCleanup(subscription.toJSON())), controller.signal)
       } catch (error) {
-        if (reportsAccountChanged(error)) throw error
+        if (controller.signal.aborted || reportsAccountChanged(error)) throw error
         if (isPushSubscriptionOwner(accountId)) await subscription.unsubscribe()
         throw error
       }
