@@ -1405,10 +1405,13 @@ export const PostApiNotificationsSubscribeBody = zod.object({
 export const PostApiNotificationsSubscribeResponse = zod.unknown()
 
 
+export const postApiNotificationsUnsubscribeBodyReleaseOtherAccountDefault = false;
+
 export const PostApiNotificationsUnsubscribeBody = zod.object({
   "endpoint": zod.string(),
-  "p256dh": zod.string(),
-  "auth": zod.string()
+  "p256dh": zod.string().nullish(),
+  "auth": zod.string().nullish(),
+  "releaseOtherAccount": zod.boolean().default(postApiNotificationsUnsubscribeBodyReleaseOtherAccountDefault)
 })
 
 export const PostApiNotificationsUnsubscribeResponse = zod.unknown()

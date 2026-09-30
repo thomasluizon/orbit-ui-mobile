@@ -9,3 +9,4 @@ export const deleteNotification = bindAccountServerAction(serverActions.deleteNo
 export const deleteAllNotifications = bindAccountServerAction(serverActions.deleteAllNotifications)
 export const subscribePush = bindAccountServerAction(serverActions.subscribePush)
 export const unsubscribePush = bindAccountServerAction(serverActions.unsubscribePush)
+export const unsubscribePushForCleanup = bindAccountServerAction(serverActions.unsubscribePush, 'reject')

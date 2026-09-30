@@ -15,6 +15,7 @@ import { QueryObserver } from '@tanstack/query-core'
 import { profileKeys } from '@orbit/shared/query'
 import { getQueryClient } from '@/lib/query-client'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { installWebLocks } from '../helpers/web-locks'
 
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
@@ -32,6 +33,7 @@ const pushMocks = vi.hoisted(() => ({
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: pushMocks.subscribePush,
   unsubscribePush: pushMocks.unsubscribePush,
+  unsubscribePushForCleanup: pushMocks.unsubscribePush,
 }))
 
 vi.mock('@sentry/nextjs', async (importOriginal) => ({
@@ -85,7 +87,6 @@ async function enablePush() {
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
-let lockQueue: Promise<unknown>
 
 describe('the first session check under a query in flight', () => {
   it('settles the mounted observer after the account boundary', async () => {
@@ -121,17 +122,7 @@ describe('the first session check under a query in flight', () => {
 
 describe('auth store', () => {
   beforeEach(() => {
-    lockQueue = Promise.resolve()
-    Object.defineProperty(navigator, 'locks', {
-      configurable: true,
-      value: {
-        request: (_name: string, task: () => Promise<unknown>) => {
-          const result = lockQueue.then(task)
-          lockQueue = result.catch(() => {})
-          return result
-        },
-      },
-    })
+    installWebLocks()
     useAuthStore.setState({
       isAuthenticated: false,
       user: null,

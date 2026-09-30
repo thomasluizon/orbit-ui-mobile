@@ -18,3 +18,12 @@ export const notificationsResponseSchema = z.object({
 })
 
 export type NotificationsResponse = z.infer<typeof notificationsResponseSchema>
+
+export const unsubscribePushInputSchema = z.object({
+  endpoint: z.string(),
+  p256dh: z.string().nullable().optional(),
+  auth: z.string().nullable().optional(),
+  releaseOtherAccount: z.boolean().optional(),
+})
+
+export type UnsubscribePushInput = z.infer<typeof unsubscribePushInputSchema>

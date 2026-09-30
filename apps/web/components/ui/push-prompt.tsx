@@ -50,16 +50,17 @@ export function PushPrompt() {
     if (accountId === null) return
     if (!isPushNotificationSupported()) return
     if (Notification.permission === 'denied') return
-    if (getCookie(STORAGE_KEY) === '1') return
+    const alreadyPrompted = getCookie(STORAGE_KEY) === '1'
 
     getActiveServiceWorkerRegistration()
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => {
         if (sub && Notification.permission === 'granted' && isPushSubscriptionOwner(accountId)) return
+        if (!sub && alreadyPrompted) return
         setEligible(true)
       })
       .catch(() => {
-        setEligible(true)
+        if (!alreadyPrompted) setEligible(true)
       })
   }, [accountId])
 
@@ -95,7 +96,7 @@ export function PushPrompt() {
   const handleEnable = useCallback(async () => {
     setShowRetryHint(false)
     try {
-      await subscribeToPushNotifications()
+      await subscribeToPushNotifications(undefined, { reuseExisting: true })
       dismiss()
     } catch (error) {
       reportAccountChangedIfNeeded(error)

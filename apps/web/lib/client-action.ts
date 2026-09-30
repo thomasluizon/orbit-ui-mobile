@@ -66,6 +66,7 @@ export async function applyServerActionFailure<T>(result: ServerActionResult<T>)
 
 export async function runServerActionResult<T>(
   action: Promise<ServerActionResult<T>>,
+  failureMode: 'reload' | 'reject' = 'reload',
 ): Promise<ServerActionResult<T>> {
   let result: ServerActionResult<T>
   try {
@@ -81,7 +82,7 @@ export async function runServerActionResult<T>(
           duration: Infinity,
           action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
         })
-        return new Promise<ServerActionResult<T>>(() => {})
+        if (failureMode === 'reload') return new Promise<ServerActionResult<T>>(() => {})
       }
     }
     throw error
@@ -92,8 +93,9 @@ export async function runServerActionResult<T>(
 
 export async function runServerAction<T>(
   action: Promise<ServerActionResult<T>>,
+  failureMode: 'reload' | 'reject' = 'reload',
 ): Promise<T> {
-  const result = await runServerActionResult(action)
+  const result = await runServerActionResult(action, failureMode)
   if (result.ok) return result.data
 
   throw createApiClientError(
@@ -111,11 +113,12 @@ export function bindServerAction<Arguments extends unknown[], T>(
 
 export function bindAccountServerAction<Arguments extends unknown[], T>(
   action: (...arguments_: [...Arguments, string | null]) => Promise<ServerActionResult<T>>,
+  failureMode: 'reload' | 'reject' = 'reload',
 ): (...arguments_: Arguments) => Promise<T> {
   return (...arguments_) => runServerAction(action(
     ...arguments_,
     accountIntentWithOrigin(activeAccountIntent === undefined ? getHeldAccountId() : activeAccountIntent),
-  ))
+  ), failureMode)
 }
 
 export function accountIntentWithOrigin(accountId: string | null): string | null {
