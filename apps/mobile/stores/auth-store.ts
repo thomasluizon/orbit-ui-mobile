@@ -5,7 +5,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys, resetAccountQueries } from '@orbit/shared/query'
 import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
-import { clearGoogleErrorLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { clearGoogleErrorLogin, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import {
   getToken,
   setToken,
@@ -453,7 +453,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const loginSession = await withCredentialMutationLock(async () => {
         if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
-        clearPendingGoogleAuthSession()
+        clearPendingGoogleAuthSessionForLogin()
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)

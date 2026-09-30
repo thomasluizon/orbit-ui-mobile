@@ -256,7 +256,6 @@ export default function CalendarSyncScreen() {
         router.replace('/login?googleError=1')
         return
       }
-      router.replace('/auth-callback')
     } catch {
       allowGoogleErrorLogin()
       router.replace('/login?googleError=1')

@@ -23,6 +23,7 @@ import {
   AUTH_CALLBACK_URL,
   allowGoogleErrorLogin,
   clearPendingGoogleAuthSession,
+  completePendingGoogleAuthSession,
   extractGoogleAuthParams,
   resolveGoogleAuthCallbackUrl,
   setPendingGoogleAuthCallbackUrl,
@@ -152,14 +153,14 @@ export default function AuthCallbackScreen() {
         if (callbackParams.error) throw new Error('Authentication failed')
 
         const referralCode = await getStoredReferralCode()
-        if (sessionEpoch !== getSessionGeneration().epoch) return
+        if (!ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
         const response = await completeGoogleAuthFromUrl(
           resolvedCallbackUrl,
           i18n.language,
           referralCode ?? undefined,
         )
+        if (!ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
         clearPendingGoogleAuthSession(returnUrlAttemptId)
-        if (sessionEpoch !== getSessionGeneration().epoch) return
 
         const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId,
@@ -183,14 +184,14 @@ export default function AuthCallbackScreen() {
         const returnUrl = getSafeReturnUrl(storedReturnUrl)
         router.replace(returnUrl)
       } catch {
-        if (sessionEpoch !== getSessionGeneration().epoch) return
+        if (!ownsReturnUrl(() => sessionEpoch === getSessionGeneration().epoch, returnUrlAttemptId)) return
         clearPendingGoogleAuthSession(returnUrlAttemptId)
         allowGoogleErrorLogin()
         router.replace('/login?googleError=1')
       }
     }
 
-    handleCallback().catch((error: unknown) => {
+    completePendingGoogleAuthSession(returnUrlAttemptId, handleCallback).catch((error: unknown) => {
       const nextErrorState = resolveCallbackError(error)
       setErrorState(nextErrorState)
     })

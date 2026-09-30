@@ -5,6 +5,7 @@ import {
   allowGoogleErrorLogin,
   buildGoogleAuthFallbackUrl,
   clearPendingGoogleAuthSession,
+  clearPendingGoogleAuthSessionForLogin,
   clearGoogleErrorLogin,
   extractGoogleAuthParams,
   getPendingGoogleAuthVerifier,
@@ -49,6 +50,14 @@ describe('Google App Link callback state', () => {
     expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, 1)).toBe(false)
     expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, 2)).toBe(true)
     expect(getPendingGoogleAuthVerifier('new-state')).toBe('new')
+  })
+
+  it('clears an unprocessed Google attempt when another login establishes the session', () => {
+    markPendingGoogleAuthSession(1, 'verifier', 'expected')
+    clearPendingGoogleAuthSessionForLogin()
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+    expect(getPendingGoogleAuthVerifier('expected')).toBeNull()
+    expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=x&state=expected`, 1)).toBe(false)
   })
 
   it('recovers a callback URL from Expo Router params', () => {
