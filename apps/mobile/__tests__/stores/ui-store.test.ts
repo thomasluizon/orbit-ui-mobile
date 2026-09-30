@@ -89,6 +89,8 @@ describe("mobile ui store", () => {
     useTourStore.getState().setHiddenSections([]);
     useUIStore.setState({
       activeView: "today",
+      activeCelebration: null,
+      queuedCelebrations: [],
       streakCelebration: null,
       allDoneCelebration: false,
       allDoneCelebratedDate: "",
@@ -286,6 +288,22 @@ describe("mobile ui store", () => {
 
     expect(useUIStore.getState().allDoneCelebration).toBe(true);
     expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 });
+  });
+
+  it("celebrates once after the only due flexible habit is logged below its weekly target", () => {
+    const habit = createMockHabit({ id: 'flexible', isFlexible: true, frequencyUnit: 'Week',
+      flexibleTarget: 2, flexibleCompleted: 1, scheduledDates: ['2026-04-06'] });
+    const habits = new Map([[habit.id, habit]]);
+    const check = useUIStore.getState().checkAllDoneCelebration;
+    check(habits, new Map(), '2026-04-06');
+    expect(useUIStore.getState().allDoneCelebration).toBe(false);
+    habits.set(habit.id, { ...habit, isLoggedInRange: true });
+    check(habits, new Map(), '2026-04-06');
+    check(habits, new Map(), '2026-04-06');
+    expect(useUIStore.getState().allDoneCelebration).toBe(true);
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done');
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 });
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0);
   });
 
   it("clears the last created habit id after the timeout", async () => {

@@ -93,6 +93,23 @@ describe('ui store', () => {
     })
 
     describe('checkAllDoneCelebration', () => {
+      it('celebrates once after the only due flexible habit is logged below its weekly target', () => {
+        const today = formatAPIDate(new Date())
+        const habit = createMockHabit({ id: 'flexible', isFlexible: true, frequencyUnit: 'Week',
+          flexibleTarget: 2, flexibleCompleted: 1, scheduledDates: [today] })
+        const habits = new Map([[habit.id, habit]])
+        const check = useUIStore.getState().checkAllDoneCelebration
+        check(habits, new Map(), today)
+        expect(useUIStore.getState().allDoneCelebration).toBe(false)
+        habits.set(habit.id, { ...habit, isLoggedInRange: true })
+        check(habits, new Map(), today)
+        check(habits, new Map(), today)
+        expect(useUIStore.getState().allDoneCelebration).toBe(true)
+        expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+        expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+        expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
+      })
+
       it('ignores a log for another day', () => {
         const today = formatAPIDate(new Date())
         const habit = createMockHabit({ id: 'h1', scheduledDates: [today], isLoggedInRange: true })

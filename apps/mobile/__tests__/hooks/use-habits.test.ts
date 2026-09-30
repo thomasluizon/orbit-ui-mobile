@@ -639,7 +639,7 @@ describe('mobile habit hooks', () => {
     expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
   })
 
-  it('keeps a flexible habit open after its first of two required logs', async () => {
+  it('celebrates after the first flexible log before the weekly target is met', async () => {
     const { useUIStore } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebration: false, allDoneCelebratedDate: '' })
     mocks.useRealUIStore = true
@@ -649,9 +649,12 @@ describe('mobile habit hooks', () => {
       scheduledDates: [today], isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 })] }]
     const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, { habitId: string; date?: string }, HabitSnapshotContext>
     const variables = { habitId: 'flexible' }
+    expect(useUIStore.getState().activeCelebration).toBeNull()
     const context = await mutation.onMutate?.(variables)
     mutation.onSuccess?.({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 }, variables, context)
-    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done')
+    expect(useUIStore.getState().activeCelebration?.payload).toEqual({ count: 1 })
+    expect(useUIStore.getState().queuedCelebrations).toHaveLength(0)
     mocks.useRealUIStore = false
   })
 

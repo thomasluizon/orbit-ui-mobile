@@ -27,10 +27,7 @@ export function getAllDoneOnDate(
       const skipped = isHabitSkippedOnDate(habit, date)
       const pendingSkip = (habit as NormalizedHabit & { [optimisticSkipMarker]?: string })[optimisticSkipMarker] === date
       const completed = habit.isCompleted || logged
-      const done = !skipped && (habit.isFlexible
-        ? habit.flexibleTarget !== null && habit.flexibleCompleted !== null &&
-          habit.flexibleCompleted >= habit.flexibleTarget && completed
-        : completed)
+      const done = !skipped && !pendingSkip && completed
       if (!done && (!skipped || pendingSkip)) openCount++
       if (done) count++
     }
