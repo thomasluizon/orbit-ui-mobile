@@ -34,6 +34,8 @@ function translateTestValue(key: string, values?: Record<string, unknown>): stri
   )
 }
 
+vi.mock('react-hook-form', () => ({ useController: () => ({ field: { ref: vi.fn() } }) }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => translateTestValue,
   useLocale: () => 'en',

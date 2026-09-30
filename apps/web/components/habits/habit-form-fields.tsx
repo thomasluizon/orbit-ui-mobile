@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import { useController } from 'react-hook-form'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
@@ -240,6 +241,7 @@ export function HabitFormFields({
   const { profile } = useProfile()
   const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { watch, setValue, formState: { errors } } = form
+  const { field: titleField } = useController({ control: form.control, name: 'title' })
   const title = coalesceFormText(watch('title'))
   const emoji = watch('emoji') ?? ''
   const watchedDays = watch('days')
@@ -371,8 +373,9 @@ export function HabitFormFields({
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <HabitUnderstanding
+        inputRef={titleField.ref}
         value={title}
-        error={errors.title?.message}
+        error={errors.title?.message ? t(errors.title.message) : undefined}
         emoji={emoji}
         days={days}
         daily={daily}

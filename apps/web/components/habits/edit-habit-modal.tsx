@@ -283,6 +283,8 @@ export function EditHabitModal({
       e.preventDefault()
       if (!habit) return
 
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -396,11 +398,8 @@ export function EditHabitModal({
             </PillButton>
             <PillButton
               formId={formId}
-              disabled={
-                updateHabit.isPending ||
-                detailFieldsPending ||
-                watchedTitle.trim().length === 0
-              }
+              disabled={detailFieldsPending}
+              loading={updateHabit.isPending || assignTags.isPending}
             >
               {t('common.save')}
             </PillButton>

@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type Ref } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
@@ -13,10 +13,12 @@ import { createStyles as createFormStyles } from './styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
+  inputRef?: Ref<TextInput>
   isSuggestionDisabled?: boolean
 }
 
 export function HabitUnderstanding({
+  inputRef,
   value,
   error,
   emoji,
@@ -66,11 +68,13 @@ export function HabitUnderstanding({
             )) : <Text style={styles.placeholder}>{labels.placeholder}</Text>}
           </Text>
           <TextInput
+            ref={inputRef}
             value={value}
             multiline
             maxLength={200}
             spellCheck={false}
             accessibilityLabel={labels.field}
+            accessibilityHint={error}
             accessibilityState={{ disabled: false }}
             selectionColor={tokens.primary}
             style={styles.input}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated, { Easing, Keyframe } from 'react-native-reanimated'
-import { useWatch } from 'react-hook-form'
+import { useController, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
@@ -262,6 +262,7 @@ export function HabitFormFields({
   const { profile } = useProfile()
   const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { setValue, formState: { errors } } = form
+  const { field: titleField } = useController({ control: form.control, name: 'title' })
   const title = coalesceFormText(useWatch({ control: form.control, name: 'title' }))
   const emoji = useWatch({ control: form.control, name: 'emoji' }) ?? ''
   const watchedDays = useWatch({ control: form.control, name: 'days' })
@@ -400,6 +401,7 @@ export function HabitFormFields({
   return (
     <View style={styles.container}>
       <HabitUnderstanding
+        inputRef={titleField.ref}
         labels={understandingLabels}
         onQuantityChange={controller.setQuantity}
         onModeChange={controller.setScheduleMode}
@@ -419,7 +421,7 @@ export function HabitFormFields({
         days={days}
         daily={daily}
         emoji={emoji}
-        error={errors.title?.message}
+        error={errors.title?.message ? t(errors.title.message) : undefined}
         value={title}
       />
 

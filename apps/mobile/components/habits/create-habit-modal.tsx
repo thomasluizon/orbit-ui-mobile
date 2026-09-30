@@ -333,6 +333,8 @@ export function CreateHabitModal({
     }
 
     const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
     const error = formHelpers.validateAll({
       reminderTimes,
       selectedGoalIds,
@@ -473,7 +475,6 @@ export function CreateHabitModal({
 
 
   const isPending = createHabit.isPending || createSubHabit.isPending
-  const submitDisabled = isPending || watchedTitle.trim().length === 0
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     resolveSubHabitProposalRef.current()
@@ -517,7 +518,7 @@ export function CreateHabitModal({
                 {t('common.cancel')}
               </PillButton>
               <PillButton
-                disabled={submitDisabled}
+                loading={isPending}
                 hint={watchedTitle.trim().length === 0 ? t('habits.form.createWhy') : undefined}
                 onClick={() => void handleSubmit()}
               >
