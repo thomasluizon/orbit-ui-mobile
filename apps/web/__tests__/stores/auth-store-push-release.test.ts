@@ -136,22 +136,27 @@ describe('sign-out through the real notifications action wrapper', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
-  it('settles a pending release and ends the matching endpoint without waiting for late completion', async () => {
+  it.each(['success', 'account refusal'] as const)('settles a pending release without dropping the endpoint before late %s', async (outcome) => {
     const { useAuthStore, subscription } = await installSignedInBrowser()
     await import('@/hooks/use-push-notification-preferences')
     const { wrapServerAction } = await import('@/app/actions/action-result')
     let finishRelease: () => void = () => undefined
-    actions.unsubscribePush.mockImplementation(() => wrapServerAction(() => new Promise<void>((resolve) => { finishRelease = resolve })))
+    actions.unsubscribePush.mockImplementation(() => wrapServerAction(async () => {
+      await new Promise<void>((resolve) => { finishRelease = resolve })
+      if (outcome === 'account refusal') {
+        throw createApiClientError(409, { errorCode: 'ACCOUNT_CHANGED' }, 'Account changed')
+      }
+    }))
     vi.useFakeTimers()
     const signedOut = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(actions.unsubscribePush).toHaveBeenCalledOnce())
     await vi.advanceTimersByTimeAsync(5000)
     await signedOut
-    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     finishRelease()
     await vi.advanceTimersByTimeAsync(0)
 
-    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
     const { withSessionCookieLock } = await import('@/lib/session-cookie-lock')
     expect(await withSessionCookieLock(async () => 'cookies available')).toBe('cookies available')

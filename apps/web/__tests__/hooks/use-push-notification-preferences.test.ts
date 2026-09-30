@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { createApiClientError } from '@orbit/shared'
 import { installWebLocks } from '../helpers/web-locks'
 
 const mockSubscribePush = vi.fn()
@@ -168,6 +169,7 @@ describe('use-push-notification-preferences helpers', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     if (originalVapidKey === undefined) {
@@ -412,6 +414,48 @@ describe('use-push-notification-preferences helpers', () => {
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(isPushSubscriptionOwner('account-b')).toBe(true)
     expect((await settleWithin(loadPushNotificationState('account-b'))).status).toBe('registered')
+  })
+
+  it.each(['cleanup', 'rotation'] as const)('preserves the live endpoint when stale %s reaches its deadline before account refusal', async (operation) => {
+    const { subscription, getSubscription, subscribe } = await enablePushAs('account-b')
+    let refuseRelease: (error: Error) => void = () => undefined
+    mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
+    setAccountId('account-a')
+    vi.useFakeTimers()
+
+    const completed = (operation === 'cleanup'
+      ? discardForeignPushSubscription('account-a')
+      : subscribeToPushNotifications()).catch((error: unknown) => error)
+    await vi.waitFor(() => expect(mockUnsubscribePush).toHaveBeenCalledOnce())
+    await vi.advanceTimersByTimeAsync(5000)
+    const outcome = await completed
+
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    expect(outcome).toBeInstanceOf(Error)
+    expect(await getSubscription()).toBe(subscription)
+    expect(subscribe).not.toHaveBeenCalled()
+    refuseRelease(createApiClientError(409, { errorCode: 'ACCOUNT_CHANGED' }, 'Account changed'))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    expect((await loadPushNotificationState('account-b')).status).toBe('registered')
+    expect(isPushSubscriptionOwner('account-b')).toBe(true)
+  })
+
+  it.each(['cleanup', 'rotation'] as const)('preserves the live endpoint when stale %s receives account refusal before its deadline', async (operation) => {
+    const { subscription, getSubscription, subscribe } = await enablePushAs('account-b')
+    const refusal = createApiClientError(409, { errorCode: 'ACCOUNT_CHANGED' }, 'Account changed')
+    mockUnsubscribePush.mockRejectedValue(refusal)
+    setAccountId('account-a')
+
+    await expect(operation === 'cleanup'
+      ? discardForeignPushSubscription('account-a')
+      : subscribeToPushNotifications()).rejects.toBe(refusal)
+
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    expect(await getSubscription()).toBe(subscription)
+    expect(subscribe).not.toHaveBeenCalled()
+    expect((await loadPushNotificationState('account-b')).status).toBe('registered')
   })
 
   it('refuses to subscribe without a VAPID key before prompting or dropping the current subscription', async () => {
