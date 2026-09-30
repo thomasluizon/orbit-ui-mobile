@@ -129,6 +129,7 @@ describe('OnboardingFlow state model', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mocks.finishOnboarding.mockReset()
+    mocks.suggest.mockReset()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
@@ -145,6 +146,28 @@ describe('OnboardingFlow state model', () => {
     useAppToastStore.setState({ currentToast: null, queue: [] })
     useUIStore.setState({ openOverlayIds: [] })
     mocks.liveActions.mockReturnValue(actions())
+  })
+
+  it.each(['suggestion', 'creation'])('announces a stale %s once before onboarding completes', async (operation) => {
+    const staleAction = () => runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
+    if (operation === 'suggestion') mocks.suggest.mockImplementation(staleAction)
+    else {
+      mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
+      mocks.createHabit.mockImplementation(staleAction)
+    }
+    render(<RetainedOnboardingOverlay />)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'continue' })) })
+    if (operation === 'creation') {
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'create' })) })
+    }
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(screen.queryByTestId('done')).not.toBeInTheDocument()
   })
 
   it.each([true, false])('announces a stale finish once in onboarding when isLive=%s', async (isLive) => {
