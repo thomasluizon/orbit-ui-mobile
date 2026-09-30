@@ -48,20 +48,25 @@ export async function readFieldIndicators(
 
     return [...perimeter].flatMap((element) => {
       if (paintsNothing(element)) return []
-      const style = getComputedStyle(element)
       const label = element.tagName.toLowerCase()
-      const visible: string[] = []
-      if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) visible.push(`${label}:outline`)
-      // WHY: box-shadow computes to none in forced colors https://www.w3.org/TR/css-color-adjust-1/#forced-colors-properties
-      const rings = settings.forcedColors
-        ? []
-        : [...style.boxShadow.matchAll(/\b0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+(\d*\.?\d+)px\b/g)].filter((ring) => Number(ring[1]) > 0)
-      const border = style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0
-      if ((rings.length > 0 || border) && !isCoveredByFill(element)) {
-        visible.push(...rings.map(() => `${label}:shadow`))
-        if (border) visible.push(`${label}:border`)
-      }
-      return visible
+      return [null, '::before', '::after'].flatMap((pseudo) => {
+        const style = getComputedStyle(element, pseudo)
+        if (pseudo && (style.content === 'none' || style.content === 'normal' || Number.parseFloat(style.opacity) === 0)) return []
+        const owner = `${label}${pseudo ?? ''}`
+        const visible: string[] = []
+        if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) visible.push(`${owner}:outline`)
+        // WHY: box-shadow computes to none in forced colors https://www.w3.org/TR/css-color-adjust-1/#forced-colors-properties
+        const rings = settings.forcedColors
+          ? []
+          : [...style.boxShadow.matchAll(/\b0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+(\d*\.?\d+)px\b/g)].filter((ring) => Number(ring[1]) > 0)
+        const border = style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0
+        // WHY: Positioned perimeter pseudo-elements paint above the control fill that can cover the element's inset ring https://github.com/thomasluizon/orbit-tickets/issues/969
+        if ((rings.length > 0 || border) && (pseudo || !isCoveredByFill(element))) {
+          visible.push(...rings.map(() => `${owner}:shadow`))
+          if (border) visible.push(`${owner}:border`)
+        }
+        return visible
+      })
     })
   }, { rootSelector, includeDescendants: options.includeDescendants === true, forcedColors: options.forcedColors === true })
 }
@@ -80,4 +85,34 @@ export async function expectOneFieldIndicator(
   await expect(target).toBeFocused()
   const indicators = await readFieldIndicators(target, rootSelector, options)
   expect(indicators, `${surface} drew ${indicators.join(', ')}`).toHaveLength(1)
+}
+
+export async function inspectFocusedRing(page: Page) {
+  return page.evaluate(() => {
+    for (const animation of document.getAnimations()) animation.finish()
+    const focused = document.activeElement
+    if (!(focused instanceof HTMLElement) || focused === document.body) return null
+
+    const describe = (element: Element) => {
+      const name = element.getAttribute('aria-label') ?? element.getAttribute('name') ?? ''
+      return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${name ? `[${name}]` : ''}`
+    }
+    const ancestors: Element[] = []
+    let parent = focused.parentElement
+    for (let level = 0; level < 6 && parent; level += 1) {
+      ancestors.push(parent)
+      parent = parent.parentElement
+    }
+    const indicators = [focused, ...ancestors, ...focused.querySelectorAll('*')]
+      .flatMap((element) => {
+        return [null, '::before', '::after'].flatMap((pseudo) => {
+          const style = getComputedStyle(element, pseudo)
+          if (pseudo && (style.content === 'none' || style.content === 'normal' || Number.parseFloat(style.opacity) === 0)) return []
+          const outline = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
+          return outline || style.boxShadow.includes('rgb(196, 83, 15)') ? [`${describe(element)}${pseudo ?? ''}`] : []
+        })
+      })
+
+    return { focused: describe(focused), focusVisible: focused.matches(':focus-visible'), indicators }
+  })
 }

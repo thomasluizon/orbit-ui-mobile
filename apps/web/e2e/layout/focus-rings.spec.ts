@@ -3,35 +3,7 @@ import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession } from './profile-session'
-import { expectOneFieldIndicator } from './focus-indicators'
-
-async function inspectFocusedRing(page: Page) {
-  return page.evaluate(() => {
-    for (const animation of document.getAnimations()) animation.finish()
-    const focused = document.activeElement
-    if (!(focused instanceof HTMLElement) || focused === document.body) return null
-
-    const describe = (element: Element) => {
-      const name = element.getAttribute('aria-label') ?? element.getAttribute('name') ?? ''
-      return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${name ? `[${name}]` : ''}`
-    }
-    const ancestors: Element[] = []
-    let parent = focused.parentElement
-    for (let level = 0; level < 6 && parent; level += 1) {
-      ancestors.push(parent)
-      parent = parent.parentElement
-    }
-    const indicators = [focused, ...ancestors, ...focused.querySelectorAll('*')]
-      .filter((element) => {
-        const style = getComputedStyle(element)
-        const outline = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
-        return outline || style.boxShadow.includes('rgb(196, 83, 15)')
-      })
-      .map(describe)
-
-    return { focused: describe(focused), focusVisible: focused.matches(':focus-visible'), indicators }
-  })
-}
+import { expectOneFieldIndicator, inspectFocusedRing } from './focus-indicators'
 
 async function expectOneRing(page: Page, surface: string, stop: number) {
   const state = await inspectFocusedRing(page)
