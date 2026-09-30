@@ -133,6 +133,7 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
 
       await page.goto('/about')
+      await expect(page.locator('main')).toBeVisible()
       await page.evaluate((markup) => {
         const fixture = document.createElement('section')
         fixture.setAttribute('data-testid', 'compact-target-fixture')
@@ -206,6 +207,8 @@ for (const width of [412, 1280] as const) {
         ? page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.nav.createHabit })
         : page.getByRole('button', { name: ptBr.habits.createManually })
       await create.click()
+      const recurringTitleThatShowsEndDate = 'Beber água todo dia'
+      await page.getByRole('textbox', { name: ptBr.habits.form.describe, exact: true }).fill(recurringTitleThatShowsEndDate)
       await page.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByPlaceholder(ptBr.habits.form.checklistPlaceholder).fill('Beber água')
@@ -266,9 +269,9 @@ for (const width of [412, 1280] as const) {
           json: calendarAutoSyncStateSchema.parse({ enabled: true, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true }),
         }))
         await context.route(new RegExp(`${API.calendar.autoSyncSuggestions}$`), (route) => route.fulfill({ json: [suggestion] }))
-        await page.goto('/about')
-        const navigation = page.locator(width === 412 ? '[data-shell-tab-bar]' : '[data-shell-sidebar]')
-        await navigation.getByRole('button', { name: ptBr.nav.calendar, exact: true }).click()
+        await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
+        await context.route(new RegExp(`${API.calendar.events}[?]`), (route) => route.fulfill({ json: [] }))
+        await page.goto('/calendar')
         await expect(page.getByRole('radiogroup')).toBeVisible()
         await page.evaluate(() => window.history.pushState(null, '', '/calendar?mode=review'))
         const sheet = page.getByRole('dialog', { name: ptBr.calendar.autoSync.reviewModeTitle, exact: true })
