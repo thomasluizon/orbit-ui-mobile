@@ -35,7 +35,7 @@ export function WrappedCover({
 
   return (
     <div
-      className="flex min-h-dvh flex-col items-start justify-center gap-6 overflow-y-auto px-6 py-8"
+      className="flex flex-1 flex-col items-start justify-center gap-6 overflow-y-auto px-6 py-8"
       data-state={state}
     >
       <OrbitMark size={96} />

@@ -153,7 +153,7 @@ describe('mobile useWrapped', () => {
     await renderWrapped('month', { closedMonth: { year: 2026, month: 8 } })
 
     const options = firstQueryOptions()
-    expect(options.queryKey).toEqual(gamificationKeys.recap('month', 2026, 8))
+    expect(options.queryKey).toEqual(['gamification', 'recap', 'month', 2026, 8])
     await options.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/gamification/recap?period=month&year=2026&month=8',
