@@ -9,6 +9,7 @@ import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-ep
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -165,7 +166,23 @@ describe('FreshStartModal', () => {
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
   })
 
-  it('names the deletion review and gives both actions one width in each step', async () => {
+  it('moves focus to the confirm field, never leaving it on the disabled Delete data', async () => {
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(input(tree).props.autoFocus).toBe(true)
+  })
+
+  it('pins both steps\' actions in the sheet footer, never in the scrolling body', async () => {
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('names the deletion review and lets both actions hug their labels in each step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     const width = (label: string) => {
       const node = label === 'common.cancel'
@@ -174,11 +191,11 @@ describe('FreshStartModal', () => {
       const style = node.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
     }
-    expect(width('profile.freshStart.reviewDeletion')).toBe('100%')
-    expect(width('common.cancel')).toBe('100%')
+    expect(width('profile.freshStart.reviewDeletion')).toBeUndefined()
+    expect(width('common.cancel')).toBeUndefined()
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    expect(width('profile.freshStart.deleteData')).toBe('100%')
-    expect(width('common.cancel')).toBe('100%')
+    expect(width('profile.freshStart.deleteData')).toBeUndefined()
+    expect(width('common.cancel')).toBeUndefined()
   })
 
   it.each(['choose', 'confirm'] as const)('cancels from the %s step without resetting data', async (step) => {
@@ -376,6 +393,19 @@ await Promise.resolve()
     expect(offlineQueue.clear).toHaveBeenCalledTimes(1)
     expect(offlineQueue.enqueue).toHaveBeenCalledTimes(queued ? 1 : 0)
     if (queued) expect(offlineQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ id: 'reset-1', type: 'resetProfile' }))
+  })
+
+  it('shows a failed reset in the pinned footer, beside Delete data', async () => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    vi.mocked(offlineMutations.queueOrExecute).mockRejectedValueOnce(new Error('offline'))
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+    const alerts = (slot: string) => tree.root
+      .findAll((node) => node.type === slot)[0]!
+      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+
+    expect(alerts('SheetActions')).toHaveLength(1)
+    expect(alerts('SheetBody')).toHaveLength(0)
   })
 
   it('surfaces a friendly error and keeps the modal open on failure', async () => {

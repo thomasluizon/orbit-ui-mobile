@@ -94,52 +94,64 @@ export function DeleteAccountModal({
       open
       onClose={() => handleOpenChange(false)}
       title={t('profile.deleteAccount.headingAreYouSure')}
-    >
-      <div className="flex flex-col" style={{ gap: 16 }}>
-        <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
-          <div
-            aria-hidden="true"
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: 80,
-              height: 80,
-              background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
-            }}
-          >
-            <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
-          </div>
-          <div className="flex flex-col" style={{ gap: 8 }}>
-            <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
-              {t('profile.deleteAccount.warning')}
+      actions={(
+        <>
+          {error ? (
+            <p
+              role="alert"
+              className="m-0"
+              style={{
+                width: '100%',
+                color: 'var(--status-bad-text)',
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
+              {error}
             </p>
-            <p style={{ color: 'var(--fg-1)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
-              {warningMessage}
-            </p>
-            <p style={{ color: 'var(--fg-2)', fontSize: 15, lineHeight: 1.5 }}>
-              {t('profile.deleteAccount.warningDetail')}
-            </p>
-          </div>
-        </div>
-        {error ? (
-          <p role="alert" style={{ color: 'var(--status-bad-text)', fontSize: 13 }}>
-            {error}
-          </p>
-        ) : null}
-        <div style={{ paddingTop: 8 }}>
+          ) : null}
           <DialogActionPair>
             <PillButton
+              variant="ghost"
+              disabled={loading}
+              onClick={() => closeSheet()}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
               variant="destructive"
-              matchedWidth
               disabled={loading || accountId === null}
               loading={loading}
               onClick={() => void handleRequestDeletion()}
             >
               {t('profile.deleteAccount.sendCode')}
             </PillButton>
-            <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
           </DialogActionPair>
+        </>
+      )}
+    >
+      <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
+        <div
+          aria-hidden="true"
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 80,
+            height: 80,
+            background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
+          }}
+        >
+          <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
+        </div>
+        <div className="flex flex-col" style={{ gap: 8 }}>
+          <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
+            {t('profile.deleteAccount.warning')}
+          </p>
+          <p style={{ color: 'var(--fg-1)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
+            {warningMessage}
+          </p>
+          <p style={{ color: 'var(--fg-2)', fontSize: 15, lineHeight: 1.5 }}>
+            {t('profile.deleteAccount.warningDetail')}
+          </p>
         </div>
       </div>
     </Sheet>

@@ -7,6 +7,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -542,6 +543,23 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
+        actions={(
+          <DialogActionPair>
+            <PillButton
+              variant="ghost"
+              disabled={isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              disabled={submitDisabled}
+              onClick={() => void handleSubmit()}
+            >
+              {t('common.create')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
         <View style={styles.scrollContent}>
           {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
@@ -580,24 +598,6 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
         </View>
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-
-            disabled={submitDisabled}
-            onClick={() => void handleSubmit()}
-
-          >
-            {t('common.create')}
-          </PillButton>
-        </View>
       </Sheet>) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
@@ -611,21 +611,9 @@ export function CreateHabitModal({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: 16,
-      paddingBottom: 16,
       gap: 24,
     },
-    fieldLabel: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg2,
-    },
     subHabitsSection: {
-      gap: 8,
-    },
-    subHabitsHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
       gap: 8,
     },
     subHabitsList: {
@@ -686,15 +674,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 12,
-      paddingTop: 16,
-      paddingHorizontal: 16,
-      paddingBottom: 24,
     },
   })
 }

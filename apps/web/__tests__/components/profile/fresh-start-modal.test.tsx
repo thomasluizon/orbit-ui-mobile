@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 
@@ -69,6 +70,16 @@ describe('FreshStartModal', () => {
     expect(screen.getByText('profile.freshStart.heading')).toBeInTheDocument()
   })
 
+  it('pins both steps\' actions in the sheet footer, never in the scrolling body', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+
+    fireEvent.click(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' }))
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
+    expect(sheetSlotButtons('sheet-body')).toEqual([])
+  })
+
   it('shows info step by default with description', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
@@ -99,17 +110,17 @@ describe('FreshStartModal', () => {
     expect(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })).toHaveAttribute('data-variant', 'caution')
   })
 
-  it('names the deletion review and gives both actions one width in each step', () => {
+  it('names the deletion review and lets both actions hug their labels in each step', () => {
     render(<FreshStartModal open onOpenChange={vi.fn()} />)
     const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
     const cancel = screen.getByRole('button', { name: 'common.cancel' })
-    expect(review).toHaveStyle({ width: '100%' })
-    expect(cancel).toHaveStyle({ width: '100%' })
+    expect(review.style.width).toBe('')
+    expect(cancel.style.width).toBe('')
 
     fireEvent.click(review)
     const deleteData = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
-    expect(deleteData).toHaveStyle({ width: '100%' })
-    expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveStyle({ width: '100%' })
+    expect(deleteData.style.width).toBe('')
+    expect(screen.getByRole('button', { name: 'common.cancel' }).style.width).toBe('')
   })
 
   it('transitions to confirm step on continue click', () => {
@@ -120,6 +131,16 @@ describe('FreshStartModal', () => {
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
     expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')).toBeInTheDocument()
+  })
+
+  it('moves focus to the confirm field, never leaving it on the disabled Delete data', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
+    review.focus()
+    fireEvent.click(review)
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveFocus()
   })
 
   it('confirm button is disabled when text is not ORBIT', () => {
@@ -225,6 +246,17 @@ describe('FreshStartModal', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
     expect(mockResetAccountQueries).not.toHaveBeenCalled()
     expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+
+  it('shows a failed reset in the pinned footer, beside Delete data', async () => {
+    mockResetAccount.mockRejectedValueOnce(new Error('Server error'))
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+
+    expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
   it('shows error when resetAccount fails', async () => {

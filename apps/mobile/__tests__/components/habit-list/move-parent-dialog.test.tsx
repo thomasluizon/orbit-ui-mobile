@@ -6,6 +6,8 @@ import {
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -164,6 +166,13 @@ describe('MoveParentDialog', () => {
           true,
       ),
     ).toBe(true)
+  })
+
+  it('pins Cancel and Move in the sheet footer, never in the scrolling body', () => {
+    const { tree } = renderDialog()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('confirms the move from the footer pill', () => {
@@ -375,17 +384,19 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
-  it('locks the sheet and swaps to the moving label while pending', () => {
+  it('locks the sheet and keeps the Move label while pending', () => {
+    const { tree: idle } = renderDialog()
+    expect(idle.root.findAll((node) => node.type === SheetDouble)[0]!.props.onClose).toBeTypeOf('function')
+
     const { tree } = renderDialog({ isPending: true })
 
     const sheets = tree.root.findAll(
-      (node) => node.type === 'Sheet',
+      (node) => node.type === SheetDouble,
     )
     expect(sheets[0]!.props.onClose).toBeUndefined()
 
-    expect(flattenRenderedText(tree.toJSON())).toContain(
-      'habits.moveParent.moving',
-    )
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.moveParent.confirm')
+    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.moveParent.moving')
 
     const busyButtons = tree.root.findAll(
       (node) =>

@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -128,6 +129,13 @@ describe('CreateGoalFromHabitSheet', () => {
     )
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
     expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
+    render(<CreateGoalFromHabitSheet open={true} onClose={vi.fn()} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'goals.create'])
+    expect(sheetSlotButtons('sheet-body')).not.toContain('goals.create')
+    expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
   })
 
   it('switches the goal type between standard and streak', () => {

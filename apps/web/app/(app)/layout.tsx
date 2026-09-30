@@ -13,6 +13,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
@@ -512,47 +513,43 @@ function GlobalOverlays({
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
+        actions={(
+          <DialogActionPair>
+            <PillButton variant="ghost" onClick={onDismissCalendarPrompt}>
+              {t('common.later')}
+            </PillButton>
+            <PillButton onClick={onCalendarImport}>
+              {t('onboarding.wizard.calendarButton')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
-        <div className="flex flex-col items-center text-center gap-6 py-2">
+        <div className="flex flex-col items-center text-center py-2">
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.calendarDescription')}
           </p>
-          <div className="flex flex-col gap-3 w-full">
-            <PillButton  onClick={onCalendarImport} >
-              {t('onboarding.wizard.calendarButton')}
-            </PillButton>
-            <button
-              type="button"
-              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
-              onClick={onDismissCalendarPrompt}
-            >
-              {t('common.later')}
-            </button>
-          </div>
         </div>
       </Sheet>) : null}
       {showImportPrompt && !showRetainedOnboarding ? (<Sheet
         open
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
+        actions={(
+          <DialogActionPair>
+            <PillButton variant="ghost" onClick={onDismissImportPrompt}>
+              {t('onboarding.wizard.importNotNow')}
+            </PillButton>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+            <PillButton onClick={onImportWithAstra}>
+              {t('onboarding.wizard.importButton')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
-        <div className="flex flex-col items-center text-center gap-6 py-2">
+        <div className="flex flex-col items-center text-center py-2">
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.importDescription')}
           </p>
-          <div className="flex flex-col gap-3 w-full">
-            {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-            <PillButton  onClick={onImportWithAstra} >
-              {t('onboarding.wizard.importButton')}
-            </PillButton>
-            <button
-              type="button"
-              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
-              onClick={onDismissImportPrompt}
-            >
-              {t('onboarding.wizard.importNotNow')}
-            </button>
-          </div>
         </div>
       </Sheet>) : null}
     </div>
