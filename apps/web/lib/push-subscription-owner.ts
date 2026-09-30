@@ -61,7 +61,7 @@ export async function discardForeignPushSubscription(accountId: string): Promise
   })
 }
 
-/** A failed release must not block replacement registration, but account refusal preserves the endpoint. */
+/** A settled failure allows replacement registration; account refusal or an unknown decision preserves the endpoint (#1012). */
 export async function releaseExistingPushSubscriptionOnServer(subscription: PushSubscription, accountId: string | null): Promise<void> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(new Error('Push release timed out')), 5000)
@@ -72,7 +72,7 @@ export async function releaseExistingPushSubscriptionOnServer(subscription: Push
     }
     await settlePushCleanupBeforeAbort(unsubscribePushForCleanup(submitted, accountId), controller.signal)
   } catch (error) {
-    if (reportsAccountChanged(error)) throw error
+    if (controller.signal.aborted || reportsAccountChanged(error)) throw error
     Sentry.captureException(error)
   } finally {
     clearTimeout(timeout)

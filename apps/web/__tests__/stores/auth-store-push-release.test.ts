@@ -12,6 +12,10 @@ vi.mock('@/app/actions/notifications', () => ({
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
+  resolveServerSession: vi.fn(),
+}))
 
 async function settleWithin<T>(promise: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -137,22 +141,48 @@ describe('sign-out through the real notifications action wrapper', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
-  it('settles a pending release and ends the matching endpoint without waiting for late completion', async () => {
+  it('ends the same-account endpoint after the server confirms the account and the upstream release fails', async () => {
+    const { subscription } = await installSignedInBrowser()
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const serverActions = await vi.importActual<typeof import('@/app/actions/notifications')>('@/app/actions/notifications')
+    const payload = btoa(JSON.stringify({
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'account-a',
+    }))
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: `header.${payload}.signature`, expiresAt: null, refreshed: false, refreshFailed: false,
+    })
+    actions.unsubscribePush.mockImplementation(serverActions.unsubscribePush)
+    const upstream = vi.fn().mockRejectedValue(new TypeError('Release failed'))
+    vi.stubGlobal('fetch', upstream)
+    const { releasePushSubscription } = await import('@/hooks/use-push-notification-preferences')
+
+    await expect(releasePushSubscription('account-a')).rejects.toThrow('Release failed')
+
+    expect(upstream).toHaveBeenCalledWith(expect.stringContaining('/api/notifications/unsubscribe'), expect.objectContaining({ method: 'POST' }))
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+  })
+
+  it.each(['success', 'account refusal'] as const)('settles a pending release without dropping the endpoint before late %s', async (outcome) => {
     const { useAuthStore, subscription } = await installSignedInBrowser()
     await import('@/hooks/use-push-notification-preferences')
     const { wrapServerAction } = await import('@/app/actions/action-result')
     let finishRelease: () => void = () => undefined
-    actions.unsubscribePush.mockImplementation(() => wrapServerAction(() => new Promise<void>((resolve) => { finishRelease = resolve })))
+    actions.unsubscribePush.mockImplementation(() => wrapServerAction(async () => {
+      await new Promise<void>((resolve) => { finishRelease = resolve })
+      if (outcome === 'account refusal') {
+        throw createApiClientError(409, { errorCode: 'ACCOUNT_CHANGED' }, 'Account changed')
+      }
+    }))
     vi.useFakeTimers()
     const signedOut = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(actions.unsubscribePush).toHaveBeenCalledOnce())
     await vi.advanceTimersByTimeAsync(5000)
     await signedOut
-    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     finishRelease()
     await vi.advanceTimersByTimeAsync(0)
 
-    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
     const { withSessionCookieLock } = await import('@/lib/session-cookie-lock')
     expect(await withSessionCookieLock(async () => 'cookies available')).toBe('cookies available')
