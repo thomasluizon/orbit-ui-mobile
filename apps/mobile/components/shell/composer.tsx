@@ -6,7 +6,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Animated, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -334,10 +334,17 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const canRetry = props.onRetry !== undefined
   const focusTarget = useRef<TextInput>(null)
   const composerRef = useRef<View>(null)
+  const focusedTarget = useRef<'container' | 'input' | null>(null)
+  const autoFocusApplied = useRef(false)
   useEffect(() => {
-    if (!props.autoFocus) return
-    if (inputDisabled) composerRef.current?.focus()
-    else focusTarget.current?.focus()
+    if (!props.autoFocus) {
+      autoFocusApplied.current = false
+      return
+    }
+    const initialFocus = !autoFocusApplied.current
+    autoFocusApplied.current = true
+    if (inputDisabled && (initialFocus || focusedTarget.current === 'input')) composerRef.current?.focus()
+    else if (!inputDisabled && (initialFocus || focusedTarget.current === 'container')) focusTarget.current?.focus()
   }, [inputDisabled, props.autoFocus])
   const testID = [
     'composer',
@@ -350,6 +357,13 @@ export function Composer(props: Readonly<MobileComposerProps>) {
     <View
       ref={composerRef}
       focusable={props.autoFocus}
+      onFocus={(event) => {
+        const target = event.nativeEvent.target
+        focusedTarget.current = target === findNodeHandle(composerRef.current)
+          ? 'container'
+          : target === findNodeHandle(focusTarget.current) ? 'input' : null
+      }}
+      onBlur={() => { focusedTarget.current = null }}
       testID={testID}
       accessibilityState={{ disabled: inputDisabled, busy: props.state === 'sending' }}
       style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}

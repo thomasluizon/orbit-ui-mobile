@@ -271,6 +271,21 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
   })
 
+  it.each([412, 1440])('preserves close button focus when a streamed send finishes at %s', async (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    const closeButton = screen.getByRole('button', { name: 'common.closeConversation' })
+    act(() => closeButton.focus())
+    expect(closeButton).toHaveFocus()
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
+    expect(screen.getByText('Hi there')).toBeVisible()
+    expect(closeButton).toHaveFocus()
+  })
+
   it.each([412, 1440])('focuses the composer when the lazy conversation mounts during a send at %s', async (width) => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const stream = controlledSseResponse()

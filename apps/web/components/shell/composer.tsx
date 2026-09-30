@@ -239,6 +239,13 @@ export function Composer(props: Readonly<WebComposerProps>) {
     const composer = composerRef.current
     const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]:not([disabled])')
     ;(input ?? composer)?.focus()
+  }, [props.autoFocus])
+  useEffect(() => {
+    if (!props.autoFocus) return
+    const composer = composerRef.current
+    const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]')
+    if (inputDisabled && input?.isSameNode(document.activeElement)) composer?.focus()
+    else if (!inputDisabled && composer?.isSameNode(document.activeElement)) input?.focus()
   }, [inputDisabled, props.autoFocus])
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
