@@ -25,6 +25,17 @@ import { useModalFocusTrap } from './use-modal-focus-trap'
 
 const SIDE_PANEL_QUERY = '(min-width: 1024px)'
 
+function getConversationFocusTarget(container: HTMLElement): HTMLElement {
+  return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
+    ?? container.querySelector<HTMLElement>('[data-composer-root]')
+    ?? container.querySelector<HTMLElement>('button:not([disabled])')
+    ?? container
+}
+
+function getConversationReturnTarget(target: HTMLElement): HTMLElement {
+  return target.closest('[data-composer-root]')?.querySelector<HTMLElement>('[data-open-conversation]') ?? target
+}
+
 type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; createRefusal?: ReactNode }
 
 const ICONS: Record<string, ComponentType<IconProps>> = {
@@ -255,7 +266,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const sidePanelRef = useRef<HTMLElement>(null)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
-  useModalFocusTrap(modalOpen, conversationRef, returnFocusTriggerRef)
+  useModalFocusTrap(modalOpen, conversationRef, returnFocusTriggerRef, getConversationFocusTarget)
   useEffect(() => {
     if (!conversationOpen || !sidePanel) return
     const panel = sidePanelRef.current
@@ -263,7 +274,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     const returnTarget = returnFocusTriggerRef.current?.isConnected
       ? returnFocusTriggerRef.current
       : document.activeElement instanceof HTMLElement ? document.activeElement : null
-    ;(panel.querySelector<HTMLButtonElement>('button:not([disabled])') ?? panel).focus()
+    getConversationFocusTarget(panel).focus()
     return () => {
       if (returnTarget?.isConnected) returnTarget.focus()
     }
@@ -275,13 +286,13 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
       className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
       onFocusCapture={(event) => {
         if (!conversationOpen && event.target instanceof HTMLElement) {
-          returnFocusTriggerRef.current = event.target
+          returnFocusTriggerRef.current = getConversationReturnTarget(event.target)
         }
       }}
       onClickCapture={(event) => {
         if (!conversationOpen && event.target instanceof Element) {
           const trigger = event.target.closest<HTMLElement>('button, a[href], [role="button"]')
-          if (trigger) returnFocusTriggerRef.current = trigger
+          if (trigger) returnFocusTriggerRef.current = getConversationReturnTarget(trigger)
         }
       }}
     >

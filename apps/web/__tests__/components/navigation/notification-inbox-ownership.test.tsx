@@ -92,6 +92,18 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+it('renders clear-all actions with small ghost cancel before destructive confirm', () => {
+  render(shell(true))
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+
+  const actions = within(screen.getByRole('dialog')).getAllByRole('button').filter(
+    (button) => button.closest('[data-slot="dialog-action-pair"]'),
+  )
+  expect.soft(actions.map((button) => button.textContent)).toEqual(['Cancel', 'Delete notifications'])
+  expect.soft(actions.map((button) => button.dataset.variant)).toEqual(['ghost', 'destructive'])
+  expect.soft(actions.map((button) => button.dataset.size)).toEqual(['sm', 'sm'])
+})
+
 it.each([
   ['mark one read', 'markNotificationRead', "Couldn't mark that alert read. Try again."],
   ['mark all read', 'markAllNotificationsRead', "Couldn't mark the alerts read. Try again."],

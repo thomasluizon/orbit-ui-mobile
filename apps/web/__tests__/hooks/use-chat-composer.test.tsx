@@ -148,6 +148,8 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { AstraConversation } from '@/components/chat/conversation'
 import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
 import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
 
@@ -236,7 +238,102 @@ function textFile(name: string, content: string, size = content.length) {
   return file
 }
 
+function ComposerConversationHarness({ conversationReady = true }: { conversationReady?: boolean }) {
+  const chat = useChatComposer({ pathname: '/profile' })
+  const open = useUIStore((state) => state.astraConversationOpen)
+  return <ShellWide
+    items={[]}
+    activeId="perfil"
+    navLabel="Navigation"
+    composer={<Composer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Open Astra" />}
+    conversation={conversationReady ? <AstraConversation chat={chat} /> : null}
+    conversationOpen={open}
+    conversationLabel="Astra"
+  ><p>Profile</p></ShellWide>
+}
+
 describe('web useChatComposer streaming send', () => {
+  it.each([412, 1440])('opens the conversation for a shell typed send at %s with streaming text and one composer', async (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    expect(screen.getByText('Plan my morning')).toBeVisible()
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    await act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')) })
+    expect(screen.getByText('Start with water')).toBeVisible()
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Start with water' }))); stream.close() })
+    fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
+    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+  })
+
+  it.each([412, 1440])('preserves close button focus when a streamed send finishes at %s', async (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    const closeButton = screen.getByRole('button', { name: 'common.closeConversation' })
+    act(() => closeButton.focus())
+    expect(closeButton).toHaveFocus()
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
+    expect(screen.getByText('Hi there')).toBeVisible()
+    expect(closeButton).toHaveFocus()
+  })
+
+  it.each([412, 1440])('focuses the composer when the lazy conversation mounts during a send at %s', async (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const view = render(<ComposerConversationHarness conversationReady={false} />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
+  })
+
+  it.each([412, 1440])('opens on shell field focus at %s and carries every draft edit', (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    useChatStore.setState({ draft: 'Already typed', draftHydrated: true })
+    render(<ComposerConversationHarness />)
+    act(() => screen.getByRole('textbox').focus())
+    expect(screen.getByRole('button', { name: 'common.closeConversation' })).toBeVisible()
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(screen.getByRole('textbox')).toHaveFocus()
+    expect(screen.getByRole('textbox')).toHaveValue('Already typed')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Already typed and continued' } })
+    expect(useChatStore.getState().draft).toBe('Already typed and continued')
+  })
+
+  it('keeps chip sends in the conversation with focus in its only composer', async () => {
+    mocks.state.profile = createMockProfile()
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    render(<ComposerConversationHarness />)
+    const group = screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })
+    fireEvent.click(group.querySelector('button')!)
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
+  })
+
+  it('opens the conversation when sending a finished voice transcript', async () => {
+    mocks.state.isRecording = true
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result, rerender } = renderHook(() => useChatComposer())
+    mocks.state.isRecording = false
+    mocks.state.transcript = 'Voice request'
+    rerender()
+    await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().messages[0]?.content).toBe('Voice request')
+  })
+
   it('sends the profile clock preference to Astra', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
@@ -272,6 +369,7 @@ describe('web useChatComposer streaming send', () => {
   })
 
   beforeEach(() => {
+    HTMLElement.prototype.scrollTo = vi.fn()
     useThrottleStore.getState().clear()
     mocks.state.profile = undefined
     mocks.searchParams = ''

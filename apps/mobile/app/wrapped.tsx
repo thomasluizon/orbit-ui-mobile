@@ -8,8 +8,7 @@ import {
   type RecapSharePeriod,
   type WrappedRouteSelection,
 } from '@orbit/shared/utils'
-import { Button } from '@/components/ui/pill-button'
-import { ChevronLeft } from '@/components/ui/icons'
+import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
@@ -101,21 +100,15 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
   }
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <View style={[styles.coverExit, { top: insets.top + 8 }]}>
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          label={t('common.backToProfile')}
-          onClick={() => goBackOrFallback('/profile')}
-        >
-          <ChevronLeft size={20} strokeWidth={2} color={tokens.fg1} />
-        </Button>
-      </View>
+    <View style={[styles.safeArea, { backgroundColor: tokens.bg, paddingTop: insets.top }]}>
+      <AppBar
+        title=""
+        titleIsHeading={false}
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+      />
       <WrappedCover
         tokens={tokens}
-        topInset={insets.top}
         period={period}
         onSelectPeriod={selectPeriod}
         state={coverState}

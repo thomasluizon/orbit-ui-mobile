@@ -10,6 +10,7 @@ import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
   __setFocusImpl,
+  __setTouchMode,
 } from '../../../test-mocks/react-native'
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
@@ -188,6 +189,7 @@ describe('select-check RadioRow group', () => {
   })
 
   it('redirects initial entry to the checked row without changing selection', () => {
+    __setTouchMode(false)
     const onChange = vi.fn()
     const focus = vi.fn()
     __setFocusImpl(focus)

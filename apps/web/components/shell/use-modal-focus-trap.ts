@@ -27,6 +27,7 @@ export function useModalFocusTrap(
   open: boolean,
   dialogRef: RefObject<HTMLElement | null>,
   returnFocusTriggerRef?: RefObject<HTMLElement | null>,
+  getInitialFocus?: (container: HTMLElement) => HTMLElement,
 ): void {
   const ownerId = useId()
   const returnTargetRef = useRef<HTMLElement | null>(null)
@@ -48,7 +49,7 @@ export function useModalFocusTrap(
     if (!dialog) return
 
     const focusFirst = () => {
-      const firstFocusable = getFocusableElements(dialog)[0]
+      const firstFocusable = getInitialFocus?.(dialog) ?? getFocusableElements(dialog)[0]
       ;(firstFocusable ?? dialog).focus()
     }
 
@@ -86,7 +87,7 @@ export function useModalFocusTrap(
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('focusin', handleFocusIn)
     }
-  }, [dialogRef, open, ownerId, ownsFocus])
+  }, [dialogRef, getInitialFocus, open, ownerId, ownsFocus])
 
   useEffect(() => {
     if (!open) return

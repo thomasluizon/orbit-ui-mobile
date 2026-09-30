@@ -32,6 +32,19 @@ const VIEWPORTS = [
   { width: 1440, height: 900 },
 ]
 const LOCALES = ['en', 'pt-BR'] as const
+const COVER_STATES = [
+  { state: 'ready', ...READY_WRAPPED },
+  { state: 'loading', recap: null, isEmpty: false, isLoading: true, isError: false },
+  { state: 'failed', recap: null, isEmpty: false, isLoading: false, isError: true },
+  { state: 'empty', recap: null, isEmpty: true, isLoading: false, isError: false },
+]
+const COLLISION_CASES = COVER_STATES.flatMap((cover) => [
+  { width: 360, height: 640 },
+  { width: 412, height: 400 },
+  ...VIEWPORTS,
+].flatMap((viewport) => [false, true].flatMap((reloadBanner) =>
+  LOCALES.map((locale) => ({ ...cover, ...viewport, reloadBanner, locale })),
+)))
 
 describe('WrappedPage cover geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -76,6 +89,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
         const cover = coverElement.getBoundingClientRect()
         const banner = document.querySelector('[data-update-banner]')?.getBoundingClientRect()
         const backControl = document.querySelector(`[aria-label="${label}"]`)!.getBoundingClientRect()
+        const firstElement = coverElement.firstElementChild!.getBoundingClientRect()
         return {
           documentHeight: document.documentElement.scrollHeight,
           viewportHeight: window.innerHeight,
@@ -84,12 +98,37 @@ describe('WrappedPage cover geometry in Chromium', () => {
           coverBottom: cover.bottom,
           coverClipped: coverElement.scrollHeight > coverElement.clientHeight,
           backControlTop: backControl.top,
+          backControlBottom: backControl.bottom,
+          backControlWidth: backControl.width,
+          backControlHeight: backControl.height,
+          intersectsFirstElement: backControl.left < firstElement.right
+            && backControl.right > firstElement.left
+            && backControl.top < firstElement.bottom
+            && backControl.bottom > firstElement.top,
         }
       }, backLabel)
     } finally {
       await page.close()
     }
   }
+
+  it.each(COLLISION_CASES)(
+    'separates the back control from the $state cover at $width by $height, banner $reloadBanner, $locale',
+    async ({ state, width, height, reloadBanner, locale, ...wrappedState }) => {
+      wrapped.current = wrappedState
+      if (reloadBanner) useVersionGateStore.getState().requireReload('appUpdated')
+      const rendered = renderPage(locale)
+      expect(rendered.container.querySelector('[data-state]')).toHaveAttribute('data-state', state)
+
+      const measured = await measureCover({ width, height }, rendered)
+
+      expect(measured.intersectsFirstElement).toBe(false)
+      expect(measured.backControlBottom).toBeLessThanOrEqual(measured.coverTop)
+      expect(measured.backControlWidth).toBe(44)
+      expect(measured.backControlHeight).toBe(44)
+      expect(rendered.container.querySelectorAll('h1')).toHaveLength(1)
+    },
+  )
 
   it.each(VIEWPORTS.flatMap((viewport) => LOCALES.map((locale) => ({ ...viewport, locale }))))(
     'fits the reload banner and the cover in $width by $height in $locale',
@@ -101,7 +140,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
 
     expect(measured.bannerBottom).toBeGreaterThan(0)
     expect(measured.documentHeight).toBe(measured.viewportHeight)
-    expect(measured.coverTop).toBe(measured.bannerBottom)
+    expect(measured.coverTop).toBe(measured.bannerBottom + 56)
     expect(measured.coverBottom).toBe(measured.viewportHeight)
     expect(measured.backControlTop).toBeGreaterThanOrEqual(measured.bannerBottom)
   })
@@ -112,7 +151,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     const measured = await measureCover(viewport, rendered)
 
     expect(measured.documentHeight).toBe(measured.viewportHeight)
-    expect(measured.coverTop).toBe(0)
+    expect(measured.coverTop).toBe(56)
     expect(measured.coverBottom).toBe(measured.viewportHeight)
   })
 
@@ -123,7 +162,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     const measured = await measureCover({ width: 412, height: 400 }, rendered)
 
     expect(measured.coverClipped).toBe(false)
-    expect(measured.coverTop).toBe(measured.bannerBottom)
+    expect(measured.coverTop).toBe(measured.bannerBottom + 56)
     expect(measured.documentHeight).toBeCloseTo(measured.coverBottom, 0)
     expect(measured.documentHeight).toBeGreaterThan(measured.viewportHeight)
   })
@@ -143,7 +182,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     const measured = await measureCover({ width: 360, height: 640 }, rendered)
 
     expect(measured.coverClipped).toBe(false)
-    expect(measured.coverTop).toBe(measured.bannerBottom)
+    expect(measured.coverTop).toBe(measured.bannerBottom + 56)
     expect(measured.backControlTop).toBeGreaterThanOrEqual(measured.bannerBottom)
     expect(measured.documentHeight).toBeCloseTo(Math.max(measured.viewportHeight, measured.coverBottom), 0)
   })

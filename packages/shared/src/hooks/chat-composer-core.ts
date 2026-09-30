@@ -62,6 +62,14 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
+export function sendInConversation(
+  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void },
+  send: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!conversation.astraConversationOpen) conversation.setAstraConversationOpen(true)
+  return send()
+}
+
 /**
  * Query-key families invalidated after any successful agent operation. Both
  * apps invalidate the same set; the hook maps each family to
