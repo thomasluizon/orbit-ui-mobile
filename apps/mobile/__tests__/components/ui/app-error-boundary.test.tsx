@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import { AppState, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { i18n } from '@/lib/i18n'
 import en from '@orbit/shared/i18n/en.json'
@@ -8,7 +9,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 
 interface TestNode {
-  props: { children?: unknown; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
+  props: { children?: unknown; accessibilityRole?: string; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
 }
 interface TestTree {
   root: { findAllByType: (type: string) => TestNode[]; findByType: (type: string) => TestNode }
@@ -25,6 +26,12 @@ function button() { return tree.root.findByType('Pressable') }
 afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('AppErrorScreen', () => {
+  it.each([412, 1024])('renders the drawn failure title size at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    await mount({ status: 500 })
+    const title = tree.root.findAllByType('Text').find((node) => node.props.accessibilityRole === 'header')!
+    expect(StyleSheet.flatten(title.props.style).fontSize).toBe(width >= 1024 ? 28 : 22)
+  })
   it.each(['dark', 'light'] as const)('keeps the rendered reference above the text contrast floor in %s', async (themeMode) => {
     const previousTheme = getRuntimeTheme()
     setRuntimeTheme({ themeMode })

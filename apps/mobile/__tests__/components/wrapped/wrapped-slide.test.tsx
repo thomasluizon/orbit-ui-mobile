@@ -1,4 +1,5 @@
 import React from 'react'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { StyleSheet } from 'react-native'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
@@ -71,6 +72,13 @@ describe('mobile WrappedSlide', () => {
     translationState.realLocale = ''
     withDelayCalls.length = 0
     withTimingCalls.length = 0
+  })
+
+  it.each([412, 1024])('renders the drawn intro title size at %ipx', (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    const tree = renderSlide(buildWrappedSlides(recap).find((slide) => slide.id === 'intro')!)
+    const title = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-figure')[0]!
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: width >= 1024 ? 44 : 34 })
   })
 
   it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {

@@ -48,6 +48,7 @@ export const styles = StyleSheet.create({
     lineHeight: 32,
     letterSpacing: -0.56,
   },
+  introTitleWide: { fontSize: 44, lineHeight: 48.4, letterSpacing: -1.32 },
   introTitle: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -1.02 },
   topHabitTitle: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 34, lineHeight: 37, letterSpacing: -0.68 },
   introSlide: { gap: 16 },
