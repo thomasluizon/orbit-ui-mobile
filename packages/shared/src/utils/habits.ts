@@ -1,7 +1,7 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus, HabitLog } from '../types/calendar'
-import type { CalendarMonthResponse } from '../types/habit'
+import type { CalendarMonthResponse, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
 
 interface HabitScheduleMatchSource {
   dueDate?: string | null
@@ -34,37 +34,67 @@ export function buildCalendarDayMap(
     logsByHabit.set(habitId, dateSet)
   }
 
-  for (const habit of calendarMonth.habits) {
-    if (habit.isGeneral) continue
-
+  for (const habit of calendarMonth.habits.filter((habit) => !habit.isGeneral)) {
     const instanceDates =
       Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
         : null
 
-    const dates =
-      instanceDates ??
-      habit.scheduledDates
+    const dates = new Set(instanceDates ?? habit.scheduledDates)
 
     for (const dateStr of dates) {
       const date = parseAPIDate(dateStr)
       const wasLogged = logsByHabit.get(habit.id)?.has(dateStr) ?? false
       const status = determineHabitDayStatus(date, wasLogged, now)
 
-      const entries = map.get(dateStr) ?? []
-      entries.push({
-        habitId: habit.id,
-        title: habit.title,
-        status,
-        isBadHabit: habit.isBadHabit,
-        dueTime: habit.dueTime ?? null,
-        isOneTime: !habit.frequencyUnit,
-      })
-      map.set(dateStr, entries)
+      appendCalendarEntry(map, dateStr, habit, status)
+    }
+
+    const descendantOnlyLogDates = [...collectDescendantLogDates(habit.children, logsByHabit)]
+      .filter((date) => !dates.has(date))
+    for (const dateStr of descendantOnlyLogDates) {
+      appendCalendarEntry(map, dateStr, habit, 'completed')
     }
   }
 
   return map
+}
+
+function collectDescendantLogDates(
+  children: HabitScheduleChild[],
+  logsByHabit: ReadonlyMap<string, ReadonlySet<string>>,
+): Set<string> {
+  const dates = new Set<string>()
+  for (const child of children) {
+    for (const date of logsByHabit.get(child.id) ?? []) {
+      dates.add(date)
+    }
+    for (const instance of child.instances) {
+      if (!logsByHabit.has(child.id) && instance.logId !== null) dates.add(instance.date)
+    }
+    for (const date of collectDescendantLogDates(child.children, logsByHabit)) {
+      dates.add(date)
+    }
+  }
+  return dates
+}
+
+function appendCalendarEntry(
+  map: Map<string, CalendarDayEntry[]>,
+  date: string,
+  habit: HabitScheduleItem,
+  status: HabitDayStatus,
+): void {
+  const entries = map.get(date) ?? []
+  entries.push({
+    habitId: habit.id,
+    title: habit.title,
+    status,
+    isBadHabit: habit.isBadHabit,
+    dueTime: habit.dueTime ?? null,
+    isOneTime: !habit.frequencyUnit,
+  })
+  map.set(date, entries)
 }
 
 export function optimisticSetCalendarHabitLog(
