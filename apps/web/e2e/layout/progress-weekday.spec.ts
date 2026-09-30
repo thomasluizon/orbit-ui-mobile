@@ -15,7 +15,9 @@ const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal()], page: 1, pageSize: 100, totalCount: 1, totalPages: 1,
 })
 
-for (const width of [320, 344, 360, 412]) {
+const narrowWeekdaySize = 17
+
+for (const width of [320, 344, 360, 411, 412]) {
   for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     test.describe(`${locale} progress weekday at ${width}px`, () => {
       test.use({ viewport: { width, height: 900 } })
@@ -60,7 +62,7 @@ for (const width of [320, 344, 360, 412]) {
             tileBounds: { left: tileBounds.left, right: tileBounds.right, top: tileBounds.top, bottom: tileBounds.bottom },
           }
         })
-        expect(geometry.fontSize).toBe(width >= 344 && width < 412 ? 18 : 22)
+        expect(geometry.fontSize).toBe(width >= 344 && width < 412 ? narrowWeekdaySize : 22)
         expect(geometry.valueBounds.bottom - geometry.valueBounds.top).toBe(geometry.lineHeight)
         expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
         expect(geometry.valueBounds.left).toBeGreaterThanOrEqual(geometry.tileBounds.left)

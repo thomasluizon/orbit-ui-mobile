@@ -8,6 +8,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { PageHeader } from '@/components/ui/page-header'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { LegalDocumentLayout } from '@/components/legal-document-layout'
+import { Markdown } from '@/components/ui/markdown'
 
 describe('PageHeader', () => {
   describe('drawn title size', () => {
@@ -57,6 +58,21 @@ describe('PageHeader', () => {
         expect(await page.locator('[data-legal-document-content] header p').first().evaluate(fontSize)).toBe(width < 640 ? '22px' : '28px')
         expect(await page.getByRole('heading', { level: 2, name: 'Your privacy' }).evaluate(fontSize)).toBe('17px')
         expect(await page.getByText('Your privacy matters.', { exact: true }).evaluate(fontSize)).toBe('16px')
+      } finally {
+        await page.close()
+      }
+    })
+
+    it.each([320, 412, 1352])('preserves the Markdown heading hierarchy at %ipx', async (width) => {
+      const { container } = render(<Markdown content={'# Heading one\n\n## Heading two\n\n### Heading three\n\nBody text.'} />)
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        for (const [level, size] of [[1, '28px'], [2, '22px'], [3, '17px']] as const) {
+          const heading = page.getByRole('heading', { level })
+          expect(await heading.evaluate((element) => getComputedStyle(element).fontSize)).toBe(size)
+        }
+        expect(await page.getByText('Body text.', { exact: true }).evaluate((element) => getComputedStyle(element).fontSize)).toBe('14px')
       } finally {
         await page.close()
       }

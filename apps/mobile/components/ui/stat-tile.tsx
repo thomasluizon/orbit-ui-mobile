@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -38,6 +38,8 @@ function TileValue({ value, isEmpty, isLargeValue, largeFontSize, color }: Reado
 /** A fixed-height stat surface whose loading and empty states never reflow the row. */
 export function StatTile(props: Readonly<StatTileProps>) {
   const [tileWidth, setTileWidth] = useState(0)
+  const { width } = useWindowDimensions()
+  const isNarrowGrid = width >= 344 && width < 412
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { label, state = 'default' } = props
@@ -59,7 +61,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           value={shownStatValue(props)}
           isEmpty={isEmpty}
           isLargeValue={isLargeValue}
-          largeFontSize={tileWidth >= 172 ? 22 : 17}
+          largeFontSize={!isNarrowGrid && tileWidth >= 172 ? 22 : 17}
           color={isEmpty ? tokens.fg3 : tokens.fg1}
         />
       )}
