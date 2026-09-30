@@ -27,6 +27,7 @@ let pendingGoogleAuthSession: PendingGoogleAuthSessionState = {
   callbackUrl: null, isPending: false, returnUrlAttemptId: null,
 }
 let pendingCredentials: { verifier: string; state: string } | null = null
+let pendingCompletion: { returnUrlAttemptId: number; promise: Promise<void> } | null = null
 const listeners = new Set<() => void>()
 const errorLoginListeners = new Set<() => void>()
 let googleErrorLoginAllowed = false
@@ -64,6 +65,7 @@ export function useGoogleErrorLogin(): boolean {
 }
 
 export function markPendingGoogleAuthSession(returnUrlAttemptId: number, verifier: string, state: string): void {
+  pendingCompletion = null
   pendingCredentials = { verifier, state }
   pendingGoogleAuthSession = { callbackUrl: null, isPending: true, returnUrlAttemptId }
   emit()
@@ -91,8 +93,21 @@ export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAt
 export function clearPendingGoogleAuthSession(returnUrlAttemptId?: number): void {
   if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
   pendingCredentials = null
+  if (returnUrlAttemptId !== undefined && pendingCompletion?.returnUrlAttemptId === returnUrlAttemptId) return
+  pendingCompletion = null
   pendingGoogleAuthSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
   emit()
+}
+
+export function completePendingGoogleAuthSession(
+  returnUrlAttemptId: number,
+  complete: () => Promise<void>,
+): Promise<void> {
+  if (pendingCompletion?.returnUrlAttemptId === returnUrlAttemptId) return pendingCompletion.promise
+  if (pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return Promise.resolve()
+  const promise = Promise.resolve().then(complete)
+  pendingCompletion = { returnUrlAttemptId, promise }
+  return promise
 }
 
 export function extractGoogleAuthParams(rawUrl: string): GoogleAuthParams {

@@ -3,6 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import AuthCallbackScreen from '@/app/auth-callback'
 import { i18n } from '@/lib/i18n'
+import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 
 vi.unmock('react-i18next')
 
@@ -41,7 +42,8 @@ vi.mock('expo-router', () => ({
 
 vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
 vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
-vi.mock('@/lib/google-auth-callback', () => ({
+vi.mock('@/lib/google-auth-callback', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/google-auth-callback')>(),
   AUTH_CALLBACK_URL: 'orbit://auth-callback',
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
   allowGoogleErrorLogin: mocks.allowGoogleErrorLogin,
@@ -78,6 +80,7 @@ vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  markPendingGoogleAuthSession(0, 'verifier', 'expected')
   mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({
     token: 'old-access', refreshToken: 'old-refresh', userId: 'old-user',
@@ -214,6 +217,7 @@ it('keeps the return URL when another login takes ownership during its storage r
 })
 
 it('does not consume a newer flow return URL before that flow logs in', async () => {
+  markPendingGoogleAuthSession(1, 'verifier', 'expected')
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.pendingGoogleSession = {
     callbackUrl: 'orbit://auth-callback?code=old', isPending: false, returnUrlAttemptId: 1,
@@ -266,6 +270,7 @@ it('waits for correlation when a Google callback arrives during a pending browse
 })
 
 it('processes a Linking callback after its pending browser session correlates the attempt', async () => {
+  markPendingGoogleAuthSession(7, 'verifier', 'expected')
   const callbackUrl = 'orbit://auth-callback?code=linked'
   mocks.rawUrl = callbackUrl
   mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 7 }
