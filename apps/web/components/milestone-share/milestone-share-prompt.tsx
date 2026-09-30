@@ -149,8 +149,7 @@ export function MilestoneSharePrompt() {
               className="m-0 w-full"
               style={{
                 textAlign: 'center',
-                fontSize: 14,
-                color: 'var(--status-bad-text)',
+                fontSize: 14, color: 'var(--status-bad-text)',
               }}
             >
               {t('milestoneShare.shareError')}
