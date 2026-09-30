@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { installWebLocks } from '../helpers/web-locks'
 
 const applyOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
@@ -29,6 +30,7 @@ vi.mock('@sentry/nextjs', () => ({
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: (...args: unknown[]) => subscribePushMock(...args),
   unsubscribePush: vi.fn(),
+  unsubscribePushForCleanup: vi.fn(),
 }))
 
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
@@ -64,6 +66,7 @@ function installPushEnvironment() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    installWebLocks()
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     applyOnboardingMock.mockReset()
