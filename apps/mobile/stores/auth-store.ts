@@ -583,6 +583,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let token = await getToken()
     if (!isCurrentSessionEpoch(ownership.epoch)) return false
     if (!token) {
+      if (startingPhase === 'signed-out') {
+        set({ ...deriveSessionPhase('signed-out'), isLoading: false })
+        return false
+      }
       await clearSessionAndResetAuth({
         authority: 'observed-credential',
         ...ownership,
