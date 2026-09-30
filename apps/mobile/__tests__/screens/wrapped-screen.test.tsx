@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import WrappedScreen from '@/app/wrapped'
+import { WrappedCover } from '@/components/wrapped/wrapped-cover'
 
 const TestRenderer = require('react-test-renderer')
 const goBackOrFallback = vi.fn()
@@ -9,6 +10,8 @@ const goBackOrFallback = vi.fn()
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  parent: TestNode | null
+  children: (TestNode | string)[]
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -65,9 +68,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return { ...actual, createTokensV2: () => new Proxy({}, { get: () => '#111111' }) }
 })
-vi.mock('@/components/wrapped/wrapped-cover', () => ({
-  WrappedCover: (props: Record<string, unknown>) => React.createElement('WrappedCover', props),
-}))
 vi.mock('@/components/wrapped/wrapped-player', () => ({
   WrappedPlayer: (props: Record<string, unknown>) => React.createElement('WrappedPlayer', props),
 }))
@@ -84,18 +84,8 @@ function renderScreen() {
   return tree
 }
 
-function firstByType(root: TestNode, type: string) {
+function firstByType(root: TestNode, type: unknown) {
   return root.findAll((node) => node.type === type)[0]
-}
-
-function coverExitTop(root: TestNode) {
-  const exitContainer = root.findAll((node) => {
-    if (node.type !== 'View') return false
-    const style = StyleSheet.flatten(node.props.style) as Record<string, unknown> | undefined
-    return style?.position === 'absolute' && style.left === 16 && style.zIndex === 1
-  })[0]
-
-  return (StyleSheet.flatten(exitContainer?.props.style) as Record<string, unknown> | undefined)?.top
 }
 
 describe('WrappedScreen', () => {
@@ -113,25 +103,48 @@ describe('WrappedScreen', () => {
     }
   })
 
-  it('positions the cover exit below a non-zero top inset', () => {
-    mocks.safeAreaTop = 24
-    const tree = renderScreen()
-
-    expect(coverExitTop(tree.root)).toBe(32)
-  })
-
-  it('keeps the cover exit offset at eight when the top inset is zero', () => {
-    const tree = renderScreen()
-
-    expect(coverExitTop(tree.root)).toBe(8)
-  })
+  it.each([
+    { state: 'ready', recap: { id: 'recap-1' }, isEmpty: false, isLoading: false, isError: false },
+    { state: 'loading', recap: null, isEmpty: false, isLoading: true, isError: false },
+    { state: 'failed', recap: null, isEmpty: false, isLoading: false, isError: true },
+    { state: 'empty', recap: null, isEmpty: true, isLoading: false, isError: false },
+  ].flatMap((cover) => [0, 24].map((topInset) => ({ ...cover, topInset }))))(
+    'reserves a back row above the $state cover with top inset $topInset',
+    ({ state, topInset, ...wrappedState }) => {
+      mocks.wrapped = { ...wrappedState, slides: [] }
+      mocks.safeAreaTop = topInset
+      const tree = renderScreen()
+      const cover = firstByType(tree.root, WrappedCover)!
+      expect(cover.props.state).toBe(state)
+      const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'nav-header-back')[0]!
+      expect(row).toBeTruthy()
+      const exit = row.findAll((node) => node.type === 'Pressable'
+        && node.props.accessibilityLabel === 'common.backToProfile')[0]!
+      expect(StyleSheet.flatten(exit.props.style)).toMatchObject({ width: 44, height: 44 })
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ height: 56 })
+      const scroll = firstByType(cover, 'ScrollView')!
+      expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({ paddingVertical: 32, paddingHorizontal: 24 })
+      expect((StyleSheet.flatten(scroll.props.contentContainerStyle) as Record<string, unknown>).paddingTop).toBeUndefined()
+      const coverParent = cover.parent!
+      const rowBranch = coverParent.children.find((child): child is TestNode =>
+        typeof child !== 'string' && child.findAll((node) => node === row).length > 0,
+      )!
+      expect(coverParent.children.indexOf(rowBranch)).toBeLessThan(coverParent.children.indexOf(cover))
+      for (let current: TestNode | null = row; current && current !== coverParent; current = current.parent) {
+        expect((StyleSheet.flatten(current.props.style) as Record<string, unknown> | undefined)?.position).not.toBe('absolute')
+      }
+      expect(StyleSheet.flatten(coverParent.props.style)).toMatchObject({ paddingTop: topInset })
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')).toHaveLength(1)
+      TestRenderer.act(() => tree.unmount())
+    },
+  )
 
   it('opens the player from the ready cover', () => {
     const tree = renderScreen()
-    expect(firstByType(tree.root, 'WrappedCover')?.props.state).toBe('ready')
+    expect(firstByType(tree.root, WrappedCover)?.props.state).toBe('ready')
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
@@ -141,14 +154,14 @@ describe('WrappedScreen', () => {
     mocks.params = { period: 'month', year: '2026', month: '8' }
     const tree = renderScreen()
 
-    expect(firstByType(tree.root, 'WrappedCover')?.props.period).toBe('month')
+    expect(firstByType(tree.root, WrappedCover)?.props.period).toBe('month')
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
       active: false,
       closedMonth: { year: 2026, month: 8 },
     })
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onSelectPeriod as (period: string) => void)('week')
+      ;(firstByType(tree.root, WrappedCover)?.props.onSelectPeriod as (period: string) => void)('week')
     })
 
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('week', {
@@ -162,7 +175,7 @@ describe('WrappedScreen', () => {
     const tree = renderScreen()
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
     })
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
 
@@ -172,7 +185,7 @@ describe('WrappedScreen', () => {
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
-    expect(firstByType(tree.root, 'WrappedCover')?.props.period).toBe('month')
+    expect(firstByType(tree.root, WrappedCover)?.props.period).toBe('month')
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
       active: false,
       closedMonth: { year: 2026, month: 9 },
@@ -182,10 +195,10 @@ describe('WrappedScreen', () => {
   it('refuses to open the player for an empty recap', () => {
     mocks.wrapped = { ...mocks.wrapped, recap: { id: 'recap-empty' }, isEmpty: true }
     const tree = renderScreen()
-    expect(firstByType(tree.root, 'WrappedCover')?.props.state).toBe('empty')
+    expect(firstByType(tree.root, WrappedCover)?.props.state).toBe('empty')
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
@@ -194,10 +207,10 @@ describe('WrappedScreen', () => {
   it('keeps a missing paused recap non-actionable', () => {
     mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: false }
     const tree = renderScreen()
-    expect(firstByType(tree.root, 'WrappedCover')?.props.state).toBe('loading')
+    expect(firstByType(tree.root, WrappedCover)?.props.state).toBe('loading')
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
@@ -215,7 +228,7 @@ describe('WrappedScreen', () => {
     expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
 
     TestRenderer.act(() => {
-      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
     })
     TestRenderer.act(() => {
       ;(firstByType(tree.root, 'WrappedPlayer')?.props.onClose as () => void)()
