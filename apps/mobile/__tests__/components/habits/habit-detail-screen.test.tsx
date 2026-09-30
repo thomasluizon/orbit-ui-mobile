@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
 import { AccessibilityInfo } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
@@ -59,6 +60,7 @@ function openRescueGate() {
 }
 
 const mocks = vi.hoisted(() => ({
+  screenFocused: true,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
@@ -113,6 +115,7 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 vi.mock('expo-router', () => ({
+  useIsFocused: () => mocks.screenFocused,
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     mocks.focusEffect = callback
@@ -301,7 +304,7 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, chevron, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, variant, size, loading, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, variant, size, loading, onClick }, children),
+  PillButton: ({ children, disabled, label, variant, size, loading, onClick, accessibilityRole }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void; accessibilityRole?: 'button' | 'link' }) => React.createElement('PillButton', { disabled, label, variant, size, loading, onClick, accessibilityRole }, children),
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -393,6 +396,7 @@ describe('HabitDetailScreen', () => {
     mocks.log.mockReset()
     mocks.update.mockReset()
     mocks.updatePending = false
+    mocks.screenFocused = true
     mocks.checklist.mockReset()
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
@@ -449,7 +453,7 @@ describe('HabitDetailScreen', () => {
     openRescueGate()
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    expect(tree.root.findByProps({ children: 'habits.detail.rescheduleLoading' }).props.accessibilityLiveRegion).toBe('polite')
+    expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleLoading')
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
     expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
 
@@ -460,13 +464,27 @@ describe('HabitDetailScreen', () => {
 
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
-    expect(tree.root.findByProps({ children: 'habits.detail.rescheduleError' }).props.accessibilityLiveRegion).toBe('polite')
+    expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleError')
     expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.retry') })
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+  })
+
+  it('keeps the proposal announcement mounted when loading finishes', () => {
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const proposal = tree.root.findAllByType('Proposed').find(isRescueProposal)!
+    const status = proposal.findByProps({ accessibilityLiveRegion: 'polite' })
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(proposal.findByProps({ accessibilityLiveRegion: 'polite' })).toBe(status)
+    expect(textsOf(status)).toContain('Sun, Aug 30')
+    expect(textsOf(status)).toContain('Try tomorrow')
+    expect(status.findAllByType('PillButton')).toHaveLength(0)
   })
 
   it('uses the account today overdue schedule on a historical detail', () => {
@@ -542,6 +560,83 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]?.[0]).toMatchObject({ habitId: 'habit-1', data: { dueDate: '2026-08-30', frequencyUnit: 'Day', frequencyQuantity: 1 } })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
     expect(mocks.showError).not.toHaveBeenCalled()
+  })
+
+  it('leaves accessibility focus on the new habit when an old plan finishes', async () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let resolveUpdate!: () => void
+    mocks.update.mockReturnValueOnce(new Promise<void>((resolve) => { resolveUpdate = resolve }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.rescheduleAccept') })
+    mocks.detail = { ...makeDetail(), id: 'habit-2' }
+    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-2" />) })
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    await TestRenderer.act(async () => { resolveUpdate(); await Promise.resolve() })
+    expect(focus).not.toHaveBeenCalled()
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(1)
+    focus.mockRestore()
+  })
+
+  it('shows the rescue again when the account changes', () => {
+    openRescueGate()
+    mocks.hasProAccess = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
+    expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
+    TestRenderer.act(() => { advanceAccountGeneration() })
+    expect(tree.root.findAllByProps({ testID: 'rescue-free-card' }).length).toBeGreaterThan(0)
+  })
+
+  it('does not show an old plan failure on the new habit', async () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let rejectUpdate!: (error: Error) => void
+    mocks.update.mockReturnValueOnce(new Promise<void>((_, reject) => { rejectUpdate = reject }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.rescheduleAccept') })
+    mocks.detail = { ...makeDetail(), id: 'habit-2' }
+    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-2" />) })
+    await TestRenderer.act(async () => { rejectUpdate(new Error('Write failed')); await Promise.resolve() })
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(1)
+  })
+
+  it('shows a dismissed rescue again when a retained detail is revisited', () => {
+    openRescueGate()
+    mocks.hasProAccess = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
+    mocks.screenFocused = false
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    mocks.screenFocused = true
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByProps({ testID: 'rescue-free-card' }).length).toBeGreaterThan(0)
+  })
+
+  it('ignores an old accept after leaving and revisiting the retained detail', async () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let resolveUpdate!: () => void
+    mocks.update.mockReturnValueOnce(new Promise<void>((resolve) => { resolveUpdate = resolve }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.rescheduleAccept') })
+    mocks.screenFocused = false
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    mocks.screenFocused = true
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    await TestRenderer.act(async () => { resolveUpdate(); await Promise.resolve() })
+    expect(focus).not.toHaveBeenCalled()
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(1)
+    focus.mockRestore()
   })
 
   it('capitalizes only the first letter of the visible month', () => {
@@ -1859,6 +1954,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
 
+    expect(findPillButton(tree.root, 'habits.reschedule.upgrade')!.props.accessibilityRole).toBe('link')
     TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.upgrade') })
     expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
 

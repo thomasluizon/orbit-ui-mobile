@@ -47,7 +47,7 @@ import { DayStrip } from '@/components/dates/day-strip'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
 import { MonthGrid } from '@/components/dates/month-grid'
-import { PillButton } from '@/components/ui/pill-button'
+import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from '@/components/ui/icons'
@@ -64,7 +64,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -269,17 +269,35 @@ function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone }: Reado
 
 const rescueCardClass = 'flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]'
 
+function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: ReturnType<typeof buildRescheduleProposalLabels>, finePrint: string) {
+  return <>
+          <div className="flex flex-col gap-1">
+            <p data-testid="rescue-proposed-schedule" className="font-[var(--font-display)] text-[20px] font-medium tabular-nums">{labels.dateLabel}{labels.timeLabel ? ` · ${labels.timeLabel}` : ''}</p>
+            {labels.scheduleLabel ? <p className="text-sm text-[var(--fg-2)]">{labels.scheduleLabel}</p> : null}
+          </div>
+          <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{suggestion.rationale}</p>
+          <p className="text-xs text-[var(--fg-3)]">{finePrint}</p>
+  </>
+}
+
 function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; returnFocus: () => void }>) {
   const t = useTranslations()
-  const router = useRouter()
   const { showError } = useAppToast()
   const { displayTime } = useTimeFormat()
   const updateHabit = useUpdateHabit()
   const filledVariant = useIsWideDesktop() ? 'secondary' : 'primary'
   const [dismissed, setDismissed] = useAccountScopedState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const accountGeneration = useAccountGeneration()
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const isCurrentVisit = () => mounted.current && getAccountGeneration() === accountGeneration
   if (!open || dismissed) return null
   const close = () => {
+    if (!isCurrentVisit()) return
     const focusInCard = cardRef.current?.contains(document.activeElement) ?? false
     setDismissed(true)
     if (focusInCard) returnFocus()
@@ -291,8 +309,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         <div className="flex items-center gap-2"><AstraGlyph size={20} color="var(--fg-1)" /><Badge>{t('habits.detail.proGate')}</Badge></div>
         <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.reschedule.freePrompt')}</p>
         <div className="flex flex-wrap gap-2">
-          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:857 (D42) */}
-          <PillButton variant={filledVariant} size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
+          <PillLink variant={filledVariant} size="sm" href="/upgrade">{t('habits.reschedule.upgrade')}</PillLink>
           {notNow}
         </div>
       </div>
@@ -303,26 +320,17 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, suggestion) })
       close()
     } catch {
-      showError(t('habits.detail.rescheduleWriteError'))
+      if (isCurrentVisit()) showError(t('habits.detail.rescheduleWriteError'))
     }
   }
   const suggestion = query.error ? null : query.suggestion
-  const labels = suggestion ? buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }) : null
   return (
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <div ref={cardRef} className={rescueCardClass}>
-        {suggestion && labels ? <>
-          <div className="flex flex-col gap-1">
-            <p data-testid="rescue-proposed-schedule" className="font-[var(--font-display)] text-[20px] font-medium tabular-nums">{labels.dateLabel}{labels.timeLabel ? ` · ${labels.timeLabel}` : ''}</p>
-            {labels.scheduleLabel ? <p className="text-sm text-[var(--fg-2)]">{labels.scheduleLabel}</p> : null}
-          </div>
-          <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{suggestion.rationale}</p>
-          <p className="text-xs text-[var(--fg-3)]">{t('habits.detail.rescheduleFinePrint')}</p>
-          <div className="flex flex-wrap gap-2"><PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</div>
-        </> : <>
-          <p role="status" className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
-          {query.error ? <div className="flex flex-wrap gap-2"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</div> : null}
-        </>}
+        <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
+          <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
+        </>}</div>
+        {suggestion ? <div className="flex flex-wrap gap-2"><PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</div> : query.error ? <div className="flex flex-wrap gap-2"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</div> : null}
       </div>
     </Proposed>
   )

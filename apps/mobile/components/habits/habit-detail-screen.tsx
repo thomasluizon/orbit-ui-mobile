@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import {
   buildHabitDetailUpdateRequest,
@@ -37,6 +37,8 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -201,15 +203,34 @@ function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone, tokens 
   return <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today, timeZone), streak: metrics.currentStreak, limit: HABIT_SLIPPING_RATE_LIMIT })}</Text>
 }
 
+function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: ReturnType<typeof buildRescheduleProposalLabels>, finePrint: string, tokens: ReturnType<typeof createTokensV2>) {
+  return <>
+          <View style={styles.rescueValues}>
+            <Text testID="rescue-proposed-schedule" style={styles.rescueDate}>{labels.dateLabel}{labels.timeLabel ? ` · ${labels.timeLabel}` : ''}</Text>
+            {labels.scheduleLabel ? <Text style={[styles.rescueSchedule, { color: tokens.fg2 }]}>{labels.scheduleLabel}</Text> : null}
+          </View>
+          <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{suggestion.rationale}</Text>
+          <Text style={[styles.rescueFinePrint, { color: tokens.fg3 }]}>{finePrint}</Text>
+  </>
+}
+
 function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today, tokens, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasPro: boolean; locale: string; today: Date; tokens: ReturnType<typeof createTokensV2>; returnFocus: () => void }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const updateHabit = useUpdateHabit()
   const { showError } = useAppToast()
   const { displayTime } = useTimeFormat()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useAccountScopedState(false)
+  const accountGeneration = useAccountGeneration()
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const isCurrentVisit = () => mounted.current && getAccountGeneration() === accountGeneration
   if (!open || dismissed) return null
   const close = () => {
+    if (!isCurrentVisit()) return
     setDismissed(true)
     returnFocus()
   }
@@ -222,7 +243,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.reschedule.freePrompt')}</Text>
         <View style={styles.rescueActions}>
           {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:857 (D42) */}
-          <PillButton variant="primary" size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
+          <PillButton accessibilityRole="link" variant="primary" size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
           {notNow}
         </View>
       </View>
@@ -233,26 +254,17 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, suggestion) })
       close()
     } catch {
-      showError(t('habits.detail.rescheduleWriteError'))
+      if (isCurrentVisit()) showError(t('habits.detail.rescheduleWriteError'))
     }
   }
   const suggestion = query.error ? null : query.suggestion
-  const labels = suggestion ? buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }) : null
   return (
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <View style={card}>
-        {suggestion && labels ? <>
-          <View style={styles.rescueValues}>
-            <Text testID="rescue-proposed-schedule" style={styles.rescueDate}>{labels.dateLabel}{labels.timeLabel ? ` · ${labels.timeLabel}` : ''}</Text>
-            {labels.scheduleLabel ? <Text style={[styles.rescueSchedule, { color: tokens.fg2 }]}>{labels.scheduleLabel}</Text> : null}
-          </View>
-          <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{suggestion.rationale}</Text>
-          <Text style={[styles.rescueFinePrint, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleFinePrint')}</Text>
-          <View style={styles.rescueActions}><PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</View>
-        </> : <>
-          <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
-          {query.error ? <View style={styles.rescueActions}><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</View> : null}
-        </>}
+        <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <>
+          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
+        </>}</View>
+        {suggestion ? <View style={styles.rescueActions}><PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</View> : query.error ? <View style={styles.rescueActions}><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</View> : null}
       </View>
     </Proposed>
   )
@@ -261,6 +273,11 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
 function completionDisabledOnDetail(habit: NormalizedHabit | null, date: string, today: string): boolean {
   const boundary = getTodayBoundary(date, today)
   return boundary === 'read-only' || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, date, today)))
+}
+
+function FocusedRescheduleBlock(props: Readonly<Parameters<typeof RescheduleBlock>[0]>) {
+  const isFocused = useIsFocused()
+  return isFocused ? <RescheduleBlock {...props} /> : null
 }
 
 async function waitForQueuedDetailLog(response: unknown, toggleKey: string): Promise<void> {
@@ -498,7 +515,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
       <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
       {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /><View style={styles.stripMetrics}><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></View></View> : null}
-      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} returnFocus={focusStrip} />
+      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} returnFocus={focusStrip} />
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary ?? ''} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
@@ -545,6 +562,7 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
   disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },
+  rescueContent: { gap: 12 },
   rescueHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rescueValues: { gap: 4 },
   rescueDate: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 20, lineHeight: 26, fontVariant: ['tabular-nums'] },

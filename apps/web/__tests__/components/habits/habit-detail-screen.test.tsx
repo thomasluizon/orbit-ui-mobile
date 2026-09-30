@@ -154,7 +154,8 @@ vi.mock('@/components/ui/list-row', () => ({
     ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={onClick}>{title}{trailing}</button>
     : <div data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
 }))
-vi.mock('@/components/ui/pill-button', () => ({
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/pill-button')>()),
   PillButton: ({ children, disabled, label, variant, size, loading, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} aria-busy={loading} data-variant={variant} data-size={size} onClick={onClick}>{children}</button>,
   Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }))
@@ -321,7 +322,7 @@ describe('HabitDetailScreen', () => {
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByText('habits.detail.rescheduleLoading')).toHaveAttribute('role', 'status')
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleLoading')
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
 
@@ -332,13 +333,25 @@ describe('HabitDetailScreen', () => {
 
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByText('habits.detail.rescheduleError')).toHaveAttribute('role', 'status')
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+  })
+
+  it('keeps the proposal announcement mounted when loading finishes', () => {
+    openRescueGate()
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toBe(status)
+    expect(status).toHaveTextContent('Sun, Aug 30')
+    expect(status).toHaveTextContent('Try tomorrow')
+    expect(within(status).queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('uses the account today overdue schedule on a historical detail', () => {
@@ -418,6 +431,21 @@ describe('HabitDetailScreen', () => {
     expect(within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })).toBeDisabled()
   })
 
+  it('does not show an old plan failure on the new habit', async () => {
+    openRescueGate()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let rejectUpdate!: (error: Error) => void
+    mocks.update.mockReturnValueOnce(new Promise<void>((_, reject) => { rejectUpdate = reject }))
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' }))
+    mocks.detail = { ...makeDetail(), id: 'habit-2' }
+    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
+    view.rerender(<HabitDetailScreen habitId="habit-2" />)
+    await act(async () => { rejectUpdate(new Error('Write failed')); await Promise.resolve() })
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+  })
+
   it('offers Pro and Not now on the free rescue card without asking Astra', () => {
     openRescueGate()
     mocks.hasProAccess = false
@@ -426,14 +454,13 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
     expect(within(card).getByTestId('astra-glyph')).toHaveAttribute('data-size', '20')
     expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
-    expect(within(card).getAllByRole('button').map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
+    expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
       ['habits.reschedule.upgrade', 'primary', 'sm'],
       ['habits.reschedule.dismiss', 'ghost', 'sm'],
     ])
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
-    fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.upgrade' }))
-    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(within(card).getByRole('link', { name: 'habits.reschedule.upgrade' })).toHaveAttribute('href', '/upgrade')
 
     fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
@@ -452,7 +479,7 @@ describe('HabitDetailScreen', () => {
     wide.unmount()
     mocks.hasProAccess = false
     render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByRole('button', { name: 'habits.reschedule.upgrade' })).toHaveAttribute('data-variant', 'secondary')
+    expect(screen.getByRole('link', { name: 'habits.reschedule.upgrade' })).toHaveAttribute('data-variant', 'secondary')
   })
 
   it('capitalizes only the first letter of the visible month', () => {
