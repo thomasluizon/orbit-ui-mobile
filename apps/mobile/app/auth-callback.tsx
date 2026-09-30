@@ -72,9 +72,16 @@ export default function AuthCallbackScreen() {
     isPending: isPendingGoogleAuthSession,
     returnUrlAttemptId: sessionReturnUrlAttemptId,
   } = usePendingGoogleAuthSession()
-  const processedRef = useRef(false)
+  const processedAttemptRef = useRef<number | null>(null)
   const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
   const [checkedLink, setCheckedLink] = useState(false)
+  const [outcomeAttemptId, setOutcomeAttemptId] = useState(sessionReturnUrlAttemptId)
+
+  if (outcomeAttemptId !== sessionReturnUrlAttemptId) {
+    setOutcomeAttemptId(sessionReturnUrlAttemptId)
+    setErrorState(null)
+    setCheckedLink(false)
+  }
 
   const resolveCallbackError = useCallback(
     (err: unknown): AuthCallbackErrorState => {
@@ -120,7 +127,7 @@ export default function AuthCallbackScreen() {
   )
 
   useEffect(() => {
-    if (processedRef.current || sessionCallbackUrl || isPendingGoogleAuthSession) return
+    if (processedAttemptRef.current !== null || sessionCallbackUrl || isPendingGoogleAuthSession) return
     let mounted = true
     function recoverCallback() {
       try {
@@ -139,11 +146,11 @@ export default function AuthCallbackScreen() {
   }, [candidateUrl, isPendingGoogleAuthSession, resolveCallbackError, router, sessionCallbackUrl])
 
   useEffect(() => {
-    if (processedRef.current) return
     if (!sessionCallbackUrl || sessionReturnUrlAttemptId === null) return
     const returnUrlAttemptId = sessionReturnUrlAttemptId
+    if (processedAttemptRef.current === returnUrlAttemptId) return
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
-    processedRef.current = true
+    processedAttemptRef.current = returnUrlAttemptId
     const resolvedCallbackUrl = sessionCallbackUrl
     const sessionEpoch = getSessionGeneration().epoch
 
@@ -192,13 +199,14 @@ export default function AuthCallbackScreen() {
     }
 
     completePendingGoogleAuthSession(returnUrlAttemptId, handleCallback).catch((error: unknown) => {
+      if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
       const nextErrorState = resolveCallbackError(error)
       setErrorState(nextErrorState)
     })
   }, [i18n.language, login, resolveCallbackError, router, sessionCallbackUrl, sessionReturnUrlAttemptId, t])
 
   useEffect(() => {
-    if (processedRef.current || errorState || sessionCallbackUrl || isPendingGoogleAuthSession || !checkedLink) return
+    if (processedAttemptRef.current !== null || errorState || sessionCallbackUrl || isPendingGoogleAuthSession || !checkedLink) return
 
     const timeout = setTimeout(() => {
       router.replace('/login')
