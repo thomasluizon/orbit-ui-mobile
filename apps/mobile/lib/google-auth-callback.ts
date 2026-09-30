@@ -114,7 +114,9 @@ export async function recoverPendingGoogleAuthCallbackUrl(callbackUrl: string): 
   if (pendingCredentials) return setPendingGoogleAuthCallbackUrl(callbackUrl)
   const params = extractGoogleAuthParams(callbackUrl)
   if (!params.state) return false
+  const sessionBeforeRead = pendingGoogleAuthSession
   const raw = await SecureStore.getItemAsync(GOOGLE_AUTH_ATTEMPT_KEY)
+  if (pendingGoogleAuthSession !== sessionBeforeRead) return pendingGoogleAuthSession.callbackUrl === callbackUrl
   if (!raw) return false
   let stored: unknown
   try { stored = JSON.parse(raw) } catch { return false }
