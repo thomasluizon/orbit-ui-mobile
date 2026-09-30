@@ -7,6 +7,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -479,7 +480,7 @@ export function CreateHabitModal({
             <div role="status">
               {!isOnline && <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />}
             </div>
-            <div className="flex items-center justify-end" style={{ gap: 12 }}>
+            <DialogActionPair>
               <PillButton
                 variant="ghost"
                 disabled={isPending}
@@ -493,7 +494,7 @@ export function CreateHabitModal({
               >
                 {t('common.create')}
               </PillButton>
-            </div>
+            </DialogActionPair>
           </div>
         )}
       >

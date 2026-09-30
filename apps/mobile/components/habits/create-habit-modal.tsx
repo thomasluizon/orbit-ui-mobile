@@ -7,6 +7,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -543,7 +544,7 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
         actions={(
-          <View style={styles.actions}>
+          <DialogActionPair>
             <PillButton
               variant="ghost"
               disabled={isPending}
@@ -557,7 +558,7 @@ export function CreateHabitModal({
             >
               {t('common.create')}
             </PillButton>
-          </View>
+          </DialogActionPair>
         )}
       >
         <View style={styles.scrollContent}>
@@ -673,11 +674,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
-    },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
     },
   })
 }

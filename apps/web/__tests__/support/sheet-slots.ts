@@ -11,7 +11,7 @@ export function sheetSlotButtons(slot: 'sheet-body' | 'sheet-actions'): (string 
   return within(container).queryAllByRole('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)
 }
 
-/** Whether the footer stacks its actions in the capped, centred `DialogActionPair`. */
+/** Whether the footer groups its actions in `DialogActionPair`. */
 export function sheetActionsUseActionPair(): boolean {
   return document.querySelectorAll('[data-slot="sheet-actions"] [data-slot="dialog-action-pair"]').length === 1
 }

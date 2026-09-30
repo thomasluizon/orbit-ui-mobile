@@ -7,5 +7,5 @@ export function DialogActionPair({ children }: Readonly<{ children: ReactNode; i
 }
 
 const styles = StyleSheet.create({
-  pair: { gap: 12, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' },
+  pair: { gap: 12, maxWidth: '100%', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' },
 })

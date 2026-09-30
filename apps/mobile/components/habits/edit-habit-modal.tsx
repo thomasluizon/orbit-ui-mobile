@@ -13,6 +13,7 @@ import {
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -467,7 +468,7 @@ export function EditHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
         actions={(
-          <View style={styles.actions}>
+          <DialogActionPair>
             <PillButton
               variant="ghost"
               disabled={updateHabit.isPending}
@@ -481,7 +482,7 @@ export function EditHabitModal({
             >
               {t('common.save')}
             </PillButton>
-          </View>
+          </DialogActionPair>
         )}
       >
         <View style={styles.scrollContent}>
@@ -529,11 +530,6 @@ function createStyles() {
     },
     fieldsPending: {
       opacity: 0.6,
-    },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
     },
   })
 }

@@ -19,7 +19,7 @@ describe('DialogActionPair (mobile)', () => {
       alignItems: 'center',
     })
     expect(StyleSheet.flatten(pair.props.style).marginHorizontal).toBeUndefined()
-    expect(StyleSheet.flatten(pair.props.style).maxWidth).toBeUndefined()
+    expect(StyleSheet.flatten(pair.props.style).maxWidth).toBe('100%')
     expect(StyleSheet.flatten(pair.props.style).width).toBeUndefined()
   })
 })

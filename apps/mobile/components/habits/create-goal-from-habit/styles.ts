@@ -85,10 +85,5 @@ export function createStyles(tokens: CreateGoalTokens) {
       fontSize: 13,
       color: tokens.fg1,
     },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
   })
 }
