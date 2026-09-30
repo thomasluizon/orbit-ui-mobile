@@ -90,10 +90,18 @@ export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAt
   return true
 }
 
+export function clearPendingGoogleAuthSessionForLogin(): void {
+  if (pendingCompletion?.returnUrlAttemptId === pendingGoogleAuthSession.returnUrlAttemptId) {
+    pendingCredentials = null
+    return
+  }
+  clearPendingGoogleAuthSession()
+}
+
 export function clearPendingGoogleAuthSession(returnUrlAttemptId?: number): void {
   if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
   pendingCredentials = null
-  if (pendingCompletion?.returnUrlAttemptId === pendingGoogleAuthSession.returnUrlAttemptId) return
+  if (returnUrlAttemptId !== undefined && pendingCompletion?.returnUrlAttemptId === returnUrlAttemptId) return
   pendingCompletion = null
   pendingGoogleAuthSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
   emit()

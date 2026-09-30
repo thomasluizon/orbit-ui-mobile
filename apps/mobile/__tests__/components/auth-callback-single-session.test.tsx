@@ -6,7 +6,8 @@ import LoginScreen from '@/app/login'
 import { AppToast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
-import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
+import { apiClient } from '@/lib/api-client'
+import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
 
 vi.unmock('react-i18next')
 
@@ -43,7 +44,8 @@ vi.mock('@/lib/google-auth-callback', async (importOriginal) => {
 })
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl }))
-vi.mock('@/stores/auth-store', () => ({
+vi.mock('@/stores/auth-store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/stores/auth-store')>(),
   getSessionGeneration: mocks.getSessionGeneration,
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
 }))
@@ -71,13 +73,35 @@ vi.mock('@/lib/motion', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/stores/onboarding-draft-store', () => ({
-  useOnboardingDraftStore: (selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown) =>
-    selector({ onboardingLocallyDone: false, habits: [] }),
+  useOnboardingDraftStore: Object.assign(
+    (selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown) =>
+      selector({ onboardingLocallyDone: false, habits: [] }),
+    { getState: () => ({ onboardingLocallyDone: false, habits: [] }) },
+  ),
 }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
+vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: vi.fn(async () => {}), saveWidgetToken: vi.fn(async () => {}) }))
+vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: vi.fn(async () => {}) }))
+vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn() }))
+vi.mock('@/lib/offline-mutations', () => ({ cancelScheduledFlush: vi.fn(), resumeOfflineReplay: vi.fn() }))
+vi.mock('@/lib/offline-state', () => ({ clearOfflineState: vi.fn(async () => {}) }))
+vi.mock('@/lib/query-client', () => ({
+  queryClient: {},
+  clearPersistedQueryCache: vi.fn(async () => {}),
+  setQueryCacheScope: vi.fn(async () => {}),
+}))
+vi.mock('@orbit/shared/query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/query')>(),
+  resetAccountQueries: vi.fn(async () => {}),
+}))
+vi.mock('@/stores/chat-store', () => ({ useChatStore: { getState: () => ({ clearMessages: vi.fn() }) } }))
+vi.mock('@/stores/review-reminder-store', () => ({ useReviewReminderStore: { getState: () => ({ setAccountScope: vi.fn() }) } }))
+vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn(async () => {}) }))
+vi.mock('@/hooks/use-push-notifications', () => ({ unsubscribePushToken: vi.fn(async () => {}) }))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.mocked(apiClient).mockResolvedValue(undefined)
   mocks.params = {}
   mocks.rawUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=s`
   useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -100,6 +124,7 @@ afterEach(() => {
   TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
   clearPendingGoogleAuthSession()
   useAppToastStore.setState({ currentToast: null, queue: [] })
+  vi.useRealTimers()
 })
 
 async function mountCallbackScreens(count = 2) {
@@ -133,7 +158,7 @@ it('a rejected duplicate exchange never sends a signed-in person back to login',
 
 it('keeps a completed callback single flight when login clears pending credentials and a screen remounts', async () => {
   mocks.login.mockImplementation(() => {
-    clearPendingGoogleAuthSession()
+    clearPendingGoogleAuthSessionForLogin()
     mocks.getSessionGeneration.mockReturnValue({ epoch: 1, credentialVersion: 1 })
     return Promise.resolve(() => true)
   })
@@ -145,6 +170,42 @@ it('keeps a completed callback single flight when login clears pending credentia
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
   expect(mocks.login).toHaveBeenCalledTimes(1)
   expect(mocks.replace).toHaveBeenCalledTimes(1)
+  expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
+})
+
+it.each(['logout', 'credential teardown'])('exits a callback revisit after real %s without exchanging again', async (teardown) => {
+  const auth = await vi.importActual<typeof import('@/stores/auth-store')>('@/stores/auth-store')
+  const flow = await vi.importActual<typeof import('@/lib/auth-flow')>('@/lib/auth-flow')
+  const attemptId = flow.createAuthReturnUrlAttempt()
+  markPendingGoogleAuthSession(attemptId, 'verifier', 's')
+  setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=one-use&state=s`, attemptId)
+  mocks.getSessionGeneration.mockImplementation(auth.getSessionGeneration)
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation(flow.isAuthReturnUrlAttemptCurrent)
+  mocks.clearStoredAuthReturnUrl.mockImplementation(flow.clearStoredAuthReturnUrl)
+  mocks.login.mockImplementation(auth.useAuthStore.getState().login)
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
+  await mountCallbackScreens()
+  expect(auth.useAuthStore.getState().isAuthenticated).toBe(true)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
+  await mountCallbackScreens(1)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
+
+  const cleared = teardown === 'logout'
+    ? await auth.useAuthStore.getState().logout()
+    : await auth.clearSessionAndResetAuth({ authority: 'observed-credential', ...auth.getSessionGeneration() })
+  expect(cleared).toBe(true)
+  expect(auth.useAuthStore.getState().isAuthenticated).toBe(false)
+  mocks.replace.mockClear()
+  mocks.rawUrl = AUTH_CALLBACK_URL
+  vi.useFakeTimers()
+  await mountCallbackScreens(1)
+  await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(250) })
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login')
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.login).toHaveBeenCalledTimes(1)
   expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
 })
 
