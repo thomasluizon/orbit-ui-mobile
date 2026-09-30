@@ -148,10 +148,14 @@ local obligation is:
 ${reviewSweepContract}`
   : ""
 
+const vitestEvidence = repoKey === "ui"
+  ? ` The repository's own Vitest suites are required evidence: run them in full, including any headless Chromium geometry tests they launch. That Chromium use is permitted within Vitest.`
+  : ""
+
 const browserBan = layoutGuard ? `
 
-**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
-own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
+**NEVER open the app in a browser and never start a dev or production server. This is unconditional
+and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
 Playwright, Maestro or Cypress run, no navigating to localhost on any port, no logging in to the app.
 The sole exception to the end-to-end file ban is this: the worker may create or edit files under
 \`apps/web/e2e/layout/\` only. Nothing else under \`e2e/\` may be created or edited. Never run the
@@ -159,11 +163,11 @@ layout guard or Playwright, including local and focused test runs. \`.github/wor
 on the pull request is the only runner and the only evidence. Do not gather screenshots. A fresh
 worktree has no seeded session.` : `
 
-**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
-own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
-Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
-logging in to the app. If the ticket says screenshots are required, do not gather them in this
-worker. A fresh worktree has no seeded session.`
+**NEVER open the app in a browser and never start a dev or production server. This is unconditional
+and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
+Playwright, Maestro or Cypress, nothing under \`e2e/\`, no layout guard, no navigating to localhost
+on any port, no logging in to the app. If the ticket says screenshots are required, do not gather
+them in this worker. A fresh worktree has no seeded session.`
 
 const assumptionDestination = cloud
   ? "the committed handoff's `assumptions` array"

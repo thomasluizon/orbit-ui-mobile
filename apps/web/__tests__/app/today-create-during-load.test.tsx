@@ -2,6 +2,7 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const state = vi.hoisted(() => ({
   profile: undefined as {
@@ -43,6 +44,7 @@ vi.mock('@/components/shell/destination-shell', () => ({
             <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
           </div>
           {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
+          {conversationOpen && state.wide ? <aside aria-label="Astra conversation">{conversation}</aside> : null}
         </>
       )}
     </>
@@ -89,9 +91,7 @@ vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({ title, children }: { title?: string; children?: React.ReactNode }) =>
     <div role="dialog">{title}{children}</div>,
 }))
-vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
-vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
@@ -119,6 +119,7 @@ describe('Today create during first load', () => {
   beforeEach(() => {
     localStorage.clear()
     useUIStore.setState(useUIStore.getInitialState())
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     state.profile = undefined
     state.count = 0
     state.countLoaded = false
@@ -131,6 +132,41 @@ describe('Today create during first load', () => {
   })
 
   afterEach(() => localStorage.clear())
+
+  it('keeps reload guidance in the main app layout', () => {
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    act(() => useVersionGateStore.getState().requireReload('appUpdated'))
+
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
+  })
+
+  it('keeps reload guidance reachable while the Astra conversation is open', () => {
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+
+    const banners = screen.getAllByRole('status')
+      .filter((node) => node.hasAttribute('data-update-banner'))
+    expect(banners).toHaveLength(1)
+    expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
+    expect(banners[0]?.closest('[inert]')).toBeNull()
+  })
+
+  it('announces reload guidance once while the conversation is a side panel', () => {
+    state.wide = true
+    render(<AppLayout><div>Today</div></AppLayout>)
+
+    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+
+    const banners = screen.getAllByRole('status')
+      .filter((node) => node.hasAttribute('data-update-banner'))
+    expect(banners).toHaveLength(1)
+    expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
+  })
 
   it('waits to show the calendar import prompt until creation closes', async () => {
     state.profile = {

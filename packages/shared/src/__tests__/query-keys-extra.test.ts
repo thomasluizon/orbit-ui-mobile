@@ -36,6 +36,8 @@ describe('goal and gamification keys', () => {
   it('builds progress history and recap keys', () => {
     expect(goalKeys.progressHistory('g-1')).toEqual(['goals', 'progress-history', 'g-1'])
     expect(gamificationKeys.recap('week')).toEqual(['gamification', 'recap', 'week'])
+    expect(gamificationKeys.recap('month', 2024, 2))
+      .toEqual(['gamification', 'recap', 'month', 2024, 2])
     expect(gamificationKeys.streakHistory()).toEqual(['gamification', 'streak-history'])
     expect(gamificationKeys.xpHistory('90d')).toEqual(['gamification', 'xp-history', '90d'])
   })

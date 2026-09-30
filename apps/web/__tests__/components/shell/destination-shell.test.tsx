@@ -441,9 +441,14 @@ describe('DestinationShell', () => {
   it('lets Wrapped replace the destination shell', () => {
     mocks.pathname = '/wrapped'
     mocks.wide = true
-    render(<DestinationShell onCreate={() => {}}><h1>Wrapped</h1></DestinationShell>)
+    render(
+      <DestinationShell onCreate={() => {}} notice={<div role="status">Reload</div>}>
+        <h1>Wrapped</h1>
+      </DestinationShell>,
+    )
 
     expect(screen.getByRole('heading', { name: 'Wrapped' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByTestId('wide-shell')).not.toBeInTheDocument()
     expect(screen.queryByTestId('compact-shell')).not.toBeInTheDocument()
     expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
