@@ -1,3 +1,5 @@
+import { radius } from '@/lib/theme'
+import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HABIT_EMOJI_CATEGORIES } from "@orbit/shared/utils";
@@ -125,9 +127,9 @@ describe("HabitEmojiSelector mobile", () => {
     expect(search.props.value).toBe("");
 
     const category = button(tree, firstCategory.labelKey);
-    expect(resolvedStyle(category, true)).toContainEqual({
+    expect(resolvedStyle(category, true)).toContainEqual(expect.objectContaining({
       transform: [{ scale: 0.96 }],
-    });
+    }));
     press(category);
     expect(category.props.accessibilityState).toEqual({ selected: true });
     expect(resolvedStyle(category, false).at(-1)).toBeNull();
@@ -154,14 +156,14 @@ describe("HabitEmojiSelector mobile", () => {
       `habits.form.emoji: ${firstEmoji}`,
     );
     expect(selectedOption.props.accessibilityState).toEqual({ selected: true });
-    expect(resolvedStyle(selectedOption, true)).toContainEqual({
+    expect(resolvedStyle(selectedOption, true)).toContainEqual(expect.objectContaining({
       transform: [{ scale: 0.96 }],
-    });
+    }));
     expect(resolvedStyle(selectedOption, false).at(-1)).toBeNull();
     const remove = button(removal.tree, "habits.form.emojiRemove");
-    expect(resolvedStyle(remove, true)).toContainEqual({
+    expect(resolvedStyle(remove, true)).toContainEqual(expect.objectContaining({
       transform: [{ scale: 0.96 }],
-    });
+    }));
     expect(resolvedStyle(remove, false).at(-1)).toBeNull();
     press(remove);
     expect(removal.onSelect).toHaveBeenCalledWith("");
@@ -177,4 +179,24 @@ describe("HabitEmojiSelector mobile", () => {
     expect(onSelect).not.toHaveBeenCalled();
     expect(tree.root.findAll((node) => node.type === "Sheet")).toHaveLength(0);
   });
+});
+
+it('fills the picker controls, selected and idle options, and clear search', () => {
+  const { tree } = renderSelector(firstEmoji);
+  expectPressFill(tree, 'habits.form.emojiOpenPicker', tokens.bgHover, 999);
+  press(button(tree, 'habits.form.emojiOpenPicker'));
+  expectPressFill(tree, 'habits.form.emojiRemove', tokens.bgHover, 999);
+  expectPressFill(tree, firstCategory.labelKey, tokens.bgHover, radius.full);
+  press(button(tree, firstCategory.labelKey));
+  expectPressFill(tree, firstCategory.labelKey, tokens.bgHover, radius.full);
+  expectPressFill(tree, `habits.form.emoji: ${firstEmoji}`, tokens.bgHover, 12);
+  expectPressFill(tree, `habits.form.emoji: ${firstCategory.emojis[1]!}`, tokens.bgHover, 12);
+  const search = tree.root.findAll((node) => node.type === 'TextInput')[0]!;
+  TestRenderer.act(() => (search.props.onChangeText as (value: string) => void)('run'));
+  expectPressFill(tree, 'habits.form.emojiClearSearch', tokens.bgHover, 999);
+});
+it('fills the suggestion action', () => {
+  let tree!: TestTree;
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitEmojiSelector selectedEmoji="" tokens={tokens} styles={styles} onSelect={vi.fn()} onSuggest={vi.fn()} canSuggest />) });
+  expectPressFill(tree, 'habits.form.emojiSuggest', tokens.bgHover, radius.full);
 });

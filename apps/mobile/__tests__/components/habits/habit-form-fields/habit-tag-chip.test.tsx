@@ -1,3 +1,5 @@
+import { radius } from '@/lib/theme'
+import { expectPressFill } from '../../../support/press-feedback'
 import React from 'react'
 import { AccessibilityInfo, Animated } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +8,7 @@ import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { createTokensV2 } from '@/lib/theme'
 
 interface TestNode {
+  type: unknown
   props: Record<string, unknown>
   findAll(predicate: (node: TestNode) => boolean): TestNode[]
 }
@@ -104,4 +107,11 @@ describe('HabitTagChip mobile', () => {
     expect(button(selected.tree, 'Health').props.disabled).toBe(false)
     expect(timing).not.toHaveBeenCalled()
   })
+})
+
+it.each([false, true])('fills each tag tap target with reduced motion, selected: %s', async (selected) => {
+  vi.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
+  const { tree } = renderChip({ selected })
+  await TestRenderer.act(async () => { await Promise.resolve() })
+  for (const label of ['Health', 'Edit Health', 'Delete Health']) expectPressFill(tree, label, tokens.bgHover, radius.full)
 })

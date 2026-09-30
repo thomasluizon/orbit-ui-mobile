@@ -1,3 +1,5 @@
+import { radius } from '@/lib/theme'
+import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
@@ -245,5 +247,18 @@ describe("HabitUnderstanding mobile", () => {
           node.type === "Text" && node.props.children === "Seven times a week",
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe('schedule press fills', () => {
+  it('fills selected and idle weekdays and both repeat controls', () => {
+    const { tree } = renderUnderstanding({ value: 'Run', days: ['Monday'], intervalWeeks: 2 });
+    for (const label of ['Segunda-feira', 'Terça-feira', labels.repeatLess, labels.repeatMore]) {
+      expectPressFill(tree, label, tokens.bgHover, radius.full);
+    }
+  });
+  it('fills both quantity controls in flexible mode', () => {
+    const { tree } = renderUnderstanding({ value: 'Run', mode: 'flexible', quantity: 2 });
+    for (const label of [labels.less, labels.more]) expectPressFill(tree, label, tokens.bgHover, radius.full);
   });
 });

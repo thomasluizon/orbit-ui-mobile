@@ -35,7 +35,7 @@ const houseRoutine = makeHabitScheduleItem({
   hasSubHabits: false,
 })
 
-async function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[]) {
+async function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[], onSelectSuggestion = vi.fn()) {
   await i18n.changeLanguage(locale)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(
@@ -47,7 +47,7 @@ async function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem
     tree = TestRenderer.create(
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={queryClient}>
-          <ChatEmptyState styles={styles} onSelectSuggestion={vi.fn()} />
+          <ChatEmptyState styles={styles} onSelectSuggestion={onSelectSuggestion} />
         </QueryClientProvider>
       </I18nextProvider>,
     )
@@ -85,9 +85,9 @@ describe('ChatEmptyState copy (mobile)', () => {
       'Algumas coisas que dá para pedir',
     ]))
     expect(suggestionLabels(tree)).toEqual([
-      'Registrar Caminhar',
+      'Registrar "Caminhar"',
       'Como foi a semana',
-      'Dividir Rotina da casa',
+      'Dividir "Rotina da casa"',
       'Como estão as metas',
     ])
   })
@@ -100,11 +100,32 @@ describe('ChatEmptyState copy (mobile)', () => {
       'Some things you can ask',
     ]))
     expect(suggestionLabels(tree)).toEqual([
-      'Log Caminhar',
+      'Log "Caminhar"',
       'How the week went',
-      'Split Rotina da casa',
+      'Split "Rotina da casa"',
       'How are my goals',
     ])
+  })
+
+  it.each([
+    ['pt-BR', 'Caminhar', 'Registrar "Caminhar"', 'Dividir "Caminhar"'],
+    ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
+    ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
+    ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
+  ] as const)('sends the quoted %s suggestion for %s', async (locale, title, logLabel, splitLabel) => {
+    const onSelectSuggestion = vi.fn()
+    const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
+    const tree = await renderEmptyState(locale, [habit], onSelectSuggestion)
+
+    expect(suggestionLabels(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
+    expect(renderedText(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
+    for (const label of [logLabel, splitLabel]) {
+      TestRenderer.act(() => {
+        tree.root.findAllByProps({ accessibilityLabel: label }).at(-1).props.onPress()
+      })
+    }
+    expect(onSelectSuggestion.mock.calls).toEqual([[logLabel], [splitLabel]])
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('offers only the two general suggestions to an account with no habits', async () => {

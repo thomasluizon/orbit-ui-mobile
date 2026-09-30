@@ -48,7 +48,7 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormSave,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] },
         ]}
         hitSlop={{ top: 3, bottom: 3 }}
         accessibilityRole="button"
@@ -62,7 +62,7 @@ export function TagEditorRow({
         style={({ pressed }) => [
           styles.tagFormCancel,
           disabled && { opacity: 0.45 },
-          pressed && { transform: [{ scale: 0.96 }] },
+          pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
         hitSlop={2}
         accessibilityRole="button"
