@@ -4,9 +4,9 @@ import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-  computeHabitFrequencyLabel,
-  formatLocaleDate,
+  buildRescheduleProposalLabels,
   getFriendlyErrorMessage,
+  parseAPIDate,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildRescheduleUpdateRequest } from '@/lib/habit-request-builders'
@@ -21,6 +21,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useToday } from '@/app/(app)/today-provider'
 import { RescheduleProposal } from './reschedule-proposal'
 
 interface RescheduleSheetProps {
@@ -44,6 +45,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const updateHabit = useUpdateHabit()
   const { showError } = useAppToast()
   const wide = useIsWideDesktop()
+  const todayStr = useToday(profile?.timeZone)
 
   const hasProAccess = profile?.hasProAccess ?? false
   const locale = profile?.language ?? uiLocale
@@ -71,27 +73,6 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       )
     }
   }, [closeSheet, handleClosed, habit, suggestion, updateHabit, showError, t])
-
-  const scheduleLabel = suggestion
-    ? computeHabitFrequencyLabel(
-        {
-          isGeneral: false,
-          frequencyUnit: suggestion.frequencyUnit,
-          frequencyQuantity: suggestion.frequencyQuantity,
-          days: suggestion.days,
-          isFlexible: false,
-        },
-        t,
-      )
-    : ''
-  const dateLabel = suggestion
-    ? formatLocaleDate(new Date(`${suggestion.dueDate}T00:00:00`), locale, {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      })
-    : ''
-  const timeLabel = suggestion?.dueTime ? displayTime(suggestion.dueTime) : null
 
   function renderFooter() {
     if (hasProAccess && isLoading) return null
@@ -187,9 +168,12 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       return (
         <RescheduleProposal
           proposedLabel={t('habits.form.proposedByAstra')}
-          dateLabel={dateLabel}
-          timeLabel={timeLabel}
-          scheduleLabel={scheduleLabel}
+          {...buildRescheduleProposalLabels(suggestion, {
+            locale,
+            today: parseAPIDate(todayStr),
+            translate: t,
+            formatTime: displayTime,
+          })}
           rationale={suggestion.rationale}
           disclosure={t('aiDisclosure.notMedicalAdvice')}
         />

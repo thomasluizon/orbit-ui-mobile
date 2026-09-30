@@ -100,50 +100,58 @@ export function DeleteAccountModal({
       open
       onClose={handleClose}
       title={t('profile.deleteAccount.headingAreYouSure')}
-    >
-      {!isOnline ? (
-        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
-      ) : (
-        <View style={styles.body}>
-          <View style={styles.hero}>
-            <View
-              style={[
-                styles.heroCircle,
-                { backgroundColor: `${tokens.statusBad}24` },
-              ]}
-            >
-              <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.8} />
-            </View>
-            <View style={styles.copy}>
-              <Text style={[styles.title, { color: tokens.statusBadText }]}>
-                {t('profile.deleteAccount.warning')}
+      actions={
+        isOnline ? (
+          <>
+            {error ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.error, { color: tokens.statusBadText, width: '100%' }]}
+              >
+                {error}
               </Text>
-              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
-              <Text style={[styles.description, { color: tokens.fg2 }]}>
-                {t('profile.deleteAccount.warningDetail')}
-              </Text>
-            </View>
-          </View>
-          {error ? (
-            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
-              {error}
-            </Text>
-          ) : null}
-          <View style={styles.actions}>
+            ) : null}
             <DialogActionPair>
               <PillButton
+                variant="ghost"
+                disabled={loading}
+                onClick={() => closeSheet()}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
                 variant="destructive"
-                matchedWidth
                 onClick={() => void handleRequestDeletion()}
                 disabled={loading}
                 loading={loading}
               >
                 {t('profile.deleteAccount.sendCode')}
               </PillButton>
-              <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-                {t('common.cancel')}
-              </PillButton>
             </DialogActionPair>
+          </>
+        ) : undefined
+      }
+    >
+      {!isOnline ? (
+        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
+      ) : (
+        <View style={styles.hero}>
+          <View
+            style={[
+              styles.heroCircle,
+              { backgroundColor: `${tokens.statusBad}24` },
+            ]}
+          >
+            <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.8} />
+          </View>
+          <View style={styles.copy}>
+            <Text style={[styles.title, { color: tokens.statusBadText }]}>
+              {t('profile.deleteAccount.warning')}
+            </Text>
+            <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
+            <Text style={[styles.description, { color: tokens.fg2 }]}>
+              {t('profile.deleteAccount.warningDetail')}
+            </Text>
           </View>
         </View>
       )}
@@ -152,9 +160,6 @@ export function DeleteAccountModal({
 }
 
 const styles = StyleSheet.create({
-  body: {
-    gap: 16,
-  },
   hero: {
     alignItems: 'center',
     gap: 16,
@@ -186,8 +191,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
-  },
-  actions: {
-    paddingTop: 8,
+    textAlign: 'center',
   },
 })

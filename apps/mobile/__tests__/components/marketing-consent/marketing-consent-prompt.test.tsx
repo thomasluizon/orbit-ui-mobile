@@ -5,6 +5,7 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -53,13 +54,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode
-    onClick?: () => void
-  }) => React.createElement('PillButtonStub', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -162,6 +158,23 @@ describe('MarketingConsentPrompt (mobile)', () => {
     )
   })
 
+  it('pins Accept and Decline in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderArmed()
+    await settle()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('uses a ghost pill for Decline', async () => {
+    const tree = await renderArmed()
+    await settle()
+    const quiet = tree.root.findAll((node: any) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline')[0]!
+    expect(quiet.props.variant).toBe('ghost')
+  })
+
   it('stays hidden while a celebration is in flight', async () => {
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     const tree = await renderArmed()
@@ -192,7 +205,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
     const tree = await renderArmed()
     await settle()
 
-    const [accept] = findByType(tree, 'PillButtonStub')
+    const accept = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
       ;(accept!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()

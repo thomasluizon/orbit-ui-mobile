@@ -5,6 +5,7 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -134,6 +135,16 @@ export function MoveParentDialog({
       open
       onClose={isPending ? undefined : hideDialog}
       title={t('habits.moveParent.title')}
+      actions={
+        <DialogActionPair>
+          <PillButton variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
+            {t('habits.moveParent.confirm')}
+          </PillButton>
+        </DialogActionPair>
+      }
     >
       <View style={styles.sheetBody}>
         <MoveDialogDescription
@@ -149,7 +160,7 @@ export function MoveParentDialog({
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-                trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
+              trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
             />
           </View>
         ) : null}
@@ -192,25 +203,6 @@ export function MoveParentDialog({
             {t('habits.moveParent.noSearchResults')}
           </Text>
         ) : null}
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onClick={() => closeSheet()}
-
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            disabled={!canSubmit}
-            loading={isPending}
-            onClick={onConfirm}
-
-          >
-            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
-          </PillButton>
-        </View>
       </View>
     </Sheet>) : null
   )
@@ -219,9 +211,7 @@ export function MoveParentDialog({
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     sheetBody: {
-      paddingHorizontal: 24,
       paddingTop: 4,
-      paddingBottom: 24,
     },
     moveDialogDescription: {
       fontFamily: 'Geist_400Regular',
@@ -234,10 +224,6 @@ function createStyles(tokens: AppTokensV2) {
       position: 'relative',
       justifyContent: 'center',
       marginBottom: 12,
-    },
-    searchIcon: {
-      position: 'absolute',
-      right: 16,
     },
     eyebrow: {
       fontFamily: 'GeistMono_500Medium',
@@ -253,54 +239,9 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 4,
       paddingBottom: 8,
     },
-    rail: {
-      width: 20,
-      alignSelf: 'stretch',
-    },
-    well: {
-      width: 30,
-      height: 30,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    wellFilled: {
-      backgroundColor: tokens.bgWell,
-    },
-    wellRoot: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
     wellEmoji: {
       fontSize: 16,
       lineHeight: 20,
-    },
-    moveOptionLabel: {
-      flex: 1,
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    moveOptionCount: {
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-      color: tokens.fg3,
-    },
-    moveOptionCurrent: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 10.5,
-      textTransform: 'uppercase',
-      letterSpacing: 0.63,
-      color: tokens.fg3,
-    },
-    moveOptionReason: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
-      color: tokens.fg3,
-      marginTop: 4,
     },
     moveDialogEmpty: {
       fontFamily: 'Geist_400Regular',
@@ -308,11 +249,6 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg3,
       textAlign: 'center',
       paddingVertical: 16,
-    },
-    footer: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 16,
     },
   })
 }

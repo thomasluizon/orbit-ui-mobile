@@ -10,6 +10,7 @@ import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/sh
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -325,6 +326,17 @@ describe('CreateHabitModal (mobile)', () => {
             child.props.children === 'common.create',
         ).length > 0,
     )[0]
+
+  it.each([
+    ['habit', undefined],
+    ['sub-habit', createMockHabit({ id: 'parent-1', title: 'Parent' })],
+  ])('pins Cancel and Create in the %s sheet footer, never in the scrolling body', (_mode, parentHabit) => {
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />)
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.create'])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.create')
+  })
 
   it('disables the submit button until a title is entered', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)

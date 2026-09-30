@@ -22,8 +22,6 @@ interface SubHabitEditorProps {
   tokens: ReturnType<typeof createTokensV2>
   styles: {
     subHabitsSection: object
-    subHabitsHeader: object
-    fieldLabel: object
     subHabitsList: object
     subHabitRow: object
     subHabitIndex: object

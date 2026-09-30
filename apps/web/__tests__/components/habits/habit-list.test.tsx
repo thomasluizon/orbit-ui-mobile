@@ -2901,7 +2901,7 @@ describe('HabitList', () => {
     expect(Array.from(confirmation.querySelectorAll('[data-slot="dialog-action-pair"] button'))
       .map((button) => button.textContent)).toEqual(['common.cancel', 'habits.skipConfirmButton'])
     expect(confirmation.querySelector('[data-slot="dialog-action-pair"]'))
-      .toHaveClass('flex-row')
+      .toHaveStyle({ flexDirection: 'row' })
     expect(within(confirmation).getByRole('button', { name: 'habits.skipConfirmButton' }))
       .toHaveAttribute('data-variant', 'secondary')
     vi.unstubAllGlobals()

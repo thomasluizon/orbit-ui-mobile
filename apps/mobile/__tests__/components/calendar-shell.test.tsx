@@ -1,10 +1,12 @@
 import React from "react";
 import { __setWindowDimensions } from "@/test-mocks/react-native";
 import { StyleSheet } from "react-native";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
 
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { Sheet } from "@/components/ui/sheet";
 import { createTokensV2 } from "@/lib/theme";
 import { useUIStore } from "@/stores/ui-store";
 import {
@@ -31,17 +33,54 @@ vi.mock("@/components/ui/stat-tile", async (importOriginal) => ({
     ),
 }));
 
-vi.mock("@/components/ui/year-picker", () => ({
-  YearPicker: ({ onSelectYear }: { onSelectYear: (year: number) => void }) =>
-    React.createElement("YearPickerMock", {
-      onPress: () => onSelectYear(2030),
-    }),
+vi.unmock("@/components/ui/sheet");
+
+const nativeSheet = vi.hoisted(() => ({
+  present: vi.fn(() => Promise.resolve()),
+  dismiss: vi.fn(() => Promise.resolve()),
 }));
+
+vi.mock("@lodev09/react-native-true-sheet", () => ({
+  TrueSheet: class TrueSheet extends React.Component<{
+    header?: React.ReactNode;
+    children?: React.ReactNode;
+  }> {
+    present = nativeSheet.present;
+    dismiss = nativeSheet.dismiss;
+    render() {
+      return <>{this.props.header}{this.props.children}</>;
+    }
+  },
+}));
+
+beforeEach(() => {
+  useUIStore.setState({ openOverlayIds: [] });
+  nativeSheet.present.mockClear();
+  nativeSheet.dismiss.mockReset().mockResolvedValue(undefined);
+});
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
+  unmount: () => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
+
+const mountedTrees: Tree[] = [];
+
+function mount(element: React.ReactElement): Tree {
+  const tree = TestRenderer.create(element);
+  mountedTrees.push(tree);
+  return tree;
+}
+
+afterEach(() => {
+  TestRenderer.act(() => mountedTrees.splice(0).forEach((tree) => tree.unmount()));
+});
+
+function finishNativeDismissal(tree: Tree) {
+  const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!;
+  TestRenderer.act(() => sheet.props.onDidDismiss());
+}
 
 function hostTextValues(tree: Tree): unknown[] {
   return tree.root
@@ -75,7 +114,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
     const tokens = createTokensV2("purple", "dark");
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarHeader
           monthLabel="April"
           year={2026}
@@ -113,7 +152,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
 
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarHeader
           monthLabel="April"
           year={2026}
@@ -160,7 +199,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
 
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarHeader
           monthLabel="April"
           year={2026}
@@ -180,22 +219,24 @@ describe("CalendarHeader year navigation (mobile)", () => {
     pressByAccessibilityLabel(tree!, "Select year");
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
 
-    const mock = tree!.root.findAll((node) => node.type === "YearPickerMock");
-    expect(mock.length).toBeGreaterThan(0);
-    TestRenderer.act(() => {
-      mock[0]!.props.onPress();
-    });
+    expect(tree!.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    pressByAccessibilityLabel(tree!, "2030");
+    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
+    expect(onSelectYear).not.toHaveBeenCalled();
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+    expect(tree!.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    finishNativeDismissal(tree!);
     expect(onSelectYear).toHaveBeenCalledWith(2030);
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
   });
 });
 
-describe("CalendarHeader year modal internals (mobile)", () => {
+describe("CalendarHeader year sheet dismissal (mobile)", () => {
   function renderHeader(onSelectYear = vi.fn()) {
     const tokens = createTokensV2("purple", "dark");
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarHeader
           monthLabel="April"
           year={2026}
@@ -214,42 +255,56 @@ describe("CalendarHeader year modal internals (mobile)", () => {
     return tree!;
   }
 
-  it("guards the dialog responder and closes on backdrop press and request-close", () => {
-    const tree = renderHeader();
+  it("opens the shared sheet with one scroll owner and closes after native dismissal", () => {
+    const onSelectYear = vi.fn();
+    const tree = renderHeader(onSelectYear);
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
     pressByAccessibilityLabel(tree, "Select year");
 
-    const modal = tree.root.findAll((node) => node.type === "Modal")[0]!;
-    expect(modal.props.visible).toBe(true);
+    const sheet = tree.root.findAll((node) => node.type === Sheet)[0]!;
+    expect(sheet.props.title).toBe("Select year");
+    expect(nativeSheet.present).toHaveBeenCalledOnce();
+    expect(tree.root.findAll((node) => node.type === "Modal")).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === "ScrollView")).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.props.testID === "sheet-body-scroll")).toHaveLength(0);
 
-    const dialog = tree.root.findAll(
-      (node) => typeof node.props.onStartShouldSetResponder === "function",
-    )[0]!;
-    expect(dialog.props.onStartShouldSetResponder()).toBe(true);
-
-    const backdrop = tree.root.findAll(
-      (node) =>
-        node.type === "Pressable" &&
-        typeof node.props.onPress === "function" &&
-        !node.props.accessibilityRole,
-    )[0]!;
-    TestRenderer.act(() => {
-      backdrop.props.onPress();
-    });
-    expect(
-      tree.root.findAll((node) => node.type === "Modal")[0]!.props.visible,
-    ).toBe(false);
+    pressByAccessibilityLabel(tree, "common.close");
+    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+    finishNativeDismissal(tree);
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
+    expect(onSelectYear).not.toHaveBeenCalled();
 
     pressByAccessibilityLabel(tree, "Select year");
-    TestRenderer.act(() => {
-      tree.root
-        .findAll((node) => node.type === "Modal")[0]!
-        .props.onRequestClose();
-    });
-    expect(
-      tree.root.findAll((node) => node.type === "Modal")[0]!.props.visible,
-    ).toBe(false);
-
+    finishNativeDismissal(tree);
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
+    expect(onSelectYear).not.toHaveBeenCalled();
     exercisePressCallbacks(tree);
+  });
+
+  it("keeps the picker and selected year when native dismissal rejects", async () => {
+    const onSelectYear = vi.fn();
+    const tree = renderHeader(onSelectYear);
+    pressByAccessibilityLabel(tree, "Select year");
+    nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
+    await TestRenderer.act(async () => {
+      pressByAccessibilityLabel(tree, "2030");
+      await Promise.resolve();
+    });
+    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
+    expect(onSelectYear).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+
+    await TestRenderer.act(async () => {
+      pressByAccessibilityLabel(tree, "2030");
+      await Promise.resolve();
+    });
+    finishNativeDismissal(tree);
+    expect(onSelectYear).toHaveBeenCalledExactlyOnceWith(2030);
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
   });
 });
 
@@ -262,7 +317,7 @@ describe("CalendarWeekNav (mobile)", () => {
 
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarWeekNav
           weekLabel="Apr 6 – 12"
           previousWeekLabel="Previous week"
@@ -300,7 +355,7 @@ describe("CalendarLegend (mobile)", () => {
     expect([locale.calendar.status.completed, locale.calendar.status.missed, locale.calendar.status.indulged, locale.calendar.status.resisted]).toEqual(statusWords);
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarLegend loggableLabel={locale.calendar.legend.loggable} fullLabel={locale.calendar.legend.full} partialLabel={locale.calendar.legend.partial} noneLabel={locale.calendar.legend.none} tokens={createTokensV2("purple", "dark")} />);
+      tree = mount(<CalendarLegend loggableLabel={locale.calendar.legend.loggable} fullLabel={locale.calendar.legend.full} partialLabel={locale.calendar.legend.partial} noneLabel={locale.calendar.legend.none} tokens={createTokensV2("purple", "dark")} />);
     });
     expect(hostTextValues(tree!)).toEqual(legendWords);
   });
@@ -309,7 +364,7 @@ describe("CalendarLegend (mobile)", () => {
     const tokens = createTokensV2("purple", "dark");
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarLegend
           loggableLabel="Can log"
           fullLabel="All done"
@@ -361,7 +416,7 @@ describe("CalendarStats (mobile)", () => {
   it("renders the three month figures in one row", () => {
     let tree: Tree;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mount(
         <CalendarStats stats={stats} />,
       );
     });

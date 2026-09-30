@@ -13,6 +13,7 @@ import {
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { PillButton } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -466,6 +467,23 @@ export function EditHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
+        actions={(
+          <DialogActionPair>
+            <PillButton
+              variant="ghost"
+              disabled={updateHabit.isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              disabled={submitDisabled}
+              onClick={() => void handleSubmit()}
+            >
+              {t('common.save')}
+            </PillButton>
+          </DialogActionPair>
+        )}
       >
         <View style={styles.scrollContent}>
           <View
@@ -495,24 +513,6 @@ export function EditHabitModal({
             />
           </View>
         </View>
-
-        <View style={styles.footer}>
-          <PillButton
-            variant="ghost"
-            disabled={updateHabit.isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-
-            disabled={submitDisabled}
-            onClick={() => void handleSubmit()}
-
-          >
-            {t('common.save')}
-          </PillButton>
-        </View>
       </Sheet>) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
@@ -526,21 +526,10 @@ export function EditHabitModal({
 function createStyles() {
   return StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: 16,
-      paddingBottom: 16,
       gap: 24,
     },
     fieldsPending: {
       opacity: 0.6,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 12,
-      paddingTop: 16,
-      paddingHorizontal: 16,
-      paddingBottom: 24,
     },
   })
 }

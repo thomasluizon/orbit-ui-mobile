@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -24,13 +25,8 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode
-    onClick?: () => void
-  }) => React.createElement('PillButtonStub', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -114,6 +110,17 @@ describe('ReferralPrompt (mobile)', () => {
     )
   })
 
+  it('pins the invite and Later actions in the sheet footer, never in the scrolling body', async () => {
+    const tree = await renderArmed('streak-7')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
   it('stays hidden while a celebration is in flight', async () => {
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     const tree = await renderArmed('streak-7')
@@ -171,7 +178,7 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    const [cta] = findByType(tree, 'PillButtonStub')
+    const cta = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
       ;(cta!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()

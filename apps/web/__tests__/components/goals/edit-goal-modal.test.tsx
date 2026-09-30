@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -127,6 +128,17 @@ describe('EditGoalModal', () => {
     mockMutateAsync.mockResolvedValueOnce(undefined)
     fireEvent.change(unitInput, { target: { value: 'km' } })
     fireEvent.submit(targetInput.closest('form')!)
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce())
+  })
+
+  it('pins Cancel and Save in the sheet footer and submits the form from there', async () => {
+    mockMutateAsync.mockResolvedValue(undefined)
+    render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'common.save'])
+    expect(sheetSlotButtons('sheet-body')).not.toContain('common.save')
+    expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce())
   })
 

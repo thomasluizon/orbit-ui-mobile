@@ -1,9 +1,11 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { useUIStore } from '@/stores/ui-store'
+import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 const renderedTrees: any[] = []
@@ -51,8 +53,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('PillButton', null, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 async function renderPrompt() {
@@ -66,19 +68,9 @@ async function renderPrompt() {
 }
 
 function pressQuietAction(tree: any) {
-  const rows = tree.root.findAll(
-    (node: any) =>
-      node.type === 'Pressable' &&
-      node.findAll(
-        (child: any) =>
-          child.type === 'Text' && child.props.children === 'onboarding.wizard.importNotNow',
-      ).length > 0,
-  )
-  const target = rows.at(-1)
+  const target = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
   if (!target) throw new Error('Not now action not found')
-  TestRenderer.act(() => {
-    target.props.onPress()
-  })
+  TestRenderer.act(() => target.props.onClick())
 }
 
 function sheetCount(tree: { root: { findAllByType: (type: string) => unknown[] } }): number {
@@ -124,6 +116,25 @@ describe('AstraImportPrompt gating', () => {
   it('shows the sheet once onboarding is complete', async () => {
     mocks.profile = baseProfile()
     expect(sheetCount(await renderPrompt())).toBe(1)
+  })
+
+  it('centres its copy and uses a ghost pill to dismiss', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    const quiet = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
+    const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importDescription')[0]
+
+    expect(quiet.props.variant).toBe('ghost')
+    expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
+  })
+
+  it('pins Import and Not now in the sheet footer, never in the scrolling body', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton'])
+    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
   it('does not wait for the retired tour state', async () => {
