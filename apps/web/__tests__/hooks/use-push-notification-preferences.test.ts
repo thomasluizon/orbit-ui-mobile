@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError } from '@orbit/shared'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { createApiClientError } from '@orbit/shared'
 import { installWebLocks } from '../helpers/web-locks'
 
 const mockSubscribePush = vi.fn()
@@ -420,7 +419,7 @@ describe('use-push-notification-preferences helpers', () => {
 
   it.each(['cleanup', 'rotation'] as const)('preserves the live endpoint when stale %s reaches its deadline before account refusal', async (operation) => {
     const { subscription, getSubscription, subscribe } = await enablePushAs('account-b')
-    let refuseRelease: (error: Error) => void = () => undefined
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     setAccountId('account-a')
     vi.useFakeTimers()
@@ -466,7 +465,7 @@ describe('use-push-notification-preferences helpers', () => {
     setAccountId('account-b')
     let finishPersist: () => void = () => undefined
     mockSubscribePush.mockReturnValueOnce(new Promise<void>((resolve) => { finishPersist = resolve }))
-    let refuseRelease: (error: Error) => void = () => undefined
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     vi.useFakeTimers()
 
@@ -797,7 +796,8 @@ describe('usePushNotificationPreferences hook', () => {
     setAccountId('account-a')
     const { result } = renderHook(() => usePushNotificationPreferences())
     await waitFor(() => expect(result.current.status).toBe('not-registered'))
-    let refuseRelease: (error: Error) => void = () => undefined
+    mockSubscribePush.mockRejectedValueOnce(createApiClientError(409, { errorCode: 'PUSH_ENDPOINT_OWNED_BY_OTHER_USER' }, 'Endpoint owned by another account'))
+    let refuseRelease!: (error: Error) => void
     mockUnsubscribePush.mockReturnValue(new Promise<void>((_, reject) => { refuseRelease = reject }))
     vi.useFakeTimers()
 
