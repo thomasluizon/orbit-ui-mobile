@@ -49,7 +49,7 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -59,6 +59,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
+  const onAttemptDismissRef = useRef(onAttemptDismiss)
 
   const requestClose = useCallback((exitAction?: () => void) => {
     exitActionRef.current = exitAction ?? null
@@ -71,7 +72,8 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
 
   useEffect(() => {
     onCloseRef.current = onClose
-  }, [onClose])
+    onAttemptDismissRef.current = onAttemptDismiss
+  }, [onClose, onAttemptDismiss])
 
   useEffect(() => {
     if (!modalFocusOwnerActive) return
@@ -79,6 +81,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
       id: modalId,
       dismiss: () => {
         if (onCloseRef.current) requestClose()
+        else onAttemptDismissRef.current?.()
       },
     })
     registerModalFocusOwner(modalId)
@@ -104,9 +107,11 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
     <Dialog.Root
       open={presented}
       modal
-      disablePointerDismissal={onClose == null}
+      disablePointerDismissal={onClose == null && onAttemptDismiss == null}
       onOpenChange={(nextOpen: boolean) => {
-        if (!nextOpen && onClose) requestClose()
+        if (nextOpen) return
+        if (onClose) requestClose()
+        else onAttemptDismiss?.()
       }}
       onOpenChangeComplete={(nextOpen: boolean) => {
         if (!nextOpen) {
@@ -125,7 +130,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
                 {title ?? accessibleTitle ?? t('common.appName')}
               </Dialog.Title>
               {headerAccessory}
-              {onClose ? (
+              {onClose || onAttemptDismiss ? (
                 <Dialog.Close className="orbit-sheet-close" aria-label={t('common.close')}>
                   <X size={24} strokeWidth={1.8} aria-hidden="true" />
                 </Dialog.Close>

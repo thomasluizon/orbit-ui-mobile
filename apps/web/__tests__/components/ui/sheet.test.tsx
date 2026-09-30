@@ -4,6 +4,8 @@ import { runServerAction } from '@/lib/client-action'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
@@ -205,5 +207,78 @@ describe('Sheet close path', () => {
     fireEvent.click(screen.getByRole('button', { name: 'request-close' }))
     await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1))
     expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+function DirtyForm({ onOpenChange }: Readonly<{ onOpenChange: (open: boolean) => void }>) {
+  const [title, setTitle] = useState('')
+  const { sheetRef, closeSheet } = useSheetHost()
+  const guard = useDismissGuard({ isDirty: title.length > 0, onDismiss: () => closeSheet(() => onOpenChange(false)) })
+  return <>
+    <Sheet ref={sheetRef} title="Create habit" onClose={guard.canDismiss ? () => onOpenChange(false) : undefined} onAttemptDismiss={guard.requestDismiss}>
+      <input aria-label="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
+      <button type="button" onClick={guard.requestDismiss}>Cancel</button>
+    </Sheet>
+    <DiscardChangesSheet open={guard.showDiscardDialog} onKeepEditing={guard.cancelDismiss} onDiscard={guard.confirmDismiss} />
+  </>
+}
+
+function DiscardHost({ onOpenChange }: Readonly<{ onOpenChange: (open: boolean) => void }>) {
+  const [open, setOpen] = useState(true)
+  return open ? <DirtyForm onOpenChange={(nextOpen) => { onOpenChange(nextOpen); setOpen(nextOpen) }} /> : <button type="button" onClick={() => setOpen(true)}>Reopen</button>
+}
+
+describe('dirty sheet dismissal', () => {
+  it('routes the close control and Escape to the guard without closing', async () => {
+    const user = userEvent.setup()
+    const attempt = vi.fn()
+    render(<Sheet title="Create habit" onAttemptDismiss={attempt}><button type="button">Field</button></Sheet>)
+    await user.click(screen.getByRole('button', { name: 'common.close' }))
+    expect(attempt).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Field' }))
+    await user.keyboard('{Escape}')
+    expect(attempt).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('routes a backdrop press to the guard without closing', async () => {
+    const user = userEvent.setup()
+    const attempt = vi.fn()
+    render(<Sheet title="Create habit" onAttemptDismiss={attempt}><button type="button">Field</button></Sheet>)
+    const viewport = document.querySelector('.orbit-sheet-viewport')
+    expect(viewport).not.toBeNull()
+    await user.click(viewport!)
+    expect(attempt).toHaveBeenCalledOnce()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it.each(['Escape', 'Cancel'])('discards through %s, closes both sheets once and reopens empty', async (trigger) => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    render(<DiscardHost onOpenChange={onOpenChange} />)
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Run Monday')
+    if (trigger === 'Escape') await user.keyboard('{Escape}')
+    else await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('dialog', { name: 'common.discardChangesTitle' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(screen.queryAllByRole('dialog')).toHaveLength(0))
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+    await user.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('')
+  })
+
+  it('keeps the title when editing continues and focuses the keep pill', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    render(<DiscardHost onOpenChange={onOpenChange} />)
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Run Monday')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.keepEditing' })).toHaveFocus())
+    expect(screen.getByRole('button', { name: 'common.discardChangesAction' })).toHaveAttribute('data-variant', 'destructive')
+    await user.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'common.discardChangesTitle' })).toBeNull())
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Run Monday')
+    expect(onOpenChange).not.toHaveBeenCalled()
   })
 })

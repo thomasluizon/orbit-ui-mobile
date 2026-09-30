@@ -221,6 +221,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.create')}
         actions={(
           <DialogActionPair>

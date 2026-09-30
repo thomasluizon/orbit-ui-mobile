@@ -68,8 +68,6 @@ const DISCLOSURE_EXIT = new Keyframe({
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   onFlushBufferedInputsReady?: (flush: () => void) => void
   onUpgrade: () => void
-  onSuggestEmoji?: () => void
-  isSuggestingEmoji?: boolean
 }
 
 function renderSubHabitChildren(
@@ -83,7 +81,6 @@ interface AstraFallbackProps {
   visible: boolean
   atLimit: boolean
   isSuggesting: boolean
-  unresolved: string
   limitMessage: string
   readingLabel: string
   askLabel: string
@@ -96,7 +93,6 @@ function AstraFallback({
   visible,
   atLimit,
   isSuggesting,
-  unresolved,
   limitMessage,
   readingLabel,
   askLabel,
@@ -107,13 +103,7 @@ function AstraFallback({
   if (!visible) return null
   return (
     <View style={{ gap: 12 }}>
-      {atLimit ? (
-        <CapacityNotice message={limitMessage} />
-      ) : (
-        <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontSize: 14, lineHeight: 22 }}>
-          {unresolved}
-        </Text>
-      )}
+      {atLimit ? <CapacityNotice message={limitMessage} /> : null}
       {isSuggesting ? (
         <Skeleton variant="settings" label={readingLabel} />
       ) : (
@@ -251,9 +241,7 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
-  onSuggestEmoji,
   isSuggesting = false,
-  isSuggestingEmoji = false,
   readPhraseLocally = false,
   lockedGeneral = null,
   onUpgrade,
@@ -418,9 +406,7 @@ export function HabitFormFields({
         onIntervalWeeksChange={controller.setIntervalWeeks}
         onToggleDay={(day) => controller.toggleDay(day, daily)}
         onEmojiSelect={controller.setEmoji}
-        onSuggestEmoji={onSuggestEmoji}
-        isSuggestingEmoji={isSuggestingEmoji}
-        isSuggestionDisabled={isSuggesting || isSuggestingEmoji}
+        isSuggestionDisabled={isSuggesting}
         onValueChange={controller.setTitle}
         proposed={proposal.setup}
         scheduleLocked={lockedGeneral === true}
@@ -447,7 +433,7 @@ export function HabitFormFields({
       />
 
       <View style={styles.disclosure}>
-        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} chevron={false} inForm onClick={() => setDetailsOpen((open) => !open)} />
+        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} inset={false} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <View>
@@ -498,7 +484,7 @@ export function HabitFormFields({
         ) : null}
       </View>
 
-      {displayedStartDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{formatLocaleDate(displayedStartDate, i18n.language)}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
+      {displayedStartDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{t('habits.form.startDateValue', { date: formatLocaleDate(displayedStartDate, i18n.language) })}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
     </View>
   )
 }

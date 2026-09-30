@@ -466,7 +466,6 @@ describe('habit form helpers', () => {
     expect(labels.count(3)).toBe('habits.form.timesAWeekCount:{"count":3}')
     expect(labels.repeat(2)).toBe('habits.form.repeatWeeks:{"count":2}')
     expect(buildHabitAstraFallbackCopy(translate, 5)).toEqual({
-      unresolved: 'habits.form.unresolved',
       limitMessage: 'habits.form.localReadLimit:{"allowance":5}',
       readingLabel: 'habits.form.astraReading',
       askLabel: 'habits.form.askAstra',

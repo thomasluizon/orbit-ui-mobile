@@ -18,6 +18,7 @@ export function DiscardChangesSheet({
   return (
     <ConfirmSheet
       open={open}
+      destructive
       title={t('common.discardChangesTitle')}
       message={t('common.discardChangesDescription')}
       cancelLabel={t('common.keepEditing')}

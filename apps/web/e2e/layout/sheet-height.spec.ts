@@ -103,7 +103,7 @@ test('a short confirmation fits its content and keeps its actions above the safe
 test('a long creation sheet scrolls under its pinned safe area footer', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: messages.habits.createManually }).click()
-  const panel = page.getByRole('dialog', { name: messages.habits.createHabit })
+  const panel = page.getByRole('dialog', { name: messages.habits.form.newHabit })
   await expect(panel).toBeVisible()
   await panel.getByRole('button', { name: messages.habits.form.moreDetails }).click()
   await expect(panel.locator('.habit-form-disclosure[data-open="true"]')).toBeVisible()

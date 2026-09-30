@@ -357,7 +357,7 @@ describe('CreateHabitModal', () => {
     }))
     const onOpenChange = vi.fn()
     renderWithProviders(<CreateHabitModal open onOpenChange={onOpenChange} />)
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
     await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
 
     await replaceAccountWith('user-2')
@@ -372,7 +372,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    const matches = screen.getAllByText('habits.createHabit')
+    const matches = screen.getAllByText('habits.form.newHabit')
     expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
@@ -401,7 +401,7 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'common.create' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
   })
 
   it('submits through the named Create footer action', async () => {
@@ -409,7 +409,7 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
@@ -461,7 +461,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
 
     fireEvent.click(screen.getByTestId('apply-phrase'))
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
@@ -486,7 +486,7 @@ describe('CreateHabitModal', () => {
     act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
     expect(setOneTime).toHaveBeenCalledOnce()
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
@@ -501,7 +501,7 @@ describe('CreateHabitModal', () => {
       screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
       { target: { value: 'Warm up' } },
     )
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
@@ -531,7 +531,7 @@ describe('CreateHabitModal', () => {
     )
 
     fireEvent.click(screen.getByTestId('goal-trigger'))
-    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 
     await waitFor(() => {
       expect(mockValidateAll).toHaveBeenCalledWith(expect.objectContaining({
@@ -812,5 +812,16 @@ describe('CreateHabitModal', () => {
     expect(mockSetFlexible).not.toHaveBeenCalled()
     expect(mockFormSetValue).not.toHaveBeenCalled()
     expect(screen.queryByDisplayValue('Old step')).not.toBeInTheDocument()
+  })
+})
+
+describe('create form copy', () => {
+  it('names the new habit and explains the empty disabled action without a subtitle', () => {
+    mockFormWatch.mockImplementation((field?: string) => field === 'title' ? '' : undefined)
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    expect(screen.getByText('habits.form.newHabit')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDisabled()
+    expect(screen.getByText('habits.form.createWhy')).toBeInTheDocument()
+    expect(screen.queryByText('habits.form.createDescription')).toBeNull()
   })
 })
