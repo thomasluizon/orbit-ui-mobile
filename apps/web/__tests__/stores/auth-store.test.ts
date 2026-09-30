@@ -25,6 +25,7 @@ const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
+import { installWebLocks } from '../helpers/web-locks'
 
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
@@ -42,6 +43,7 @@ const pushMocks = vi.hoisted(() => ({
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: pushMocks.subscribePush,
   unsubscribePush: pushMocks.unsubscribePush,
+  unsubscribePushForCleanup: pushMocks.unsubscribePush,
 }))
 
 vi.mock('@sentry/nextjs', async (importOriginal) => ({
@@ -95,7 +97,6 @@ async function enablePush() {
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
-let lockQueue: Promise<unknown>
 
 describe('the first session check under a query in flight', () => {
   it('settles a mounted observer after the account boundary', async () => {
@@ -131,17 +132,7 @@ describe('the first session check under a query in flight', () => {
 
 describe('auth store', () => {
   beforeEach(() => {
-    lockQueue = Promise.resolve()
-    Object.defineProperty(navigator, 'locks', {
-      configurable: true,
-      value: {
-        request: (_name: string, task: () => Promise<unknown>) => {
-          const result = lockQueue.then(task)
-          lockQueue = result.catch(() => {})
-          return result
-        },
-      },
-    })
+    installWebLocks()
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
     useAuthStore.setState({

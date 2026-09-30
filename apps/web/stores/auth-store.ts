@@ -362,12 +362,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     const logoutEpoch = getSessionEpoch()
+    const logoutAccountId = getHeldAccountId()
     let teardownEpoch: number | null
     try {
       teardownEpoch = await withSessionCookieLock(async () => {
         if (logoutEpoch !== getSessionEpoch()) return null
         await import('@/hooks/use-push-notification-preferences')
-          .then((module) => module.releasePushSubscription())
+          .then((module) => module.releasePushSubscription(logoutAccountId))
           .catch((error: unknown) => Sentry.captureException(error))
         if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()

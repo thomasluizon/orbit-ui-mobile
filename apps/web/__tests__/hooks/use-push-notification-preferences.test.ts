@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError } from '@orbit/shared'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { installWebLocks } from '../helpers/web-locks'
 
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: (...args: unknown[]) => mockSubscribePush(...args),
   unsubscribePush: (...args: unknown[]) => mockUnsubscribePush(...args),
+  unsubscribePushForCleanup: (...args: unknown[]) => mockUnsubscribePush(...args),
 }))
 
 import {
@@ -80,6 +82,7 @@ function createMockSubscription(endpoint = 'https://example.com/push'): MockPush
     endpoint,
     toJSON: () => ({
       endpoint,
+      expirationTime: null,
       keys: {
         p256dh: 'p256dh-key',
         auth: 'auth-key',
@@ -156,6 +159,7 @@ describe('use-push-notification-preferences helpers', () => {
   const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()
@@ -312,6 +316,53 @@ describe('use-push-notification-preferences helpers', () => {
 
     await expect(settleWithin(subscribeToPushNotifications())).rejects.toThrow('Failed to persist push subscription')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases the prior API row before rotating the browser endpoint at onboarding', async () => {
+    const previous = createMockSubscription('https://example.com/account-a')
+    const next = createMockSubscription('https://example.com/account-b')
+    const owners = new Map([[previous.endpoint, 'account-a']])
+    setupPushEnvironment({ existingSubscription: previous, subscribeResult: next })
+    setAccountId('account-b')
+    mockUnsubscribePush.mockImplementation(async (subscription: PushSubscriptionJSON) => {
+      expect(previous.unsubscribe).not.toHaveBeenCalled()
+      owners.delete(subscription.endpoint!)
+    })
+    mockSubscribePush.mockImplementation(async (subscription: PushSubscriptionJSON) => {
+      owners.set(subscription.endpoint!, 'account-b')
+    })
+
+    expect((await settleWithin(subscribeToPushNotifications())).status).toBe('registered')
+    expect(owners).toEqual(new Map([[next.endpoint, 'account-b']]))
+    expect(previous.unsubscribe).toHaveBeenCalledOnce()
+    expect(mockUnsubscribePush).toHaveBeenCalledWith(expect.objectContaining({
+      ...previous.toJSON(), releaseOtherAccount: true,
+    }), null)
+  })
+
+  it('finishes new registration when releasing the prior API endpoint fails', async () => {
+    const previous = createMockSubscription('https://example.com/account-a')
+    const next = createMockSubscription('https://example.com/account-b')
+    setupPushEnvironment({ existingSubscription: previous, subscribeResult: next })
+    mockUnsubscribePush.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    expect((await settleWithin(subscribeToPushNotifications())).status).toBe('registered')
+    expect(mockUnsubscribePush).toHaveBeenCalledOnce()
+    expect(previous.unsubscribe).toHaveBeenCalledOnce()
+    expect(mockSubscribePush).toHaveBeenCalledWith(next.toJSON(), null)
+  })
+
+  it('releases the foreign API row with device keys once the replacement session becomes active', async () => {
+    const { subscription } = await enablePushAs('account-a')
+    let owner: string | null = 'account-a'
+    mockUnsubscribePush.mockImplementation(async (submitted: PushSubscriptionJSON & { releaseOtherAccount?: boolean }) => {
+      if (submitted.releaseOtherAccount && submitted.endpoint === subscription.endpoint) owner = null
+    })
+
+    startAccountScopedSession('account-a', 'account-b')
+    await vi.waitFor(() => expect(subscription.unsubscribe).toHaveBeenCalledOnce())
+    expect(owner).toBeNull()
+    expect(mockUnsubscribePush).toHaveBeenCalledWith({ ...subscription.toJSON(), releaseOtherAccount: true }, 'account-b')
   })
 
   it('keeps the new account subscription when account-switch cleanup has a pending browser lookup', async () => {
@@ -483,6 +534,7 @@ describe('use-push-notification-preferences helpers', () => {
 
 describe('releasing this browser push subscription at logout', () => {
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()
@@ -503,13 +555,13 @@ describe('releasing this browser push subscription at logout', () => {
       finishApiCall = resolve
     }))
 
-    const released = pushPreferences.releasePushSubscription()
+    const released = pushPreferences.releasePushSubscription('account-a')
     await vi.waitFor(() => expect(mockUnsubscribePush).toHaveBeenCalledTimes(1))
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
     finishApiCall()
     await settleWithin(released)
 
-    expect(mockUnsubscribePush).toHaveBeenCalledWith(subscription.toJSON(), null)
+    expect(mockUnsubscribePush).toHaveBeenCalledWith(subscription.toJSON(), 'account-a')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
@@ -518,7 +570,7 @@ describe('releasing this browser push subscription at logout', () => {
     const failure = new Error('network down')
     mockUnsubscribePush.mockRejectedValue(failure)
 
-    await expect(settleWithin(pushPreferences.releasePushSubscription())).rejects.toBe(failure)
+    await expect(settleWithin(pushPreferences.releasePushSubscription('account-a'))).rejects.toBe(failure)
 
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
@@ -526,7 +578,7 @@ describe('releasing this browser push subscription at logout', () => {
   it('never registers a worker just to find there is nothing to release', async () => {
     const { register, getSubscription } = setupPushEnvironment({ permission: 'granted' })
 
-    await settleWithin(pushPreferences.releasePushSubscription())
+    await settleWithin(pushPreferences.releasePushSubscription('account-a'))
 
     expect(register).not.toHaveBeenCalled()
     expect(getSubscription).not.toHaveBeenCalled()
@@ -538,6 +590,7 @@ describe('usePushNotificationPreferences hook', () => {
   const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()

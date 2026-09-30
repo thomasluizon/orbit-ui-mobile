@@ -9,16 +9,19 @@ import {
 import {
   subscribePush as subscribePushAction,
   unsubscribePush as unsubscribePushAction,
+  unsubscribePushForCleanup,
 } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { ApiClientError } from '@orbit/shared'
-import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { getHeldAccountId } from '@/stores/auth-store'
 import {
   getExistingPushSubscription,
   isPushSubscriptionOwner,
   recordPushSubscriptionOwner,
+  releaseExistingPushSubscriptionOnServer,
   serializePushSubscriptionMutation,
+  settlePushCleanupBeforeAbort,
 } from '@/lib/push-subscription-owner'
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 
@@ -157,6 +160,7 @@ export async function subscribeToPushNotifications(
     const existingSubscription = await registration.pushManager.getSubscription()
 
     if (existingSubscription) {
+      await releaseExistingPushSubscriptionOnServer(existingSubscription, intendedAccountId)
       await existingSubscription.unsubscribe()
     }
 
@@ -207,7 +211,10 @@ export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> 
       }
     }
     if (!vapidKey) throw new Error('Missing VAPID public key')
-    await subscription?.unsubscribe()
+    if (subscription) {
+      await releaseExistingPushSubscriptionOnServer(subscription, intendedAccountId)
+      await subscription.unsubscribe()
+    }
     const replacement = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
@@ -254,22 +261,32 @@ export async function unsubscribeFromPushNotifications(
 }
 
 /**
- * Logout: removes this browser's subscription on the API while the session cookie still names its
- * account, then in the browser, so the next person here gets none of this account's pushes. Ending it in
- * the browser also ends the endpoint, so the API deletes its row on the next send (410 Gone) even when
- * the first call fails. The Android twin is `unsubscribePushToken` in `apps/mobile/hooks/use-push-notifications.ts`.
+ * Releases only the held account's endpoint. Cleanup has a deadline because it runs inside the cookie
+ * lock, and uses a settling action failure mode instead of waiting for a UI reload (#994).
  */
-export async function releasePushSubscription(): Promise<void> {
-  const intendedAccountId = getHeldAccountId()
-  return serializePushSubscriptionMutation(async () => {
-    const subscription = await getExistingPushSubscription()
-    if (!subscription) return
-    try {
-      await unsubscribePushAction(subscription.toJSON(), intendedAccountId)
-    } finally {
-      await subscription.unsubscribe()
-    }
-  })
+export async function releasePushSubscription(accountId = getHeldAccountId()): Promise<void> {
+  if (!accountId || !('serviceWorker' in navigator)) return
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(new Error('Push release timed out')), 5000)
+  try {
+    await serializePushSubscriptionMutation(async () => {
+      const subscription = await getExistingPushSubscription()
+      controller.signal.throwIfAborted()
+      if (!subscription || !isPushSubscriptionOwner(accountId)) return
+      try {
+        await settlePushCleanupBeforeAbort(
+          unsubscribePushForCleanup(subscription.toJSON(), accountId), controller.signal)
+      } catch (error) {
+        if (reportsAccountChanged(error)) throw error
+        if (isPushSubscriptionOwner(accountId)) await subscription.unsubscribe()
+        throw error
+      }
+      controller.signal.throwIfAborted()
+      if (isPushSubscriptionOwner(accountId)) await subscription.unsubscribe()
+    }, controller.signal)
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export function usePushNotificationPreferences(): UsePushNotificationPreferencesResult {

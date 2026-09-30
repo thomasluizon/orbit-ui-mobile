@@ -1,6 +1,7 @@
 'use server'
 
 import { API } from '@orbit/shared/api'
+import type { UnsubscribePushInput } from '@orbit/shared/types'
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
@@ -76,7 +77,7 @@ export async function subscribePush(
  * The backend expects { endpoint, p256dh, auth } as flat fields.
  */
 export async function unsubscribePush(
-  subscription: PushSubscriptionJSON,
+  subscription: PushSubscriptionJSON & Pick<UnsubscribePushInput, 'releaseOtherAccount'>,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.notifications.unsubscribe, {
@@ -85,6 +86,7 @@ export async function unsubscribePush(
       endpoint: subscription.endpoint,
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
+      ...(subscription.releaseOtherAccount === undefined ? {} : { releaseOtherAccount: subscription.releaseOtherAccount }),
     }),
   }, intendedAccountId))
 }

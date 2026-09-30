@@ -8,7 +8,7 @@ import {
 } from '../types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
 import { profileSchema, setNameRequestSchema } from '../types/profile'
-import { notificationItemSchema, notificationsResponseSchema } from '../types/notification'
+import { notificationItemSchema, notificationsResponseSchema, unsubscribePushInputSchema } from '../types/notification'
 import { achievementSchema, gamificationProfileSchema } from '../types/gamification'
 import { appConfigSchema, DEFAULT_CONFIG, upgradeRequiredSchema } from '../types/config'
 
@@ -431,6 +431,12 @@ describe('setNameRequestSchema', () => {
 
 
 describe('notification schemas', () => {
+  it('keeps foreign-account release optional and accepts only a boolean opt-in', () => {
+    const ordinary = { endpoint: 'https://push.example.com/browser', p256dh: 'device-key', auth: 'device-auth' }
+    expect(unsubscribePushInputSchema.parse(ordinary)).toEqual(ordinary)
+    expect(unsubscribePushInputSchema.parse({ ...ordinary, releaseOtherAccount: true })).toEqual({ ...ordinary, releaseOtherAccount: true })
+    expect(unsubscribePushInputSchema.safeParse({ ...ordinary, releaseOtherAccount: 'true' }).success).toBe(false)
+  })
   it('parses a valid NotificationItem', () => {
     const notif = createMockNotification()
     const result = notificationItemSchema.safeParse(notif)
