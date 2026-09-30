@@ -26,7 +26,7 @@ export function AppSelect({
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="w-full appearance-none min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 pr-12 pl-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        className="w-full appearance-none min-h-[54px] bg-[var(--bg-field)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] text-[var(--fg-1)] rounded-[14px] py-3 pr-12 pl-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
       >
         {options.map((option) => (
           <option

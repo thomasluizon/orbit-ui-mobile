@@ -1928,7 +1928,7 @@ describe('HabitList', () => {
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
     expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
     expect(tree.root.findByType('FlatList').props.renderItem({ item: child, index: 0 }).props.structuralColumn).toBe(true)
-    let headerTree: any
+    let headerTree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType('FlatList').props.ListHeaderComponent) })
     expectPressFill(headerTree, 'common.back', createTokensV2().bgHover, 999)
   })

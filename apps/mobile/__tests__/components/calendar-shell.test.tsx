@@ -335,6 +335,7 @@ describe("CalendarWeekNav (mobile)", () => {
     });
 
     expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
+    for (const label of ['Previous week', 'Next week', 'Go to current week']) expectPressFill(tree!, label, tokens.bgHover, 999);
     pressByAccessibilityLabel(tree!, "Previous week");
     pressByAccessibilityLabel(tree!, "Next week");
     pressByAccessibilityLabel(tree!, "Go to current week");

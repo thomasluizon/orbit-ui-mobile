@@ -1,3 +1,4 @@
+import { AppSelect } from '@/components/ui/app-select'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -85,6 +86,7 @@ describe('interaction fill parity in Chromium', () => {
       <HabitDrill drill={drill} t={(key) => key} hasProAccess renderHabitCard={() => null} onAddSubHabit={noop} />
       <Chip ariaLabel="Idle chip">Idle</Chip><Chip active ariaLabel="Selected chip">Selected</Chip>
       <SegmentedControl label="Views" options={[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }]} value="all" onChange={noop} />
+      <AppSelect value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />
       <TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={noop} onCommit={noop} onCancel={noop} />
       <HabitTagChip tag={{ id: 'health', name: 'Health' }} selected={false} animationClassName="" atLimit={false} disabled={false} onToggle={noop} onEdit={noop} onDelete={noop} editAriaLabel="Edit Health" deleteAriaLabel="Delete Health" />
     </>)
@@ -97,7 +99,7 @@ describe('interaction fill parity in Chromium', () => {
     try {
       const variables = resolveWebThemeVariables('orange', mode)
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
-      await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} button {transition:none !important}</style>${markup}${close}`)
+      await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
       for (const label of ['Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', 'common.close', 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
         const control = page.getByRole('button', { name: label, exact: true })
@@ -106,6 +108,11 @@ describe('interaction fill parity in Chromium', () => {
         await page.mouse.down()
         expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor), `${label} press`).toBe(expectedFill)
         await page.mouse.up()
+      }
+      if (!hasTouch) {
+        const direction = page.getByRole('combobox', { name: 'Direction' })
+        await direction.hover()
+        expect(await direction.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
       }
       const segment = page.getByRole('radio', { name: 'Active', exact: true })
       await segment.hover()
