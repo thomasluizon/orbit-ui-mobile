@@ -79,6 +79,7 @@ const profileQueryState: {
 const calendarDataCalls = vi.fn()
 const logHabitMutateAsync = vi.fn(async () => {})
 const routerPush = vi.fn()
+const routerReplace = vi.fn()
 const calendarDayDetailProps: {
   dateStr?: string | null
   calendarEvents?: CalendarSyncEvent[]
@@ -146,7 +147,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: routerPush }),
+  useRouter: () => ({ push: routerPush, replace: routerReplace }),
   useSearchParams: () => new URLSearchParams(calendarRouteSearch),
 }))
 
@@ -404,6 +405,7 @@ describe('CalendarPage view switcher', () => {
     calendarDataCalls.mockClear()
     logHabitMutateAsync.mockClear()
     routerPush.mockClear()
+    routerReplace.mockClear()
     calendarEventsQueryState.data = { status: 'connected', events: [] }
     calendarEventsQueryState.isPending = false
     calendarEventsQueryState.error = null
@@ -863,6 +865,26 @@ describe('CalendarPage view switcher', () => {
     calendarRouteSearch = 'mode=review'
     render(<CalendarPage />)
     expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-review', 'true')
+  })
+
+  it('opens review targets after the initial account binding', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    const view = render(<CalendarPage />)
+    act(() => holdAccount('review-target-account'))
+    calendarRouteSearch = 'mode=review'
+    view.rerender(<CalendarPage />)
+    expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-review', 'true')
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('retires a review request observed before the account binds', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarRouteSearch = 'mode=review'
+    render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-import-content')).toBeInTheDocument()
+    act(() => holdAccount('next-review-target-account'))
+    expect(screen.queryByTestId('calendar-import-content')).not.toBeInTheDocument()
+    expect(routerReplace).toHaveBeenCalledWith('/calendar')
   })
 
   it('passes a resolved empty Google events query as ready', () => {

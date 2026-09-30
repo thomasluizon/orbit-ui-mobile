@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import { execFileSync } from 'node:child_process'
 import { NextIntlClientProvider } from 'next-intl'
-import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { StreakBadge } from '@/components/gamification/streak-badge'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { useTranslations } from 'next-intl'
 import { AppSelect } from '@/components/ui/app-select'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -18,7 +18,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { HabitTagChip } from '@/components/habits/habit-form-fields/habit-tag-chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { render, within } from '@testing-library/react'
+import { fireEvent, render, within } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
@@ -33,18 +33,21 @@ const cellWords: DayCellWords = {
   readOnly: 'read only',
 }
 
+function ReminderTargets() {
+  const t = useTranslations()
+  return <>
+    <ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={() => {}} onToggleReminder={() => {}} reminderLabel={String} t={t} />
+    <HabitChecklist items={[{ text: 'Beber água', isChecked: false }]} editable onItemsChange={() => {}} />
+  </>
+}
+
 describe('painted press and hover shapes', () => {
   it('renders the compact layout inventory from real controls and providers', () => {
-    const router: AppRouterInstance = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {}, bfcacheId: 'press-target' }
     const container = document.createElement('section')
-    container.innerHTML = renderToStaticMarkup(
-      <AppRouterContext.Provider value={router}>
-        <NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
-          <StreakBadge streak={3} />
-          <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} interactive onReset={() => {}} onClear={() => {}} />
-        </NextIntlClientProvider>
-      </AppRouterContext.Provider>,
-    )
+    container.innerHTML = execFileSync(process.execPath, ['--import', 'tsx', resolve('e2e/layout/compact-target-inventory.tsx')], {
+      encoding: 'utf8',
+      env: { ...process.env, TSX_TSCONFIG_PATH: resolve('e2e/layout/compact-target-tsconfig.json') },
+    })
     expect(within(container).getByRole('button', { name: /Sequência/ })).toBeDefined()
     for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
       expect(within(container).getByRole('button', { name: label })).toBeDefined()
@@ -92,6 +95,32 @@ describe('interaction fill parity in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1280])('paints the custom reminder commit as a full round target at %spx', async (width) => {
+    const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC"><ReminderTargets /></NextIntlClientProvider>)
+    fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderAdd }))
+    fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderCustom }))
+    const markup = controls.container.innerHTML
+    controls.unmount()
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = resolveWebThemeVariables('orange', 'dark')
+      const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root {${declarations}} button {transition:none !important}</style>${markup}`)
+      const customReminder = page.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).locator('..')
+      const button = customReminder.getByRole('button', { name: ptBr.common.add, exact: true })
+      await button.hover()
+      const geometry = await button.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        return { width: bounds.width, height: bounds.height, radius: style.borderTopLeftRadius, background: style.backgroundColor }
+      })
+      expect(geometry.width).toBeGreaterThanOrEqual(44)
+      expect(geometry.height).toBeGreaterThanOrEqual(44)
+      expect(Math.min(Number.parseFloat(geometry.radius), geometry.width / 2, geometry.height / 2), geometry.radius).toBe(22)
+      expect(geometry.background).toBe('rgb(183, 78, 18)')
+    } finally { await page.close() }
+  })
 
   it.each([{ mode: 'dark', hasTouch: false }, { mode: 'light', hasTouch: false }, { mode: 'dark', hasTouch: true }, { mode: 'light', hasTouch: true }] as const)('paints the neutral role in $mode mode with touch: $hasTouch', async ({ mode, hasTouch }) => {
     const noop = () => {}

@@ -1,11 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
-import { createElement } from 'react'
-import { jsx } from 'react/jsx-runtime'
-import { renderToStaticMarkup } from 'react-dom/server'
-import { NextIntlClientProvider } from 'next-intl'
-import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
-import { StreakBadge } from '@/components/gamification/streak-badge'
-import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { execFileSync } from 'node:child_process'
+import { resolve } from 'node:path'
 import { calendarAutoSyncStateSchema, calendarSyncSuggestionSchema } from '@orbit/shared/types/calendar'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -26,21 +21,10 @@ const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
 const calendarMonth = calendarMonthResponseSchema.parse({ habits: [habit], logs: {} })
 
 function renderCompactTargetInventory() {
-  const router: AppRouterInstance = {
-    back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {},
-    bfcacheId: 'press-target',
-  }
-  const controls = [
-    createElement(StreakBadge, { key: 'streak', streak: 3 }),
-    createElement(HabitChecklist, {
-      key: 'checklist', items: [{ text: 'Beber água', isChecked: true }],
-      interactive: true, onReset() {}, onClear() {},
-    }),
-  ]
-  return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: router },
-    jsx(NextIntlClientProvider, {
-      locale: 'pt-BR', messages: ptBr, timeZone: 'UTC', children: controls,
-    })))
+  return execFileSync(process.execPath, ['--import', 'tsx', resolve(__dirname, 'compact-target-inventory.tsx')], {
+    encoding: 'utf8',
+    env: { ...process.env, TSX_TSCONFIG_PATH: resolve(__dirname, 'compact-target-tsconfig.json') },
+  })
 }
 
 async function readHitBoxOnceStill(control: Locator) {
@@ -235,7 +219,8 @@ for (const width of [412, 1280] as const) {
       await disclosure.getByRole('button', { name: ptBr.habits.form.reminderAdd }).click()
       await disclosure.getByRole('button', { name: ptBr.habits.form.reminderCustom, exact: true }).click()
       await disclosure.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).fill('45')
-      await expectFullTouchTarget(disclosure.getByRole('button', { name: ptBr.common.add, exact: true }).last(), 'pill')
+      const customReminder = disclosure.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).locator('..')
+      await expectFullTouchTarget(customReminder.getByRole('button', { name: ptBr.common.add, exact: true }), 'pill')
       await disclosure.getByRole('button', { name: ptBr.common.selectDate, exact: true }).click()
       await expectFullTouchTarget(page.getByRole('dialog').last().getByRole('button', { name: ptBr.common.selectYear }), 8)
     })
@@ -274,8 +259,12 @@ for (const width of [412, 1280] as const) {
           json: calendarAutoSyncStateSchema.parse({ enabled: true, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true }),
         }))
         await context.route(new RegExp(`${API.calendar.autoSyncSuggestions}$`), (route) => route.fulfill({ json: [suggestion] }))
-        await page.goto('/calendar?mode=review')
-        const sheet = page.getByRole('dialog')
+        await page.goto('/about')
+        const navigation = page.locator(width === 412 ? '[data-shell-tab-bar]' : '[data-shell-sidebar]')
+        await navigation.getByRole('button', { name: ptBr.nav.calendar, exact: true }).click()
+        await expect(page.getByRole('radiogroup')).toBeVisible()
+        await page.evaluate(() => window.history.pushState(null, '', '/calendar?mode=review'))
+        const sheet = page.getByRole('dialog', { name: ptBr.calendar.autoSync.reviewModeTitle, exact: true })
         await expectFullTouchTarget(sheet.getByRole('button', { name: new RegExp(`^(${ptBr.calendar.selectAll}|${ptBr.calendar.deselectAll})$`) }), 'pill')
         await expectFullTouchTarget(sheet.getByRole('button', { name: ptBr.calendar.autoSync.dismissSuggestion }), 'pill')
       })
