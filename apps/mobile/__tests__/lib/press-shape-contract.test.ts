@@ -17,13 +17,14 @@ type ScannedSource = { path: string; contents: string }
 type ParsedSource = {
   path: string
   syntax: ts.SourceFile
-  styles: Map<string, ts.ObjectLiteralExpression>
-  bindings: Map<string, ts.Node>
+  styles: Map<ts.ObjectLiteralExpression, string>
+  bindings: Map<ts.Node, Map<string, ts.Node>>
   imports: string[]
-  importBindings: Map<string, { specifier: string; name: string }>
 }
-type StylePart = { source: ParsedSource; name: string; object: ts.ObjectLiteralExpression; pressed: boolean }
+type StylePart = { source: ParsedSource; name: string; object: ts.ObjectLiteralExpression; pressed: boolean; properties: Map<string, ts.Expression> }
 type StyleVariant = StylePart[]
+type StyleReturn = { expression: ts.Expression; pressed: boolean }
+type ReturnFlow = { returned: StyleReturn[]; continuing: boolean[] }
 
 function sourceFiles(directory: string): ScannedSource[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -43,17 +44,43 @@ function parseSource(file: ScannedSource): ParsedSource {
   const source: ParsedSource = {
     path: file.path,
     syntax: ts.createSourceFile(file.path, file.contents, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX),
-    styles: new Map(), bindings: new Map(), imports: [], importBindings: new Map(),
+    styles: new Map(), bindings: new Map(), imports: [],
   }
   walk(source.syntax, (node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      source.bindings.set(node.name.text, node.initializer)
-    }
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) source.bindings.set(node.name.text, node.body)
+    indexDeclarations(node, source)
     if (ts.isImportDeclaration(node)) indexImports(node, source)
     if (ts.isCallExpression(node) && node.expression.getText(source.syntax) === 'StyleSheet.create') indexStyles(node, source)
   })
   return source
+}
+
+function indexDeclarations(node: ts.Node, source: ParsedSource) {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) indexBinding(node.parent, node.name.text, node.initializer ?? node, source)
+  if (ts.isFunctionDeclaration(node) && node.name && node.body) indexBinding(node.parent, node.name.text, node.body, source)
+  if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) indexBinding(node.parent, node.name.text, node, source)
+  if (!ts.isParameter(node)) return
+  if (ts.isIdentifier(node.name)) indexBinding(node.parent, node.name.text, node, source)
+  if (ts.isObjectBindingPattern(node.name)) {
+    for (const element of node.name.elements) if (ts.isIdentifier(element.name)) indexBinding(node.parent, element.name.text, element, source)
+  }
+}
+
+function indexBinding(node: ts.Node, name: string, value: ts.Node, source: ParsedSource) {
+  let scope = node
+  while (!ts.isSourceFile(scope) && !ts.isBlock(scope) && !ts.isFunctionLike(scope)) scope = scope.parent
+  const bindings = source.bindings.get(scope) ?? new Map<string, ts.Node>()
+  bindings.set(name, value)
+  source.bindings.set(scope, bindings)
+}
+
+function lexicalBinding(node: ts.Node, name: string, source: ParsedSource): ts.Node | undefined {
+  let scope = node
+  while (!ts.isSourceFile(scope)) {
+    const binding = source.bindings.get(scope)?.get(name)
+    if (binding) return binding
+    scope = scope.parent
+  }
+  return source.bindings.get(scope)?.get(name)
 }
 
 function indexImports(node: ts.ImportDeclaration, source: ParsedSource) {
@@ -63,7 +90,7 @@ function indexImports(node: ts.ImportDeclaration, source: ParsedSource) {
   const bindings = node.importClause?.namedBindings
   if (bindings && ts.isNamedImports(bindings)) {
     for (const element of bindings.elements) {
-      source.importBindings.set(element.name.text, { specifier, name: element.propertyName?.text ?? element.name.text })
+      indexBinding(source.syntax, element.name.text, element, source)
     }
   }
 }
@@ -71,15 +98,10 @@ function indexImports(node: ts.ImportDeclaration, source: ParsedSource) {
 function indexStyles(node: ts.CallExpression, source: ParsedSource) {
   const argument = node.arguments[0]
   if (!argument || !ts.isObjectLiteralExpression(argument)) return
-  const sheet = ts.isVariableDeclaration(node.parent) ? node.parent.name.getText(source.syntax) : 'styles'
-  let owner: ts.Node = node.parent
-  while (!ts.isFunctionDeclaration(owner) && !ts.isSourceFile(owner)) owner = owner.parent
-  const factory = ts.isFunctionDeclaration(owner) ? owner.name?.text : undefined
   for (const property of argument.properties) {
     if (!ts.isPropertyAssignment(property) || !ts.isObjectLiteralExpression(property.initializer)) continue
     const name = property.name.getText(source.syntax).replaceAll(/['"]/g, '')
-    source.styles.set(`${sheet}.${name}`, property.initializer)
-    if (factory) source.styles.set(`${factory}.${name}`, property.initializer)
+    source.styles.set(property.initializer, name)
   }
 }
 
@@ -103,31 +125,97 @@ function combine(left: StyleVariant[], right: StyleVariant[]): StyleVariant[] {
   return left.flatMap((before) => right.map((after) => [...before, ...after]))
 }
 
-function returnedStyles(node: ts.Node): ts.Expression[] {
-  if (ts.isReturnStatement(node)) return node.expression ? [node.expression] : []
-  if (ts.isArrowFunction(node) || ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) return []
-  const returned: ts.Expression[] = []
-  ts.forEachChild(node, (child) => { returned.push(...returnedStyles(child)) })
-  return returned
+function returnedStyles(node: ts.Node, pressed: boolean): ReturnFlow {
+  if (ts.isReturnStatement(node)) return { returned: node.expression ? [{ expression: node.expression, pressed }] : [], continuing: [] }
+  if (ts.isBlock(node)) {
+    const returned: StyleReturn[] = []
+    let continuing = [pressed]
+    for (const statement of node.statements) {
+      const flows = continuing.map((inPress) => returnedStyles(statement, inPress))
+      returned.push(...flows.flatMap((flow) => flow.returned))
+      continuing = [...new Set(flows.flatMap((flow) => flow.continuing))]
+    }
+    return { returned, continuing }
+  }
+  if (ts.isIfStatement(node)) {
+    const condition = node.expression.getText()
+    const inPress = pressed || /\bpressed\b/.test(condition)
+    const read = (branch: ts.Statement | undefined): ReturnFlow => branch ? returnedStyles(branch, inPress) : { returned: [], continuing: [inPress] }
+    if (condition === 'pressed') return read(node.thenStatement)
+    if (condition === '!pressed') return read(node.elseStatement)
+    const branches = [read(node.thenStatement), read(node.elseStatement)]
+    return { returned: branches.flatMap((flow) => flow.returned), continuing: branches.flatMap((flow) => flow.continuing) }
+  }
+  return { returned: [], continuing: [pressed] }
 }
 
 function resolveStyles(node: ts.Node, source: ParsedSource, available: ParsedSource[], seen = new Set<ts.Node>(), pressed = false): StyleVariant[] {
   if (seen.has(node)) return [[]]
   const nextSeen = new Set(seen).add(node)
-  const read = (expression: ts.Node, inPress = pressed) => resolveStyles(expression, source, available, nextSeen, inPress)
-  if (ts.isObjectLiteralExpression(node)) return [[{ source, name: 'inline', object: node, pressed }]]
+  const read = (expression: ts.Node, inPress = pressed, owner = source) => resolveStyles(expression, owner, available, nextSeen, inPress)
+  if (ts.isObjectLiteralExpression(node)) return resolveObject(node, source, read, pressed)
   if (ts.isArrayLiteralExpression(node)) return node.elements.reduce((variants, element) => combine(variants, read(element)), [[]] as StyleVariant[])
   if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSpreadElement(node)) return read(node.expression)
   if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return read(node.body)
-  if (ts.isBlock(node)) return returnedStyles(node).flatMap((expression) => read(expression))
-  return resolveBranchesAndReferences(node, source, available, read, pressed)
+  if (ts.isBlock(node)) return returnedStyles(node, pressed).returned.flatMap((returned) => read(returned.expression, returned.pressed))
+  return resolveTypedStyles(node, source, read) ?? resolveBranchesAndReferences(node, source, available, read, pressed)
+}
+
+function resolveTypedStyles(node: ts.Node, source: ParsedSource, read: (expression: ts.Node) => StyleVariant[]): StyleVariant[] | undefined {
+  if (ts.isTypeReferenceNode(node)) {
+    if (['ReturnType', 'Readonly'].includes(node.typeName.getText())) return node.typeArguments?.[0] ? read(node.typeArguments[0]) : [[]]
+    return read(node.typeName)
+  }
+  if (ts.isTypeQueryNode(node)) return read(node.exprName)
+  if (ts.isTypeAliasDeclaration(node)) return read(node.type)
+  if (ts.isParameter(node)) return node.type ? read(node.type) : [[]]
+  if (ts.isBindingElement(node) && ts.isParameter(node.parent.parent)) {
+    const type = propertyType(node.parent.parent.type, node.propertyName?.getText() ?? node.name.getText(), source)
+    return type ? read(type) : [[]]
+  }
+  return undefined
+}
+
+function propertyType(node: ts.Node | undefined, name: string, source: ParsedSource, seen = new Set<ts.Node>()): ts.TypeNode | undefined {
+  if (!node || seen.has(node)) return undefined
+  const nextSeen = new Set(seen).add(node)
+  if (ts.isTypeReferenceNode(node)) {
+    const binding = node.typeName.getText() === 'Readonly' ? node.typeArguments?.[0] : lexicalBinding(node, node.typeName.getText(), source)
+    return propertyType(binding, name, source, nextSeen)
+  }
+  if (ts.isTypeAliasDeclaration(node)) return propertyType(node.type, name, source, nextSeen)
+  if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
+    const property = node.members.find((member) => ts.isPropertySignature(member) && member.name.getText() === name)
+    return property && ts.isPropertySignature(property) ? property.type : undefined
+  }
+  return undefined
+}
+
+function resolveObject(
+  object: ts.ObjectLiteralExpression,
+  source: ParsedSource,
+  read: (expression: ts.Node) => StyleVariant[],
+  pressed: boolean,
+): StyleVariant[] {
+  let variants = [new Map<string, ts.Expression>()]
+  for (const property of object.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      const spreads = read(property.expression).map(styleProperties)
+      variants = variants.flatMap((before) => spreads.map((after) => new Map([...before, ...after])))
+    }
+    if (ts.isPropertyAssignment(property)) {
+      const name = property.name.getText(source.syntax).replaceAll(/['"]/g, '')
+      variants.forEach((properties) => properties.set(name, property.initializer))
+    }
+  }
+  return variants.map((properties) => [{ source, name: 'inline', object, pressed, properties }])
 }
 
 function resolveBranchesAndReferences(
   node: ts.Node,
   source: ParsedSource,
   available: ParsedSource[],
-  read: (expression: ts.Node, inPress?: boolean) => StyleVariant[],
+  read: (expression: ts.Node, inPress?: boolean, owner?: ParsedSource) => StyleVariant[],
   pressed: boolean,
 ): StyleVariant[] {
   if (ts.isConditionalExpression(node)) {
@@ -147,50 +235,36 @@ function resolveReference(
   node: ts.Node,
   source: ParsedSource,
   available: ParsedSource[],
-  read: (expression: ts.Node) => StyleVariant[],
+  read: (expression: ts.Node, inPress?: boolean, owner?: ParsedSource) => StyleVariant[],
   pressed: boolean,
 ): StyleVariant[] {
-  if (ts.isPropertyAccessExpression(node)) return resolveNamedStyle(node, source, available, pressed)
-  if (ts.isIdentifier(node)) {
-    const binding = source.bindings.get(node.text)
-    return binding ? read(binding) : [[]]
+  if (ts.isPropertyAccessExpression(node)) {
+    return read(node.expression).flatMap((parts) => {
+      const owner = [...parts].reverse().find((part) => part.properties.has(node.name.text))
+      const object = owner?.properties.get(node.name.text)
+      return object ? read(object, pressed, owner?.source).map((variant) => variant.map((part) => ({ ...part, name: node.name.text }))) : [[]]
+    })
   }
   if (ts.isCallExpression(node)) {
-    const binding = source.bindings.get(node.expression.getText(source.syntax))
-    return binding ? read(binding) : [[]]
+    const callee = node.expression.getText(source.syntax)
+    if (callee === 'StyleSheet.create' || callee === 'useMemo') return node.arguments[0] ? read(node.arguments[0]) : [[]]
+    return read(node.expression)
   }
-  return [[]]
-}
-
-function resolveNamedStyle(node: ts.PropertyAccessExpression, source: ParsedSource, available: ParsedSource[], pressed: boolean): StyleVariant[] {
-    const keys = stylesheetKeys(node, source)
-    for (const key of keys) {
-      const receiver = key.slice(0, key.lastIndexOf('.'))
-      const imported = source.importBindings.get(receiver)
-      const owners = imported ? [importedSource(source, imported.specifier, available)].filter((candidate) => candidate !== undefined) : available
-      const resolvedKey = imported ? `${imported.name}.${node.name.text}` : key
-      const owner = owners.find((candidate) => candidate.styles.has(resolvedKey))
-      const object = owner?.styles.get(resolvedKey)
-      if (owner && object) return [[{ source: owner, name: node.name.text, object, pressed }]]
-    }
-    return [[]]
-}
-
-function stylesheetKeys(node: ts.PropertyAccessExpression, source: ParsedSource): string[] {
-  const keys = [node.getText(source.syntax)]
-  const binding = source.bindings.get(node.expression.getText(source.syntax))
-  if (binding) walk(binding, (child) => {
-    if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) keys.unshift(`${child.expression.text}.${node.name.text}`)
-  })
-  return keys
+  if (!ts.isIdentifier(node)) return [[]]
+  const binding = lexicalBinding(node, node.text, source)
+  if (!binding) return [[]]
+  if (!ts.isImportSpecifier(binding)) return read(binding)
+  const declaration = binding.parent.parent.parent
+  if (!ts.isImportDeclaration(declaration) || !ts.isStringLiteral(declaration.moduleSpecifier)) return [[]]
+  const owner = importedSource(source, declaration.moduleSpecifier.text, available)
+  const imported = owner && lexicalBinding(owner.syntax, binding.propertyName?.text ?? binding.name.text, owner)
+  return owner && imported ? read(imported, pressed, owner) : [[]]
 }
 
 function styleProperties(parts: StyleVariant): Map<string, ts.Expression> {
   const properties = new Map<string, ts.Expression>()
   for (const part of parts) {
-    for (const property of part.object.properties) {
-      if (ts.isPropertyAssignment(property)) properties.set(property.name.getText(part.source.syntax).replaceAll(/['"]/g, ''), property.initializer)
-    }
+    for (const [name, expression] of part.properties) properties.set(name, expression)
   }
   return properties
 }
@@ -264,17 +338,81 @@ function unclippedPressStyles(files: ScannedSource[]): string[] {
 function unconsumedPressStyles(sources: Map<string, ParsedSource>, used: Set<ts.ObjectLiteralExpression>): string[] {
   const failures = new Set<string>()
   for (const source of sources.values()) {
-    for (const [key, object] of source.styles) {
-      const name = key.slice(key.lastIndexOf('.') + 1)
+    for (const [object, name] of source.styles) {
       if (used.has(object) || !/press|hover/i.test(name)) continue
-      const parts = [{ source, name, object, pressed: true }]
-      if (hasFill(styleProperties(parts).get('backgroundColor')) && !clipped(parts)) failures.add(location(source, object, name))
+      for (const variant of resolveStyles(object, source, dependencies(source, sources), new Set(), true)) {
+        const parts = variant.map((part) => ({ ...part, name }))
+        if (hasFill(styleProperties(parts).get('backgroundColor')) && !clipped(parts)) failures.add(location(source, object, name))
+      }
     }
   }
   return [...failures]
 }
 
 describe('mobile press shapes', () => {
+  it.each([
+    `StyleSheet.create({ row: {} })`,
+    `useMemo(() => createSquareStyles(), [])`,
+  ])('keeps repeated local stylesheet bindings lexical: %s', (squareStyles) => {
+    const contents = `function createSquareStyles() { return StyleSheet.create({ row: {} }) }
+function createRoundedStyles() { return StyleSheet.create({ row: { borderRadius: 12, overflow: 'hidden' } }) }
+function Bad() {
+  const styles = ${squareStyles};
+  return <Pressable style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]} />;
+}
+function Other() {
+  const styles = ${squareStyles.startsWith('useMemo') ? 'useMemo(() => createRoundedStyles(), [])' : "StyleSheet.create({ row: { borderRadius: 12, overflow: 'hidden' } })"};
+  return null;
+}`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:5 inline'])
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents: contents.replace('return null;', "return <Pressable style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]} />;") }])).toEqual(['fixtures/press-shapes.tsx:5 inline'])
+  })
+
+  it.each([
+    `const unclipped = { overflow: 'visible' };`,
+    `const unclipped = { borderRadius: 0 };`,
+  ])('rejects later object spread overrides: %s', (binding) => {
+    const contents = `${binding}
+<Pressable style={({ pressed }) => [
+  { borderRadius: 12, overflow: 'hidden' },
+  pressed && { backgroundColor: tokens.bgHover, ...unclipped }
+]} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:2 inline'])
+  })
+
+  it('rejects a fill supplied only through an object spread', () => {
+    const contents = `const fill = { backgroundColor: tokens.bgHover };
+<Pressable style={({ pressed }) => [pressed && { ...fill }]} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:2 inline'])
+  })
+
+  it('applies nested object spreads in source order', () => {
+    const contents = `const unclipped = { overflow: 'visible', borderRadius: 0 };
+const nested = { ...unclipped };
+const fill = { backgroundColor: tokens.bgHover };
+<Pressable style={({ pressed }) => [pressed && { ...nested, ...fill, borderRadius: 12, overflow: 'hidden' }]} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual([])
+  })
+
+  it.each([
+    `pressed ? { backgroundColor: tokens.bgHover } : null`,
+    `{ if (pressed) return { backgroundColor: tokens.bgHover }; return null; }`,
+    `{ if (!pressed) return null; return { backgroundColor: tokens.bgHover }; }`,
+    `{ if (!pressed) { return null; } else { return { backgroundColor: tokens.bgHover }; } }`,
+  ])('rejects equivalent conditional press returns: %s', (body) => {
+    const contents = `<Pressable style={({ pressed }) => ${body}} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:1 inline'])
+  })
+
+  it('accepts a block press return composed with clipped geometry', () => {
+    const contents = `const styles = StyleSheet.create({ row: { borderRadius: 12, overflow: 'hidden' } });
+<Pressable style={({ pressed }) => {
+  if (pressed) return [styles.row, { backgroundColor: tokens.bgHover }];
+  return null;
+}} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual([])
+  })
+
   it('rejects a named press fill with a nested transform and no radius', () => {
     const contents = 'const styles = StyleSheet.create({ pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }], overflow: "hidden" } })'
     expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:1 pressed'])
@@ -394,7 +532,7 @@ const squareStyles = StyleSheet.create({ row: {} });
       const file = files.find((candidate) => candidate.path === key.slice(0, separator))
       const name = key.slice(separator + 1)
       expect(file, key).toBeDefined()
-      expect(parseSource(file!).styles.has(`styles.${name}`), key).toBe(true)
+      expect([...parseSource(file!).styles.values()], key).toContain(name)
       expect(file!.contents).toContain(`styles.${name}`)
       expect(reason.trim().length).toBeGreaterThan(0)
     }
