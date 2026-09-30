@@ -9,7 +9,7 @@ import {
 } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
-import { AstraAvatar } from '@/components/ui/astra-avatar'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useReviewReminder } from '@/hooks/use-review-reminder'
@@ -154,7 +154,9 @@ export function ReviewMomentSheet() {
       )}
     >
       <View style={styles.content}>
-          <AstraAvatar size={48} label={t('reviewMoment.eyebrow')} />
+          <View accessible accessibilityRole="image" accessibilityLabel={t('reviewMoment.eyebrow')}>
+            <AstraGlyph size={48} />
+          </View>
           <Text style={styles.body}>
             {variant.kind === 'streak'
               ? t('reviewMoment.streakBody', { count: variant.value })

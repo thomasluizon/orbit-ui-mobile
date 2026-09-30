@@ -335,7 +335,7 @@ export function ProfileSettingsContent({
         onToggle={() => void toggleThisDevice()}
         onRetry={() => void pushSubscriptions.refresh()}
       />
-      <p className="m-0 text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
+      <p className="m-0 text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
     </div>,
     more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     ending: buildEndingRows({

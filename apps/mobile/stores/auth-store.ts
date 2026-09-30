@@ -15,7 +15,6 @@ import {
   getRefreshToken,
 } from '@/lib/secure-store'
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
-import { cancelPersistentReminder } from '@/lib/persistent-reminder'
 import { apiClient } from '@/lib/api-client'
 import * as offlineQueue from '@/lib/offline-queue'
 import { cancelScheduledFlush, resumeOfflineReplay } from '@/lib/offline-mutations'
@@ -237,7 +236,7 @@ async function runSessionTeardown(
   const teardown = await clearSessionCredentials(authority, captureRefreshToken)
   if (!teardown) return null
   const { epoch } = teardown
-  if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
+  if (!isCurrentSessionTeardown(epoch)) return null
 
   void resetAccountQueries(queryClient, 'signed-out')
   if (!(await runSessionTeardownStep(epoch, clearPersistedQueryCache))) return null

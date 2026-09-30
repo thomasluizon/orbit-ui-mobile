@@ -16,7 +16,7 @@ export function EmptyState({
         {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
       </span>
       <p
-        className="text-xl font-medium text-[var(--fg-1)]"
+        className="text-xl font-medium text-balance text-[var(--fg-1)]"
         style={{ fontFamily: 'var(--font-sans)' }}
       >
         {title}

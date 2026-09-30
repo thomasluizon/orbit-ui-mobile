@@ -207,7 +207,8 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
         "Do the code and the tests, commit, push, open the pull request, and stop. Workers never merge.\n" +
         "Visual inspection is owed by a HUMAN, once for the whole redesign during D90, with no\n" +
         "per-screen human wait. See .claude/playbooks/redesign-screen.md. A fresh worktree cannot authenticate.\n" +
-        "Tests are Vitest unit and behaviour tests; no Playwright, no e2e/, no dev server, no emulator.",
+        "Run the full Vitest suites, including headless Chromium geometry tests. No Playwright,\n" +
+        "no e2e/, no layout guard, no dev server, no emulator.",
     }
   }
   return null

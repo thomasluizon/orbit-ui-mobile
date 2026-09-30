@@ -116,6 +116,18 @@ describe('NotificationDetailModal', () => {
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('opens a progress notification on the Progresso screen', () => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url: '/progress' }} />)
+    fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
+    expect(mockPush).toHaveBeenCalledWith('/progress')
+  })
+
+  it('preserves the closed month when opening a Wrapped notification', () => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url: '/progress?wrapped=month&year=2024&month=2' }} />)
+    fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
+    expect(mockPush).toHaveBeenCalledWith('/wrapped?period=month&year=2024&month=2')
+  })
+
   it('does not show view button for invalid URLs', () => {
     const noUrlNotification = { ...mockNotification, url: null }
     render(

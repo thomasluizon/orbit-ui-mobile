@@ -73,7 +73,11 @@ vi.mock('@/components/wrapped/wrapped-player', () => ({
 }))
 
 function renderScreen() {
-  let tree!: { root: TestNode; unmount: () => void }
+  let tree!: {
+    root: TestNode
+    unmount: () => void
+    update: (element: React.ReactElement) => void
+  }
   TestRenderer.act(() => {
     tree = TestRenderer.create(<WrappedScreen />)
   })
@@ -141,6 +145,37 @@ describe('WrappedScreen', () => {
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
       active: false,
       closedMonth: { year: 2026, month: 8 },
+    })
+
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, 'WrappedCover')?.props.onSelectPeriod as (period: string) => void)('week')
+    })
+
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('week', {
+      active: false,
+      closedMonth: undefined,
+    })
+  })
+
+  it('selects the next notified closed month when only the params change', () => {
+    mocks.params = { period: 'month', year: '2026', month: '8' }
+    const tree = renderScreen()
+
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+    })
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
+
+    mocks.params = { period: 'month', year: '2026', month: '9' }
+    TestRenderer.act(() => {
+      tree.update(<WrappedScreen />)
+    })
+
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
+    expect(firstByType(tree.root, 'WrappedCover')?.props.period).toBe('month')
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2026, month: 9 },
     })
   })
 

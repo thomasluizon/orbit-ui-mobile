@@ -5,8 +5,6 @@ const OrbitWidgetWebModule: OrbitWidgetModuleType = {
   async clearToken() {},
   async syncTheme() {},
   async syncWidgetData() {},
-  async postPersistentReminder() {},
-  async cancelPersistentReminder() {},
 }
 
 export default OrbitWidgetWebModule

@@ -19,7 +19,7 @@ export function EmptyState({
       <View testID={`empty-state-mark-${mark}`}>
         {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
       </View>
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text style={[styles.title, { color: tokens.fg1 }]} textBreakStrategy="balanced">{title}</Text>
       {action ? <View testID="empty-state-action">{action}</View> : null}
     </View>
   )

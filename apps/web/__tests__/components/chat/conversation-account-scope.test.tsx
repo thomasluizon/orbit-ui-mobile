@@ -11,7 +11,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('@/components/ui/app-bar', () => ({
+vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/app-bar')>()),
   AppBar: () => null,
 }))
 
