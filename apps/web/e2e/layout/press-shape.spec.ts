@@ -1,16 +1,16 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { test } from './upgrade-fixtures'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   title: 'Beber água',
   dueDate: '2026-09-04',
   scheduledDates: ['2026-09-04'],
-  children: [],
-  hasSubHabits: false,
+  children: makeHabitScheduleItem().children.map((child) => ({ ...child, dueDate: '2026-09-04', scheduledDates: ['2026-09-04'] })),
+  hasSubHabits: true,
 }))
 const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
   items: [habit], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
@@ -27,7 +27,7 @@ async function readHitBoxOnceStill(control: Locator) {
   return control.boundingBox()
 }
 
-async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20) {
+async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover') {
   await expect(control).toBeVisible()
   const hitBox = await readHitBoxOnceStill(control)
   expect(hitBox).not.toBeNull()
@@ -37,7 +37,13 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
     for (const animation of element.getAnimations()) animation.finish()
     const rect = element.getBoundingClientRect()
     const style = getComputedStyle(element)
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--bg-hover)'
+    element.append(probe)
+    const hoverFill = getComputedStyle(probe).backgroundColor
+    probe.remove()
     return {
+      hoverFill,
       x: rect.x,
       y: rect.y,
       width: rect.width,
@@ -47,6 +53,7 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
     }
   })
   expect(painted.background, 'the hit-area element owns the hover fill').not.toBe(restingBackground)
+  if (fillToken) expect(painted.background, 'the neutral interaction uses bg-hover').toBe(painted.hoverFill)
   expect(painted.x).toBeCloseTo(hitBox!.x, 1)
   expect(painted.y).toBeCloseTo(hitBox!.y, 1)
   expect(painted.width).toBeCloseTo(hitBox!.width, 1)
@@ -71,8 +78,15 @@ for (const width of [412, 1280] as const) {
       for (const label of [ptBr.chat.attachFile, ptBr.chat.attachImage, ptBr.shell.composer.voice.start]) {
         await expectHoverOnHitArea(composer.getByRole('button', { name: label }), 'pill')
       }
-      await composer.locator('[data-composer-input]').fill('Como começo?')
-      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
+      await composer.locator('[data-composer-input]').focus()
+      const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+      await expect(conversation).toBeVisible()
+      await expect(composer).toBeHidden()
+      await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+      const conversationField = conversation.locator('[data-composer-input]')
+      await expect(conversationField).toBeFocused()
+      await conversationField.fill('Como começo?')
+      await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
 
       await page.goto('/about')
       await expectHoverOnHitArea(page.locator('header button[aria-label]').first(), 'pill')
@@ -83,8 +97,8 @@ for (const width of [412, 1280] as const) {
       await page.goto('/wrapped')
       const restingChip = page.locator('.chip:not(.chip-active)').first()
       const activeChip = page.locator('.chip.chip-active').first()
-      await expectHoverOnHitArea(restingChip, 'pill')
-      await expectHoverOnHitArea(activeChip, 'pill')
+      await expectHoverOnHitArea(restingChip, 'pill', '--bg-hover')
+      await expectHoverOnHitArea(activeChip, 'pill', '--bg-hover')
       for (const chip of [restingChip, activeChip]) {
         const chipBox = await chip.boundingBox()
         expect(chipBox!.height, 'a chip paints its whole 44px hit area').toBeGreaterThanOrEqual(44)
@@ -94,6 +108,7 @@ for (const width of [412, 1280] as const) {
     })
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
+      await context.route(new RegExp(`${API.habits.get(habit.id)}$`), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), ...habit }) }))
       await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
       await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
@@ -108,11 +123,20 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(row.locator('[data-habit-row-control="menu"]'), 'pill')
       await row.locator('[data-habit-row-control="menu"]').click()
       const menu = page.getByRole('menu', { name: habit.title })
+      await menu.getByRole('menuitem', { name: ptBr.habits.actions.openSubHabits }).click()
+      const drillBack = page.getByRole('button', { name: ptBr.common.back, exact: true })
+      await expectHoverOnHitArea(drillBack, 'pill', '--bg-hover')
+      await drillBack.click()
+      await row.locator('[data-habit-row-control="menu"]').click()
       await expectHoverOnHitArea(menu.getByRole('menuitem', { name: ptBr.habits.actions.delete }), 12)
       await menu.getByRole('menuitem', { name: ptBr.habits.actions.delete }).click()
       await expectHoverOnHitArea(page.getByRole('dialog').locator('.orbit-pill-action:enabled').first(), 'pill')
+      await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { name: ptBr.common.close }), 'pill', '--bg-hover')
 
       await page.goto('/calendar')
+      for (const label of [ptBr.common.previousMonth, ptBr.common.nextMonth, ptBr.calendar.goToCurrentMonth, ptBr.common.selectYear]) {
+        await expectHoverOnHitArea(page.getByRole('button', { name: label, exact: true }), 'pill', '--bg-hover')
+      }
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
       await page.getByRole('button', { name: ptBr.common.selectYear }).click()
       await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { pressed: false }).first(), 'pill')

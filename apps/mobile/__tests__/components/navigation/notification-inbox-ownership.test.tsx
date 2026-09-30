@@ -39,7 +39,13 @@ const offlineMocks = vi.hoisted(() => ({
 vi.mock('@/lib/offline-mutations', () => offlineMocks)
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
-let tree: { unmount: () => void; update: (element: React.ReactElement) => void } | undefined
+interface RenderedNode {
+  type: unknown
+  props: Record<string, unknown>
+  findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
+}
+
+let tree: { root: RenderedNode; unmount: () => void; update: (element: React.ReactElement) => void } | undefined
 let queryClient: QueryClient
 const listeners = new Set<(status: AppStateStatus) => void>()
 
@@ -110,6 +116,19 @@ afterEach(() => {
   focusManager.setFocused(undefined)
   vi.restoreAllMocks()
   vi.useRealTimers()
+})
+
+it('renders clear-all actions with small ghost cancel before destructive confirm', () => {
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+  press('Clear all')
+
+  const pairs = tree?.root.findAll((node) => node.type === 'View' && node.props.testID === 'dialog-action-pair')
+  expect(pairs).toHaveLength(1)
+  const actions = pairs?.[0]?.findAll(
+    (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+  )
+  expect.soft(actions?.map((button) => button.findAll((node) => node.type === 'Text').map((node) => node.props.children).join(''))).toEqual(['Cancel', 'Delete notifications'])
+  expect.soft(actions?.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-destructive-sm'])
 })
 
 it.each([

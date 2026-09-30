@@ -8,8 +8,7 @@ import {
   type RecapSharePeriod,
   type WrappedRouteSelection,
 } from '@orbit/shared/utils'
-import { Button } from '@/components/ui/pill-button'
-import { ChevronLeft } from '@/components/ui/icons'
+import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
@@ -86,19 +85,14 @@ function WrappedPageContent({ initialSelection }: Readonly<{
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
       {!playerOpen ? <UpdateAvailableBanner /> : null}
-      <div className="relative flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         {!isPlaying ? (
-          <div className="absolute left-4 top-2 z-[1]">
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              label={t('common.backToProfile')}
-              onClick={() => goBackOrFallback('/profile')}
-            >
-              <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </div>
+          <AppBar
+            title=""
+            titleIsHeading={false}
+            backLabel={t('common.backToProfile')}
+            onBack={() => goBackOrFallback('/profile')}
+          />
         ) : null}
         <WrappedCover
           period={period}

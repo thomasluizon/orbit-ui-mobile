@@ -1,3 +1,5 @@
+import { radius } from '@/lib/theme'
+import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StyleSheet } from "react-native";
@@ -355,4 +357,23 @@ describe("ReminderSection", () => {
     expect(buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')).toBeUndefined()
     expect(onReminderTimesChange).not.toHaveBeenCalled()
   })
+});
+
+it('fills reminder removal, add, custom units, directions, and commit', () => {
+  const { tree } = renderSection({ reminderTimes: [60, 30] });
+  const remove = buttons(tree).find((node) => node.props.accessibilityLabel === 'habits.form.removeReminder')!;
+  const style = remove.props.style as (state: { pressed: boolean }) => unknown;
+  expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 999, overflow: 'hidden' });
+  const pressText = (text: string) => press(tree, buttons(tree).find((node) => descendantText(node) === text)!);
+  const assertTextFill = (text: string, fill: string) => {
+    const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && descendantText(node) === text)[0]!;
+    TestRenderer.act(() => (control.props.onPressIn as () => void)());
+    expect(StyleSheet.flatten(control.props.style)).toMatchObject({ backgroundColor: fill, borderRadius: radius.full, overflow: 'hidden' });
+    TestRenderer.act(() => (control.props.onPressOut as () => void)());
+  };
+  assertTextFill('habits.form.reminderAdd', tokens.bgHover);
+  pressText('habits.form.reminderAdd');
+  pressText('habits.form.reminderCustom');
+  for (const text of ['habits.form.reminderUnitMin', 'habits.form.reminderUnitHours', 'habits.form.reminderUnitDays', 'habits.form.reminderBefore', 'habits.form.reminderAfter']) assertTextFill(text, tokens.bgHover);
+  expectPressFill(tree, 'common.add', tokens.primaryPressed, radius.full);
 });

@@ -35,6 +35,7 @@ import type { Profile } from "@orbit/shared/types/profile";
 import {
   CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
+  sendInConversation,
   invalidateAgentQueries,
   selectActionInvalidations,
 } from "@orbit/shared/hooks";
@@ -672,7 +673,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const performSend = useCallback(
-    async (attempted: AttemptedSend, isRetry: boolean) => {
+    async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
       activeStepsRef.current = [];
       setActiveSteps([]);
       setSendError(null);
@@ -694,7 +695,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       scrollToBottom();
 
       return runStreamingSend(attempted);
-    },
+    }),
     [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   );
 
@@ -813,7 +814,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       const label = providedLabel ?? t(key, params);
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label);
       return { id, label, onSelect: () => {
-        useUIStore.getState().setAstraConversationOpen(true);
         void sendMessage(prompt);
       } };
     }));

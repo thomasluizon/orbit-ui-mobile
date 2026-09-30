@@ -4,7 +4,7 @@ import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatMessage, ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -17,6 +17,11 @@ import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epo
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
+import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode, __resetTestHostConfig } from '../../test-mocks/react-native'
+
+const { Composer: ShellComposer } = await vi.importActual<typeof import('@/components/shell/composer')>('@/components/shell/composer')
+const { Shell412: ConversationShell } = await vi.importActual<typeof import('@/components/shell/shell-412')>('@/components/shell/shell-412')
+const { AstraConversation: Conversation } = await vi.importActual<typeof import('@/components/chat/conversation')>('@/components/chat/conversation')
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -102,6 +107,19 @@ vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: vi.fn() }))
 vi.mock('expo-device', () => ({ __esModule: true, default: { isDevice: true }, isDevice: true }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('react-native', async (importOriginal) => {
+  const original = await importOriginal<typeof import('react-native')>()
+  return {
+    ...original,
+    FlatList: React.forwardRef<unknown, {
+      data: ChatMessage[]
+      renderItem: (entry: { item: ChatMessage; index: number }) => React.ReactNode
+    }>((props, _ref) => React.createElement('FlatList', props,
+      props.data.map((item, index) => <React.Fragment key={item.id}>{props.renderItem({ item, index })}</React.Fragment>),
+    )),
+  }
+})
+
 vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: () => null,
@@ -126,7 +144,7 @@ vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { elevated: { backgroundColor: '#18181b' }, screen: { backgroundColor: '#111111' } } }) }))
 vi.mock('@/lib/orbit-widget', () => ({ syncWidgetTheme: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/back-navigation', () => ({ dismissOrFallback: vi.fn(), getAndroidBackFallbackRoute: () => null }))
-vi.mock('@/lib/overlay-stack', () => ({ dismissTopOverlay: () => false }))
+vi.mock('@/lib/overlay-stack', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/overlay-stack')>(), dismissTopOverlay: () => false }))
 vi.mock('@/lib/upgrade-route', () => ({ buildUpgradeHref: () => '/upgrade' }))
 vi.mock('@/stores/referral-prompt-store', () => ({ useReferralPromptStore: (selector: (state: Record<string, unknown>) => unknown) => selector({ armConsentPrompt: vi.fn(), armMilestoneSharePrompt: vi.fn(), armReferralPrompt: vi.fn(), armReviewPrompt: vi.fn() }) }))
 vi.mock('@/stores/review-reminder-store', () => ({ isReviewMomentEligible: () => false, useReviewReminderStore: { getState: () => ({}) } }))
@@ -143,8 +161,14 @@ vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => n
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
+vi.mock('@/components/message-bubble', () => ({ MessageBubble: ({ message }: { message: ChatMessage }) => React.createElement('Text', null, message.content) }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/chat/chat-empty-state', () => ({ ChatEmptyState: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
-vi.mock('@/components/shell/composer', () => ({ Composer: (props: typeof mocks.composerProps) => { mocks.composerProps = props; return null } }))
+vi.mock('@/components/shell/composer', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/shell/composer')>()
+  return { Composer: (props: React.ComponentProps<typeof original.Composer>) => { mocks.composerProps = props; return <original.Composer {...props} /> } }
+})
 vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer }: { composer?: React.ReactNode }) => composer ?? null }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({ UpgradeRequiredScreen: () => null }))
@@ -314,7 +338,152 @@ function documentPickerAsset(
   }
 }
 
+function ComposerConversationHarness() {
+  const chat = useChatComposer({ pathname: '/profile', isOnline: true, offlineTitle: 'Offline' })
+  const open = useUIStore((state) => state.astraConversationOpen)
+  return <ConversationShell
+    tabBar={null}
+    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Open Astra" />}
+    conversation={<Conversation chat={chat} />}
+    conversationOpen={open}
+    conversationLabel="Astra"
+  />
+}
+
+async function renderConversationHarness() {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => { tree = TestRenderer.create(<ComposerConversationHarness />); mountedTrees.push(tree); await Promise.resolve() })
+  return tree
+}
+
+function visibleMessageTexts(tree: ReturnType<typeof TestRenderer.create>): string[] {
+  return tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && typeof node.props.children === 'string')
+    .map((node: { props: { children: string } }) => node.props.children)
+}
+
+function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findAll((node: { type: unknown }) => node.type === 'TextInput')
+}
+
 describe('mobile useChatComposer', () => {
+  it('opens the conversation for a shell typed send with the message and streaming answer in its list', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('Plan my morning')
+    expect(tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'shell-conversation')).toHaveLength(1)
+    expect(inputHosts(tree)).toHaveLength(1)
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ testID: 'composer-sending' }))
+    await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('Plan my morning')
+    expect(visibleMessageTexts(tree)).toContain('Start with water')
+    const list = tree.root.findByType('FlatList')
+    expect(list.props.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'user', content: 'Plan my morning' }),
+      expect.objectContaining({ role: 'ai', content: 'Start with water' }),
+    ]))
+    await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close(); await Promise.resolve() })
+  })
+
+  it('does not reclaim native focus after the person leaves the composer during a streamed send', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    const closeButton = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.closeConversation')[0]
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(closeButton.props.__nativeTag) })
+    expect(__getFocusedNativeTag()).toBe(closeButton.props.__nativeTag)
+    focus.mockClear()
+    await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close(); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('Hi there')
+    expect(focus).not.toHaveBeenCalled()
+    expect(__getFocusedNativeTag()).toBe(closeButton.props.__nativeTag)
+  })
+
+  it.each([true, false])('restores native input focus after parking during streaming (touch mode: %s)', async (inTouchMode) => {
+    __setTouchMode(inTouchMode)
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    const composer = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'composer-sending')[0]
+    expect(__getFocusedNativeTag()).toBe(composer.props.__nativeTag)
+    expect(inputHosts(tree)[0].props.editable).toBe(false)
+    focus.mockClear()
+    await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close(); await Promise.resolve() })
+    expect(focus).toHaveBeenCalledOnce()
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ editable: true }))
+    expect(__getFocusedNativeTag()).toBe(inputHosts(tree)[0].props.__nativeTag)
+    expect(inputHosts(tree)).toHaveLength(1)
+  })
+
+  it('does not move native focus off the voice stop control when recording starts', async () => {
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
+    const voiceButton = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceButton.props.__nativeTag) })
+    expect(__getFocusedNativeTag()).toBe(voiceButton.props.__nativeTag)
+    focus.mockClear()
+    mocks.state.isRecording = true
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.stop')).toHaveLength(1)
+    expect(focus).not.toHaveBeenCalled()
+    expect(__getFocusedNativeTag()).toBe(voiceButton.props.__nativeTag)
+  })
+
+  it('opens on shell field focus and carries every draft edit into the sole conversation input', async () => {
+    useChatStore.setState({ draft: 'Already typed' })
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
+    expect(tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'shell-conversation')).toHaveLength(1)
+    expect(inputHosts(tree)).toHaveLength(1)
+    expect(inputHosts(tree)[0].props.value).toBe('Already typed')
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ value: 'Already typed' }))
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Already typed and continued'))
+    expect(useChatStore.getState().draft).toBe('Already typed and continued')
+  })
+
+  it('keeps chip sends in the conversation with focus in its only composer', async () => {
+    mocks.state.profile = createMockProfile()
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const tree = await renderConversationHarness()
+    const group = tree.root.findByProps({ accessibilityLabel: 'shell.composer.suggestionsLabel' })
+    const chip = group.findAll((node: { type: unknown }) => node.type === 'Pressable')[0]
+    await TestRenderer.act(async () => { chip.props.onPress(); await Promise.resolve() })
+    expect(inputHosts(tree)).toHaveLength(1)
+    expect(focus).toHaveBeenCalled()
+    expect(visibleMessageTexts(tree)).toContain('Hi there')
+    expect(tree.root.findByType('FlatList').props.data).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'ai', content: 'Hi there' })]))
+  })
+
+  it('opens the conversation when sending a finished voice transcript', async () => {
+    mocks.state.isRecording = true
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    mocks.state.isRecording = false
+    mocks.state.transcript = 'Voice request'
+    composer.rerender()
+    await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().messages[0]?.content).toBe('Voice request')
+  })
+
   it('sends the profile clock preference to Astra', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
@@ -355,6 +524,7 @@ describe('mobile useChatComposer', () => {
   })
 
   beforeEach(() => {
+    __resetTestHostConfig()
     mocks.state.profile = undefined
     mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
     mocks.state.detail = null

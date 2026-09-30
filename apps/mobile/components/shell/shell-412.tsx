@@ -107,7 +107,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         <ShellBottomChrome
           visible={hasBottomChrome}
           navigationEnabled={navigationEnabled}
-          pinnedSlot={pinnedSlot}
+          pinnedSlot={conversationOpen ? undefined : pinnedSlot}
           notice={notice}
           tabBar={props.tabBar}
           fab={props.fab}
