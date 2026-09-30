@@ -113,6 +113,7 @@ vi.mock('@/components/ui/app-bar', () => ({
       accessibilityRole: 'header',
       testID: 'conversation-title',
     }, props.title as string),
+    props.action as React.ReactNode,
   ),
 }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
@@ -408,12 +409,12 @@ describe('ChatScreen composer recoveries', () => {
 
   it('closes from the conversation header', async () => {
     const tree = await renderScreen()
-    const appBar = findByType(tree.root, 'AppBar')
+    const close = tree.root.findAll((node) =>
+      typeof node.type === 'string' &&
+      node.props.accessibilityLabel === 'common.closeConversation',
+    )[0]
 
-    TestRenderer.act(() => {
-      const close = appBar?.props.onBack as (() => void)
-      close()
-    })
+    TestRenderer.act(() => press(close))
 
     expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
   })

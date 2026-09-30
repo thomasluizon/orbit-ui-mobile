@@ -46,6 +46,8 @@ describe("mobile ui store", () => {
       activeFilters: {},
       activeView: "today",
       streakCelebration: null,
+      activeCelebration: null,
+      queuedCelebrations: [],
       allDoneCelebration: false,
       allDoneCelebratedDate: "",
       goalCompletedCelebration: null,
@@ -149,8 +151,11 @@ describe("mobile ui store", () => {
     );
   });
 
-  it("shows all-done celebration for a logged habit due today", () => {
-    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], isLoggedInRange: true });
+  it.each([
+    ["a logged habit due today", { isLoggedInRange: true }],
+    ["a completed habit due today without a range log", { isCompleted: true, isLoggedInRange: false }],
+  ])("shows all-done celebration for %s", (_name, completion) => {
+    const habit = createMockHabit({ id: 'habit', scheduledDates: ['2026-04-06'], ...completion });
     useUIStore.getState().checkAllDoneCelebration(
       new Map([[habit.id, habit]]), new Map(), '2026-04-06',
     );

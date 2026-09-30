@@ -373,7 +373,7 @@ export function KeyboardAwareSheetScrollView({
       <ScrollView
         {...props}
         ref={scrollRef}
-        style={[styles.container, props.style]}
+        style={props.style}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         automaticallyAdjustKeyboardInsets
         nestedScrollEnabled

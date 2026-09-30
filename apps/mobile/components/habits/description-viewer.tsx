@@ -4,7 +4,6 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import { Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { Sheet } from '@/components/ui/sheet';
-import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -46,7 +45,7 @@ export function DescriptionViewer({
       onClose={handleClose}
       title={title}
     >
-      <View style={withDrawerContentInset(styles.scrollContent)}>
+      <View style={styles.scrollContent}>
         <View style={styles.copyRow}>
           <Pressable
             onPress={copyDescription}
@@ -83,9 +82,6 @@ export function DescriptionViewer({
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-  },
   scrollContent: {
       paddingHorizontal: 16,
     paddingBottom: 32,

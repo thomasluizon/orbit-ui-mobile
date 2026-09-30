@@ -217,7 +217,7 @@ export function HabitEmojiSelector({
               })}
             </View>
 
-            <View style={styles.emojiModalList}>
+            <View>
               {filteredCategories.length === 0 ? (
                 <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
               ) : filteredCategories.map((category) => (

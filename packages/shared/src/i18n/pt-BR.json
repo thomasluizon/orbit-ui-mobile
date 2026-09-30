@@ -89,15 +89,6 @@
     "habit": "Hábito",
     "openIn": "Abrir em {target}"
   },
-  "persistentReminder": {
-    "label": "Lembrete fixo",
-    "description": "Mantenha uma notificação fixa e silenciosa com sua sequência e o progresso de hoje.",
-    "channelName": "Lembrete fixo",
-    "titleStreak": "Sequência de {streak} dias",
-    "titleNoStreak": "Comece sua sequência hoje",
-    "body": "{completed}/{total} concluídos hoje",
-    "bodyEmpty": "Nada agendado para hoje"
-  },
   "common": {
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
@@ -1191,7 +1182,7 @@
       }
     },
     "empty": {
-      "title": "Como foi seu dia?"
+      "title": "Fale com a Astra sobre a sua rotina"
     },
     "placeholder": "Pergunte à Astra",
     "copy": "Copiar",
@@ -1219,10 +1210,11 @@
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
     "suggestion": {
-      "prompt": "Posso resumir, planejar ou te ajudar a ajustar um hábito.",
-      "meditated": "Meditei hoje",
-      "exercise": "Criar um hábito de exercício toda manhã",
-      "groceries": "Preciso fazer compras amanhã"
+      "prompt": "Algumas coisas que dá para pedir",
+      "logHabit": "Registrar {habit}",
+      "week": "Como foi a semana",
+      "splitHabit": "Dividir {habit}",
+      "goals": "Como estão as metas"
     },
     "action": {
       "changes": "Alterações",
@@ -1841,22 +1833,12 @@
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
     "deleteAccount": {
-      "button": "Apagar a conta",
-      "title": "Apagar a conta",
       "headingAreYouSure": "Isso apaga a sua conta",
-      "headingConfirmCode": "Confirme com o código",
-      "headingDeactivated": "Conta desativada",
       "warning": "Você tem tempo para mudar de ideia. Depois disso, a conta é apagada de vez e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
-      "sending": "Enviando...",
-      "codeInstructions": "Digite o código de 6 dígitos que enviamos ao seu e-mail para confirmar a desativação da conta.",
-      "confirmDelete": "Desativar minha conta",
-      "deleting": "Processando...",
-      "deactivated": "Sua conta foi desativada. Ela será apagada de vez em {date}.",
-      "reactivated": "O pedido para apagar a sua conta foi cancelado.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
@@ -2008,7 +1990,7 @@
   "privacy": {
     "close": "Fechar política de privacidade",
     "title": "Política de Privacidade",
-    "lastUpdated": "Última atualização: agosto de 2026",
+    "lastUpdated": "Última atualização: setembro de 2026",
     "intro": {
       "title": "Introdução",
       "body": "O Orbit é um aplicativo de acompanhamento de hábitos pessoais. Levamos sua privacidade a sério e temos o compromisso de proteger seus dados pessoais. Esta política explica quais dados guardamos, como os usamos e quais são os seus direitos sob a LGPD (Lei Geral de Proteção de Dados) e leis equivalentes de proteção de dados."
@@ -2034,16 +2016,18 @@
     "thirdParty": {
       "title": "Serviços de terceiros",
       "intro": "Usamos os seguintes serviços para operar o Orbit:",
-      "google": "Google OAuth - para autenticação",
-      "stripe": "Stripe - para processamento de pagamentos de assinatura",
-      "firebase": "Firebase Cloud Messaging - para notificações push",
-      "openai": "OpenAI - para recursos de chat com IA e resumos diários",
-      "resend": "Resend - para e-mails transacionais",
-      "googlePlay": "Google Play Billing - para compras de assinatura no Android",
+      "google": "Google OAuth: para entrar diretamente com o Google",
+      "stripe": "Stripe: para processamento de pagamentos de assinatura",
+      "firebase": "Firebase Cloud Messaging: para notificações push",
+      "openai": "OpenAI: para recursos de chat com IA e resumos diários",
+      "ses": "Amazon SES (us-east-2): para e-mails transacionais e de marketing",
+      "googlePlay": "Google Play Billing: para compras de assinatura no Android",
       "admob": "Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.",
-      "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos",
-      "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano; não enviamos conteúdo de hábitos nem do chat",
-      "vercel": "Vercel: para hospedagem web, análise de tráfego e medição de desempenho"
+      "sentry": "Sentry: para diagnósticos de falhas e erros, com identificadores pessoais removidos",
+      "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano, além de análises de tráfego web e desempenho; não enviamos conteúdo de hábitos nem do chat",
+      "render": "Render (Ohio, Estados Unidos): para hospedar o aplicativo web, a API e o banco de dados",
+      "s3": "Amazon S3 (us-east-2): para armazenar arquivos enviados",
+      "turnstile": "Cloudflare Turnstile: para proteção contra bots durante o acesso à conta"
     },
     "noSell": {
       "title": "Não vendemos seus dados",
@@ -2074,7 +2058,7 @@
     },
     "dataResidency": {
       "title": "Onde seus dados ficam guardados",
-      "body": "O banco de dados do Orbit fica na Supabase, na Amazon Web Services, nos Estados Unidos, e os servidores de aplicação do backend ficam na Render. A Vercel hospeda o aplicativo web em sua rede global. Esses provedores podem processar dados de hospedagem e desempenho nos Estados Unidos e em outros países fora do Brasil. As análises de uso do produto feitas pelo PostHog são processadas nos Estados Unidos. Outros suboperadores, incluindo OpenAI, Stripe e Google, podem processar dados fora do Brasil. As transferências internacionais para a Supabase, a Render, a Vercel e outros suboperadores se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
+      "body": "A Render hospeda o aplicativo web, a API e o banco de dados em Ohio, Estados Unidos. O Orbit usa a Amazon SES para e-mails transacionais e de marketing e a Amazon S3 para arquivos enviados na região us-east-2 (Ohio, Estados Unidos). O PostHog processa análises de uso do produto, tráfego web e desempenho em sua nuvem nos Estados Unidos. Outros operadores, incluindo OpenAI, Stripe, Google e Cloudflare Turnstile, podem processar dados fora do Brasil. As transferências internacionais para esses provedores se baseiam nas salvaguardas que a LGPD admite para transferências internacionais, incluindo compromissos contratuais de cada provedor."
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",

@@ -4,15 +4,12 @@ import { createTokensV2 } from '@/lib/theme'
 export type EditGoalTokens = ReturnType<typeof createTokensV2>
 export type EditGoalStyles = ReturnType<typeof createStyles>
 
-export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
+export function createStyles(tokens: EditGoalTokens) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
     form: {
       paddingTop: 8,
       paddingHorizontal: 16,
-      paddingBottom: Math.max(bottomInset, 16) + 24,
+      paddingBottom: 32,
       gap: 16,
     },
     eyebrow: {
