@@ -16,6 +16,7 @@ import {
   getExistingPushSubscription,
   isPushSubscriptionOwner,
   recordPushSubscriptionOwner,
+  serializePushSubscriptionMutation,
 } from '@/lib/push-subscription-owner'
 import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
 
@@ -146,29 +147,31 @@ export async function subscribeToPushNotifications(
     return createSnapshot(permission, false)
   }
 
-  const registration = await getActiveServiceWorkerRegistration()
-  const existingSubscription = await registration.pushManager.getSubscription()
+  return serializePushSubscriptionMutation(async () => {
+    const registration = await getActiveServiceWorkerRegistration()
+    const existingSubscription = await registration.pushManager.getSubscription()
 
-  if (existingSubscription) {
-    await existingSubscription.unsubscribe()
-  }
+    if (existingSubscription) {
+      await existingSubscription.unsubscribe()
+    }
 
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+    })
+
+    const ownerAccountId = getAccountId()
+    try {
+      await subscribePushAction(subscription.toJSON())
+    } catch (error) {
+      await subscription.unsubscribe().catch(() => undefined)
+      if (reportsAccountChanged(error)) throw error
+      throw new Error('Failed to persist push subscription')
+    }
+    if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
+
+    return createSnapshot(permission, true)
   })
-
-  const ownerAccountId = getAccountId()
-  try {
-    await subscribePushAction(subscription.toJSON())
-  } catch (error) {
-    await subscription.unsubscribe().catch(() => undefined)
-    if (reportsAccountChanged(error)) throw error
-    throw new Error('Failed to persist push subscription')
-  }
-  if (ownerAccountId) recordPushSubscriptionOwner(ownerAccountId)
-
-  return createSnapshot(permission, true)
 }
 
 export async function unsubscribeFromPushNotifications(
@@ -178,22 +181,24 @@ export async function unsubscribeFromPushNotifications(
     return createUnsupportedSnapshot()
   }
 
-  const registration = await getActiveServiceWorkerRegistration()
-  const subscription = await registration.pushManager.getSubscription()
+  return serializePushSubscriptionMutation(async () => {
+    const registration = await getActiveServiceWorkerRegistration()
+    const subscription = await registration.pushManager.getSubscription()
 
-  if (subscription) {
-    try {
-      await unsubscribePushAction(subscription.toJSON())
-    } catch (error) {
-      if (reportsAccountChanged(error)) throw error
+    if (subscription) {
+      try {
+        await unsubscribePushAction(subscription.toJSON())
+      } catch (error) {
+        if (reportsAccountChanged(error)) throw error
+        await subscription.unsubscribe().catch(() => undefined)
+        throw error
+      }
       await subscription.unsubscribe().catch(() => undefined)
-      throw error
     }
-    await subscription.unsubscribe().catch(() => undefined)
-  }
 
-  const nextPermission = permission || Notification.permission
-  return createSnapshot(nextPermission, false)
+    const nextPermission = permission || Notification.permission
+    return createSnapshot(nextPermission, false)
+  })
 }
 
 /**
@@ -203,13 +208,15 @@ export async function unsubscribeFromPushNotifications(
  * the first call fails. The Android twin is `unsubscribePushToken` in `apps/mobile/hooks/use-push-notifications.ts`.
  */
 export async function releasePushSubscription(): Promise<void> {
-  const subscription = await getExistingPushSubscription()
-  if (!subscription) return
-  try {
-    await unsubscribePushAction(subscription.toJSON())
-  } finally {
-    await subscription.unsubscribe()
-  }
+  return serializePushSubscriptionMutation(async () => {
+    const subscription = await getExistingPushSubscription()
+    if (!subscription) return
+    try {
+      await unsubscribePushAction(subscription.toJSON())
+    } finally {
+      await subscription.unsubscribe()
+    }
+  })
 }
 
 export function usePushNotificationPreferences(): UsePushNotificationPreferencesResult {

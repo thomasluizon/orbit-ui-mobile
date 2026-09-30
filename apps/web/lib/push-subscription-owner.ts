@@ -6,6 +6,15 @@
  */
 const PUSH_SUBSCRIPTION_OWNER_KEY = 'orbit_push_subscription_owner'
 
+let pushSubscriptionMutation: Promise<void> = Promise.resolve()
+
+/** Keeps browser mutations and API persistence together, so cleanup never sees an opt-in before its owner is recorded. */
+export function serializePushSubscriptionMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = pushSubscriptionMutation.then(operation)
+  pushSubscriptionMutation = result.then(() => undefined, () => undefined)
+  return result
+}
+
 export function recordPushSubscriptionOwner(accountId: string): void {
   localStorage.setItem(PUSH_SUBSCRIPTION_OWNER_KEY, accountId)
 }
@@ -26,7 +35,9 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
  * is gone, so only the browser side can end it; the API then deletes its row on the next send (410 Gone).
  */
 export async function discardForeignPushSubscription(accountId: string): Promise<void> {
-  if (isPushSubscriptionOwner(accountId)) return
-  const subscription = await getExistingPushSubscription()
-  await subscription?.unsubscribe()
+  return serializePushSubscriptionMutation(async () => {
+    if (isPushSubscriptionOwner(accountId)) return
+    const subscription = await getExistingPushSubscription()
+    await subscription?.unsubscribe()
+  })
 }

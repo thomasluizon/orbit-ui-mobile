@@ -18,11 +18,13 @@ import {
 } from '@/hooks/use-push-notification-preferences'
 import * as pushPreferences from '@/hooks/use-push-notification-preferences'
 import { setAccountId } from '@/lib/account-scope'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
+import { discardForeignPushSubscription, isPushSubscriptionOwner } from '@/lib/push-subscription-owner'
 
 interface MockPushSubscription {
   endpoint: string
   toJSON: () => { keys: { p256dh: string; auth: string } }
-  unsubscribe: ReturnType<typeof vi.fn>
+  unsubscribe: ReturnType<typeof vi.fn<() => Promise<boolean>>>
 }
 
 interface SetupPushEnvironmentOptions {
@@ -107,6 +109,12 @@ function setupPushEnvironment(options: SetupPushEnvironmentOptions = {}) {
     status: options.fetchStatus ?? 200,
   })
   let currentSubscription = existingSubscription
+  for (const subscription of [existingSubscription, subscribeResult]) {
+    subscription?.unsubscribe.mockImplementation(async () => {
+      if (currentSubscription === subscription) currentSubscription = null
+      return true
+    })
+  }
   const getSubscription = vi.fn(async () => currentSubscription)
   const subscribe = vi.fn(async () => {
     currentSubscription = subscribeResult
@@ -301,6 +309,57 @@ describe('use-push-notification-preferences helpers', () => {
 
     await expect(settleWithin(subscribeToPushNotifications())).rejects.toThrow('Failed to persist push subscription')
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the new account subscription when account-switch cleanup has a pending browser lookup', async () => {
+    const { subscription: previousSubscription, getRegistration, getSubscription, subscribe } = await enablePushAs('account-a')
+    const nextSubscription = createMockSubscription('https://example.com/account-b')
+    subscribe.mockImplementationOnce(async () => {
+      getSubscription.mockResolvedValue(nextSubscription)
+      return nextSubscription
+    })
+    let finishLookup: (registration: MockRegistration) => void = () => undefined
+    getRegistration.mockReturnValueOnce(new Promise<MockRegistration>((resolve) => { finishLookup = resolve }))
+    let finishPersist: () => void = () => undefined
+    mockSubscribePush.mockReturnValueOnce(new Promise<void>((resolve) => { finishPersist = resolve }))
+
+    startAccountScopedSession('account-a', 'account-b')
+    await vi.waitFor(() => expect(getRegistration).toHaveBeenCalledTimes(1))
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
+    await act(async () => {
+      const optedIn = result.current.togglePush()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      finishLookup({ pushManager: { getSubscription, subscribe } })
+      await vi.waitFor(() => expect(mockSubscribePush).toHaveBeenCalledTimes(1))
+      finishPersist()
+      await settleWithin(optedIn)
+    })
+
+    expect(previousSubscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(nextSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(isPushSubscriptionOwner('account-b')).toBe(true)
+    expect(result.current.status).toBe('registered')
+    expect((await settleWithin(loadPushNotificationState('account-b'))).status).toBe('registered')
+  })
+
+  it('waits for persistence and ownership before cleanup inspects an opt-in already in progress', async () => {
+    const subscription = createMockSubscription('https://example.com/account-b')
+    setupPushEnvironment({ permission: 'granted', subscribeResult: subscription })
+    setAccountId('account-b')
+    let finishPersist: () => void = () => undefined
+    mockSubscribePush.mockReturnValueOnce(new Promise<void>((resolve) => { finishPersist = resolve }))
+
+    const optedIn = subscribeToPushNotifications()
+    await vi.waitFor(() => expect(mockSubscribePush).toHaveBeenCalledTimes(1))
+    const cleanedUp = discardForeignPushSubscription('account-b')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    finishPersist()
+    await settleWithin(Promise.all([optedIn, cleanedUp]))
+
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    expect(isPushSubscriptionOwner('account-b')).toBe(true)
+    expect((await settleWithin(loadPushNotificationState('account-b'))).status).toBe('registered')
   })
 
   it('refuses to subscribe without a VAPID key before prompting or dropping the current subscription', async () => {
