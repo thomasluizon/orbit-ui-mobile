@@ -7,6 +7,7 @@ import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
@@ -110,11 +111,109 @@ function pressControl(control: { props: Record<string, (() => void) | undefined>
   TestRenderer.act(() => control.props.onPressOut?.())
 }
 
+interface ComposerHost {
+  type: string
+  props: Record<string, unknown>
+  children: (ComposerHost | string)[] | null
+}
+
+function applyComposerLayoutStyle(node: YogaNode, style: Record<string, unknown>) {
+  const dimensions = ['Width', 'Height', 'MinWidth', 'MinHeight', 'MaxHeight', 'Flex', 'FlexGrow', 'FlexShrink', 'FlexBasis'] as const
+  for (const dimension of dimensions) {
+    const key = `${dimension.charAt(0).toLowerCase()}${dimension.slice(1)}`
+    const value = style[key]
+    if (typeof value === 'number') node[`set${dimension}`](value)
+  }
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
+  if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
+  if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
+  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+}
+
+function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown>) {
+  for (const [suffix, edge] of [['', Yoga.EDGE_ALL], ['Horizontal', Yoga.EDGE_HORIZONTAL], ['Vertical', Yoga.EDGE_VERTICAL]] as const) {
+    const value = style[`padding${suffix}`]
+    if (typeof value === 'number') node.setPadding(edge, value)
+  }
+  if (style.position === 'absolute') {
+    node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+    for (const [key, edge] of [['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT], ['top', Yoga.EDGE_TOP]] as const) {
+      const value = style[key]
+      if (typeof value === 'number') node.setPosition(edge, value)
+    }
+  }
+}
+
+function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, YogaNode>, lineCount: number): YogaNode {
+  const node = Yoga.Node.create(config)
+  const style = (StyleSheet.flatten(host.props.style as never) as Record<string, unknown> | undefined) ?? {}
+  if (typeof host.props.testID === 'string') nodes.set(host.props.testID, node)
+  applyComposerLayoutStyle(node, style)
+  applyComposerLayoutInsets(node, style)
+  if (host.type === 'TextInput') {
+    nodes.set('input', node)
+    node.setMeasureFunc(() => ({ width: 80, height: 24 * lineCount }))
+  } else if (host.type === 'Text') {
+    node.setMeasureFunc(() => ({ width: 80, height: 24 }))
+  } else if (host.type !== 'Pressable') {
+    const children = (host.children ?? []).filter((child): child is ComposerHost => typeof child !== 'string')
+    children.forEach((child, index) => node.insertChild(composerLayout(child, config, nodes, lineCount), index))
+  }
+  return node
+}
+
 describe('Composer (mobile)', () => {
+  it.each([320, 360, 412, 600])('contains content-sized input and grouped controls at %ipx with native Yoga errata', (width) => {
+    const config = Yoga.Config.create()
+    config.setErrata(Yoga.ERRATA_ALL)
+    try {
+      for (const locale of [en, ptBR]) for (const withOpener of [false, true]) for (const value of ['', 'A single line', 'First\nSecond\nThird', 'One\nTwo\nThree\nFour\nFive']) {
+        const lineCount = value.split('\n').length
+        const tree = renderComposer(props({
+          value, suggestions: [], words: { ...words, placeholder: locale.shell.composer.placeholder },
+          onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords,
+          ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
+        }))
+        const nodes = new Map<string, YogaNode>()
+        let layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
+        try {
+          layout.calculateLayout(width, undefined)
+          TestRenderer.act(() => tree.root.findByProps({ testID: 'composer-field' }).props.onLayout({ nativeEvent: { layout: { width: nodes.get('composer-field')!.getComputedWidth() } } }))
+          layout.freeRecursive()
+          nodes.clear()
+          layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
+          layout.calculateLayout(width, undefined)
+          const input = nodes.get('input')!
+          const slot = nodes.get('composer-text-slot')!
+          const field = nodes.get('composer-field')!
+          const controls = nodes.get('composer-controls')!
+          const row = field.getParent()!
+          expect(input.getComputedHeight()).toBe(Math.min(96, 24 * lineCount + 24))
+          expect(field.getComputedTop()).toBeGreaterThanOrEqual(0)
+          expect(field.getComputedTop() + field.getComputedHeight()).toBeLessThanOrEqual(row.getComputedHeight())
+          expect(slot.getComputedTop() + input.getComputedTop()).toBeGreaterThanOrEqual(0)
+          expect(slot.getComputedTop() + input.getComputedTop() + input.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
+          expect(controls.getComputedHeight()).toBe(44)
+          expect(controls.getComputedTop() + controls.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
+          expect(controls.getComputedWidth()).toBe(140)
+          expect(input.getComputedWidth() - input.getComputedPadding(Yoga.EDGE_LEFT) - input.getComputedPadding(Yoga.EDGE_RIGHT)).toBeGreaterThanOrEqual(width === 320 && withOpener ? 140 : 160)
+        } finally {
+          layout.freeRecursive()
+          TestRenderer.act(() => tree.unmount())
+        }
+      }
+    } finally {
+      config.free()
+    }
+  })
+
   it('gives text a flexible word-sized minimum and lets the controls wrap together', () => {
     const tree = renderComposer(props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords }))
     const input = tree.root.findByType('TextInput')
-    expect(StyleSheet.flatten(input.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+    expect(StyleSheet.flatten(input.props.style)).toMatchObject({ minWidth: 0 })
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-text-slot' }).props.style)).toMatchObject({ flexGrow: 1, flexShrink: 1, flexBasis: 176, minWidth: 176 })
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-field' }).props.style)).toMatchObject({ flexWrap: 'wrap' })
     const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })

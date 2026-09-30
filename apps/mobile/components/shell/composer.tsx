@@ -541,7 +541,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     maxHeight: 96,
     minWidth: 0,
-    flex: 1,
     paddingHorizontal: 8,
     paddingVertical: 12,
     fontFamily: 'Geist_400Regular',
