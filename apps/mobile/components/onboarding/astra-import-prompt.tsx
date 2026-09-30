@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -110,22 +110,22 @@ export function AstraImportPrompt() {
       title={t('onboarding.wizard.importTitle')}
       actions={(
         <DialogActionPair>
-          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <PillButton onClick={() => void handleImport()}>
-            {t('onboarding.wizard.importButton')}
-          </PillButton>
-          <Pressable
-            style={({ pressed }) => [styles.quietRow, pressed ? styles.quietRowPressed : null]}
-            onPress={() =>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('onboarding.wizard.importNotNow')}
+            onClick={() =>
               closeSheet(() => {
                 unregisterOpenOverlay(promptId)
                 void markSeen()
               })
             }
-            accessibilityRole="button"
           >
-            <Text style={styles.quietText}>{t('onboarding.wizard.importNotNow')}</Text>
-          </Pressable>
+            {t('onboarding.wizard.importNotNow')}
+          </PillButton>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
+          <PillButton onClick={() => void handleImport()}>
+            {t('onboarding.wizard.importButton')}
+          </PillButton>
         </DialogActionPair>
       )}
     >
@@ -148,19 +148,6 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 14,
       lineHeight: 21,
       textAlign: 'center',
-      color: tokens.fg2,
-    },
-    quietRow: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    quietRowPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    quietText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
       color: tokens.fg2,
     },
   })

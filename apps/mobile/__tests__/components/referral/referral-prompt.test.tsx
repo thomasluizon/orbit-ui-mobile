@@ -25,13 +25,8 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode
-    onClick?: () => void
-  }) => React.createElement('PillButtonStub', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -121,7 +116,7 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.prompt.cta', 'referral.prompt.later'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
@@ -183,7 +178,7 @@ describe('ReferralPrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    const [cta] = findByType(tree, 'PillButtonStub')
+    const cta = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
       ;(cta!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()

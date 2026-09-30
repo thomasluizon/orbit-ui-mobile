@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -92,21 +92,21 @@ export function CalendarImportPrompt() {
       title={t('onboarding.wizard.calendarTitle')}
       actions={(
         <DialogActionPair>
-          <PillButton onClick={handleImport}>
-            {t('onboarding.wizard.calendarButton')}
-          </PillButton>
-          <Pressable
-            style={({ pressed }) => [styles.quietRow, pressed ? styles.quietRowPressed : null]}
-            onPress={() =>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('common.later')}
+            onClick={() =>
               closeSheet(() => {
                 unregisterOpenOverlay(promptId)
                 void dismissPrompt()
               })
             }
-            accessibilityRole="button"
           >
-            <Text style={styles.quietText}>{t('common.later')}</Text>
-          </Pressable>
+            {t('common.later')}
+          </PillButton>
+          <PillButton onClick={handleImport}>
+            {t('onboarding.wizard.calendarButton')}
+          </PillButton>
         </DialogActionPair>
       )}
     >
@@ -129,19 +129,6 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 14,
       lineHeight: 21,
       textAlign: 'center',
-      color: tokens.fg2,
-    },
-    quietRow: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    quietRowPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    quietText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
       color: tokens.fg2,
     },
   })

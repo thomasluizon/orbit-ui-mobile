@@ -95,25 +95,39 @@ export function DeleteAccountModal({
       onClose={() => handleOpenChange(false)}
       title={t('profile.deleteAccount.headingAreYouSure')}
       actions={(
-        <DialogActionPair>
+        <>
           {error ? (
-            <p role="alert" className="m-0" style={{ color: 'var(--status-bad-text)', fontSize: 13, textAlign: 'center' }}>
+            <p
+              role="alert"
+              className="m-0"
+              style={{
+                width: '100%',
+                color: 'var(--status-bad-text)',
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
               {error}
             </p>
           ) : null}
-          <PillButton
-            variant="destructive"
-            matchedWidth
-            disabled={loading || accountId === null}
-            loading={loading}
-            onClick={() => void handleRequestDeletion()}
-          >
-            {t('profile.deleteAccount.sendCode')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
+          <DialogActionPair>
+            <PillButton
+              variant="ghost"
+              disabled={loading}
+              onClick={() => closeSheet()}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              variant="destructive"
+              disabled={loading || accountId === null}
+              loading={loading}
+              onClick={() => void handleRequestDeletion()}
+            >
+              {t('profile.deleteAccount.sendCode')}
+            </PillButton>
+          </DialogActionPair>
+        </>
       )}
     >
       <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>

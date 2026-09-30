@@ -131,18 +131,17 @@ describe('MarketingConsentPrompt', () => {
     await armConsent()
     await settle()
 
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['marketingConsent.prompt.accept', 'marketingConsent.prompt.decline'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
-  it('gives Decline the shared action transitions and press', async () => {
+  it('uses a ghost pill for Decline', async () => {
     renderPrompt()
     await armConsent()
     await settle()
 
-    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' }).className.split(' '))
-      .toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {

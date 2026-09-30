@@ -53,8 +53,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('PillButton', null, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 async function renderPrompt() {
@@ -68,19 +68,9 @@ async function renderPrompt() {
 }
 
 function pressQuietAction(tree: any) {
-  const rows = tree.root.findAll(
-    (node: any) =>
-      node.type === 'Pressable' &&
-      node.findAll(
-        (child: any) =>
-          child.type === 'Text' && child.props.children === 'onboarding.wizard.importNotNow',
-      ).length > 0,
-  )
-  const target = rows.at(-1)
+  const target = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
   if (!target) throw new Error('Not now action not found')
-  TestRenderer.act(() => {
-    target.props.onPress()
-  })
+  TestRenderer.act(() => target.props.onClick())
 }
 
 function sheetCount(tree: { root: { findAllByType: (type: string) => unknown[] } }): number {
@@ -128,19 +118,13 @@ describe('AstraImportPrompt gating', () => {
     expect(sheetCount(await renderPrompt())).toBe(1)
   })
 
-  it('centres its copy and gives the quiet action a centred 44 point row that presses to 0.96', async () => {
+  it('centres its copy and uses a ghost pill to dismiss', async () => {
     mocks.profile = baseProfile()
     const tree = await renderPrompt()
-    const actions = tree.root.findAll((node: any) => node.type === 'SheetActions')[0]
-    const quiet = actions.findAll((node: any) => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').at(-1)
-    const quietStyle = (pressed: boolean) => StyleSheet.flatten(typeof quiet.props.style === 'function' ? quiet.props.style({ pressed }) : quiet.props.style)
-    const label = actions.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importNotNow')[0]
+    const quiet = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
     const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.importDescription')[0]
 
-    expect(quietStyle(false)).toMatchObject({ minHeight: 44, alignItems: 'center', justifyContent: 'center' })
-    expect(quietStyle(false).paddingBottom).toBeUndefined()
-    expect(quietStyle(true).transform).toEqual([{ scale: 0.96 }])
-    expect(StyleSheet.flatten(label.props.style).fontFamily).toBe('Geist_500Medium')
+    expect(quiet.props.variant).toBe('ghost')
     expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
@@ -148,7 +132,7 @@ describe('AstraImportPrompt gating', () => {
     mocks.profile = baseProfile()
     const tree = await renderPrompt()
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.importButton', 'onboarding.wizard.importNotNow'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })

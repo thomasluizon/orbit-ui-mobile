@@ -175,14 +175,14 @@ describe('FreshStartModal', () => {
   it('pins both steps\' actions in the sheet footer, never in the scrolling body', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['profile.freshStart.reviewDeletion', 'common.cancel'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['profile.freshStart.deleteData', 'common.cancel'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
-  it('names the deletion review and gives both actions one width in each step', async () => {
+  it('names the deletion review and lets both actions hug their labels in each step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     const width = (label: string) => {
       const node = label === 'common.cancel'
@@ -191,11 +191,11 @@ describe('FreshStartModal', () => {
       const style = node.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
     }
-    expect(width('profile.freshStart.reviewDeletion')).toBe('100%')
-    expect(width('common.cancel')).toBe('100%')
+    expect(width('profile.freshStart.reviewDeletion')).toBeUndefined()
+    expect(width('common.cancel')).toBeUndefined()
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    expect(width('profile.freshStart.deleteData')).toBe('100%')
-    expect(width('common.cancel')).toBe('100%')
+    expect(width('profile.freshStart.deleteData')).toBeUndefined()
+    expect(width('common.cancel')).toBeUndefined()
   })
 
   it.each(['choose', 'confirm'] as const)('cancels from the %s step without resetting data', async (step) => {

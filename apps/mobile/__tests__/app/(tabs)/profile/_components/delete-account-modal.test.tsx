@@ -118,7 +118,7 @@ describe('DeleteAccountModal', () => {
   })
 
   it.each([
-    ['online', true, ['profile.deleteAccount.sendCode', 'common.cancel']],
+    ['online', true, ['common.cancel', 'profile.deleteAccount.sendCode']],
     ['offline', false, []],
   ] as const)('pins the %s actions in the sheet footer, never in the scrolling body', async (_state, isOnline, footer) => {
     mocks.isOnline.current = isOnline

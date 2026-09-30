@@ -100,27 +100,37 @@ export function DeleteAccountModal({
       open
       onClose={handleClose}
       title={t('profile.deleteAccount.headingAreYouSure')}
-      actions={isOnline ? (
-        <DialogActionPair>
-          {error ? (
-            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>
-              {error}
-            </Text>
-          ) : null}
-          <PillButton
-            variant="destructive"
-            matchedWidth
-            onClick={() => void handleRequestDeletion()}
-            disabled={loading}
-            loading={loading}
-          >
-            {t('profile.deleteAccount.sendCode')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth disabled={loading} onClick={() => closeSheet()}>
-            {t('common.cancel')}
-          </PillButton>
-        </DialogActionPair>
-      ) : undefined}
+      actions={
+        isOnline ? (
+          <>
+            {error ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.error, { color: tokens.statusBadText, width: '100%' }]}
+              >
+                {error}
+              </Text>
+            ) : null}
+            <DialogActionPair>
+              <PillButton
+                variant="ghost"
+                disabled={loading}
+                onClick={() => closeSheet()}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
+                variant="destructive"
+                onClick={() => void handleRequestDeletion()}
+                disabled={loading}
+                loading={loading}
+              >
+                {t('profile.deleteAccount.sendCode')}
+              </PillButton>
+            </DialogActionPair>
+          </>
+        ) : undefined
+      }
     >
       {!isOnline ? (
         <ErrorState message={t('profile.deleteAccount.offlineDescription')} />

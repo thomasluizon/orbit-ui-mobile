@@ -124,7 +124,7 @@ describe('MilestoneSharePrompt', () => {
     await armMilestoneShare('share-streak-7')
     await settle()
 
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.download', 'milestoneShare.later'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['milestoneShare.later', 'milestoneShare.download'])
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
@@ -144,7 +144,8 @@ describe('MilestoneSharePrompt', () => {
     await settle()
 
     const later = screen.getByRole('button', { name: 'milestoneShare.later' })
-    expect(later.className.split(' ')).toEqual(expect.arrayContaining(['touch-target', 'orbit-pill-action', 'active:scale-[0.96]']))
+    expect(later).toHaveAttribute('data-variant', 'ghost')
+    expect(Number.parseFloat(later.style.height)).toBeGreaterThanOrEqual(44)
     expect(screen.getByRole('button', { name: 'milestoneShare.download' }).parentElement!.style.gap).toBe('12px')
   })
 

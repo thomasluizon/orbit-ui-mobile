@@ -44,8 +44,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) =>
-    React.createElement('PillButton', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 function renderPrompt() {
@@ -94,7 +94,7 @@ describe('CalendarImportPrompt navigation', () => {
   it('opens calendar sync only after the sheet dismisses', () => {
     mocks.profile = baseProfile()
     const tree = renderPrompt()
-    const importAction = tree.root.findAllByType('PillButton')[0]
+    const importAction = tree.root.findAllByType('PillButton').find((node: any) => node.props.variant !== 'ghost')
 
     TestRenderer.act(() => {
       importAction.props.onClick()
@@ -134,19 +134,13 @@ describe('CalendarImportPrompt gating', () => {
     expect(sheetCount(renderPrompt())).toBe(1)
   })
 
-  it('centres its copy and gives the quiet action a centred 44 point row that presses to 0.96', () => {
+  it('centres its copy and uses a ghost pill to dismiss', () => {
     mocks.profile = baseProfile()
     const tree = renderPrompt()
-    const actions = tree.root.findAll((node: any) => node.type === 'SheetActions')[0]
-    const quiet = actions.findAll((node: any) => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').at(-1)
-    const quietStyle = (pressed: boolean) => StyleSheet.flatten(typeof quiet.props.style === 'function' ? quiet.props.style({ pressed }) : quiet.props.style)
-    const label = actions.findAll((node: any) => node.type === 'Text' && node.props.children === 'common.later')[0]
+    const quiet = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
     const description = tree.root.findAll((node: any) => node.type === 'Text' && node.props.children === 'onboarding.wizard.calendarDescription')[0]
 
-    expect(quietStyle(false)).toMatchObject({ minHeight: 44, alignItems: 'center', justifyContent: 'center' })
-    expect(quietStyle(false).paddingBottom).toBeUndefined()
-    expect(quietStyle(true).transform).toEqual([{ scale: 0.96 }])
-    expect(StyleSheet.flatten(label.props.style).fontFamily).toBe('Geist_500Medium')
+    expect(quiet.props.variant).toBe('ghost')
     expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
@@ -154,7 +148,7 @@ describe('CalendarImportPrompt gating', () => {
     mocks.profile = baseProfile()
     const tree = renderPrompt()
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['onboarding.wizard.calendarButton', 'common.later'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.later', 'onboarding.wizard.calendarButton'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
@@ -196,14 +190,7 @@ describe('CalendarImportPrompt quiet dismissal', () => {
     const tree = renderPrompt()
     expect(sheetCount(tree)).toBe(1)
 
-    const rows = tree.root.findAll(
-      (node: any) =>
-        node.type === 'Pressable' &&
-        node.findAll(
-          (child: any) => child.type === 'Text' && child.props.children === 'common.later',
-        ).length > 0,
-    )
-    const later = rows.at(-1)
+    const later = tree.root.findAll((node: any) => node.type === 'PillButton' && node.props.variant === 'ghost')[0]
     if (!later) throw new Error('Later action not found')
     TestRenderer.act(() => {
       later.props.onPress()

@@ -515,16 +515,12 @@ function GlobalOverlays({
         title={t('onboarding.wizard.calendarTitle')}
         actions={(
           <DialogActionPair>
+            <PillButton variant="ghost" onClick={onDismissCalendarPrompt}>
+              {t('common.later')}
+            </PillButton>
             <PillButton onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
-            <button
-              type="button"
-              className="orbit-pill-action w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] active:scale-[0.96]"
-              onClick={onDismissCalendarPrompt}
-            >
-              {t('common.later')}
-            </button>
           </DialogActionPair>
         )}
       >
@@ -540,17 +536,13 @@ function GlobalOverlays({
         title={t('onboarding.wizard.importTitle')}
         actions={(
           <DialogActionPair>
+            <PillButton variant="ghost" onClick={onDismissImportPrompt}>
+              {t('onboarding.wizard.importNotNow')}
+            </PillButton>
             {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
             <PillButton onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
-            <button
-              type="button"
-              className="orbit-pill-action w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] active:scale-[0.96]"
-              onClick={onDismissImportPrompt}
-            >
-              {t('onboarding.wizard.importNotNow')}
-            </button>
           </DialogActionPair>
         )}
       >

@@ -113,16 +113,12 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
       actions={(
         <DialogActionPair>
+          <PillButton variant="ghost" onClick={() => answer(false)}>
+            {t('marketingConsent.prompt.decline')}
+          </PillButton>
           <PillButton onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
-          <button
-            type="button"
-            onClick={() => answer(false)}
-            className="orbit-pill-action touch-target w-full border-0 bg-transparent text-sm font-medium text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-          >
-            {t('marketingConsent.prompt.decline')}
-          </button>
         </DialogActionPair>
       )}
     >

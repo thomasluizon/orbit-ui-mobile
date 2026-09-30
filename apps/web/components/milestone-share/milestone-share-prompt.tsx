@@ -142,18 +142,24 @@ export function MilestoneSharePrompt() {
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
       actions={(
-        <DialogActionPair>
+        <>
           {hasError && (
-            <p role="alert" className="m-0" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
+            <p
+              role="alert"
+              className="m-0 w-full"
+              style={{
+                textAlign: 'center',
+                fontSize: 14,
+                color: 'var(--status-bad-text)',
+              }}
+            >
               {t('milestoneShare.shareError')}
             </p>
           )}
-          <div className="flex w-full" style={{ gap: 12 }}>
-            {canShareFiles && (
-              <PillButton loading={isSharing} disabled={isSharing} onClick={handleShare}>
-                {t('milestoneShare.share')}
-              </PillButton>
-            )}
+          <DialogActionPair>
+            <PillButton variant="ghost" onClick={dismiss}>
+              {t('milestoneShare.later')}
+            </PillButton>
             <PillButton
               variant={canShareFiles ? 'ghost' : 'primary'}
               loading={isSharing}
@@ -162,22 +168,17 @@ export function MilestoneSharePrompt() {
             >
               {t('milestoneShare.download')}
             </PillButton>
-          </div>
-
-          <button
-            type="button"
-            onClick={dismiss}
-            className="orbit-pill-action touch-target w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-            style={{
-              padding: '12px 0',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            {t('milestoneShare.later')}
-          </button>
-        </DialogActionPair>
+            {canShareFiles && (
+              <PillButton
+                loading={isSharing}
+                disabled={isSharing}
+                onClick={handleShare}
+              >
+                {t('milestoneShare.share')}
+              </PillButton>
+            )}
+          </DialogActionPair>
+        </>
       )}
     >
       <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>

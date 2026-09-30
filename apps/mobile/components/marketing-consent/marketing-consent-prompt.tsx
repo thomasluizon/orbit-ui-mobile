@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
@@ -115,22 +115,16 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
       actions={(
         <DialogActionPair>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('marketingConsent.prompt.decline')}
+            onClick={() => answer(false)}
+          >
+            {t('marketingConsent.prompt.decline')}
+          </PillButton>
           <PillButton onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
-          <Pressable
-            onPress={() => answer(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('marketingConsent.prompt.decline')}
-            style={({ pressed }) => [
-              styles.laterButton,
-              pressed ? styles.laterButtonPressed : null,
-            ]}
-          >
-            <Text style={styles.laterText}>
-              {t('marketingConsent.prompt.decline')}
-            </Text>
-          </Pressable>
         </DialogActionPair>
       )}
     >
@@ -155,20 +149,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    laterButton: {
-      alignItems: 'center',
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-    laterButtonPressed: {
-      opacity: 0.6,
-      transform: [{ scale: 0.96 }],
-    },
-    laterText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
     },
   })
 }

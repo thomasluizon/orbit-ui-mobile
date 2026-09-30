@@ -1,5 +1,4 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
@@ -55,13 +54,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode
-    onClick?: () => void
-  }) => React.createElement('PillButtonStub', { onClick }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -168,20 +162,17 @@ describe('MarketingConsentPrompt (mobile)', () => {
     const tree = await renderArmed()
     await settle()
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.accept', 'marketingConsent.prompt.decline'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
-  it('presses Decline to the shared 0.96 scale', async () => {
+  it('uses a ghost pill for Decline', async () => {
     const tree = await renderArmed()
     await settle()
     const quiet = tree.root.findAll((node: any) =>
       typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline')[0]!
-    const style = quiet.props.style
-    const pressed = typeof style === 'function' ? style({ pressed: true }) : style
-
-    expect(StyleSheet.flatten(pressed).transform).toEqual([{ scale: 0.96 }])
+    expect(quiet.props.variant).toBe('ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {
@@ -214,7 +205,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
     const tree = await renderArmed()
     await settle()
 
-    const [accept] = findByType(tree, 'PillButtonStub')
+    const accept = findByType(tree, 'PillButtonStub').find((node) => node.props.variant !== 'ghost')
     await TestRenderer.act(async () => {
       ;(accept!.props.onClick as (() => void) | undefined)?.()
       await Promise.resolve()

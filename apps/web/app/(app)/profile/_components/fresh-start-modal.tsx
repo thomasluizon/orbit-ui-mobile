@@ -250,30 +250,47 @@ function FreshStartActions({
   if (step === 'info') {
     return (
       <DialogActionPair>
-        <PillButton variant="caution" matchedWidth onClick={onContinue}>
-          {t('profile.freshStart.reviewDeletion')}
-        </PillButton>
-        <PillButton variant="ghost" matchedWidth onClick={onCancel}>
+        <PillButton variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
+        </PillButton>
+        <PillButton variant="caution" onClick={onContinue}>
+          {t('profile.freshStart.reviewDeletion')}
         </PillButton>
       </DialogActionPair>
     )
   }
 
   return (
-    <DialogActionPair>
+    <>
       {error ? (
-        <p role="alert" className="m-0" style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad-text)', textAlign: 'center' }}>
+        <p
+          role="alert"
+          className="m-0"
+          style={{
+            width: '100%',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: 'var(--status-bad-text)',
+            textAlign: 'center',
+          }}
+        >
           {error}
         </p>
       ) : null}
-      <PillButton variant="caution" matchedWidth disabled={!isConfirmed || loading} loading={loading} onClick={onReset}>
-        {t('profile.freshStart.deleteData')}
-      </PillButton>
-      <PillButton variant="ghost" matchedWidth disabled={loading} onClick={onCancel}>
-        {t('common.cancel')}
-      </PillButton>
-    </DialogActionPair>
+      <DialogActionPair>
+        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton
+          variant="caution"
+          disabled={!isConfirmed || loading}
+          loading={loading}
+          onClick={onReset}
+        >
+          {t('profile.freshStart.deleteData')}
+        </PillButton>
+      </DialogActionPair>
+    </>
   )
 }
 

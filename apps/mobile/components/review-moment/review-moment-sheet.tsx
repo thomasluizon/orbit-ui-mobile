@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canPromptEngagement,
@@ -132,24 +132,20 @@ export function ReviewMomentSheet() {
       title={title}
       actions={(
         <DialogActionPair>
-          <PillButton loading={isRequesting} disabled={isRequesting} onClick={() => void rate()}>
+          <PillButton
+            variant="ghost"
+            accessibleName={t('reviewMoment.notNow')}
+            onClick={requestSnooze}
+          >
+            {t('reviewMoment.notNow')}
+          </PillButton>
+          <PillButton
+            loading={isRequesting}
+            disabled={isRequesting}
+            onClick={() => void rate()}
+          >
             {t('reviewMoment.cta')}
           </PillButton>
-          <Pressable
-            onPress={requestSnooze}
-            accessibilityRole="button"
-            accessibilityLabel={t('reviewMoment.notNow')}
-            style={({ pressed }) => [
-              styles.notNowButton,
-              pressed ? styles.notNowButtonPressed : null,
-            ]}
-          >
-            {({ pressed }) => (
-              <Text style={[styles.notNowText, pressed ? styles.notNowTextPressed : null]}>
-                {t('reviewMoment.notNow')}
-              </Text>
-            )}
-          </Pressable>
         </DialogActionPair>
       )}
     >
@@ -180,22 +176,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    notNowButton: {
-      alignItems: 'center',
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-    notNowButtonPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    notNowText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    notNowTextPressed: {
-      color: tokens.fg1,
     },
   })
 }

@@ -169,44 +169,56 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             ? t('profile.freshStart.heading')
             : t('profile.freshStart.confirmHeading')
         }
-        actions={resetStep === 'info' ? (
-          <DialogActionPair>
-            <PillButton
-              variant="caution"
-              matchedWidth
-              accessibleName={t('profile.freshStart.reviewDeletion')}
-              onClick={() => setResetStep('confirm')}
-            >
-              {t('profile.freshStart.reviewDeletion')}
-            </PillButton>
-            <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
-          </DialogActionPair>
-        ) : (
-          <DialogActionPair>
-            {resetError ? (
-              <Text accessibilityRole="alert" style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-                {resetError}
-              </Text>
-            ) : null}
-            <PillButton
-              variant="caution"
-              matchedWidth
-              accessibleName={confirmButtonLabel}
-              disabled={!isResetConfirmed || resetLoading}
-              loading={resetLoading}
-              onClick={() => {
-                void handleResetAccount()
-              }}
-            >
-              {confirmButtonLabel}
-            </PillButton>
-            <PillButton variant="ghost" matchedWidth disabled={resetLoading} onClick={() => closeSheet()}>
-              {t('common.cancel')}
-            </PillButton>
-          </DialogActionPair>
-        )}
+        actions={
+          resetStep === 'info' ? (
+              <DialogActionPair>
+                <PillButton variant="ghost" onClick={() => closeSheet()}>
+                  {t('common.cancel')}
+                </PillButton>
+                <PillButton
+                  variant="caution"
+                  accessibleName={t('profile.freshStart.reviewDeletion')}
+                  onClick={() => setResetStep('confirm')}
+                >
+                  {t('profile.freshStart.reviewDeletion')}
+                </PillButton>
+              </DialogActionPair>
+            ) : (
+              <>
+                {resetError ? (
+                  <Text
+                    accessibilityRole="alert"
+                    style={[
+                      styles.errorTextSmall,
+                      { color: tokens.statusBadText, width: '100%' },
+                    ]}
+                  >
+                    {resetError}
+                  </Text>
+                ) : null}
+                <DialogActionPair>
+                  <PillButton
+                    variant="ghost"
+                    disabled={resetLoading}
+                    onClick={() => closeSheet()}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                  <PillButton
+                    variant="caution"
+                    accessibleName={confirmButtonLabel}
+                    disabled={!isResetConfirmed || resetLoading}
+                    loading={resetLoading}
+                    onClick={() => {
+                      void handleResetAccount()
+                    }}
+                  >
+                    {confirmButtonLabel}
+                  </PillButton>
+                </DialogActionPair>
+              </>
+            )
+        }
       >
         {resetStep === 'info' ? (
           <View style={styles.body}>

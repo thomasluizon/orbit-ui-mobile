@@ -112,7 +112,7 @@ describe('DeleteAccountModal', () => {
 
   it('pins Send code and Cancel in the sheet footer, never in the scrolling body', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['profile.deleteAccount.sendCode', 'common.cancel'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.deleteAccount.sendCode'])
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

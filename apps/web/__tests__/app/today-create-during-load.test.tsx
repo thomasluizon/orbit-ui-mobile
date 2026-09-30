@@ -90,8 +90,8 @@ vi.mock('@/stores/referral-prompt-store', () => ({
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) =>
-    <button type="button" onClick={onClick}>{children}</button>,
+  PillButton: ({ children, onClick, variant }: { children?: React.ReactNode; onClick?: () => void; variant?: string }) =>
+    <button type="button" data-variant={variant} onClick={onClick}>{children}</button>,
 }))
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
@@ -188,8 +188,8 @@ describe('Today create during first load', () => {
   })
 
   it.each([
-    ['calendar', { hasImportedCalendar: false }, ['onboarding.wizard.calendarButton', 'common.later']],
-    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importButton', 'onboarding.wizard.importNotNow']],
+    ['calendar', { hasImportedCalendar: false }, ['common.later', 'onboarding.wizard.calendarButton']],
+    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
   ] as const)('pins the %s import actions in the sheet footer, never in the scrolling body', async (_prompt, flags, footer) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
     render(<AppLayout><div>Today</div></AppLayout>)
@@ -203,12 +203,12 @@ describe('Today create during first load', () => {
   it.each([
     ['calendar', { hasImportedCalendar: false }, 'common.later'],
     ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
-  ] as const)('presses the %s import quiet action to the shared 0.96 scale', async (_prompt, flags, quiet) => {
+  ] as const)('uses a ghost pill for the %s import dismissal', async (_prompt, flags, quiet) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
     render(<AppLayout><div>Today</div></AppLayout>)
     await act(async () => {})
 
-    expect(screen.getByRole('button', { name: quiet }).className.split(' ')).toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
+    expect(screen.getByRole('button', { name: quiet })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('waits to offer calendar import while another sheet is open', async () => {

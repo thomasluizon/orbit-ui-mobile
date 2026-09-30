@@ -100,18 +100,17 @@ describe('ReferralPrompt', () => {
     await arm('streak-7')
     await settle()
 
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.prompt.cta', 'referral.prompt.later'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.prompt.later', 'referral.prompt.cta'])
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
-  it('gives Later the shared action transitions and press', async () => {
+  it('uses a ghost pill for Later', async () => {
     render(<ReferralPrompt />)
     await arm('streak-7')
     await settle()
 
-    expect(screen.getByRole('button', { name: 'referral.prompt.later' }).className.split(' '))
-      .toEqual(expect.arrayContaining(['orbit-pill-action', 'active:scale-[0.96]']))
+    expect(screen.getByRole('button', { name: 'referral.prompt.later' })).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {

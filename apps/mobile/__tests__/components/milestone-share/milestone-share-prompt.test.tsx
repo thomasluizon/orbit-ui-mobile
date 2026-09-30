@@ -1,5 +1,4 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
@@ -27,13 +26,8 @@ vi.mock('@/components/milestone-share/milestone-share-card', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-  }: {
-    children: React.ReactNode
-    onPress?: () => void
-  }) => React.createElement('PillButtonStub', { onPress }, children),
+  PillButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButtonStub', { ...props, onPress: props.onClick, accessibilityLabel: props.accessibleName }, children),
 }))
 
 const shareCard = vi.hoisted(() => ({ hasError: false }))
@@ -148,23 +142,9 @@ describe('MilestoneSharePrompt (mobile)', () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.share', 'milestoneShare.later'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.later', 'milestoneShare.share'])
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
-  })
-
-  it('gives Later the 44 point minimum target', async () => {
-    const tree = await render()
-    await armMilestoneShare('share-streak-7')
-    await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-    const later = tree.root.findAll((node) =>
-      typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
-    const style = later.props.style
-    const resolved = typeof style === 'function' ? style({ pressed: false }) : style
-
-    expect(StyleSheet.flatten(resolved).minHeight).toBeGreaterThanOrEqual(44)
   })
 
   it('shows a failed share in the pinned footer, beside Share', async () => {
@@ -183,7 +163,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(alerts('SheetBody')).toEqual([])
   })
 
-  it('presses Later to the shared 0.96 scale', async () => {
+  it('uses a ghost pill for Later', async () => {
     const tree = await render()
     await armMilestoneShare('share-streak-7')
     await TestRenderer.act(async () => {
@@ -191,10 +171,7 @@ describe('MilestoneSharePrompt (mobile)', () => {
     })
     const later = tree.root.findAll((node) =>
       typeof node.type === 'string' && node.props.accessibilityLabel === 'milestoneShare.later')[0]!
-    const style = later.props.style
-    const pressed = typeof style === 'function' ? style({ pressed: true }) : style
-
-    expect(StyleSheet.flatten(pressed).transform).toEqual([{ scale: 0.96 }])
+    expect(later.props.variant).toBe('ghost')
   })
 
   it('stays hidden while a celebration is in flight', async () => {

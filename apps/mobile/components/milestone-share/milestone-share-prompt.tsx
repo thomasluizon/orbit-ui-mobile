@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
@@ -128,37 +128,38 @@ export function MilestoneSharePrompt() {
       onClose={() => setVisibleKey(null)}
       title={t('milestoneShare.title')}
       actions={(
-        <DialogActionPair>
+        <>
           {hasError ? (
-            <Text accessibilityRole="alert" style={styles.errorText}>{t('milestoneShare.shareError')}</Text>
+            <Text
+              accessibilityRole="alert"
+              style={[styles.errorText, { width: '100%' }]}
+            >
+              {t('milestoneShare.shareError')}
+            </Text>
           ) : null}
-          <PillButton
-            loading={isSharing}
-            disabled={isSharing}
-            onClick={() => void share({
-              shareTitle: t('milestoneShare.shareTitle'),
-              shareText: t('milestoneShare.shareText'),
-              url: referralUrl,
-            })}
-          >
-            {t('milestoneShare.share')}
-          </PillButton>
-          <Pressable
-            onPress={dismiss}
-            accessibilityRole="button"
-            accessibilityLabel={t('milestoneShare.later')}
-            style={({ pressed }) => [
-              styles.laterButton,
-              pressed ? styles.laterButtonPressed : null,
-            ]}
-          >
-            {({ pressed }) => (
-              <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
-                {t('milestoneShare.later')}
-              </Text>
-            )}
-          </Pressable>
-        </DialogActionPair>
+          <DialogActionPair>
+            <PillButton
+              variant="ghost"
+              accessibleName={t('milestoneShare.later')}
+              onClick={dismiss}
+            >
+              {t('milestoneShare.later')}
+            </PillButton>
+            <PillButton
+              loading={isSharing}
+              disabled={isSharing}
+              onClick={() =>
+                void share({
+                  shareTitle: t('milestoneShare.shareTitle'),
+                  shareText: t('milestoneShare.shareText'),
+                  url: referralUrl,
+                })
+              }
+            >
+              {t('milestoneShare.share')}
+            </PillButton>
+          </DialogActionPair>
+        </>
       )}
     >
       <View style={styles.content}>
@@ -194,22 +195,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.statusBadText,
-    },
-    laterButton: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    laterButtonPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    laterText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    laterTextPressed: {
-      color: tokens.fg1,
     },
   })
 }

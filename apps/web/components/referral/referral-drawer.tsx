@@ -170,18 +170,25 @@ function ReferralDrawerContent({
       open
       onClose={() => onOpenChange(false)}
       title={t('referral.drawer.title')}
-      actions={isLoaded && canShare ? (
-        <DialogActionPair>
-          {failedAction === 'share' ? (
-            <p role="alert" className="m-0 text-center text-sm text-[var(--fg-2)]">
-              {t('referral.drawer.actionFailed')}
-            </p>
-          ) : null}
-          <PillButton onClick={() => void shareLink()}>
-            {t('referral.drawer.share')}
-          </PillButton>
-        </DialogActionPair>
-      ) : undefined}
+      actions={
+        isLoaded && canShare ? (
+            <>
+              {failedAction === 'share' ? (
+                <p
+                  role="alert"
+                  className="w-full m-0 text-center text-sm text-[var(--fg-2)]"
+                >
+                  {t('referral.drawer.actionFailed')}
+                </p>
+              ) : null}
+              <DialogActionPair>
+                <PillButton onClick={() => void shareLink()}>
+                  {t('referral.drawer.share')}
+                </PillButton>
+              </DialogActionPair>
+            </>
+          ) : undefined
+      }
     >
       <div className="overlay-bleed">
         {isLoading ? (

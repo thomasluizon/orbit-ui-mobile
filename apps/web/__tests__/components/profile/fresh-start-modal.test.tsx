@@ -72,11 +72,11 @@ describe('FreshStartModal', () => {
 
   it('pins both steps\' actions in the sheet footer, never in the scrolling body', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['profile.freshStart.reviewDeletion', 'common.cancel'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
     expect(sheetSlotButtons('sheet-body')).toEqual([])
 
     fireEvent.click(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' }))
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['profile.freshStart.deleteData', 'common.cancel'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 
@@ -110,17 +110,17 @@ describe('FreshStartModal', () => {
     expect(screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })).toHaveAttribute('data-variant', 'caution')
   })
 
-  it('names the deletion review and gives both actions one width in each step', () => {
+  it('names the deletion review and lets both actions hug their labels in each step', () => {
     render(<FreshStartModal open onOpenChange={vi.fn()} />)
     const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
     const cancel = screen.getByRole('button', { name: 'common.cancel' })
-    expect(review).toHaveStyle({ width: '100%' })
-    expect(cancel).toHaveStyle({ width: '100%' })
+    expect(review.style.width).toBe('')
+    expect(cancel.style.width).toBe('')
 
     fireEvent.click(review)
     const deleteData = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
-    expect(deleteData).toHaveStyle({ width: '100%' })
-    expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveStyle({ width: '100%' })
+    expect(deleteData.style.width).toBe('')
+    expect(screen.getByRole('button', { name: 'common.cancel' }).style.width).toBe('')
   })
 
   it('transitions to confirm step on continue click', () => {

@@ -190,18 +190,25 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
       open
       onClose={onClose}
       title={t('referral.drawer.title')}
-      actions={isLoaded ? (
-        <DialogActionPair>
-          {failedAction === 'share' ? (
-            <Text accessibilityRole="alert" style={styles.shareError}>
-              {t('referral.drawer.actionFailed')}
-            </Text>
-          ) : null}
-          <PillButton onClick={() => void shareLink()}>
-            {t('referral.drawer.share')}
-          </PillButton>
-        </DialogActionPair>
-      ) : undefined}
+      actions={
+        isLoaded ? (
+          <>
+            {failedAction === 'share' ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.shareError, { width: '100%' }]}
+              >
+                {t('referral.drawer.actionFailed')}
+              </Text>
+            ) : null}
+            <DialogActionPair>
+              <PillButton onClick={() => void shareLink()}>
+                {t('referral.drawer.share')}
+              </PillButton>
+            </DialogActionPair>
+          </>
+        ) : undefined
+      }
     >
       <View style={styles.content}>
         {isLoading ? (

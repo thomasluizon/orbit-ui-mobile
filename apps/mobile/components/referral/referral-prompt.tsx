@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
@@ -121,20 +121,14 @@ export function ReferralPrompt() {
           key={visibleKey}
           actions={(
             <DialogActionPair>
-              <PillButton onClick={openDrawer}>
-                {t('referral.prompt.cta')}
-              </PillButton>
-              <Pressable
-                onPress={() => closeSheet()}
-                accessibilityRole="button"
-                accessibilityLabel={t('referral.prompt.later')}
-                style={({ pressed }) => [
-                  styles.laterButton,
-                  pressed ? styles.laterButtonPressed : null,
-                ]}
+              <PillButton
+                variant="ghost"
+                accessibleName={t('referral.prompt.later')}
+                onClick={() => closeSheet()}
               >
-                <Text style={styles.laterText}>{t('referral.prompt.later')}</Text>
-              </Pressable>
+                {t('referral.prompt.later')}
+              </PillButton>
+              <PillButton onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
             </DialogActionPair>
           )}
         >
@@ -160,20 +154,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 24,
       textAlign: 'center',
       color: tokens.fg2,
-    },
-    laterButton: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    laterButtonPressed: {
-      opacity: 0.6,
-      transform: [{ scale: 0.96 }],
-    },
-    laterText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      color: tokens.fg3,
     },
   })
 }
