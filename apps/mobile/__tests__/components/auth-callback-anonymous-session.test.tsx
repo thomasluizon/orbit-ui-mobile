@@ -275,6 +275,58 @@ it('preserves the pending verifier when an anonymous request rejects with 401', 
   expectNoTeardown()
 })
 
+it.each(['sign-in', 'Calendar'])('retries %s on a mounted callback with one POST per attempt', async (purpose) => {
+  const generation = getSessionGeneration()
+  let exchanges = 0
+  mocks.fetch.mockImplementation((url: string) => {
+    const path = new URL(url).pathname
+    if (path === API.auth.googleCode) {
+      exchanges += 1
+      return Promise.resolve(exchanges === 1
+        ? new Response(JSON.stringify({ error: 'Exchange failed' }), { status: 500 })
+        : new Response(JSON.stringify(success)))
+    }
+    if (path === API.profile.get) return Promise.resolve(new Response(JSON.stringify(profile)))
+    throw new Error(`Unexpected request: ${path}`)
+  })
+  mocks.openAuthSession.mockImplementation((url: string, redirect: string) => {
+    const authorize = new URL(url)
+    if (purpose === 'Calendar') {
+      expect(authorize.searchParams.get('prompt')).toBe('consent')
+      expect(authorize.searchParams.get('scope')).toContain('https://www.googleapis.com/auth/calendar.readonly')
+    }
+    const callbackUrl = `${redirect}?code=attempt-${mocks.openAuthSession.mock.calls.length}&state=${authorize.searchParams.get('state')}`
+    expect(setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(true)
+    return Promise.resolve({ type: 'success', url: callbackUrl })
+  })
+  let flow!: ReturnType<typeof useLoginFlow>
+  function LoginProbe() { flow = useLoginFlow(); return null }
+  const source = await mount(purpose === 'Calendar' ? <CalendarSyncScreen /> : <LoginProbe />)
+  const connect = () => {
+    if (purpose === 'sign-in') return flow.signInWithGoogle()
+    const button = source.root.findAll((node: { props: Record<string, unknown> }) =>
+      node.props.children === 'auth.signInWithGoogle' && typeof node.props.onPress === 'function',
+    )[0]
+    return button.props.onPress()
+  }
+  await TestRenderer.act(connect)
+  await mount(<><AuthCallbackScreen /><AuthCallbackScreen /></>)
+  expect(requestCount(API.auth.googleCode)).toBe(1)
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login?googleError=1')
+
+  await TestRenderer.act(connect)
+
+  expect(requestCount(API.auth.googleCode)).toBe(2)
+  const exchangeRequests = mocks.fetch.mock.calls.filter(([url]) => new URL(url).pathname === API.auth.googleCode)
+  expect(exchangeRequests.map(([, options]) => options.method)).toEqual(['POST', 'POST'])
+  expect(exchangeRequests.map(([, options]) => JSON.parse(options.body).code)).toEqual(['attempt-1', 'attempt-2'])
+  expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: success.userId } })
+  expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
+  expect(mocks.replace).toHaveBeenLastCalledWith(purpose === 'Calendar' ? '/calendar-sync' : '/')
+  await expect(getToken()).resolves.toBe(success.token)
+})
+
 it('rejects three parallel anonymous 401s without refreshing or tearing down the session', async () => {
   const refresh = vi.spyOn(authSession, 'refreshSession')
   const generation = getSessionGeneration()

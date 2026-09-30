@@ -35,6 +35,10 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => mocks.params,
 }))
 vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
+vi.mock('lucide-react-native', async (importOriginal) => ({
+  ...await importOriginal<typeof import('lucide-react-native')>(),
+  TriangleAlert: (props: Record<string, unknown>) => React.createElement('TriangleAlert', props),
+}))
 vi.mock('@/lib/google-auth-callback', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/google-auth-callback')>()
   return {
@@ -247,4 +251,63 @@ it('renders the localized login error after the single exchange genuinely fails'
   expect(loginScreen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
     node.type === 'Text' && node.props.children === message,
   )).toHaveLength(1)
+})
+
+it.each([1, 2])('retries a failed exchange with %i callback screens kept mounted and duplicate delivery', async (count) => {
+  let finishRetry!: () => void
+  mocks.completeGoogleAuthFromUrl
+    .mockRejectedValueOnce(new Error('Google code exchange failed'))
+    .mockImplementationOnce(() => new Promise((resolve) => { finishRetry = () => resolve(success) }))
+  await mountCallbackScreens(count)
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login?googleError=1')
+
+  await TestRenderer.act(() => { markPendingGoogleAuthSession(1, 'retry-verifier', 'retry-state') })
+  const callbackUrl = `${AUTH_CALLBACK_URL}?code=retry-code&state=retry-state`
+  await TestRenderer.act(() => { expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 1)).toBe(true) })
+  await TestRenderer.act(() => { expect(setPendingGoogleAuthCallbackUrl(callbackUrl, 1)).toBe(true) })
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(2)
+  await TestRenderer.act(() => { finishRetry() })
+
+  expect(mocks.login).toHaveBeenCalledExactlyOnceWith(success.token, success.refreshToken, {
+    userId: success.userId, name: success.name, email: success.email,
+  }, 0)
+  expect(mocks.replace).toHaveBeenLastCalledWith('/')
+  expect(mocks.allowGoogleErrorLogin).toHaveBeenCalledTimes(1)
+})
+
+it('clears a callback error as soon as a new attempt starts on the same screen', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValueOnce(new Error('Google code exchange failed'))
+  mocks.replace.mockImplementationOnce(() => { throw new Error('Navigation failed') })
+  await mountCallbackScreens(1)
+  const screen = renderers[0]
+  const textNodes = (message: string) => screen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+    node.type === 'Text' && node.props.children === message,
+  )
+  expect(textNodes(i18n.t('auth.errors.googleError'))).toHaveLength(1)
+
+  await TestRenderer.act(() => { markPendingGoogleAuthSession(1, 'retry-verifier', 'retry-state') })
+
+  expect(textNodes(i18n.t('auth.errors.googleError'))).toHaveLength(0)
+  expect(textNodes(i18n.t('auth.signingIn'))).toHaveLength(1)
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.login).not.toHaveBeenCalled()
+})
+
+it('ignores a completion error from the previous attempt after a retry starts', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValueOnce(new Error('Google code exchange failed'))
+  mocks.replace.mockImplementationOnce(() => {
+    mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((attemptId: number) => attemptId === 1)
+    markPendingGoogleAuthSession(1, 'retry-verifier', 'retry-state')
+    throw new Error('Navigation failed')
+  })
+  await mountCallbackScreens(1)
+
+  const screen = renderers[0]
+  expect(screen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+    node.type === 'Text' && node.props.children === i18n.t('auth.signingIn'),
+  )).toHaveLength(1)
+  expect(screen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+    node.type === 'Text' && node.props.children === i18n.t('auth.errors.googleError'),
+  )).toHaveLength(0)
 })
