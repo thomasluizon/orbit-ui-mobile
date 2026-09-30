@@ -233,7 +233,7 @@ it.each(['auth_token', 'refresh_token'])('restores the destination shell on a ha
   mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { resolveSession = resolve }))
   render(await RootLayout({ children: <AppLayout><p>About content</p></AppLayout> }), { container: document })
   expect(screen.getByText('About content')).toBeInTheDocument()
-  expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session')
+  expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session', undefined)
   await act(async () => resolveSession(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
   expect(screen.getByRole('main', { name: 'Destination shell' })).toHaveTextContent('About content')
   cleanup()

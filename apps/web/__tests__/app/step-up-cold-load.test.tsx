@@ -82,7 +82,7 @@ it('starts the session monitor to verify the server account', async () => {
     render(<StepUpScreen serverAccountId="user-1" />)
   })
 
-  await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session'))
+  await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', undefined))
 })
 
 /** A replacement account has no challenge record, code, or scheduled deletion under its key. */

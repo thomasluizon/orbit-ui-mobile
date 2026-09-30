@@ -10,7 +10,8 @@ import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-cha
 
 const mocks = vi.hoisted(() => ({ fetchJson: vi.fn() }))
 
-vi.mock('@/lib/api-fetch', () => ({
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
   fetchJson: (...args: unknown[]) => mocks.fetchJson(...args),
 }))
 

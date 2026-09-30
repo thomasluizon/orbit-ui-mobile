@@ -74,7 +74,7 @@ describe('useRepairStreak', () => {
       isAuthenticated: false,
       sessionRefreshFailed: true,
     }))
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
   })
 
   it('clears a stale refresh failure and caches the streak when the repair succeeds', async () => {
@@ -137,7 +137,7 @@ describe('useRepairStreak', () => {
     await act(async () => { failRepair(createApiClientError(409, null, 'Conflict')) })
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
     expect(queryClient.getQueryData(gamificationKeys.streak('America/Sao_Paulo'))).toBeUndefined()
   })
 })
