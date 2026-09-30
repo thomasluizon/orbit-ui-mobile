@@ -1,5 +1,11 @@
-import { render } from '@testing-library/react'
+import { render, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { NextIntlClientProvider } from 'next-intl'
+import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { StreakBadge } from '@/components/gamification/streak-badge'
+import { HabitChecklist } from '@/components/habits/habit-checklist'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 
@@ -14,6 +20,23 @@ const cellWords: DayCellWords = {
 }
 
 describe('painted press and hover shapes', () => {
+  it('renders the compact layout inventory from real controls and providers', () => {
+    const router: AppRouterInstance = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {}, bfcacheId: 'press-target' }
+    const container = document.createElement('section')
+    container.innerHTML = renderToStaticMarkup(
+      <AppRouterContext.Provider value={router}>
+        <NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
+          <StreakBadge streak={3} />
+          <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} interactive onReset={() => {}} onClear={() => {}} />
+        </NextIntlClientProvider>
+      </AppRouterContext.Provider>,
+    )
+    expect(within(container).getByRole('button', { name: /Sequência/ })).toBeDefined()
+    for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
+      expect(within(container).getByRole('button', { name: label })).toBeDefined()
+    }
+  })
+
   it('layers the day hover fill over the whole round hit area without hiding the outcome', () => {
     const { container } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />,

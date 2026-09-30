@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StyleSheet } from "react-native";
+import { StyleSheet, type ViewStyle } from "react-native";
 import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
@@ -231,9 +231,9 @@ describe("ReminderSection", () => {
     const confirm = buttons(tree).find(
       (node) => node.props.accessibilityLabel === "common.add",
     );
-    (confirm!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
+    expect(confirm!.props.hitSlop).toBeUndefined();
+    const pressedAdd = StyleSheet.flatten((confirm!.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: true }));
+    expect(pressedAdd).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.primaryPressed });
     (confirm!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });

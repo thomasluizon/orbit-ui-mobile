@@ -5,6 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
+import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
@@ -31,13 +32,39 @@ describe('PillButton', () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
       const font = readFileSync(require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')).toString('base64')
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}: ${value};`).join(' ')
       stylesheet = `${compiled.css}
+        :root { ${variables} }
         @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
         :root { --font-sans: TestGeist; }
         body { padding: 48px; }`
     })
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([412, 1280])('paints the import icon target including both pseudo-elements at %ipx', async (width) => {
+      const { container } = render(<SelectAllToggle allSelected={false} onToggle={() => {}} selectAllLabel="Select all" deselectAllLabel="Deselect all" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.locator('button').hover()
+        const geometry = await page.locator('button').evaluate((button) => {
+          for (const animation of button.getAnimations()) animation.finish()
+          const bounds = button.getBoundingClientRect()
+          const style = getComputedStyle(button)
+          return {
+            width: bounds.width, height: bounds.height, fill: style.backgroundColor,
+            extensions: ['::before', '::after'].map((pseudo) => getComputedStyle(button, pseudo).content),
+          }
+        })
+        expect(geometry.width).toBe(44)
+        expect(geometry.height).toBe(44)
+        expect(geometry.fill).not.toBe('rgba(0, 0, 0, 0)')
+        expect(geometry.extensions).toEqual(['none', 'none'])
+      } finally {
+        await page.close()
+      }
+    })
 
     it.each([
       { label: 'Continue', iconOnly: false },
