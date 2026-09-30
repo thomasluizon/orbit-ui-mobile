@@ -59,7 +59,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           value={shownStatValue(props)}
           isEmpty={isEmpty}
           isLargeValue={isLargeValue}
-          largeFontSize={tileWidth >= 172 ? 22 : 18}
+          largeFontSize={tileWidth >= 172 ? 22 : 17}
           color={isEmpty ? tokens.fg3 : tokens.fg1}
         />
       )}

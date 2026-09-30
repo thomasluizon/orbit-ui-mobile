@@ -71,7 +71,7 @@ describe('StatTile (mobile)', () => {
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="40" font-family="Space Grotesk" font-size="${size}" font-weight="600">${weekday}</text></svg>`
         const bounds = new Resvg(svg, { font: { fontFiles: [fontFile], loadSystemFonts: false } }).getBBox()
         expect(bounds, weekday).not.toBeNull()
-        expect(size, `${weekday} type size in ${platform} at ${screenWidth}px`).toBe(screenWidth >= 344 && screenWidth < 412 ? 18 : 22)
+        expect(size, `${weekday} type size in ${platform} at ${screenWidth}px`).toBe(screenWidth >= 344 && screenWidth < 412 ? 17 : 22)
         expect(bounds!.width, `${weekday} in ${platform} at ${screenWidth}px`).toBeLessThanOrEqual(contentWidth)
         expect(value.props.numberOfLines).toBe(1)
         expect(value.props.ellipsizeMode).toBeUndefined()
