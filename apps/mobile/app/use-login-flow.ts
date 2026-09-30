@@ -387,8 +387,6 @@ export function useLoginFlow() {
         reportError(t('auth.errors.googleError'))
         return
       }
-
-      router.replace('/auth-callback')
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err, 'google').message)
     } finally {

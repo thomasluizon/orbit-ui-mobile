@@ -2,6 +2,9 @@ import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import AuthCallbackScreen from '@/app/auth-callback'
+import LoginScreen from '@/app/login'
+import { AppToast } from '@/components/ui/app-toast'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
 import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
 
@@ -10,6 +13,7 @@ vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
+  params: {},
   login: vi.fn(),
   getSessionGeneration: vi.fn(),
   replace: vi.fn(),
@@ -26,10 +30,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mocks.params,
 }))
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
-vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
 vi.mock('@/lib/google-auth-callback', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/google-auth-callback')>()
   return {
@@ -37,6 +40,7 @@ vi.mock('@/lib/google-auth-callback', async (importOriginal) => {
     allowGoogleErrorLogin: mocks.allowGoogleErrorLogin,
   }
 })
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl }))
 vi.mock('@/stores/auth-store', () => ({
   getSessionGeneration: mocks.getSessionGeneration,
@@ -50,12 +54,31 @@ vi.mock('@/lib/auth-flow', () => ({
   getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
   markReferralApplied: mocks.markReferralApplied,
+  createAuthReturnUrlAttempt: () => 1,
+  storeAuthReturnUrl: vi.fn(),
+  storeReferralCode: vi.fn(),
+  isSafeReturnUrl: () => true,
+  isValidReferralCode: () => false,
+  isValidVerificationCode: () => false,
 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
+vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => null }))
+vi.mock('@/lib/motion', () => ({
+  toAnimatedEasing: (easing: unknown) => easing,
+  usePrefersReducedMotion: () => true,
+  getPrefersReducedMotion: () => Promise.resolve(true),
+}))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/stores/onboarding-draft-store', () => ({
+  useOnboardingDraftStore: (selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown) =>
+    selector({ onboardingLocallyDone: false, habits: [] }),
+}))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.params = {}
+  useAppToastStore.setState({ currentToast: null, queue: [] })
   mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/')
@@ -74,19 +97,21 @@ const renderers: ReturnType<typeof TestRenderer.create>[] = []
 afterEach(() => {
   TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
   clearPendingGoogleAuthSession()
+  useAppToastStore.setState({ currentToast: null, queue: [] })
 })
 
-async function mountTwoCallbackScreens() {
+async function mountCallbackScreens(count = 2) {
   await TestRenderer.act(async () => {
-    renderers.push(TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>))
-    renderers.push(TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>))
+    for (let index = 0; index < count; index += 1) {
+      renderers.push(TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>))
+    }
     await Promise.resolve()
   })
 }
 
 it('exchanges the single-use Google code once when the callback screen mounts twice', async () => {
   mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
-  await mountTwoCallbackScreens()
+  await mountCallbackScreens()
   await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalled())
   await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
@@ -96,10 +121,67 @@ it('a rejected duplicate exchange never sends a signed-in person back to login',
   mocks.completeGoogleAuthFromUrl
     .mockResolvedValueOnce(success)
     .mockRejectedValueOnce(new Error('Could not exchange Google sign-in code'))
-  await mountTwoCallbackScreens()
+  await mountCallbackScreens()
   await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
   expect(mocks.login).toHaveBeenCalledTimes(1)
-  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
-  expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
   expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
+  expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+})
+
+it('keeps a completed callback single flight when login clears pending credentials and a screen remounts', async () => {
+  mocks.login.mockImplementation(() => {
+    clearPendingGoogleAuthSession()
+    mocks.getSessionGeneration.mockReturnValue({ epoch: 1, credentialVersion: 1 })
+    return Promise.resolve(() => true)
+  })
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
+  await mountCallbackScreens()
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+  TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
+  await mountCallbackScreens()
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.login).toHaveBeenCalledTimes(1)
+  expect(mocks.replace).toHaveBeenCalledTimes(1)
+  expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
+})
+
+it.each(['resolves', 'rejects'])('ignores an exchange that %s after a newer Google attempt starts', async (outcome) => {
+  let finish!: () => void
+  mocks.completeGoogleAuthFromUrl.mockReturnValue(new Promise((resolve, reject) => {
+    finish = () => outcome === 'resolves' ? resolve(success) : reject(new Error('Expired attempt'))
+  }))
+  await mountCallbackScreens()
+  await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledOnce())
+  TestRenderer.act(() => { markPendingGoogleAuthSession(1, 'new-verifier', 'new-state') })
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((attemptId: number) => attemptId === 1)
+  await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+  expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=new&state=new-state`, 1)).toBe(true)
+})
+
+it('renders the localized login error after the single exchange genuinely fails', async () => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValue(new Error('Google code exchange failed'))
+  await mountCallbackScreens(1)
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.login).not.toHaveBeenCalled()
+  expect(mocks.allowGoogleErrorLogin).toHaveBeenCalledTimes(1)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login?googleError=1')
+
+  mocks.params = { googleError: '1' }
+  let loginScreen!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    loginScreen = TestRenderer.create(
+      <I18nextProvider i18n={i18n}><LoginScreen /><AppToast /></I18nextProvider>,
+    )
+    renderers.push(loginScreen)
+    await Promise.resolve()
+  })
+  const message = i18n.t('auth.errors.googleError')
+  expect(message).not.toBe('auth.errors.googleError')
+  expect(loginScreen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+    node.type === 'Text' && node.props.children === message,
+  )).toHaveLength(1)
 })

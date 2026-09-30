@@ -93,7 +93,7 @@ export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAt
 export function clearPendingGoogleAuthSession(returnUrlAttemptId?: number): void {
   if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
   pendingCredentials = null
-  if (returnUrlAttemptId !== undefined && pendingCompletion?.returnUrlAttemptId === returnUrlAttemptId) return
+  if (pendingCompletion?.returnUrlAttemptId === pendingGoogleAuthSession.returnUrlAttemptId) return
   pendingCompletion = null
   pendingGoogleAuthSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
   emit()

@@ -530,13 +530,14 @@ describe('useLoginFlow (mobile)', () => {
     expect(harness.current.showReferralBanner).toBe(true)
   })
 
-  it('redirects to the auth callback after a successful Google sign-in', async () => {
+  it('leaves callback navigation to the App Link after successful Google sign-in', async () => {
     mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'success', url: 'orbit://cb' })
     const harness = await renderLoginFlow()
 
     await act(() => harness.current.signInWithGoogle())
 
-    expect(mocks.replace).toHaveBeenCalledWith('/auth-callback')
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(mocks.showError).not.toHaveBeenCalled()
     expect(harness.current.isGoogleLoading).toBe(false)
   })
 
