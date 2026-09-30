@@ -13,7 +13,7 @@ type AppRouter = ReturnType<typeof useRouter>
 function openNotificationUrl(router: AppRouter, url: unknown) {
   const destination = typeof url === 'string' ? getNotificationDestination(url) : null
   if (!destination) return
-  router.push(destination.url)
+  router.push(destination.opensAstra ? '/?astra=open' : destination.url)
   if (destination.opensAstra) useUIStore.getState().setAstraConversationOpen(true)
 }
 

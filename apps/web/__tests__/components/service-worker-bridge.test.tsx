@@ -103,7 +103,7 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/'], ['/progress']])
+    expect(mockPush.mock.calls).toEqual([['/?astra=open'], ['/progress']])
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
@@ -114,7 +114,7 @@ describe('ServiceWorkerBridge', () => {
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
-    expect(mockPush).toHaveBeenCalledWith('/')
+    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
@@ -190,8 +190,16 @@ describe('ServiceWorkerBridge', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/')
+    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('keeps the Astra launch intent in the route through anonymous onboarding and sign-in', () => {
+    installServiceWorkerContainer()
+    window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
+    renderBridge()
+    expect(mockPush).toHaveBeenCalledWith('/?astra=open')
+    expect(window.location.search).toBe('')
   })
 
   it('stays on the origin for a crafted launch link and still clears it', () => {
