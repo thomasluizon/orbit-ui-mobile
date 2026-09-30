@@ -12,7 +12,7 @@ export interface RescheduleProposalProps {
   disclosure: string
 }
 
-/** Reusable Astra reschedule proposal shared by Hoje and the habit detail surface. */
+/** The Astra reschedule proposal inside the Hoje reschedule sheet. */
 export function RescheduleProposal({
   proposedLabel,
   dateLabel,

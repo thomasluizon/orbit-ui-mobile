@@ -207,6 +207,7 @@ export const AccessibilityInfo = {
     remove: () => {},
   }),
   announceForAccessibility: (_announcement: string) => {},
+  setAccessibilityFocus: (_reactTag: number) => {},
   sendAccessibilityEvent: (_handle: unknown, _eventType: 'focus' | 'click' | 'viewHoverEnter') => {},
 }
 

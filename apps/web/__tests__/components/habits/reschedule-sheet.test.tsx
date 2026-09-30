@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   wide: false,
   pending: false,
   profile: { hasProAccess: true, language: 'en' },
+  today: '2026-08-17',
   reschedule: {
     suggestion: null as RescheduleSuggestion | null,
     isLoading: false,
@@ -27,6 +28,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: h.profile }) }))
+vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => h.today }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: h.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: h.pending }) }))
@@ -66,6 +68,7 @@ describe('RescheduleSheet', () => {
     sheetTestControls.defer(false)
     h.reschedule.refetch.mockReset()
     h.profile = { hasProAccess: true, language: 'en' }
+    h.today = '2026-08-17'
     h.reschedule.suggestion = null
     h.reschedule.isLoading = false
     h.reschedule.error = null
@@ -145,11 +148,17 @@ describe('RescheduleSheet', () => {
     expect(screen.queryByRole('heading', { name: 'habits.reschedule.title' })).not.toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
-    expect(screen.getByTestId('reschedule-proposed-schedule')).not.toHaveTextContent('2026')
-    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/qui/i)
+    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
     expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
     expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
     expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).toHaveAttribute('color', 'var(--fg-1)')
+  })
+
+  it('adds the year to a proposed date outside the account year', () => {
+    h.today = '2026-12-30'
+    h.reschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2027-01-05', dueTime: null })
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^Tue, Jan 5, 2027$/)
   })
 
   it('uses the neutral filled action at wide width and shows a busy accept while saving', () => {
