@@ -107,4 +107,53 @@ describe('sign-out through the real notifications action wrapper', () => {
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
+
+  it('preserves another tab claim made while release waits for the origin push lock', async () => {
+    const { useAuthStore, subscription } = await installSignedInBrowser()
+    await import('@/hooks/use-push-notification-preferences')
+    vi.resetModules()
+    const otherTab = await import('@/lib/push-subscription-owner')
+    let finishClaim: () => void = () => undefined
+    const claiming = otherTab.serializePushSubscriptionMutation(async () => {
+      await new Promise<void>((resolve) => { finishClaim = resolve })
+      otherTab.recordPushSubscriptionOwner('account-b')
+    })
+    const signedOut = useAuthStore.getState().logout()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    finishClaim()
+
+    await settleWithin(Promise.all([claiming, signedOut]))
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+    expect(otherTab.isPushSubscriptionOwner('account-b')).toBe(true)
+  })
+
+  it('ends the matching account endpoint after a genuine network failure through the real wrapper', async () => {
+    const { useAuthStore, subscription } = await installSignedInBrowser()
+    actions.unsubscribePush.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    await settleWithin(useAuthStore.getState().logout())
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('settles a pending release and ends the matching endpoint without waiting for late completion', async () => {
+    const { useAuthStore, subscription } = await installSignedInBrowser()
+    await import('@/hooks/use-push-notification-preferences')
+    const { wrapServerAction } = await import('@/app/actions/action-result')
+    let finishRelease: () => void = () => undefined
+    actions.unsubscribePush.mockImplementation(() => wrapServerAction(() => new Promise<void>((resolve) => { finishRelease = resolve })))
+    vi.useFakeTimers()
+    const signedOut = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(actions.unsubscribePush).toHaveBeenCalledOnce())
+    await vi.advanceTimersByTimeAsync(5000)
+    await signedOut
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    finishRelease()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    const { withSessionCookieLock } = await import('@/lib/session-cookie-lock')
+    expect(await withSessionCookieLock(async () => 'cookies available')).toBe('cookies available')
+  })
 })

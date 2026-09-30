@@ -1,3 +1,8 @@
+import * as Sentry from '@sentry/nextjs'
+import { unsubscribePushForCleanup } from '@/lib/actions/notifications'
+import { withAccountIntent } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+
 /**
  * A browser holds one push subscription for the whole origin, whichever account turned it on, and the
  * API sends to it until that account unsubscribes it. This key names that account, so a later account on
@@ -44,13 +49,34 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
 }
 
 /**
- * Ends a subscription another account turned on, once `accountId` holds the session. Its owner's session
- * is gone, so only the browser side can end it; the API then deletes its row on the next send (410 Gone).
+ * Releases a foreign endpoint with its device keys while the replacement account holds the session.
+ * The API opt-in is restricted to this cleanup and rotation of a foreign subscription (#994).
  */
 export async function discardForeignPushSubscription(accountId: string): Promise<void> {
   return serializePushSubscriptionMutation(async () => {
     if (isPushSubscriptionOwner(accountId)) return
     const subscription = await getExistingPushSubscription()
-    await subscription?.unsubscribe()
+    if (!subscription || isPushSubscriptionOwner(accountId)) return
+    await releaseExistingPushSubscriptionOnServer(subscription, accountId)
+    await subscription.unsubscribe()
   })
+}
+
+/** A failed release must not block replacement registration, but account refusal preserves the endpoint. */
+export async function releaseExistingPushSubscriptionOnServer(subscription: PushSubscription, accountId: string | null): Promise<void> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(new Error('Push release timed out')), 5000)
+  try {
+    const submitted = {
+      ...subscription.toJSON(),
+      ...(accountId && isPushSubscriptionOwner(accountId) ? {} : { releaseOtherAccount: true }),
+    }
+    await settlePushCleanupBeforeAbort(withAccountIntent(accountId,
+      () => unsubscribePushForCleanup(submitted)), controller.signal)
+  } catch (error) {
+    if (reportsAccountChanged(error)) throw error
+    Sentry.captureException(error)
+  } finally {
+    clearTimeout(timeout)
+  }
 }

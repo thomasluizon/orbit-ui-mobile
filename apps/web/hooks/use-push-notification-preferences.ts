@@ -19,6 +19,7 @@ import {
   getExistingPushSubscription,
   isPushSubscriptionOwner,
   recordPushSubscriptionOwner,
+  releaseExistingPushSubscriptionOnServer,
   serializePushSubscriptionMutation,
   settlePushCleanupBeforeAbort,
 } from '@/lib/push-subscription-owner'
@@ -133,6 +134,7 @@ export async function loadPushNotificationState(accountId: string): Promise<Push
 
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  options: { reuseExisting?: boolean } = {},
 ): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
@@ -155,20 +157,21 @@ export async function subscribeToPushNotifications(
     const registration = await getActiveServiceWorkerRegistration()
     const existingSubscription = await registration.pushManager.getSubscription()
 
-    if (existingSubscription) {
+    const ownerAccountId = getAccountId()
+    if (existingSubscription && !options.reuseExisting) {
+      await releaseExistingPushSubscriptionOnServer(existingSubscription, ownerAccountId)
       await existingSubscription.unsubscribe()
     }
 
-    const subscription = await registration.pushManager.subscribe({
+    const subscription = options.reuseExisting && existingSubscription ? existingSubscription : await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
     })
 
-    const ownerAccountId = getAccountId()
     try {
-      await subscribePushAction(subscription.toJSON())
+      await withAccountIntent(ownerAccountId, () => subscribePushAction(subscription.toJSON()))
     } catch (error) {
-      await subscription.unsubscribe().catch(() => undefined)
+      if (subscription !== existingSubscription) await subscription.unsubscribe().catch(() => undefined)
       if (reportsAccountChanged(error)) throw error
       throw new Error('Failed to persist push subscription')
     }
@@ -222,7 +225,7 @@ export async function releasePushSubscription(accountId = getHeldAccountId()): P
         await settlePushCleanupBeforeAbort(withAccountIntent(accountId,
           () => unsubscribePushForCleanup(subscription.toJSON())), controller.signal)
       } catch (error) {
-        if (reportsAccountChanged(error) || controller.signal.aborted) throw error
+        if (reportsAccountChanged(error)) throw error
         if (isPushSubscriptionOwner(accountId)) await subscription.unsubscribe()
         throw error
       }

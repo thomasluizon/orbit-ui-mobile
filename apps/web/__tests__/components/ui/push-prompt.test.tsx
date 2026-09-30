@@ -283,6 +283,16 @@ describe('PushPrompt', () => {
     expect(await screen.findByText('pushPrompt.enable')).toBeInTheDocument()
   })
 
+  it('offers a foreign subscription even when the prior account dismissed the prompt', async () => {
+    await enablePushAs('account-a')
+    document.cookie = 'orbit_push_prompted=1; path=/; Secure'
+    setAccountId('account-b')
+
+    render(<PushPrompt />)
+
+    expect(await screen.findByText('pushPrompt.enable')).toBeInTheDocument()
+  })
+
   it('shows prompt when getSubscription throws an error and permission is not granted', async () => {
     Object.defineProperty(navigator, 'serviceWorker', {
       value: createServiceWorkerContainer({ getSubscription: () => Promise.reject(new Error('fail')) }),
@@ -345,8 +355,11 @@ describe('PushPrompt enable flow', () => {
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = originalVapid
   })
 
-  it('replaces a stale subscription, registers a fresh one and syncs the backend', async () => {
-    const existing = { unsubscribe: vi.fn().mockResolvedValue(undefined) }
+  it('presents a foreign subscription and its device keys without rotating the endpoint', async () => {
+    const existing = {
+      toJSON: () => ({ endpoint: 'https://push.example.com/previous', expirationTime: null, keys: { p256dh: 'device-key', auth: 'device-auth' } }),
+      unsubscribe: vi.fn().mockResolvedValue(undefined),
+    }
     const created = { toJSON: () => ({ endpoint: 'https://push.example.com/new' }) }
     const subscribe = vi.fn().mockResolvedValue(created)
     vi.spyOn(MockNotification, 'requestPermission').mockResolvedValue('granted')
@@ -356,10 +369,11 @@ describe('PushPrompt enable flow', () => {
     fireEvent.click(await screen.findByText('pushPrompt.enable'))
 
     await waitFor(() => {
-      expect(existing.unsubscribe).toHaveBeenCalledTimes(1)
-      expect(subscribe).toHaveBeenCalledTimes(1)
-      expect(subscribePush).toHaveBeenCalledWith({ endpoint: 'https://push.example.com/new' })
+      expect(subscribePush).toHaveBeenCalledWith(existing.toJSON())
     })
+    expect(existing.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('dismisses without subscribing when permission is refused', async () => {

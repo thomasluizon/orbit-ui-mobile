@@ -25,7 +25,7 @@ import { discardForeignPushSubscription, isPushSubscriptionOwner } from '@/lib/p
 
 interface MockPushSubscription {
   endpoint: string
-  toJSON: () => { keys: { p256dh: string; auth: string } }
+  toJSON: () => PushSubscriptionJSON
   unsubscribe: ReturnType<typeof vi.fn<() => Promise<boolean>>>
 }
 
@@ -79,6 +79,8 @@ function createMockSubscription(endpoint = 'https://example.com/push'): MockPush
   return {
     endpoint,
     toJSON: () => ({
+      endpoint,
+      expirationTime: null,
       keys: {
         p256dh: 'p256dh-key',
         auth: 'auth-key',
@@ -314,6 +316,53 @@ describe('use-push-notification-preferences helpers', () => {
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
+  it('releases the prior API row before rotating the browser endpoint at onboarding', async () => {
+    const previous = createMockSubscription('https://example.com/account-a')
+    const next = createMockSubscription('https://example.com/account-b')
+    const owners = new Map([[previous.endpoint, 'account-a']])
+    setupPushEnvironment({ existingSubscription: previous, subscribeResult: next })
+    setAccountId('account-b')
+    mockUnsubscribePush.mockImplementation(async (subscription: PushSubscriptionJSON) => {
+      expect(previous.unsubscribe).not.toHaveBeenCalled()
+      owners.delete(subscription.endpoint!)
+    })
+    mockSubscribePush.mockImplementation(async (subscription: PushSubscriptionJSON) => {
+      owners.set(subscription.endpoint!, 'account-b')
+    })
+
+    expect((await settleWithin(subscribeToPushNotifications())).status).toBe('registered')
+    expect(owners).toEqual(new Map([[next.endpoint, 'account-b']]))
+    expect(previous.unsubscribe).toHaveBeenCalledOnce()
+    expect(mockUnsubscribePush).toHaveBeenCalledWith(expect.objectContaining({
+      ...previous.toJSON(), releaseOtherAccount: true,
+    }))
+  })
+
+  it('finishes new registration when releasing the prior API endpoint fails', async () => {
+    const previous = createMockSubscription('https://example.com/account-a')
+    const next = createMockSubscription('https://example.com/account-b')
+    setupPushEnvironment({ existingSubscription: previous, subscribeResult: next })
+    mockUnsubscribePush.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    expect((await settleWithin(subscribeToPushNotifications())).status).toBe('registered')
+    expect(mockUnsubscribePush).toHaveBeenCalledOnce()
+    expect(previous.unsubscribe).toHaveBeenCalledOnce()
+    expect(mockSubscribePush).toHaveBeenCalledWith(next.toJSON())
+  })
+
+  it('releases the foreign API row with device keys once the replacement session becomes active', async () => {
+    const { subscription } = await enablePushAs('account-a')
+    let owner: string | null = 'account-a'
+    mockUnsubscribePush.mockImplementation(async (submitted: PushSubscriptionJSON & { releaseOtherAccount?: boolean }) => {
+      if (submitted.releaseOtherAccount && submitted.endpoint === subscription.endpoint) owner = null
+    })
+
+    startAccountScopedSession('account-a', 'account-b')
+    await vi.waitFor(() => expect(subscription.unsubscribe).toHaveBeenCalledOnce())
+    expect(owner).toBeNull()
+    expect(mockUnsubscribePush).toHaveBeenCalledWith({ ...subscription.toJSON(), releaseOtherAccount: true })
+  })
+
   it('keeps the new account subscription when account-switch cleanup has a pending browser lookup', async () => {
     const { subscription: previousSubscription, getRegistration, getSubscription, subscribe } = await enablePushAs('account-a')
     const nextSubscription = createMockSubscription('https://example.com/account-b')
@@ -449,7 +498,7 @@ describe('releasing this browser push subscription at logout', () => {
     finishApiCall()
     await settleWithin(released)
 
-    expect(mockUnsubscribePush).toHaveBeenCalledWith({ keys: { p256dh: 'p256dh-key', auth: 'auth-key' } })
+    expect(mockUnsubscribePush).toHaveBeenCalledWith(subscription.toJSON())
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
