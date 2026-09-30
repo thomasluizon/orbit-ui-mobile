@@ -10,6 +10,7 @@ import { accountEventApiBase } from '@/lib/account-event-api-base'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
+const PUBLIC_ROOT_FILES = new Set(['/sw.js'])
 
 const PUBLIC_PATHS = [
   '/login',
@@ -128,7 +129,8 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    STATIC_IMAGE_PATH.test(pathname)
+    STATIC_IMAGE_PATH.test(pathname) ||
+    PUBLIC_ROOT_FILES.has(pathname)
   ) {
     return secureResponse(
       NextResponse.next({ request: { headers: requestHeaders } }),

@@ -23,6 +23,66 @@ const posthogMocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/posthog', () => posthogMocks)
 
+const pushMocks = vi.hoisted(() => ({
+  subscribePush: vi.fn(),
+  unsubscribePush: vi.fn(),
+  captureException: vi.fn(),
+}))
+
+vi.mock('@/lib/actions/notifications', () => ({
+  subscribePush: pushMocks.subscribePush,
+  unsubscribePush: pushMocks.unsubscribePush,
+}))
+
+vi.mock('@sentry/nextjs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentry/nextjs')>()),
+  captureException: pushMocks.captureException,
+}))
+
+/** The browser push stack, as far as the real subscribe flow and the account boundary touch it. */
+function installBrowserPush(order: string[] = []) {
+  let current: unknown = null
+  const subscription = {
+    endpoint: 'https://push.example.com/account',
+    toJSON: () => ({ endpoint: 'https://push.example.com/account', keys: { p256dh: 'p256dh-key', auth: 'auth-key' } }),
+    unsubscribe: vi.fn(async () => {
+      order.push('browser-unsubscribe')
+      current = null
+      return true
+    }),
+  }
+  const registration = {
+    pushManager: {
+      getSubscription: vi.fn(async () => current),
+      subscribe: vi.fn(async () => {
+        current = subscription
+        return subscription
+      }),
+    },
+  }
+  Object.defineProperty(navigator, 'serviceWorker', {
+    configurable: true,
+    value: {
+      register: vi.fn(async () => registration),
+      ready: Promise.resolve(registration),
+      getRegistration: vi.fn(async () => registration),
+    },
+  })
+  Object.defineProperty(globalThis, 'Notification', {
+    configurable: true,
+    value: { permission: 'granted', requestPermission: vi.fn() },
+  })
+  Object.defineProperty(globalThis, 'PushManager', { configurable: true, value: class {} })
+  return subscription
+}
+
+/** Turns push on through the real subscribe flow as whichever account the store holds. */
+async function enablePush() {
+  const { subscribeToPushNotifications } = await import('@/hooks/use-push-notification-preferences')
+  pushMocks.subscribePush.mockResolvedValue(undefined)
+  await subscribeToPushNotifications('dGVzdA')
+}
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 let lockQueue: Promise<unknown>
@@ -90,6 +150,9 @@ describe('auth store', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'locks')
+    Reflect.deleteProperty(navigator, 'serviceWorker')
+    Reflect.deleteProperty(globalThis, 'Notification')
+    Reflect.deleteProperty(globalThis, 'PushManager')
   })
 
   function makeLoginResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
@@ -233,6 +296,68 @@ describe('auth store', () => {
     })
   })
 
+  it('releases this browser push subscription on the API before logout clears the session cookie', async () => {
+    const order: string[] = []
+    const subscription = installBrowserPush(order)
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    await enablePush()
+    pushMocks.unsubscribePush.mockImplementation(async () => { order.push('api-unsubscribe') })
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/logout') order.push('bff-logout')
+      return { ok: true }
+    })
+
+    await useAuthStore.getState().logout()
+
+    expect(pushMocks.unsubscribePush).toHaveBeenCalledWith(subscription.toJSON())
+    expect(order).toEqual(['api-unsubscribe', 'browser-unsubscribe', 'bff-logout'])
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('signs out, and still ends the browser subscription, when the API release fails', async () => {
+    const subscription = installBrowserPush()
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    await enablePush()
+    const failure = new Error('network down')
+    pushMocks.unsubscribePush.mockRejectedValue(failure)
+    mockFetch.mockResolvedValue({ ok: true })
+
+    await useAuthStore.getState().logout()
+
+    expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(pushMocks.captureException).toHaveBeenCalledWith(failure)
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('drops the push subscription a previous account turned on when another account signs in', async () => {
+    const subscription = installBrowserPush()
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    await enablePush()
+
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b', email: 'b@example.com' }))
+
+    await vi.waitFor(() => expect(subscription.unsubscribe).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps the push subscription the returning account turned on across a page load', async () => {
+    const subscription = installBrowserPush()
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    await enablePush()
+    useAuthStore.setState({ heldAccountId: null, isAuthenticated: false, user: null })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-a' }),
+    })
+
+    await useAuthStore.getState().checkSession()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(getHeldAccountId()).toBe('account-a')
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
+
   it('does not start a mounted API query after logout removes the session cookie', async () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
     mockFetch.mockImplementation((url: string) => {
@@ -348,7 +473,8 @@ describe('auth store', () => {
       email: 'thomas@example.com',
       code: '123456',
     })
-    await Promise.resolve()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())
     releaseLogout()
     await Promise.all([oldLogout, replacementLogin])
 

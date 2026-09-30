@@ -3,13 +3,19 @@
 import { useState, useEffect, useCallback, useId, useRef } from 'react'
 import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { subscribePush } from '@/lib/actions/notifications'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
+import { useAccountId } from '@/lib/account-scope'
+import { isPushSubscriptionOwner } from '@/lib/push-subscription-owner'
+import { getActiveServiceWorkerRegistration } from '@/lib/service-worker-registration'
+import {
+  isPushNotificationSupported,
+  subscribeToPushNotifications,
+} from '@/hooks/use-push-notification-preferences'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -23,19 +29,9 @@ function setCookie(name: string, value: string, maxAge: number) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/')
-  const rawData = atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.codePointAt(i) ?? 0
-  }
-  return outputArray
-}
-
 export function PushPrompt() {
   const t = useTranslations()
+  const accountId = useAccountId()
   const overlayId = useId()
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
@@ -51,25 +47,21 @@ export function PushPrompt() {
   }, [])
 
   useEffect(() => {
-    if (
-      typeof globalThis === 'undefined' ||
-      !('serviceWorker' in navigator) ||
-      !('PushManager' in globalThis)
-    )
-      return
+    if (accountId === null) return
+    if (!isPushNotificationSupported()) return
     if (Notification.permission === 'denied') return
     if (getCookie(STORAGE_KEY) === '1') return
 
-    navigator.serviceWorker.ready
+    getActiveServiceWorkerRegistration()
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => {
-        if (sub && Notification.permission === 'granted') return
+        if (sub && Notification.permission === 'granted' && isPushSubscriptionOwner(accountId)) return
         setEligible(true)
       })
       .catch(() => {
         setEligible(true)
       })
-  }, [])
+  }, [accountId])
 
   useEffect(() => {
     if (!eligible || anotherOverlayOpen || show) return
@@ -103,38 +95,7 @@ export function PushPrompt() {
   const handleEnable = useCallback(async () => {
     setShowRetryHint(false)
     try {
-      const permission =
-        Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission()
-
-      if (permission !== 'granted') {
-        dismiss()
-        return
-      }
-
-      const registration = await navigator.serviceWorker.ready
-      const existing = await registration.pushManager.getSubscription()
-      if (existing) await existing.unsubscribe()
-
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (!vapidKey) {
-        dismiss()
-        return
-      }
-
-      // react-doctor-disable-next-line effect-needs-cleanup -- pushManager.subscribe registers a persistent Web Push subscription that is sent to the server (subscribePush) and must outlive this component; unsubscribing on unmount would delete the user's push registration https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
-      })
-
-      try {
-        await subscribePush(subscription.toJSON())
-      } catch (error) {
-        await subscription.unsubscribe().catch(() => undefined)
-        throw error
-      }
+      await subscribeToPushNotifications()
       dismiss()
     } catch (error) {
       reportAccountChangedIfNeeded(error)

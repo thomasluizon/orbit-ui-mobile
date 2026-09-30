@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { useChatStore } from '@/stores/chat-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { setEngagementPromptAccountScope } from '@/stores/referral-prompt-store'
@@ -5,6 +6,7 @@ import { useTourStore } from '@/stores/tour-store'
 import { setUIAccountScope } from '@/stores/ui-store'
 import { clearAppNavigationHistory } from './app-navigation-history'
 import { setAccountId } from './account-scope'
+import { discardForeignPushSubscription } from './push-subscription-owner'
 
 export function startAccountScopedSession(
   previousAccountId: string | null,
@@ -23,5 +25,6 @@ export function startAccountScopedSession(
   } else {
     if (!preserveAnonymousDraft) void useOnboardingDraftStore.persist.rehydrate()
     useOnboardingDraftStore.getState().setAccountScope(accountId, preserveAnonymousDraft)
+    void discardForeignPushSubscription(accountId).catch((error: unknown) => Sentry.captureException(error))
   }
 }

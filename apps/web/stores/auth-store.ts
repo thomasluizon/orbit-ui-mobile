@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import * as Sentry from '@sentry/nextjs'
 import { resetAccountQueries } from '@orbit/shared/query'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
@@ -281,6 +282,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await withSessionCookieLock(async () => {
         if (logoutEpoch !== sessionOwnershipEpoch) return
+        await import('@/hooks/use-push-notification-preferences')
+          .then((module) => module.releasePushSubscription())
+          .catch((error: unknown) => Sentry.captureException(error))
         try {
           await fetch('/api/auth/logout', { method: 'POST' })
         } catch {
