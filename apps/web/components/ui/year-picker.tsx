@@ -44,10 +44,8 @@ export function YearPicker({
               type="button"
               aria-pressed={isSelected}
               onClick={() => onSelectYear(year)}
-              className="touch-target group appearance-none border-0 bg-transparent cursor-pointer p-0"
+              className={`h-11 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent hover:bg-[var(--bg-hover)]'}`}
               style={{
-                height: 32,
-                alignSelf: 'center',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 14,
                 fontWeight: isSelected ? 700 : 500,
@@ -55,18 +53,7 @@ export function YearPicker({
                 color: isSelected ? 'var(--fg-on-primary)' : 'var(--fg-1)',
               }}
             >
-              <span
-                className={
-                  'flex w-full items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] group-active:scale-[0.96] ' +
-                  (isSelected ? '' : 'group-hover:bg-[var(--bg-hover)]')
-                }
-                style={{
-                  height: 32,
-                  background: isSelected ? 'var(--primary)' : undefined,
-                }}
-              >
-                {year}
-              </span>
+              {year}
             </button>
           )
         })}

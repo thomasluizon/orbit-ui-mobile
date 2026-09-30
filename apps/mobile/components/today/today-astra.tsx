@@ -61,10 +61,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
         <Pressable
           accessibilityRole="link"
           hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-          style={[
-            styles.actionTarget,
-            actionPressed ? { backgroundColor: tokens.bgHover } : null,
-          ]}
+          style={styles.actionTarget}
           onPressIn={() => setActionPressed(true)}
           onPressOut={() => setActionPressed(false)}
           onPress={() => {

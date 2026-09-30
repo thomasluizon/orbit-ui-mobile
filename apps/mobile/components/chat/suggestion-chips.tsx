@@ -65,10 +65,13 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
       paddingHorizontal: 16,
       borderRadius: 999,
+      overflow: "hidden",
       backgroundColor: tokens.bgWell,
       boxShadow: `inset 0 0 0 1px ${tokens.hairline}`,
     },
     chipPressed: {
+      borderRadius: 999,
+      overflow: "hidden",
       backgroundColor: tokens.bgHover,
     },
     chipText: {

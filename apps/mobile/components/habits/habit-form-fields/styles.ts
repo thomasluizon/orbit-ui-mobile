@@ -90,9 +90,12 @@ export function createSectionStyles(tokens: AppTokens) {
       marginTop: 8,
     },
     dropdownItem: {
+      justifyContent: "center",
+      minHeight: 44,
       paddingHorizontal: 12,
       paddingVertical: 12,
-      borderRadius: 10,
+      borderRadius: 12,
+      overflow: "hidden",
     },
     dropdownItemText: {
       fontFamily: "Geist_400Regular",

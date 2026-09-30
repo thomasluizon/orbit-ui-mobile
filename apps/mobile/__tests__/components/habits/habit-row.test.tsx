@@ -222,7 +222,7 @@ describe('HabitRow status control names (mobile)', () => {
     expect(renderer!.root.findAllByProps({ testID: 'unavailable-status-dot' })).toHaveLength(0)
   })
 
-  it('presses the whole card from the body and only the ring from the ring control', () => {
+  it('paints the body hit area and ring independently', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(
@@ -251,8 +251,13 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
-    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.13)')
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
     expect(pressedCard.borderColor).toBe('rgba(255,255,255,0.16)')
+    expect(StyleSheet.flatten(body.props.style({ pressed: true }))).toMatchObject({
+      backgroundColor: 'rgba(250,250,250,0.13)',
+      borderRadius: 20,
+      overflow: 'hidden',
+    })
     expect(restingRing.backgroundColor).toBeUndefined()
 
     TestRenderer.act(() => body.props.onPressOut())

@@ -78,7 +78,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <button type="button" aria-label={t('notifications.markRead', { title: item.title })} className="grid size-11 place-items-center rounded-[8px] text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} aria-hidden="true" /></button> : undefined,
+      control: unread ? <button type="button" aria-label={t('notifications.markRead', { title: item.title })} className="grid size-11 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} aria-hidden="true" /></button> : undefined,
     }
   })
   const destination = recordList.surfaceId === 'profile' ? '/profile' : recordList.surfaceId === 'notifications' ? '/notifications' : null

@@ -70,7 +70,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className={`flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-hover)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected ? 'bg-[rgba(var(--primary-rgb),0.10)]' : 'bg-transparent'}`}
+      className={`flex w-full cursor-pointer items-center border-0 text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected ? 'bg-[rgba(var(--primary-rgb),0.10)]' : 'bg-transparent'}`}
       style={style}
     >{content}</button>
   )

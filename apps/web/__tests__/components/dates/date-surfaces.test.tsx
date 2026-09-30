@@ -105,7 +105,7 @@ describe('DayCell', () => {
     const { container, rerender } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />,
     )
-    expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ color: 'var(--bg)' })
+    expect(container.querySelector('[data-outcome="full"] span span')?.className).toContain('text-[var(--bg)]')
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
     rerender(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
@@ -115,6 +115,9 @@ describe('DayCell', () => {
 
     rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
     expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })
+
+    rerender(<DayCell day={18} label="March 18" words={cellWords} done={1} scheduled={1} habitHistory today />)
+    expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ fontWeight: '500' })
   })
 })
 

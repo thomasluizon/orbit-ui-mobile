@@ -24,9 +24,10 @@ function eventRowBackground(
   hasImportIssue: boolean,
   pressed: boolean,
   selectedBackground: string,
-  elevatedBackground: string,
+  tokens: AppTokensV2,
 ) {
-  return hasImportIssue || pressed ? elevatedBackground : selectedBackground
+  if (pressed) return tokens.bgHover
+  return hasImportIssue ? tokens.bgElev : selectedBackground
 }
 
 interface CalendarSyncEventRowProps {
@@ -97,7 +98,7 @@ export function CalendarSyncEventRow({
               hasImportIssue,
               pressed,
               selectedBackground,
-              tokens.bgElev,
+              tokens,
             ),
           },
         ]}

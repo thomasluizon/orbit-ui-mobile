@@ -156,7 +156,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="w-full text-left px-3 py-2 rounded-[10px] text-[15px] text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors duration-[var(--dur-fast)]"
+                    className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[15px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -201,7 +201,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-2 rounded-[10px] text-[15px] text-[var(--fg-1)] font-medium hover:bg-[var(--bg-elev)] transition-colors duration-[var(--dur-fast)]"
+                  className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[15px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

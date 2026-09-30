@@ -109,7 +109,7 @@ function HabitRowStructuralColumn({
       data-habit-row-control="disclosure"
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
-      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
+      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer active:scale-[0.96]"
     >
       <ChevronDown
         size={20}
@@ -193,7 +193,7 @@ export function HabitRow({
       {structuralColumn && selectMode ? (
         <button type="button" data-habit-row-control="selection" aria-label={habit.title}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
           <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
         </button>
       ) : null}
@@ -211,7 +211,7 @@ export function HabitRow({
         type="button"
         onClick={handleRowClick}
         data-habit-row-body=""
-        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-transform duration-[150ms] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+        className="flex min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         style={{ gap: 12, paddingBlock: isChild ? 4 : 8, paddingInlineStart: isChild ? 24 : 0 }}
       >
         <HabitRowLeading

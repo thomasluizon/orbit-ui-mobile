@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
   windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
-  goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1 },
+  goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', gap: 12, paddingVertical: 24 },

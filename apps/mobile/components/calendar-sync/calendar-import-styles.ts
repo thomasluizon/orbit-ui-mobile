@@ -92,6 +92,8 @@ export function createStyles() {
       gap: 12,
       paddingHorizontal: 16,
       paddingVertical: 12,
+      borderRadius: 12,
+      overflow: 'hidden',
       borderBottomWidth: StyleSheet.hairlineWidth,
     },
     eventBody: {

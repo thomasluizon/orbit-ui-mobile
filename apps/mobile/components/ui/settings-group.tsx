@@ -69,7 +69,7 @@ export function SettingsGroupRow({
       accessibilityLabel={accessibilityLabel ?? label}
       style={({ pressed }) => [
         styles.row,
-        pressed && onPress ? { backgroundColor: tokens.bgElev } : null,
+        pressed && onPress ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
@@ -109,6 +109,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     minHeight: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   iconSlot: {
     width: 26,
