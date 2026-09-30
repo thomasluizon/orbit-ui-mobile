@@ -61,7 +61,7 @@ export function NotificationInbox() {
         onDelete={() => requestDeleteNotification(selected)} /> : null}
       <ConfirmSheet open={confirmOpen} title={t('notifications.deleteAllConfirmTitle')}
         message={t('notifications.deleteAllConfirmDescription', { count: inbox.visibleNotifications.length })}
-        confirmLabel={t('notifications.deleteAllAction')} destructive
+        confirmLabel={t('notifications.deleteAllAction')} destructive inlineActions
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
           setConfirmOpen(false)

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
@@ -45,6 +45,29 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
 }
 
 describe('Composer', () => {
+  it('restores input focus when the composer still owns focus after sending', () => {
+    const view = render(<Composer {...props({ state: 'sending' })} autoFocus />)
+    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    view.rerender(<Composer {...props()} autoFocus />)
+    expect(screen.getByRole('textbox')).toHaveFocus()
+  })
+
+  it('keeps input focus in the composer when an active input becomes disabled', () => {
+    const view = render(<Composer {...props()} autoFocus />)
+    expect(screen.getByRole('textbox')).toHaveFocus()
+    view.rerender(<Composer {...props({ state: 'sending' })} autoFocus />)
+    expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+  })
+
+  it('does not steal focus from the enabled voice stop control when recording starts', () => {
+    const capability = { onVoice: vi.fn(), voiceWords }
+    const view = render(<Composer {...props(capability)} autoFocus />)
+    const voiceButton = screen.getByRole('button', { name: voiceWords.start })
+    act(() => voiceButton.focus())
+    view.rerender(<Composer {...props({ ...capability, state: 'recording' })} autoFocus />)
+    expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
+  })
+
   it('renders three suggestions in their named group', () => {
     render(<Composer {...props()} />)
     const group = screen.getByRole('group', { name: words.suggestionsLabel })
