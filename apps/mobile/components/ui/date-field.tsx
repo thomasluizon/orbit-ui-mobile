@@ -398,6 +398,7 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 4,
     },
     monthNavButton: {
+      overflow: 'hidden',
       width: 44,
       height: 44,
       borderRadius: radius.sm,
@@ -405,6 +406,7 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     yearButton: {
+      overflow: 'hidden',
       minWidth: 44,
       minHeight: 44,
       borderRadius: radius.sm,
