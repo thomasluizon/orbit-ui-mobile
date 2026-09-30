@@ -53,6 +53,8 @@ describe('Composer compact geometry in Chromium', () => {
           placeholderWhiteSpace: placeholderStyle.whiteSpace,
           whiteSpace: style.whiteSpace,
           documentWidth: document.documentElement.scrollWidth,
+          controlGroupRight: document.querySelector('[data-composer-controls]')!.getBoundingClientRect().right,
+          fieldRight: input.parentElement!.getBoundingClientRect().right - parseFloat(getComputedStyle(input.parentElement!).paddingRight),
           controls: [...document.querySelectorAll('button')].map((button) => {
             const bounds = button.getBoundingClientRect()
             return { width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right }
@@ -62,6 +64,7 @@ describe('Composer compact geometry in Chromium', () => {
       measurements.push({ width, placeholder: messages.shell.composer.placeholder, composing: value.length > 0, contentWidth: measured.contentWidth })
       expect(measured.contentWidth, JSON.stringify(measured)).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
       expect(measured.documentWidth).toBe(width)
+      expect(measured.controlGroupRight).toBeCloseTo(measured.fieldRight, 0)
       if (!value) {
         expect(measured.scrollHeight, JSON.stringify(measured)).toBe(measured.clientHeight)
         expect(measured.placeholderWhiteSpace).toBe('nowrap')

@@ -2,6 +2,7 @@ import React from 'react'
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Square } from '@/components/ui/icons'
 import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
@@ -400,6 +401,9 @@ describe('Composer (mobile)', () => {
     expect(textValues(tree.root)).toContain(voiceWords.transcribing)
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
     expect(byLabel(tree.root, voiceWords.stop)[0].props.disabled).toBe(true)
+    const icon = byLabel(tree.root, voiceWords.stop)[0].findByType(Square)
+    expect(icon.props.fill).toBe(createTokensV2('purple', 'dark').fg3)
+    expect(icon.props.color).toBe(createTokensV2('purple', 'dark').fg3)
   })
 
   it('renders attachment capability without an empty tray', async () => {

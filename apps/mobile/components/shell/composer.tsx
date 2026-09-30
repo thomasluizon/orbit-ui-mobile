@@ -225,7 +225,7 @@ function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerPro
             ]}
           >
             {isRecording || isTranscribing ? (
-              <Square size={16} fill={tokens.fgOnPrimary} color={tokens.fgOnPrimary} />
+              <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} />
             ) : (
               <Mic size={20} strokeWidth={1.8} color={tokens.fg3} />
             )}
@@ -310,7 +310,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       <View
         testID="composer-field"
         accessibilityLiveRegion="polite"
-        onLayout={(event) => setInputMinimum(Math.min(176, Math.max(0, event.nativeEvent.layout.width - 18)))}
+        onLayout={(event) => setInputMinimum(Math.min(176, Math.max(0, event.nativeEvent.layout.width - 16 - (focused && !inputDisabled ? 4 : 2))))}
         style={[styles.field, composerFieldStyle(tokens, focused, inputDisabled)]}
       >
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} inputMinimum={inputMinimum} onFocusChange={setFocused} />}
@@ -505,6 +505,7 @@ const styles = StyleSheet.create({
   },
   field: {
     flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     minHeight: 48,
     minWidth: 0,
     flex: 1,
@@ -544,6 +545,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
+    lineHeight: 24,
   },
   iconButton: {
     width: 44,
