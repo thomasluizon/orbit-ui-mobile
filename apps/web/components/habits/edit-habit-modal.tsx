@@ -420,6 +420,7 @@ export function EditHabitModal({
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
         actions={(
           <DialogActionPair>

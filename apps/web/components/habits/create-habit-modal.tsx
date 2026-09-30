@@ -474,6 +474,7 @@ export function CreateHabitModal({
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
+        onAttemptDismiss={dismissGuard.requestDismiss}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')}
         actions={(
           <div className={isOnline ? 'flex w-full flex-col' : 'flex w-full flex-col gap-4'}>

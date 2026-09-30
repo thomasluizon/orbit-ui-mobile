@@ -236,6 +236,11 @@ describe('Sheet (mobile)', () => {
     expect(nativeSheet.props.dismissible).toBe(false)
     expect(nativeSheet.props.onBackPress()).toBe(true)
     expect(onAttemptDismiss).toHaveBeenCalledTimes(1)
+    expect(nativeSheet.props.header).toBeDefined()
+    const close = nativeSheet.props.header.props.children.flat().find((child: { props?: { accessibilityLabel?: string } } | null) => child?.props?.accessibilityLabel === 'common.close')
+    expect(close).toBeDefined()
+    TestRenderer.act(() => close.props.onPress())
+    expect(onAttemptDismiss).toHaveBeenCalledTimes(2)
     expect(dismiss).not.toHaveBeenCalled()
   })
 

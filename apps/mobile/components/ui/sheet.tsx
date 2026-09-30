@@ -49,8 +49,6 @@ export function useSheetHost() {
 interface MobileSheetProps extends SheetProps {
   /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
   ref?: Ref<SheetHandle>
-  /** Handles a blocked native dismissal attempt without letting navigation receive Android Back. */
-  onAttemptDismiss?: () => void
   /** Lets a child FlatList own scrolling, so large picker collections stay virtualized. */
   virtualizedBody?: boolean
 }
@@ -133,18 +131,21 @@ export function Sheet({
     return true
   }, [onAttemptDismiss])
 
-  const header = title || accessibleTitle || headerAccessory || onClose ? (
+  const header = title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
       {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}
-      {onClose ? (
+      {onClose || onAttemptDismiss ? (
         <Pressable
           accessibilityLabel={t('common.close')}
           accessibilityRole="button"
           hitSlop={8}
-          onPress={() => requestClose()}
+          onPress={() => {
+            if (onClose) requestClose()
+            else onAttemptDismiss?.()
+          }}
           style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
         >
           <X color={tokens.fg2} size={24} strokeWidth={1.8} />
