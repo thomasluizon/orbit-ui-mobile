@@ -29,6 +29,7 @@ export function createStyles(tokens: Tokens) {
       justifyContent: "center",
       gap: 24,
       paddingHorizontal: 16,
+      paddingVertical: 16,
     },
     emptySuggestions: {
       alignItems: "center",

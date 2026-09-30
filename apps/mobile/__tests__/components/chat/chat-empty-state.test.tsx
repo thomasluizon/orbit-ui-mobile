@@ -2,6 +2,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
+import Yoga from 'yoga-layout'
 import { habitKeys } from '@orbit/shared/query'
 import { habitListQueryFilters } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -82,6 +83,51 @@ describe('ChatEmptyState (mobile)', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it.each([240, 416, 493, 731])('keeps the empty content reachable with padding in a %ipx scroll area', (height) => {
+    const { tree } = renderEmptyState([])
+    const scroll = tree.root.find((node: { type: unknown }) => node.type === 'ScrollView')
+    const contentStyle = StyleSheet.flatten(scroll.props.contentContainerStyle)
+    const viewport = Yoga.Node.create()
+    const content = Yoga.Node.create()
+    viewport.setWidth(368)
+    viewport.setHeight(height)
+    viewport.setOverflow(Yoga.OVERFLOW_SCROLL)
+    viewport.insertChild(content, 0)
+    content.setFlexGrow(contentStyle.flexGrow)
+    content.setFlexShrink(contentStyle.flexShrink)
+    content.setHeight(contentStyle.height)
+    content.setMinHeight(contentStyle.minHeight)
+    content.setJustifyContent(contentStyle.justifyContent === 'center' ? Yoga.JUSTIFY_CENTER : Yoga.JUSTIFY_FLEX_START)
+    content.setGap(Yoga.GUTTER_ALL, contentStyle.gap)
+    content.setPadding(Yoga.EDGE_VERTICAL, contentStyle.paddingVertical ?? 0)
+    content.setPadding(Yoga.EDGE_HORIZONTAL, contentStyle.paddingHorizontal ?? 0)
+    /** Intrinsic blocks exercise spare space and overflow, including wrapped suggestions and disclosure. */
+    for (const intrinsicHeight of [244, 168, 48]) {
+      const block = Yoga.Node.create()
+      block.setHeight(intrinsicHeight)
+      content.insertChild(block, content.getChildCount())
+    }
+    try {
+      viewport.calculateLayout(undefined, undefined)
+      const firstTop = content.getChild(0).getComputedTop()
+      const last = content.getChild(2)
+      const lastBottom = last.getComputedTop() + last.getComputedHeight()
+      const contentHeight = content.getComputedHeight()
+      const scrollEnd = Math.max(0, contentHeight - height)
+      expect(firstTop).toBeGreaterThanOrEqual(16)
+      expect(height - (lastBottom - scrollEnd)).toBeGreaterThanOrEqual(16)
+      if (height === 731) {
+        expect(contentHeight).toBe(height)
+        expect(Math.abs(firstTop - (height - lastBottom))).toBeLessThanOrEqual(1)
+      } else {
+        expect(contentHeight).toBeGreaterThan(height)
+      }
+    } finally {
+      viewport.freeRecursive()
+      TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it('heads the empty thread with the Astra mark, on no disc and with no accent', () => {
