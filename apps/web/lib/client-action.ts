@@ -72,15 +72,8 @@ export async function runServerActionResult<T>(
     result = await action
   } catch (error: unknown) {
     if (unstable_isUnrecognizedActionError(error)) {
-      const message = translateApiFetchMessage('errors.api.appUpdated')
-      const reloadLabel = translateApiFetchMessage('errors.api.reload')
-      if (message && reloadLabel) {
-        useVersionGateStore.getState().requireReload('appUpdated')
-        useAppToastStore.getState().showToast({
-          kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload(),
-        })
-        return new Promise<ServerActionResult<T>>(() => {})
-      }
+      useVersionGateStore.getState().requireReload('appUpdated')
+      return new Promise<ServerActionResult<T>>(() => {})
     }
     throw error
   }

@@ -1,3 +1,8 @@
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { runServerAction } from '@/lib/client-action'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
@@ -12,6 +17,21 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Sheet', () => {
+  it('announces a stale action once inside the active dialog', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+
+    render(<><UpdateAvailableBanner /><AppToastHost /><Sheet title="Options"><button type="button" onClick={() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) }}>Save</button></Sheet></>)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+  })
+
   it('places an actionable toast only in the topmost sheet', async () => {
     const undo = vi.fn()
     useUIStore.setState({ openOverlayIds: [] })
@@ -30,12 +50,12 @@ describe('Sheet', () => {
 
     const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true })
     const upper = screen.getByRole('dialog', { name: 'Upper sheet' })
-    await waitFor(() => expect(upper.querySelector('[role="status"]')).toHaveTextContent('Removed'))
-    expect(lower.querySelector('[role="status"]')).toBeNull()
+    await waitFor(() => expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Removed'))
+    expect(lower.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
     expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[role="status"]')).toBeNull()
+    expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)

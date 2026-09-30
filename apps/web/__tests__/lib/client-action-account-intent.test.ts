@@ -127,9 +127,8 @@ describe('client account intent', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
-      kind: 'neutral', message: en.errors.api.appUpdated, actionLabel: en.errors.api.reload, onAction: expect.any(Function),
-    })
+    expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
+    expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 

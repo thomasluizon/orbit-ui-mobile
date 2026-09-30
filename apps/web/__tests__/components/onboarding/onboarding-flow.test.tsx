@@ -1,3 +1,7 @@
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { runServerAction } from '@/lib/client-action'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -40,7 +44,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.navigate }) }))
+vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({ push: mocks.navigate }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
@@ -122,6 +126,8 @@ describe('OnboardingFlow state model', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
     mocks.finishOnboarding.mockReset()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
@@ -141,6 +147,18 @@ describe('OnboardingFlow state model', () => {
     mocks.liveActions.mockReturnValue(actions())
   })
 
+  it.each([true, false])('announces a stale finish once in onboarding when isLive=%s', async (isLive) => {
+    await reachDone(isLive)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    mocks.finishOnboarding.mockImplementation(() => runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'finish' })) })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+  })
+
   it('keeps Reload reachable inside the done dialog when finishing fails', async () => {
     const reload = vi.fn()
     mocks.finishOnboarding.mockImplementation(async () => {
@@ -153,11 +171,11 @@ describe('OnboardingFlow state model', () => {
     fireEvent.click(screen.getByRole('button', { name: 'finish' }))
 
     const dialog = screen.getByRole('dialog')
-    await waitFor(() => expect(dialog.querySelector('[role="status"]')).toHaveTextContent('Account changed'))
+    await waitFor(() => expect(dialog.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Account changed'))
     const action = screen.getByRole('button', { name: 'Reload' })
     act(() => { fireEvent.click(action) })
     expect(reload).toHaveBeenCalledOnce()
-    expect(dialog.querySelector('[role="status"]')).toBeNull()
+    expect(dialog.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
     expect(dialog).toBeInTheDocument()
   })
 

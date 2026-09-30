@@ -359,7 +359,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         notice={(
           <>
             <CelebrationPanel />
-            <UpdateAvailableBanner />
+            <UpdateAvailableBanner active={!toastInConversation && pathname !== '/wrapped'} />
             <NotificationDeleteNotice />
             {!toastInConversation && pathname !== '/wrapped' ? <AppToastHost /> : null}
           </>
