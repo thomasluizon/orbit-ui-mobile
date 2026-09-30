@@ -4,7 +4,7 @@ import { API } from '@orbit/shared/api'
 import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatMessage, ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -107,6 +107,19 @@ vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: vi.fn() }))
 vi.mock('expo-device', () => ({ __esModule: true, default: { isDevice: true }, isDevice: true }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('react-native', async (importOriginal) => {
+  const original = await importOriginal<typeof import('react-native')>()
+  return {
+    ...original,
+    FlatList: React.forwardRef<unknown, {
+      data: ChatMessage[]
+      renderItem: (entry: { item: ChatMessage; index: number }) => React.ReactNode
+    }>((props, _ref) => React.createElement('FlatList', props,
+      props.data.map((item, index) => <React.Fragment key={item.id}>{props.renderItem({ item, index })}</React.Fragment>),
+    )),
+  }
+})
+
 vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: () => null,
@@ -148,7 +161,7 @@ vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => n
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
-vi.mock('@/components/message-bubble', () => ({ MessageBubble: () => null }))
+vi.mock('@/components/message-bubble', () => ({ MessageBubble: ({ message }: { message: ChatMessage }) => React.createElement('Text', null, message.content) }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 vi.mock('@/components/chat/chat-empty-state', () => ({ ChatEmptyState: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
@@ -343,6 +356,11 @@ async function renderConversationHarness() {
   return tree
 }
 
+function visibleMessageTexts(tree: ReturnType<typeof TestRenderer.create>): string[] {
+  return tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && typeof node.props.children === 'string')
+    .map((node: { props: { children: string } }) => node.props.children)
+}
+
 function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
   return tree.root.findAll((node: { type: unknown }) => node.type === 'TextInput')
 }
@@ -356,10 +374,13 @@ describe('mobile useChatComposer', () => {
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('Plan my morning')
     expect(tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'shell-conversation')).toHaveLength(1)
     expect(inputHosts(tree)).toHaveLength(1)
     expect(focus).toHaveBeenCalledWith(expect.objectContaining({ testID: 'composer-sending' }))
     await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"delta","text":"Start with water"}')); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('Plan my morning')
+    expect(visibleMessageTexts(tree)).toContain('Start with water')
     const list = tree.root.findByType('FlatList')
     expect(list.props.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ role: 'user', content: 'Plan my morning' }),
@@ -393,6 +414,7 @@ describe('mobile useChatComposer', () => {
     await TestRenderer.act(async () => { chip.props.onPress(); await Promise.resolve() })
     expect(inputHosts(tree)).toHaveLength(1)
     expect(focus).toHaveBeenCalled()
+    expect(visibleMessageTexts(tree)).toContain('Hi there')
     expect(tree.root.findByType('FlatList').props.data).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'ai', content: 'Hi there' })]))
   })
 
