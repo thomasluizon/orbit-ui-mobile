@@ -306,6 +306,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           ) : null}
           <Composer
             {...composerProps}
+            autoFocus
             suggestions={messages.length === 0 ? [] : composerProps.suggestions}
             onInputFocus={keyboardScroll.onComposerFocus}
             onInputBlur={keyboardScroll.onComposerBlur}

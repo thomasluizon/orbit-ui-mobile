@@ -1,6 +1,6 @@
 'use client'
 
-import type { ClipboardEventHandler } from 'react'
+import { useEffect, useRef, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -14,6 +14,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
   inputId?: string
+  autoFocus?: boolean
 }
 
 function AttachmentIcon({ kind }: Readonly<Pick<ComposerAttachment, 'kind'>>) {
@@ -136,6 +137,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         <button
           type="button"
           aria-label={props.conversationLabel}
+          data-open-conversation
           onClick={props.onOpenConversation}
           className="flex size-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
         >
@@ -154,6 +156,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onChange={(event) => props.onChangeValue(event.target.value)}
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
+          onFocus={props.onOpenConversation}
           className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 @max-[400px]:basis-full @max-[400px]:[field-sizing:content]"
         />
 
@@ -229,12 +232,28 @@ function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
+  const composerRef = useRef<HTMLDivElement>(null)
+  const inputDisabled = props.state !== 'idle'
+  useEffect(() => {
+    if (!props.autoFocus) return
+    const composer = composerRef.current
+    const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]:not([disabled])')
+    ;(input ?? composer)?.focus()
+  }, [props.autoFocus])
+  useEffect(() => {
+    if (!props.autoFocus) return
+    const composer = composerRef.current
+    const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]')
+    if (inputDisabled && input?.isSameNode(document.activeElement)) composer?.focus()
+    else if (!inputDisabled && composer?.isSameNode(document.activeElement)) input?.focus()
+  }, [inputDisabled, props.autoFocus])
   const attachments = props.attachments ?? []
   const hasAttachments = attachments.length > 0
   const canRetry = props.onRetry !== undefined
 
   return (
     <div
+      ref={composerRef}
       data-state={props.state}
       data-composer-root
       role="group"

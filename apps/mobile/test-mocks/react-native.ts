@@ -2,6 +2,8 @@ import React from 'react'
 
 type HostProps = Readonly<{
   children?: React.ReactNode
+  onFocus?: (event: { nativeEvent: { target: number } }) => void
+  onBlur?: (event: { nativeEvent: { target: number } }) => void
   [key: string]: unknown
 }>
 
@@ -27,6 +29,16 @@ let scrollToImpl: ScrollToImpl = () => {}
 let focusImpl: FocusImpl = () => {}
 let hostRefsNull = false
 let nextNativeTag = 1
+type NativeHost = {
+  name: string
+  props: HostProps
+  ancestors: number[]
+  focusableInTouchMode: boolean
+}
+const nativeHosts = new Map<number, NativeHost>()
+const HostAncestors = React.createContext<number[]>([])
+let focusedNativeTag: number | null = null
+let touchMode = true
 const DEFAULT_WINDOW_DIMENSIONS = { width: 412, height: 892, scale: 1, fontScale: 1 }
 let windowDimensions = DEFAULT_WINDOW_DIMENSIONS
 
@@ -46,6 +58,39 @@ export function __setFocusImpl(impl: FocusImpl) {
   focusImpl = impl
 }
 
+export function __setTouchMode(value: boolean) {
+  touchMode = value
+}
+
+export function __getFocusedNativeTag() {
+  return focusedNativeTag
+}
+
+function emitNativeFocusEvent(nativeTag: number, event: 'onFocus' | 'onBlur') {
+  const host = nativeHosts.get(nativeTag)
+  if (!host) return
+  for (const tag of [nativeTag, ...[...host.ancestors].reverse()]) {
+    const handler = nativeHosts.get(tag)?.props[event]
+    handler?.({ nativeEvent: { target: nativeTag } })
+  }
+}
+
+export function __focusHost(nativeTag: number) {
+  const host = nativeHosts.get(nativeTag)
+  if (!host) return
+  const accessibilityState = host.props.accessibilityState as { disabled?: boolean } | undefined
+  const enabled = !accessibilityState?.disabled && host.props.disabled !== true
+    && (host.name !== 'TextInput' || host.props.editable !== false)
+  const focusable = host.name === 'TextInput' || host.name === 'Pressable' || host.props.focusable === true
+    || host.focusableInTouchMode
+  if (!enabled || !focusable || (touchMode && !host.focusableInTouchMode)) return
+  if (focusedNativeTag === nativeTag) return
+  if (focusedNativeTag !== null) emitNativeFocusEvent(focusedNativeTag, 'onBlur')
+  focusedNativeTag = nativeTag
+  focusImpl(host.props)
+  emitNativeFocusEvent(nativeTag, 'onFocus')
+}
+
 export function __setWindowDimensions(
   nextDimensions: Readonly<typeof DEFAULT_WINDOW_DIMENSIONS>,
 ) {
@@ -60,6 +105,9 @@ export function __resetTestHostConfig() {
   focusImpl = () => {}
   hostRefsNull = false
   nextNativeTag = 1
+  nativeHosts.clear()
+  focusedNativeTag = null
+  touchMode = true
   windowDimensions = DEFAULT_WINDOW_DIMENSIONS
   keyboardListeners.clear()
 }
@@ -70,25 +118,45 @@ function createHostComponent(name: string) {
     ref,
   ) {
     const [nativeTag] = React.useState(() => nextNativeTag++)
+    const ancestors = React.useContext(HostAncestors)
+    React.useLayoutEffect(() => {
+      const existing = nativeHosts.get(nativeTag)
+      nativeHosts.set(nativeTag, {
+        name, props, ancestors,
+        focusableInTouchMode: existing?.focusableInTouchMode ?? name === 'TextInput',
+      })
+    })
+    React.useLayoutEffect(() => () => {
+      nativeHosts.delete(nativeTag)
+      if (focusedNativeTag === nativeTag) focusedNativeTag = null
+    }, [nativeTag])
     React.useImperativeHandle(hostRefsNull ? null : ref, () => ({
       __nativeTag: nativeTag,
       measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
       measureInWindow: (callback?: MeasureInWindowCallback) => {
         if (callback) measureInWindowImpl(callback)
       },
-      setNativeProps: () => {},
-      focus: () => {
-        if (name === 'TextInput' || props.focusable === true) focusImpl(props)
+      setNativeProps: (updates: HostProps) => {
+        const host = nativeHosts.get(nativeTag)
+        if (!host) return
+        host.props = { ...host.props, ...updates }
+        if (updates.hasTVPreferredFocus === true) {
+          host.focusableInTouchMode = true
+          __focusHost(nativeTag)
+        }
       },
-      blur: () => {},
+      focus: () => __focusHost(nativeTag),
+      blur: () => {
+        if (focusedNativeTag !== nativeTag) return
+        emitNativeFocusEvent(nativeTag, 'onBlur')
+        focusedNativeTag = null
+      },
       scrollTo: scrollToImpl,
       scrollToEnd: () => {},
-    }), [nativeTag, props])
+    }), [nativeTag])
 
-    return React.createElement(
-      name,
-      { ...props, __nativeTag: nativeTag },
-      children as React.ReactNode,
+    return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
+      React.createElement(name, { ...props, __nativeTag: nativeTag }, children as React.ReactNode),
     )
   })
 

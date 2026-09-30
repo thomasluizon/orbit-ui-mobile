@@ -14,9 +14,15 @@ async function expectOneRing(page: Page, surface: string, stop: number) {
 }
 
 async function inspectTabStops(page: Page, surface: string) {
+  const conversation = page.locator('[data-shell-conversation]')
   let focusedStops = 0
   for (let stop = 1; stop <= 45; stop += 1) {
+    const conversationWasOpen = await conversation.isVisible()
     await page.keyboard.press('Tab')
+    if (!conversationWasOpen && await conversation.isVisible()) {
+      await expect(conversation.locator('[data-composer-input]')).toBeFocused()
+      await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+    }
     const state = await inspectFocusedRing(page)
     if (!state) continue
     focusedStops += 1
@@ -24,6 +30,21 @@ async function inspectTabStops(page: Page, surface: string) {
     expect(state.indicators, `${surface} Tab stop ${stop}: ${state.focused} drew ${state.indicators.join(', ')}`).toHaveLength(1)
   }
   expect(focusedStops, `${surface} must expose keyboard controls`).toBeGreaterThan(0)
+}
+
+async function focusConversationComposer(page: Page, width: number) {
+  const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+  const conversationWasOpen = await conversation.isVisible()
+  if (!conversationWasOpen) {
+    await page.locator('[data-shell-pinned-slot] [data-composer-input]').focus()
+  }
+  await expect(conversation).toBeVisible()
+  await expect(page.locator('[data-shell-pinned-slot]')).toBeHidden()
+  await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+  const field = conversation.locator('[data-composer-input]')
+  if (conversationWasOpen) await field.focus()
+  await expect(field).toBeFocused()
+  return field
 }
 
 async function openCreateForm(page: Page, width: number) {
@@ -38,7 +59,7 @@ for (const width of [412, 1280] as const) {
     test.use({ viewport: { width, height: 915 } })
 
     for (const [surface, path, targetSelector] of [
-      ['Hoje', '/', '[data-shell-pinned-slot] [data-composer-input]'],
+      ['Hoje', '/', '[data-shell-conversation] [data-composer-input]'],
       ['Busca', '/search', '[cmdk-input]'],
       ['Suporte', '/support', 'form textarea'],
       ['Perfil', '/profile', null],
@@ -50,7 +71,14 @@ for (const width of [412, 1280] as const) {
         await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
         await inspectTabStops(page, `${surface} ${width}px`)
         if (targetSelector === null) return
-        const target = page.locator(targetSelector).first()
+        const conversation = page.locator('[data-shell-conversation]')
+        if (surface !== 'Hoje' && await conversation.isVisible()) {
+          await conversation.getByRole('button', { name: messages.common.closeConversation }).click()
+          await expect(conversation).toBeHidden()
+        }
+        const target = surface === 'Hoje'
+          ? await focusConversationComposer(page, width)
+          : page.locator(targetSelector).first()
         await expect(target).toBeVisible()
         await target.focus()
         await page.keyboard.press('Shift+Tab')
@@ -147,7 +175,7 @@ for (const width of [412, 1280] as const) {
       await page.emulateMedia({ forcedColors: 'active' })
       await page.goto('/')
       await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
-      const composer = page.locator('[data-shell-pinned-slot] [data-composer-input]').first()
+      const composer = await focusConversationComposer(page, width)
       await expectOneFieldIndicator(page, composer, '[data-composer-input-row]', `composer forced colors ${width}px`, { forcedColors: true })
 
       await page.goto('/search')
