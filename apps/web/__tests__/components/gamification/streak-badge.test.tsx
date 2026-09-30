@@ -1,5 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const pushMock = vi.fn()
 
@@ -63,5 +71,48 @@ describe('StreakBadge', () => {
   it('has accessible aria-label', () => {
     render(<StreakBadge streak={10} />)
     expect(screen.getByRole('button')).toHaveAttribute('aria-label')
+  })
+})
+
+
+describe('StreakBadge hover paint in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
+    browser = await launch
+  })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('preserves the opaque fill and clears the hover and text floors in %s', async (mode) => {
+    const { container } = render(<StreakBadge streak={0} />)
+    const variables = resolveWebThemeVariables('orange', mode)
+    const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value}`).join(';')
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style>${container.innerHTML}`)
+      const button = page.locator('button')
+      const resting = await button.evaluate((element) => getComputedStyle(element).backgroundColor)
+      await button.hover()
+      await button.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
+      const paint = await button.evaluate((element) => ({
+        base: getComputedStyle(element).backgroundColor,
+        layer: getComputedStyle(element, '::after').backgroundColor,
+        text: getComputedStyle(element.querySelector('span:last-child')!).color,
+        pointerEvents: getComputedStyle(element, '::after').pointerEvents,
+      }))
+      expect(paint.base).toBe(resting)
+      expect(contrastOnSurface(resting, [paint.base, paint.layer])).toBeGreaterThanOrEqual(1.25)
+      expect(contrastOnSurface(paint.text, [paint.base, paint.layer])).toBeGreaterThanOrEqual(4.5)
+      expect(paint.pointerEvents).toBe('none')
+    } finally {
+      await page.close()
+    }
   })
 })

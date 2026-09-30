@@ -1732,3 +1732,37 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     .stat-tile-large-value { font-size: var(--fs-xl); }
   }
 }
+
+
+.orbit-streak-badge {
+  isolation: isolate;
+}
+
+.orbit-streak-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-color: transparent;
+  transition: background-color var(--dur-hover-control) var(--ease-standard);
+}
+
+.orbit-streak-badge:active::after {
+  background-color: var(--bg-hover-opaque);
+}
+
+.orbit-streak-badge:active {
+  --streak-count-color: var(--fg-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-streak-badge:hover::after {
+    background-color: var(--bg-hover-opaque);
+  }
+
+  .orbit-streak-badge:hover {
+    --streak-count-color: var(--fg-2);
+  }
+}

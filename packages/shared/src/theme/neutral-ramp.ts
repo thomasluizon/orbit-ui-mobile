@@ -8,6 +8,7 @@ export interface NeutralColors {
   readonly bgElev: string
   readonly bgElev2: string
   readonly bgHover: string
+  readonly bgHoverOpaque: string
   readonly bgSunk: string
   readonly hairline: string
   readonly borderControl: string
@@ -31,6 +32,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     bgElev: '#1C1C1E',
     bgElev2: 'rgba(250,250,250,0.12)',
     bgHover: 'rgba(250,250,250,0.13)',
+    bgHoverOpaque: 'rgba(250,250,250,0.13)',
     bgSunk: 'rgba(0,0,0,0.28)',
     hairline: 'rgba(255,255,255,0.08)',
     borderControl: 'rgba(255,255,255,0.08)',
@@ -51,6 +53,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     bgElev: '#FFFFFF',
     bgElev2: '#FFFFFF',
     bgHover: 'rgba(9,9,11,0.06)',
+    bgHoverOpaque: 'rgba(9,9,11,0.11)',
     bgSunk: 'rgba(9,9,11,0.04)',
     hairline: 'rgba(9,9,11,0.08)',
     borderControl: 'rgba(9,9,11,0.08)',

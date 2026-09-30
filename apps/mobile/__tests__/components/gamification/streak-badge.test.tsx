@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+
 import { StreakBadge } from '@/components/gamification/streak-badge'
 
 const TestRenderer = require('react-test-renderer')
@@ -19,23 +23,10 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+const themeState = vi.hoisted(() => ({ mode: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'graphite', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeState.mode }),
 }))
-
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/theme')>()
-  return {
-    ...actual,
-    createTokensV2: () => ({
-      statusFrozen: '#88ccff',
-      statusBad: '#ff5555',
-      fg1: '#ffffff',
-      fg3: '#999999',
-      hairlineStrong: '#333333',
-    }),
-  }
-})
 
 vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
@@ -98,5 +89,26 @@ describe('StreakBadge (mobile)', () => {
       button?.props.onPress?.({ stopPropagation })
     })
     expect(stopPropagation).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+describe('StreakBadge pressed paint', () => {
+  it.each(['dark', 'light'] as const)('layers feedback over its opaque fill in %s', (mode) => {
+    themeState.mode = mode
+    const tokens = createTokensV2('orange', mode)
+    const tree = renderBadge({ streak: 0 })
+    const [button] = findButton(tree.root)
+    const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
+    const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
+    expect(pressed.backgroundColor).toBe(rest.backgroundColor)
+    expect(typeof button.props.children).toBe('function')
+    const contents = button.props.children({ pressed: true })
+    const [layer, , count] = contents.props.children
+    const fill = StyleSheet.flatten(layer.props.style).backgroundColor
+    const text = StyleSheet.flatten(count.props.style).color
+    expect(fill).toBe(tokens.bgHoverOpaque)
+    expect(contrastOnSurface(tokens.bgElev, [tokens.bgElev, fill])).toBeGreaterThanOrEqual(1.25)
+    expect(contrastOnSurface(text, [tokens.bgElev, fill])).toBeGreaterThanOrEqual(4.5)
   })
 })

@@ -14,8 +14,9 @@ carries nothing, and the eleven in `superseded/` still carry nothing.
 amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
 that disagrees with production is a trap rather than an authority.
 
-| date | what changed | why |
+| amendment | what changed | why |
 |---|---|---|
+| Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
 | 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |
 | 2026-09-29 | `Orbit Wrapped`: period line and weekday note from `fg-4` to `fg-3` | Both lines are text, and `fg-4` only clears the non-text floor on the canvas. `fg-3` clears the text floor. |
 | 2026-09-28 | Calendário uses one centred column at both widths, with the view selector in the header and a 24px day-card inset | The owner's layout decision replaces the split and sheet composition. |
