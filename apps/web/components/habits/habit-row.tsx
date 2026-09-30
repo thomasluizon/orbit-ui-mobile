@@ -62,6 +62,7 @@ interface HabitRowProps {
    *  current view's visibility filtering). Gates the "go to sub-habits" drill action. */
   hasSubHabits?: boolean
   expanded?: boolean
+  childPanelId?: string
   /** When the row is a parent, displays a ParentRing instead of StatusDot. */
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
@@ -91,12 +92,14 @@ function hasHabitMenuActions(
 function HabitRowStructuralColumn({
   hasChildren,
   expanded,
+  childPanelId,
   onToggleExpand,
   collapseLabel,
   expandLabel,
 }: Readonly<{
   hasChildren: boolean
   expanded: boolean
+  childPanelId?: string
   onToggleExpand?: () => void
   collapseLabel: string
   expandLabel: string
@@ -109,6 +112,7 @@ function HabitRowStructuralColumn({
       data-habit-row-control="disclosure"
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
+      aria-controls={childPanelId}
       className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer active:scale-[0.96]"
     >
       <ChevronDown
@@ -137,6 +141,7 @@ export function HabitRow({
   hasChildren = false,
   hasSubHabits = false,
   expanded = false,
+  childPanelId,
   childProgress,
   hasProAccess = true,
   actions = EMPTY_ACTIONS,
@@ -201,6 +206,7 @@ export function HabitRow({
         <HabitRowStructuralColumn
           hasChildren={hasChildren}
           expanded={expanded}
+          childPanelId={childPanelId}
           onToggleExpand={onToggleExpand}
           collapseLabel={t('common.collapse')}
           expandLabel={t('common.expand')}

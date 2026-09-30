@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
+import userEvent from '@testing-library/user-event'
 import { renderToString } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -442,6 +443,80 @@ describe('HabitList', () => {
     mockHabitsData.totalCount = 0
     accountHabitCount.count = 0
     accountHabitCount.isLoaded = true
+  })
+
+  it.each([false, true])('links disclosure panels through keyboard expansion without changing selection (select mode: %s)', async (selectMode) => {
+    rowImplementation.actual = true
+    const user = userEvent.setup()
+    const parent = createMockHabit({ scheduledDates: [TODAY], id: 'parent', title: 'Parent', hasSubHabits: true })
+    const child = createMockHabit({ scheduledDates: [TODAY], id: 'child', title: 'Child', parentId: parent.id })
+    const secondParent = createMockHabit({ scheduledDates: [TODAY], id: 'second-parent', title: 'Second parent', hasSubHabits: true })
+    const secondChild = createMockHabit({ scheduledDates: [TODAY], id: 'second-child', title: 'Second child', parentId: secondParent.id })
+    for (const habit of [parent, child, secondParent, secondChild]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.childrenByParent.set(secondParent.id, [secondChild.id])
+    mockHabitsData.topLevelHabits = [parent, secondParent]
+    const selected = new Set([parent.id])
+    renderWithProviders(<HabitList filters={defaultFilters} isSelectMode={selectMode}
+      selectedHabitIds={selected} onToggleSelection={toggleSelectionSpy} />)
+
+    const parentRow = screen.getAllByTestId('habit-row').find((row) => row.dataset.habitTitle === parent.title)!
+    const disclosure = within(parentRow).getByRole('button', { name: 'common.collapse' })
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(disclosure).toHaveAttribute('aria-controls')
+    const panelId = disclosure.getAttribute('aria-controls')!
+    const childPanel = document.getElementById(panelId)!
+    expect(childPanel).toBeVisible()
+    expect(within(childPanel).getByText(child.title)).toBeInTheDocument()
+    expect(within(childPanel).queryByText(secondChild.title)).toBeNull()
+    expect(within(childPanel).queryByText(parent.title)).toBeNull()
+    const secondRow = screen.getAllByTestId('habit-row').find((row) => row.dataset.habitTitle === secondParent.title)!
+    const secondPanelId = within(secondRow).getByRole('button', { name: 'common.collapse' }).getAttribute('aria-controls')!
+    expect(secondPanelId).not.toBe(panelId)
+    expect(within(document.getElementById(secondPanelId)!).getByText(secondChild.title)).toBeInTheDocument()
+
+    disclosure.focus()
+    await user.keyboard('{Enter}')
+    expect(disclosure).toHaveFocus()
+    expect(disclosure).toHaveAccessibleName('common.expand')
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(disclosure).toHaveAttribute('aria-controls', panelId)
+    expect(screen.queryByText(child.title)).toBeNull()
+    expect(document.getElementById(panelId)).not.toBeVisible()
+    expect(screen.getByText(secondChild.title)).toBeInTheDocument()
+
+    await user.keyboard(' ')
+    expect(disclosure).toHaveFocus()
+    expect(disclosure).toHaveAccessibleName('common.collapse')
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(disclosure).toHaveAttribute('aria-controls', panelId)
+    expect(within(document.getElementById(panelId)!).getByText(child.title)).toBeInTheDocument()
+    expect(toggleSelectionSpy).not.toHaveBeenCalled()
+    expect(selected).toEqual(new Set([parent.id]))
+    if (selectMode) expect(within(parentRow).getByRole('button', { name: parent.title, pressed: true })).toBeInTheDocument()
+  })
+
+  it('gives nested parents and repeated lists distinct child panel relationships', () => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ scheduledDates: [TODAY], id: 'parent', title: 'Parent', hasSubHabits: true })
+    const child = createMockHabit({ scheduledDates: [TODAY], id: 'child', title: 'Child', parentId: parent.id, hasSubHabits: true })
+    const grandchild = createMockHabit({ scheduledDates: [TODAY], id: 'grandchild', title: 'Grandchild', parentId: child.id })
+    for (const habit of [parent, child, grandchild]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.childrenByParent.set(child.id, [grandchild.id])
+    mockHabitsData.topLevelHabits = [parent]
+    renderWithProviders(<><HabitList filters={defaultFilters} /><HabitList filters={defaultFilters} /></>)
+
+    const disclosures = screen.getAllByRole('button', { name: 'common.collapse' })
+    expect(disclosures).toHaveLength(4)
+    const panelIds = disclosures.map((button) => {
+      expect(button).toHaveAttribute('aria-controls')
+      const panelId = button.getAttribute('aria-controls')!
+      const panel = document.getElementById(panelId)!
+      expect(within(panel).getByText(grandchild.title)).toBeInTheDocument()
+      return panelId
+    })
+    expect(new Set(panelIds).size).toBe(4)
   })
 
   it('renders without crashing with no habits', () => {
