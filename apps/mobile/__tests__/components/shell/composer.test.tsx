@@ -122,6 +122,19 @@ describe('Composer (mobile)', () => {
     expect(placeholder.props.ellipsizeMode).toBe('tail')
   })
 
+  it('keeps the text minimum inside the field when focus thickens its border without another layout event', () => {
+    const tree = renderComposer(props())
+    const field = tree.root.findByProps({ testID: 'composer-field' })
+    TestRenderer.act(() => field.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 176, height: 96 } } }))
+    const textMinimum = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-text-slot' }).props.style).minWidth
+    expect(textMinimum()).toBe(158)
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
+    expect(textMinimum()).toBe(156)
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onBlur())
+    expect(textMinimum()).toBe(158)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['recording', 'transcribing'] as const)('replaces the field while %s and returns the transcript to composing', (state) => {
     const capability = { onVoice: vi.fn(), voiceWords }
     const tree = renderComposer(props({ ...capability, state, value: 'existing draft' }))

@@ -282,10 +282,11 @@ function ComposerTextInput({ props, tokens, inputRef, inputMinimum, onFocusChang
 }
 
 function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
-  const [inputMinimum, setInputMinimum] = useState(176)
+  const [fieldWidth, setFieldWidth] = useState<number>()
   const [focused, setFocused] = useState(false)
   const [openConversationScale] = useState(() => new Animated.Value(1))
   const inputDisabled = props.state !== 'idle'
+  const inputMinimum = fieldWidth === undefined ? 176 : Math.min(176, Math.max(0, fieldWidth - 16 - (focused && !inputDisabled ? 4 : 2)))
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
@@ -310,7 +311,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
       <View
         testID="composer-field"
         accessibilityLiveRegion="polite"
-        onLayout={(event) => setInputMinimum(Math.min(176, Math.max(0, event.nativeEvent.layout.width - 16 - (focused && !inputDisabled ? 4 : 2))))}
+        onLayout={(event) => setFieldWidth(event.nativeEvent.layout.width)}
         style={[styles.field, composerFieldStyle(tokens, focused, inputDisabled)]}
       >
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} inputMinimum={inputMinimum} onFocusChange={setFocused} />}
