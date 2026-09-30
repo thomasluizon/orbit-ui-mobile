@@ -3,7 +3,7 @@ import React from 'react'
 import { AccessibilityInfo } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApiClientError, formatAPIDate, formatLocaleDateTime, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -471,6 +471,51 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+  })
+
+  it.each([
+    { isOverdue: false, hasProAccess: true },
+    { isOverdue: false, hasProAccess: false },
+    { isOverdue: true, hasProAccess: true },
+    { isOverdue: true, hasProAccess: false },
+  ])('excludes a bad habit logged today from rescue ($isOverdue overdue, $hasProAccess Pro)', ({ isOverdue, hasProAccess }) => {
+    openRescueGate()
+    mocks.detail = { ...mocks.detail!, isBadHabit: true }
+    mocks.logs = [{ id: 'today-slip', date: '2026-08-29', value: 1, createdAtUtc: '2026-08-29T12:00:00Z' }]
+    mocks.metrics = { ...mocks.metrics, totalCompletions: 1, lastCompletedDate: '2026-08-29' }
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true, isOverdue })]).habitsById
+    mocks.hasProAccess = hasProAccess
+    expect(isHabitSlipping(mocks.detail, mocks.metrics, mocks.logs, new Date(2026, 7, 29), 'UTC')).toBe(true)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree.root).some((text) => text.startsWith('habits.detail.slippingLine'))).toBe(false)
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
+    expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+  })
+
+  it.each(['initial request', 'retry'])('dismisses a pending proposal during %s for this visit', (requestState) => {
+    openRescueGate()
+    if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    if (requestState === 'retry') {
+      TestRenderer.act(() => { pressPillButton(tree.root, 'habits.detail.retry') })
+      expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+      mocks.rescheduleError = null
+      TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    }
+    expect(textsOf(tree.root)).toContain('habits.detail.rescheduleLoading')
+    const notNow = findPillButton(tree.root, 'habits.reschedule.dismiss')
+    expect(notNow).toBeDefined()
+    expect(notNow!.props.disabled).toBe(false)
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
   })
 
   it('keeps the proposal announcement mounted when loading finishes', () => {

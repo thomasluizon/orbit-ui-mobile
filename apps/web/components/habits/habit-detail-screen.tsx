@@ -256,9 +256,10 @@ function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ vi
   return <div className="grid grid-cols-3 gap-4">{values.map((item) => <div key={item.label} className="min-w-0 text-center"><p className="font-[var(--font-display)] text-2xl font-semibold tabular-nums text-[var(--fg-1)]">{item.value}</p><p className="truncate text-sm text-[var(--fg-2)]">{item.label}</p></div>)}</div>
 }
 
-function useHabitRescue({ habitId, slipping, overdue, hasProAccess, locale }: Readonly<{ habitId: string; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {
-  const query = useRescheduleSuggestion({ habitId, locale, enabled: slipping && overdue && hasProAccess })
-  return { query, open: slipping && overdue && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
+function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasProAccess, locale }: Readonly<{ habitId: string; isBadHabit: boolean; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {
+  const eligible = !isBadHabit && slipping && overdue
+  const query = useRescheduleSuggestion({ habitId, locale, enabled: eligible && hasProAccess })
+  return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
 function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined }>) {
@@ -330,7 +331,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
           <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
         </>}</div>
-        {suggestion ? <div className="flex flex-wrap gap-2"><PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</div> : query.error ? <div className="flex flex-wrap gap-2"><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</div> : null}
+        <div className="flex flex-wrap gap-2">
+          {suggestion ? <PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+          {notNow}
+        </div>
       </div>
     </Proposed>
   )
@@ -427,7 +431,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasProAccess = profile.hasProAccess
   const language = profile.language ?? locale
-  const rescue = useHabitRescue({ habitId, slipping, overdue, hasProAccess, locale: language })
+  const rescue = useHabitRescue({ habitId, isBadHabit: habit?.isBadHabit === true, slipping, overdue, hasProAccess, locale: language })
   const dueTime = displayTime(habit?.dueTime)
   const headerSummary = summary && dueTime && !summary.includes(habit?.dueTime ?? '')
     ? `${summary} · ${dueTime}`

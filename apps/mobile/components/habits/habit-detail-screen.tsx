@@ -192,9 +192,10 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   )
 }
 
-function useHabitRescue({ habitId, slipping, overdue, hasPro, locale }: Readonly<{ habitId: string; slipping: boolean; overdue: boolean; hasPro: boolean; locale: string }>) {
-  const query = useRescheduleSuggestion({ habitId, locale, enabled: slipping && overdue && hasPro })
-  return { query, open: slipping && overdue && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
+function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasPro, locale }: Readonly<{ habitId: string; isBadHabit: boolean; slipping: boolean; overdue: boolean; hasPro: boolean; locale: string }>) {
+  const eligible = !isBadHabit && slipping && overdue
+  const query = useRescheduleSuggestion({ habitId, locale, enabled: eligible && hasPro })
+  return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
 function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone, tokens }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -264,7 +265,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <>
           <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
         </>}</View>
-        {suggestion ? <View style={styles.rescueActions}><PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton>{notNow}</View> : query.error ? <View style={styles.rescueActions}><PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton>{notNow}</View> : null}
+        <View style={styles.rescueActions}>
+          {suggestion ? <PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+          {notNow}
+        </View>
       </View>
     </Proposed>
   )
@@ -382,7 +386,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today, profile.timeZone) : false
   const overdue = todayHabitsQuery.data?.habitsById.get(habitId)?.isOverdue === true
   const hasPro = profile.hasProAccess
-  const rescue = useHabitRescue({ habitId, slipping, overdue, hasPro, locale: language })
+  const rescue = useHabitRescue({ habitId, isBadHabit: habit?.isBadHabit === true, slipping, overdue, hasPro, locale: language })
   const dueTime = displayTime(habit?.dueTime)
   const headerSummary = summary && dueTime && !summary.includes(habit?.dueTime ?? '')
     ? `${summary} · ${dueTime}`

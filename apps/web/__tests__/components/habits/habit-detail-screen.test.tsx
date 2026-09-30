@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createApiClientError, formatAPIDate, formatLocaleDateTime, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -340,6 +340,50 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+  })
+
+  it.each([
+    { isOverdue: false, hasProAccess: true },
+    { isOverdue: false, hasProAccess: false },
+    { isOverdue: true, hasProAccess: true },
+    { isOverdue: true, hasProAccess: false },
+  ])('excludes a bad habit logged today from rescue ($isOverdue overdue, $hasProAccess Pro)', ({ isOverdue, hasProAccess }) => {
+    openRescueGate()
+    mocks.detail = { ...mocks.detail!, isBadHabit: true }
+    mocks.logs = [{ id: 'today-slip', date: '2026-08-29', value: 1, createdAtUtc: '2026-08-29T12:00:00Z' }]
+    mocks.metrics = { ...mocks.metrics, totalCompletions: 1, lastCompletedDate: '2026-08-29' }
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true, isOverdue })]).habitsById
+    mocks.hasProAccess = hasProAccess
+    expect(isHabitSlipping(mocks.detail, mocks.metrics, mocks.logs, new Date(2026, 7, 29), 'UTC')).toBe(true)
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+  })
+
+  it.each(['initial request', 'retry'])('dismisses a pending proposal during %s for this visit', (requestState) => {
+    openRescueGate()
+    if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    if (requestState === 'retry') {
+      fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+      expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+      mocks.rescheduleError = null
+      view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    }
+    expect(screen.getByText('habits.detail.rescheduleLoading')).toBeVisible()
+    const notNow = screen.getByRole('button', { name: 'habits.reschedule.dismiss' })
+    expect(notNow).toBeEnabled()
+    notNow.focus()
+    fireEvent.click(notNow)
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section')).toHaveFocus()
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
   })
 
   it('keeps the proposal announcement mounted when loading finishes', () => {
