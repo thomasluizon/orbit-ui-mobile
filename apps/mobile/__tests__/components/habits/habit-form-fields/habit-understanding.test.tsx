@@ -163,6 +163,7 @@ describe("HabitUnderstanding mobile", () => {
       days: ["Monday"],
       quantity: 3,
       proposed: true,
+      sentence: "Every Monday",
       consumed: [{ start: 4, end: 10, kind: "weekday" }],
     });
 
@@ -184,7 +185,7 @@ describe("HabitUnderstanding mobile", () => {
         (node) =>
           node.type === "Text" && node.props.children === labels.unresolved,
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       tree.root.findAll(
         (node) =>
@@ -220,6 +221,12 @@ describe("HabitUnderstanding mobile", () => {
     });
     expect(props.onToggleDay).toHaveBeenCalledWith("Monday");
     expect(props.onQuantityChange).not.toHaveBeenCalled();
+
+    TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
+    expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === "HabitEmojiSelector")).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === labels.unresolved)).toHaveLength(1);
+    expect(button(tree, "Segunda-feira").props.accessibilityState).toEqual({ selected: true });
   });
 
   it("keeps the weekly quantity positive without imposing a ceiling", () => {

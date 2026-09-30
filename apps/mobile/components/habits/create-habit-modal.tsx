@@ -507,7 +507,7 @@ export function CreateHabitModal({
         title={sheetTitle}
         actions={(
           <View style={{ gap: 16 }}>
-            {watchedTitle.trim().length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('habits.form.createWhy')}</Text> : null}
+            {watchedTitle.trim().length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('habits.form.createWhy')}</Text> : null}
             <DialogActionPair>
               <PillButton
                 variant="ghost"

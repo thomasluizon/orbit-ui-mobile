@@ -107,7 +107,7 @@ export function HabitUnderstanding({
       ) : null}
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
-          <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
+          <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>
           <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} tokens={tokens} styles={styles} />
         </View>
       ) : null}
