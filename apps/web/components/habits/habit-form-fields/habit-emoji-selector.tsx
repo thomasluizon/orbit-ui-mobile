@@ -114,7 +114,7 @@ export function HabitEmojiSelector({
             width: wellSize,
             height: wellSize,
             borderRadius: '999px',
-            fontSize: wellSize === 76 ? 34 : 26,
+            fontSize: wellSize === 76 ? 34 : 22,
           }}
           disabled={isDisabled}
           onClick={() => {
@@ -204,7 +204,7 @@ export function HabitEmojiSelector({
                         role="option"
                         aria-selected={isSelected}
                         aria-label={`${t('habits.form.emoji')}: ${emoji}`}
-                        className={`habit-control-motion grid place-items-center rounded-[12px] text-xl active:scale-[0.96] ${
+                        className={`habit-control-motion grid place-items-center rounded-[12px] text-[22px] active:scale-[0.96] ${
                           isSelected
                             ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_2px_var(--primary)]'
                             : 'hover:bg-[var(--bg-elev)]'

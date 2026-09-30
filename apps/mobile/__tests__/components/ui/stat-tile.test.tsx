@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
@@ -38,14 +39,17 @@ describe('StatTile (mobile)', () => {
     { platform: 'web', screenWidth: 320, tileBorder: 0 },
     { platform: 'web', screenWidth: 344, tileBorder: 0 },
     { platform: 'web', screenWidth: 360, tileBorder: 0 },
+    { platform: 'web', screenWidth: 411, tileBorder: 0 },
     { platform: 'web', screenWidth: 412, tileBorder: 0 },
     { platform: 'web', screenWidth: 1352, tileBorder: 0 },
     { platform: 'mobile', screenWidth: 320, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 344, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 360, tileBorder: 2 },
+    { platform: 'mobile', screenWidth: 411, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 412, tileBorder: 2 },
     { platform: 'mobile', screenWidth: 1352, tileBorder: 2 },
   ])('fits every weekday value in the $platform progress grid at $screenWidth px', ({ platform, screenWidth, tileBorder }) => {
+    __setWindowDimensions({ width: screenWidth, height: 900, scale: 1, fontScale: 1 })
     const gridWidth = Math.min(screenWidth - 32, 740)
     const columns = screenWidth >= 768 ? 4 : screenWidth >= 344 ? 2 : 1
     const tileWidth = (gridWidth - 12 * (columns - 1)) / columns
@@ -71,7 +75,7 @@ describe('StatTile (mobile)', () => {
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="40" font-family="Space Grotesk" font-size="${size}" font-weight="600">${weekday}</text></svg>`
         const bounds = new Resvg(svg, { font: { fontFiles: [fontFile], loadSystemFonts: false } }).getBBox()
         expect(bounds, weekday).not.toBeNull()
-        expect(size, `${weekday} type size in ${platform} at ${screenWidth}px`).toBe(screenWidth >= 344 && screenWidth < 412 ? 18 : 22)
+        expect(size, `${weekday} type size in ${platform} at ${screenWidth}px`).toBe(screenWidth >= 344 && screenWidth < 412 ? 17 : 22)
         expect(bounds!.width, `${weekday} in ${platform} at ${screenWidth}px`).toBeLessThanOrEqual(contentWidth)
         expect(value.props.numberOfLines).toBe(1)
         expect(value.props.ellipsizeMode).toBeUndefined()

@@ -96,7 +96,7 @@
                 android:letterSpacing="0.02"
                 android:maxLines="1"
                 android:textColor="@color/widget_fg_3"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:visibility="gone" />
 
             <TextView
@@ -108,7 +108,7 @@
                 android:letterSpacing="0.02"
                 android:maxLines="1"
                 android:textColor="@color/widget_overdue"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:visibility="gone" />
         </LinearLayout>
 

@@ -90,7 +90,7 @@ export function ReminderSection({
           <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
           <span
             className="text-[var(--fg-1)]"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500 }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
           >
             {t('habits.form.reminder')}
           </span>
@@ -138,7 +138,7 @@ export function ReminderSection({
           ) : null}
 
           <div className="relative">
-            {atLimit ? <p className="text-[13px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax')}</p> : null}
+            {atLimit ? <p className="text-[14px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax')}</p> : null}
             {!atLimit ? <>
             <button
               type="button"
@@ -156,7 +156,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[15px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                    className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -201,7 +201,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[15px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                  className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

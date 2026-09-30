@@ -157,7 +157,7 @@ export function HabitRow({
 
   const isDone = state === 'done'
   const isChild = child || depth === 1
-  const titleSize = isChild ? 14 : 16
+  const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
   const wellSize = isChild ? 32 : 46
   const wellRadius = 12

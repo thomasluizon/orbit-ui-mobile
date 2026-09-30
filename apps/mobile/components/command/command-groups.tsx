@@ -26,5 +26,5 @@ export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<
 const styles = StyleSheet.create({
   group: { gap: 4 }, heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: 12 },
   row: { minHeight: 44, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderRadius: radius.md, overflow: 'hidden' },
-  label: { flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 16 },
+  label: { flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 17 },
 })
