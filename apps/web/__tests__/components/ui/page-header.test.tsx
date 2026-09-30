@@ -6,6 +6,8 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { PageHeader } from '@/components/ui/page-header'
+import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { LegalDocumentLayout } from '@/components/legal-document-layout'
 
 describe('PageHeader', () => {
   describe('drawn title size', () => {
@@ -31,6 +33,29 @@ describe('PageHeader', () => {
         const title = page.getByRole('heading', { level: 1, name: 'About' })
         expect(await title.evaluate((element) => ({ size: getComputedStyle(element).fontSize, weight: getComputedStyle(element).fontWeight })))
           .toEqual({ size: '20px', weight: '500' })
+      } finally {
+        await page.close()
+      }
+    })
+
+    it.each([412, 1352])('renders the calendar and legal hierarchy at %ipx', async (width) => {
+      const noop = () => {}
+      const { container } = render(<>
+        <CalendarHeader monthLabel="April" year={2026} previousMonthLabel="Previous" nextMonthLabel="Next"
+          currentMonthLabel="Current month" selectYearLabel="Select year" onPreviousMonth={noop}
+          onNextMonth={noop} onCurrentMonth={noop} onSelectYear={noop} />
+        <LegalDocumentLayout title="Privacy" lastUpdated="Updated" backLabel="Back" onBack={noop}
+          sections={[{ id: 'privacy', title: 'Your privacy', paragraphs: ['Your privacy matters.'] }]}
+          closingNote={{ id: 'contact', title: 'Contact', paragraphs: ['Contact us.'] }} />
+      </>)
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const fontSize = (element: Element) => getComputedStyle(element).fontSize
+        expect(await page.getByText('April', { exact: true }).evaluate(fontSize)).toBe('28px')
+        expect(await page.locator('[data-legal-document-content] header p').first().evaluate(fontSize)).toBe(width < 640 ? '22px' : '28px')
+        expect(await page.getByRole('heading', { level: 2, name: 'Your privacy' }).evaluate(fontSize)).toBe('17px')
+        expect(await page.getByText('Your privacy matters.', { exact: true }).evaluate(fontSize)).toBe('16px')
       } finally {
         await page.close()
       }

@@ -131,6 +131,8 @@ describe("CalendarHeader year navigation (mobile)", () => {
     const texts = hostTextValues(tree!);
     expect(texts).toContain("April");
     expect(texts).toContain(2026);
+    const month = tree!.root.findAll((node) => node.type === "Text" && node.props.children === "April")[0]!;
+    expect(StyleSheet.flatten(month.props.style).fontSize).toBe(28);
 
     pressByAccessibilityLabel(tree!, "Previous month");
     pressByAccessibilityLabel(tree!, "Next month");

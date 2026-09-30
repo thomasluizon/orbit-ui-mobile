@@ -34,7 +34,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     headerLabel: {
       fontFamily: "Geist_500Medium",
-      fontSize: 15,
+      fontSize: 14,
       color: tokens.fg1,
     },
     body: {
@@ -99,12 +99,12 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     dropdownItemText: {
       fontFamily: "Geist_400Regular",
-      fontSize: 15,
+      fontSize: 14,
       color: tokens.fg1,
     },
     dropdownItemTextAccent: {
       fontFamily: "Geist_500Medium",
-      fontSize: 15,
+      fontSize: 14,
       color: tokens.fg1,
     },
     customRow: {
@@ -161,7 +161,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     limitText: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
     },
     formBody: {
@@ -216,7 +216,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     slipDescription: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
       marginLeft: 32,
     },
@@ -328,7 +328,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgWell,
     },
     emojiWellText: {
-      fontSize: 26,
+      fontSize: 22,
       lineHeight: 32,
     },
     emojiSheetContent: {
@@ -415,7 +415,7 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     emojiOptionText: {
-      fontSize: 20,
+      fontSize: 22,
       lineHeight: 25,
     },
     frequencyCarouselRow: {
@@ -581,7 +581,7 @@ export function createStyles(tokens: AppTokens) {
     },
     tagChipText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 12,
       color: tokens.fg2,
     },
     tagAction: {

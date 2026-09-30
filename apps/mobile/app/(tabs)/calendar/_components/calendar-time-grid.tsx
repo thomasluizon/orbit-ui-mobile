@@ -191,7 +191,7 @@ function TimedBlock({
         style={{
           fontFamily: "Geist_500Medium",
           // react-doctor-disable-next-line no-tiny-text -- Deliberate density: entry title inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          fontSize: 11,
+          fontSize: 10,
           lineHeight: 13,
           color: completed || isFuture ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
@@ -702,7 +702,7 @@ function createStyles(tokens: Tokens) {
     },
     colHeaderWeekday: {
       fontFamily: "GeistMono_500Medium",
-      fontSize: 10,
+      fontSize: 12,
       letterSpacing: 0.4,
       textTransform: "uppercase",
     },
@@ -714,7 +714,7 @@ function createStyles(tokens: Tokens) {
       justifyContent: "center",
     },
     colHeaderDate: {
-      fontSize: 13,
+      fontSize: 12,
       fontVariant: ["tabular-nums"],
     },
     allDayRow: {

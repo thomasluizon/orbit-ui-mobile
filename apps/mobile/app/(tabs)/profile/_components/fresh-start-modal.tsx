@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 23,
   },
   actionInset: { paddingTop: 8 },

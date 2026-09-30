@@ -381,7 +381,7 @@ export function CalendarDayDetail({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <div className="flex flex-col" style={{ gap: 8, paddingInline: 24 }}>
         {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
-        <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0 }}>
+        <p className="text-xs text-[var(--fg-3)]" style={{ margin: 0 }}>
           {summary}
         </p>
         {filteredEntries.length === 0 ? (

@@ -23,4 +23,4 @@ export function OnboardingWelcome({ sentence, marks, onChange }: Readonly<Props>
   </View>
 }
 
-const styles = StyleSheet.create({ root: { gap: 24 }, intro: { gap: 8 }, title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, letterSpacing: -0.56, lineHeight: 32 }, caption: { fontFamily: 'Geist_400Regular', fontSize: 14 }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 } })
+const styles = StyleSheet.create({ root: { gap: 24 }, intro: { gap: 8 }, title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, letterSpacing: -0.56, lineHeight: 32 }, caption: { fontFamily: 'Geist_400Regular', fontSize: 12 }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 } })

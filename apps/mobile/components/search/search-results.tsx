@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
   initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },
-  name: { fontFamily: 'Geist_400Regular', fontSize: 18 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+  name: { fontFamily: 'Geist_400Regular', fontSize: 17 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14 }, empty: { alignItems: 'flex-start', padding: 12, gap: 12 },
   loading: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 }, dots: { flexDirection: 'row', gap: 4 }, dot: { width: 4, height: 4, borderRadius: radius.full },
 })

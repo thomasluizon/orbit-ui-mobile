@@ -182,6 +182,13 @@ function drawable(relativePath: string) {
   return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
 }
 
+it('uses the drawn widget time and empty-message sizes', () => {
+  const items = layoutViews('layout/widget_item.xml')
+  expect(items.get('item_time')?.['android:textSize']).toBe('12sp')
+  expect(items.get('item_time_overdue')?.['android:textSize']).toBe('12sp')
+  expect(layoutViews().get('widget_empty_text')?.['android:textSize']).toBe('15sp')
+})
+
 function rootAttributes(relativePath: string) {
   let attributes: Record<string, string> | undefined
   const parser = new SaxesParser()

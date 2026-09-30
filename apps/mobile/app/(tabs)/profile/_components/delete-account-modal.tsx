@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 23,
     textAlign: 'center',
   },
   description: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 23,
     textAlign: 'center',
   },

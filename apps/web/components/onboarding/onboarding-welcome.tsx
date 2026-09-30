@@ -23,7 +23,7 @@ export function OnboardingWelcome({ sentence, marks, onChange }: Readonly<Onboar
       </div>
       <Input label={t('what.label')} value={sentence} onChange={onChange} placeholder={t('what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('what.marksLabel')} autoFocus />
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-sm text-[var(--fg-3)]">{t('what.startersTitle')}</p>
+        <p className="m-0 text-xs text-[var(--fg-3)]">{t('what.startersTitle')}</p>
         <div className="flex flex-wrap gap-2">
           {ONBOARDING_STARTERS.map((key) => (
             <Chip key={key} active={sentence === t(`what.starters.${key}`)} onClick={() => onChange(t(`what.starters.${key}`))}>{t(`what.starters.${key}`)}</Chip>

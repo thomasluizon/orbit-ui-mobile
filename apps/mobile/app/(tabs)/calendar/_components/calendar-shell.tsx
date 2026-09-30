@@ -107,7 +107,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     monthTitle: {
       fontFamily: 'SpaceGrotesk_500Medium',
-      fontSize: 34,
+      fontSize: 28,
       letterSpacing: -0.17,
       color: tokens.fg1,
       textAlign: "center",
@@ -180,7 +180,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     legendLabel: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 12,
       color: tokens.fg3,
     },
   });

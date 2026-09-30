@@ -32,7 +32,7 @@ export function HabitTagChip({
           ? 'bg-[var(--primary-dim)] shadow-[inset_0_0_0_1.5px_var(--primary)] text-[var(--fg-1)]'
           : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] text-[var(--fg-2)] hover:has-[>button:first-child:hover]:bg-[var(--bg-elev-2)] hover:has-[>button:first-child:hover]:text-[var(--fg-1)]'
       } ${animationClassName}`}
-      style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+      style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
     >
       <button
         type="button"

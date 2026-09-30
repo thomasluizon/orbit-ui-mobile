@@ -172,6 +172,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.72,
     textTransform: 'uppercase',
   },
-  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 23 },
+  line: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24.65 },
   close: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
 })

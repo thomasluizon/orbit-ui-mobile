@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -113,6 +113,7 @@ function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ v
 
 function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
   const { t } = useTranslation()
+  const { width } = useWindowDimensions()
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(habit.title)
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
@@ -130,7 +131,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
       <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
       <View style={styles.headerCopy}>
         <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-        {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
+        {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text numberOfLines={1} style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
         {summary ? <Text numberOfLines={1} style={[styles.muted, { color: tokens.fg3 }]}>{summary}</Text> : null}
         {habit.tags.length > 0 ? <View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View> : null}
       </View>
@@ -478,10 +479,11 @@ const styles = StyleSheet.create({
   surface: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4, paddingTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29 },
+  title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 26.4 },
+  titleWide: { fontSize: 28, lineHeight: 32.2 },
   renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, borderBottomWidth: 2, padding: 0 },
+  titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 26.4, borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 18, lineHeight: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },

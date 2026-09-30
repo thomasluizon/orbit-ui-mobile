@@ -25,12 +25,12 @@ export function SlipAlertSection({
               <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
               <span
                 className="text-[var(--fg-1)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500 }}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
               >
                 {t('habits.form.slipAlert')}
               </span>
             </div>
-            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
+            <span className="text-[14px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
               {t('habits.form.slipAlertDescription')}
             </span>
           </div>
@@ -51,13 +51,13 @@ export function SlipAlertSection({
               <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />
               <span
                 className="text-[var(--fg-3)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500 }}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
               >
                 {t('habits.form.slipAlert')}
               </span>
               <Badge >{t('common.proBadge')}</Badge>
             </div>
-            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
+            <span className="text-[14px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
               {t('habits.form.slipAlertDescription')}
             </span>
           </div>

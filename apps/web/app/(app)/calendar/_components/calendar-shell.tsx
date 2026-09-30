@@ -80,7 +80,7 @@ export function CalendarHeader({
               height: 36,
               padding: '0 8px',
               fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--fs-sm)',
+              fontSize: 'var(--fs-xs)',
               fontWeight: 500,
               fontVariantNumeric: 'tabular-nums',
               color: 'var(--fg-1)',
@@ -237,7 +237,7 @@ function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 12,
           color: 'var(--fg-3)',
         }}
       >
