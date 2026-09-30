@@ -109,7 +109,7 @@ export function getPushStatusMessageKey(
 }
 
 /** Reports registered only for the account that turned push on in this browser, never for an earlier one. */
-export async function loadPushNotificationState(accountId: string): Promise<PushPreferenceSnapshot> {
+export async function loadPushNotificationState(accountId: string | null): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported()) {
     return createUnsupportedSnapshot()
   }
@@ -124,7 +124,7 @@ export async function loadPushNotificationState(accountId: string): Promise<Push
     const registration = await getActiveServiceWorkerRegistration()
     const subscription = await registration.pushManager.getSubscription()
 
-    return createSnapshot(permission, subscription !== null && isPushSubscriptionOwner(accountId))
+    return createSnapshot(permission, subscription !== null && accountId !== null && isPushSubscriptionOwner(accountId))
   } catch {
     return createSyncFailedSnapshot(permission)
   }
@@ -282,7 +282,6 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
   })
 
   useEffect(() => {
-    if (accountId === null) return undefined
     let cancelled = false
 
     void loadPushNotificationState(accountId).then((snapshot) => {

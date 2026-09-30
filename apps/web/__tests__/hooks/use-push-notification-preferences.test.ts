@@ -598,14 +598,15 @@ describe('usePushNotificationPreferences hook', () => {
     expect(result.current.subscribed).toBe(true)
   })
 
-  it('waits for the signed-in account before it reads the browser subscription', async () => {
+  it('reports anonymous browser support without claiming another account subscription', async () => {
     const { getSubscription } = await enablePushAs('account-a')
     setAccountId(null)
     const { result } = renderHook(() => usePushNotificationPreferences())
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
 
-    expect(result.current.status).toBe('checking')
-    expect(getSubscription).not.toHaveBeenCalled()
+    expect(result.current.supported).toBe(true)
+    expect(result.current.subscribed).toBe(false)
+    expect(getSubscription).toHaveBeenCalled()
 
     act(() => setAccountId('account-a'))
     await waitFor(() => expect(result.current.status).toBe('registered'))
