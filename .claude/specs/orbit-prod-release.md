@@ -231,6 +231,7 @@ Defects a person hits in the shipped build today (web on `main`, Android from `m
 `main` deploy). They target `main` under D99 and the route-by-subject rule; an Android fix is followed by
 `/android-release` to the open track.
 
+- Owner report, file tickets and fix first (they outrank the queue): on the production Android app, Google sign-in does not sign in and shows no error; and onboarding appears, then vanishes and drops to the sign-in screen. Reproduce on the exact shipped build before filing.
 - `#566` Resolve orphan offline IDs before reorder mutations expire (merged; closes after seven days without ORBIT-MOBILE-5 on the carrying release)
 - `#134` Habit row three-dot menu does not reliably open on Android (verify on a device, then close)
 - File a ticket and fix: on production web Today, a habit's three-dot menu once stayed open while a second habit's menu opened below it, so two menus showed at once (not reproducible on demand; investigate the menu open state and outside-dismiss logic on both platforms)

@@ -51,6 +51,9 @@ Workers launched by this session die when the session ends, the way the previous
 
 ## Then, in order
 
+0. FIRST, before the in-flight rows: two live defects the owner reported on the production Android app (open track, the build he has installed; read its version from the device report or the Play Console before assuming 1.3.44 (103)). New reports on the shipped product outrank the queue. For each: reproduce on that exact shipped build (the spec's reproduce-on-the-shipped-build decision), read Sentry and the production API logs for the attempt, file a ticket with `/ticket` (`repo:ui`, on `main`, plus a `repo:api` ticket if the cause is in the API), fix it on `main`, release production (API first when it changed) and ship an Android open-track build, then carry it into `redesign/main`:
+   - Google sign-in does not sign in: the person picks the Google account, nothing happens, and no error shows. Check the Android Google sign-in path Batch M moved into the API (client ids, the redirect or token exchange, the `MinSupportedVersion` expand-contract with the old Supabase path) and why a failure shows no message.
+   - Onboarding appears, then vanishes and drops straight to the sign-in screen. Check the first-launch auth and onboarding routing (a session or token read that fails and signs the person out, or a redirect that fires before onboarding finishes).
 1. The in-flight rows above, top to bottom; merge each on the bar; release `redesign/main` web (and API when it changed) to staging after each merged batch.
 2. The `#556` carry, then the first Orbit Staging internal build from `redesign/main` through `/android-release`, then `#961` (staging billing) once that upload exists.
 3. The spec's `### Batch R` filed tickets in their order (including the onboarding trial step and paywall ticket to file), then a full rendered sweep of staging at desktop, phone and foldable widths, filing and fixing until a full pass finds nothing.
