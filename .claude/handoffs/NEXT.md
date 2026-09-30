@@ -36,15 +36,15 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | `ui#1368` (`#983`) at `2ee53305` | in-flow back row above the cover; waiting on CI and review |
 | `ui#1369` (`#977`) at `f53ae75f` | waiting on CI and review |
 | `ui#1370` (`#974`) at `497075a9` | opened after a ceiling-kill continuation; waiting on CI and first review |
-| `#847` worker | running at handoff (worktree `ticket-847-create-form`, branch `fix/ticket-847-create-form`); outcome unknown |
+| `ui#1371` (`#847` create habit form) at `caedee52` | delivered after the handoff was written; waiting on CI and first review |
 | `#989` worker | killed at its 45-minute ceiling with 3 commits (`684c7a00e`, `79ec64335`, `8b7206c32`), tree clean, nothing pushed (worktree `ticket-989-reload-guidance`); relaunch a continuation that verifies, pushes and opens the pull request, with `--hard-ceiling-minutes 60` |
 | `#970` | unblocked by the owner's hover decision; worktree `ticket-970-hover-role` exists, clean, no commits: recompose and launch |
 | Staging | web `redesign/main` `f5f8bdcf` (`aed88e68` not yet released); API `7e3a2e19` |
 | Production | web `80faf22d`; API `ce78ccb4`; Android 1.3.45 (104) on the open track |
 | Open pull requests elsewhere | none in `orbit-api` or `orbit-landing-page` |
 | Stashes | none in `orbit-ui-mobile` or `orbit-api` |
-| Uncommitted work | only the `#847` worker's worktree; main checkouts clean |
-| Unpushed commits | `fix/ticket-847-create-form` (running) and `fix/ticket-989-reload-guidance` (3 commits) have no upstream yet |
+| Uncommitted work | none; main checkouts clean |
+| Unpushed commits | `fix/ticket-989-reload-guidance` (3 commits) has no upstream yet |
 | Detached HEADs | none (the old scratch merge-check worktrees were removed) |
 | Branches without a pull request | about thirty `orbit-ui-mobile` ticket worktrees; merged ones go with `node tools/teardown-worktree.mjs` in paced batches; several with no pull request at all hold unmerged work and stay until read |
 | Ignored files | the session decision log stayed in its scratchpad |

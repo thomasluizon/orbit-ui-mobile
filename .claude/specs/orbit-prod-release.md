@@ -140,7 +140,7 @@ Open pull requests first, in this order (heads are leads; re-read each). Each me
 - `#983` Wrapped back control in its own row above the cover: `ui#1368` at `2ee53305`.
 - `#977` Android press fill parity: `ui#1369` at `f53ae75f`.
 - `#974` press fill across the whole hit box: `ui#1370` at `497075a9`, first review pending.
-- Workers at handoff: `#847` (create habit form, worktree `ticket-847-create-form`) was running; `#989` (reload guidance on step-up, sheets, palette and onboarding, worktree `ticket-989-reload-guidance`) hit its ceiling with three unpushed commits and needs a continuation.
+- `#847` create habit form: `ui#1371` at `caedee52`, first review pending. `#989` (reload guidance on step-up, sheets, palette and onboarding, worktree `ticket-989-reload-guidance`) hit its ceiling with three unpushed commits and needs a continuation.
 
 Then the filed tickets, highest first. Before a new ticket starts, check its files against the open pull requests; a ticket whose files overlap one waits for that one to merge (the shared i18n JSON files do not count). Check `needs:no-conversation` or read the ticket for an open question before launching:
 
@@ -534,7 +534,7 @@ Batch M is done except the Resend retirement (`#943`). Production: web `80faf22d
 
 THE REDESIGN GATE is open: Batch R is in progress. Staging web runs `redesign/main` `f5f8bdcf` (the next staging release also carries `aed88e68`); the staging API runs `7e3a2e19` (held Astra write edits validated through each tool's own argument check). The first Orbit Staging build (`org.useorbit.app.staging`) has not shipped; it waits on the `#556` carry (`ui#1359`).
 
-Open pull requests: `ui` `#1356`, `#1359`, `#1365`, `#1367`, `#1368`, `#1369`, `#1370` (base `redesign/main`); none in `orbit-api` or `orbit-landing-page`. Their state is under Batch R.
+Open pull requests: `ui` `#1356`, `#1359`, `#1365`, `#1367`, `#1368`, `#1369`, `#1370`, `#1371` (base `redesign/main`); none in `orbit-api` or `orbit-landing-page`. Their state is under Batch R.
 
 Worker engine: Codex on `gpt-6.1-sol`, committed; the main checkout is clean apart from the handoff files. Pullfrog reviews on `openai/gpt-6.1-sol` with the opencode harness in all three repositories.
 
