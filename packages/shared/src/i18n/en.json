@@ -236,23 +236,23 @@
       },
       "chips": {
         "today": {
-          "moveOverdue": "Move {title} to tonight",
-          "logHabit": "Log {title}",
+          "moveOverdue": "Move \"{title}\" to tonight",
+          "logHabit": "Log \"{title}\"",
           "logYesterday": "Log yesterday",
           "pushTomorrow": "Push everything to tomorrow",
-          "trimHabit": "Trim {title}",
+          "trimHabit": "Simplify \"{title}\"",
           "createMorningHabit": "Create a morning habit",
           "logLastDays": "Log the last days",
           "resumeHabits": "Pick the habits back up",
           "cutToTwo": "Cut to two a day",
           "changeTimes": "Change the times",
           "pauseWhatDoesNotFit": "Pause what does not fit",
-          "keepOnlyHabit": "Keep only {title}",
+          "keepOnlyHabit": "Keep only \"{title}\"",
           "buildMorningRoutine": "Build a morning routine",
           "startOneHabit": "Start with one habit",
           "suggestThreeHabits": "Suggest three habits",
           "createEveningHabit": "Create an evening habit",
-          "reviewHabit": "Review {title}"
+          "reviewHabit": "Review \"{title}\""
         },
         "calendar": {
           "slippedThisWeek": "What slipped this week",
@@ -862,7 +862,7 @@
       "retry": "Try again",
       "rename": "Rename habit",
       "saveName": "Save name",
-      "log": "Log {title}",
+      "log": "Log \"{title}\"",
       "unlog": "Undo log for {title}",
       "lastThirtyDays": "Last 30 days",
       "slippingLine": "No completions in the last {days, plural, one {# day} other {# days}}. The streak is at {streak} and the 30-day rate is below {limit}%.",
@@ -1211,9 +1211,9 @@
     "operationFailed": "That didn't work. Try again.",
     "suggestion": {
       "prompt": "Some things you can ask",
-      "logHabit": "Log {habit}",
+      "logHabit": "Log \"{habit}\"",
       "week": "How the week went",
-      "splitHabit": "Split {habit}",
+      "splitHabit": "Split \"{habit}\"",
       "goals": "How are my goals"
     },
     "action": {

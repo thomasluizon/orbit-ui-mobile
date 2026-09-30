@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
@@ -32,7 +32,7 @@ const houseRoutine = makeHabitScheduleItem({
   hasSubHabits: false,
 })
 
-function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | null) {
+function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | null, onSelectSuggestion = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
     queryClient.setQueryData(
@@ -43,7 +43,7 @@ function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | n
   render(
     <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState onSelectSuggestion={vi.fn()} />
+        <ChatEmptyState onSelectSuggestion={onSelectSuggestion} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   )
@@ -70,9 +70,9 @@ describe('ChatEmptyState copy', () => {
     expect(screen.getByText('Fale com a Astra sobre a sua rotina')).toBeInTheDocument()
     expect(screen.getByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Registrar Caminhar',
+      'Registrar "Caminhar"',
       'Como foi a semana',
-      'Dividir Rotina da casa',
+      'Dividir "Rotina da casa"',
       'Como estão as metas',
     ])
   })
@@ -83,9 +83,9 @@ describe('ChatEmptyState copy', () => {
     expect(screen.getByText('Talk to Astra about your routine')).toBeInTheDocument()
     expect(screen.getByText('Some things you can ask')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Log Caminhar',
+      'Log "Caminhar"',
       'How the week went',
-      'Split Rotina da casa',
+      'Split "Rotina da casa"',
       'How are my goals',
     ])
   })
@@ -105,11 +105,29 @@ describe('ChatEmptyState copy', () => {
 
     expect(await screen.findByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Registrar Rotina da casa',
+      'Registrar "Rotina da casa"',
       'Como foi a semana',
-      'Dividir Rotina da casa',
+      'Dividir "Rotina da casa"',
       'Como estão as metas',
     ])
+  })
+
+  it.each([
+    ['pt-BR', 'Caminhar', 'Registrar "Caminhar"', 'Dividir "Caminhar"'],
+    ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
+    ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
+    ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
+  ] as const)('sends the quoted %s suggestion for %s', (locale, title, logLabel, splitLabel) => {
+    const onSelectSuggestion = vi.fn()
+    const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
+    renderEmptyState(locale, [habit], onSelectSuggestion)
+
+    for (const label of [logLabel, splitLabel]) {
+      const button = screen.getByRole('button', { name: label })
+      expect(button.textContent).toBe(label)
+      fireEvent.click(button)
+    }
+    expect(onSelectSuggestion.mock.calls).toEqual([[logLabel], [splitLabel]])
   })
 
   it('offers only the two general suggestions to an account with no habits', () => {
