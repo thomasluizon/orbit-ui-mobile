@@ -6,13 +6,26 @@
  */
 const PUSH_SUBSCRIPTION_OWNER_KEY = 'orbit_push_subscription_owner'
 
-let pushSubscriptionMutation: Promise<void> = Promise.resolve()
+/** Keeps ownership, API persistence and browser mutations together across tabs. */
+export function serializePushSubscriptionMutation<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!('locks' in navigator)) return Promise.reject(new Error('Web Locks API is required for push changes'))
+  const result = navigator.locks.request('orbit-push-subscription', { signal }, operation)
+  return signal ? settlePushCleanupBeforeAbort(result, signal) : result
+}
 
-/** Keeps browser mutations and API persistence together, so cleanup never sees an opt-in before its owner is recorded. */
-export function serializePushSubscriptionMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = pushSubscriptionMutation.then(operation)
-  pushSubscriptionMutation = result.then(() => undefined, () => undefined)
-  return result
+/** Cancels cleanup's wait without letting its late continuation change a replacement account's endpoint. */
+export async function settlePushCleanupBeforeAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  let abort: () => void = () => undefined
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => reject(new Error('Push cleanup cancelled', { cause: signal.reason }))
+    if (signal.aborted) abort()
+    else signal.addEventListener('abort', abort, { once: true })
+  })
+  try {
+    return await Promise.race([operation, cancelled])
+  } finally {
+    signal.removeEventListener('abort', abort)
+  }
 }
 
 export function recordPushSubscriptionOwner(accountId: string): void {

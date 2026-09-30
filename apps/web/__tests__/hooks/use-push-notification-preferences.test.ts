@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { installWebLocks } from '../helpers/web-locks'
 
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: (...args: unknown[]) => mockSubscribePush(...args),
   unsubscribePush: (...args: unknown[]) => mockUnsubscribePush(...args),
+  unsubscribePushForCleanup: (...args: unknown[]) => mockUnsubscribePush(...args),
 }))
 
 import {
@@ -153,6 +155,7 @@ describe('use-push-notification-preferences helpers', () => {
   const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()
@@ -419,6 +422,7 @@ describe('use-push-notification-preferences helpers', () => {
 
 describe('releasing this browser push subscription at logout', () => {
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()
@@ -439,7 +443,7 @@ describe('releasing this browser push subscription at logout', () => {
       finishApiCall = resolve
     }))
 
-    const released = pushPreferences.releasePushSubscription()
+    const released = pushPreferences.releasePushSubscription('account-a')
     await vi.waitFor(() => expect(mockUnsubscribePush).toHaveBeenCalledTimes(1))
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
     finishApiCall()
@@ -454,7 +458,7 @@ describe('releasing this browser push subscription at logout', () => {
     const failure = new Error('network down')
     mockUnsubscribePush.mockRejectedValue(failure)
 
-    await expect(settleWithin(pushPreferences.releasePushSubscription())).rejects.toBe(failure)
+    await expect(settleWithin(pushPreferences.releasePushSubscription('account-a'))).rejects.toBe(failure)
 
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
@@ -462,7 +466,7 @@ describe('releasing this browser push subscription at logout', () => {
   it('never registers a worker just to find there is nothing to release', async () => {
     const { register, getSubscription } = setupPushEnvironment({ permission: 'granted' })
 
-    await settleWithin(pushPreferences.releasePushSubscription())
+    await settleWithin(pushPreferences.releasePushSubscription('account-a'))
 
     expect(register).not.toHaveBeenCalled()
     expect(getSubscription).not.toHaveBeenCalled()
@@ -474,6 +478,7 @@ describe('usePushNotificationPreferences hook', () => {
   const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
   beforeEach(() => {
+    installWebLocks()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     mockSubscribePush.mockReset()

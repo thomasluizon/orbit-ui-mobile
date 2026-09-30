@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { installWebLocks } from '../../helpers/web-locks'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -92,6 +93,7 @@ async function enablePushAs(accountId: string) {
 
 describe('PushPrompt', () => {
   beforeEach(() => {
+    installWebLocks()
     useUIStore.setState({ openOverlayIds: [], showCreateModal: false, showCreateGoalModal: false })
     vi.clearAllMocks()
     setAccountId('account-a')
@@ -319,6 +321,7 @@ describe('PushPrompt enable flow', () => {
   }
 
   beforeEach(() => {
+    installWebLocks()
     vi.clearAllMocks()
     setAccountId('account-a')
     localStorage.clear()
