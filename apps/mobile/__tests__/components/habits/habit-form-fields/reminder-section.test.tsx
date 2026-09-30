@@ -2,7 +2,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StyleSheet, type ViewStyle } from "react-native";
 import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
 import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
 
 const pushPermission = vi.hoisted(() => ({ status: "granted" }));
@@ -233,7 +233,7 @@ describe("ReminderSection", () => {
     );
     expect(confirm!.props.hitSlop).toBeUndefined();
     const pressedAdd = StyleSheet.flatten((confirm!.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: true }));
-    expect(pressedAdd).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.primaryPressed });
+    expect(pressedAdd).toMatchObject({ width: 44, height: 44, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.primaryPressed });
     (confirm!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });

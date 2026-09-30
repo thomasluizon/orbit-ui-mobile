@@ -159,6 +159,7 @@ export function createSectionStyles(tokens: AppTokens) {
       width: 44,
       height: 44,
       borderRadius: radius.full,
+      overflow: "hidden",
       backgroundColor: tokens.primary,
       alignItems: "center",
       justifyContent: "center",
