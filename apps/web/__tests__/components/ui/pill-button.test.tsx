@@ -40,10 +40,10 @@ describe('PillButton', () => {
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each([
-      { label: 'Continue', iconOnly: false, narrow: false },
-      { label: 'i', iconOnly: false, narrow: true },
-      { label: 'Open menu', iconOnly: true, narrow: true },
-    ])('preserves the visible box and expands the target: $label', async ({ label, iconOnly, narrow }) => {
+      { label: 'Continue', iconOnly: false },
+      { label: 'i', iconOnly: false },
+      { label: 'Open menu', iconOnly: true },
+    ])('paints the full target without a pseudo-element extension: $label', async ({ label, iconOnly }) => {
       const { container } = render(iconOnly
         ? <PillButton size="sm" iconOnly label={label}><span /></PillButton>
         : <PillButton size="sm">{label}</PillButton>)
@@ -54,33 +54,24 @@ describe('PillButton', () => {
         const measured = await page.evaluate(() => {
           const button = document.querySelector('button')!
           const bounds = button.getBoundingClientRect()
-          const expansion = getComputedStyle(button, '::before')
-          const left = Number.parseFloat(expansion.left)
-          const right = Number.parseFloat(expansion.right)
-          const top = Number.parseFloat(expansion.top)
-          const bottom = Number.parseFloat(expansion.bottom)
-          const visible = { width: bounds.width, height: bounds.height }
-          const target = { width: Number.parseFloat(expansion.width), height: Number.parseFloat(expansion.height), left, right, top, bottom }
+          const extensions = ['::before', '::after'].map((pseudo) => {
+            const style = getComputedStyle(button, pseudo)
+            return { content: style.content, left: style.left, right: style.right, top: style.top, bottom: style.bottom }
+          })
           const hits = ([
-            [bounds.x + left + 0.25, bounds.y + top + 0.25],
-            [bounds.right - right - 0.25, bounds.bottom - bottom - 0.25],
+            [bounds.x + 0.25, bounds.y + bounds.height / 2],
+            [bounds.right - 0.25, bounds.y + bounds.height / 2],
+            [bounds.x + bounds.width / 2, bounds.y + 0.25],
+            [bounds.x + bounds.width / 2, bounds.bottom - 0.25],
+            [bounds.x + bounds.width / 2, bounds.y - 1],
+            [bounds.x + bounds.width / 2, bounds.bottom + 1],
           ] as const).map(([x, y]) => button.contains(document.elementFromPoint(x, y)))
-          button.classList.remove('touch-target')
-          const original = button.getBoundingClientRect()
-          return { visible, target, hits, original: { width: original.width, height: original.height } }
+          return { width: bounds.width, height: bounds.height, extensions, hits }
         })
-        expect(measured.visible).toEqual(measured.original)
-        expect(measured.visible.height).toBe(40)
-        if (iconOnly) expect(measured.visible.width).toBe(40)
-        if (narrow) expect(measured.visible.width).toBeLessThan(44)
-        else expect(measured.visible.width).toBeGreaterThan(44)
-        expect(measured.target.width).toBeCloseTo(Math.max(44, measured.visible.width), 1)
-        expect(measured.target.height).toBe(44)
-        expect(measured.target.left).toBeCloseTo(narrow ? (measured.visible.width - 44) / 2 : 0, 1)
-        expect(measured.target.right).toBeCloseTo(measured.target.left, 1)
-        expect(measured.target.top).toBe(-2)
-        expect(measured.target.bottom).toBe(-2)
-        expect(measured.hits).toEqual([true, true])
+        expect(measured.width).toBeGreaterThanOrEqual(44)
+        expect(measured.height).toBe(44)
+        expect(measured.extensions.every(({ content }) => content === 'none')).toBe(true)
+        expect(measured.hits).toEqual([true, true, true, true, false, false])
       } finally {
         await page.close()
       }

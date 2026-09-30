@@ -7,6 +7,7 @@ import { createStyles as createCalendarSyncStyles } from '@/components/calendar-
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { Chip } from '@/components/ui/chip'
+import { PillButton } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { createTokensV2, radius } from '@/lib/theme'
@@ -21,6 +22,7 @@ type StyledNode = Readonly<{
     accessibilityLabel?: string
     onPressIn?: () => void
     onPressOut?: () => void
+    hitSlop?: unknown
   }
   findAllByType(type: unknown): StyledNode[]
   findAllByProps(props: Record<string, unknown>): StyledNode[]
@@ -83,6 +85,33 @@ function numeralColor(node: StyledNode) {
 }
 
 describe('pressed hit area shapes', () => {
+  it('paints the chip target in a real 44px box without invisible slop', () => {
+    withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
+      const control = findPressable(tree, 'Filter')
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
+    })
+  })
+
+  it('paints the small pill target in a real 44px box without invisible slop', () => {
+    withTree(<PillButton size="sm" accessibleName="Copy">Copy</PillButton>, (tree) => {
+      const control = findPressable(tree, 'Copy')
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
+    })
+  })
+
+  it('keeps the today ring out of the layout so its press fill reaches the outer edge', () => {
+    const props = { ...loggableFullDay, today: true }
+    withTree(<DayCell {...props} />, (tree) => {
+      const control = findPressable(tree, buildDayCellAccessibleName(props, 'full'))
+      expect(StyleSheet.flatten(control.props.style as StyleProp<ViewStyle>).borderWidth ?? 0).toBe(0)
+      renderer.act(() => control.props.onPressIn?.())
+      const fill = control.findAllByProps({ testID: 'day-press-fill' })[0]!
+      expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)).toMatchObject({ top: 0, bottom: 0, left: 0, right: 0 })
+    })
+  })
+
   it('fills the whole rounded ListRow body and its round action', () => {
     const row = <ListRow title="Account" accessibilityLabel="Account" onClick={() => {}} action={{ icon: 'download', label: 'More', onPress: () => {} }} />
     expect(pressedStyle(row, 'Account')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
