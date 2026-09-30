@@ -40,6 +40,15 @@ describe('ShellWide', () => {
     })))
   })
 
+  it('floats the compact FAB without its own band or separator', () => {
+    const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
+    const bottom = container.querySelector('[data-shell-bottom]')
+    expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
+    const fab = container.querySelector('[data-shell-fab]')
+    expect(fab).toHaveClass('absolute', 'right-4')
+    expect(fab).toHaveStyle({ bottom: 'calc(100% + 16px)' })
+  })
+
   it('owns the 232px navigation, 740px canvas, notice, and pinned composer', () => {
     const { container } = render(
       <ShellWide

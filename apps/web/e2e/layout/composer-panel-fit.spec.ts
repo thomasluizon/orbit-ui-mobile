@@ -68,3 +68,52 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     })
   }
 }
+
+for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
+  for (const width of [320, 360, 412, 600] as const) {
+    test.describe(`${locale} compact composer at ${width}px`, () => {
+      test.use({ viewport: { width, height: 915 } })
+
+      test('keeps usable text with an ellipsised single-line placeholder', async ({ page, context }) => {
+        await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+        const profile = profileSchema.parse({ ...profileFixture, language: locale })
+        await setLayoutProfileSession(context, profile)
+        await page.goto('/')
+        await page.evaluate(() => document.fonts.ready)
+        const field = page.locator('[data-composer-root]:visible [data-composer-input]')
+        await expect(field).toHaveAttribute('placeholder', messages.shell.composer.placeholder)
+        const empty = await field.evaluate((element) => {
+          const input = element as HTMLTextAreaElement
+          const style = getComputedStyle(input)
+          return {
+            contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+            clientHeight: input.clientHeight,
+            scrollHeight: input.scrollHeight,
+            whiteSpace: getComputedStyle(input, '::placeholder').whiteSpace,
+          }
+        })
+        expect(empty.contentWidth).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
+        expect(empty.scrollHeight).toBe(empty.clientHeight)
+        expect(empty.whiteSpace).toBe('nowrap')
+
+        await field.fill('Astra '.repeat(10))
+        const typed = await field.evaluate((element) => {
+          const input = element as HTMLTextAreaElement
+          const style = getComputedStyle(input)
+          return {
+            contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+            whiteSpace: style.whiteSpace,
+            wordBreak: style.wordBreak,
+            left: input.getBoundingClientRect().left,
+            right: input.getBoundingClientRect().right,
+          }
+        })
+        expect(typed.contentWidth).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
+        expect(typed.whiteSpace).toBe('pre-wrap')
+        expect(typed.wordBreak).toBe('normal')
+        expect(typed.left).toBeGreaterThanOrEqual(0)
+        expect(typed.right).toBeLessThanOrEqual(width)
+      })
+    })
+  }
+}

@@ -110,6 +110,49 @@ function pressControl(control: { props: Record<string, (() => void) | undefined>
 }
 
 describe('Composer (mobile)', () => {
+  it('gives text a flexible word-sized minimum and lets the controls wrap together', () => {
+    const tree = renderComposer(props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords }))
+    const input = tree.root.findByType('TextInput')
+    expect(StyleSheet.flatten(input.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-text-slot' }).props.style)).toMatchObject({ flexGrow: 1, flexShrink: 1, flexBasis: 176, minWidth: 176 })
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-field' }).props.style)).toMatchObject({ flexWrap: 'wrap' })
+    const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
+    expect(placeholder.props.numberOfLines).toBe(1)
+    expect(placeholder.props.ellipsizeMode).toBe('tail')
+  })
+
+  it.each(['recording', 'transcribing'] as const)('replaces the field while %s and returns the transcript to composing', (state) => {
+    const capability = { onVoice: vi.fn(), voiceWords }
+    const tree = renderComposer(props({ ...capability, state, value: 'existing draft' }))
+    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
+    const stop = byLabel(tree.root, voiceWords.stop)[0]
+    expect(stop.props.disabled).toBe(state === 'transcribing')
+    TestRenderer.act(() => tree.update(<Composer {...props({ ...capability, value: 'voice transcript' })} />))
+    expect(tree.root.findByType('TextInput').props.value).toBe('voice transcript')
+    expect(tree.root.findByType('TextInput').props.editable).toBe(true)
+  })
+
+  it('runs a mono tabular clock only while recording and resets for the next recording', () => {
+    vi.useFakeTimers()
+    const capability = { onVoice: vi.fn(), voiceWords }
+    const tree = renderComposer(props({ ...capability, state: 'recording' }))
+    try {
+      expect(textValues(tree.root)).toContain('00:00')
+      TestRenderer.act(() => vi.advanceTimersByTime(65000))
+      expect(textValues(tree.root)).toContain('01:05')
+      const clock = tree.root.findAllByType('Text').find((node: { props: { children: unknown } }) => node.props.children === '01:05')
+      expect(StyleSheet.flatten(clock.props.style)).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontVariant: ['tabular-nums'] })
+      TestRenderer.act(() => tree.update(<Composer {...props({ ...capability, state: 'transcribing' })} />))
+      expect(textValues(tree.root)).not.toContain('01:05')
+      TestRenderer.act(() => tree.update(<Composer {...props({ ...capability })} />))
+      TestRenderer.act(() => tree.update(<Composer {...props({ ...capability, state: 'recording' })} />))
+      expect(textValues(tree.root)).toContain('00:00')
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      vi.useRealTimers()
+    }
+  })
+
   it('renders three suggestions in their named group', async () => {
     const tree = await renderComposer(props())
     const group = byLabel(tree.root, words.suggestionsLabel)[0]
@@ -352,10 +395,11 @@ describe('Composer (mobile)', () => {
     expect(onVoice).toHaveBeenCalledOnce()
   })
 
-  it('renders transcribing status with an unusable input', async () => {
+  it('replaces the input with transcribing status and an inactive stop', async () => {
     const tree = await renderComposer(props({ state: 'transcribing', onVoice: vi.fn(), voiceWords }))
     expect(textValues(tree.root)).toContain(voiceWords.transcribing)
-    expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
+    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
+    expect(byLabel(tree.root, voiceWords.stop)[0].props.disabled).toBe(true)
   })
 
   it('renders attachment capability without an empty tray', async () => {
@@ -420,7 +464,7 @@ describe('Composer (mobile)', () => {
   it('uses the placeholder word as both placeholder and accessible name', async () => {
     const tree = await renderComposer(props())
     const input = byLabel(tree.root, words.placeholder)[0]
-    expect(input.props.placeholder).toBe(words.placeholder)
+    expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(words.placeholder)
   })
 
   it.each([
@@ -429,7 +473,8 @@ describe('Composer (mobile)', () => {
   ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)
-    expect(byLabel(tree.root, placeholder)[0].props.placeholder).toBe(expected)
+    expect(byLabel(tree.root, placeholder)[0]).toBeDefined()
+    expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(expected)
   })
 
   it.each([
@@ -437,7 +482,8 @@ describe('Composer (mobile)', () => {
     ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
     const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
-    expect(byLabel(tree.root, 'Ask Astra for something')[0].props.placeholder).toBe(placeholder)
+    expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()
+    expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(placeholder)
     expect(textValues(tree.root)).toContain(reason)
   })
 
