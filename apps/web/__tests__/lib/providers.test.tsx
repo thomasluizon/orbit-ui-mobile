@@ -11,6 +11,10 @@ vi.mock('@/lib/query-client', () => ({
   getQueryClient: vi.fn().mockReturnValue({}),
 }))
 
+vi.mock('@/components/service-worker-bridge', () => ({
+  ServiceWorkerBridge: () => <div data-testid="service-worker-bridge" />,
+}))
+
 import { Providers } from '@/lib/providers'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -39,5 +43,17 @@ describe('Providers', () => {
       uiRehydrate.mockRestore()
       referralRehydrate.mockRestore()
     }
+  })
+
+  it('mounts the push service worker bridge inside the query provider for every app layout', () => {
+    render(
+      <Providers>
+        <div />
+      </Providers>,
+    )
+
+    expect(screen.getByTestId('query-provider')).toContainElement(
+      screen.getByTestId('service-worker-bridge'),
+    )
   })
 })

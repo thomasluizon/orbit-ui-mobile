@@ -130,6 +130,30 @@ describe('useCalendarData (mobile)', () => {
     expect(jan15![0]!.title).toBe('Exercise')
   })
 
+  it('keeps only the requested month in the dayMap', () => {
+    mocks.data = {
+      habits: [
+        buildHabit({
+          dueTime: null,
+          frequencyUnit: 'Week',
+          scheduledDates: ['2025-01-03'],
+          instances: [
+            { date: '2024-12-27', status: 'Overdue', logId: null },
+            { date: '2025-01-03', status: 'Overdue', logId: null },
+          ],
+          dueDate: '2024-12-27',
+          createdAtUtc: '2024-12-01T00:00:00Z',
+          isOverdue: true,
+        }),
+      ],
+      logs: { 'h-1': [] },
+    } as unknown as CalendarMonthResponse
+
+    const result = renderCalendarData(new Date(2025, 0, 1))
+
+    expect([...result.dayMap.keys()]).toEqual(['2025-01-03'])
+  })
+
   it('returns an empty dayMap when there is no data', () => {
     mocks.data = undefined
     const result = renderCalendarData(new Date(2025, 0, 1))

@@ -2,7 +2,7 @@
 
 > **At a glance** - `Dockerfile` builds the web workspace into a standalone Next.js image. The manual release workflow builds and deploys a selected branch to staging or `main` to production.
 
-The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags it with the source commit SHA, then deploys the immutable digest. Render services `orbit-web-staging` and `orbit-web` must be image-backed web services configured to pull this GHCR image. Give each service a GHCR registry credential, set port `3000`, and check `/api/health`. The image runs `node server.js` as the `orbit` user. The image carries `WEB_COMMIT_SHA`; the health response includes that SHA so the workflows can verify the served build.
+The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags it with the source commit SHA, then deploys the immutable digest. Render services `orbit-web-staging` and `orbit-web` must be image-backed web services configured to pull this GHCR image. Give each service a GHCR registry credential, set port `3000`, and check `/api/health`. The image runs `node server.js` as the `orbit` user. The image carries `WEB_COMMIT_SHA`; the health response includes that SHA so the workflows can verify the served build. The builder stage also inlines it as `NEXT_PUBLIC_WEB_COMMIT_SHA`, and the About screen shows its first 7 characters as the web version.
 
 ## GitHub settings
 

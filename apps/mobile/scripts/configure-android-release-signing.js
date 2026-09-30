@@ -77,7 +77,7 @@ function upsertGradleProperty(source, key, value) {
 
 function ensureAndroidAppLinkAutoVerify(source) {
   const appLinkDataTagPattern =
-    /<data\b(?=[^>]*android:scheme="https")(?=[^>]*android:host="app\.useorbit\.org")(?=[^>]*android:pathPrefix="\/auth-callback")[^>]*\/>/;
+    /<data\b(?=[^>]*android:scheme="https")(?=[^>]*android:pathPrefix="\/auth-callback")[^>]*\/>/;
   const appLinkDataTagMatch = source.match(appLinkDataTagPattern);
 
   if (!appLinkDataTagMatch || typeof appLinkDataTagMatch.index !== "number") {

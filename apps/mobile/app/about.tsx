@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
-import Constants from 'expo-constants'
+import { getAppVersion } from '@/lib/app-version'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
@@ -69,7 +69,7 @@ export default function AboutScreen() {
     [currentScheme, currentTheme],
   )
   const [showGuide, setShowGuide] = useState(false)
-  const appVersion = Constants.expoConfig?.version
+  const appVersion = getAppVersion()
 
   return (
     <SafeAreaView

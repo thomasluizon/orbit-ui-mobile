@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { installWebLocks } from '../helpers/web-locks'
 
 const applyOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
@@ -29,6 +30,7 @@ vi.mock('@sentry/nextjs', () => ({
 vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: (...args: unknown[]) => subscribePushMock(...args),
   unsubscribePush: vi.fn(),
+  unsubscribePushForCleanup: vi.fn(),
 }))
 
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
@@ -54,15 +56,17 @@ function installPushEnvironment() {
   Object.defineProperty(globalThis, 'Notification', { configurable: true, value: { permission: 'default', requestPermission } })
   Object.defineProperty(globalThis, 'PushManager', { configurable: true, value: class PushManager {} })
   const subscription = { toJSON: () => ({ endpoint: 'https://push.example/subscription' }), unsubscribe: vi.fn() }
+  const registration = { pushManager: { getSubscription: vi.fn(() => null), subscribe: vi.fn(() => subscription) } }
   Object.defineProperty(globalThis.navigator, 'serviceWorker', {
     configurable: true,
-    value: { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn(() => null), subscribe: vi.fn(() => subscription) } }) },
+    value: { register: vi.fn(async () => registration), getRegistration: vi.fn(async () => undefined), ready: Promise.resolve(registration) },
   })
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'AQ'
 }
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    installWebLocks()
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
     applyOnboardingMock.mockReset()

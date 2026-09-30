@@ -62,3 +62,30 @@ export function invalidateAccountQueriesBefore(
     }
   }
 }
+
+export function invalidateAccountQueriesAtFailure(
+  queryClient: Pick<QueryClient, 'getQueryCache' | 'invalidateQueries'>,
+  failedAt: number,
+  signal: AbortSignal,
+): void {
+  const queryCache = queryClient.getQueryCache()
+  const inFlight = new Map(TODAY_KEYS
+    .flatMap((queryKey) => queryCache.findAll({ queryKey, fetchStatus: 'fetching' }))
+    .map((query) => [query.queryHash, query]))
+  invalidateAccountQueriesBefore(queryClient, failedAt)
+  if (inFlight.size === 0 || signal.aborted) return
+  const unsubscribe = queryCache.subscribe((event) => {
+    const query = inFlight.get(event.query.queryHash)
+    if (query !== event.query) return
+    if (event.type === 'removed') inFlight.delete(query.queryHash)
+    if (event.type === 'updated' && query.state.fetchStatus === 'idle') {
+      inFlight.delete(query.queryHash)
+      /** A cancelled fetch hands the query to its canceller, usually an optimistic update that a refetch would overwrite. */
+      if (event.action.type !== 'setState') void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true })
+    }
+    if (inFlight.size > 0) return
+    unsubscribe()
+    signal.removeEventListener('abort', unsubscribe)
+  })
+  signal.addEventListener('abort', unsubscribe, { once: true })
+}

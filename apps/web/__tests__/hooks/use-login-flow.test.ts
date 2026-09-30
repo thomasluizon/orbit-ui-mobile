@@ -143,6 +143,24 @@ describe('Google sign in', () => {
   })
 })
 
+it('keeps the Astra query from the anonymous notification redirect through Google sign-in', () => {
+  vi.stubGlobal('location', { assign: mocks.assign })
+  mocks.search = 'astra=open&returnUrl=%2F'
+  const { result } = renderHook(() => useLoginFlow())
+  act(() => { result.current.signInWithGoogle() })
+  expect(sessionStorage.getItem('auth_return_url')).toBe('/?astra=open')
+})
+
+it.each(['/profile', '/chat'])('carries the destination of a notification clicked while signed out through Google sign in (%s)', (url) => {
+  vi.stubGlobal('location', { assign: mocks.assign })
+  mocks.search = `notificationUrl=${encodeURIComponent(url)}&returnUrl=%2F`
+  const { result } = renderHook(() => useLoginFlow())
+
+  act(() => { result.current.signInWithGoogle() })
+
+  expect(sessionStorage.getItem('auth_return_url')).toBe(url === '/chat' ? '/?astra=open' : url)
+})
+
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
@@ -283,6 +301,41 @@ describe('useLoginFlow verify-code success', () => {
     expect(mocks.push).toHaveBeenCalledWith('/dashboard')
     expect(result.current.isSubmitting).toBe(false)
   })
+
+  it('keeps the Astra query from the anonymous notification redirect after code verification', async () => {
+    mocks.search = 'astra=open&returnUrl=%2F'
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(async () => { await result.current.verifyCode('123456') })
+    expect(mocks.push).toHaveBeenCalledWith('/?astra=open')
+  })
+
+  it('returns to the destination of a notification clicked while signed out', async () => {
+    mocks.search = 'notificationUrl=%2Fprogress&returnUrl=%2F'
+    const { result } = renderHook(() => useLoginFlow())
+
+    await advanceToCodeStep(result)
+    await act(async () => {
+      await result.current.verifyCode('123456')
+    })
+
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it.each(['%2F%2Fevil.example', 'https%3A%2F%2Fevil.example', '%2Fsocial%2Fx'])(
+    'ignores a notification destination the shared rule rejects (%s)',
+    async (notificationUrl) => {
+      mocks.search = `notificationUrl=${notificationUrl}&returnUrl=%2Fdashboard`
+      const { result } = renderHook(() => useLoginFlow())
+
+      await advanceToCodeStep(result)
+      await act(async () => {
+        await result.current.verifyCode('123456')
+      })
+
+      expect(mocks.push).toHaveBeenCalledWith('/dashboard')
+    },
+  )
 
   it('rejects a protocol-relative returnUrl and redirects home instead', async () => {
     mocks.search = 'returnUrl=//evil.example.com'

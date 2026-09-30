@@ -5,6 +5,7 @@ import { configKeys } from '@orbit/shared/query'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
 
 import { useConfig } from '@/hooks/use-config'
+import { ApiClientError } from '@orbit/shared'
 import { isFeatureEnabled } from '@orbit/shared/utils'
 
 const mocks = vi.hoisted(() => {
@@ -69,8 +70,8 @@ describe('mobile useConfig', () => {
     expect(isFeatureEnabled(response!, 'analytics', 'free')).toBe(true)
   })
 
-  it('returns DEFAULT_CONFIG when the api call fails', async () => {
-    mocks.apiClient.mockRejectedValue(new Error('offline'))
+  it.each([new Error('offline'), new ApiClientError(401, 'Unauthorized')])('returns DEFAULT_CONFIG when the api call fails with %s', async (error) => {
+    mocks.apiClient.mockRejectedValue(error)
 
     useConfig()
     const response = await mocks.state.lastOptions?.queryFn()

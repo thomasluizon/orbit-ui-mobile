@@ -1,3 +1,6 @@
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
@@ -810,5 +813,51 @@ describe('CalendarDayDetail (mobile)', () => {
     const clear = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'calendar.dayDetail.clearEventSearch')
     TestRenderer.act(() => (clear?.props.onClick as () => void)())
     expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
+  })
+})
+
+
+describe('CalendarDayDetail mixed-type family carry', () => {
+  const loggedDate = '2026-09-28'
+  function badParentWithGoodChildLog(): CalendarMonthResponse {
+    return {
+      habits: [
+        createMockHabitScheduleItem({
+          id: "bad-parent",
+          title: "Bad parent",
+          isBadHabit: true,
+          frequencyUnit: "Week",
+          dueDate: "2026-09-29",
+          scheduledDates: ["2026-09-29"],
+          instances: [{ date: "2026-09-29", status: "Pending", logId: null }],
+          children: [
+            createMockHabitScheduleChild({
+              id: "good-child",
+              title: "Good child",
+              frequencyUnit: "Week",
+              frequencyQuantity: 3,
+              dueDate: "2026-10-19",
+              scheduledDates: [loggedDate],
+              isLoggedInRange: true,
+              instances: [{ date: loggedDate, status: "Completed", logId: "good-child-log" }],
+            }),
+          ],
+          hasSubHabits: true,
+        }),
+      ],
+      logs: { "bad-parent": [] },
+    };
+  }
+
+  it('labels a good sub-habit log under a bad parent as completed, not as a slip', () => {
+    const dayMap = buildCalendarDayMap(badParentWithGoodChildLog(),
+      { from: '2026-09-01', to: '2026-09-30' }, new Date('2026-09-29T12:00:00'))
+    const tree = renderDetail({ selectedDate: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
+    const rows = nodes(tree, 'ListRowMock').filter((row) => row.props.readOnly === true)
+    expect(rows.map((row) => row.props.title)).toEqual(['Good child'])
+    const ring = rows[0]?.props.trailing as React.ReactElement<{ status: string; label: string }>
+    expect(ring.props.status).toBe('done')
+    expect(ring.props.label).toBe(en.calendar.status.completed)
+    expect(ring.props.label).not.toBe(en.calendar.status.indulged)
   })
 })

@@ -6,6 +6,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
 
+import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
+
 interface MockDeviceState {
   count: number | undefined
   max: number
@@ -34,6 +36,7 @@ const {
   mockUpdateWeekStartDay,
   mockUpdateLanguage,
   mockTogglePush,
+  mockPushPreferenceState,
   mockDeviceState,
   mockTranslate,
   mockLocale,
@@ -57,6 +60,7 @@ const {
   mockUpdateWeekStartDay: vi.fn(),
   mockUpdateLanguage: vi.fn(),
   mockTogglePush: vi.fn(),
+  mockPushPreferenceState: { current: { supported: true, subscribed: false, permission: 'default', status: 'not-registered' } as PushPreferenceSnapshot },
   mockDeviceState: { current: deviceState },
   mockTranslate: { current: (key: string, params?: Record<string, string | number>) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key },
   mockLocale: { current: 'en' },
@@ -80,11 +84,8 @@ vi.mock('@/lib/actions/profile', () => ({
 vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   usePushNotificationPreferences: () => ({
-    supported: true,
-    subscribed: false,
-    permission: 'default',
+    ...mockPushPreferenceState.current,
     loading: false,
-    status: 'not-registered',
     togglePush: mockTogglePush,
   }),
 }))
@@ -215,6 +216,7 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
   beforeEach(() => {
+    mockPushPreferenceState.current = { supported: true, subscribed: false, permission: 'default', status: 'not-registered' }
     mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
     mockLocale.current = 'en'
     useUIStore.getState().setAstraConversationOpen(false)
@@ -256,6 +258,7 @@ describe('ProfilePage', () => {
 
   it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', () => {
     mockLocale.current = 'pt-BR'
+    mockPushPreferenceState.current = { supported: true, subscribed: false, permission: 'default', status: 'not-registered' }
     mockTranslate.current = (key, params) => {
       let message: unknown = ptBR
       for (const segment of key.split('.')) {
@@ -471,6 +474,22 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
     const placeholder = screen.getByRole('status', { name: 'profile.loading' })
     expect(placeholder.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('keeps browser push status empty and reserves the switch while checking', () => {
+    mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'checking' }
+    render(<ProfilePage />)
+    expect(screen.queryByText('settings.notifications.unsupported')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('push-status')).toHaveTextContent(/^\s*$/)
+    expect(screen.getByTestId('push-status').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('reports unsupported after browser push checking finishes', () => {
+    mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'unsupported' }
+    render(<ProfilePage />)
+    expect(screen.getByTestId('push-status')).toHaveTextContent('settings.notifications.unsupported')
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
   })
 
   it('explains the full device cap and keeps this device off', () => {
