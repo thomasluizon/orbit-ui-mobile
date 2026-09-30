@@ -63,7 +63,7 @@ build.
 
 ## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 
-`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **174 authoritative token values**. A number typed into a component that
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **177 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
 
 | file | what it fixes |

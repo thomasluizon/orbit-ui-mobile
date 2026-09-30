@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42: there are exactly two sources, this document and the granted canvas.**
 The twenty-one-screen Claude Design export is committed at
-`design/canvas/`, with the design system's 174 token values under
+`design/canvas/`, with the design system's 177 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
