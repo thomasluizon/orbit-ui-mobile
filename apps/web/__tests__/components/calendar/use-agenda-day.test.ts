@@ -106,6 +106,29 @@ describe('useAgendaDay', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
+  it('reads a sub-habit row end time from the cached schedule tree', () => {
+    rangeReturn.value = {
+      ...rangeReturn.value,
+      dayMap: new Map([[dateStr, [dayEntry({ habitId: 'child-1', title: 'Stretch' })]]]),
+    }
+    const { queryClient, wrapper } = createHarness()
+    queryClient.setQueryData(habitKeys.calendar(dateStr, dateStr), {
+      habits: [
+        {
+          ...scheduleItem('h-1', null),
+          children: [{ ...scheduleItem('child-1', '09:45'), title: 'Stretch' }],
+          hasSubHabits: true,
+        },
+      ],
+      logs: {},
+    })
+
+    const { result } = renderHook(() => useAgendaDay(date, true), { wrapper })
+
+    expect(result.current.entries[0]!.dueEndTime).toBe('09:45')
+    expect([...result.current.habitsById.keys()]).toEqual(['h-1'])
+  })
+
   it('defaults the end time to null when no matching schedule item is cached', () => {
     const { wrapper } = createHarness()
     const { result } = renderHook(() => useAgendaDay(date, true), { wrapper })

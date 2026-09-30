@@ -1,7 +1,11 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
-import type { CalendarMonthResponse } from '../types/habit'
+import type {
+  CalendarMonthResponse,
+  HabitScheduleChild,
+  HabitScheduleItem,
+} from '../types/habit'
 
 interface HabitScheduleMatchSource {
   dueDate?: string | null
@@ -27,11 +31,23 @@ export function determineHabitDayStatus(
   return 'missed'
 }
 
+interface CalendarDayMapRange {
+  from: string
+  to: string
+}
+
+/**
+ * Maps each day of the requested range to its calendar entries. Recurring
+ * instances also cover a lookback window before `range.from`; those days
+ * belong to another request, so they are dropped here.
+ */
 export function buildCalendarDayMap(
   calendarMonth: CalendarMonthResponse,
+  range: CalendarDayMapRange,
   now: Date = new Date(),
 ): Map<string, CalendarDayEntry[]> {
   const map = new Map<string, CalendarDayEntry[]>()
+  const isInRange = (dateStr: string) => dateStr >= range.from && dateStr <= range.to
 
   const logsByHabit = new Map<string, Set<string>>()
   for (const [habitId, habitLogs] of Object.entries(calendarMonth.logs)) {
@@ -48,29 +64,58 @@ export function buildCalendarDayMap(
         ? habit.instances.map((instance) => instance.date)
         : null
 
-    const dates =
-      instanceDates ??
-      habit.scheduledDates
+    const dates = (instanceDates ?? habit.scheduledDates).filter(isInRange)
 
     for (const dateStr of dates) {
       const date = parseAPIDate(dateStr)
       const wasLogged = logsByHabit.get(habit.id)?.has(dateStr) ?? false
-      const status = determineHabitDayStatus(date, wasLogged, now)
+      appendCalendarEntry(map, dateStr, habit, determineHabitDayStatus(date, wasLogged, now))
+    }
 
-      const entries = map.get(dateStr) ?? []
-      entries.push({
-        habitId: habit.id,
-        title: habit.title,
-        status,
-        isBadHabit: habit.isBadHabit,
-        dueTime: habit.dueTime ?? null,
-        isOneTime: !habit.frequencyUnit,
-      })
-      map.set(dateStr, entries)
+    const ownDates = new Set(dates)
+    for (const { descendant, date } of collectDescendantLogs(habit.children)) {
+      if (isInRange(date) && !ownDates.has(date)) {
+        appendCalendarEntry(map, date, descendant, 'completed')
+      }
     }
   }
 
   return map
+}
+
+function appendCalendarEntry(
+  map: Map<string, CalendarDayEntry[]>,
+  dateStr: string,
+  habit: HabitScheduleItem | HabitScheduleChild,
+  status: HabitDayStatus,
+): void {
+  const entries = map.get(dateStr) ?? []
+  entries.push({
+    habitId: habit.id,
+    title: habit.title,
+    status,
+    isBadHabit: habit.isBadHabit,
+    dueTime: habit.dueTime ?? null,
+    isOneTime: !habit.frequencyUnit,
+  })
+  map.set(dateStr, entries)
+}
+
+/**
+ * The month response lists only top-level habits in `logs`, so a sub-habit's
+ * log reaches the client as an instance carrying its `logId`. A completed or
+ * flexible sub-habit has no instances, so its logs wait on the API change in
+ * https://github.com/thomasluizon/orbit-tickets/issues/984.
+ */
+function collectDescendantLogs(
+  children: HabitScheduleChild[],
+): Array<{ descendant: HabitScheduleChild; date: string }> {
+  return children.flatMap((child) => [
+    ...child.instances
+      .filter((instance) => instance.logId !== null)
+      .map((instance) => ({ descendant: child, date: instance.date })),
+    ...collectDescendantLogs(child.children),
+  ])
 }
 
 export function hasHabitScheduleOnDate(

@@ -38,7 +38,13 @@ vi.mock('next/link', () => ({
 }))
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import {
+  createMockHabitScheduleChild,
+  createMockHabitScheduleItem,
+} from '@orbit/shared/__tests__/factories'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -216,6 +222,59 @@ describe('CalendarDayDetail', () => {
       const fade = scrollWrapper.querySelector('[aria-hidden="true"].pointer-events-none')
       expect(scroller).toHaveStyle({ paddingBottom: '8px' })
       expect(fade).toBeNull()
+    })
+  })
+
+  describe('mixed-type family', () => {
+    const loggedDate = '2026-09-28'
+
+    function badParentWithGoodChildLog(): CalendarMonthResponse {
+      return {
+        habits: [
+          createMockHabitScheduleItem({
+            id: 'bad-parent',
+            title: 'Bad parent',
+            isBadHabit: true,
+            frequencyUnit: 'Week',
+            dueDate: '2026-09-29',
+            scheduledDates: ['2026-09-29'],
+            instances: [{ date: '2026-09-29', status: 'Pending', logId: null }],
+            children: [
+              createMockHabitScheduleChild({
+                id: 'good-child',
+                title: 'Good child',
+                frequencyUnit: 'Week',
+                frequencyQuantity: 3,
+                dueDate: '2026-10-19',
+                scheduledDates: [loggedDate],
+                isLoggedInRange: true,
+                instances: [{ date: loggedDate, status: 'Completed', logId: 'good-child-log' }],
+              }),
+            ],
+            hasSubHabits: true,
+          }),
+        ],
+        logs: { 'bad-parent': [] },
+      }
+    }
+
+    it('labels a good sub-habit log under a bad parent as completed, not as a slip', () => {
+      const dayMap = buildCalendarDayMap(
+        badParentWithGoodChildLog(),
+        { from: '2026-09-01', to: '2026-09-30' },
+        new Date('2026-09-29T12:00:00'),
+      )
+
+      renderDetail({ dateStr: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
+
+      expect(document.body.textContent).not.toContain('calendar.status.indulged')
+      const row = screen.getByText('Good child').closest('.gap-3') as HTMLElement
+      expect(within(row).getByText('calendar.status.completed').style.color).toBe(
+        'var(--status-done)',
+      )
+      const statusCircle = row.querySelector('[aria-hidden="true"]') as HTMLElement
+      expect(statusCircle.style.background).toBe('var(--status-done)')
+      expect(screen.queryByText('Bad parent')).toBeNull()
     })
   })
 })

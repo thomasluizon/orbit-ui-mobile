@@ -6,6 +6,7 @@ import { habitKeys } from '@orbit/shared/query'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type {
   CalendarMonthResponse,
+  HabitScheduleChild,
   HabitScheduleItem,
 } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -24,6 +25,16 @@ export interface AgendaDayData {
   isFetching: boolean
   error: string | null
   refresh: () => void
+}
+
+function collectDueEndTimes(
+  habits: Array<HabitScheduleItem | HabitScheduleChild>,
+  dueEndTimes: Map<string, string | null>,
+): void {
+  for (const habit of habits) {
+    dueEndTimes.set(habit.id, habit.dueEndTime)
+    collectDueEndTimes(habit.children, dueEndTimes)
+  }
 }
 
 /**
@@ -50,13 +61,19 @@ export function useAgendaDay(date: Date, enabled: boolean): AgendaDayData {
     return map
   }, [raw])
 
+  const dueEndTimes = useMemo(() => {
+    const endTimes = new Map<string, string | null>()
+    collectDueEndTimes(raw?.habits ?? [], endTimes)
+    return endTimes
+  }, [raw])
+
   const entries = useMemo<AgendaEntry[]>(() => {
     const base = dayMap.get(dateStr) ?? []
     return base.map((entry) => ({
       ...entry,
-      dueEndTime: habitsById.get(entry.habitId)?.dueEndTime ?? null,
+      dueEndTime: dueEndTimes.get(entry.habitId) ?? null,
     }))
-  }, [dayMap, dateStr, habitsById])
+  }, [dayMap, dateStr, dueEndTimes])
 
   return { entries, habitsById, isLoading, isFetching, error, refresh: () => void refreshRange() }
 }
