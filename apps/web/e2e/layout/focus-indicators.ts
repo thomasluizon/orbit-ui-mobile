@@ -1,5 +1,58 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
+export async function readOutlineVisibility(target: Locator) {
+  return target.evaluate((element) => {
+    const style = getComputedStyle(element)
+    const width = Number.parseFloat(style.outlineWidth)
+    const offset = Number.parseFloat(style.outlineOffset)
+    const extent = width + offset
+    const bounds = element.getBoundingClientRect()
+    const radius = Math.max(0, Math.min(Number.parseFloat(style.borderTopLeftRadius), bounds.width / 2, bounds.height / 2) + extent)
+    const outer = { left: bounds.left - extent, right: bounds.right + extent, top: bounds.top - extent, bottom: bounds.bottom + extent }
+    const points = [
+      { x: outer.left + radius, y: outer.top }, { x: outer.right - radius, y: outer.top },
+      { x: outer.left + radius, y: outer.bottom }, { x: outer.right - radius, y: outer.bottom },
+      { x: outer.left, y: outer.top + radius }, { x: outer.right, y: outer.top + radius },
+      { x: outer.left, y: outer.bottom - radius }, { x: outer.right, y: outer.bottom - radius },
+    ]
+    for (const [centerX, centerY, start] of [
+      [outer.left + radius, outer.top + radius, Math.PI],
+      [outer.right - radius, outer.top + radius, Math.PI * 1.5],
+      [outer.right - radius, outer.bottom - radius, 0],
+      [outer.left + radius, outer.bottom - radius, Math.PI / 2],
+    ] as const) {
+      for (let step = 0; step <= 8; step += 1) {
+        const angle = start + step * Math.PI / 16
+        points.push({ x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) })
+      }
+    }
+    const clippedBy: string[] = []
+    if (points.some(({ x, y }) => x < -0.5 || y < -0.5 || x > innerWidth + 0.5 || y > innerHeight + 0.5)) clippedBy.push('viewport')
+    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      const ancestorStyle = getComputedStyle(ancestor)
+      const clipsX = ancestorStyle.overflowX !== 'visible'
+      const clipsY = ancestorStyle.overflowY !== 'visible'
+      if (!clipsX && !clipsY) continue
+      const clipBounds = ancestor.getBoundingClientRect()
+      const left = clipBounds.left + ancestor.clientLeft
+      const top = clipBounds.top + ancestor.clientTop
+      const right = left + ancestor.clientWidth
+      const bottom = top + ancestor.clientHeight
+      const clipRadius = Math.min(Number.parseFloat(ancestorStyle.borderTopLeftRadius), ancestor.clientWidth / 2, ancestor.clientHeight / 2)
+      const clipped = points.some(({ x, y }) => {
+        if (clipsX && (x < left - 0.5 || x > right + 0.5)) return true
+        if (clipsY && (y < top - 0.5 || y > bottom + 0.5)) return true
+        if (!clipsX || !clipsY || clipRadius === 0) return false
+        const centerX = Math.max(left + clipRadius, Math.min(x, right - clipRadius))
+        const centerY = Math.max(top + clipRadius, Math.min(y, bottom - clipRadius))
+        return Math.hypot(x - centerX, y - centerY) > clipRadius + 0.5
+      })
+      if (clipped) clippedBy.push(ancestor.getAttribute('aria-label') ?? (ancestor.className || ancestor.tagName))
+    }
+    return { width, offset, visible: style.outlineStyle !== 'none' && width >= 2, clippedBy }
+  })
+}
+
 export interface FieldIndicatorOptions {
   includeDescendants?: boolean
   forcedColors?: boolean

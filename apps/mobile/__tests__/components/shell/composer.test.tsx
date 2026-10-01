@@ -94,6 +94,20 @@ function renderComposer(composerProps: ComposerProps) {
   return tree
 }
 
+it('keeps one complete suggestion focus outline inside the scroller without resizing chips', () => {
+  const tree = renderComposer(props())
+  const chip = () => byLabel(tree.root, 'chip sentinel 0')[0]
+  const resting = StyleSheet.flatten(chip().props.style)
+  TestRenderer.act(() => chip().props.onFocus?.())
+  const focused = StyleSheet.flatten(chip().props.style)
+  expect(focused.outlineWidth).toBe(2)
+  expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
+  expect(focused.minHeight).toBe(resting.minHeight)
+  expect(focused.paddingHorizontal).toBe(resting.paddingHorizontal)
+  TestRenderer.act(() => chip().props.onBlur?.())
+  expect(StyleSheet.flatten(chip().props.style).outlineWidth ?? 0).toBe(0)
+})
+
 function byLabel(root: ReturnType<typeof TestRenderer.create>['root'], label: string) {
   return root.findAll(
     (node: { type?: unknown; props?: Record<string, unknown> }) =>

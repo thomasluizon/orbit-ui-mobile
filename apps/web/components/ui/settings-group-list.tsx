@@ -5,7 +5,7 @@ import { ChevronRight } from '@/components/ui/icons'
 
 export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
   return (
-    <div style={{ background: 'var(--bg-card)', borderRadius: 20, boxShadow: 'inset 0 0 0 1px var(--hairline)', overflow: 'hidden' }}>
+    <div data-focus-inset="panel" style={{ background: 'var(--bg-card)', borderRadius: 20, boxShadow: 'inset 0 0 0 1px var(--hairline)', overflow: 'hidden' }}>
       {items.map((item, index) => {
         const content = (
           <>

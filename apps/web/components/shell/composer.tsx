@@ -65,6 +65,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
     <div
       aria-label={label}
       role="group"
+      data-focus-inset=""
       className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {suggestions.map((suggestion) => (

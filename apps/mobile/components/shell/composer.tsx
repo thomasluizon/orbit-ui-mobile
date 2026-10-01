@@ -8,6 +8,7 @@ import {
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -86,7 +87,7 @@ function SuggestionStrip({
       contentContainerStyle={styles.suggestions}
     >
       {suggestions.map((suggestion) => (
-        <Pressable
+        <InsetFocusPressable
           key={suggestion.id}
           accessibilityRole="button"
           accessibilityLabel={suggestion.label}
@@ -101,7 +102,7 @@ function SuggestionStrip({
         >
           {suggestion.icon}
           <Text numberOfLines={1} style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
-        </Pressable>
+        </InsetFocusPressable>
       ))}
     </ScrollView>
   )
