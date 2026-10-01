@@ -22,6 +22,13 @@ export function SortableHabitItem({
     isDragging: isItemDragging,
   } = useSortable({ id })
 
+  const sensorListeners = listeners as Record<string, React.EventHandler<React.SyntheticEvent<HTMLElement>>> | undefined
+  const rowListeners = Object.fromEntries(
+    Object.entries(sensorListeners ?? {}).map(([eventName, activate]) => [eventName, (event: React.SyntheticEvent<HTMLElement>) => {
+      if (event.target instanceof Node && event.currentTarget.contains(event.target)) activate(event)
+    }]),
+  )
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -31,7 +38,7 @@ export function SortableHabitItem({
   }
 
   return (
-    <div ref={setNodeRef} className="orbit-focus-inset rounded-[20px]" style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} className="orbit-focus-inset rounded-[20px]" style={style} {...attributes} {...rowListeners}>
       {children}
     </div>
   )

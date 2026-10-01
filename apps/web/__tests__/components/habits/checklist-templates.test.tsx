@@ -52,7 +52,7 @@ describe('ChecklistTemplates', () => {
     const row = screen.getByRole('button', { name: 'habits.form.useTemplate' })
     expect(row.querySelector('[data-icon="template"] svg')).toBeInTheDocument()
     expect(row.parentElement).toHaveClass('orbit-list-row-form')
-    expect(row).toHaveStyle({ minHeight: '52px' })
+    expect(row).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInline: '12px' })
     expect(row).not.toHaveTextContent('1')
   })
 

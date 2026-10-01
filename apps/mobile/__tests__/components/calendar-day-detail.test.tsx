@@ -404,6 +404,7 @@ describe('CalendarDayDetail (mobile)', () => {
       ],
     })
     const rows = nodes(tree, 'ListRowMock')
+    expect(rows.slice(0, 3).every((row) => row.props.compact === true)).toBe(true)
     expect(rows.slice(0, 3).map((row) => ({
       title: row.props.title,
       value: row.props.value,

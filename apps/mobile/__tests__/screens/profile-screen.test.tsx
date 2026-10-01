@@ -490,6 +490,7 @@ vi.mock('react-native-svg', () => ({
 interface SettingsRowStubNode {
   type: unknown
   props: {
+    icon?: React.ReactNode
     label?: string
     hint?: string
     value?: string
@@ -583,6 +584,21 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
+  })
+
+  it('keeps only the account chevron on the name and preference rows in You', async () => {
+    const tree = await renderProfileScreen()
+    const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
+    const rows = group.findAllByType('SettingsRowStub')
+    expect(rows[0].props.icon).toBeUndefined()
+    expect(rows[0].props.chevron).toBe(true)
+    for (const key of ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title']) {
+      const row = findRowByLabel(tree, key)
+      expect(row.props.icon).toBeUndefined()
+      expect(row.props.chevron).toBe(false)
+    }
+    expect(findRowByLabel(tree, 'profile.settingsRows.export').props.icon).toBeDefined()
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', async () => {

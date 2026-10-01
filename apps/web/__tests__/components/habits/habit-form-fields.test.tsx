@@ -1,4 +1,6 @@
 import React from 'react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +11,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
+const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
 const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
@@ -26,7 +29,8 @@ const testTranslations: Record<string, string> = {
 }
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
-  const template = testTranslations[key]
+  const messages = formLocale.language === 'en' ? en : ptBR
+  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -38,7 +42,7 @@ vi.mock('react-hook-form', () => ({ useController: () => ({ field: { ref: vi.fn(
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translateTestValue,
-  useLocale: () => 'en',
+  useLocale: () => formLocale.language,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
 vi.mock('@/hooks/use-config', () => ({
@@ -181,8 +185,18 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingInlineStart: '0px', paddingBlock: '4px' })
   })
 
+  it.each([
+    ['en', 'Starts on September 2'],
+    ['pt-BR', 'Começa em 2 de setembro'],
+  ])('renders a word start date in %s', (locale, expected) => {
+    formLocale.language = locale
+    renderForm()
+    expect(screen.getByText(expected)).toBeDefined()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    formLocale.language = 'en'
     mockProfileState.aiMessagesUsed = 0
     mockProfileState.hasProAccess = false
   })

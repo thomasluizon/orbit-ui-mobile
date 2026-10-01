@@ -86,6 +86,7 @@ export function CalendarAgendaView({
               <div>
                 {entries.map((entry) => (
                   <ListRow
+                    compact
                     key={entry.habitId}
                     title={entry.title}
                     value={entry.dueTime ? displayTime(entry.dueTime) : undefined}

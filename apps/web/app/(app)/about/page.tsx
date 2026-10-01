@@ -127,6 +127,7 @@ export default function AboutPage() {
                     onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
                     title={t(destination.titleKey)}
                     titleTranslate={destination.titleTranslate}
+                    compact
                     wrapTitle
                   />
                 ))}

@@ -65,6 +65,7 @@ describe('Today navigation account day', () => {
     )
     const { result } = renderHook(() => useTodayNavigation('2026-09-12'), { wrapper })
     expect(result.current.dateNav.dayName).toBe(expected)
+    expect(result.current.dateNav.numericDate).toBe(locale === 'en' ? `September ${Number(selected.slice(-2))}` : `${Number(selected.slice(-2))} de setembro`)
   })
 
   it('moves Today at account midnight while the device stays on yesterday', () => {

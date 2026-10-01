@@ -1,6 +1,6 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
@@ -51,7 +51,8 @@ describe('useSubscriptionStatus', () => {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(result.current.status).toEqual(status), { timeout: 15000 })
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.status).toEqual(status))
     expect(mockFetch).toHaveBeenCalledWith(API.subscription.status, undefined)
   })
 
@@ -61,6 +62,7 @@ describe('useSubscriptionStatus', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.status).toBeNull()
   })

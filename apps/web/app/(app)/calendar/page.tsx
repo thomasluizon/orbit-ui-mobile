@@ -24,6 +24,7 @@ import {
   formatWeekdayLabels,
   parseAPIDate,
   capitalizeFirstLetter,
+  formatCalendarDayTitle,
   filterCalendarSyncEventsByDate,
   isCalendarDayLoggable,
   buildCalendarRangeModel,
@@ -639,8 +640,8 @@ function CalendarPageContent({
 
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
-    return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(selectedDay)))
-  }, [selectedDay, displayWeekdayDate])
+    return formatCalendarDayTitle(selectedDay, locale, todayKey, t('dates.today'))
+  }, [selectedDay, locale, todayKey, t])
 
   const { monthStats } = useMemo(
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
@@ -818,6 +819,7 @@ function CalendarPageContent({
                   <CalendarDayCardSlot loading={monthDisplayState === 'loading'} label={t('calendar.loading')}>
                     <CalendarDayDetail
                         dateStr={selectedDay}
+                        today={todayKey}
                         entries={selectedEntries}
                         calendarEvents={selectedCalendarEvents}
                         autoSyncState={autoSyncState}
@@ -909,6 +911,7 @@ function CalendarPageContent({
       >
         <CalendarDayDetail
           dateStr={selectedDay}
+          today={todayKey}
           showTitle={false}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}

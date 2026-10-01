@@ -13,16 +13,11 @@ import {
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
-  Calendar,
   BarChart3,
-  Clock,
-  Clock3,
   Download,
-  Languages,
   Lock,
   LogOut,
   RotateCcw,
-  User,
   UserX,
   type Icon,
 } from '@/components/ui/icons'
@@ -118,12 +113,12 @@ function buildYouRows(
   )
 
   return [
-    <ListRow key="account" icon={icon(User)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
-    <ListRow key="timezone" icon={icon(Clock)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
+    <ListRow key="account" chevron title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
+    <ListRow key="timezone" compact chevron={false} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
-    <ListRow key="week-start" icon={icon(Calendar)} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
-    <ListRow key="clock" icon={icon(Clock3)} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
-    <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
+    <ListRow key="week-start" compact chevron={false} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="clock" compact chevron={false} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
+    <ListRow key="language" compact chevron={false} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
     <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -133,7 +128,7 @@ function buildYouRows(
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('settings.homeScreen.showGeneralDesc')}</Text>
     </View>,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */
-    <ListRow key="export" icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError || undefined} chevron={false} onClick={onExport} />,
+    <ListRow key="export" compact={!exportError} icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError || undefined} chevron={false} onClick={onExport} />,
   ]
 }
 
@@ -162,7 +157,7 @@ function buildAstraRows(
               control={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
             />
           ) : (
-            <ListRow key={feature.key} icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            <ListRow key={feature.key} compact icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
           ))}
         </RowList>
       ) : null}
@@ -214,6 +209,7 @@ function buildMoreRows({ context: { profile, router, t }, openWidget }: Readonly
     return (
       <ListRow
         key={item.id}
+        compact={!item.hintKey}
         icon={<ProfileNavIcon iconKey={item.iconKey} />}
         title={t(item.titleKey)}
         description={item.hintKey ? t(item.hintKey) : undefined}
@@ -252,11 +248,11 @@ function buildEndingRows({
 }: EndingRowsOptions) {
   return [
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
-    <ListRow key="logout" icon={icon(LogOut)} title={t('profile.settingsRows.signOut')} chevron={false} onClick={onLogout} />,
+    <ListRow key="logout" compact icon={icon(LogOut)} title={t('profile.settingsRows.signOut')} chevron={false} onClick={onLogout} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */
-    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} chevron={false} onClick={onFreshStart} />,
+    <ListRow key="fresh-start" compact icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} chevron={false} onClick={onFreshStart} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */
-    <ListRow key="delete" icon={icon(UserX)} title={t('profile.settingsRows.deleteAccount')} danger chevron={false} onClick={onDeleteAccount} />,
+    <ListRow key="delete" compact icon={icon(UserX)} title={t('profile.settingsRows.deleteAccount')} danger chevron={false} onClick={onDeleteAccount} />,
   ]
 }
 

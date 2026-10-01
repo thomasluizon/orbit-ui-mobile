@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -162,6 +162,22 @@ describe('AboutScreen', () => {
       })
     })
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
+  })
+
+  it.each([412, 1280])('gives every destination a 52px body and a 44px content target at %ipx', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: { root: TestNode; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    const destinations = tree.root.findAll((node) => node.type === 'Pressable' && ['Orbit guide', 'Contact support', 'Terms of use', 'Privacy policy'].includes(node.props.accessibilityLabel as string))
+    expect(destinations).toHaveLength(4)
+    for (const destination of destinations) {
+      const style = destination.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      const body = StyleSheet.flatten(style({ pressed: false }))
+      expect(body.minHeight).toBe(52)
+      expect(body.paddingVertical).toBe(4)
+      expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 44).length).toBeGreaterThan(0)
+    }
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('keeps every 412px column shrinkable and lets fact values wrap', () => {
