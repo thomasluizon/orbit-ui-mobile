@@ -168,12 +168,13 @@ describe('MarketingConsentPrompt (mobile)', () => {
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
-  it('uses a ghost pill for Decline', async () => {
+  it('uses a quiet ghost pill for Decline', async () => {
     const tree = await renderArmed()
     await settle()
     const quiet = tree.root.findAll((node: any) =>
       typeof node.type === 'string' && node.props.accessibilityLabel === 'marketingConsent.prompt.decline')[0]!
     expect(quiet.props.variant).toBe('ghost')
+    expect(quiet.props.quiet).toBe(true)
   })
 
   it('stays hidden while a celebration is in flight', async () => {

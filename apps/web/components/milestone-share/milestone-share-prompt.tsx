@@ -10,6 +10,7 @@ import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareK
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useShareCard } from '@/hooks/use-share-card'
 import { getPublicOrigin } from '@/lib/public-origin'
@@ -157,9 +158,9 @@ export function MilestoneSharePrompt() {
             </p>
           )}
           <DialogActionPair>
-            <PillButton size="sm" variant="ghost" onClick={dismiss}>
+            <PromptQuietAction onClick={dismiss}>
               {t('milestoneShare.later')}
-            </PillButton>
+            </PromptQuietAction>
             <PillButton
               size="sm"
               variant={canShareFiles ? 'ghost' : 'primary'}

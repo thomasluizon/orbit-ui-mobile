@@ -25,7 +25,8 @@ export function Button({
   leadingIcon,
   hint,
   accessibilityRole = 'button',
-}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link' }>) {
+  quiet = false,
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
@@ -33,18 +34,19 @@ export function Button({
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
     secondary: tokens.bg,
-    ghost: tokens.fg1,
+    ghost: quiet ? tokens.fg2 : tokens.fg1,
     destructive: tokens.fgOnBad,
     caution: tokens.fgOnOverdue,
   }
 
+  const ghostPressedFill = quiet ? tokens.bgHoverOpaque : tokens.bgCard
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: tokens.fg1 }
     }
     if (variant === 'ghost') {
       return {
-        backgroundColor: pressed ? tokens.bgCard : 'transparent',
+        backgroundColor: pressed ? ghostPressedFill : 'transparent',
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }

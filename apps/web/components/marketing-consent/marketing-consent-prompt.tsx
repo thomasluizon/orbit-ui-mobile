@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -113,9 +114,9 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
       actions={(
         <DialogActionPair>
-          <PillButton size="sm" variant="ghost" onClick={() => answer(false)}>
+          <PromptQuietAction onClick={() => answer(false)}>
             {t('marketingConsent.prompt.decline')}
-          </PillButton>
+          </PromptQuietAction>
           <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>

@@ -43,32 +43,30 @@ function LoadedContent({
     <div className="flex flex-col gap-4">
       <div>
         <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
-        <div className="px-4">
-          <div className="flex items-center gap-2 rounded-xl bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
-            <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-base font-medium tabular-nums text-[var(--fg-1)]">
-              {referralUrl}
-            </span>
-            <button
-              type="button"
-              className="icon-btn touch-target shrink-0"
-              onClick={onCopy}
-              aria-label={t('referral.drawer.copyLink')}
-            >
-              {copied ? (
-                <Check size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-              ) : (
-                <Copy size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-              )}
-            </button>
-            <span aria-live="polite" className="sr-only">
-              {copied ? t('referral.drawer.linkCopied') : ''}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 rounded-xl bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
+          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-base font-medium tabular-nums text-[var(--fg-1)]">
+            {referralUrl}
+          </span>
+          <button
+            type="button"
+            className="icon-btn touch-target shrink-0"
+            onClick={onCopy}
+            aria-label={t('referral.drawer.copyLink')}
+          >
+            {copied ? (
+              <Check size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+            ) : (
+              <Copy size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+            )}
+          </button>
+          <span aria-live="polite" className="sr-only">
+            {copied ? t('referral.drawer.linkCopied') : ''}
+          </span>
         </div>
       </div>
 
       {copyFailed ? (
-        <p role="alert" className="px-4 text-sm text-[var(--fg-2)]">
+        <p role="alert" className="text-sm text-[var(--fg-2)]">
           {t('referral.drawer.actionFailed')}
         </p>
       ) : null}
@@ -94,7 +92,7 @@ function LoadedContent({
               readOnly
             />
           ) : null}
-          <div className="px-4 py-3">
+          <div className="py-3">
             <ProgressBar
               value={progress}
               max={1}
@@ -106,17 +104,15 @@ function LoadedContent({
 
       {stats ? (
         <>
-          <div className="px-4">
-            <InfoCard>
-              <strong className="block text-[var(--fg-1)]">
-                {t('referral.drawer.howItWorks')}
-              </strong>
-              <p className="mt-2 text-sm text-[var(--fg-2)]">
-                {t('referral.drawer.explanation', { discount: stats.discountPercent })}
-              </p>
-            </InfoCard>
-          </div>
-          <p className="px-4 text-xs leading-5 text-[var(--fg-3)]">
+          <InfoCard>
+            <strong className="block text-[var(--fg-1)]">
+              {t('referral.drawer.howItWorks')}
+            </strong>
+            <p className="mt-2 text-sm text-[var(--fg-2)]">
+              {t('referral.drawer.explanation', { discount: stats.discountPercent })}
+            </p>
+          </InfoCard>
+          <p className="text-xs leading-5 text-[var(--fg-3)]">
             {t('referral.drawer.disclaimer', { discount: stats.discountPercent })}
           </p>
         </>
@@ -193,7 +189,7 @@ function ReferralDrawerContent({
           ) : undefined
       }
     >
-      <div className="overlay-bleed">
+      <>
         {isLoading ? (
           <output
             aria-label={t('common.loading')}
@@ -215,7 +211,7 @@ function ReferralDrawerContent({
             onCopy={() => void copyLink()}
           />
         ) : null}
-      </div>
+      </>
     </Sheet>
   )
 }

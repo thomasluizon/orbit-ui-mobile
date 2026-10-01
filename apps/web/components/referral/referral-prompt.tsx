@@ -12,6 +12,7 @@ import {
   parseReferralMilestoneKey,
 } from '@orbit/shared/stores'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -129,9 +130,9 @@ export function ReferralPrompt() {
           title={title}
           actions={(
             <DialogActionPair>
-              <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
+              <PromptQuietAction onClick={() => closeSheet()}>
                 {t('referral.prompt.later')}
-              </PillButton>
+              </PromptQuietAction>
               <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
             </DialogActionPair>
           )}
