@@ -352,6 +352,13 @@ export const logHabitRequestSchema = z.object({
 
 export type LogHabitRequest = z.infer<typeof logHabitRequestSchema>
 
+export const skipHabitRequestSchema = z.object({
+  date: z.string().nullable().optional(),
+  skipId: z.string().uuid().nullable().optional(),
+})
+
+export type SkipHabitRequest = z.infer<typeof skipHabitRequestSchema>
+
 export const linkedGoalUpdateSchema = z.object({
   goalId: z.string(),
   title: z.string(),

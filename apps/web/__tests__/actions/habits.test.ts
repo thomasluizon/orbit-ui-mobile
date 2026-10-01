@@ -24,6 +24,7 @@ const updateHabit = bindServerAction(habitServerActions.updateHabit)
 const deleteHabit = bindServerAction(habitServerActions.deleteHabit)
 const logHabit = bindServerAction(habitServerActions.logHabit)
 const skipHabit = bindServerAction(habitServerActions.skipHabit)
+const undoSkipHabit = bindServerAction(habitServerActions.undoSkipHabit)
 const reorderHabits = bindServerAction(habitServerActions.reorderHabits)
 const duplicateHabit = bindServerAction(habitServerActions.duplicateHabit)
 const bulkCreateHabits = bindServerAction(habitServerActions.bulkCreateHabits)
@@ -210,7 +211,7 @@ describe('habit server actions', () => {
     it('sends POST to /api/habits/:id/skip', async () => {
       mock204()
 
-      await skipHabit('h-1', undefined, 'account-a')
+      await skipHabit('h-1', {}, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/skip')
@@ -220,7 +221,7 @@ describe('habit server actions', () => {
     it('sends date when provided', async () => {
       mock204()
 
-      await skipHabit('h-1', '2025-01-15', 'account-a')
+      await skipHabit('h-1', { date: '2025-01-15' }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
@@ -228,6 +229,18 @@ describe('habit server actions', () => {
     })
   })
 
+
+  describe('undoSkipHabit', () => {
+    it('posts the receipt route and accepts the empty response', async () => {
+      mock204()
+      const skipId = '11111111-1111-4111-8111-111111111111'
+      await expect(undoSkipHabit('h-1', skipId, 'account-a')).resolves.toBeNull()
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain(`/api/habits/h-1/skip/${skipId}/undo`)
+      expect(init.method).toBe('POST')
+      expect(init.body).toBeUndefined()
+    })
+  })
 
   describe('reorderHabits', () => {
     it('sends PUT to /api/habits/reorder', async () => {

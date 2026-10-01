@@ -11,7 +11,7 @@ import { setLayoutProfileSession } from './profile-session'
 
 test.use({ viewport: { width: 1352, height: 915 } })
 
-test('keeps both client-rendered skip actions padded on both sides', async ({ page, context }) => {
+test('keeps both client-rendered delete actions padded on both sides', async ({ page, context }) => {
   const habit = makeHabitScheduleItem({
     title: 'Beber água',
     dueDate: '2026-09-04',
@@ -39,11 +39,11 @@ test('keeps both client-rendered skip actions padded on both sides', async ({ pa
   const row = page.getByTestId('habit-row').filter({ has: page.getByText(habit.title, { exact: true }) })
   await expect(row).toBeVisible()
   await row.getByRole('button', { name: ptBr.habits.actions.more }).click()
-  await page.getByRole('menuitem', { name: ptBr.habits.actions.skip }).click()
+  await page.getByRole('menuitem', { name: ptBr.habits.actions.delete }).click()
 
-  const dialog = page.getByRole('dialog', { name: ptBr.habits.skipConfirmTitle.replace('{name}', habit.title) })
+  const dialog = page.getByRole('dialog', { name: ptBr.habits.deleteConfirmTitle })
   await expect(dialog).toBeVisible()
-  for (const label of [ptBr.common.cancel, ptBr.habits.skipConfirmButton]) {
+  for (const label of [ptBr.common.cancel, ptBr.habits.deleteHabit]) {
     const action = dialog.getByRole('button', { name: label, exact: true })
     await expect(action).toBeVisible()
     const padding = await action.evaluate((element) => {

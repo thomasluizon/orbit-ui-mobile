@@ -2,7 +2,6 @@
 
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { plural } from '@/lib/plural'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
@@ -11,15 +10,12 @@ interface HabitListConfirmDialogsProps {
   deleteHabitName: string
   deleteDescendantCount: number
   duplicateHabitName: string | null
-  habitToSkip: NormalizedHabit | null
   parentPrompt: { id: string; name: string; mode: 'log' | 'skip' } | null
   onConfirmDelete: () => void
   onCancelDelete: () => void
   onDeleteClosed: () => void
   onConfirmDuplicate: () => void
   onCancelDuplicate: () => void
-  onConfirmSkip: () => void
-  onCancelSkip: () => void
   onConfirmParent: () => void
   onCancelParent: () => void
 }
@@ -31,38 +27,17 @@ export function HabitListConfirmDialogs({
   deleteHabitName,
   deleteDescendantCount,
   duplicateHabitName,
-  habitToSkip,
   parentPrompt,
   onConfirmDelete,
   onCancelDelete,
   onDeleteClosed,
   onConfirmDuplicate,
   onCancelDuplicate,
-  onConfirmSkip,
-  onCancelSkip,
   onConfirmParent,
   onCancelParent,
 }: Readonly<HabitListConfirmDialogsProps>) {
-  const postponing = habitToSkip?.frequencyUnit === null
   return (
     <>
-      <ConfirmSheet
-        open={habitToSkip !== null}
-        inlineActions
-        title={t(postponing ? 'habits.postponeConfirmTitle' : 'habits.skipConfirmTitle', {
-          name: habitToSkip?.title ?? '',
-        })}
-        message={t(postponing
-          ? 'habits.postponeConfirmMessage'
-          : habitToSkip?.isFlexible
-            ? habitToSkip.frequencyUnit === 'Month'
-              ? 'habits.skipConfirmMessageFlexibleMonth'
-              : 'habits.skipConfirmMessageFlexible'
-            : 'habits.skipConfirmMessage')}
-        confirmLabel={t(postponing ? 'habits.postponeConfirmButton' : 'habits.skipConfirmButton')}
-        onCancel={onCancelSkip}
-        onConfirm={onConfirmSkip}
-      />
       <ConfirmSheet
         open={duplicateHabitName !== null}
         title={t('habits.duplicateConfirmTitle')}
