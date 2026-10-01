@@ -9,7 +9,6 @@ import {
   buildHabitDetailSchedulePatch,
   buildHabitDetailTimePatch,
   canInlineEditHabitSchedule,
-  formatHabitDetailReminderValue,
   formatHabitReminderLabel,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
@@ -21,9 +20,14 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
-import { useTimeFormat } from '@/hooks/use-time-format'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { Input } from '@/components/ui/input'
+import { X } from '@/components/ui/icons'
+import { DateField } from '@/components/ui/date-field'
+import { HabitChecklist } from './habit-checklist'
+import { ChecklistTemplates } from './checklist-templates'
+import { HabitDetailTags } from './habit-detail-tags'
 import { GoalLinkingField } from './goal-linking-field'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
@@ -31,32 +35,19 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 interface HabitDetailFieldsProps {
   habit: NormalizedHabit
   hasProAccess: boolean
-  locale: string
   relationshipControlsAvailable: boolean
-  summary: string
+  onItemsChange: (items: NormalizedHabit['checklistItems']) => void
   onPatch: (patch: HabitDetailPatch) => Promise<boolean>
   onUpgrade: () => void
 }
 
 function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
   const t = useTranslations()
-  return <div className="flex gap-2"><PillButton variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton size="sm" onClick={onSave}>{t('common.save')}</PillButton></div>
+  return <div className="flex gap-2"><PillButton variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></div>
 }
 
 function FieldWell({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="mx-3 mb-3 flex flex-col gap-3 rounded-[var(--r-well)] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}>{children}</div>
-}
-
-function TextEditor({ initialValue, multiline = false, onCancel, onSave }: Readonly<{ initialValue: string; multiline?: boolean; onCancel: () => void; onSave: (value: string) => void }>) {
-  const [value, setValue] = useState(initialValue)
-  const className = 'w-full rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 py-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)]'
-  return <FieldWell>{multiline ? <textarea autoFocus value={value} rows={4} className={className} onChange={(event) => setValue(event.target.value)} /> : <input autoFocus value={value} className={className} onChange={(event) => setValue(event.target.value)} />}<FieldActions onCancel={onCancel} onSave={() => onSave(value.trim())} /></FieldWell>
-}
-
-function TimeEditor({ habit, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
-  const t = useTranslations()
-  const [dueTime, setDueTime] = useState<Time24 | ''>((habit.dueTime ?? '') as Time24 | '')
-  return <FieldWell><TimeField label={t('habits.detail.time')} value={dueTime} onChange={setDueTime} onClear={() => setDueTime('')} /><FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) onSave(patch) }} /></FieldWell>
+  return <div className="flex flex-col gap-3" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}>{children}</div>
 }
 
 function FrequencyUnitOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
@@ -78,17 +69,18 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
           {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
         </RadioGroup>
       </div>
-      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
+      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-1">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
     </FieldWell>
   )
 }
 
-function ScheduleField({ habit, summary, open, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+export function HabitDetailSchedule({ habit, summary, open, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const t = useTranslations()
   const editable = canInlineEditHabitSchedule(habit)
   if (!editable && !summary) return null
-  return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} onCancel={onCancel} onSave={onSave} /> : null}</>
+  const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <section className="flex flex-col gap-2"><div className="flex flex-wrap gap-1">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = habit.days.length === 0 || habit.days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={`${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)]'} size-11 shrink-0 rounded-full text-sm font-medium transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]`} style={{ boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' }} onClick={() => { const patch = buildHabitDetailSchedulePatch('Day', 1, toggleHabitDaySelection(habit.days, day, HABIT_DETAIL_WEEKDAYS, habit.days.length === 0)); if (patch) onSave(patch) }}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div></section> : null
+  return <><ListRow inset={false} title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} onCancel={onCancel} onSave={onSave} /> : null}</div></>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
@@ -97,30 +89,50 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
   return <ListRow title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) }} /> : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
 }
 
-export function HabitDetailFields({ habit, hasProAccess, locale, relationshipControlsAvailable, summary, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
+
+export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
   const t = useTranslations()
-  const { displayTime } = useTimeFormat()
   const { showError } = useAppToast()
-  const fields = useHabitDetailFieldsState(habit, onPatch)
-  const { cancelReminders, close, goalIds, openField, reminderHabit, save, saveReminders, toggleField, toggleGoal, updateReminders } = fields
+  const { cancelReminders, goalIds, openField, reminderHabit, saveReminders, toggleField, toggleGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
+  const [description, setDescription] = useState(habit.description ?? '')
+  const [savedDescription, setSavedDescription] = useState(habit.description ?? '')
+  if ((habit.description ?? '') !== savedDescription) {
+    setSavedDescription(habit.description ?? '')
+    if (description === savedDescription) setDescription(habit.description ?? '')
+  }
+
   const saveReminderDraft = () => {
     const validationError = saveReminders()
     if (validationError) showError(t(validationError))
   }
   return (
-    <div className="flex flex-col gap-1">
-      {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
-      <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, (key) => t(key), displayTime)} onClick={() => toggleField('reminders')} />
-      {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} t={t} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
-      <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
-      <ListRow title={t('habits.detail.time')} value={displayTime(habit.dueTime) || t('habits.detail.noValue')} onClick={() => toggleField('time')} />
-      {openField === 'time' ? <TimeEditor habit={habit} onCancel={close} onSave={save} /> : null}
-      <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
-      {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline onCancel={close} onSave={(description) => save({ description })} /> : null}
-      <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${habit.endDate}T00:00:00`)) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />
-      {openField === 'endDate' ? <TextEditor initialValue={habit.endDate ?? ''} onCancel={close} onSave={(endDate) => save({ endDate: endDate || null })} /> : null}
+    <div className="flex flex-col gap-6">
+      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <section>
+        <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.reminders')}</p>
+        {habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError} t={t}>
+          <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested t={t} />
+        </ReminderSection> : <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} t={t} />}
+        <FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} />
+      </section>
+      <section>
+        <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.checklist')}</p>
+        <HabitChecklist items={habit.checklistItems} editable onItemsChange={onItemsChange} />
+        <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
+      </section>
+      {!habit.isGeneral ? <section>
+        <Switch label={t('habits.form.habitTypeAvoid')} checked={habit.isBadHabit} onChange={(isBadHabit) => { void onPatch({ isBadHabit }) }} />
+        <p className="text-sm text-[var(--fg-3)]">{t('habits.form.habitTypeAvoidHint')}</p>
+      </section> : null}
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
-      <ListRow title={t('habits.detail.startedOn')} value={new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(habit.createdAtUtc))} readOnly />
+      {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
+      {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
+      <section>
+        <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.endDate')}</p>
+        <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />
+        {habit.endDate ? <PillButton variant="ghost" size="sm" iconOnly label={t('habits.form.removeEndDate')} onClick={() => { void onPatch({ endDate: null }) }}><X size={20} /></PillButton> : null}
+      </section>
+      <Input label={t('habits.form.description')} value={description} onChange={setDescription} onBlur={() => { if (description.trim() !== (habit.description ?? '')) void onPatch({ description: description.trim() }) }} multiline rows={3} maxLength={10000} />
     </div>
   )
 }

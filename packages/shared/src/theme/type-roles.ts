@@ -110,6 +110,14 @@ export type TypeRoleName = keyof typeof typeRoles
 export const RESPONSIVE_TYPE_BREAKPOINT = 640
 
 export const responsiveTypeRoles = {
+  habitTitle: {
+    family: 'display',
+    weight: 500,
+    letterSpacingEm: -0.02,
+    colorToken: 'fg1',
+    compact: { size: 22, lineHeight: 1.2 },
+    wide: { size: 28, lineHeight: 1.15 },
+  },
   displayHeading: {
     family: 'display',
     weight: 500,
