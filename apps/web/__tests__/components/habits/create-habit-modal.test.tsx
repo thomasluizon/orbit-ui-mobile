@@ -1,3 +1,4 @@
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -409,6 +410,9 @@ describe('CreateHabitModal', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
+
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'habits.createHabit'])
+    expectSmallSheetActions()
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
 

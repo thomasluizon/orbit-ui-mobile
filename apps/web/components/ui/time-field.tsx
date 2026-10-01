@@ -265,7 +265,7 @@ export function TimeField({
           open
           title={t('common.selectTime')}
           onClose={() => setOpen(false)}
-          actions={<PillButton onClick={applyDraft}>{t('common.done')}</PillButton>}
+          actions={<PillButton size="sm" onClick={applyDraft}>{t('common.done')}</PillButton>}
         >
           <div className="flex gap-1" style={{ height: 220 }}>
             <TimeColumn

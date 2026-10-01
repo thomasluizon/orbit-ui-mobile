@@ -522,7 +522,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-md' }).at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-sm' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })
@@ -537,7 +537,7 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer(onClose)
 
     press(tree, 'goals.detail.delete')
-    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-md' }).at(0)
+    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-sm' }).at(0)
     await TestRenderer.act(async () => {
       await confirm.props.onPress()
     })

@@ -250,10 +250,10 @@ function FreshStartActions({
   if (step === 'info') {
     return (
       <DialogActionPair>
-        <PillButton variant="ghost" onClick={onCancel}>
+        <PillButton size="sm" variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
-        <PillButton variant="caution" onClick={onContinue}>
+        <PillButton size="sm" variant="caution" onClick={onContinue}>
           {t('profile.freshStart.reviewDeletion')}
         </PillButton>
       </DialogActionPair>
@@ -278,10 +278,11 @@ function FreshStartActions({
         </p>
       ) : null}
       <DialogActionPair>
-        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
+        <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
         <PillButton
+          size="sm"
           variant="caution"
           disabled={!isConfirmed || loading}
           loading={loading}

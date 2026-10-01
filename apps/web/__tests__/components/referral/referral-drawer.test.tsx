@@ -29,7 +29,7 @@ vi.mock('@/hooks/use-referral', () => ({
 }))
 
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 describe('ReferralDrawer', () => {
   beforeEach(() => {
@@ -177,9 +177,20 @@ describe('ReferralDrawer', () => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
 
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['referral.drawer.share'])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'referral.drawer.share'])
+    expectSmallSheetActions()
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual(['referral.drawer.copyLink'])
+  })
+
+  it('cancels through the sheet host without sharing', () => {
+    const share = vi.fn()
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    const onOpenChange = vi.fn()
+    render(<ReferralDrawer open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(share).not.toHaveBeenCalled()
   })
 
   it.each([

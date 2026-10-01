@@ -137,10 +137,10 @@ export function MoveParentDialog({
       title={t('habits.moveParent.title')}
       actions={
         <DialogActionPair>
-          <PillButton variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
+          <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
-          <PillButton disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
+          <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
             {t('habits.moveParent.confirm')}
           </PillButton>
         </DialogActionPair>

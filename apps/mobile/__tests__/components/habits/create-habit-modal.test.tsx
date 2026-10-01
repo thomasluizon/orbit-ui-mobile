@@ -10,7 +10,7 @@ import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/sh
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -335,6 +335,7 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />)
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', parentHabit ? 'common.create' : 'habits.createHabit'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain(parentHabit ? 'common.create' : 'habits.createHabit')
   })

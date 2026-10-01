@@ -429,6 +429,7 @@ export function EditHabitModal({
         actions={(
           <DialogActionPair>
             <PillButton
+              size="sm"
               variant="ghost"
               disabled={updateHabit.isPending}
               onClick={dismissGuard.requestDismiss}
@@ -436,6 +437,7 @@ export function EditHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
+              size="sm"
               disabled={detailFieldsPending}
               loading={updateHabit.isPending || assignTags.isPending}
               onClick={() => void handleSubmit()}

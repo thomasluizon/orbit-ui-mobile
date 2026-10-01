@@ -157,10 +157,11 @@ export function MilestoneSharePrompt() {
             </p>
           )}
           <DialogActionPair>
-            <PillButton variant="ghost" onClick={dismiss}>
+            <PillButton size="sm" variant="ghost" onClick={dismiss}>
               {t('milestoneShare.later')}
             </PillButton>
             <PillButton
+              size="sm"
               variant={canShareFiles ? 'ghost' : 'primary'}
               loading={isSharing}
               disabled={isSharing}
@@ -170,6 +171,7 @@ export function MilestoneSharePrompt() {
             </PillButton>
             {canShareFiles && (
               <PillButton
+                size="sm"
                 loading={isSharing}
                 disabled={isSharing}
                 onClick={handleShare}

@@ -1,3 +1,4 @@
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent } from '@testing-library/react'
 
@@ -103,11 +104,11 @@ describe('TrialExpiredModal', () => {
     })
   })
 
-  it('matches the widths of the two trial actions', () => {
+  it('uses a small intrinsic dismissal before Subscribe', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    expect(screen.getByRole('button', { name: 'trial.expired.subscribe' })).toHaveStyle({ width: '100%' })
-    expect(screen.getByRole('button', { name: 'trial.expired.continueFree' })).toHaveStyle({ width: '100%' })
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['trial.expired.continueFree', 'trial.expired.subscribe'])
+    expectSmallSheetActions()
   })
 
   it('waits for an open sheet before presenting the trial notice', async () => {

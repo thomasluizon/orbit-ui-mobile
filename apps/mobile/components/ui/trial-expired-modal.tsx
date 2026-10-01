@@ -115,8 +115,11 @@ export function TrialExpiredModal() {
       title={t('trial.expired.heading')}
       actions={
         <DialogActionPair>
+          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
+            {t('trial.expired.continueFree')}
+          </PillButton>
           <PillButton
-            matchedWidth
+            size="sm"
             onClick={() =>
               closeSheet(() => {
                 if (getAccountGeneration() !== accountGeneration) return
@@ -126,9 +129,6 @@ export function TrialExpiredModal() {
             }
           >
             {t('trial.expired.subscribe')}
-          </PillButton>
-          <PillButton variant="ghost" matchedWidth onClick={() => closeSheet()}>
-            {t('trial.expired.continueFree')}
           </PillButton>
         </DialogActionPair>
       }

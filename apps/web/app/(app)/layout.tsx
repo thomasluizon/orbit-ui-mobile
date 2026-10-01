@@ -521,10 +521,10 @@ function GlobalOverlays({
         title={t('onboarding.wizard.calendarTitle')}
         actions={(
           <DialogActionPair>
-            <PillButton variant="ghost" onClick={onDismissCalendarPrompt}>
+            <PillButton size="sm" variant="ghost" onClick={onDismissCalendarPrompt}>
               {t('common.later')}
             </PillButton>
-            <PillButton onClick={onCalendarImport}>
+            <PillButton size="sm" onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
           </DialogActionPair>
@@ -542,11 +542,11 @@ function GlobalOverlays({
         title={t('onboarding.wizard.importTitle')}
         actions={(
           <DialogActionPair>
-            <PillButton variant="ghost" onClick={onDismissImportPrompt}>
+            <PillButton size="sm" variant="ghost" onClick={onDismissImportPrompt}>
               {t('onboarding.wizard.importNotNow')}
             </PillButton>
             {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-            <PillButton onClick={onImportWithAstra}>
+            <PillButton size="sm" onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
           </DialogActionPair>

@@ -113,10 +113,10 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
       actions={(
         <DialogActionPair>
-          <PillButton variant="ghost" onClick={() => answer(false)}>
+          <PillButton size="sm" variant="ghost" onClick={() => answer(false)}>
             {t('marketingConsent.prompt.decline')}
           </PillButton>
-          <PillButton onClick={() => answer(true)}>
+          <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
         </DialogActionPair>

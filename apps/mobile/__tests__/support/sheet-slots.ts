@@ -1,3 +1,6 @@
+import { StyleSheet } from 'react-native'
+import { expect } from 'vitest'
+
 interface SlotNode {
   type: unknown
   props: Record<string, unknown>
@@ -34,4 +37,24 @@ export function sheetActionsUseActionPair(root: unknown): boolean {
   const container = (root as SlotNode).findAll((node) => node.type === 'SheetActions')[0]
   if (!container) throw new Error('Expected the SheetActions slot')
   return container.findAll((node) => typeof node.type === 'string' && node.props.testID === 'dialog-action-pair').length === 1
+}
+
+export function expectSmallSheetActions(root: unknown): void {
+  const footer = (root as SlotNode).findAll((node) => node.type === 'SheetActions')[0]!
+  const buttons = footer.findAll(isButton)
+  expect(buttons.length).toBeGreaterThan(0)
+  for (const button of buttons) {
+    if (typeof button.props.style === 'function') {
+      expect(button.props.testID).toMatch(/-sm$/)
+      expect(StyleSheet.flatten(button.props.style({ pressed: false })).width).toBeUndefined()
+    } else {
+      expect(button.props.size).toBe('sm')
+      expect(button.props.matchedWidth).toBeFalsy()
+    }
+  }
+  const variant = (button: SlotNode) => button.props.variant ?? String(button.props.testID).split('-')[1]
+  if (buttons.length > 1) {
+    expect(variant(buttons[0]!)).toBe('ghost')
+    expect(variant(buttons.at(-1)!)).not.toBe('ghost')
+  }
 }

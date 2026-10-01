@@ -1,4 +1,5 @@
 import { within } from '@testing-library/react'
+import { expect } from 'vitest'
 
 /**
  * Names every button an open sheet renders in one slot, in order: the body scrolls,
@@ -14,4 +15,17 @@ export function sheetSlotButtons(slot: 'sheet-body' | 'sheet-actions'): (string 
 /** Whether the footer groups its actions in `DialogActionPair`. */
 export function sheetActionsUseActionPair(): boolean {
   return document.querySelectorAll('[data-slot="sheet-actions"] [data-slot="dialog-action-pair"]').length === 1
+}
+
+export function expectSmallSheetActions(): void {
+  const footer = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
+  const buttons = within(footer).getAllByRole('button')
+  for (const button of buttons) {
+    expect(button).toHaveAttribute('data-size', 'sm')
+    expect(button.style.width).toBe('')
+  }
+  if (buttons.length > 1) {
+    expect(buttons[0]).toHaveAttribute('data-variant', 'ghost')
+    expect(buttons.at(-1)).not.toHaveAttribute('data-variant', 'ghost')
+  }
 }

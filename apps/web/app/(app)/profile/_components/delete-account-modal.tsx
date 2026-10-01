@@ -116,6 +116,7 @@ export function DeleteAccountModal({
             ) : null}
             <DialogActionPair>
               <PillButton
+                size="sm"
                 variant="ghost"
                 disabled={loading}
                 onClick={() => closeSheet()}
@@ -123,6 +124,7 @@ export function DeleteAccountModal({
                 {t('common.cancel')}
               </PillButton>
               <PillButton
+                size="sm"
                 variant="destructive"
                 disabled={loading || accountId === null}
                 loading={loading}

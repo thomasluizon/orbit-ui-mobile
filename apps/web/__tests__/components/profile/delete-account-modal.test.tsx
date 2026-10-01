@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -115,6 +115,7 @@ describe('DeleteAccountModal', () => {
   it('pins Send code and Cancel in the sheet footer, never in the scrolling body', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'profile.deleteAccount.sendCode'])
+    expectSmallSheetActions()
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })
 

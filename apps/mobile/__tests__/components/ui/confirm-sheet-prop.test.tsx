@@ -1,3 +1,4 @@
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -13,14 +14,11 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'pu
 afterEach(() => sheetTestControls.defer(false))
 
 describe('ConfirmSheet controlled close', () => {
-  it('keeps both confirmation pills matched when stacked', () => {
-    let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
-    const buttons = tree.root.findAll((node: any) => node.type === 'Pressable' && /^button-(ghost|primary)-md$/.test(node.props.testID ?? ''))
-    expect(buttons).toHaveLength(2)
-    for (const button of buttons) {
-      expect(Object.assign({}, ...button.props.style({ pressed: false }).filter(Boolean)).width).toBe('100%')
-    }
+  it.each([false, true])('uses small intrinsic Cancel then Confirm actions with inlineActions=%s', (inlineActions) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open inlineActions={inlineActions} title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'Delete habit'])
+    expectSmallSheetActions(tree.root)
   })
   it('finishes native dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)
@@ -58,7 +56,7 @@ describe('ConfirmSheet controlled close', () => {
     TestRenderer.act(() => sheetTestControls.rejectDismissal())
 
     expect(tree.root.findAll((node: any) => node.type === 'Sheet')).toHaveLength(1)
-    const confirm = tree.root.find((node: any) => node.type === 'Pressable' && node.props.testID === 'button-destructive-md')
+    const confirm = tree.root.find((node: any) => node.type === 'Pressable' && node.props.testID === 'button-destructive-sm')
     TestRenderer.act(() => confirm.props.onPress())
     TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(onNewConfirm).toHaveBeenCalledTimes(1)
@@ -77,7 +75,7 @@ describe('ConfirmSheet controlled close', () => {
 
     TestRenderer.act(() => tree.update(<ConfirmSheet open={false} title="New preview" onConfirm={onNewConfirm} {...props} />))
     TestRenderer.act(() => tree.update(<ConfirmSheet open title="New preview" onConfirm={onNewConfirm} {...props} />))
-    const confirm = tree.root.find((node: any) => node.type === 'Pressable' && node.props.testID === 'button-destructive-md')
+    const confirm = tree.root.find((node: any) => node.type === 'Pressable' && node.props.testID === 'button-destructive-sm')
     TestRenderer.act(() => confirm.props.onPress())
     TestRenderer.act(() => sheetTestControls.completeDismissal())
 

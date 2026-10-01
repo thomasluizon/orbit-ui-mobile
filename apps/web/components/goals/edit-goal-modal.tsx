@@ -166,10 +166,10 @@ export function EditGoalModal({
         title={t('goals.detail.edit')}
         actions={(
           <DialogActionPair>
-            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
               {t('common.cancel')}
             </PillButton>
-            <PillButton formId={formId} disabled={isSubmitting} loading={isSubmitting}>
+            <PillButton size="sm" formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('common.save')}
             </PillButton>
           </DialogActionPair>

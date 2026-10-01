@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 interface TestNode {
   type: unknown
@@ -126,9 +126,20 @@ describe('EditNameSheet', () => {
   it('pins Save in the sheet footer, never in the scrolling body', async () => {
     const { tree } = await renderSheet()
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.save'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions(tree.root)
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+  })
+
+  it('cancels through the sheet host without saving the draft', async () => {
+    const { tree, onClose } = await renderSheet()
+    await TestRenderer.act(() => {
+      findByTestId(tree, 'edit-name-input').props.onChangeText?.('Draft')
+      findButtonByText(tree, 'common.cancel').props.onPress?.()
+    })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mockPerformQueuedApiMutation).not.toHaveBeenCalled()
   })
 
   it('shows the required error and skips the mutation for a whitespace-only name', async () => {

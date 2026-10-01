@@ -11,6 +11,7 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { Text, View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
+import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
@@ -89,7 +90,7 @@ vi.mock("expo-router", () => ({
 }));
 
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
-  CalendarImportContent: ({ reviewMode }: { reviewMode: boolean }) => React.createElement('CalendarImportContentMock', { reviewMode }),
+  CalendarImportContent: (props: { reviewMode: boolean }) => React.createElement('CalendarImportContentMock', props),
 }));
 
 vi.mock("@/stores/ui-store", () => ({
@@ -602,6 +603,9 @@ describe("CalendarScreen views (mobile)", () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     expect(tree.root.findAll((node) => node.type === 'CalendarImportContentMock' && node.props.reviewMode === true)).toHaveLength(1);
+    const content = tree.root.findAll((node) => node.type === 'CalendarImportContentMock')[0]!
+    TestRenderer.act(() => content.props.onActionStateChange({ count: 1, disabled: false }))
+    expectSmallSheetActions(tree.root)
     TestRenderer.act(() => tree.update(<></>));
   });
 

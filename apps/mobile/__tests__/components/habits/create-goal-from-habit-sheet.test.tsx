@@ -6,7 +6,7 @@ import {
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
 import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -66,6 +66,7 @@ describe('CreateGoalFromHabitSheet (mobile)', () => {
     })
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'goals.create'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('goals.create')
   })

@@ -9,7 +9,7 @@ import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-ep
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -160,7 +160,7 @@ describe('FreshStartModal', () => {
 
   it('advances from info to the confirm step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
-    expect(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!.props.testID).toBe('button-caution-md')
+    expect(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!.props.testID).toBe('button-caution-sm')
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
@@ -176,9 +176,11 @@ describe('FreshStartModal', () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.reviewDeletion'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.freshStart.deleteData'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 
@@ -186,7 +188,7 @@ describe('FreshStartModal', () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     const width = (label: string) => {
       const node = label === 'common.cancel'
-        ? tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-md')[0]!
+        ? tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-sm')[0]!
         : buttonWithLabel(tree, label)!
       const style = node.props.style as (state: { pressed: boolean }) => (Record<string, unknown> | null)[]
       return Object.assign({}, ...style({ pressed: false }).filter(Boolean)).width
@@ -202,7 +204,7 @@ describe('FreshStartModal', () => {
     const onClose = vi.fn()
     const tree = await render(<FreshStartModal open onClose={onClose} />)
     if (step === 'confirm') await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    await press(tree.root.findAll((node) => node.props.testID === 'button-ghost-md')[0]!)
+    await press(tree.root.findAll((node) => node.props.testID === 'button-ghost-sm')[0]!)
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(resetAccountQueries).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
@@ -211,7 +213,7 @@ describe('FreshStartModal', () => {
   it('keeps the confirm button disabled until ORBIT is typed', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
-    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.testID).toBe('button-caution-md')
+    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.testID).toBe('button-caution-sm')
     expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.disabled).toBe(true)
     await TestRenderer.act(async () => {
 await Promise.resolve()

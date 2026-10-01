@@ -10,6 +10,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
+import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -59,24 +60,23 @@ export function NotificationDetailModal({
       onClose={() => onOpenChange(false)}
       title={notification.title}
       actions={
-        <div className="flex flex-wrap items-center justify-end" style={{ gap: 8, width: '100%' }}>
-          {canView && (
-            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
-            <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
-              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
-            </Button>
-          )}
+        <DialogActionPair>
           {canMarkAsRead && (
             /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
             </Button>
           )}
-          <span style={{ flexGrow: 1 }} />
+          {canView && (
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
+            <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
+              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
+            </Button>
+          )}
           <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
           </Button>
-        </div>
+        </DialogActionPair>
       }
     >
       <div className="flex flex-col gap-3 pb-2">

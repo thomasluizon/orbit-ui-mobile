@@ -1,3 +1,4 @@
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -9,10 +10,10 @@ vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-d
 afterEach(() => sheetTestControls.defer(false))
 
 describe('ConfirmSheet controlled close', () => {
-  it('keeps both confirmation pills matched when stacked', () => {
-    render(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveStyle({ width: '100%' })
-    expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveStyle({ width: '100%' })
+  it.each([false, true])('uses small intrinsic Cancel then Confirm actions with inlineActions=%s', (inlineActions) => {
+    render(<ConfirmSheet open inlineActions={inlineActions} title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'Delete habit'])
+    expectSmallSheetActions()
   })
   it('finishes sheet dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)

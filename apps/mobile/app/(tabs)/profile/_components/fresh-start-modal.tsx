@@ -172,10 +172,11 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         actions={
           resetStep === 'info' ? (
               <DialogActionPair>
-                <PillButton variant="ghost" onClick={() => closeSheet()}>
+                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
                   {t('common.cancel')}
                 </PillButton>
                 <PillButton
+                  size="sm"
                   variant="caution"
                   accessibleName={t('profile.freshStart.reviewDeletion')}
                   onClick={() => setResetStep('confirm')}
@@ -198,6 +199,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 ) : null}
                 <DialogActionPair>
                   <PillButton
+                    size="sm"
                     variant="ghost"
                     disabled={resetLoading}
                     onClick={() => closeSheet()}
@@ -205,6 +207,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                     {t('common.cancel')}
                   </PillButton>
                   <PillButton
+                    size="sm"
                     variant="caution"
                     accessibleName={confirmButtonLabel}
                     disabled={!isResetConfirmed || resetLoading}
