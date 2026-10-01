@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/query-core'
 import { createMockHabit, createMockHabitScheduleItem, createMockHabitScheduleChild } from './factories'
 import { habitKeys, type HabitListSnapshots } from '../query/keys'
 import {
+  applyCachedHabitSkip,
   checkTodayAllDoneOrDefer,
   clearCachedOptimisticSkip,
   deduplicateHabitList,
@@ -14,10 +15,140 @@ import {
   updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
-import { optimisticRemoveHabits, optimisticSkipMarker } from '../utils/habit-optimistic'
+import { buildOptimisticSkipPatch, optimisticPatchHabit, optimisticRemoveHabits, optimisticSkipMarker } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
 
 describe('skip undo cache', () => {
+  it('retains a refetched completion and a subsequent direct rollback when the row later disappears', () => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const laterDate = '2026-09-13'
+    const row = createMockHabitScheduleItem({ dueDate: date, scheduledDates: [date, laterDate],
+      instances: [date, laterDate].map((instanceDate) => ({ date: instanceDate, status: 'Pending', logId: null })) })
+    client.setQueryData(key, [row])
+    const snapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+    applyCachedHabitSkip(client, row.id, date)
+    const refreshed = { ...row, title: 'Edited after skip', scheduledDates: [laterDate],
+      isLoggedInRange: true, instances: [{ date: laterDate, status: 'Completed' as const, logId: 'later-log' }] }
+    client.setQueryData(key, [refreshed])
+    client.setQueryData(key, [])
+    restoreCachedHabitSkip(client, snapshot, row.id, { date, postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      title: refreshed.title, isLoggedInRange: true,
+      instances: [row.instances[0], ...refreshed.instances],
+    })
+    const secondSnapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+    applyCachedHabitSkip(client, row.id, date)
+    const rolledBack = { ...refreshed, isLoggedInRange: false, instances: [{ date: laterDate, status: 'Pending' as const, logId: null }] }
+    client.setQueryData(key, [rolledBack])
+    client.setQueryData(key, [])
+    restoreCachedHabitSkip(client, secondSnapshot, row.id, { date, postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      title: refreshed.title, isLoggedInRange: false,
+      instances: [row.instances[0], ...rolledBack.instances],
+    })
+  })
+
+  it.each([false, true])('reverses a postpone preserving a later log %s', (logged) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const tomorrow = '2026-09-13'
+    const row = createMockHabitScheduleItem({ frequencyUnit: null, dueDate: date, scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const snapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+    updateCachedHabitLists(client, (items) => optimisticPatchHabit(items, row.id, buildOptimisticSkipPatch(items[0]!, date)))
+    if (logged) updateCachedHabitLists(client, (items) => optimisticPatchHabit(items, row.id, {
+      isCompleted: true, isLoggedInRange: true, instances: [{ date: tomorrow, status: 'Completed', logId: 'later-log' }],
+    }))
+
+    restoreCachedHabitSkip(client, snapshot, row.id, { date, postponed: true })
+
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      dueDate: date, scheduledDates: logged ? [date, tomorrow] : [date],
+      isCompleted: logged, isLoggedInRange: logged,
+      instances: logged ? [...row.instances, { date: tomorrow, status: 'Completed', logId: 'later-log' }] : row.instances,
+    })
+  })
+
+  it('leaves flexible totals in lists outside the skipped date unchanged', () => {
+    const client = new QueryClient()
+    const date = '2026-09-12'
+    const otherDate = '2026-09-13'
+    const key = habitKeys.list({ dateFrom: otherDate, dateTo: otherDate })
+    const row = createMockHabitScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0 })
+    client.setQueryData(key, [row])
+    restoreCachedHabitSkip(client, [[key, [row]]], row.id, { date, postponed: false })
+    expect(client.getQueryData(key)).toEqual([row])
+  })
+
+  it.each([false, true])('restores offline flexible targets one occurrence at a time after a refetch removes the row %s', (removed) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const dates = ['2026-09-12', '2026-09-13']
+    const row = createMockHabitScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: dates[0], scheduledDates: dates })
+    client.setQueryData(key, [row])
+    const snapshots = dates.map((date) => {
+      const snapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+      applyCachedHabitSkip(client, row.id, date)
+      return snapshot
+    })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(0)
+    if (removed) client.setQueryData(key, [])
+    dates.forEach((date, index) => {
+      restoreCachedHabitSkip(client, snapshots[index]!, row.id, { date, postponed: false })
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(index + 1)
+    })
+  })
+
+  it.each([false, true])('reverses two offline skips independently with reverse undo order %s', (reverse) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const firstDate = '2026-09-12'
+    const secondDate = '2026-09-13'
+    const row = createMockHabitScheduleItem({ dueDate: firstDate, scheduledDates: [firstDate, secondDate],
+      instances: [firstDate, secondDate].map((date) => ({ date, status: 'Pending', logId: null })) })
+    client.setQueryData(key, [row])
+    const skip = (date: string) => {
+      const snapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+      updateCachedHabitLists(client, (items) => optimisticPatchHabit(items, row.id, buildOptimisticSkipPatch(items[0]!, date)))
+      clearCachedOptimisticSkip(client, row.id, date)
+      return { snapshot, date }
+    }
+    const first = skip(firstDate)
+    const second = skip(secondDate)
+    const [earlierUndo, laterUndo] = reverse ? [second, first] : [first, second]
+
+    restoreCachedHabitSkip(client, earlierUndo.snapshot, row.id, { date: earlierUndo.date, postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      scheduledDates: [earlierUndo.date],
+      instances: [{ date: earlierUndo.date, status: 'Pending', logId: null }],
+    })
+    restoreCachedHabitSkip(client, laterUndo.snapshot, row.id, { date: laterUndo.date, postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      scheduledDates: [firstDate, secondDate], instances: row.instances, dueDate: firstDate,
+    })
+  })
+
+  it.each([0, 1])('restores a flexible target on an existing refetched row preserving %s completions', (completed) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = createMockHabitScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    const snapshot: HabitListSnapshots = [[key, [row]]]
+    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: completed, isLoggedInRange: completed > 0 }])
+
+    restoreCachedHabitSkip(client, snapshot, row.id, { date, postponed: false })
+
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      flexibleTarget: 2, flexibleCompleted: completed, isLoggedInRange: completed > 0,
+    })
+  })
+
   it('restores only the skipped schedule while keeping sibling and child changes', () => {
     const client = new QueryClient()
     const key = habitKeys.list({})
@@ -25,7 +156,7 @@ describe('skip undo cache', () => {
     const sibling = createMockHabitScheduleItem({ id: 'sibling' })
     const snapshot: HabitListSnapshots = [[key, [row, sibling]]]
     client.setQueryData(key, [{ ...row, title: 'Edited title', scheduledDates: [], children: [{ ...row.children[0], title: 'Edited child' }] }, { ...sibling, isCompleted: true }])
-    restoreCachedHabitSkip(client, snapshot, row.id)
+    restoreCachedHabitSkip(client, snapshot, row.id, { date: '2026-09-12', postponed: false })
     expect(client.getQueryData<HabitScheduleItem[]>(key)).toMatchObject([
       { title: 'Edited title', scheduledDates: ['2026-09-12'], children: [{ title: 'Edited child' }] },
       { id: sibling.id, isCompleted: true },
@@ -36,18 +167,19 @@ describe('skip undo cache', () => {
     const client = new QueryClient()
     const key = habitKeys.list({ completeDay: true, dateFrom: '2026-09-12', dateTo: '2026-09-12' })
     const child = createMockHabitScheduleChild({ id: 'skipped' })
-    const parent = createMockHabitScheduleItem({ id: 'parent', children: [child] })
+    const sibling = createMockHabitScheduleChild({ id: 'sibling' })
+    const parent = createMockHabitScheduleItem({ id: 'parent', hasSubHabits: true, children: [child, sibling] })
     const deleted = createMockHabitScheduleItem({ id: 'deleted' })
     const countKey = habitKeys.listTotalCount({ dateFrom: '2026-09-12', dateTo: '2026-09-12' })
     client.setQueryData(countKey, 1)
-    client.setQueryData(key, [{ ...parent, title: 'Edited parent', children: [] }])
-    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id)
-    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([{ ...parent, title: 'Edited parent' }])
+    client.setQueryData(key, optimisticRemoveHabits([{ ...parent, title: 'Edited parent', children: [sibling] }], [sibling.id]))
+    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id, { date: '2026-09-12', postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([{ ...parent, title: 'Edited parent', children: [child] }])
     expect(client.getQueryData(countKey)).toBe(1)
     client.setQueryData(key, [])
     client.setQueryData(countKey, 0)
-    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id)
-    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([parent])
+    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id, { date: '2026-09-12', postponed: false })
+    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([{ ...parent, children: [child] }])
     expect(client.getQueryData(countKey)).toBe(1)
   })
 })

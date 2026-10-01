@@ -24,6 +24,7 @@ export {
 export type { HabitListKey, HabitListSnapshots } from './keys'
 export { attachNotificationPolling } from './notification-polling'
 export {
+  applyCachedHabitSkip,
   updateHabitListsForDate,
   updateCachedHabitLists,
   clearCachedOptimisticSkip,

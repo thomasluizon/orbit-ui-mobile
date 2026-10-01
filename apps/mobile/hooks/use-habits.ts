@@ -9,6 +9,7 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
+  applyCachedHabitSkip,
   checkTodayAllDoneOrDefer,
   clearCachedOptimisticSkip,
   restoreCachedHabitSkip,
@@ -20,7 +21,6 @@ import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSc
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
-  buildOptimisticSkipPatch,
   buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
@@ -522,6 +522,7 @@ type UndoSkipInput = {
   habitId: string
   skipId: string
   previousLists: HabitListSnapshots
+  occurrence: { date: string; postponed: boolean }
   queuedMutationId?: string
   onUndo?: () => void
   account?: ReturnType<typeof captureSkipAccount>
@@ -550,7 +551,7 @@ function useUndoSkipHabit() {
     onSuccess: (_result, input) => {
       if (input.account && !input.account.stillCurrent()) return
       input.onUndo?.()
-      restoreCachedHabitSkip(queryClient, input.previousLists, input.habitId)
+      restoreCachedHabitSkip(queryClient, input.previousLists, input.habitId, input.occurrence)
     },
     onError: (error, input) => {
       if (input.account && !input.account.stillCurrent()) return
@@ -597,17 +598,15 @@ export function useSkipHabit() {
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)
       const skippedDate = date ?? formatAPIDate(new Date())
-      updateHabitListsForDate(queryClient, skippedDate, (items) => {
-        const habit = findHabitInList(items, habitId)
-        return habit ? optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate)) : items
-      })
+      applyCachedHabitSkip(queryClient, habitId, skippedDate)
       return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null, account }
     },
     onSuccess: ({ skipId, outcome }, { habitId, onUndo }, context) => {
       if (!context.account.stillCurrent()) return
       showUndoToast(t(context.postponed ? 'undo.habitPostponed' : 'undo.habitSkipped'), () => {
         if (!context.account.stillCurrent()) return
-        undoSkip.mutate({ habitId, skipId, previousLists: context.previousLists, onUndo, account: context.account,
+        undoSkip.mutate({ habitId, skipId, previousLists: context.previousLists,
+          occurrence: { date: context.skippedDate, postponed: context.postponed }, onUndo, account: context.account,
           queuedMutationId: isQueuedResult(outcome) ? outcome.queuedMutationId : undefined })
       })
     },

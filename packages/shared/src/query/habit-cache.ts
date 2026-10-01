@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
-import { clearOptimisticSkipMarker, findHabitInTree, type HabitTreeNode } from '../utils/habit-optimistic'
+import { buildOptimisticSkipPatch, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import { habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
@@ -10,6 +10,31 @@ function includesDate(filters: HabitsFilter, date: string): boolean {
 }
 
 type HabitListFilters = HabitsFilter & { completeDay?: boolean }
+
+const skippedHabitRows = new WeakMap<QueryClient, WeakMap<readonly unknown[], Map<string, HabitTreeNode>>>()
+
+function refreshRetainedSkippedRows(queryClient: QueryClient): void {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (!items) continue
+    const retained = skippedHabitRows.get(queryClient)?.get(key)
+    for (const habitId of retained?.keys() ?? []) {
+      const habit = findHabitInList(items, habitId)
+      if (habit) retained?.set(habitId, habit)
+    }
+  }
+}
+
+function retainedSkippedRows(queryClient: QueryClient, key: readonly unknown[]): Map<string, HabitTreeNode> {
+  let lists = skippedHabitRows.get(queryClient)
+  if (!lists) {
+    lists = new WeakMap<readonly unknown[], Map<string, HabitTreeNode>>()
+    skippedHabitRows.set(queryClient, lists)
+    queryClient.getQueryCache().subscribe(() => refreshRetainedSkippedRows(queryClient))
+  }
+  const rows = lists.get(key) ?? new Map<string, HabitTreeNode>()
+  lists.set(key, rows)
+  return rows
+}
 
 /** A complete-day list shares its day's total with the ordinary list, so the count key omits `completeDay`. */
 function listTotalCountKey(filters: HabitListFilters) {
@@ -34,6 +59,16 @@ function setCachedHabitList(
     }
   }
   queryClient.setQueryData(key, next)
+}
+
+export function applyCachedHabitSkip(queryClient: QueryClient, habitId: string, date: string): void {
+  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+    if (!items || !includesDate(key[2] as HabitsFilter, date)) continue
+    const habit = findHabitInList(items, habitId)
+    if (!habit) continue
+    retainedSkippedRows(queryClient, key).set(habitId, habit)
+    setCachedHabitList(queryClient, key, items, optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, date)))
+  }
 }
 
 export function updateCachedHabitLists(
@@ -73,35 +108,66 @@ export function restoreCachedHabitSkip(
   queryClient: QueryClient,
   snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
   habitId: string,
+  occurrence: { date: string; postponed: boolean },
 ): void {
   for (const [key, items] of snapshots) {
+    if (!includesDate(key[2] as HabitsFilter, occurrence.date)) continue
     const current = queryClient.getQueryData<HabitScheduleItem[]>(key)
     if (!items || !current) continue
-    setCachedHabitList(queryClient, key, current, restoreSkipBranch(current, items, habitId))
+    setCachedHabitList(queryClient, key, current,
+      restoreSkipBranch(current, items, habitId, occurrence, skippedHabitRows.get(queryClient)?.get(key)))
+  }
+  clearCachedOptimisticSkip(queryClient, habitId, occurrence.date)
+}
+
+function reverseSkippedOccurrence<T extends HabitTreeNode>(
+  current: T,
+  previous: T,
+  { date, postponed }: { date: string; postponed: boolean },
+): T {
+  const postponedDate = postponed ? getTomorrowDateString(date) : null
+  const hasLaterLog = current.instances.some((instance) => instance.date === postponedDate &&
+    (instance.status === 'Completed' || instance.logId !== null))
+  const removedDate = hasLaterLog ? null : postponedDate
+  const scheduledDates = [...new Set([
+    ...(current.scheduledDates ?? []).filter((scheduled) => scheduled !== removedDate),
+    ...(previous.scheduledDates ?? []).filter((scheduled) => scheduled === date),
+  ])].sort((first, second) => first.localeCompare(second))
+  const instances = current.instances.filter((instance) => instance.date !== removedDate)
+  for (const instance of previous.instances.filter((instance) => instance.date === date)) {
+    if (!instances.some((currentInstance) => currentInstance.date === date)) instances.push(instance)
+  }
+  const dueDate = postponed && current.dueDate === postponedDate ? previous.dueDate
+    : scheduledDates.filter((scheduled) => scheduled <= current.dueDate)[0] ?? current.dueDate
+  return {
+    ...current,
+    dueDate,
+    scheduledDates,
+    instances: instances.sort((first, second) => first.date.localeCompare(second.date)),
+    isOverdue: dueDate === previous.dueDate && dueDate === date ? previous.isOverdue : current.isOverdue,
+    ...(current.isFlexible && current.flexibleTarget != null ? { flexibleTarget: current.flexibleTarget + 1 } : {}),
   }
 }
 
-function restoreSkipBranch<T extends HabitTreeNode>(current: T[], previous: T[], habitId: string): T[] {
+function restoreSkipBranch<T extends HabitTreeNode>(
+  current: T[], previous: T[], habitId: string, occurrence: { date: string; postponed: boolean },
+  retained: ReadonlyMap<string, HabitTreeNode> | undefined,
+): T[] {
   const restored = [...current]
   for (const [index, original] of previous.entries()) {
     if (!findHabitInTree(original, habitId)) continue
     const item = restored.find((entry) => entry.id === original.id)
     if (!item) {
       restored.splice(Math.min(index, restored.length), 0, original.id === habitId
-        ? original : { ...original, children: restoreSkipBranch([], original.children, habitId) })
+        ? reverseSkippedOccurrence({ ...original, scheduledDates: [], instances: [],
+          flexibleTarget: original.flexibleTarget == null ? original.flexibleTarget : original.flexibleTarget - 1,
+          ...retained?.get(habitId) }, original, occurrence)
+        : withChildren(original, restoreSkipBranch([], original.children, habitId, occurrence, retained)))
       continue
     }
     const currentIndex = restored.indexOf(item)
-    restored[currentIndex] = item.id === habitId ? {
-      ...item,
-      dueDate: original.dueDate,
-      scheduledDates: original.scheduledDates,
-      instances: original.instances,
-      isOverdue: original.isOverdue,
-      isCompleted: original.isCompleted,
-      isLoggedInRange: original.isLoggedInRange,
-      ...('flexibleCompleted' in original ? { flexibleCompleted: original.flexibleCompleted } : {}),
-    } : { ...item, children: restoreSkipBranch(item.children, original.children, habitId) }
+    restored[currentIndex] = item.id === habitId ? reverseSkippedOccurrence(item, original, occurrence)
+      : withChildren(item, restoreSkipBranch(item.children, original.children, habitId, occurrence, retained))
   }
   return restored
 }

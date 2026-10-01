@@ -962,9 +962,61 @@ describe('useLogHabit', () => {
 })
 
 describe('useSkipHabit', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch.mockReset()
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.undoSkipHabit).mockReset()
     vi.useRealTimers()
+  })
+
+  it.each([false, true])('undoes two occurrences through their toast actions after a refetch removes the row %s', async (removed) => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.undoSkipHabit).mockResolvedValue(undefined)
+    mockShowQueued.mockClear()
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const dates = ['2026-09-12', '2026-09-13']
+    client.setQueryData(key, [makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: dates[0], scheduledDates: dates,
+      instances: dates.map((date) => ({ date, status: 'Pending', logId: null })) })])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    const undoActions: (() => void)[] = []
+    for (const date of dates) {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', date }))
+      undoActions.push(mockShowQueued.mock.calls.at(-1)![2] as () => void)
+    }
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([])
+    if (removed) client.setQueryData(key, [])
+    await act(async () => { undoActions[0]!() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([dates[0]]))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(1)
+    await act(async () => { undoActions[1]!() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual(dates))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(2)
+    client.clear()
+  })
+
+  it('undoes a flexible skip on a refetched row while preserving a later log', async () => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.undoSkipHabit).mockResolvedValue(undefined)
+    mockShowQueued.mockClear()
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    await act(() => result.current.mutateAsync({ habitId: 'h-1', date }))
+    const undo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: 1, isLoggedInRange: true }])
+    await act(async () => { undo() })
+    await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
+    }))
+    client.clear()
   })
 
   it('calls skipHabit action', async () => {

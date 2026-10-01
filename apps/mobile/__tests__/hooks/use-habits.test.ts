@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { QueryClient } from '@tanstack/query-core'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
@@ -90,7 +91,7 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
-    getQueryCache: () => ({ findAll: () => [] }),
+    getQueryCache: () => ({ findAll: () => [], subscribe: vi.fn() }),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async (_filters?: { queryKey: readonly unknown[] }) => {}),
     isFetching: vi.fn(() => 0),
@@ -2166,6 +2167,70 @@ describe('mobile habit hooks', () => {
     vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('dropped')
     await undo.mutationFn({ habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [], queuedMutationId: 'skip-1' })
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ type: 'undoSkipHabit', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') }) }))
+  })
+
+  it.each([false, true])('undoes two offline occurrences through their toast actions after a refetch removes the row %s', async (removed) => {
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    const key = habitKeys.list({})
+    const dates = ['2026-09-12', '2026-09-13']
+    client.setQueryData(key, [makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: dates[0], scheduledDates: dates,
+      instances: dates.map((date) => ({ date, status: 'Pending', logId: null })) })])
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date: string }, HabitSnapshotContext>
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown,
+      { habitId: string; previousLists: HabitSnapshotContext['previousLists']; queuedMutationId: string }, unknown>
+    const undoInputs: Parameters<typeof undo.mutationFn>[0][] = []
+    for (const date of dates) {
+      const input = { habitId: 'habit-1', date }
+      const context = await skip.onMutate?.(input)
+      const outcome = await skip.mutationFn(input)
+      skip.onSuccess?.(outcome, input, context)
+      skip.onSettled?.(outcome, null, input, context)
+      const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+      undoAction()
+      undoInputs.push(mocks.restoreHabitMutate.mock.calls.at(-1)![0] as Parameters<typeof undo.mutationFn>[0])
+    }
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual([])
+    if (removed) client.setQueryData(key, [])
+    for (const [index, input] of undoInputs.entries()) {
+      vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('cancelled')
+      const outcome = await undo.mutationFn(input)
+      undo.onSuccess?.(outcome, input, undefined)
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.scheduledDates).toEqual(dates.slice(0, index + 1))
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.flexibleTarget).toBe(index + 1)
+    }
+    client.clear()
+  })
+
+  it('undoes a flexible skip on a refetched row while preserving a later log', async () => {
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as ReturnType<typeof mocks.useQueryClient>)
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string; date: string }, HabitSnapshotContext>
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown,
+      { habitId: string; previousLists: HabitSnapshotContext['previousLists']; queuedMutationId: string }, unknown>
+    const input = { habitId: row.id, date }
+    const context = await skip.onMutate?.(input)
+    const outcome = await skip.mutationFn(input)
+    skip.onSuccess?.(outcome, input, context)
+    const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    undoAction()
+    const undoInput = mocks.restoreHabitMutate.mock.calls.at(-1)![0] as Parameters<typeof undo.mutationFn>[0]
+    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: 1, isLoggedInRange: true }])
+    vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('cancelled')
+    const restored = await undo.mutationFn(undoInput)
+    undo.onSuccess?.(restored, undoInput, undefined)
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+      flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
+    })
+    client.clear()
   })
 
   it('keeps an actionable undo after restoration fails', () => {
