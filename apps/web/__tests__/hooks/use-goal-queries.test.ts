@@ -3,11 +3,17 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useGoals, useGoalDetail, useGoalMetrics } from '@/hooks/use-goal-queries'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal, GoalDetailWithMetrics, GoalMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+beforeEach(async () => {
+  await resetAuthStore()
+  mockFetch.mockReset()
+})
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -32,10 +38,6 @@ function makePaginatedGoalResponse(items: Goal[]): PaginatedGoalResponse {
 }
 
 describe('useGoals', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches and normalizes goals', async () => {
     const goals = [
       createMockGoal({ id: 'g-1', title: 'Read Books', position: 1 }),
@@ -118,10 +120,6 @@ describe('useGoals', () => {
 })
 
 describe('useGoalDetail', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches goal detail when id is provided', async () => {
     const detail: GoalDetailWithMetrics = {
       goal: {
@@ -173,10 +171,6 @@ describe('useGoalDetail', () => {
 })
 
 describe('useGoalMetrics', () => {
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
-
   it('fetches goal metrics when id is provided', async () => {
     const metrics: GoalMetrics = {
       progressPercentage: 25,
