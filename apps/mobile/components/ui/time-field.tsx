@@ -111,22 +111,32 @@ function TimeColumn({
   onSelect,
 }: Readonly<TimeColumnProps>) {
   const listRef = useRef<ScrollView>(null)
+  const viewportHeightRef = useRef(0)
   const selectedIndex = values.indexOf(selected)
+
+  function revealSelected(height: number) {
+    if (selectedIndex < 0 || height <= 0) return
+    const contentHeight = values.length * ROW_HEIGHT + 8
+    const centeredOffset = 4 + selectedIndex * ROW_HEIGHT - height / 2 + ROW_HEIGHT / 2
+    listRef.current?.scrollTo({
+      y: Math.max(0, Math.min(centeredOffset, contentHeight - height)),
+      animated: false,
+    })
+  }
 
   return (
     <RadioGroup accessibilityLabel={label} style={styles.column}>
       <ScrollView
         ref={listRef}
         contentContainerStyle={styles.columnContent}
-        nestedScrollEnabled
-        onLayout={() => {
-          if (selectedIndex < 0) return
-          listRef.current?.scrollTo({
-            y: Math.max(0, selectedIndex * ROW_HEIGHT - COLUMN_HEIGHT / 2 + ROW_HEIGHT / 2),
-            animated: false,
-          })
+        nestedScrollEnabled={false}
+        overScrollMode="never"
+        onLayout={(event) => {
+          viewportHeightRef.current = event.nativeEvent.layout.height
+          revealSelected(viewportHeightRef.current)
         }}
-        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => revealSelected(viewportHeightRef.current)}
+        showsVerticalScrollIndicator
         style={styles.columnScroll}
       >
         {values.map((option) => (
@@ -328,6 +338,7 @@ export function TimeField({
       {open ? (
         <Sheet
           ref={sheetRef}
+          boundedBody
           open
           title={t('common.selectTime')}
           onClose={() => setOpen(false)}
@@ -392,7 +403,7 @@ const styles = StyleSheet.create({
   icon: { alignItems: 'center', justifyContent: 'center', minHeight: 52, width: 48 },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   disabled: { opacity: 0.6 },
-  columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT },
+  columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT, flexShrink: 1, minHeight: ROW_HEIGHT },
   column: { flex: 1 },
   columnScroll: { flex: 1 },
   columnContent: { paddingVertical: 4 },

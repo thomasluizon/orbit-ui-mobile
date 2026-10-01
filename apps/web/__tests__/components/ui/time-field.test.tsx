@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -28,6 +28,10 @@ function pickOption(columnLabel: string, label: string) {
 }
 
 describe('TimeField', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+  })
+  afterEach(() => vi.unstubAllGlobals())
   it('paints the option hover fill on the whole row at the enumerated radius', () => {
     uses24HourClock = true
     render(<TimeField value="14:30" onChange={vi.fn()} />)

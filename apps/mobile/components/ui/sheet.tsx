@@ -60,6 +60,7 @@ export function Sheet({
   headerAccessory,
   actions,
   minimumBodyWidth,
+  boundedBody = false,
   onClose,
   onAttemptDismiss,
   virtualizedBody = false,
@@ -202,7 +203,7 @@ export function Sheet({
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
           style={{ maxHeight: maxBodyHeight }}
-          contentContainerStyle={bodyStyle}
+          contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxBodyHeight } : null]}
           keyboardVerticalOffset={footer ? footerHeight : undefined}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
