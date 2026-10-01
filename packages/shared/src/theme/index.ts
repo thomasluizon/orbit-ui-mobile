@@ -18,4 +18,5 @@ export { responsiveTypeRoles, resolveResponsiveTypeRole, RESPONSIVE_TYPE_BREAKPO
 export { BUTTON_SIZES, MATCHED_PILL_WIDTH, MATCHED_PILL_MAX_WIDTH, type ButtonVariant, type ButtonSize, type ButtonSizeSpec } from './button'
 export { zLayers, type ZLayer } from './z-layers'
 export { WIDE_DESKTOP_BREAKPOINT } from './breakpoints'
+export { SHEET_BODY_INSETS } from './sheet'
 export * from './motion'

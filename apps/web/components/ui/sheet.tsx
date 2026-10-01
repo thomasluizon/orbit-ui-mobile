@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
+import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
@@ -123,7 +124,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
       <Dialog.Portal className="orbit-sheet-portal">
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
-          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus}>
+          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
               <Dialog.Title translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
@@ -137,12 +138,21 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
               ) : null}
             </header>
             {children == null ? null : (
-              <div className="orbit-sheet-body" data-slot="sheet-body" style={{
-                ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
-                paddingInline: minimumBodyWidth == null ? undefined : `clamp(4px, calc((100% - ${minimumBodyWidth}px) / 2), 24px)`,
-              }}>
-                {children}
-              </div>
+              <>
+                {minimumBodyWidth == null ? null : <style>{`
+                  [data-sheet-body-id="${overlayId}"] { padding-inline: ${SHEET_BODY_INSETS[0]}px; }
+                  ${SHEET_BODY_INSETS.map((inset) => `
+                    @container sheet-panel (min-width: ${minimumBodyWidth + inset * 2}px) {
+                      [data-sheet-body-id="${overlayId}"] { padding-inline: ${inset}px; }
+                    }
+                  `).join('')}
+                `}</style>}
+                <div className="orbit-sheet-body" data-slot="sheet-body" data-sheet-body-id={overlayId} style={{
+                  ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
+                }}>
+                  {children}
+                </div>
+              </>
             )}
             <UpdateAvailableBanner modalId={modalId} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">

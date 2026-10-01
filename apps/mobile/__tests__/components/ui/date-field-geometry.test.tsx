@@ -25,6 +25,11 @@ interface HostJson {
   children: (HostJson | string)[] | null
 }
 
+const BODY_INSETS_BY_WIDTH = new Map([
+  [320, 4], [324, 8], [332, 12], [339, 12], [340, 16], [344, 16],
+  [352, 16], [355, 16], [356, 24], [412, 24], [640, 24], [915, 24],
+])
+
 function buildLayout(element: HostJson, targets: YogaNode[]): YogaNode {
   const node = Yoga.Node.create()
   const declaredStyle = element.props.contentContainerStyle ?? element.props.style
@@ -73,6 +78,9 @@ function assertCalendarFits(tree: ReturnType<typeof TestRenderer.create>, width:
     const leftEdge = body.getComputedPadding(Yoga.EDGE_LEFT)
     const rightEdge = body.getComputedWidth() - body.getComputedPadding(Yoga.EDGE_RIGHT)
     expect(targets).toHaveLength(42)
+    expect([24, 16, 12, 8, 4]).toContain(leftEdge)
+    expect(body.getComputedPadding(Yoga.EDGE_RIGHT)).toBe(leftEdge)
+    expect(leftEdge).toBe(BODY_INSETS_BY_WIDTH.get(width))
     expect(StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom).toBe(24)
     for (const target of targets) {
       expect(target.getComputedWidth()).toBeGreaterThanOrEqual(44)
@@ -86,7 +94,7 @@ function assertCalendarFits(tree: ReturnType<typeof TestRenderer.create>, width:
 
 describe('DateField sheet geometry (mobile)', () => {
   afterEach(__resetTestHostConfig)
-  it.each([320, 340, 344, 352, 356, 412, 640, 915])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
+  it.each([...BODY_INSETS_BY_WIDTH.keys()])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => { tree = TestRenderer.create(<DateField value="2025-06-15" onChange={vi.fn()} />); await Promise.resolve() })

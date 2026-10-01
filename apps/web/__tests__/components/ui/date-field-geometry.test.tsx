@@ -12,6 +12,11 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLo
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 0 } }) }))
 Element.prototype.scrollIntoView = vi.fn()
 
+const BODY_INSETS_BY_WIDTH = new Map([
+  [320, 4], [324, 8], [332, 12], [339, 12], [340, 16], [344, 16],
+  [352, 16], [355, 16], [356, 24], [412, 24], [640, 24], [915, 24],
+])
+
 describe('DateField sheet geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -23,14 +28,18 @@ describe('DateField sheet geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 340, 344, 352, 356, 412, 640, 915])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
+  it.each([...BODY_INSETS_BY_WIDTH.keys()])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
     const dialog = await screen.findByRole('dialog')
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.setViewportSize({ width, height: 915 })
+      await page.evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      }))
       const measured = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
         const bounds = body.getBoundingClientRect()
@@ -39,6 +48,7 @@ describe('DateField sheet geometry in Chromium', () => {
           left: bounds.left + parseFloat(style.paddingLeft),
           right: bounds.right - parseFloat(style.paddingRight),
           padding: parseFloat(style.paddingLeft),
+          rightPadding: parseFloat(style.paddingRight),
           bottomPadding: parseFloat(style.paddingBottom),
           clientWidth: body.clientWidth,
           scrollWidth: body.scrollWidth,
@@ -52,6 +62,9 @@ describe('DateField sheet geometry in Chromium', () => {
       expect(measured.targets).toHaveLength(42)
       expect(measured.scrollWidth).toBe(measured.clientWidth)
       expect(measured.bottomPadding).toBe(24)
+      expect([24, 16, 12, 8, 4]).toContain(measured.padding)
+      expect(measured.padding).toBe(BODY_INSETS_BY_WIDTH.get(width))
+      expect(measured.rightPadding).toBe(measured.padding)
       for (const target of measured.targets) {
         expect(target.width).toBeGreaterThanOrEqual(44)
         expect(target.height).toBeGreaterThanOrEqual(44)

@@ -1,6 +1,7 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
+import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -75,7 +76,9 @@ export function Sheet({
   const { height, width } = useWindowDimensions()
   const bodyPaddingHorizontal = minimumBodyWidth == null
     ? 24
-    : Math.max(4, Math.min(24, (Math.min(width, MAX_CONTENT_WIDTH) - minimumBodyWidth) / 2))
+    : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
+      minimumBodyWidth + step * 2 <= Math.min(width, MAX_CONTENT_WIDTH) ? step : inset
+    ), SHEET_BODY_INSETS[0])
   const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
   const { bottom: bottomInset } = useSafeAreaInsets()
   const [headerHeight, setHeaderHeight] = useState(0)
