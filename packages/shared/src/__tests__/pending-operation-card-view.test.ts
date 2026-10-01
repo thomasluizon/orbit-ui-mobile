@@ -16,7 +16,8 @@ import ptBR from '../i18n/pt-BR.json'
 
 function translateMessages(messages: typeof en, key: string, values?: Record<string, string | number>): string {
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
-  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+  const localized = typeof message === 'string' ? message.replace(/\{(\w+), plural, one \{([^}]*)\} other \{([^}]*)\}\}/g, (_, name: string, singular: string, plural: string) => (values?.[name] === 1 ? singular : plural).replaceAll('#', String(values?.[name]))) : key
+  return localized.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
 }
 
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
@@ -125,6 +126,71 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summary).not.toContain('chat.')
     expect(summary).not.toBe(messages.chat.operation.pending)
     expect(summary).not.toBe('')
+  })
+
+  it.each([
+    ['interval_weeks', '2', 2, 'Every 2 weeks', 'A cada 2 semanas'],
+    ['description', null, null, 'Remove the description', 'Remover a descrição'],
+    ['emoji', '📚', '📚', 'Use 📚', 'Usar 📚'],
+    ['emoji', null, null, 'Remove the icon', 'Remover o ícone'],
+    ['end_date', null, null, 'Remove the end date', 'Remover a data final'],
+    ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os hábitos dentro'],
+    ['sub_habits', '[{"title":"Read"}]', [{ title: 'Read' }], '1 habit inside', '1 hábito dentro'],
+    ['reminder_times', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
+    ['scheduled_reminders', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
+    ['scheduled_reminders', '[{"when":"same_day","time":"08:00"}]', [{ when: 'same_day', time: '08:00' }], 'Remind me the same day at clock:08:00', 'Lembrar no mesmo dia às clock:08:00'],
+    ['checklist_items', '["Read"]', ['Read'], 'Read', 'Read'],
+    ['parent_id', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'Move under the selected habit', 'Mover para dentro do hábito selecionado'],
+    ['color', '#ffffff', '#ffffff', 'Tag color: #ffffff', 'Cor da tag: #ffffff'],
+    ['goal_type', 'Standard', 'Standard', 'Progress', 'Progresso'],
+    ['goal_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace goal links with 1 selected goals', 'Substituir vínculos por 1 metas selecionadas'],
+    ['habit_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace habit links with 1 selected habits', 'Substituir vínculos por 1 hábitos selecionados'],
+    ['positions', '[{"id":"00000000-0000-4000-8000-000000000002","position":0}]', [{ id: '00000000-0000-4000-8000-000000000002', position: 0 }], 'Reorder 1 items', 'Reordenar 1 itens'],
+    ['items', '[]', [], 'Clear the checklist', 'Limpar a lista'],
+    ['note', 'Read outside', 'Read outside', 'Read outside', 'Read outside'],
+    ['due_end_time', '09:00', '09:00', 'Until clock:09:00', 'Até clock:09:00'],
+    ['due_end_time', null, null, 'Remove the end time', 'Remover o horário final'],
+    ['expires_at_utc', null, null, 'No expiry date', 'Sem data de expiração'],
+    ['language', 'en', 'en', 'Use English', 'Usar Inglês'],
+    ['language', 'pt-BR', 'pt-BR', 'Use Português (Brasil)', 'Usar Português (Brasil)'],
+    ['week_start_day', '0', 0, 'Start the week on Sunday', 'Começar a semana no Domingo'],
+    ['week_start_day', '1', 1, 'Start the week on Monday', 'Começar a semana no Segunda-feira'],
+    ['theme_preference', 'dark', 'dark', 'Use the Dark theme', 'Usar tema Escuro'],
+    ['theme_preference', 'light', 'light', 'Use the Light theme', 'Usar tema Claro'],
+    ['interval', 'monthly', 'monthly', 'Monthly', 'Mensal'],
+    ['interval', 'yearly', 'yearly', 'Yearly', 'Anual'],
+    ['scopes', '["habits:read"]', ['habits:read'], 'Grant 1 selected permissions', 'Conceder 1 permissões selecionadas'],
+  ] as const)('summarizes producer-shaped %s proposals', (field, newValue, proposedValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it('summarizes a complete fixed schedule from typed weekdays', () => {
+    expect(summarize([
+      change('frequency_unit', 'Week', 'Week', 'Day'),
+      change('frequency_quantity', '1', 1, '2'),
+      change('is_flexible', 'false', false, 'true'),
+      change('days', '["Monday","Thursday"]', ['Monday', 'Thursday'], 'Tuesday'),
+    ])).toBe(locale === 'en' ? 'Mon, Thu' : 'Seg, Qui')
+  })
+
+  it('summarizes a complete fixed schedule from bulk display weekdays', () => {
+    expect(summarize([
+      change('frequency_unit', 'Week', 'Week', 'Day'),
+      change('frequency_quantity', '1', 1, '2'),
+      change('is_flexible', 'false', false, 'true'),
+      change('days', 'Monday, Thursday', undefined, 'Tuesday'),
+    ])).toBe(locale === 'en' ? 'Mon, Thu' : 'Seg, Qui')
+  })
+
+  it('formats dates and reminder offsets in the visible summary', () => {
+    expect(summarize([
+      change('due_date', '2026-09-26', '2026-09-26'),
+      change('end_date', '2026-09-27', '2026-09-27'),
+      change('deadline', '2026-09-28', '2026-09-28'),
+      change('reminder_times', '30 min before due', [30]),
+    ])).toBe(locale === 'en'
+      ? 'Sep 26, 2026 · Until Sep 27, 2026 · Due by Sep 28, 2026 · Remind me 30 min before'
+      : '26 de set. de 2026 · Até 27 de set. de 2026 · Prazo até 28 de set. de 2026 · Lembrar 30 min antes')
   })
 
   it('keeps unknown fields and enum values out of the preview', () => {
