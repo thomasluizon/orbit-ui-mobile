@@ -42,7 +42,10 @@ async function expectFill(control: Locator, fill: string, label: string) {
 }
 
 async function holdControl(page: Page, control: Locator, hasTouch: boolean) {
-  await page.evaluate(() => { delete document.documentElement.dataset.pointerType })
+  await page.evaluate(() => {
+    delete document.documentElement.dataset.pointerType
+    delete document.documentElement.dataset.pointerReleaseType
+  })
   if (!hasTouch) {
     await control.hover()
     await page.mouse.down()
@@ -56,13 +59,20 @@ async function holdControl(page: Page, control: Locator, hasTouch: boolean) {
   const bounds = await control.boundingBox()
   expect(bounds, 'touch target bounds').not.toBeNull()
   const session = await page.context().newCDPSession(page)
-  await session.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: [{ x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2 }],
-  })
-  expect(await page.locator('html').getAttribute('data-pointer-type')).toBe('touch')
+  const x = bounds!.x + bounds!.width / 2
+  const y = bounds!.y + bounds!.height / 2
+  await session.send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' })
+  void session.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1,
+  }).catch(() => {})
+  await expect.poll(() => page.locator('html').getAttribute('data-pointer-type')).toBe('touch')
   return async () => {
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    void session.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1,
+    }).catch(() => {})
+    await expect.poll(() => page.locator('html').getAttribute('data-pointer-release-type')).toBe('touch')
+    await session.send('Emulation.setEmitTouchEventsForMouse', { enabled: false })
+    await page.mouse.move(1, 1)
     await session.detach()
   }
 }
@@ -83,7 +93,7 @@ describe('neutral press feedback in Chromium', () => {
   let browser: Browser
   let stylesheet: string
 
-  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch }, ['--enable-features=SyntheticPointerActions'])
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
@@ -103,6 +113,9 @@ describe('neutral press feedback in Chromium', () => {
     await page.evaluate(() => {
       document.addEventListener('pointerdown', (event) => {
         document.documentElement.dataset.pointerType = event.pointerType
+      }, true)
+      document.addEventListener('pointerup', (event) => {
+        document.documentElement.dataset.pointerReleaseType = event.pointerType
       }, true)
       document.addEventListener('click', (event) => {
         if (event.target instanceof Element && event.target.closest('a')) event.preventDefault()
