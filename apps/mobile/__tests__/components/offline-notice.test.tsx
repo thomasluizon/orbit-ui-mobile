@@ -1,11 +1,12 @@
 import React from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import HabitCreateRoute from '@/app/habits/new'
 import { OfflineNotice } from '@/components/offline-notice'
+import { Shell412 } from '@/components/shell/shell-412'
 import { Toast } from '@/components/ui/app-toast'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -276,4 +277,28 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(useOfflineSyncStore.getState().drops).toHaveLength(0)
   })
 
+})
+
+describe('offline notice in the shell notice slot', () => {
+  it('leaves the horizontal inset to the shell slot', async () => {
+    Object.assign(mocks.queue, { isOnline: false, pendingCount: 2, isFlushing: false, hasFailed: false })
+    useOfflineSyncStore.setState({ drops: [] })
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    let shell!: { root: { findAll: (match: (node: { type: unknown; props: Record<string, unknown> }) => boolean) => { props: Record<string, unknown> }[] }; unmount: () => void }
+    await TestRenderer.act(() => {
+      shell = TestRenderer.create(<Shell412 notice={<OfflineNotice />} tabBar={React.createElement('TabBar')} />)
+    })
+    const styleOf = (testID: string) => {
+      const [node] = shell.root.findAll((candidate) => typeof candidate.type === 'string' && candidate.props.testID === testID)
+      return StyleSheet.flatten(node!.props.style) as Record<string, number | undefined>
+    }
+    const inset = (style: Record<string, number | undefined>, side: 'Left' | 'Right') =>
+      style[`padding${side}`] ?? style.paddingHorizontal ?? style.padding ?? 0
+    const slot = styleOf('shell-notice')
+    const host = styleOf('offline-notice')
+    expect(inset(slot, 'Left') + inset(host, 'Left')).toBe(16)
+    expect(inset(slot, 'Right') + inset(host, 'Right')).toBe(16)
+    expect(host).toMatchObject({ paddingVertical: 16, gap: 12 })
+    await TestRenderer.act(() => shell.unmount())
+  })
 })
