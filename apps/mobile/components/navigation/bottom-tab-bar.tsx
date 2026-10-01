@@ -1,3 +1,4 @@
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { TabBarProps } from '@orbit/shared/contracts/navigation'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -27,7 +28,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', height: 56, borderTopWidth: 1, maxWidth: 740, width: '100%' },
+  container: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', height: 56, borderTopWidth: 1, maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%' },
   tab: { alignItems: 'center', flex: 1, gap: 4, height: 44, justifyContent: 'center', minWidth: 0, borderRadius: 999, overflow: 'hidden' },
   label: { fontFamily: 'Geist_500Medium', fontSize: 12 },
 })
