@@ -121,18 +121,18 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
           const selected = daily || days.includes(day.value)
           return (
             <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-              className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
+              className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium enabled:hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)]'}`}
               onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
           )
         })}
       </fieldset>
       {showCount ? (
         <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-          <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
+          <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
             <Minus size={20} strokeWidth={2} aria-hidden="true" />
           </button>
           <span className="min-w-7 text-center font-mono text-xl tabular-nums">{quantity}</span>
-          <button type="button" aria-label={labels.more} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(quantity + 1)}>
+          <button type="button" aria-label={labels.more} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(quantity + 1)}>
             <Plus size={20} strokeWidth={2} aria-hidden="true" />
           </button>
           <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.count(quantity)}</span>
@@ -150,7 +150,7 @@ export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = f
         type="button"
         aria-label={labels.repeatLess}
         disabled={scheduleLocked || intervalWeeks <= 1}
-        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
         onClick={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
       >
         <Minus size={20} strokeWidth={2} aria-hidden="true" />
@@ -160,7 +160,7 @@ export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = f
         type="button"
         aria-label={labels.repeatMore}
         disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
-        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
         onClick={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
       >
         <Plus size={20} strokeWidth={2} aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss, { type Rule } from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -43,5 +43,18 @@ describe('hover states compiled from app/globals.css', () => {
   it('leaves no hover state, utility or hand-written, that a touch tap could latch', () => {
     expect(hoverRules.length).toBeGreaterThan(40)
     expect(hoverRules.filter((rule) => !gatedRules.has(rule)).map((rule) => rule.selector)).toEqual([])
+  })
+
+  it('uses the hover variant instead of raw hover selectors in arbitrary variants', () => {
+    const violations = ['app', 'components', 'hooks', 'lib', 'stores'].flatMap((directory) => {
+      const root = resolve(process.cwd(), directory)
+      return readdirSync(root, { recursive: true, encoding: 'utf8' })
+        .filter((path) => /\.[cm]?[jt]sx?$/.test(path))
+        .flatMap((path) => {
+          const selectors = readFileSync(resolve(root, path), 'utf8').match(/\[[^\]\s]*:hover[^\]\s]*\]/g) ?? []
+          return selectors.map((selector) => `${directory}/${path}: ${selector}`)
+        })
+    })
+    expect(violations).toEqual([])
   })
 })

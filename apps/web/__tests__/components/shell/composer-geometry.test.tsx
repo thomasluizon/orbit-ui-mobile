@@ -1,3 +1,4 @@
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
@@ -26,12 +27,43 @@ describe('Composer compact geometry in Chromium', () => {
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
-    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
   afterAll(async () => {
     await closeChrome(browserLaunch)
     writeFileSync(join(tmpdir(), 'orbit-composer-widths.json'), JSON.stringify(measurements, null, 2))
   }, 30_000)
+
+  it.each(['idle', 'sending', 'offline', 'atLimit', 'transcribing', 'recording'] as const)(
+    'paints hover only on enabled attachment and voice controls while %s', async (state) => {
+      const status = state === 'offline' || state === 'atLimit'
+        ? { state, limitReason: en.shell.composer.offline.reason }
+        : { state }
+      const { container } = render(<Composer {...status} value="" suggestions={[]}
+        words={en.shell.composer}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
+        onAttachFile={vi.fn()} onAttachImage={vi.fn()}
+        attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }} />)
+      const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true)
+        const controls = page.locator('[data-composer-controls] button')
+        expect(await controls.count()).toBe(['recording', 'transcribing'].includes(state) ? 1 : 3)
+        for (const control of await controls.all()) {
+          await page.mouse.move(0, 0)
+          const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          const bounds = (await control.boundingBox())!
+          await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+          await page.waitForTimeout(300)
+          const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
+          else expect(hoveredFill).not.toBe(restingFill)
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each([320, 360, 412, 600])('fully reveals long suggestion chips after scrolling and resizing from $0', async (width) => {
     const chips = buildComposerChips({

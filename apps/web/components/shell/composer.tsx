@@ -139,7 +139,7 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.file}
             disabled={inputDisabled}
             onClick={props.onAttachFile}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
           >
             <FileText size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -151,7 +151,7 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={props.attachWords.image}
             disabled={inputDisabled}
             onClick={props.onAttachImage}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
           >
             <ImageIcon size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -163,7 +163,7 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
             aria-label={isRecording || isTranscribing ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}
-            className={`flex size-11 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)]'}`}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)]'}`}
           >
             {isRecording || isTranscribing ? (
               <Square size={16} fill="currentColor" aria-hidden="true" />
