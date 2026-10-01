@@ -4,8 +4,8 @@ import { StyleSheet } from 'react-native'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import type { ReactTestRenderer } from 'react-test-renderer'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -16,6 +16,16 @@ import {
   withDelayCalls,
   withTimingCalls,
 } from '@/test-mocks/react-native-reanimated'
+
+const profileState = vi.hoisted<{ weekStartDay: 0 | 1 | undefined; isError: boolean; refetch: ReturnType<typeof vi.fn> }>(() => ({ weekStartDay: 1, isError: false, refetch: vi.fn() }))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: profileState.weekStartDay === undefined ? undefined : createMockProfile({ weekStartDay: profileState.weekStartDay }),
+    isError: profileState.isError,
+    refetch: profileState.refetch,
+  }),
+}))
 
 const translationState = vi.hoisted(() => ({ realLocale: '' }))
 const testI18n = createInstance()
@@ -35,11 +45,6 @@ vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => React.createElement('ShareCard'),
 }))
 
-vi.mock('@/components/ui/columns', () => ({
-  Columns: ({ columns }: Readonly<{ columns: { id: string; label: string; value: number }[] }>) =>
-    React.createElement('Columns', { testID: 'weekday-columns', columns }),
-}))
-
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const recap = createMockRecap({
   metrics: createMockRetrospectiveMetrics({
@@ -48,14 +53,20 @@ const recap = createMockRecap({
 })
 const tokens = new Proxy({}, { get: () => '#111111' }) as Parameters<typeof WrappedSlide>[0]['tokens']
 
-function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
+function renderSlide(
+  slide: ReturnType<typeof buildWrappedSlides>[number],
+  period: 'week' | 'month' | 'year' = 'week',
+  storyRecap = recap,
+  weekStartDay: 0 | 1 | null = 1,
+) {
+  profileState.weekStartDay = weekStartDay ?? undefined
   let tree!: ReactTestRenderer
   void renderer.act(() => {
     tree = renderer.create(
       <WrappedSlide
         slide={slide}
-        recap={recap}
-        period="week"
+        recap={storyRecap}
+        period={period}
         tokens={tokens}
         shareRef={{ current: null }}
         shareError={false}
@@ -67,11 +78,110 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('mobile WrappedSlide', () => {
+  beforeEach(() => {
+    profileState.weekStartDay = 1
+    profileState.isError = false
+    profileState.refetch.mockReset()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 4, 12))
+  })
+
   afterEach(() => {
+    vi.useRealTimers()
     reanimatedTestState.reducedMotion = false
     translationState.realLocale = ''
     withDelayCalls.length = 0
     withTimingCalls.length = 0
+  })
+
+  it.each(['en', 'pt-BR'])('uses full weekday names in the %s sentence', (locale) => {
+    translationState.realLocale = locale
+    const messages = locale === 'en' ? en : ptBR
+    for (const [index, weekday] of Object.keys(messages.dates.daysLong).entries()) {
+      const weeklyConsistency = Array.from({ length: 7 }, (_, day) => day === index ? 100 : 0)
+      const tree = renderSlide({ id: 'consistency', weeklyConsistency })
+      const fullName = messages.dates.daysLong[weekday as keyof typeof messages.dates.daysLong]
+      const sentence = messages.wrapped.slides.consistency.summary.replace('{strong}', fullName)
+      expect(tree.root.findAll((node) => node.props.children === sentence).length).toBeGreaterThan(0)
+      void renderer.act(() => tree.update(<></>))
+    }
+  })
+
+  it.each([['en', 0], ['pt-BR', 0], ['en', 100], ['pt-BR', 100]] as const)('marks future weekdays as not yet in %s with future value %i and keeps elapsed zeroes measured', (locale, futureValue) => {
+    translationState.realLocale = locale
+    vi.setSystemTime(new Date(2026, 9, 1, 12))
+    const messages = locale === 'en' ? en : ptBR
+    const tree = renderSlide(
+      { id: 'consistency', weeklyConsistency: [70, 50, 0, 0, futureValue, futureValue, futureValue] },
+      'week',
+      createMockRecap({ metrics: createMockRetrospectiveMetrics({ periodDays: 4 }) }),
+    )
+    const columns = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    for (const [index, weekday] of ['friday', 'saturday', 'sunday'].entries()) {
+      expect(columns[index + 4]!.props.accessibilityLabel).toBe(
+        `${messages.wrapped.slides.consistency.title}. ${messages.dates.daysShort[weekday as 'friday' | 'saturday' | 'sunday']}: ${messages.calendar.dayCell.future}`,
+      )
+      expect(columns[index + 4]!.findAll((node) => node.props.children === '0')).toHaveLength(0)
+    }
+    expect(columns[3]!.props.accessibilityLabel).toContain(`${messages.dates.daysShort.thursday}: 0`)
+    expect(columns[3]!.findAll((node) => node.props.children === '0').length).toBeGreaterThan(0)
+    const sentence = messages.wrapped.slides.consistency.summary.replace('{strong}', messages.dates.daysLong.monday)
+    expect(tree.root.findAll((node) => node.props.children === sentence).length).toBeGreaterThan(0)
+  })
+
+  it.each(([
+    [0, 'Thursday', 5, [20, 20, 0, 20, null, null, 100]],
+    [1, 'Thursday', 4, [20, 20, 0, 20, null, null, null]],
+    [0, 'Sunday', 1, [null, null, null, null, null, null, 100]],
+    [1, 'Sunday', 7, [20, 20, 0, 20, 0, 0, 100]],
+  ] as const).flatMap(([weekStartDay, accountDay, periodDays, expected]) =>
+    [false, true].map((deviceDateMismatch) => ({ weekStartDay, accountDay, periodDays, expected, deviceDateMismatch })),
+  ))('uses the returned $weekStartDay-start window on $accountDay with device mismatch $deviceDateMismatch', ({ weekStartDay, accountDay, periodDays, expected, deviceDateMismatch }) => {
+    translationState.realLocale = 'en'
+    vi.setSystemTime(new Date(2026, 9, deviceDateMismatch ? 5 : accountDay === 'Thursday' ? 1 : 4, 12))
+    const storyRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({
+        periodDays,
+        weeklyConsistency: [20, 20, 0, 20, 0, 0, 100],
+      }),
+    })
+    const slide = buildWrappedSlides(storyRecap).find((entry) => entry.id === 'consistency')!
+    const tree = renderSlide(slide, 'week', storyRecap, weekStartDay)
+    const columns = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    const weekdays = Object.values(en.dates.daysShort)
+    expect(columns.map((column) => column.props.accessibilityLabel)).toEqual(
+      expected.map((value, index) => `${en.wrapped.slides.consistency.title}. ${weekdays[index]}: ${value === null ? en.calendar.dayCell.future : value}`),
+    )
+    const sentence = weekStartDay === 1 && accountDay === 'Thursday'
+      ? en.wrapped.slides.consistency.even
+      : en.wrapped.slides.consistency.summary.replace('{strong}', en.dates.daysLong.sunday)
+    expect(tree.root.findAll((node) => node.props.children === sentence).length).toBeGreaterThan(0)
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it.each([false, true])('withholds weekday claims while the profile is unavailable, error %s', (isError) => {
+    profileState.isError = isError
+    const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')).toHaveLength(0)
+    if (isError) {
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
+      const retry = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.props.children === 'wrapped.retry').length > 0)[0]!
+      void renderer.act(() => (retry.props.onPress as () => void)())
+      expect(profileState.refetch).toHaveBeenCalledOnce()
+    } else {
+      const loading = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')[0]!
+      expect(loading.props.accessibilityLabel).toBe('wrapped.loading')
+      expect(loading.props.accessibilityState).toMatchObject({ busy: true })
+    }
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it.each(['month', 'year'] as const)('keeps all weekday averages available for a %s recap on Thursday', (period) => {
+    vi.setSystemTime(new Date(2026, 9, 1, 12))
+    const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 50, 0, 0, 0, 0, 0] }, period)
+    const columns = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    expect(columns[4]!.props.accessibilityLabel).toContain('dates.daysShort.friday: 0')
   })
 
   it.each([412, 1024])('renders the drawn intro title size at %ipx', (width) => {
@@ -186,18 +296,10 @@ describe('mobile WrappedSlide', () => {
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
     const consistency = buildWrappedSlides(recap).find((slide) => slide.id === 'consistency')!
     const tree = renderSlide(consistency)
-    const columns = tree.root.findAll((node) => node.props.testID === 'weekday-columns')[0]!
-    const columnProps = columns.props as { columns: { label: string }[] }
-
-    expect(columnProps.columns.map((column) => column.label)).toEqual([
-      'dates.daysShort.monday',
-      'dates.daysShort.tuesday',
-      'dates.daysShort.wednesday',
-      'dates.daysShort.thursday',
-      'dates.daysShort.friday',
-      'dates.daysShort.saturday',
-      'dates.daysShort.sunday',
-    ])
+    const columns = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    expect(columns.map((column) => column.props.accessibilityLabel)).toEqual([
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    ].map((weekday, index) => `wrapped.slides.consistency.title. dates.daysShort.${weekday}: ${(index + 1) * 10}`))
   })
 
   it('names only the strongest weekday when one maximum stands alone', () => {
@@ -210,11 +312,11 @@ describe('mobile WrappedSlide', () => {
     expect(
       tree.root.findAll((node) =>
         node.props.children ===
-        'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.friday"}')[0],
+        'wrapped.slides.consistency.summary:{"strong":"dates.daysLong.friday"}')[0],
     ).toBeTruthy()
     expect(
       tree.root.findAll((node) =>
-        typeof node.props.children === 'string' && node.props.children.includes('dates.daysShort.tuesday')),
+        typeof node.props.children === 'string' && node.props.children.startsWith('wrapped.slides.consistency.summary') && node.props.children.includes('dates.daysLong.tuesday')),
     ).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.note')[0]).toBeTruthy()
   })

@@ -1,6 +1,7 @@
 import type { Recap } from '../types/gamification'
+import type { Profile } from '../types/profile'
 import type { RetrospectiveHabitStat } from './retrospective'
-import type { ClosedRecapMonth } from './share-card'
+import type { RecapSharePeriod, ClosedRecapMonth } from './share-card'
 
 export function formatClosedWrappedMonth(closedMonth: ClosedRecapMonth, locale: string): string {
   const date = new Date(0)
@@ -34,11 +35,25 @@ export type WeeklyConsistencyReading =
   | { kind: 'even' }
   | { kind: 'compared'; strongestIndex: number }
 
-export function getWeeklyConsistencyReading(
+export function getWrappedWeekdayValues(
   weeklyConsistency: readonly number[],
+  period: RecapSharePeriod,
+  periodDays: number,
+  weekStartDay: Profile['weekStartDay'] | undefined,
+): (number | null)[] {
+  return weeklyConsistency.slice(0, 7).map((value, index) => {
+    if (period !== 'week') return value
+    if (weekStartDay === undefined) return null
+    const daysFromWeekStart = (index + 1 - weekStartDay + 7) % 7
+    return daysFromWeekStart < periodDays ? value : null
+  })
+}
+
+export function getWeeklyConsistencyReading(
+  weeklyConsistency: readonly (number | null)[],
 ): WeeklyConsistencyReading {
   const weekdayAverages = weeklyConsistency.slice(0, 7)
-  const highestAverage = Math.max(...weekdayAverages)
+  const highestAverage = Math.max(0, ...weekdayAverages.flatMap((value) => value === null ? [] : [value]))
   if (highestAverage <= 0) return { kind: 'thin' }
 
   const strongestWeekdays = weekdayAverages

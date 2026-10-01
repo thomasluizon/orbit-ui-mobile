@@ -3,14 +3,12 @@
  * comment: every column is identified by an `id` and a `label`, and there is NO date, no
  * start, no interval and no ordering prop anywhere in this component.
  */
-export interface Column {
+export type Column = {
   /** stable identity, e.g. a category key. NOT a date - this component has no time axis. */
   id: string
   /** the category's name, shown under the column and used in its accessible name */
   label: string
-  /** the measured figure; 0 is a real measurement and draws the sliver */
-  value: number
-}
+} & ({ value: number } | { value: null; unavailableLabel: string })
 
 export interface ColumnsProps {
   columns?: Column[]

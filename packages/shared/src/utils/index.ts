@@ -642,6 +642,7 @@ export {
   buildWrappedSlides,
   formatClosedWrappedMonth,
   getWeeklyConsistencyReading,
+  getWrappedWeekdayValues,
 } from './wrapped'
 export type {
   WeeklyConsistencyReading,

@@ -28,9 +28,9 @@ const selectedRing = `${computedCssColor(themeVariables['--primary']!)} 0px 0px 
 const unselectedRing = `${computedCssColor(themeVariables['--hairline']!)} 0px 0px 0px 1px inset`
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
-  for (const width of [320, 412, 640, 1440] as const) {
-    test.describe(`${locale} Wrapped final page at ${width}px`, () => {
-      test.use({ viewport: { width, height: 1400 } })
+  for (const [width, height] of [[320, 1400], [412, 1400], [640, 1400], [1440, 1400], [412, 700], [500, 706]] as const) {
+    test.describe(`${locale} Wrapped final page at ${width} by ${height}`, () => {
+      test.use({ viewport: { width, height } })
 
       test('keeps the Pager actions visible without horizontal overflow', async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
@@ -114,6 +114,26 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(actionBounds[1]!.left, `share actions form a row at ${width}px`)
             .toBeGreaterThanOrEqual(actionBounds[0]!.right)
         }
+
+        const header = page.getByTestId('wrapped-header')
+        const scroller = page.getByTestId('wrapped-page-scroll')
+        const headerAtStart = await header.boundingBox()
+        const pagerAtStart = await pager.boundingBox()
+        expect(headerAtStart).not.toBeNull()
+        expect(pagerAtStart).not.toBeNull()
+        expect(headerAtStart!.y).toBeGreaterThanOrEqual(0)
+        expect(headerAtStart!.y + headerAtStart!.height).toBeLessThanOrEqual(height)
+        expect(pagerAtStart!.y + pagerAtStart!.height).toBeLessThanOrEqual(height)
+        await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight })
+        expect(await header.boundingBox()).toEqual(headerAtStart)
+        expect(await pager.boundingBox()).toEqual(pagerAtStart)
+        const closeBounds = await header.getByRole('button', { name: messages.wrapped.close }).boundingBox()
+        expect(closeBounds).not.toBeNull()
+        expect(closeBounds!.y).toBeGreaterThanOrEqual(0)
+        expect(closeBounds!.y + closeBounds!.height).toBeLessThanOrEqual(height)
+        const preview = await page.getByTestId('wrapped-slide-share').locator('[data-wrapped-figure="primary"]').boundingBox()
+        expect(preview).not.toBeNull()
+        expect(preview!.y + preview!.height).toBeLessThanOrEqual(pagerAtStart!.y + 0.5)
 
         const documentWidth = await page.evaluate(() => Math.max(
           document.documentElement.scrollWidth,
