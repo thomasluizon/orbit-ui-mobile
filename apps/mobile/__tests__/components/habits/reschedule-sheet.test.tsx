@@ -4,6 +4,7 @@ import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/_
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -77,10 +78,14 @@ describe('RescheduleSheet (mobile)', () => {
   it.each(['free', 'error', 'accept'] as const)('renders small actions in the %s sheet footer', (state) => {
     if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
     if (state === 'error') mockReschedule.error = new Error('unavailable')
+    if (state === 'accept') mockReschedule.suggestion = createMockRescheduleSuggestion()
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions).toBeDefined()
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
+    const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'retry' : 'accept'
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', `habits.reschedule.${terminalAction}`])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
     if (state === 'free') mockProfile = { hasProAccess: false, language: 'en' }
