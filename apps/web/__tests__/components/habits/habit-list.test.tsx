@@ -473,6 +473,8 @@ describe('HabitList', () => {
   })
 
   it.each([
+    { label: 'ordinary', isOverdue: false, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: [] },
     { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
       words: ['habits.overdue'] },
     { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
@@ -502,6 +504,16 @@ describe('HabitList', () => {
       if (!words.includes(word)) expect(progress).not.toHaveTextContent(word)
     }
     expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+    const body = row.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    const bodyName = [label, ['habits.rowProgress({"done":1,"total":2})', ...words].join('·')].join('')
+    expect(within(row).getByRole('button', {
+      name: (name) => name.replaceAll(' ', '') === bodyName.replaceAll(' ', ''),
+    })).toBe(body)
+    const state = flags.isBadHabit ? 'bad' : flags.isCompleted ? 'done' : flags.isOverdue ? 'overdue' : 'empty'
+    expect(within(row).getByRole('button', {
+      name: `habits.statusDot.${state}, habits.${state === 'done' ? 'actions.unlog' : 'logHabit'}: ${label}, 1/2`,
+    })).toBeEnabled()
+    expect(within(row).getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
   })
 
   it('explains an offline sub-habit request beside the parent row', () => {
