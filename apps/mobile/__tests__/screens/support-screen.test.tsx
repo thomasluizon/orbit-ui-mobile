@@ -5,6 +5,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
+import { getAppVersion } from '@/lib/app-version'
 import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import { i18n } from '@/lib/i18n'
 import { __resetTestHostConfig, __setFocusImpl, __setTouchMode } from '../../test-mocks/react-native'
@@ -30,8 +31,15 @@ const mocks = vi.hoisted(() => ({
   focusInput: vi.fn(),
   focusSubject: vi.fn(),
   announceForAccessibility: vi.fn(),
+  nativeVersion: null as string | null,
   expoVersion: new Map<string, string>().get('version'),
   translations: new Map<string, string>(),
+}))
+
+vi.mock('expo-application', () => ({
+  get nativeApplicationVersion() {
+    return mocks.nativeVersion
+  },
 }))
 
 vi.mock('expo-constants', () => ({
@@ -156,10 +164,10 @@ describe('SupportScreen', () => {
     mocks.setItem.mockResolvedValue(undefined)
     mocks.removeItem.mockResolvedValue(undefined)
     mocks.apiClient.mockResolvedValue(undefined)
+    mocks.nativeVersion = null
     mocks.expoVersion = '1.1.4'
     mocks.translations.clear()
   })
-
 
   it('shows both errors on an empty submit and focuses the subject first without sending', async () => {
     const tree = await renderScreen()
@@ -429,6 +437,22 @@ describe('SupportScreen', () => {
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
       'profile.support.sendNeedsMessage',
     )
+  })
+
+  it('shows and attaches the installed Android version used by About', async () => {
+    mocks.nativeVersion = '2.3.1'
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.props.children === `profile.support.versionIncluded({"version":"${getAppVersion()}"})`)).not.toHaveLength(0)
+    await selectSubject(tree.root)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(sentRequestBody().message).toBe(`Message\n\nOrbit ${getAppVersion()}`)
   })
 
   it('accepts the API message length boundary', async () => {

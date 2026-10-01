@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import Constants from 'expo-constants'
+import { getAppVersion } from '@/lib/app-version'
 import { Check, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -82,7 +82,7 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
-  appVersion?: string
+  appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
   error: string | null
@@ -248,7 +248,7 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
-  const appVersion = Constants.expoConfig?.version?.trim() || undefined
+  const appVersion = getAppVersion()
   const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
   const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState<SupportSubjectId | null>(null)

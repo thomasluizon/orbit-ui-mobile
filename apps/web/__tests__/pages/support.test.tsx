@@ -93,7 +93,6 @@ describe('SupportPage', () => {
     localStorage.clear()
   })
 
-
   it('shows both errors on an empty submit and focuses the subject first without sending', async () => {
     render(<SupportPage />)
     fireEvent.click(sendButton())
