@@ -273,9 +273,10 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 }
 
 const timestamp = new Date().toISOString()
+const launchSessionId = readRunState()?.sessionId ?? null
 const reservation = reserveWorkerLaunch({
   launcherPid: process.pid,
-  sessionId: readRunState()?.sessionId ?? null,
+  sessionId: launchSessionId,
   issue,
   runDirectory,
   repositoryKey,
@@ -344,7 +345,7 @@ const finish = (outcome, exitCode) => {
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: readRunState()?.sessionId ?? null, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
   const directory = join(workerLaunchDirectory(), "results")
   mkdirSync(directory, { recursive: true })
   const resultPath = join(directory, `${process.pid}.json`)

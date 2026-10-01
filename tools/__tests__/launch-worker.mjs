@@ -664,15 +664,20 @@ setInterval(() => {}, 60000)
   discardLog(flooded.stdout)
 
   /** An ordinary worker must not trip the cap, or the bound is just a shorter ceiling. */
-  const belowCap = launch("log-below-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLogMegabytes: 32 } }))
+  const sessionMutator = stage("launch-worker/session-mutator.cjs", 'const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_TEST_RUN_RECORD, JSON.stringify({ sessionId: "replacement-session" }))\n')
+  const belowCap = launch("log-below-cap", launchConfig({ ...stubEngine(sessionMutator), caps: { workerLogMegabytes: 32 } }))
+  const sessionRecord = join(belowCap.base, ".git", "orbit-orchestrate-run.json")
+  mkdirSync(dirname(sessionRecord), { recursive: true })
+  writeFileSync(sessionRecord, JSON.stringify({ sessionId: "launch-session" }))
   const quiet = check(
     TOOL,
     "an ordinary worker well under the log cap exits normally",
     ["--issue", "ORB-201", "--worktree", belowCap.worktree, "--prompt", belowCap.prompt],
     { status: 0, stdout: /"outcome": "EXITED"/ },
-    { path: belowCap.path, env: githubAuthEnv() },
+    { path: belowCap.path, env: { ...githubAuthEnv(), ORBIT_TEST_RUN_RECORD: sessionRecord } },
   )
   const quietResult = JSON.parse(quiet.stdout)
+  T(`${TOOL}: a replacement run cannot relabel the completed launcher result`, quietResult.sessionId === "launch-session", quiet.stdout)
   const savedResult = join(belowCap.base, ".git", "orbit-worker-launches", "results", `${quietResult.launcherPid}.json`)
   T(`${TOOL}: final result is atomically retained in the launcher checkout`,
     existsSync(savedResult) && JSON.stringify(JSON.parse(readFileSync(savedResult, "utf8"))) === JSON.stringify(quietResult))
