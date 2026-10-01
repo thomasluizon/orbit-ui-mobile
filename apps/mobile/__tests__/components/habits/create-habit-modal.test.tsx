@@ -92,9 +92,13 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: () => 'today',
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+  }
+})
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({

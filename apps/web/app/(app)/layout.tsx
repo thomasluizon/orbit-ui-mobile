@@ -65,7 +65,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 
@@ -124,6 +124,7 @@ function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonl
     if (!useUIStore.getState().showCreateModal) return
     const from = `${pathname}${searchParams.size ? `?${searchParams}` : ''}`
     const conversation = useUIStore.getState().astraConversationOpen
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     onNavigated()
     useUIStore.getState().setAstraConversationOpen(false)
     setRouteTransitionIntent('forward')

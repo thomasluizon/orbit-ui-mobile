@@ -139,10 +139,14 @@ vi.mock('@/hooks/use-tag-selection', () => ({
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  setUIAccountScope: vi.fn(),
-  useUIStore: () => 'today',
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    setUIAccountScope: vi.fn(),
+    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+  }
+})
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({

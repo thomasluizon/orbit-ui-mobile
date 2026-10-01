@@ -3,7 +3,7 @@ import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { plural } from "@/lib/plural";
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'expo-router'
-import { buildHabitCreateHref } from '@orbit/shared/utils'
+import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 
@@ -53,6 +53,7 @@ export function TodayModals({
   useEffect(() => {
     if (!showCreateModal || !useUIStore.getState().showCreateModal) return
     const conversation = useUIStore.getState().astraConversationOpen
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     onCloseCreateModal()
     useUIStore.getState().setAstraConversationOpen(false)
     router.push(buildHabitCreateHref({ date: createInitialDate, from: pathname, conversation }))

@@ -1,5 +1,7 @@
-import type { ComponentProps, ComponentType } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
+import { useUIStore } from '@/stores/ui-store'
+import { useLayoutEffect, type ComponentProps, type ComponentType } from 'react'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
 import { AppBar } from '@/components/ui/app-bar'
@@ -22,12 +24,17 @@ export function HabitCreateFrame({ presentation, fromConversation, leaving, leav
 }
 
 function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGuard, ...props }: Readonly<Omit<HabitCreateFrameProps, 'presentation'>>) {
+  useLayoutEffect(() => {
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [])
+  const { width } = useWindowDimensions()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <KeyboardAwareView style={styles.root}><Shell412 nav={false} safeAreaTop
     header={<AppBar title={props.title ?? ''} onBack={() => props.onAttemptDismiss?.()} backLabel={t('common.back')} />}
-    action={<View style={styles.action}>{props.actions}</View>}>
+    action={<View style={[styles.action, width >= 640 && styles.wideAction]}>{props.actions}</View>}>
     <KeyboardAwareScrollView avoidKeyboard={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     {fromConversation ? <View style={styles.origin}><AstraGlyph size={20} /><Text style={[styles.originText, { color: tokens.fg2 }]}>{t('habits.form.fromConversation')}</Text></View> : null}
     {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={() => props.onAttemptDismiss?.()} /> : null}
@@ -39,6 +46,7 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
 const styles = StyleSheet.create({
   root: { flex: 1 },
   action: { alignSelf: 'center', width: '100%', maxWidth: 740, padding: 16 },
+  wideAction: { maxWidth: 392 },
   content: { alignSelf: 'center', width: '100%', maxWidth: 592, padding: 16, gap: 24 },
   origin: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   originText: { flex: 1, fontSize: 14, lineHeight: 21, fontFamily: 'Geist_400Regular' },

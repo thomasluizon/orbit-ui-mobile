@@ -12,8 +12,8 @@ function NativeHabitCreateGuard({ leaving, requestLeave }: Readonly<{ leaving: b
   return null
 }
 
-function firstParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value
+function firstParam(value: string | string[] | null | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value ?? undefined
 }
 
 export default function HabitCreateRoute() {

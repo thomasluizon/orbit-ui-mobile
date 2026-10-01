@@ -43,15 +43,13 @@ vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen; lastDestination: string; setLastDestination: typeof mocks.setLastDestination }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen, lastDestination: mocks.lastDestination, setLastDestination: mocks.setLastDestination }),
 }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (
-    selector: (state: {
-      setShowCreateModal: typeof mocks.setShowCreateModal
-    }) => unknown,
-  ) => selector({
-    setShowCreateModal: mocks.setShowCreateModal,
-  }),
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal }), { getState: original.useUIStore.getState }),
+  }
+})
 vi.mock('@/components/command/command-palette', () => ({
   CommandPalette: () => <div data-testid="command-palette" />,
 }))

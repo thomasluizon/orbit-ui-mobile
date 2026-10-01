@@ -1,6 +1,9 @@
 'use client'
 
-import { useCallback, type ComponentProps } from 'react'
+import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
+import { useUIStore } from '@/stores/ui-store'
+
+import { useCallback, useLayoutEffect, type ComponentProps } from 'react'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useTranslations } from 'next-intl'
 import { Sheet } from '@/components/ui/sheet'
@@ -23,6 +26,10 @@ export function HabitCreateFrame({ presentation, fromConversation, actionRefresh
 }
 
 function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, onClose, fromConversation, actionRefreshKey, leaving, onNavigate, onReturn }: Readonly<Omit<HabitCreateFrameProps, 'presentation'>>) {
+  useLayoutEffect(() => {
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [])
   const t = useTranslations()
   useHabitCreateNavigationGuard({ active: true, dirty: !onClose, leaving, onNavigate, onReturn })
   const renderHeader = useCallback(() => <AppBar title={title ?? ''} onBack={() => onAttemptDismiss?.()} backLabel={t('common.back')} />, [onAttemptDismiss, t, title])
