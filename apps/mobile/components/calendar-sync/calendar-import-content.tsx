@@ -402,7 +402,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   )
 
   return (
-    <View style={styles.scrollContent}>
+    <View>
       <CalendarPickerSection
         styles={styles}
         tokens={tokens}
@@ -615,7 +615,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           </View>
         )}
 
-        <View style={{ height: 24 }} />
     </View>
   )
 }

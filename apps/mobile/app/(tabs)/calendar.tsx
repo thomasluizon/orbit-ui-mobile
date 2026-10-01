@@ -1228,9 +1228,6 @@ function createStyles() {
       flex: 1,
     },
     sheetContent: {
-      paddingHorizontal: 16,
-      paddingTop: 4,
-      paddingBottom: 24,
       gap: 12,
     },
   });

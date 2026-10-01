@@ -212,7 +212,7 @@ describe('alerts', () => {
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {
     seed(1)
     showInbox()
-    expect(screen.queryByRole('button', { name: 'Delete: Alert 0' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete: Alert 0' })).toBeInTheDocument()
     for (const name of [en.notifications.markAllRead, en.notifications.deleteAll]) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
@@ -290,7 +290,7 @@ describe('alerts', () => {
     expect(screen.queryByText('0')).toBeNull()
   })
 
-  it.each([1, 9, 25])('renders the neutral count pill from the unread total %s while loading', (count) => {
+  it.each([1, 9, 25])('renders the neutral count badge from the unread total %s while loading', (count) => {
     state.unreadCount = count
     state.isLoading = true
     const { container } = render(<NotificationBell />)
@@ -299,6 +299,7 @@ describe('alerts', () => {
     const badge = container.querySelector('[data-notification-count]')!
     expect(badge.outerHTML).not.toMatch(/--primary/)
     expect(badge.outerHTML).toContain('--fg-1')
+    expect(getComputedStyle(badge).borderRadius).toBe('8px')
   })
 
   it('renders an empty inbox without an action and returns through the back affordance', () => {
@@ -374,11 +375,16 @@ describe('alerts', () => {
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
   })
 
-  it('opens the row sheet and offers undo until its delete commits', () => {
+  it('deletes through the sibling row action and offers undo until its delete commits', () => {
     seed(2)
     showInbox()
-    expect(screen.getAllByRole('listitem')[0]!.querySelectorAll('button')).toHaveLength(1)
-    deleteFromSheet('Alert 0')
+    const body = screen.getByRole('button', { name: 'Alert 0. unread. Progress' })
+    const remove = screen.getByRole('button', { name: 'Delete: Alert 0' })
+    expect(remove.parentElement).toBe(body.parentElement)
+    expect(body.contains(remove)).toBe(false)
+    fireEvent.click(remove)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Alert 1. unread. Progress' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()
     expect(state.remove).not.toHaveBeenCalled()
     void act(() => vi.advanceTimersByTime(4000))
@@ -387,7 +393,7 @@ describe('alerts', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
     void act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
-    deleteFromSheet('Alert 0')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
     void act(() => vi.advanceTimersByTime(5000))
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()

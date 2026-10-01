@@ -15,7 +15,7 @@ export function WidgetInfoOverlay({
 
   return (
     <Sheet open onClose={() => onOpenChange(false)} title={t('profile.widgetTitle')}>
-      <div className="flex flex-col gap-4" style={{ paddingBottom: 8 }}>
+      <div className="flex flex-col gap-4">
         <div>
           <h3 className="mb-2 font-sans text-[15px] font-medium text-[var(--fg-1)]">
             {t('profile.widgetHow.title')}
