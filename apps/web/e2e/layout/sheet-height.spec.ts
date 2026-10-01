@@ -9,6 +9,7 @@ import { test } from './upgrade-fixtures'
 const VIEWPORT = { width: 412, height: 915 }
 const MAX_PANEL_HEIGHT = VIEWPORT.height * 0.85
 const SAFE_AREA_BOTTOM = 34
+const BODY_PADDING = 24
 
 test.use({ appLocale: 'pt-BR', viewport: VIEWPORT })
 
@@ -63,6 +64,10 @@ async function measureSheet(panel: Locator) {
       bodyContentHeight: lastChild.bottom - bodyBounds.top + Number.parseFloat(bodyStyle.paddingBottom),
       bodyScrollHeight: body.scrollHeight,
       bodyClientHeight: body.clientHeight,
+      bodyPaddingBottom: Number.parseFloat(bodyStyle.paddingBottom),
+      bodyPaddingLeft: Number.parseFloat(bodyStyle.paddingLeft),
+      bodyPaddingRight: Number.parseFloat(bodyStyle.paddingRight),
+      lastContentBottomGap: bodyBounds.bottom - lastChild.bottom,
       footerBottomGap: innerHeight - footer.getBoundingClientRect().bottom,
       actionBottomGap: innerHeight - Array.from(footer.querySelectorAll('button')).at(-1)!.getBoundingClientRect().bottom,
       bottomInset,
@@ -92,12 +97,41 @@ test('a short confirmation fits its content and keeps its actions above the safe
   const measured = await measureSheet(panel)
   process.stdout.write(`delete-all confirmation: panel=${measured.panelHeight}px, actions clear the bottom by ${measured.actionBottomGap}px\n`)
   expect(measured.bottomInset).toBe(SAFE_AREA_BOTTOM)
+  expect(measured.bodyPaddingBottom).toBe(BODY_PADDING)
+  expect(measured.bodyPaddingLeft).toBe(BODY_PADDING)
+  expect(measured.bodyPaddingRight).toBe(BODY_PADDING)
+  expect(measured.lastContentBottomGap).toBeCloseTo(BODY_PADDING, 0)
   expect(Math.abs(measured.bodyHeight - measured.bodyContentHeight)).toBeLessThanOrEqual(1)
   expect(Math.abs(measured.panelHeight - measured.stackedHeight)).toBeLessThanOrEqual(1)
   expect(measured.panelHeight).toBeLessThan(MAX_PANEL_HEIGHT)
   expect(measured.panelPaddingBottom).toBe(measured.bottomInset)
   expect(measured.footerBottomGap).toBeGreaterThanOrEqual(measured.bottomInset)
   expect(measured.actionBottomGap).toBeGreaterThanOrEqual(measured.bottomInset)
+})
+
+test('a short widget sheet has one bottom inset below its last line', async ({ page }) => {
+  await page.goto('/profile')
+  await page.getByRole('button', { name: messages.profile.widgetTitle }).click()
+  const panel = page.getByRole('dialog', { name: messages.profile.widgetTitle })
+  await expect(panel).toBeVisible()
+  await panel.evaluate(() => document.fonts.ready.then(() => undefined))
+  const measured = await panel.evaluate((element) => {
+    const body = element.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+    const rows = body.querySelectorAll('li')
+    const bodyStyle = getComputedStyle(body)
+    return {
+      panelHeight: element.getBoundingClientRect().height,
+      bodyPaddingBottom: Number.parseFloat(bodyStyle.paddingBottom),
+      bodyPaddingLeft: Number.parseFloat(bodyStyle.paddingLeft),
+      bodyPaddingRight: Number.parseFloat(bodyStyle.paddingRight),
+      lastRowBottomGap: body.getBoundingClientRect().bottom - rows[rows.length - 1]!.getBoundingClientRect().bottom,
+    }
+  })
+  expect(measured.panelHeight).toBeLessThan(MAX_PANEL_HEIGHT)
+  expect(measured.bodyPaddingBottom).toBe(BODY_PADDING)
+  expect(measured.bodyPaddingLeft).toBe(BODY_PADDING)
+  expect(measured.bodyPaddingRight).toBe(BODY_PADDING)
+  expect(measured.lastRowBottomGap).toBeCloseTo(BODY_PADDING, 0)
 })
 
 test('a long creation sheet scrolls under its pinned safe area footer', async ({ page }) => {

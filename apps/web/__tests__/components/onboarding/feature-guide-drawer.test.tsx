@@ -32,6 +32,16 @@ describe('FeatureGuideDrawer', () => {
     expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
   })
 
+  it('leaves the final guide group outer insets to its sheet', () => {
+    render(<FeatureGuideDrawer open onOpenChange={vi.fn()} />)
+    const body = screen.getByRole('dialog').querySelector('[data-slot="sheet-body"]')!
+    const lastGroup = Array.from(body.querySelectorAll('h3')).at(-1)!.parentElement!
+    const style = getComputedStyle(lastGroup)
+    expect(Number.parseFloat(style.paddingBottom) || 0).toBe(0)
+    expect(Number.parseFloat(style.paddingLeft) || 0).toBe(0)
+    expect(Number.parseFloat(style.paddingRight) || 0).toBe(0)
+  })
+
   it('renders the eight guide subjects in their product order', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
