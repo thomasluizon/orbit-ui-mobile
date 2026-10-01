@@ -56,6 +56,11 @@ describe.each(resources)('$name query session composition', ({ endpoint, useHook
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.totalCount).toBe(items.length)
+    const normalized = result.current.data
+    const itemIds = normalized && ('goalsById' in normalized
+      ? Array.from(normalized.goalsById.keys())
+      : Array.from(normalized.habitsById.keys()))
+    expect(itemIds).toEqual(populated ? ['item-1'] : [])
     expect(result.current.error).toBeNull()
     expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, sessionRefreshFailed: false, expiresAt })
   })

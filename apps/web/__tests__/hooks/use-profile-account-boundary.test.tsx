@@ -53,7 +53,10 @@ describe('profile fetch across the first session check', () => {
     const { result } = renderHook(() => useProfile(), { wrapper })
     await waitFor(() => expect(result.current.isLoading).toBe(true))
     await act(async () => { await useAuthStore.getState().checkSession() })
-    await act(async () => { answer() })
+    await act(async () => {
+      answer()
+      await result.current.refetch({ cancelRefetch: false, throwOnError: true })
+    })
 
     await waitFor(() => expect(result.current.profile?.name).toBe('Answered'))
     expect(result.current.isLoading).toBe(false)

@@ -64,6 +64,9 @@ describe('adapter query retry policy', () => {
     const { client, wrapper } = setupClient()
     const { result } = renderHook(() => useHook(client), { wrapper })
 
+    await act(async () => {
+      await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
+    })
     await waitFor(() => expect(result.current).toBeTruthy())
     expect(refusedFetch).toHaveBeenCalledTimes(1)
     expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({ retryAt: Date.parse(payload.retryAfterUtc), requestId: payload.requestId })
@@ -76,6 +79,9 @@ describe('adapter query retry policy', () => {
     const { wrapper } = setupClient()
     const { result, rerender } = renderHook(() => useBilling(true), { wrapper })
 
+    await act(async () => {
+      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
+    })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(result.current.error).toMatchObject({ status: 429, message: 'Rate limited' })

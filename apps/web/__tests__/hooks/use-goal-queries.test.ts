@@ -109,8 +109,10 @@ describe('useGoals', () => {
     })
 
     expect(result.current.isError).toBe(false)
-    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 500, message: 'Server error' }) })
     await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ status: 500, message: 'Server error' })
+    expect(result.current.data).toBeUndefined()
   })
 
   it('handles empty goal list', async () => {
