@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DateField } from '@/components/ui/date-field'
 import { Sheet } from '@/components/ui/sheet'
+import { buildYearRange } from '@orbit/shared/utils'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
@@ -75,6 +76,50 @@ describe('DateField sheet geometry in Chromium', () => {
         expect(target.reachable).toBe(true)
       }
       if (width >= 356) expect(measured.padding).toBe(24)
+    } finally { await page.close() }
+  })
+
+
+  it.each([320, 412])('has one year scroll owner in a %ipx tall viewport', async (height) => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    const dialog = await screen.findByRole('dialog')
+    const page = await browser.newPage({ viewport: { width: 640, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await loadAppFonts(page)
+      const years = buildYearRange(2025)
+      const measured = await page.evaluate((years) => {
+        const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+        const owners = [body, ...body.querySelectorAll<HTMLElement>('*')].filter((element) =>
+          ['auto', 'scroll'].includes(getComputedStyle(element).overflowY),
+        )
+        const selected = [...body.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find((button) => button.textContent === '2025')!
+        const scroller = selected.parentElement!.parentElement!
+        const rect = scroller.getBoundingClientRect()
+        const bodyRect = body.getBoundingClientRect()
+        const targets = years.map((year) => {
+          const button = [...body.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find((button) => button.textContent === String(year))!
+          const bounds = button.getBoundingClientRect()
+          return { width: bounds.width, height: bounds.height, top: bounds.top }
+        })
+        const reachable = [2025, years[0]!, years.at(-1)!].map((year) => {
+          const button = [...body.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find((button) => button.textContent === String(year))!
+          button.scrollIntoView({ block: 'center', behavior: 'instant' })
+          const bounds = button.getBoundingClientRect()
+          const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+          return bounds.top >= rect.top && bounds.bottom <= rect.bottom && button.contains(hit)
+        })
+        return { owners: owners.length, contained: rect.top >= bodyRect.top && rect.bottom <= bodyRect.bottom, viewportHeight: rect.height, targets, reachable }
+      }, years)
+      expect(measured.owners).toBe(1)
+      expect(measured.contained).toBe(true)
+      expect(measured.viewportHeight).toBeGreaterThanOrEqual(44)
+      expect(measured.targets).toHaveLength(years.length)
+      expect(measured.targets[3]!.top - measured.targets[0]!.top).toBe(48)
+      expect(measured.targets.every((target) => target.height === 44 && target.width >= 44)).toBe(true)
+      expect(measured.reachable).toEqual([true, true, true])
     } finally { await page.close() }
   })
 
