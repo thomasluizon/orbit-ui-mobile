@@ -121,6 +121,19 @@ describe('pressed hit area shapes', () => {
     expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
   })
 
+  it('keeps compact and regular ListRow targets at their drawn floors', () => {
+    expect(pressedStyle(<ListRow title="Habit" accessibilityLabel="Habit" onClick={() => {}} />, 'Habit').minHeight).toBe(56)
+    expect(pressedStyle(<ListRow title="Account" description="account@example.com" accessibilityLabel="Account" onClick={() => {}} />, 'Account').minHeight).toBe(76)
+    const row = <ListRow title="Key" accessibilityLabel="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />
+    expect(pressedStyle(row, 'Key')).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
+    expect(pressedStyle(row, 'Revoke')).toMatchObject({ width: 44, height: 44, marginVertical: 4, marginEnd: 16, alignSelf: 'center' })
+    withTree(row, (tree) => {
+      const body = pressedFill(findPressable(tree, 'Key'), false)
+      const action = pressedFill(findPressable(tree, 'Revoke'), false)
+      expect(Number(body.minHeight)).toBe(Number(action.height) + 2 * Number(action.marginVertical))
+    })
+  })
+
   it('fills the compact in-form ListRow body at the row radius', () => {
     const row = <ListRow title="Templates" accessibilityLabel="Templates" compact inForm onClick={() => {}} />
     expect(pressedStyle(row, 'Templates')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })

@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
+import { ListRow } from '@/components/ui/list-row'
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -148,4 +149,43 @@ describe('About destination geometry in Chromium', () => {
       }
     } finally { await page.close() }
   })
+
+  it.each([
+    ['plain', <ListRow key="plain" title="Habit" onClick={() => {}} />, 56],
+    ['read only', <ListRow key="read only" title="Habit" readOnly />, 56],
+    ['described', <ListRow key="described" title="Account" description="account@example.com" onClick={() => {}} />, 76],
+    ['compact with action', <ListRow key="compact with action" title="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 52],
+    ['plain with action', <ListRow key="plain with action" title="Key" onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 56],
+    ['described with action', <ListRow key="described with action" title="Invoice" description="Paid" action={{ icon: 'download', label: 'Download', onPress: () => {} }} />, 76],
+    ['bare', <ListRow key="bare" title="Schedule" inset={false} onClick={() => {}} />, 52],
+    ['compact in form', <ListRow key="compact in form" title="Template" compact inForm onClick={() => {}} />, 52],
+  ] as const)('keeps the %s row at its drawn height and its action at 44px', async (_name, element, height) => {
+    const { container } = render(element)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('.orbit-list-row-shell').evaluate((row) => {
+        const action = row.querySelector('.orbit-list-row-action')
+        const body = row.firstElementChild!
+        const bounds = body.getBoundingClientRect()
+        return {
+          height: row.getBoundingClientRect().height,
+          bodyHeight: bounds.height,
+          actionHeight: action?.getBoundingClientRect().height,
+          actionWidth: action?.getBoundingClientRect().width,
+          overlap: action ? bounds.right > action.getBoundingClientRect().left : false,
+        }
+      })
+      if (element.props.description) expect(measured.height).toBeGreaterThanOrEqual(height)
+      else expect(measured.height).toBe(height)
+      expect(measured.bodyHeight).toBe(measured.height)
+      expect(measured.overlap).toBe(false)
+      if (measured.actionHeight !== undefined) {
+        expect(measured.actionHeight).toBe(44)
+        expect(measured.actionWidth).toBe(44)
+      }
+    } finally { await page.close() }
+  })
+
 })
