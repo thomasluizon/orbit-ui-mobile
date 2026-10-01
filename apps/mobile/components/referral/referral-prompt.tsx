@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/stores'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
@@ -121,14 +122,12 @@ export function ReferralPrompt() {
           key={visibleKey}
           actions={(
             <DialogActionPair>
-              <PillButton
-                size="sm"
-                variant="ghost"
+              <PromptQuietAction
                 accessibleName={t('referral.prompt.later')}
                 onClick={() => closeSheet()}
               >
                 {t('referral.prompt.later')}
-              </PillButton>
+              </PromptQuietAction>
               <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
             </DialogActionPair>
           )}

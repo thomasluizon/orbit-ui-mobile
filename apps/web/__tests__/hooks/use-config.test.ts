@@ -1,21 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useConfig, isFeatureEnabled } from '@/hooks/use-config'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import type { AppConfig } from '@orbit/shared/types/config'
+import { createMockConfig } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
 
 const mockFetch = vi.fn()
-vi.stubGlobal('fetch', mockFetch)
+let queryClient: QueryClient
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  })
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
   }
@@ -24,53 +20,98 @@ function createWrapper() {
 describe('useConfig', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    vi.stubGlobal('fetch', mockFetch)
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+  })
+
+  afterEach(async () => {
+    cleanup()
+    queryClient.clear()
+    const { useAuthStore } = await import('@/stores/auth-store')
+    useAuthStore.setState(useAuthStore.getInitialState())
+    vi.unstubAllGlobals()
   })
 
   it('returns fetched config on success', async () => {
-    const customConfig: AppConfig = {
-      ...DEFAULT_CONFIG,
+    const customConfig = createMockConfig({
       limits: { ...DEFAULT_CONFIG.limits, maxTagsPerHabit: 10 },
       features: { ...DEFAULT_CONFIG.features, analytics: { enabled: true, planRequirement: null } },
-    }
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(customConfig),
     })
+    mockFetch.mockResolvedValue(Response.json(customConfig))
 
     const { result } = renderHook(() => useConfig(), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(result.current.config.limits.maxTagsPerHabit).toBe(10))
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.config).toEqual(customConfig)
+    expect(result.current.config.limits.maxTagsPerHabit).toBe(10)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 
   it('falls back to DEFAULT_CONFIG on error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-    })
+    mockFetch.mockResolvedValue(new Response(null, { status: 500 }))
 
     const { result } = renderHook(() => useConfig(), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.isSuccess).toBe(true)
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
   })
 
-  it('provides config immediately via placeholderData', () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => new Promise(() => {}),
+  it('returns fetched config after slow session recovery', async () => {
+    const { useAuthStore } = await import('@/stores/auth-store')
+    const customConfig = createMockConfig({
+      limits: { ...DEFAULT_CONFIG.limits, maxTagsPerHabit: 10 },
+      features: { ...DEFAULT_CONFIG.features, analytics: { enabled: true, planRequirement: null } },
     })
+    const expiresAt = Date.now() + 60_000
+    useAuthStore.setState({ sessionRefreshFailed: true })
+    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      if (input === API.config.get) return Response.json(customConfig)
+      if (input === '/api/auth/session') {
+        await new Promise((resolve) => setTimeout(resolve, 1_200))
+        return Response.json({ expiresAt, userId: null, refreshFailed: false })
+      }
+      throw new Error('Unexpected request during configuration fetch')
+    })
+
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() })
+
+    expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(result.current.isPlaceholderData).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.config).toEqual(customConfig)
+    expect(result.current.config.limits.maxTagsPerHabit).toBe(10)
+    expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      sessionRefreshFailed: false,
+      expiresAt,
+    })
+  })
+
+  it('provides config immediately via placeholderData', () => {
+    mockFetch.mockReturnValue(new Promise<Response>(() => {}))
 
     const { result } = renderHook(() => useConfig(), {
       wrapper: createWrapper(),
     })
 
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
+    expect(result.current.isPlaceholderData).toBe(true)
+    expect(result.current.isFetching).toBe(true)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
   })
 })

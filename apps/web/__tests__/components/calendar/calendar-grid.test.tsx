@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 
-const todaySource = vi.hoisted(() => ({ value: '2025-06-15' }))
+const todaySource = vi.hoisted(() => ({ value: '2025-06-15', locale: 'en' }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
+  useLocale: () => todaySource.locale,
 }))
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
@@ -41,22 +41,30 @@ describe('CalendarGrid', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2025, 5, 15))
     todaySource.value = '2025-06-15'
+    todaySource.locale = 'en'
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('renders weekday headers', () => {
+  it.each([
+    ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
+    ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
+    ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
+    ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
+  ] as const)('renders drawn weekday letters in %s starting on %i', (locale, weekStartsOn, labels) => {
+    todaySource.locale = locale
     render(
-      <CalendarGrid
+      <CalendarGridComponent
         currentMonth={currentMonth}
         dayMap={emptyMap}
         onSelectDay={vi.fn()}
+        todayKey={todaySource.value}
+        weekStartsOn={weekStartsOn}
       />,
     )
-    expect(screen.getByText('dates.daysShort.monday')).toBeInTheDocument()
-    expect(screen.getByText('dates.daysShort.sunday')).toBeInTheDocument()
+    expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
   })
 
   it('renders day cells', () => {

@@ -10,6 +10,7 @@ import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useShareCard } from '@/hooks/use-share-card'
 import { createTokensV2 } from '@/lib/theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
@@ -139,14 +140,12 @@ export function MilestoneSharePrompt() {
             </Text>
           ) : null}
           <DialogActionPair>
-            <PillButton
-              size="sm"
-              variant="ghost"
+            <PromptQuietAction
               accessibleName={t('milestoneShare.later')}
               onClick={dismiss}
             >
               {t('milestoneShare.later')}
-            </PillButton>
+            </PromptQuietAction>
             <PillButton
               size="sm"
               loading={isSharing}

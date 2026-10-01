@@ -3,7 +3,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
-import type { PendingOperationExecutionResult } from '@orbit/shared/hooks'
+import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
 
@@ -134,12 +134,15 @@ describe('PendingOperationCard', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledWith('pending-1'))
   })
 
-  it('hands step up to a sheet, verifies the code, and executes', async () => {
-    prepareStepUp.mockResolvedValue({
+  it.each(['immediate', 'deferred'])('hands step up to a sheet, verifies the code, and executes with %s preparation', async (timing) => {
+    const preparation: PendingOperationStepUpPreparationResult = {
       ok: true,
       challengeId: 'challenge-1',
       confirmationToken: 'confirmation-1',
-    })
+    }
+    let resolvePreparation!: (result: PendingOperationStepUpPreparationResult) => void
+    prepareStepUp.mockReturnValue(timing === 'immediate' ? Promise.resolve(preparation)
+      : new Promise<PendingOperationStepUpPreparationResult>((resolve) => { resolvePreparation = resolve }))
     verifyStepUp.mockResolvedValue({
       ok: true,
       response: { operation: { status: 'Succeeded' } },
@@ -149,7 +152,13 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
     await waitFor(() => expect(prepareStepUp).toHaveBeenCalledWith('pending-1'))
-    fireEvent.change(screen.getByRole('textbox', { name: 'stepUp.codeLabel' }), {
+    if (timing === 'deferred') {
+      expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
+      expect(verifyStepUp).not.toHaveBeenCalled()
+    }
+    const codeInput = screen.findByRole('textbox', { name: 'stepUp.codeLabel' })
+    if (timing === 'deferred') await act(async () => { resolvePreparation(preparation) })
+    fireEvent.change(await codeInput, {
       target: { value: '123456' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'stepUp.confirm' }))

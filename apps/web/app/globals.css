@@ -1280,20 +1280,6 @@ button.chip:not(:disabled):not(.chip-filled):active { background: var(--bg-hover
 button.chip:not(:disabled).chip-filled:active { background: var(--primary-pressed); }
 }
 
-/* Overlay body gutter — single source for full-bleed rows inside AppOverlay */
-[data-slot='overlay-body'] {
-  --overlay-px: 22px;
-}
-@media (min-width: 640px) {
-  [data-slot='overlay-body'] {
-    --overlay-px: 28px;
-  }
-}
-.overlay-bleed {
-  margin-left: calc(-1 * var(--overlay-px));
-  margin-right: calc(-1 * var(--overlay-px));
-}
-
 /* ═══════════════════════════════════════════════════════
    ACCESSIBILITY
    ═══════════════════════════════════════════════════════ */

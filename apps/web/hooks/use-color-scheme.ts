@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
 import {
   type ColorScheme,
   type ThemeMode,
@@ -30,6 +33,7 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 }
 
 export function useColorScheme() {
+  const queryClient = useQueryClient()
   const isClient = useIsClient()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
@@ -47,6 +51,10 @@ export function useColorScheme() {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     const prev = currentTheme
+    const previousProfile = queryClient.getQueryData<Profile>(profileKeys.detail())
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+      profile ? { ...profile, themePreference: theme } : profile,
+    )
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
@@ -58,12 +66,15 @@ export function useColorScheme() {
           return
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+          profile && previousProfile ? { ...profile, themePreference: previousProfile.themePreference } : profile,
+        )
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
       })
     }
-  }, [currentScheme, currentTheme, showPersistentError, t])
+  }, [currentScheme, currentTheme, queryClient, showPersistentError, t])
 
   const toggleTheme = useCallback(() => {
     const next: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark'

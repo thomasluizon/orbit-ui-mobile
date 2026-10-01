@@ -29,6 +29,7 @@ function getMockAccountDateKey(): string {
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   rangeLoading: false,
+  language: "en",
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
   monthError: null as string | null,
@@ -102,7 +103,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
-    i18n: { language: "en" },
+    i18n: { language: state.language },
   }),
 }));
 
@@ -224,7 +225,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", async (importOriginal
   return {
     CalendarGrid: (props: Record<string, any>) => {
       calendarGridProps.current = props;
-      return null;
+      return React.createElement(actual.CalendarGrid, props as React.ComponentProps<typeof actual.CalendarGrid>);
     },
   };
 });
@@ -341,7 +342,28 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each([
+    ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
+    ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
+    ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
+    ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
+  ] as const)('renders drawn month and range weekday letters in %s starting on %i', (language, weekStartDay, labels) => {
+    state.language = language;
+    state.profile = { weekStartDay, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true };
+    let tree!: import('react-test-renderer').ReactTestRenderer;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const headerTree = renderMonthHeader(tree);
+    const monthHeader = headerTree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-header')[0]!;
+    expect(monthHeader.findAll((node: TestNode) => node.type === 'Text').map((node) => node.props.children)).toEqual(labels);
+    TestRenderer.act(() => { headerTree.update(<></>); });
+    pressView(tree, 'range');
+    const rangeHeader = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-header')[0]!;
+    expect(rangeHeader.findAll((node: TestNode) => node.type === 'Text').map((node) => node.props.children)).toEqual(labels);
+    TestRenderer.act(() => { tree.update(<></>); });
+  });
+
   beforeEach(() => {
+    state.language = "en";
     state.routeParams = {};
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-12T12:00:00.000Z"));
@@ -1132,7 +1154,7 @@ describe("CalendarScreen views (mobile)", () => {
     );
     expect(flatLists).toHaveLength(1);
 
-    let headerTree: Tree;
+    let headerTree: import('react-test-renderer').ReactTestRenderer;
     let footerTree: Tree;
     TestRenderer.act(() => {
       headerTree = TestRenderer.create(
@@ -1149,11 +1171,14 @@ describe("CalendarScreen views (mobile)", () => {
     expect(headerTree!.root.findAll(
       (node) => typeof node.type === "string" && node.props.testID === "calendar-legend",
     )).toHaveLength(0);
-    const buttons = headerTree!.root.findAll(
+    const feedback = headerTree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-month-empty')[0]!;
+    const buttons = feedback.findAll(
       (node) => typeof node.type === "string" && node.props.accessibilityRole === "button",
     );
-    expect(buttons.length).toBeGreaterThan(0);
-    TestRenderer.act(() => buttons[0]!.props.onPress());
+    expect(buttons).toHaveLength(1);
+    const onPress = buttons[0]!.props.onPress;
+    if (typeof onPress !== 'function') throw new Error('Expected habit creation action');
+    TestRenderer.act(() => onPress());
     expect(state.setShowCreateModal).toHaveBeenCalledWith(true);
     expect(state.routerPush).toHaveBeenCalledWith("/");
   });
@@ -1164,7 +1189,7 @@ describe("CalendarScreen views (mobile)", () => {
     let flatList = tree.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
     )[0]!;
-    let headerTree!: Tree;
+    let headerTree!: import('react-test-renderer').ReactTestRenderer;
     TestRenderer.act(() => {
       headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
     });
@@ -1178,7 +1203,8 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(headerTree)).toContain("calendar.futureMonth");
     expect(calendarGridProps.current).not.toBeNull();
-    expect(headerTree.root.findAll(
+    const feedback = headerTree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-month-empty')[0]!;
+    expect(feedback.findAll(
       (node) => typeof node.type === "string" && node.props.accessibilityRole === "button",
     )).toHaveLength(0);
   });

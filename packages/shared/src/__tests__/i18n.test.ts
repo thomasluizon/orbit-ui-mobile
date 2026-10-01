@@ -1,4 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { IntlMessageFormat } from 'intl-messageformat'
+import {
+  isLiteralElement,
+  isPluralElement,
+  isPoundElement,
+  isSelectElement,
+  parse,
+  type MessageFormatElement,
+} from '@formatjs/icu-messageformat-parser'
 import {
   defaultLocale,
   loadLocale,
@@ -35,6 +44,57 @@ function placeholderNames(value: string): Set<string> {
   }
   return names
 }
+
+function allMessageElements(elements: MessageFormatElement[]): MessageFormatElement[] {
+  return elements.flatMap((element) => {
+    if (isPluralElement(element) || isSelectElement(element)) {
+      return [element, ...Object.values(element.options).flatMap((option) => allMessageElements(option.value))]
+    }
+    return [element]
+  })
+}
+
+function pluralAtZero(elements: MessageFormatElement[]): MessageFormatElement[] {
+  return elements.map((element) => {
+    if (!isPluralElement(element) && !isSelectElement(element)) return element
+    const options = Object.fromEntries(Object.entries(element.options).map(([key, option]) => [
+      key, { value: pluralAtZero(option.value) },
+    ]))
+    if (isPluralElement(element)) options['=0'] = options.other!
+    return { ...element, options }
+  })
+}
+
+describe('Portuguese ICU zero plurals', () => {
+  const messages = [...flatten(ptBR)].map(([key, message]) => ({
+    key, message, elements: parse(message, { ignoreTag: true }),
+  })).filter(({ elements }) => allMessageElements(elements).some(isPluralElement))
+  const customZeroMessages = new Map([
+    ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
+    ['progressScreen.streak.covered', 'Um congelamento cobriu date. Nenhum resta.'],
+    ['progressScreen.streak.automaticCovered', 'Orbit cobriu date automaticamente com um congelamento. Nenhum resta.'],
+  ])
+
+  it('requires an explicit zero arm in every Portuguese plural, including nested arguments', () => {
+    const missing = messages.flatMap(({ key, elements }) => allMessageElements(elements)
+      .filter(isPluralElement)
+      .filter((element) => element.options['=0'] === undefined)
+      .map((element) => `${key}:${element.value}`))
+
+    expect(messages.length).toBeGreaterThan(0)
+    expect(missing).toEqual([])
+  })
+
+  it.each(messages)('renders $key with zero using plural copy or its custom zero message', ({ key, message, elements }) => {
+    const values = Object.fromEntries(allMessageElements(elements)
+      .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
+      .map((element) => [element.value, isPluralElement(element) ? 0 : element.value]))
+    const expected = customZeroMessages.get(key)
+      ?? new IntlMessageFormat(pluralAtZero(elements), 'pt-BR').format(values)
+
+    expect(new IntlMessageFormat(message, 'pt-BR').format(values)).toBe(expected)
+  })
+})
 
 function unsafeIcuApostropheOffsets(value: string): number[] {
   const offsets: number[] = []
