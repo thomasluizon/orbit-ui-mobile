@@ -49,7 +49,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.textBlock}>
         <Text style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
-        {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
+        {description ? <Text style={[styles.description, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{description}</Text> : null}
         {disabled && reason ? <Text style={[styles.reason, { color: tokens.fg3 }]}>{reason}</Text> : null}
       </View>
       {meta ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{meta}</Text> : null}

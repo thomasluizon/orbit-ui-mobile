@@ -1,7 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 
@@ -133,5 +140,63 @@ describe('select-check RadioRow group', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Second' }))
     expect(onCommit).toHaveBeenCalledTimes(3)
     expect(onChange).toHaveBeenLastCalledWith('second')
+  })
+})
+
+describe('RadioRow description contrast', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('keeps the web selection adapter readable in %s', async (mode) => {
+    const theme = resolveWebThemeVariables('orange', mode)
+    const variables = Object.entries(theme).map(([key, value]) => `${key}:${value}`).join(';')
+    const { container } = render(<RadioGroup aria-label="Subjects">
+      <RadioRow label="Selected" description="Selected details" selected onSelect={vi.fn()} />
+      <RadioRow label="Unselected" description="Unselected details" onSelect={vi.fn()} />
+      <RadioRow label="Disabled selected" description="Disabled selected details" selected disabled reason="Sending" />
+      <RadioRow label="Disabled unselected" description="Disabled unselected details" disabled reason="Sending" />
+    </RadioGroup>)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div style="${variables};background:var(--bg)">${container.innerHTML}</div>`)
+      const measured = await page.locator('[role="radio"]').evaluateAll((rows) => rows.map((row) => {
+        const description = [...row.querySelectorAll('span')].find((span) => span.children.length === 0 && span.textContent.endsWith('details'))!
+        const style = getComputedStyle(row)
+        return {
+          color: getComputedStyle(description).color,
+          fontSize: getComputedStyle(description).fontSize,
+          background: style.backgroundColor,
+          opacity: style.opacity,
+          selected: row.getAttribute('aria-checked') === 'true',
+          disabled: row.getAttribute('aria-disabled') === 'true',
+          text: row.textContent,
+          focusable: row instanceof HTMLButtonElement,
+        }
+      }))
+      expect(measured).toHaveLength(4)
+      for (const row of measured) {
+        expect(row.fontSize).toBe('14px')
+        expect(row.opacity).toBe(row.disabled ? '0.5' : '1')
+        expect(row.focusable).toBe(!row.disabled)
+        if (row.disabled) expect(row.text).toContain('Sending')
+        else {
+          for (const surface of [[], [theme['--bg-card']!], [theme['--bg-sheet']!]]) {
+            expect(contrastOnSurface(row.color, [theme['--bg']!, ...surface, row.background]))
+              .toBeGreaterThanOrEqual(4.5)
+          }
+        }
+        expect(contrastOnSurface(row.color, [row.selected ? theme['--fg-2']! : theme['--fg-3']!])).toBe(1)
+        expect(contrastOnSurface(row.background, [theme['--bg']!])).toBe(contrastOnSurface(
+          row.selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!],
+        ))
+      }
+    } finally { await page.close() }
   })
 })
