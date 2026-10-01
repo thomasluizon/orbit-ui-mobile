@@ -1,12 +1,52 @@
 'use client'
 
-import { useEffect, useEffectEvent, useId, useRef } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 
 let activeNavigationGuard: ((action: () => void) => void) | null = null
 let finishNavigation: ((action: () => void) => void) | null = null
 
-function isCreationBaseEntry(entry: unknown, guardId: string) {
+function isCreationGuardEntry(entry: unknown, guardId: string) {
   return typeof entry === 'object' && entry !== null && 'orbitHabitCreateGuard' in entry && entry.orbitHabitCreateGuard === guardId
+}
+
+function isCreationBaseEntry(entry: unknown, guardId: string) {
+  return isCreationGuardEntry(entry, guardId) && typeof entry === 'object' && entry !== null &&
+    'orbitHabitCreateSentinel' in entry && entry.orbitHabitCreateSentinel === false
+}
+
+function markCreationEntry(guardId: string, sentinel: boolean) {
+  const entry: unknown = history.state
+  return Object.assign({}, entry, { orbitHabitCreateGuard: guardId, orbitHabitCreateSentinel: sentinel })
+}
+
+function replaceApprovedNavigation(guardId: string) {
+  const pushState = history.pushState.bind(history)
+  const replaceState = history.replaceState.bind(history)
+  const creationPath = location.pathname + location.search
+  function restoreHistory() {
+    history.pushState = pushState
+    history.replaceState = replaceState
+  }
+  function approvedWrite(method: History['pushState'], entry: unknown, title: string, href?: string | URL | null) {
+    const destination = href == null ? null : new URL(href, location.href)
+    if (!destination || destination.pathname + destination.search === creationPath) {
+      method.call(history, entry, title, href)
+      return
+    }
+    restoreHistory()
+    function finishReplacement(event: PopStateEvent) {
+      if (!isCreationBaseEntry(history.state, guardId)) return
+      event.stopImmediatePropagation()
+      window.removeEventListener('popstate', finishReplacement, true)
+      replaceState.call(history, entry, title, href)
+    }
+    window.addEventListener('popstate', finishReplacement, true)
+    pushState.call(history, entry, title, href)
+    history.back()
+  }
+  history.pushState = (entry: unknown, title, href) => approvedWrite(pushState, entry, title, href)
+  history.replaceState = (entry: unknown, title, href) => approvedWrite(replaceState, entry, title, href)
+  return restoreHistory
 }
 
 export function completeHabitCreateNavigation(action: () => void) {
@@ -26,8 +66,6 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   onNavigate: (action: () => void) => void
   onReturn: () => void
 }>) {
-  const guardId = useId()
-  const sentinelAdded = useRef(false)
   const requestNavigation = useEffectEvent(onNavigate)
   const returnToOrigin = useEffectEvent(onReturn)
   const isLeaving = useEffectEvent(() => leaving)
@@ -36,16 +74,16 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
     if (!active) return
     const creationPath = location.pathname
     const creationSearch = location.search
-    if (!sentinelAdded.current) {
-      const entry: unknown = history.state
-      history.replaceState(Object.assign({}, entry, { orbitHabitCreateGuard: guardId }), '', location.href)
-      history.pushState(entry, '', location.href)
-      sentinelAdded.current = true
+    const guardId = `${creationPath}${creationSearch}`
+    if (!isCreationGuardEntry(history.state, guardId) || isCreationBaseEntry(history.state, guardId)) {
+      history.replaceState(markCreationEntry(guardId, false), '', location.href)
+      history.pushState(markCreationEntry(guardId, true), '', location.href)
     }
     activeNavigationGuard = (action) => {
       if (isLeaving()) action()
       else requestNavigation(action)
     }
+    let restoreApprovedHistory: (() => void) | null = null
     let approvedNavigation: (() => void) | null = null
     finishNavigation = (action) => {
       approvedNavigation = action
@@ -61,6 +99,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         }
         const action = approvedNavigation
         approvedNavigation = null
+        restoreApprovedHistory = replaceApprovedNavigation(guardId)
         action()
         return
       }
@@ -70,7 +109,10 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         requestNavigation(() => returnToOrigin())
         return
       }
-      if (!atBaseEntry && location.pathname === creationPath && location.search === creationSearch) return
+      if (!atBaseEntry && location.pathname === creationPath && location.search === creationSearch) {
+        history.replaceState(markCreationEntry(guardId, true), '', location.href)
+        return
+      }
       restoring = true
       history.forward()
     }
@@ -97,11 +139,12 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('click', handleClick, true)
     return () => {
+      restoreApprovedHistory?.()
       activeNavigationGuard = null
       finishNavigation = null
       window.removeEventListener('popstate', handlePopState)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('click', handleClick, true)
     }
-  }, [active, guardId])
+  }, [active])
 }

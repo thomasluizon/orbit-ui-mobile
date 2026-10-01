@@ -401,7 +401,7 @@ describe('CreateHabitModal', () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     mockFormStatus.dirty = true
-    const destination = vi.fn(() => history.replaceState(null, '', '/calendar'))
+    const destination = vi.fn(() => history.pushState(null, '', '/calendar'))
     const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
     act(() => requestHabitCreateNavigation(destination))
     expect(destination).not.toHaveBeenCalled()
