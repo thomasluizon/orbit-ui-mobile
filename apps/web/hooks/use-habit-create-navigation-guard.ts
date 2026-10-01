@@ -1,9 +1,13 @@
 'use client'
 
-import { useEffect, useEffectEvent, useRef } from 'react'
+import { useEffect, useEffectEvent, useId, useRef } from 'react'
 
 let activeNavigationGuard: ((action: () => void) => void) | null = null
 let finishNavigation: ((action: () => void) => void) | null = null
+
+function isCreationBaseEntry(entry: unknown, guardId: string) {
+  return typeof entry === 'object' && entry !== null && 'orbitHabitCreateGuard' in entry && entry.orbitHabitCreateGuard === guardId
+}
 
 export function completeHabitCreateNavigation(action: () => void) {
   if (finishNavigation) finishNavigation(action)
@@ -22,6 +26,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   onNavigate: (action: () => void) => void
   onReturn: () => void
 }>) {
+  const guardId = useId()
   const sentinelAdded = useRef(false)
   const requestNavigation = useEffectEvent(onNavigate)
   const returnToOrigin = useEffectEvent(onReturn)
@@ -29,8 +34,12 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   const isDirty = useEffectEvent(() => dirty)
   useEffect(() => {
     if (!active) return
+    const creationPath = location.pathname
+    const creationSearch = location.search
     if (!sentinelAdded.current) {
-      history.pushState(history.state, '', location.href)
+      const entry: unknown = history.state
+      history.replaceState(Object.assign({}, entry, { orbitHabitCreateGuard: guardId }), '', location.href)
+      history.pushState(entry, '', location.href)
       sentinelAdded.current = true
     }
     activeNavigationGuard = (action) => {
@@ -44,7 +53,12 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
     }
     let restoring = false
     function handlePopState() {
+      const atBaseEntry = isCreationBaseEntry(history.state, guardId)
       if (approvedNavigation) {
+        if (!atBaseEntry) {
+          history.back()
+          return
+        }
         const action = approvedNavigation
         approvedNavigation = null
         action()
@@ -56,6 +70,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         requestNavigation(() => returnToOrigin())
         return
       }
+      if (!atBaseEntry && location.pathname === creationPath && location.search === creationSearch) return
       restoring = true
       history.forward()
     }
@@ -88,5 +103,5 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('click', handleClick, true)
     }
-  }, [active])
+  }, [active, guardId])
 }

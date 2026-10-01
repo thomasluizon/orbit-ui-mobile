@@ -254,6 +254,15 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
+async function traverseHistory(direction: 'back' | 'forward') {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      history[direction]()
+    })
+  })
+}
+
 
 describe('CreateHabitModal', () => {
   beforeEach(() => {
@@ -329,20 +338,63 @@ describe('CreateHabitModal', () => {
     expect(rejectedDestination).not.toHaveBeenCalled()
   })
 
-  it('guards browser Back and keeps in-page anchors from discarding', async () => {
+  it('removes the creation sentinel after native fragment navigation and approved Back', async () => {
+    history.pushState(null, '', '/calendar')
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
     mockFormStatus.dirty = true
-    const forward = vi.spyOn(history, 'forward').mockImplementation(() => {})
-    const close = vi.fn()
-    renderWithProviders(<><a href="#orbit-main">skip</a><CreateHabitModal open presentation="screen" onOpenChange={close} /></>)
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /></main></>)
+    const beforeFragment = history.length
     fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    expect(history.length).toBe(beforeFragment + 1)
     expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
-    act(() => { window.dispatchEvent(new PopStateEvent('popstate')) })
-    expect(forward).toHaveBeenCalledOnce()
-    act(() => { window.dispatchEvent(new PopStateEvent('popstate')) })
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     expect(close).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(close).toHaveBeenCalledWith(false))
-    forward.mockRestore()
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/calendar')
+  })
+
+  it('keeps fragment Back and Forward in-page and guards leaving after multiple fragments', async () => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><a href="#details">details</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /><div id="details" /></main></>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    fireEvent.click(screen.getByRole('link', { name: 'details' }))
+    await waitFor(() => expect(location.hash).toBe('#details'))
+
+    await traverseHistory('back')
+    expect(location.hash).toBe('#orbit-main')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('forward')
+    expect(location.hash).toBe('#details')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('back')
+    await traverseHistory('back')
+    expect(location.hash).toBe('')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+
+    await traverseHistory('back')
+    await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(close).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
   })
 
   it('removes its browser history guard before an approved destination', async () => {
