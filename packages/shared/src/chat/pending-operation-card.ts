@@ -1,13 +1,8 @@
 import type { PendingAgentOperation, PendingOperationChange } from '../types/ai'
-import { formatLocaleDate } from '../utils/locale-format'
-import { parseAPIDate } from '../utils/dates'
-import { frequencyUnitSchema } from '../types/habit'
-import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
+import { PENDING_OPERATION_WEEKDAYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 
-export const PENDING_OPERATION_WEEKDAYS = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-] as const
+export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
@@ -58,35 +53,6 @@ export interface PendingOperationCardLabels {
   more: (count: number) => string
   stepUpAction: string
   stepUpMessage: string
-}
-
-function summarizePendingOperationItem(
-  fields: readonly PendingOperationChange[],
-  translate: (key: string, values?: Record<string, string | number>) => string,
-  formatTime: (value: string) => string,
-  locale: string,
-): string {
-  const value = (name: string) => fields.find((field) => field.field === name)?.newValue
-  const action = fields.find((field) => field.valueType === 'action')
-  if (action && ['delete', 'dismiss_import', 'run_sync'].includes(action.field)) return translate(`chat.operation.field.${action.field}`)
-  const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
-  const daysField = fields.find((field) => field.field === 'days')
-  const days = Array.isArray(daysField?.proposedValue)
-    ? daysField.proposedValue.filter((day): day is string => typeof day === 'string' && PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
-    : (value('days') ?? '').split(',').map((day) => day.trim()).filter((day) => PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
-  const cadence = unit.success ? computeHabitFrequencyLabel({
-    isGeneral: value('is_general')?.toLowerCase() === 'true',
-    frequencyUnit: unit.data,
-    frequencyQuantity: value('frequency_quantity') == null ? 1 : Number(value('frequency_quantity')),
-    days,
-    isFlexible: value('is_flexible')?.toLowerCase() === 'true',
-  }, (key, values) => translate(key, values as Record<string, string | number>)) : null
-  const interval = Number(value('interval_weeks'))
-  const intervalLabel = interval > 1 ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
-  const date = value('due_date') ?? value('date')
-  const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
-  const time = value('due_time')
-  return [cadence, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null].filter(Boolean).join(' · ')
 }
 
 export function buildPendingOperationCardLabels(

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { makeAgentOperationResult, makeHeldHabitMessage, makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makePendingAgentOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
   type PendingOperationCardActions,
@@ -13,10 +13,57 @@ import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
-function translateEnglish(key: string, values?: Record<string, string | number>): string {
-  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, en)
+function translateMessages(messages: typeof en, key: string, values?: Record<string, string | number>): string {
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
   return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
 }
+
+const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('item summaries in $locale', ({ locale, messages }) => {
+  const summarize = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
+  const change = (field: string, newValue: string | null, proposedValue?: unknown, oldValue: string | null = null) => ({ entityId: 'habit-1', entityName: 'Read', field, oldValue, newValue, valueType: 'text', proposedValue })
+
+  it('keeps the daily cadence and requested outcomes in one summary', () => {
+    expect(summarize([change('frequency_unit', 'Day'), change('frequency_quantity', '1'), change('reminder_enabled', 'True')]))
+      .toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.summary.sendReminders}`)
+  })
+
+  it('shows an explicit disabled request even when the previous value is absent', () => {
+    expect(summarize([change('enabled', 'False')])).toBe(messages.chat.preview.summary.turnOff)
+    expect(summarize([change('reminder_enabled', 'false')])).toBe(messages.chat.preview.summary.stopReminders)
+  })
+
+  it('names cleared repetition when the producer formats null as an empty string', () => {
+    expect(summarize([change('frequency_unit', '', null, 'Day')])).toBe(messages.habits.filter.oneTime)
+  })
+
+  it('does not invent a count for a unit-only update', () => {
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day')])).toBe(messages.habits.filter.monthly)
+  })
+
+  it('localizes weekdays from the typed proposal instead of exposing the JSON display value', () => {
+    expect(summarize([change('days', '["Monday", "Thursday"]', ['Monday', 'Thursday'])]))
+      .toBe(`${messages.dates.daysShort.monday}, ${messages.dates.daysShort.thursday}`)
+  })
+
+  it('keeps supported user text and formats typed checklist and reminder proposals', () => {
+    expect(summarize([
+      change('description', 'Read a chapter'),
+      change('checklist_items', 'Pack shoes and more', [{ text: 'Pack shoes', is_checked: true }, { text: 'Bring water', is_checked: false }]),
+      change('scheduled_reminders', 'day_before 19:30', [{ when: 'day_before', time: '19:30' }]),
+    ])).toBe(`Read a chapter · Pack shoes (${messages.blockFrame.status.done}), Bring water · ${messages.chat.preview.summary.remindDayBefore.replace('{time}', 'clock:19:30')}`)
+  })
+
+  it('describes clearing editable lists and dates', () => {
+    expect(summarize([change('days', '', []), change('due_date', ''), change('due_time', ''), change('checklist_items', '', [])]))
+      .toBe([messages.chat.preview.summary.clearDays, messages.chat.preview.summary.removeDate, messages.chat.preview.summary.removeTime, messages.chat.preview.summary.clearChecklist].join(' · '))
+  })
+
+  it('keeps unknown fields and enum values out of the preview', () => {
+    expect(summarize([change('frequency_unit', 'UnknownUnit'), change('internal_flag', 'InternalValue')])).toBe('')
+  })
+})
 
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
@@ -229,6 +276,7 @@ describe('pending operation card view', () => {
       'Run',
       'Calendar sync',
     ])
+    expect(record.frame?.items.map((item) => item.meta)).toEqual(['Send reminders', 'Turn off'])
   })
 
   it('keeps unknown boolean changes out of the visible item label', () => {
@@ -337,7 +385,7 @@ describe('pending operation card view', () => {
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
     expect(record.frame?.count).toBe(operation.changeTargetCount)
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
-    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'Sep 26, 2026' })
+    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'Sep 26, 2026 · Send reminders' })
     expect(record.frame?.actions).toBe('Approve|Edit item|spacer|Reject')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()

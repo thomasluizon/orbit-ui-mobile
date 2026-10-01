@@ -255,7 +255,7 @@ function previewRows<Node>(
     const summary = labels.summarize(item.fields) || labels.pending
     return {
       id: item.itemId,
-      label: item.entityName,
+      label: item.fields.find((field) => field.field === 'title')?.newValue || item.entityName,
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status: card.status,
       irreversible: destructive && card.status == null,
@@ -348,7 +348,7 @@ export function renderPendingOperationCard<Node>({
   render: PendingOperationCardRenderers<Node>
 }): Node | null {
   const revision = card.revision
-  if (card.dismissed || revision?.rejected) return render.rejected(labels.rejected(pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? Math.max(1, new Set(pendingOperation.changes?.map((change) => change.entityId)).size)))
+  if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? Math.max(1, new Set(pendingOperation.changes?.map((change) => change.entityId)).size))))
 
   const presentation = getPendingOperationCardPresentation(
     pendingOperation.riskClass, pendingOperation.confirmationRequirement,
@@ -398,6 +398,6 @@ export function renderPendingOperationCard<Node>({
         onSave: revision.saveEdit,
       })
     : null
-  return render.fragment(blockFrame, confirmSheet, verification, editSheet,
+  return render.fragment(render.rejected(''), blockFrame, confirmSheet, verification, editSheet,
     revision?.error && !revision.editingItem && !revision.stale ? render.notice(labels.invalid) : null)
 }

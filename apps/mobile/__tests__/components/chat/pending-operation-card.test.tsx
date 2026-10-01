@@ -136,11 +136,15 @@ describe('PendingOperationCard (mobile)', () => {
       isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
     } })
     const { tree, handlers } = renderCard(preview, revise)
+    const announcement = tree.root.findByProps({ testID: 'preview-rejection-status' })
+    expect(announcement.props.children).toBe('')
     await TestRenderer.act(async () => {
       press(tree, 'chat.operation.reject').props.onPress()
       await Promise.resolve()
     })
     expect(renderedText(tree.toJSON())).toContain('chat.operation.rejected')
+    expect(tree.root.findByProps({ testID: 'preview-rejection-status' })).toBe(announcement)
+    expect(announcement.props.accessibilityLiveRegion).toBe('polite')
     expect(renderedText(tree.toJSON())).not.toContain('chat.operation.approve')
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })

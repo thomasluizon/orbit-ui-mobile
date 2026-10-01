@@ -204,9 +204,9 @@ function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/sha
 function RejectedPreview({ message }: Readonly<{ message: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 12, backgroundColor: tokens.bgWell }}>
-    <XCircle accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} />
-    <Text accessibilityLiveRegion="polite" style={{ flex: 1, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
+  return <View style={message ? { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 12, backgroundColor: tokens.bgWell } : { position: 'absolute', height: 0, overflow: 'hidden' }}>
+    {message ? <XCircle accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} /> : null}
+    <Text testID="preview-rejection-status" accessibilityLiveRegion="polite" style={{ flex: message ? 1 : undefined, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
   </View>
 }
 

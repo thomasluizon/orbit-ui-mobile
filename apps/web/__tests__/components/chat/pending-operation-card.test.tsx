@@ -69,7 +69,7 @@ describe('PendingOperationCard', () => {
     ]
     render(<PendingOperationCard pendingOperation={{ ...operation, changes: fields, items: [{ ...item, fields }] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.getAllByText('Beber água')).toHaveLength(1)
-    expect(screen.getByText('habits.frequency.everyDay')).toBeInTheDocument()
+    expect(screen.getByText(/habits.frequency.everyDay/)).toBeInTheDocument()
     expect(screen.queryByText('Day')).not.toBeInTheDocument()
     expect(screen.queryByText(/chat.operation.field/)).not.toBeInTheDocument()
     expect(screen.queryByText(/from .* to/)).not.toBeInTheDocument()
@@ -226,8 +226,12 @@ describe('PendingOperationCard', () => {
       isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
     } })
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const announcement = document.querySelector('[data-preview-rejection-status]')
+    expect(announcement).toBeInTheDocument()
+    expect(announcement).toBeEmptyDOMElement()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('chat.operation.rejected'))
+    expect(screen.getByRole('status')).toBe(announcement)
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
     expect(screen.queryByText('Read')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'chat.operation.refresh' })).not.toBeInTheDocument()
