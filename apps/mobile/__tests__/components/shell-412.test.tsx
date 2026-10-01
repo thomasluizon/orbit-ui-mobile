@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { __emitKeyboardEvent } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -25,6 +25,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type ReactTestRenderer = import('react-test-renderer').ReactTestRenderer
+type ParentedTestInstance = import('react-test-renderer').ReactTestInstance & { parent: ParentedTestInstance | null }
 
 function findByTestId(tree: ReactTestRenderer, testID: string) {
   return tree.root.findAll(
@@ -42,17 +43,40 @@ describe('Shell412 mobile', () => {
     safeArea.bottom = 24
   })
 
+  it('centres the notice, pinned slot, and FAB in one capped bottom column', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412 notice={React.createElement('Notice')} composer={React.createElement('Composer')} fab={React.createElement('Fab')} tabBar={React.createElement('TabBar')} />,
+      )
+    })
+    const bottom = findByTestId(tree, 'shell-bottom')[0]!
+    const pinnedSlot = findByTestId(tree, 'shell-pinned-slot')[0]! as ParentedTestInstance
+    let ancestor = pinnedSlot.parent
+    while (ancestor && ancestor !== bottom) {
+      const style = StyleSheet.flatten(ancestor.props.style) as ViewStyle | undefined
+      if (typeof ancestor.type === 'string' && style?.maxWidth === 740) break
+      ancestor = ancestor.parent
+    }
+    expect(ancestor).not.toBe(bottom)
+    expect(StyleSheet.flatten(ancestor?.props.style)).toMatchObject({ alignSelf: 'center', maxWidth: 740, width: '100%' })
+    for (const testID of ['shell-notice', 'shell-fab']) {
+      expect(ancestor?.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)).toHaveLength(1)
+    }
+    expect(StyleSheet.flatten(bottom.props.style)).not.toHaveProperty('maxWidth')
+    expect(StyleSheet.flatten(bottom.props.style)).toMatchObject({ paddingBottom: 24 })
+  })
+
   it('floats the FAB without reserving a band or drawing a hairline', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<Shell412 composer={React.createElement('Composer')} fab={React.createElement('Fab')} tabBar={React.createElement('TabBar')}><ScrollSurface /></Shell412>)
     })
     const band = StyleSheet.flatten(findByTestId(tree, 'shell-fab-band')[0]?.props.style)
-    expect(band).not.toHaveProperty('height')
-    expect(band).toMatchObject({ position: 'absolute', bottom: 0, top: 0, right: 0, left: 0 })
+    expect(band).toMatchObject({ position: 'absolute', height: 0, top: 0, right: 0, left: 0 })
     expect(band).not.toHaveProperty('borderTopWidth')
     expect(findByTestId(tree, 'shell-fab-band')[0]?.props.pointerEvents).toBe('box-none')
-    expect(findByTestId(tree, 'shell-scroller')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-bottom')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
     expect(StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]?.props.style)).not.toHaveProperty('borderTopWidth')
     expect(StyleSheet.flatten(findByTestId(tree, 'shell-fab')[0]?.props.style)).toMatchObject({ bottom: 16, right: 16 })
     expect(StyleSheet.flatten(findByTestId(tree, 'scroll-surface')[0]?.props.contentContainerStyle)).toMatchObject({ paddingBottom: 96 })
@@ -329,9 +353,9 @@ describe('Shell412 mobile', () => {
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(0)
     expect(fabBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
-    expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ position: 'absolute', bottom: 0, top: 0 })
+    expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ position: 'absolute', height: 0, top: 0 })
     expect(bottom?.findAll((node) => typeof node.type === 'string' && ['shell-fab-band', 'shell-notice', 'shell-composer-band'].includes(node.props.testID as string)).map((node) => node.props.testID)).toEqual([
-      'shell-notice', 'shell-composer-band',
+      'shell-notice', 'shell-composer-band', 'shell-fab-band',
     ])
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === notice?.props.testID)).toHaveLength(1)
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === tabBar?.props.testID)).toHaveLength(1)
@@ -357,7 +381,7 @@ describe('Shell412 mobile', () => {
     expect(fabBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(0)
     expect(bottom?.findAll((node) => typeof node.type === 'string' && ['shell-fab-band', 'shell-notice', 'shell-composer-band'].includes(node.props.testID as string)).map((node) => node.props.testID)).toEqual([
-      'shell-notice', 'shell-composer-band',
+      'shell-notice', 'shell-composer-band', 'shell-fab-band',
     ])
   })
 
