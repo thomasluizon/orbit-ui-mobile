@@ -15,6 +15,7 @@ function ShellBottomChrome({
   navigationEnabled,
   pinnedSlot,
   notice,
+  fab,
   tabBar,
   backgroundColor,
   safeAreaBottom,
@@ -23,6 +24,7 @@ function ShellBottomChrome({
   navigationEnabled: boolean
   pinnedSlot: ReactNode
   notice: ReactNode
+  fab: ReactNode
   tabBar: ReactNode
   backgroundColor: string
   safeAreaBottom: number
@@ -37,12 +39,19 @@ function ShellBottomChrome({
         { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
-      {notice !== undefined ? <View testID="shell-notice">{notice}</View> : null}
-      {pinnedSlot !== undefined ? (
-        <View testID="shell-composer-band" style={styles.composerBand}>
-          <View testID="shell-pinned-slot">{pinnedSlot}</View>
-        </View>
-      ) : null}
+      <View style={styles.bottomColumn}>
+        {notice !== undefined ? <View testID="shell-notice">{notice}</View> : null}
+        {pinnedSlot !== undefined ? (
+          <View testID="shell-composer-band" style={styles.composerBand}>
+            <View testID="shell-pinned-slot">{pinnedSlot}</View>
+          </View>
+        ) : null}
+        {fab !== undefined ? (
+          <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+            <View testID="shell-fab" style={styles.fab}>{fab}</View>
+          </View>
+        ) : null}
+      </View>
       {navigationEnabled ? <View testID="shell-tab-bar">{tabBar}</View> : null}
     </View>
   )
@@ -93,11 +102,6 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
         <View testID="shell-scroller" style={styles.scroller}>
           {props.children}
-          {props.fab !== undefined ? (
-            <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
-              <View testID="shell-fab" style={styles.fab}>{props.fab}</View>
-            </View>
-          ) : null}
         </View>
 
         <ShellBottomChrome
@@ -105,6 +109,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           navigationEnabled={navigationEnabled}
           pinnedSlot={conversationOpen ? undefined : pinnedSlot}
           notice={notice}
+          fab={props.fab}
           tabBar={props.tabBar}
           backgroundColor={tokens.bg}
           safeAreaBottom={keyboardVisible ? 0 : insets.bottom}
@@ -161,10 +166,15 @@ const styles = StyleSheet.create({
   composerBand: {
     position: 'relative',
   },
+  bottomColumn: {
+    alignSelf: 'center',
+    maxWidth: 740,
+    width: '100%',
+  },
   fabBand: {
     position: 'absolute',
-    bottom: 0,
     top: 0,
+    height: 0,
     left: 0,
     right: 0,
   },

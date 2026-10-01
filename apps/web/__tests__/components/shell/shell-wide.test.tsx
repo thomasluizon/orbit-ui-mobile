@@ -40,6 +40,30 @@ describe('ShellWide', () => {
     })))
   })
 
+  it('centres compact notice, dock, and FAB inside the full-width bottom chrome', () => {
+    media.width = 900
+    const { container } = render(
+      <ShellWide items={items} activeId="hoje" navLabel="Main navigation" notice={<div>Notice</div>} composer={<div>Composer</div>} fab={<button type="button">Create</button>} tabBar={<nav>Tabs</nav>} />,
+    )
+    const bottom = container.querySelector('[data-shell-bottom]')
+    const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
+    const column = pinnedSlot?.closest<HTMLElement>('[class~="max-w-[740px]"]') ?? null
+    expect(column).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
+    expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
+    expect(column).toContainElement(container.querySelector('[data-shell-fab]'))
+    expect(bottom).toContainElement(column)
+    expect(bottom).not.toHaveClass('max-w-[740px]')
+    expect(bottom).toHaveClass('pb-[var(--safe-bottom)]')
+  })
+
+  it('keeps the wide pinned slot inside the existing content column', () => {
+    media.width = 1440
+    const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
+    const column = container.querySelector('[data-shell-scroller]')?.parentElement
+    expect(column).toHaveClass('lg:max-w-[740px]')
+    expect(column).toContainElement(container.querySelector('[data-shell-pinned-slot]'))
+  })
+
   it('floats the compact FAB without its own band or separator', () => {
     const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
     const bottom = container.querySelector('[data-shell-bottom]')
