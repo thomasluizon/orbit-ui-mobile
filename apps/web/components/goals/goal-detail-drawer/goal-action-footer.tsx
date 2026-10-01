@@ -35,6 +35,7 @@ export function GoalActionFooter({
   return (
     <div style={{ paddingBottom: 4 }}>
       <ListRow
+        compact={false}
         title={t('goals.detail.edit')}
         icon={<PencilLine size={24} strokeWidth={1.5} aria-hidden="true" />}
         chevron={false}
@@ -42,6 +43,7 @@ export function GoalActionFooter({
       />
       {isAbandoned ? (
         <ListRow
+          compact={false}
           title={t('goals.detail.reactivate')}
           icon={<RotateCw size={24} strokeWidth={1.5} aria-hidden="true" />}
           chevron={false}
@@ -51,6 +53,7 @@ export function GoalActionFooter({
       ) : null}
       {isActive ? (
           <ListRow
+            compact={false}
             title={t('goals.detail.markAbandoned')}
             icon={<ArchiveX size={24} strokeWidth={1.5} aria-hidden="true" />}
             chevron={false}
@@ -59,6 +62,7 @@ export function GoalActionFooter({
           />
       ) : null}
       <ListRow
+        compact={false}
         title={t('goals.detail.delete')}
         icon={<Trash2 size={24} strokeWidth={1.5} aria-hidden="true" />}
         danger

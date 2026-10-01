@@ -122,6 +122,7 @@ export function HabitDrill({
       </View>
       {drill.drillStack.length > 1 ? (
         <ListRow
+          compact={false}
           icon="home"
           title={t('habits.backToHabits')}
           chevron={false}
@@ -133,6 +134,7 @@ export function HabitDrill({
 
   const addRow = drill.currentParentId ? (
     <ListRow
+      compact={false}
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}

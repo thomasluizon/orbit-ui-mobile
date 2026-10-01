@@ -303,6 +303,7 @@ function CalendarDayRows({
 
     return (
       <ListRow
+        compact
         key={`${dateStr}:${entry.habitId}`}
         title={entry.title}
         value={value}
@@ -367,6 +368,7 @@ export function CalendarDayDetail({
     >
       {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
       <ListRow
+        compact
         icon="external-link"
         title={t('calendar.goToDay')}
         wrapTitle

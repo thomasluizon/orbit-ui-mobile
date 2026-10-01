@@ -18,8 +18,8 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
-function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, inForm: boolean) {
-  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compact && inForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null]
+function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean) {
+  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null]
 }
 
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
@@ -38,10 +38,11 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, expanded, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = false, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, expanded, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = !description, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
-  const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, inForm)
+  const compactForm = inForm && props.compact === true
+  const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm)
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
@@ -67,7 +68,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
         <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: !compact && inset && description ? 16 : 4, marginEnd: inset ? compact && inForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: !compact && inset && description ? 16 : 4, marginEnd: inset ? compactForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
           {({ pressed }) => (
             <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { transform: [{ scale: 0.96 }] } : null]}>
               <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />

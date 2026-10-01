@@ -145,6 +145,7 @@ export function GoalLinkedHabitsSection({
         const value = adherence ? formatValue(adherence.currentStreak) : undefined
         return (
           <ListRow
+            compact={false}
             key={habit.id}
             title={habit.title}
             value={value}
