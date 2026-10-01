@@ -73,6 +73,14 @@ export const cases = async () => {
     if (entry.id === "first_scope_repro") T(`${TOOL}: first Scope repro keeps its detail template`, executable.deferrals[0]?.detail.startsWith("the first Scope item is"))
   }
 
+  const injection = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-injection.json", import.meta.url), "utf8"))
+  const injectionModule = await load("prompt-injection")
+  const injectionCount = { calls: 0 }
+  const injectionRun = replay(injection.response, injectionCount)
+  const injectionExecutable = await injectionModule.classifyExecutability(injection.body, { run: injectionRun })
+  const injectionConversation = await injectionModule.classifyConversationFirst(injection.body, { run: injectionRun })
+  T(`${TOOL}: injected instructions preserve the recorded deferral`, JSON.stringify({ deferrals: injectionExecutable.deferrals.map((item) => item.reason), signals: injectionConversation.signals.map((item) => item.kind) }) === JSON.stringify(injection.expected) && injectionCount.calls === 1)
+
   const { sectionsOf, inScopeSections } = await load("parser")
   T(`${TOOL}: parser exports remain available`, typeof sectionsOf === "function" && typeof inScopeSections === "function")
   T(`${TOOL}: nested Out of scope is excluded`, inScopeSections(sectionsOf("## Out of scope\n\n### Work\n\nNot code\n\n## Scope\n\nCode")).map((item) => item.heading).join(",") === ",Scope")
@@ -116,6 +124,12 @@ export const cases = async () => {
   const invalidResult = await invalidModule.classifyConversationFirst(fixtures.find((item) => item.id === "not_reproduced").body, { run: replay(invalid, { calls: 0 }), retryDelayMs: 0 })
   T(`${TOOL}: missing schema field fails closed`, invalidResult.signals[0]?.kind === "CLASSIFIER_ERROR")
 
+  const missingOutputModule = await load("missing-structured-output")
+  const missingOutputEnvelope = { ...envelope }
+  delete missingOutputEnvelope.structured_output
+  const missingOutputResult = await missingOutputModule.classifyConversationFirst("## Scope\n\n- Fix a missing structured answer", { run: async () => ({ code: 0, stdout: JSON.stringify(missingOutputEnvelope) }) })
+  T(`${TOOL}: an envelope without structured output fails closed`, missingOutputResult.signals[0]?.kind === "CLASSIFIER_ERROR")
+
   const outsideModule = await load("outside-quote")
   const outsideBody = fixtures.find((item) => item.id === "orb223").body
   const outside = { deferrals: [{ reason: "NOT_CODE_WORK", heading: "Out of scope", quote: "HUMAN-ONLY" }], signals: [] }
@@ -147,9 +161,7 @@ export const cases = async () => {
   const rejected = await rejectedModule.classifyConversationFirst("## Scope\n\n- Another ordinary fix", { run: async () => { rejectedCount++; throw new Error("private detail") }, retryDelayMs: 0 })
   T(`${TOOL}: launch rejection fails closed after two attempts`, rejectedCount === 2 && rejected.signals[0]?.kind === "CLASSIFIER_ERROR" && !rejected.questions[0].includes("private detail"))
   const nonJsonModule = await load("invalid-json")
-  const nonJson = await nonJsonModule.classifyConversationFirst("## Scope\n\n- A small fix", { run: async (input, args) => {
-    return { code: 0, stdout: "not json", stderr: "" }
-  } })
+  const nonJson = await nonJsonModule.classifyConversationFirst("## Scope\n\n- A small fix", { run: async () => ({ code: 0, stdout: "not json", stderr: "" }) })
   T(`${TOOL}: non-JSON output fails closed`, nonJson.signals[0]?.kind === "CLASSIFIER_ERROR")
   const timeoutModule = await load("process-timeout")
   const timeoutResult = await timeoutModule.classifyConversationFirst("## Scope\n\n- Another fix", { run: () => new Promise(() => {}), timeoutMs: 10, retryDelayMs: 0 })
@@ -175,12 +187,12 @@ export const cases = async () => {
   T(`${TOOL}: off label preserves a cached classifier failure`, labeledFailure.source === "classifier" && labeledFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
   const labeledOnFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:conversation"] })
   T(`${TOOL}: on label preserves a cached classifier failure`, labeledOnFailure.source === "classifier" && labeledOnFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
-const nativeProbe = stage("ticket-executability/native-probe.mjs", `
+  const nativeProbe = stage("ticket-executability/native-probe.mjs", `
 const { classifyConversationFirst } = await import(process.env.ORBIT_NATIVE_PROBE_MODULE || ${JSON.stringify(new URL("../lib/ticket-executability.mjs", import.meta.url).href)})
 const started = performance.now()
 const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE_PROBE_LARGE ? 4_000_000 : 0)
 const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
-process.stdout.write(JSON.stringify({ kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
+process.stdout.write(JSON.stringify({ conversationFirst: result.conversationFirst, kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
 `)
   const claudeEnvelope = readFileSync(new URL("../__fixtures__/ticket-classifier-envelope.json", import.meta.url), "utf8")
   const claudeBinary = stage("ticket-executability/claude-envelope.mjs", `#!/usr/bin/env node
@@ -190,7 +202,7 @@ process.stdout.write(${JSON.stringify(claudeEnvelope)})
   const claudeObserved = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: claudeBinary } })
   let claudeVerdict
   try { claudeVerdict = JSON.parse(claudeObserved.stdout) } catch { claudeVerdict = null }
-  T(`${TOOL}: native Claude structured envelope admits ordinary code work`, claudeObserved.status === 0 && claudeVerdict && !claudeVerdict.kind, claudeObserved.stderr || claudeObserved.stdout)
+  T(`${TOOL}: native Claude structured envelope admits ordinary code work`, claudeObserved.status === 0 && claudeVerdict?.conversationFirst === false && !claudeVerdict.kind, claudeObserved.stderr || claudeObserved.stdout)
   for (const [name, source, timeoutMs, large] of [
     ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n", 500, true],
     ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n", 100, false],
