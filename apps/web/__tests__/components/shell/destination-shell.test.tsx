@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import { act } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { notificationKeys } from '@orbit/shared/query'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/',
@@ -28,7 +31,8 @@ vi.mock('next/navigation', () => ({
   useParams: () => mocks.params,
   useRouter: () => ({ push: mocks.push }),
 }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => () => mocks.push('/profile') }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide, useIsDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
 }))
@@ -100,6 +104,7 @@ import {
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
@@ -556,6 +561,72 @@ describe('DestinationShell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
     expect(mocks.push).toHaveBeenCalledWith('/profile')
+  })
+
+  it.each([false, true])('renders one live route during a push and return at wide=%s', (wide) => {
+    const RouteContext = createContext('/profile')
+    function LiveRoute() {
+      const path = useContext(RouteContext)
+      return path === '/profile'
+        ? <div data-testid="profile-settings-groups"><button type="button">Setting</button></div>
+        : <><PageHeader title="Support" backLabel="Back to Profile" onBack={() => {}} /><p>Support content</p></>
+    }
+    function App() {
+      return <RouteContext.Provider value={mocks.pathname}>
+        <DestinationShell onCreate={() => {}}><RouteTransitionShell><LiveRoute /></RouteTransitionShell></DestinationShell>
+      </RouteContext.Provider>
+    }
+    mocks.wide = wide
+    mocks.pathname = '/profile'
+    const view = render(<App />)
+    mocks.pathname = '/support'
+    act(() => { setRouteTransitionIntent('forward'); view.rerender(<App />) })
+    expect.soft(screen.getAllByText('Support content')).toHaveLength(1)
+    mocks.pathname = '/profile'
+    act(() => { setRouteTransitionIntent('back'); view.rerender(<App />) })
+    expect(screen.getAllByTestId('profile-settings-groups')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Setting' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Back to Profile' })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('keeps a neutral pushed inbox header after live route cleanup at wide=%s', async (wide) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+    queryClient.setQueryData(notificationKeys.lists(), { items: [], unreadCount: 0 })
+    const RouteContext = createContext('/profile')
+    function LiveRoute() {
+      const path = useContext(RouteContext)
+      return path === '/profile'
+        ? <h1>Profile</h1>
+        : <NotificationInbox />
+    }
+    function App() {
+      return <RouteContext.Provider value={mocks.pathname}>
+        <DestinationShell onCreate={() => {}}><RouteTransitionShell><LiveRoute /></RouteTransitionShell></DestinationShell>
+      </RouteContext.Provider>
+    }
+    mocks.wide = wide
+    mocks.pathname = '/profile'
+    const view = render(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    mocks.pathname = '/notifications'
+    view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    expect.soft(screen.getAllByRole('list', { name: 'notifications.title' })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'notifications.markAllRead' })).not.toBeInTheDocument()
+    await act(async () => {
+      queryClient.setQueryData(notificationKeys.lists(), { items: [createMockNotification({ isRead: false })], unreadCount: 1 })
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+    expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' }).closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'notifications.markAllRead' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    mocks.pathname = '/profile'
+    view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'notifications.title' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'notifications.title' })).not.toBeInTheDocument()
+    view.unmount()
+    queryClient.clear()
   })
 
   it.each([false, true])('does not let a retained route clear the incoming header at wide=%s', (wide) => {

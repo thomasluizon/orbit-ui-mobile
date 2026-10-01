@@ -20,12 +20,13 @@ type VariantResolver = (transition: TransitionMotion) => {
 
 const mocks = vi.hoisted(() => ({
   childTransitions: [] as TransitionMotion[],
+  initials: [] as (false | string)[],
+  reducedMotion: false,
   intent: 'neutral' as 'back' | 'forward' | 'neutral',
   pathname: '/',
   transitions: [] as TransitionMotion[],
   variants: null as null | {
     animate: VariantResolver
-    exit: VariantResolver
     initial: VariantResolver
   },
 }))
@@ -46,24 +47,23 @@ vi.mock('@/lib/motion/route-intent', async (importOriginal) => {
 vi.mock('motion/react', async () => {
   const ReactModule = await import('react')
   return {
-    AnimatePresence: ({ children, custom }: { children: React.ReactNode; custom: TransitionMotion }) => {
-      mocks.transitions.push(custom)
-      return <>{children}</>
-    },
     domMax: {},
     LazyMotion: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     m: {
-      div: ({ children, custom, variants }: {
+      div: ({ children, custom, variants, initial }: {
         children: React.ReactNode
         custom: TransitionMotion
         variants: typeof mocks.variants
+        initial: false | string
       }) => {
+        mocks.transitions.push(custom)
+        mocks.initials.push(initial)
         mocks.childTransitions.push(custom)
         mocks.variants = variants
         return ReactModule.createElement('div', null, children)
       },
     },
-    useReducedMotion: () => false,
+    useReducedMotion: () => mocks.reducedMotion,
   }
 })
 
@@ -80,12 +80,13 @@ function resolvedVariants() {
   return {
     enter: variants.initial(transition),
     entering: variants.animate(transition),
-    exit: variants.exit(transition),
   }
 }
 
 describe('RouteTransitionShell', () => {
   beforeEach(() => {
+    mocks.initials.length = 0
+    mocks.reducedMotion = false
     mocks.childTransitions.length = 0
     mocks.intent = 'neutral'
     mocks.pathname = '/'
@@ -93,7 +94,22 @@ describe('RouteTransitionShell', () => {
     mocks.variants = null
   })
 
-  it('uses one hierarchical push for both sides from Hoje to habit detail', () => {
+  it('skips entrance animation on a direct load', () => {
+    render(<RouteTransitionShell><p>Today</p></RouteTransitionShell>)
+    expect(mocks.initials.at(-1)).toBe(false)
+  })
+
+  it('replaces route displacement with a fade under reduced motion', () => {
+    mocks.reducedMotion = true
+    const shell = render(<RouteTransitionShell><p>Today</p></RouteTransitionShell>)
+    mocks.intent = 'forward'
+    mocks.pathname = '/notifications'
+    shell.rerender(<RouteTransitionShell><p>Alerts</p></RouteTransitionShell>)
+    expect(mocks.initials.at(-1)).toBe('initial')
+    expect(resolvedVariants()).toMatchObject({ enter: { opacity: 0, x: 0 }, entering: { opacity: 1, x: 0 } })
+  })
+
+  it('uses a hierarchical entrance on push from Hoje to habit detail', () => {
     const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
     mocks.intent = 'forward'
     mocks.pathname = '/habits/habit-1'
@@ -103,11 +119,10 @@ describe('RouteTransitionShell', () => {
     expect(resolvedVariants()).toMatchObject({
       enter: { opacity: 0, x: 12 },
       entering: { transition: { duration: 0.22 } },
-      exit: { opacity: 0, transition: { duration: 0.165 }, x: -12 },
     })
   })
 
-  it('uses one hierarchical pop for both sides from habit detail to Hoje', () => {
+  it('uses a hierarchical entrance on back from habit detail to Hoje', () => {
     mocks.pathname = '/habits/habit-1'
     const shell = render(<RouteTransitionShell><p>Habit</p></RouteTransitionShell>)
     mocks.intent = 'back'
@@ -118,11 +133,10 @@ describe('RouteTransitionShell', () => {
     expect(resolvedVariants()).toMatchObject({
       enter: { opacity: 0, x: -12 },
       entering: { transition: { duration: 0.22 } },
-      exit: { opacity: 0, transition: { duration: 0.165 }, x: 12 },
     })
   })
 
-  it('keeps both sides of a primary-tab switch instant', () => {
+  it('keeps a primary-tab switch instant', () => {
     const shell = render(<RouteTransitionShell><p>Hoje</p></RouteTransitionShell>)
     mocks.pathname = '/calendar'
 
@@ -131,7 +145,6 @@ describe('RouteTransitionShell', () => {
     expect(resolvedVariants()).toMatchObject({
       enter: { opacity: 1, x: 0 },
       entering: { transition: { duration: 0 } },
-      exit: { opacity: 1, transition: { duration: 0 }, x: 0 },
     })
   })
 })
