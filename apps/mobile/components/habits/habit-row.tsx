@@ -263,7 +263,7 @@ export const HabitRow = memo(function HabitRow({
   const metaParts = buildHabitRowMetaParts({
     habit,
     childProgress: { done: childrenDone, total: childrenTotal },
-    isOverdue,
+    isOverdue: habit.isOverdue,
     selectedDateStr,
     todayStr,
     displayTime,

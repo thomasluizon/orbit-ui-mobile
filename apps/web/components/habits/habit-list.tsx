@@ -1210,9 +1210,9 @@ export function HabitList({
   }
 
   function buildMetaTokens(habit: NormalizedHabit, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
-    if (childProgress) return [t('habits.rowProgress', childProgress)]
     const tokens: HabitRowMetaToken[] = []
-    if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
+    if (childProgress) tokens.push(t('habits.rowProgress', childProgress))
+    else if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
     if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
     }

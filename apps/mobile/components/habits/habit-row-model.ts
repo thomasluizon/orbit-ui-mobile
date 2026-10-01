@@ -38,13 +38,14 @@ export function buildHabitRowMetaParts({
   t,
   locale,
 }: BuildHabitRowMetaPartsParams): HabitRowMetaPart[] {
-  if (childProgress && childProgress.total > 0) return [t('habits.rowProgress', childProgress)]
   const metaParts: HabitRowMetaPart[] = []
-  if (habit.dueTime) {
+  if (childProgress && childProgress.total > 0) {
+    metaParts.push(t('habits.rowProgress', childProgress))
+  } else if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
     metaParts.push(habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due)
   }
-  if (isOverdue) metaParts.push({ kind: 'overdue' })
+  if (isOverdue && !habit.isCompleted) metaParts.push({ kind: 'overdue' })
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {
     metaParts.push({ kind: 'bad' })
   }

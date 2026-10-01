@@ -80,6 +80,34 @@ describe('HabitRow canonical content (mobile)', () => {
     expect(text).not.toContain('21:00')
   })
 
+  it.each([
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: ['habits.overdue'] },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      words: ['habits.statusDot.bad'] },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      words: ['habits.overdue', 'habits.statusDot.bad'] },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      words: [] },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      words: [] },
+  ])('renders parent progress with applicable state words for $label', ({ label, words, ...flags }) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: label,
+        dueTime: '21:00', hasSubHabits: true, ...flags })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text.filter((part) => part.startsWith('habits.rowProgress') || words.includes(part)))
+      .toEqual(['habits.rowProgress', ...words])
+    for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
+      if (!words.includes(word)) expect(text).not.toContain(word)
+    }
+    expect(text).not.toContain('21:00')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([false, true])('uses the empty track for parent selection mode %s', (isSelectMode) => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

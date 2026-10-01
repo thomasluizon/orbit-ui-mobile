@@ -472,6 +472,38 @@ describe('HabitList', () => {
     expect(row).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
   })
 
+  it.each([
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: ['habits.overdue'] },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      words: ['habits.statusDot.bad'] },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      words: ['habits.overdue', 'habits.statusDot.bad'] },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      words: [] },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      words: [] },
+  ])('preserves parent progress and applicable state words for $label', ({ label, words, ...flags }) => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ id: 'parent', title: label, hasSubHabits: true,
+      dueTime: '21:00', scheduledDates: [TODAY], ...flags })
+    const children = [false, true].map((isCompleted, index) => createMockHabit({
+      id: `child-${index}`, title: `Child ${index}`, parentId: parent.id, isCompleted, scheduledDates: [TODAY],
+    }))
+    for (const habit of [parent, ...children]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, children.map((child) => child.id))
+    mockHabitsData.topLevelHabits = [parent]
+    renderWithProviders(<HabitList view="today" showCompleted
+      filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const row = screen.getAllByTestId('habit-row')[0]!
+    const progress = within(row).getByText(/habits\.rowProgress/)
+    expect(progress).toHaveTextContent(['habits.rowProgress({"done":1,"total":2})', ...words].join('·'))
+    for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
+      if (!words.includes(word)) expect(progress).not.toHaveTextContent(word)
+    }
+    expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+  })
+
   it('explains an offline sub-habit request beside the parent row', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     try {

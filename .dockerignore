@@ -8,6 +8,7 @@
 **/playwright-report
 **/__tests__
 !packages/shared/src/__tests__/factories.ts
+!packages/shared/src/__tests__/contrast.ts
 apps/mobile
 architecture.json
 architecture.html

@@ -37,6 +37,23 @@ describe('buildHabitRowMetaParts', () => {
       habit: createMockHabit({ dueTime: '08:00' }) })).toEqual(['habits.rowProgress'])
   })
 
+  it.each([
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      states: [{ kind: 'overdue' }] },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      states: [{ kind: 'bad' }] },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      states: [{ kind: 'overdue' }, { kind: 'bad' }] },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      states: [] },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      states: [] },
+  ])('preserves parent progress and applicable state words for $label', ({ isOverdue, states, ...flags }) => {
+    const habit = createMockHabit({ dueTime: '08:00', dueEndTime: '09:00', hasSubHabits: true, ...flags })
+    expect(buildHabitRowMetaParts({ ...base, habit, isOverdue,
+      childProgress: { done: 1, total: 2 } })).toEqual(['habits.rowProgress', ...states])
+  })
+
   it('formats a due-time range', () => {
     const parts = buildHabitRowMetaParts({
       ...base,
