@@ -563,10 +563,10 @@ describe('DestinationShell', () => {
     mocks.wide = wide
     const onBack = vi.fn()
     const incoming = <PageHeader key="incoming" title="Support" backLabel="Back to Profile" onBack={onBack} />
-    function App({ retainingPrevious }: { retainingPrevious: boolean }) {
+    function App({ retainingPrevious, showIncoming = true }: { retainingPrevious: boolean; showIncoming?: boolean }) {
       return <DestinationShell onCreate={() => {}}>
         {retainingPrevious ? <PageHeader key="previous" title="Support" backLabel="Previous back" onBack={() => {}} /> : null}
-        {incoming}
+        {showIncoming ? incoming : <h1>Profile</h1>}
       </DestinationShell>
     }
     const view = render(<App retainingPrevious />)
@@ -576,6 +576,11 @@ describe('DestinationShell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
     expect(onBack).toHaveBeenCalledOnce()
+    mocks.pathname = '/profile'
+    view.rerender(<App retainingPrevious={false} showIncoming={false} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Support' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back to Profile' })).not.toBeInTheDocument()
   })
 
   it('replaces a hosted header when its renderer changes under the same key', () => {
