@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -106,6 +107,7 @@ describe('other clipped control containers in Chromium', () => {
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
         await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style><button>Before</button>${container.innerHTML}<button>After</button>`)
+        await loadAppFonts(page)
         await page.addScriptTag({ content: `document.querySelectorAll('[data-focus-inset=""]').forEach((scroller) => scroller.addEventListener('focus', ${revealFocusedControl.toString()}, true));` })
         const controls = page.locator(selector)
         expect(await controls.count()).toBeGreaterThan(0)
@@ -136,6 +138,7 @@ describe('other clipped control containers in Chromium', () => {
           fireEvent.scroll(scroller, { target: { scrollTop: 688 } })
           expect(container.textContent).toContain(surface === 'tag picker' ? 'Tag 20' : 'Goal 20')
           await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style><button>Before</button>${container.innerHTML}<button>After</button>`)
+          await loadAppFonts(page)
           await page.addScriptTag({ content: `document.querySelectorAll('[data-focus-inset=""]').forEach((scroller) => scroller.addEventListener('focus', ${revealFocusedControl.toString()}, true));` })
           const finalControls = page.locator(selector)
           for (let index = 0; index < await finalControls.count(); index += 1) {

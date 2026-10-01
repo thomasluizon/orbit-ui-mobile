@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render } from '@testing-library/react'
@@ -6,8 +7,11 @@ import { SortableContext } from '@dnd-kit/sortable'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerSuggestion, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { HabitRow } from '@/components/habits/habit-row'
 import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
@@ -17,6 +21,7 @@ import { RowList } from '@/components/ui/row-list'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 import { inspectFocusedRing, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -30,6 +35,23 @@ function suggestion(label: string): ComposerSuggestion {
 
 const suggestions: ComposerSuggestions = [suggestion('Create'), suggestion('Review'), suggestion('Plan'), suggestion('Reflect'), suggestion('Organize'), suggestion('Celebrate')]
 
+const overflowingSuggestions = toComposerSuggestions(buildComposerChips({
+  surface: 'today', status: 'success', totalHabitCount: 2,
+  habits: [
+    createMockHabit({ title: 'Caminhar no parque', isOverdue: true }),
+    createMockHabit({ title: 'Rotina da casa', hasSubHabits: true }),
+  ],
+  profile: createMockProfile({ currentStreak: 0, lastCompletionDate: null }),
+}).map(({ id, params }) => {
+  const key = id.replace('today.', '') as keyof typeof ptBR.shell.composer.chips.today
+  return suggestion(ptBR.shell.composer.chips.today[key].replace('{title}', params?.title ?? ''))
+}))
+
+const chipCases = cases.flatMap((viewport) => [
+  { ...viewport, labels: 'short', words: en.shell.composer, chips: suggestions, overflows: false },
+  { ...viewport, labels: 'pt-BR overflow', words: ptBR.shell.composer, chips: overflowingSuggestions, overflows: true },
+])
+
 describe('clipped focus perimeters in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -42,10 +64,10 @@ describe('clipped focus perimeters in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('shows every composer chip perimeter at $width in $mode', async ({ width, mode }) => {
+  it.each(chipCases)('shows every composer chip perimeter at $width in $mode with $labels', async ({ width, mode, words, chips, overflows }) => {
     const { container } = render(<Composer
-      state="idle" value="" words={en.shell.composer}
-      suggestions={suggestions}
+      state="idle" value="" words={words}
+      suggestions={chips}
       onChangeValue={vi.fn()} onSend={vi.fn()}
     />)
     const firstChip = container.querySelector('[data-focus-inset] button')!
@@ -58,10 +80,16 @@ describe('clipped focus perimeters in Chromium', () => {
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
       await page.setContent(`<style>${stylesheet}:root {${variables}}</style><button>Before</button>${container.innerHTML}<button>After</button>`)
+      await loadAppFonts(page)
+      await page.addScriptTag({ content: `document.querySelector('[data-focus-inset]').addEventListener('focus', ${revealFocusedControl.toString()}, true);` })
+      const scroller = page.getByRole('group', { name: words.suggestionsLabel })
+      if (overflows && width === 412) {
+        expect(await scroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+      }
       for (const forcedColors of ['none', 'active'] as const) {
         await page.emulateMedia({ forcedColors })
-        for (let index = 0; index < 6; index += 1) {
-          const chip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel }).getByRole('button').nth(index)
+        for (const index of [...chips.keys(), ...[...chips.keys()].reverse()]) {
+          const chip = scroller.getByRole('button').nth(index)
           await chip.focus()
           await page.keyboard.press('Shift+Tab')
           await page.keyboard.press('Tab')
@@ -69,6 +97,13 @@ describe('clipped focus perimeters in Chromium', () => {
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
           expect(await readOutlineVisibility(chip)).toMatchObject({ visible: true, clippedBy: [] })
           expect(await chip.evaluate((element) => element.getBoundingClientRect().height)).toBe(44)
+          const clearance = await chip.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const scroller = element.parentElement!.getBoundingClientRect()
+            return { left: bounds.left - scroller.left, right: scroller.right - bounds.right }
+          })
+          expect(clearance.left, `chip ${index} left clearance`).toBeGreaterThanOrEqual(3.5)
+          expect(clearance.right, `chip ${index} right clearance`).toBeGreaterThanOrEqual(3.5)
         }
       }
     } finally { await page.close() }
@@ -88,6 +123,7 @@ describe('clipped focus perimeters in Chromium', () => {
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
       await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style><button>Before</button><main>${container.innerHTML}</main><button>After</button>`)
+      await loadAppFonts(page)
       const controls = page.locator('main [tabindex="0"], main button:not([disabled])')
       for (const forcedColors of ['none', 'active'] as const) {
         await page.emulateMedia({ forcedColors })

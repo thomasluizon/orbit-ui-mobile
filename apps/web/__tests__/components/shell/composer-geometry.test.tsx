@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import postcss from 'postcss'
@@ -42,6 +43,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       const measured = await page.evaluate(() => {
         const input = document.querySelector<HTMLTextAreaElement>('[data-composer-input]')!
         const style = getComputedStyle(input)

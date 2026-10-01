@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import postcss from 'postcss'
@@ -35,6 +36,7 @@ describe('DateField sheet geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await loadAppFonts(page)
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.setViewportSize({ width, height: 915 })
       await page.evaluate(() => new Promise<void>((resolve) => {
@@ -82,6 +84,7 @@ describe('DateField sheet geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await loadAppFonts(page)
       expect(await page.evaluate(() => getComputedStyle(document.querySelector('[data-slot="sheet-body"]')!).paddingLeft)).toBe('24px')
     } finally { await page.close() }
   })

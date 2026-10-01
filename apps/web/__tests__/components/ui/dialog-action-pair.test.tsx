@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { render, screen } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import postcss from 'postcss'
@@ -37,10 +38,7 @@ describe('DialogActionPair (web)', () => {
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-      const font = readFileSync(require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')).toString('base64')
-      stylesheet = `${compiled.css}
-        @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
-        :root { --font-sans: TestGeist; }`
+      stylesheet = compiled.css
     })
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -57,7 +55,7 @@ describe('DialogActionPair (web)', () => {
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await page.evaluate(() => document.fonts.ready)
+        await loadAppFonts(page)
         const measured = await page.evaluate(() => {
           const footer = document.querySelector('footer')!
           const bounds = footer.getBoundingClientRect()
