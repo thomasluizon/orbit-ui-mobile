@@ -184,9 +184,36 @@ describe('WrappedPlayer', () => {
     expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
   })
 
+  it.each([
+    ['en', en, 'Back', 'Continue'],
+    ['pt-BR', ptBR, 'Voltar', 'Continuar'],
+  ] as const)('uses the drawn accessible Pager labels in %s', (_locale, messages, back, forward) => {
+    translationMock.labels = {
+      'wrapped.previous': messages.wrapped.previous,
+      'wrapped.next': messages.wrapped.next,
+    }
+    const { tree } = renderPlayer()
+    expect(hasText(tree, back)).toBe(true)
+    expect(hasText(tree, forward)).toBe(true)
+    expect(byTestId(tree, 'button-ghost-md')?.props.accessibilityState).toMatchObject({ disabled: true })
+    press(byTestId(tree, 'button-primary-md'))
+    expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
+    press(byTestId(tree, 'button-ghost-md'))
+    expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
+  })
+
   it('pages through the transparent tap zones', () => {
     const { tree } = renderPlayer()
     expect(byTestId(tree, 'wrapped-previous-zone')?.props.disabled).toBe(true)
+    for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
+      const zone = byTestId(tree, id)!
+      expect(zone.props.accessible).toBe(false)
+      expect(zone.props.focusable).toBe(false)
+      expect(hosts(tree).some((node) =>
+        node.props.importantForAccessibility === 'no-hide-descendants'
+        && node.findAll((child) => child === zone).length > 0,
+      )).toBe(true)
+    }
     press(byTestId(tree, 'wrapped-next-zone'))
     expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
     press(byTestId(tree, 'wrapped-previous-zone'))
