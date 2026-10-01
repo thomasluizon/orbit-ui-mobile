@@ -66,6 +66,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.billing).toBeDefined()
@@ -84,6 +85,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.billing).toBeNull()
@@ -100,6 +102,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
   })

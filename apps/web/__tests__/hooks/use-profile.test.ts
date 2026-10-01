@@ -150,6 +150,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -195,6 +196,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -213,6 +215,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -232,6 +235,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -250,6 +254,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -265,6 +270,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -279,6 +285,7 @@ describe('useProfile', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -303,6 +310,7 @@ describe('useProfile', () => {
 
     const { result } = renderHook(() => useProfile(), { wrapper: Wrapper })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -329,6 +337,7 @@ describe('useHasProAccess', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -342,6 +351,7 @@ describe('useHasProAccess', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -361,6 +371,7 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -374,6 +385,7 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -387,6 +399,7 @@ describe('useCurrentPlan', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -406,6 +419,7 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -425,6 +439,7 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -444,6 +459,7 @@ describe('useTrialExpired', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -470,6 +486,7 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -490,6 +507,7 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -503,6 +521,7 @@ describe('useTrialUrgent', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -529,6 +548,7 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -549,6 +569,7 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -569,6 +590,7 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })
@@ -582,6 +604,7 @@ describe('useIsYearlyPro', () => {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalled()
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: profileKeys.detail() }, { cancelRefetch: false, throwOnError: true })
     })

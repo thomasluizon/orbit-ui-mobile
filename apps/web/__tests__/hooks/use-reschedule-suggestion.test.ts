@@ -38,6 +38,7 @@ describe('useRescheduleSuggestion', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isLoading).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     expect(result.current.suggestion?.rationale).toBe('Ease back in with two days a week.')
@@ -73,6 +74,7 @@ describe('useRescheduleSuggestion', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isLoading).toBe(true)
     await act(async () => {
       await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 400 })
     })
@@ -89,6 +91,7 @@ describe('useRescheduleSuggestion', () => {
       () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }),
       { wrapper: createWrapper() },
     )
+    expect(result.current.isLoading).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     expect(mockFetch).toHaveBeenCalledTimes(2)
@@ -105,6 +108,7 @@ describe('useRescheduleSuggestion', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isLoading).toBe(true)
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     const calledUrl = mockFetch.mock.calls[0]![0] as string

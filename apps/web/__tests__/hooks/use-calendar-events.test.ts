@@ -51,7 +51,7 @@ describe('useCalendarEvents', () => {
   it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
-    expect(result.current.isError).toBe(false)
+    expect(result.current.isFetching).toBe(true)
     await act(async () => {
       await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toBeInstanceOf(ZodError)
     })
@@ -168,7 +168,7 @@ describe('useCalendarEvents', () => {
       json: () => Promise.resolve({ message: 'Boom' }),
     })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
-    expect(result.current.isError).toBe(false)
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toBe('Boom')
@@ -181,7 +181,7 @@ describe('useCalendarEvents', () => {
       json: () => Promise.reject(new Error('no json')),
     })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
-    expect(result.current.isError).toBe(false)
+    expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toBe('Failed with status 503')

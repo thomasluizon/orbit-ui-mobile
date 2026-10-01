@@ -64,6 +64,7 @@ describe('adapter query retry policy', () => {
     const { client, wrapper } = setupClient()
     const { result } = renderHook(() => useHook(client), { wrapper })
 
+    expect(refusedFetch).toHaveBeenCalledOnce()
     await act(async () => {
       await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
     })
@@ -79,6 +80,7 @@ describe('adapter query retry policy', () => {
     const { wrapper } = setupClient()
     const { result, rerender } = renderHook(() => useBilling(true), { wrapper })
 
+    expect(result.current.isFetching).toBe(true)
     await act(async () => {
       await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
     })
