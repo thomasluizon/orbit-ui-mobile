@@ -81,12 +81,14 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       await expect(destructive).toHaveCSS('transform', 'none')
       await page.mouse.move(0, 0)
       await page.mouse.up()
+      await expect(page.getByRole('status').filter({ hasText: 'Draggable item' })).toHaveCount(0)
 
       if (width === 412) {
         await page.locator('.orbit-sheet-close').click()
       } else {
         await page.keyboard.press('Escape')
       }
+      await expect(menu).toHaveCount(0)
 
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
