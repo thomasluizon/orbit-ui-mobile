@@ -824,6 +824,8 @@ account's overlay immediately, without an exit transition. Most owners reset the
 its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
 may flip the flag.
 
+Android wide sheets stay bottom-attached to the centred shell column with TrueSheet's `maxContentWidth` and `anchor: 'center'`. TrueSheet ignores `presentation` on Android and supports `detached` only on web, so web keeps its centred dialog at `sm` and above as a platform adapter.
+
 ### Sizing
 
 - **An overlay is content-height by default.** It grows to its content and stops.

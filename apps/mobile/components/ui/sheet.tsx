@@ -1,7 +1,7 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
+import { SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +15,6 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast } from '@/components/ui/app-toast'
 
 const MAX_HEIGHT_RATIO = 0.85
-const MAX_CONTENT_WIDTH = 640
 const SCROLL_EDGE_PEEK = 24
 // WHY: TrueSheet 3.11.3 exposes only `dimmed` and hardcodes Android dim opacity to 0.50. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDimView.kt#L38
 const TRUE_SHEET_DIMMED = true
@@ -77,7 +76,7 @@ export function Sheet({
   const bodyPaddingHorizontal = minimumBodyWidth == null
     ? 24
     : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
-      minimumBodyWidth + step * 2 <= Math.min(width, MAX_CONTENT_WIDTH) ? step : inset
+      minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) ? step : inset
     ), SHEET_BODY_INSETS[0])
   const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
   const { bottom: bottomInset } = useSafeAreaInsets()
@@ -187,7 +186,8 @@ export function Sheet({
       }}
       header={header}
       maxContentHeight={height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK}
-      maxContentWidth={MAX_CONTENT_WIDTH}
+      maxContentWidth={SHELL_CONTENT_MAX_WIDTH}
+      anchor="center"
       insetAdjustment="automatic"
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
