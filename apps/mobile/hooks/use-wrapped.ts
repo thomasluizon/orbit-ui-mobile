@@ -98,6 +98,8 @@ interface WrappedStory {
 /** Tap-driven story controller: clamps the slide index to bounds and exposes next/prev. */
 export function useWrappedStory(slideCount: number): WrappedStory {
   const [index, setIndex] = useState(0)
+  const lastIndex = Math.max(slideCount - 1, 0)
+  if (index > lastIndex) setIndex(lastIndex)
 
   return {
     index,

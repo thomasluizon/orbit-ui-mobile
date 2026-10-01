@@ -65,6 +65,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     addButton: {
+      minHeight: 44,
+      minWidth: 44,
       overflow: "hidden",
       flexDirection: "row",
       alignItems: "center",
@@ -133,6 +135,8 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 4,
     },
     unitButton: {
+      minHeight: 44,
+      minWidth: 44,
       overflow: "hidden",
       paddingHorizontal: 8,
       paddingVertical: 8,
@@ -154,10 +158,10 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     customAddButton: {
-      overflow: "hidden",
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       borderRadius: radius.full,
+      overflow: "hidden",
       backgroundColor: tokens.primary,
       alignItems: "center",
       justifyContent: "center",
@@ -350,6 +354,9 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 0,
     },
     emojiCategoryTab: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
       overflow: "hidden",
       backgroundColor: tokens.bgField,
       borderWidth: 1,
@@ -564,6 +571,9 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     tagChipMain: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
       borderRadius: radius.full,
       overflow: "hidden",
       flexDirection: "row",
@@ -579,6 +589,10 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
     },
     tagAction: {
+      minWidth: 44,
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
       borderRadius: radius.full,
       overflow: "hidden",
       paddingHorizontal: 4,
@@ -645,6 +659,9 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     tagFormSave: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: "center",
       overflow: "hidden",
       paddingHorizontal: 12,
       paddingVertical: 8,
@@ -659,8 +676,8 @@ export function createStyles(tokens: AppTokens) {
     tagFormCancel: {
       borderRadius: radius.full,
       overflow: "hidden",
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
     },

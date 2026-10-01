@@ -31,7 +31,6 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
-      hitSlop={{ top: 6, bottom: 6 }}
       style={({ pressed }) => {
         const pressedBackground = pressed ? tokens.bgHover : tokens.bgElev
         return [
@@ -57,6 +56,8 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
+    minHeight: 44,
+    minWidth: 44,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: radius.full,

@@ -272,12 +272,12 @@ function AllDayMoreChip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        height: ALL_DAY_CHIP_HEIGHT,
+        minHeight: 44,
+        minWidth: 44,
         paddingHorizontal: 8,
         borderRadius: 8,
         overflow: "hidden",
@@ -419,12 +419,13 @@ export function CalendarTimeGrid({
       0,
     );
     if (maxChips === 0) return ALL_DAY_MIN_HEIGHT;
-    const rows = Math.min(maxChips, ALL_DAY_MAX_VISIBLE);
+    const visibleRows = Math.min(maxChips, ALL_DAY_MAX_VISIBLE - Number(maxChips > ALL_DAY_MAX_VISIBLE));
+    const overflowHeight = maxChips > ALL_DAY_MAX_VISIBLE ? 44 + ALL_DAY_GAP : 0;
     return Math.max(
       ALL_DAY_MIN_HEIGHT,
       ALL_DAY_PADDING_VERTICAL * 2 +
-        rows * ALL_DAY_CHIP_HEIGHT +
-        (rows - 1) * ALL_DAY_GAP,
+        visibleRows * ALL_DAY_CHIP_HEIGHT +
+        (visibleRows - 1) * ALL_DAY_GAP + overflowHeight,
     );
   }, [perColumn]);
 

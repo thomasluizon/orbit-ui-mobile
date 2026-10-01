@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarEventsResponseSchema, type CalendarSyncEvent } from '@orbit/shared/types'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import {
   extractBackendErrorCode,
@@ -31,8 +31,10 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
     queryKey: [...calendarKeys.all, 'manual-fetch', options.timeZone],
     queryFn: async () => {
       try {
-        const data = await apiClient<CalendarSyncEvent[]>(`${API.calendar.events}?includeImported=true`)
-        return { status: 'connected', events: Array.isArray(data) ? data : [] }
+        const events = calendarEventsResponseSchema.parse(
+          await apiClient<unknown>(`${API.calendar.events}?includeImported=true`),
+        )
+        return { status: 'connected', events }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : ''
         const currentAutoSyncState = queryClient.getQueryData<CalendarAutoSyncState>(

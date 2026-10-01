@@ -73,8 +73,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     hiddenNavigation: { opacity: 0 },
     monthNavButton: {
-      width: 36,
-      height: 36,
+      minWidth: 44,
+      minHeight: 44,
       borderRadius: 999,
       overflow: "hidden",
       alignItems: "center",
@@ -86,7 +86,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.96 }],
     },
     monthLabelButton: {
-      height: 36,
+      minWidth: 44,
+      minHeight: 44,
       borderRadius: 999,
       overflow: "hidden",
       alignItems: "center",
@@ -94,7 +95,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 4,
     },
     weekLabelButton: {
-      height: 36,
+      minWidth: 44,
+      minHeight: 44,
       borderRadius: 999,
       overflow: "hidden",
       alignItems: "center",
@@ -113,7 +115,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textAlign: "center",
     },
     yearButton: {
-      height: 36,
+      minWidth: 44,
+      minHeight: 44,
       borderRadius: 999,
       overflow: "hidden",
       alignItems: "center",
@@ -206,7 +209,6 @@ export function CalendarHeader({
           accessibilityRole="button"
           accessibilityLabel={currentMonthLabel}
           onPress={onCurrentMonth}
-          hitSlop={4}
           style={({ pressed }) => [styles.monthLabelButton, pressed && styles.monthLabelButtonPressed]}
         >
           <Text style={styles.monthTitle} numberOfLines={1}>{monthLabel}</Text>
@@ -215,7 +217,6 @@ export function CalendarHeader({
           accessibilityRole="button"
           accessibilityLabel={selectYearLabel}
           onPress={() => setIsYearOpen(true)}
-          hitSlop={4}
           style={({ pressed }) => [styles.yearButton, pressed && styles.monthLabelButtonPressed]}
         >
           <Text style={[styles.yearTitle, width >= 1024 && styles.yearTitleWide]}>{year}</Text>
@@ -225,7 +226,6 @@ export function CalendarHeader({
         accessibilityRole="button"
         accessibilityLabel={previousMonthLabel}
         onPress={onPreviousMonth}
-        hitSlop={4}
         style={({ pressed }) => [
           styles.monthNavButton,
           pressed && styles.monthNavButtonPressed,
@@ -237,7 +237,6 @@ export function CalendarHeader({
         accessibilityRole="button"
         accessibilityLabel={nextMonthLabel}
         onPress={onNextMonth}
-        hitSlop={4}
         style={({ pressed }) => [
           styles.monthNavButton,
           pressed && styles.monthNavButtonPressed,
@@ -292,7 +291,6 @@ export function CalendarWeekNav({
         accessibilityRole="button"
         accessibilityLabel={previousWeekLabel}
         onPress={onPreviousWeek}
-        hitSlop={4}
         style={({ pressed }) => [
           styles.monthNavButton,
           pressed && styles.monthNavButtonPressed,
@@ -304,7 +302,6 @@ export function CalendarWeekNav({
         accessibilityRole="button"
         accessibilityLabel={currentWeekLabel}
         onPress={onCurrentWeek}
-        hitSlop={4}
         style={({ pressed }) => [
           styles.weekLabelButton,
           pressed && styles.monthLabelButtonPressed,
@@ -318,7 +315,6 @@ export function CalendarWeekNav({
         accessibilityRole="button"
         accessibilityLabel={nextWeekLabel}
         onPress={onNextWeek}
-        hitSlop={4}
         style={({ pressed }) => [
           styles.monthNavButton,
           pressed && styles.monthNavButtonPressed,

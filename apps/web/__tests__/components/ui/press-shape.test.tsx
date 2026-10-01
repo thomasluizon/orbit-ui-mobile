@@ -1,3 +1,9 @@
+import { execFileSync } from 'node:child_process'
+import { NextIntlClientProvider } from 'next-intl'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { useTranslations } from 'next-intl'
 import { AppSelect } from '@/components/ui/app-select'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -12,8 +18,8 @@ import { Sheet } from '@/components/ui/sheet'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { HabitTagChip } from '@/components/habits/habit-form-fields/habit-tag-chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { render } from '@testing-library/react'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, within } from '@testing-library/react'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 
@@ -27,7 +33,27 @@ const cellWords: DayCellWords = {
   readOnly: 'read only',
 }
 
+function ReminderTargets() {
+  const t = useTranslations()
+  return <>
+    <ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={() => {}} onToggleReminder={() => {}} reminderLabel={String} t={t} />
+    <HabitChecklist items={[{ text: 'Beber água', isChecked: false }]} editable onItemsChange={() => {}} />
+  </>
+}
+
 describe('painted press and hover shapes', () => {
+  it('renders the compact layout inventory from real controls and providers', () => {
+    const container = document.createElement('section')
+    container.innerHTML = execFileSync(process.execPath, ['--import', 'tsx', resolve('e2e/layout/compact-target-inventory.tsx')], {
+      encoding: 'utf8',
+      env: { ...process.env, TSX_TSCONFIG_PATH: resolve('e2e/layout/compact-target-tsconfig.json') },
+    })
+    expect(within(container).getByRole('button', { name: /Sequência/ })).toBeDefined()
+    for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
+      expect(within(container).getByRole('button', { name: label })).toBeDefined()
+    }
+  })
+
   it('layers the day hover fill over the whole round hit area without hiding the outcome', () => {
     const { container } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />,
@@ -59,8 +85,6 @@ describe('painted press and hover shapes', () => {
   })
 })
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-
 describe('interaction fill parity in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -72,6 +96,32 @@ describe('interaction fill parity in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 1280])('paints the custom reminder commit as a full round target at %spx', async (width) => {
+    const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC"><ReminderTargets /></NextIntlClientProvider>)
+    fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderAdd }))
+    fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderCustom }))
+    const markup = controls.container.innerHTML
+    controls.unmount()
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = resolveWebThemeVariables('orange', 'dark')
+      const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root {${declarations}} button {transition:none !important}</style>${markup}`)
+      const customReminder = page.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).locator('..')
+      const button = customReminder.getByRole('button', { name: ptBr.common.add, exact: true })
+      await button.hover()
+      const geometry = await button.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        return { width: bounds.width, height: bounds.height, radius: style.borderTopLeftRadius, background: style.backgroundColor }
+      })
+      expect(geometry.width).toBeGreaterThanOrEqual(44)
+      expect(geometry.height).toBeGreaterThanOrEqual(44)
+      expect(Math.min(Number.parseFloat(geometry.radius), geometry.width / 2, geometry.height / 2), geometry.radius).toBe(22)
+      expect(geometry.background).toBe('rgb(183, 78, 18)')
+    } finally { await page.close() }
+  })
+
   it.each([{ mode: 'dark', hasTouch: false }, { mode: 'light', hasTouch: false }, { mode: 'dark', hasTouch: true }, { mode: 'light', hasTouch: true }] as const)('paints the neutral role in $mode mode with touch: $hasTouch', async ({ mode, hasTouch }) => {
     const noop = () => {}
     const drill: React.ComponentProps<typeof HabitDrill>['drill'] = {
@@ -80,7 +130,7 @@ describe('interaction fill parity in Chromium', () => {
       drillLoading: false, drillError: '', drillInto: async () => {}, drillBack: noop,
       drillReset: noop, refreshCurrent: async () => {}, getDrillChildren: () => [],
     }
-    const controls = render(<>
+    const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
       <CalendarHeader monthLabel="April" year={2026} previousMonthLabel="Previous month" nextMonthLabel="Next month" currentMonthLabel="Current month" selectYearLabel="Select year" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectYear={noop} />
       <CalendarWeekNav weekLabel="Week" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={noop} onNextWeek={noop} onCurrentWeek={noop} />
       <HabitDrill drill={drill} t={(key) => key} hasProAccess renderHabitCard={() => null} onAddSubHabit={noop} />
@@ -89,11 +139,11 @@ describe('interaction fill parity in Chromium', () => {
       <AppSelect value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />
       <TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={noop} onCommit={noop} onCancel={noop} />
       <HabitTagChip tag={{ id: 'health', name: 'Health' }} selected={false} animationClassName="" atLimit={false} disabled={false} onToggle={noop} onEdit={noop} onDelete={noop} editAriaLabel="Edit Health" deleteAriaLabel="Delete Health" />
-    </>)
+    </NextIntlClientProvider>)
     const markup = controls.container.innerHTML
     controls.unmount()
-    const sheet = render(<Sheet title="Options" onClose={noop}>Options</Sheet>)
-    const close = document.querySelector('button[aria-label="common.close"]')!.outerHTML
+    const sheet = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC"><Sheet title="Options" onClose={noop}>Options</Sheet></NextIntlClientProvider>)
+    const close = document.querySelector(`button[aria-label="${ptBr.common.close}"]`)!.outerHTML
     sheet.unmount()
     const page = await browser.newPage({ reducedMotion: 'reduce', hasTouch })
     try {
@@ -101,8 +151,11 @@ describe('interaction fill parity in Chromium', () => {
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
-      for (const label of ['Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', 'common.close', 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
+      for (const label of ['Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
         const control = page.getByRole('button', { name: label, exact: true })
+        const bounds = await control.boundingBox()
+        expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(44)
+        expect(bounds!.height, `${label} target height`).toBeGreaterThanOrEqual(44)
         await control.hover()
         if (!hasTouch) expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor), label).toBe(expectedFill)
         await page.mouse.down()
@@ -120,6 +173,9 @@ describe('interaction fill parity in Chromium', () => {
       expect(await segment.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
       await page.mouse.up()
       const save = page.getByRole('button', { name: 'Save', exact: true })
+      const saveBounds = await save.boundingBox()
+      expect(saveBounds!.width).toBeGreaterThanOrEqual(44)
+      expect(saveBounds!.height).toBeGreaterThanOrEqual(44)
       await save.hover()
       if (!hasTouch) expect(await save.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(183, 78, 18)')
       await page.mouse.down()

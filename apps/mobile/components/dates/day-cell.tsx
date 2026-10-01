@@ -76,7 +76,6 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const containerStyle = [
     styles.container,
     { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' as const },
-    props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }
@@ -84,6 +83,9 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const contents = props.habitHistory
     ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} />
     : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
+  const todayRing = props.today
+    ? <View pointerEvents="none" testID="day-today-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
+    : null
 
   if (interactive) {
     return (
@@ -98,6 +100,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
         style={containerStyle}
       >
         {contents}
+        {todayRing}
         {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       </Pressable>
     )
@@ -114,6 +117,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
       style={containerStyle}
     >
       {contents}
+      {todayRing}
     </View>
   )
 }

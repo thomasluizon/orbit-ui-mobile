@@ -36,7 +36,7 @@ export function HabitTagChip({
     >
       <button
         type="button"
-        className="rounded-full overflow-hidden pl-3 pr-1 py-2 flex items-center gap-1 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+        className="rounded-full overflow-hidden min-h-11 min-w-11 pl-3 pr-1 py-2 flex items-center gap-1 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
         aria-pressed={selected}
         aria-disabled={!selected && atLimit}
         disabled={!selected && atLimit}
@@ -46,7 +46,7 @@ export function HabitTagChip({
       </button>
       <button
         type="button"
-        className={`grid min-h-11 min-w-8 -my-2 place-items-center pl-1 rounded-full overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${
+        className={`grid min-h-12 min-w-11 place-items-center rounded-full overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${
           'text-[var(--fg-3)]'
         }`}
         aria-label={editAriaLabel}
@@ -57,7 +57,7 @@ export function HabitTagChip({
       </button>
       <button
         type="button"
-        className={`grid min-h-11 min-w-8 -my-2 place-items-center pr-2 pl-1 rounded-full overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${
+        className={`grid min-h-12 min-w-11 place-items-center rounded-full overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${
           'text-[var(--fg-3)]'
         }`}
         aria-label={deleteAriaLabel}

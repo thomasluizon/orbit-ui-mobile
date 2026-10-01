@@ -67,7 +67,7 @@ export function CalendarPickerSection({
           <Pressable
             onPress={() => void refetch()}
             accessibilityRole="button"
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+
             style={({ pressed }) => [
               styles.quietAction,
               { backgroundColor: tokens.bgElev, borderColor: tokens.hairline },

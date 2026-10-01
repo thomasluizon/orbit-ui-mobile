@@ -37,46 +37,39 @@ function pressableHeight(tree: any): number | undefined {
   const pressable = tree.root.findByType('Pressable')
   const style = pressable.props.style
   const resolved = typeof style === 'function' ? style({ pressed: false }) : style
-  return flattenStyle(resolved).height as number | undefined
+  const geometry = flattenStyle(resolved)
+  return Math.max(geometry.height ?? 0, geometry.minHeight ?? 0)
 }
 
 describe('PillButton (mobile)', () => {
-  it.each([false, true])('expands the small target to 44 without growing its visible box (iconOnly: %s)', (iconOnly) => {
+  it.each([false, true])('paints the small target in a real 44px box (iconOnly: %s)', (iconOnly) => {
     const tree = renderPill(iconOnly
       ? <PillButton size="sm" iconOnly label="Small"><span /></PillButton>
       : <PillButton size="sm">Small</PillButton>)
     const button = tree.root.findByType('Pressable')
     const visibleHeight = pressableHeight(tree)
 
-    expect(visibleHeight).toBe(40)
-    expect(button.props.hitSlop).toEqual({ top: 2, bottom: 2, left: iconOnly ? 2 : 4, right: iconOnly ? 2 : 4 })
-    expect(visibleHeight! + button.props.hitSlop.top + button.props.hitSlop.bottom).toBe(44)
-    if (iconOnly) {
-      const visibleWidth = flattenStyle(button.props.style({ pressed: false })).width
-      expect(visibleWidth).toBe(40)
-      expect(visibleWidth + button.props.hitSlop.left + button.props.hitSlop.right).toBe(44)
-    }
+    expect(visibleHeight).toBe(44)
+    expect(button.props.hitSlop).toBeUndefined()
+    const geometry = flattenStyle(button.props.style({ pressed: false }))
+    expect(geometry.minWidth).toBe(44)
+    if (iconOnly) expect(Math.max(geometry.width, geometry.minWidth)).toBe(44)
   })
 
-  it('covers even a zero-width label without growing the narrow visible pill', () => {
+  it('paints even a narrow label in the whole target', () => {
     const tree = renderPill(<PillButton size="sm">i</PillButton>)
     const button = tree.root.findByType('Pressable')
-    const visible = flattenStyle(button.props.style({ pressed: false }))
-    const minimumVisibleWidth = visible.paddingHorizontal * 2
-
+    const geometry = flattenStyle(button.props.style({ pressed: false }))
     expect(textContents(tree)).toContain('i')
-    expect(visible.height).toBe(40)
-    expect(visible.paddingHorizontal).toBe(18)
-    expect(visible.width).toBeUndefined()
-    expect(visible.minWidth).toBeUndefined()
-    expect(minimumVisibleWidth + button.props.hitSlop.left + button.props.hitSlop.right).toBe(44)
-    expect(visible.height + button.props.hitSlop.top + button.props.hitSlop.bottom).toBe(44)
+    expect(geometry.minHeight).toBe(44)
+    expect(geometry.minWidth).toBe(44)
+    expect(button.props.hitSlop).toBeUndefined()
   })
 
   it('keeps the standard target at its existing 50px size', () => {
     const tree = renderPill(<PillButton>Medium</PillButton>)
     expect(pressableHeight(tree)).toBe(50)
-    expect(tree.root.findByType('Pressable').props.hitSlop).toEqual({ top: 0, bottom: 0, left: 0, right: 0 })
+    expect(tree.root.findByType('Pressable').props.hitSlop).toBeUndefined()
   })
 
   it('renders its label', () => {
@@ -163,7 +156,7 @@ describe('PillButton (mobile)', () => {
   })
 
   it('drives the pill height from the two-size scale', () => {
-    expect(pressableHeight(renderPill(<PillButton size="sm" onClick={() => {}}>Small</PillButton>))).toBe(40)
+    expect(pressableHeight(renderPill(<PillButton size="sm" onClick={() => {}}>Small</PillButton>))).toBe(44)
     expect(pressableHeight(renderPill(<PillButton onClick={() => {}}>Medium</PillButton>))).toBe(50)
   })
 

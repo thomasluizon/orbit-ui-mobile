@@ -139,7 +139,7 @@ export function HabitEmojiSelector({
                       selected ? styles.emojiCategoryTabActive : null,
                       pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                     ]}
-                    hitSlop={{ top: 4, bottom: 4 }}
+
                     onPress={() => handleSelectCategory(category.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t(category.labelKey)}

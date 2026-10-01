@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { ZodError } from 'zod'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { filterCalendarSyncEventsByDate } from '@orbit/shared/utils'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
@@ -33,12 +35,31 @@ describe('useCalendarEvents', () => {
   })
 
   it('returns the connected event list on a successful fetch', async () => {
-    const events = [{ id: 'imported', isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }, { id: 'available', isImported: false }]
+    const events = [
+      createMockCalendarSyncEvent({ id: 'imported', isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }),
+      createMockCalendarSyncEvent({ id: 'available', isImported: false }),
+    ]
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(events) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toEqual({ status: 'connected', events })
     expect(mockFetch.mock.calls[0]?.[0]).toBe(`${API.calendar.events}?includeImported=true`)
+  })
+
+  it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.fetchStatus).toBe('idle'))
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error).toBeInstanceOf(ZodError)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('returns an empty connected list when no events are available', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+    const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toEqual({ status: 'connected', events: [] })
   })
 
   it('maps a not-connected backend message to the not-connected status', async () => {

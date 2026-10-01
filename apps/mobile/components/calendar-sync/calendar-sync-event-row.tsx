@@ -166,10 +166,11 @@ export function CalendarSyncEventRow({
             disabled={dismissPending}
             accessibilityRole="button"
             accessibilityLabel={t('calendar.autoSync.dismissSuggestion')}
-            hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+
             style={({ pressed }) => [
               styles.dismissButton,
-              (pressed || dismissPending) && styles.quietActionDim,
+              { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
+              dismissPending && styles.quietActionDim,
             ]}
           >
             <X size={20} color={tokens.fg3} strokeWidth={1.8} />
