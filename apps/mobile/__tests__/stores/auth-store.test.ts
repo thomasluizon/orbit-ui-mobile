@@ -7,6 +7,9 @@ import { profileKeys } from '@orbit/shared/query'
 import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
+import { AccountEventConnection } from '@/lib/account-event-connection'
+import { openAccountEventStream } from '@/lib/account-event-stream'
+import { openChatStream } from '@/lib/chat-stream'
 
 import {
   clearSessionAndResetAuth,
@@ -36,6 +39,16 @@ const posthogMocks = vi.hoisted(() => ({
 vi.mock('@/lib/posthog', () => posthogMocks)
 
 const TestRenderer = require('react-test-renderer')
+const streamFetch = vi.hoisted(() => vi.fn())
+vi.mock('expo/fetch', () => ({ fetch: streamFetch }))
+vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    getQueryCache: () => ({ findAll: () => [] }),
+  }),
+}))
 const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -358,6 +371,7 @@ describe('mobile auth store security paths', () => {
     clearOfflineStateMock.mockReset()
     unsubscribePushTokenMock.mockReset()
     fetchMock.mockReset()
+    streamFetch.mockReset()
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
     resumeOfflineReplayMock.mockReset()
@@ -725,7 +739,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 60_000,
     })
 
-    const refresh = refreshSession({ clearOnFailure: false })
+    const refresh = refreshSession()
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
 
     /** A sign out lands while the server call is still in flight, so the epoch moves under it. */
@@ -774,7 +788,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 60_000,
     })
 
-    const refresh = refreshSession({ clearOnFailure: false })
+    const refresh = refreshSession()
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
 
     await useAuthStore.getState().logout()
@@ -1618,6 +1632,95 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().sessionPhase).toBe('signed-in')
   })
 
+  it('ends a rejected account stream session before further reconnects', async () => {
+    getTokenMock.mockResolvedValue('expired-token')
+    getRefreshTokenMock.mockResolvedValue('rejected-refresh')
+    streamFetch.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
+    vi.useFakeTimers()
+    let view: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(async () => {
+        view = TestRenderer.create(React.createElement(AccountEventConnection))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      for (const delay of [2000, 4000, 8000, 16000, 30000]) {
+        await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(delay) })
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(streamFetch).toHaveBeenCalledTimes(1)
+      expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+      expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isAuthenticated: false })
+    } finally {
+      await TestRenderer.act(() => { view?.unmount() })
+      vi.useRealTimers()
+    }
+  })
+
+  it('reconnects with backoff after a refresh network failure without signing out', async () => {
+    getTokenMock.mockResolvedValue('expired-token')
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    streamFetch.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+    fetchMock.mockRejectedValue(new TypeError('Network request failed'))
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
+    vi.useFakeTimers()
+    let view: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(async () => {
+        view = TestRenderer.create(React.createElement(AccountEventConnection))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1999) })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(3999) })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(clearAllTokensMock).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    } finally {
+      await TestRenderer.act(() => { view?.unmount() })
+      vi.useRealTimers()
+    }
+  })
+
+  it('shares a rejected refresh and teardown across API, account and chat callers', async () => {
+    const { apiClient: request } = await vi.importActual<typeof import('@/lib/api-client')>('@/lib/api-client')
+    getTokenMock.mockResolvedValue('expired-token')
+    getRefreshTokenMock.mockResolvedValue('rejected-refresh')
+    streamFetch.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
+    let releaseDeletion!: () => void
+    let signalDeletion!: () => void
+    const deletionStarted = new Promise<void>((resolve) => { signalDeletion = resolve })
+    clearAllTokensMock.mockImplementationOnce(() => {
+      signalDeletion()
+      return new Promise<void>((resolve) => { releaseDeletion = resolve })
+    })
+    clearAllTokensMock.mockResolvedValue(undefined)
+    const first = request('/secure').catch((error: unknown) => error)
+    await Promise.race([deletionStarted, first.then((error) => { throw error })])
+    const callers = Array.from({ length: 30 }, (_, index) => {
+      const signal = new AbortController().signal
+      if (index % 3 === 0) return request('/secure').catch((error: unknown) => error)
+      return index % 3 === 1 ? openAccountEventStream(signal, null) : openChatStream(new FormData(), signal)
+    })
+    try {
+      await vi.waitFor(() => expect(streamFetch).toHaveBeenCalledTimes(20))
+    } finally {
+      releaseDeletion()
+      await Promise.all([first, ...callers])
+    }
+    const refreshCalls = fetchMock.mock.calls.filter(([url]) => url.endsWith(API.auth.refresh))
+    expect(refreshCalls).toHaveLength(1)
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isAuthenticated: false })
+  })
+
   it('shares one token rotation across concurrent refresh callers', async () => {
     const rotatedToken = makeJwtWithClaims(
       Math.floor(Date.now() / 1000) + 3600,
@@ -1664,7 +1767,7 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
-  it('keeps a newer rotated session when an older failed refresh finishes teardown', async () => {
+  it('keeps a replacement login when an older rejected refresh finishes teardown', async () => {
     const rotatedExpirySeconds = Math.floor(Date.now() / 1000) + 3600
     const rotatedToken = makeJwtWithClaims(
       rotatedExpirySeconds,
@@ -1694,12 +1797,7 @@ describe('mobile auth store security paths', () => {
         () => new Promise<void>((resolve) => { releaseTeardown = resolve }),
       )
       .mockResolvedValue(undefined)
-    fetchMock
-      .mockResolvedValueOnce(new Response(null, { status: 401 }))
-      .mockResolvedValueOnce(Response.json({
-        token: rotatedToken,
-        refreshToken: 'next-refresh',
-      }))
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
     useAuthStore.setState({
       sessionPhase: 'signed-in',
       isAuthenticated: true,
@@ -1711,13 +1809,12 @@ describe('mobile auth store security paths', () => {
     const failedRefresh = refreshSession()
     await vi.waitFor(() => expect(releaseTeardown).toBeTypeOf('function'))
 
-    const successfulRefresh = refreshSession()
-    await expect(successfulRefresh).resolves.toEqual({
-      status: 'refreshed',
-      token: rotatedToken,
+    const replacementLogin = useAuthStore.getState().login(rotatedToken, 'next-refresh', {
+      userId: 'user-1', email: 'user@example.com', name: 'User',
     })
+    await replacementLogin
     releaseTeardown()
-    await expect(failedRefresh).resolves.toEqual({ status: 'unauthorized' })
+    await expect(failedRefresh).resolves.toEqual({ status: 'superseded' })
 
     expect(storedToken).toBe(rotatedToken)
     expect(storedRefreshToken).toBe('next-refresh')
@@ -1728,7 +1825,7 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('serializes credential deletion with a newer rotation write', async () => {
+  it('serializes credential deletion with a replacement login', async () => {
     const rotatedExpirySeconds = Math.floor(Date.now() / 1000) + 3600
     const rotatedToken = makeJwtWithClaims(
       rotatedExpirySeconds,
@@ -1757,12 +1854,7 @@ describe('mobile auth store security paths', () => {
       storedToken = null
       storedRefreshToken = null
     })
-    fetchMock
-      .mockResolvedValueOnce(new Response(null, { status: 401 }))
-      .mockResolvedValueOnce(Response.json({
-        token: rotatedToken,
-        refreshToken: 'next-refresh',
-      }))
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
     useAuthStore.setState({
       sessionPhase: 'signed-in',
       isAuthenticated: true,
@@ -1773,14 +1865,16 @@ describe('mobile auth store security paths', () => {
 
     const rejectedRefresh = refreshSession()
     await deletionStarted
-    const successfulRefresh = refreshSession()
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const replacementLogin = useAuthStore.getState().login(rotatedToken, 'next-refresh', {
+      userId: 'user-1', email: 'user@example.com', name: 'User',
+    })
+    expect(useAuthStore.getState().sessionPhase).toBe('establishing')
 
     try {
       expect(setTokenMock).not.toHaveBeenCalled()
     } finally {
       releaseDeletion()
-      await Promise.all([rejectedRefresh, successfulRefresh])
+      await Promise.all([rejectedRefresh, replacementLogin])
     }
 
     expect(storedToken).toBe(rotatedToken)
@@ -1834,13 +1928,13 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('preserves tokens when refreshSession has no refresh token but clearOnFailure is false', async () => {
+  it('ends the session when refreshSession has no refresh token', async () => {
     getRefreshTokenMock.mockResolvedValue(null)
 
-    const outcome = await refreshSession({ clearOnFailure: false })
+    const outcome = await refreshSession()
 
     expect(outcome).toEqual({ status: 'unauthorized' })
-    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
   })
 
   it('treats a non-TypeError network message as transient and keeps the session', async () => {

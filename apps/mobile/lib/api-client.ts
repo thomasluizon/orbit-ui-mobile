@@ -221,8 +221,7 @@ async function handleUnauthorized<T>(
     isAuthTransitionInFlight,
   } =
     await import('@/stores/auth-store')
-  const observedGeneration = getSessionGeneration()
-  const refreshOutcome = await refreshSession({ clearOnFailure: false })
+  const refreshOutcome = await refreshSession()
 
   switch (refreshOutcome.status) {
     case 'network-error':
@@ -245,9 +244,6 @@ async function handleUnauthorized<T>(
     case 'superseded':
       throw toUnauthorizedError(requestId)
     case 'unauthorized':
-      if (!isAuthTransitionInFlight()) {
-        await clearObservedSessionAndRedirect(observedGeneration)
-      }
       throw toUnauthorizedError(requestId)
   }
 }
