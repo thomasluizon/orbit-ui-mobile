@@ -54,7 +54,7 @@ export function WidgetInfoSheet({
         <View style={styles.widgetList}>
           {WIDGET_FEATURES.map((feature) => (
             <View key={feature.textKey} style={styles.widgetFeatureRow}>
-              <WidgetFeatureIcon iconKey={feature.iconKey} color={tokens.primary} />
+              <WidgetFeatureIcon iconKey={feature.iconKey} color={tokens.fg3} />
               <Text style={[styles.widgetItemText, { color: tokens.fg2 }]}>{t(feature.textKey)}</Text>
             </View>
           ))}
