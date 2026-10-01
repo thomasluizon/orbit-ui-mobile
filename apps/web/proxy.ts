@@ -161,5 +161,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api/health$).*)'],
+  matcher: ['/((?!api/health$|manifest\\.webmanifest$|pwa-(?:192x192|512x512)\\.png$).*)'],
 }
