@@ -232,8 +232,9 @@ function createStyles(tokens: Tokens) {
       flexDirection: 'row',
       gap: 16,
       minHeight: 56,
-      paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
     title: {
       color: tokens.fg1,
@@ -257,7 +258,8 @@ function createStyles(tokens: Tokens) {
       transform: [{ scale: 0.96 }],
     },
     body: {
-      padding: 16,
+      paddingHorizontal: 24,
+      paddingTop: 8,
       paddingBottom: 24,
     },
     actions: {
@@ -268,8 +270,10 @@ function createStyles(tokens: Tokens) {
       flexWrap: 'wrap',
       gap: 8,
       justifyContent: 'flex-end',
-      padding: 16,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 24,
     },
-    notice: { padding: 16 },
+    notice: { paddingHorizontal: 24, paddingVertical: 16 },
   })
 }

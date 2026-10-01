@@ -168,7 +168,6 @@ export function FeatureGuideDrawer({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     tabBarWrap: {
-      paddingHorizontal: 24,
       paddingVertical: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
@@ -178,10 +177,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingRight: 12,
     },
     sectionContent: {
-      paddingHorizontal: 24,
       paddingTop: 16,
       gap: 16,
-      paddingBottom: 24,
     },
     sectionItem: {
       gap: 4,

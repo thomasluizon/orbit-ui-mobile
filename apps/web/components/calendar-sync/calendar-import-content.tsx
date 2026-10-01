@@ -300,7 +300,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   return (
     <div className="flex flex-col">
-      <div className="flex-1 min-h-0 pb-8">
+      <div className="flex-1 min-h-0">
         <CalendarPickerSection enabled={hasProAccess && googleConnected && isOnline} />
         <div>
       {step === 'loading' && (

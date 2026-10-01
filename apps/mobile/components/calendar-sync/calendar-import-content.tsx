@@ -615,7 +615,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           </View>
         )}
 
-        <View style={{ height: 24 }} />
     </View>
   )
 }
