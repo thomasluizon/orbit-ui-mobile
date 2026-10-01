@@ -2,11 +2,11 @@ import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { achievementGlyphKey } from '@orbit/shared/utils'
-import { Calendar, Flame, Satellite, Shield, Star, Sun, Target, Trophy, Zap, type IconProps } from '@/components/ui/icons'
+import { Calendar, Flame, Moon, Satellite, Shield, Star, Sun, Target, Trophy, Zap, type IconProps } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
 
 const GLYPHS: Record<ReturnType<typeof achievementGlyphKey>, ComponentType<IconProps>> = {
-  calendar: Calendar, flame: Flame, satellite: Satellite, shield: Shield, star: Star,
+  calendar: Calendar, flame: Flame, moon: Moon, satellite: Satellite, shield: Shield, star: Star,
   sun: Sun, target: Target, trophy: Trophy, zap: Zap,
 }
 
