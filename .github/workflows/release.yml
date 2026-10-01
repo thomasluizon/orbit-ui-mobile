@@ -86,6 +86,7 @@ jobs:
             NEXT_PUBLIC_SITE_URL=${{ vars.PRODUCTION_NEXT_PUBLIC_SITE_URL }}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com
       - name: Build and push staging image
@@ -107,6 +108,7 @@ jobs:
             NEXT_PUBLIC_SITE_URL=${{ vars.STAGING_NEXT_PUBLIC_SITE_URL }}
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com
       - name: Record digest

@@ -322,6 +322,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_SENTRY_ENVIRONMENT: ${{ env.DEPLOYMENT_ENVIRONMENT }}
           EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
         run: |
           set -euo pipefail
@@ -386,6 +387,7 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_SENTRY_ENVIRONMENT: ${{ env.DEPLOYMENT_ENVIRONMENT }}
           EXPO_PUBLIC_POSTHOG_KEY: ${{ env.BUILD_POSTHOG_KEY }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
