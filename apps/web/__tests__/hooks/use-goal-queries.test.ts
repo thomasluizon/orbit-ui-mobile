@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useGoals, useGoalDetail, useGoalMetrics } from '@/hooks/use-goal-queries'
@@ -52,9 +52,12 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data).toBeDefined()
+    expect(result.current.data?.allGoals.map((goal) => goal.id)).toEqual(['g-2', 'g-1'])
+    expect(result.current.data?.goalsById).toEqual(new Map(goals.map((goal) => [goal.id, goal])))
   })
 
   it('passes status filter to API', async () => {
@@ -64,11 +67,13 @@ describe('useGoals', () => {
       json: () => Promise.resolve(makePaginatedGoalResponse(goals)),
     })
 
-    renderHook(() => useGoals('Active'), {
+    const { result } = renderHook(() => useGoals('Active'), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('status=Active')
@@ -80,11 +85,13 @@ describe('useGoals', () => {
       json: () => Promise.resolve(makePaginatedGoalResponse([])),
     })
 
-    renderHook(() => useGoals(), {
+    const { result } = renderHook(() => useGoals(), {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).not.toContain('status=')
@@ -101,7 +108,11 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 500, message: 'Server error' }) })
     await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ status: 500, message: 'Server error' })
+    expect(result.current.data).toBeUndefined()
   })
 
   it('handles empty goal list', async () => {
@@ -114,8 +125,10 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toBeDefined()
+    expect(result.current.data).toMatchObject({ allGoals: [], goalsById: new Map(), totalCount: 0 })
   })
 })
 
@@ -156,6 +169,8 @@ describe('useGoalDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.goal.title).toBe('Read Books')
   })
@@ -189,6 +204,8 @@ describe('useGoalMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.trackingStatus).toBe('OnTrack')
   })

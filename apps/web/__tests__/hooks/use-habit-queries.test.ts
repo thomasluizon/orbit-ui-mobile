@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
   useHabitDetail,
@@ -23,10 +23,6 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
-
-beforeAll(async () => {
-  await import('@/stores/auth-store')
-})
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -74,8 +70,10 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
   }
 }
 
+let queryClient: QueryClient
+
 function createWrapper() {
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
@@ -135,6 +133,8 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const children = result.current.getChildren('parent')
@@ -170,6 +170,12 @@ describe('useHabits (query hook)', () => {
     )
 
     expect(result.current.getChildren('nonexistent')).toEqual([])
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.topLevelHabits).toEqual([])
+    expect(result.current.data?.habitsById.size).toBe(0)
+    expect(result.current.getChildren('nonexistent')).toEqual([])
   })
 
   it('fetches multiple pages when no dateFrom and totalPages > 1', async () => {
@@ -203,6 +209,8 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.size).toBe(2)
@@ -224,9 +232,13 @@ describe('useHabits (query hook)', () => {
     const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01' }
     const wrapper = createWrapper()
     const detail = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper })
+    expect(detail.result.current.isFetching).toBe(true)
+    await act(async () => { await detail.result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(detail.result.current.isSuccess).toBe(true))
     expect(detail.result.current.getChildren('parent').map((child) => child.id)).toEqual(['child'])
     const ordinary = renderHook(() => useHabits(filters), { wrapper })
+    expect(ordinary.result.current.isFetching).toBe(true)
+    await act(async () => { await ordinary.result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(ordinary.result.current.isSuccess).toBe(true))
     expect(ordinary.result.current.getChildren('parent')).toEqual([])
     expect(mockFetch).toHaveBeenCalledTimes(3)
@@ -245,6 +257,8 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -262,6 +276,8 @@ describe('useHabits (query hook)', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -276,6 +292,8 @@ describe('useHabits (query hook)', () => {
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(secondPage) })
 
     const { result } = renderHook(() => useHabits({ search: 'run' }), { wrapper: createWrapper() })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habitsById.size).toBe(2)
     expect(mockFetch).toHaveBeenCalledTimes(2)
@@ -320,6 +338,8 @@ describe('useHabitDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.title).toBe('Exercise')
   })
@@ -356,6 +376,8 @@ describe('useHabitMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.weeklyPercentage).toBe(85)
     expect(result.current.monthlyPercentage).toBe(70)
@@ -390,6 +412,8 @@ describe('useHabitLogs', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toHaveLength(2)
   })
@@ -452,6 +476,8 @@ describe('useHabitFullDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habit.title).toBe('Exercise')
   })
@@ -480,6 +506,9 @@ describe('useTotalHabitCount', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: habitKeys.count() }, { cancelRefetch: false, throwOnError: true })
+    })
     await waitFor(() => expect(result.current).toBe(42))
   })
 

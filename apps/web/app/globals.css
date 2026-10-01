@@ -228,7 +228,7 @@
 .orbit-sheet-close:active { background: var(--bg-hover); }
 
 .orbit-sheet-close:active,
-.orbit-menu-item:active {
+.orbit-menu-item:active:not([data-destructive]) {
   transform: scale(0.96);
 }
 
@@ -323,6 +323,10 @@
   color: var(--icon-color);
 }
 
+.orbit-menu-item[data-destructive]:active:not(:disabled) {
+  background: var(--bg-hover);
+}
+
 .orbit-menu-item[data-destructive] .orbit-menu-label {
   color: var(--status-bad-text);
 }
@@ -358,6 +362,9 @@
   .orbit-sheet-close:hover,
   .orbit-menu-item:hover:not(:disabled) {
     background: var(--bg-hover);
+  }
+
+  .orbit-sheet-close:hover {
     color: var(--fg-1);
   }
 }
@@ -1745,15 +1752,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
-
-.stat-tile-large { container: stat-tile / inline-size; }
-.stat-tile-large-value { font-size: var(--fs-md); }
-@media (width < 344px), (width >= 412px) {
-  @container stat-tile (min-width: 122px) {
-    .stat-tile-large-value { font-size: var(--fs-xl); }
-  }
-}
-
 
 .orbit-streak-badge {
   isolation: isolate;

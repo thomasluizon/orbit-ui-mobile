@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -62,6 +62,8 @@ describe('useProgressRetrospective', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(locationOnProgress.href).toBe('https://app.useorbit.org/progress')
   })
@@ -74,6 +76,8 @@ describe('useProgressRetrospective', () => {
     })
 
     const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(useAppToastStore.getState().currentToast).toBeNull()
   })
@@ -86,9 +90,11 @@ describe('useProgressRetrospective', () => {
     })
 
     const { result } = renderHook(() => useProgressRetrospective(), { wrapper: createWrapper() })
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     const firstFailureToastCount = useAppToastStore.getState().queue.length + Number(useAppToastStore.getState().currentToast !== null)
-    await result.current.refetch()
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     expect(useAppToastStore.getState().queue.length + Number(useAppToastStore.getState().currentToast !== null)).toBe(firstFailureToastCount)
   })
 })

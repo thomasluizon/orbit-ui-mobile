@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
@@ -8,10 +8,6 @@ import { extractBackendErrorCode } from '@orbit/shared/utils'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
-
-beforeAll(async () => {
-  await import('@/stores/auth-store')
-})
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -42,6 +38,8 @@ describe('useRescheduleSuggestion', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isLoading).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     expect(result.current.suggestion?.rationale).toBe('Ease back in with two days a week.')
   })
@@ -76,6 +74,10 @@ describe('useRescheduleSuggestion', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isLoading).toBe(true)
+    await act(async () => {
+      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 400 })
+    })
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.suggestion).toBeNull()
     expect(extractBackendErrorCode(result.current.error)).toBe('HABIT_NOT_OVERDUE')
@@ -89,7 +91,9 @@ describe('useRescheduleSuggestion', () => {
       () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }),
       { wrapper: createWrapper() },
     )
-    await waitFor(() => expect(result.current.suggestion).toBeTruthy(), { timeout: 3000 })
+    expect(result.current.isLoading).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
@@ -99,12 +103,14 @@ describe('useRescheduleSuggestion', () => {
       json: () => Promise.resolve({ suggestion: createMockRescheduleSuggestion(), fromCache: true }),
     })
 
-    renderHook(
+    const { result } = renderHook(
       () => useRescheduleSuggestion({ habitId: 'habit-42', locale: 'pt-BR', enabled: true }),
       { wrapper: createWrapper() },
     )
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(result.current.isLoading).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
+    await waitFor(() => expect(result.current.suggestion).toBeTruthy())
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('/api/habits/habit-42/reschedule-suggestion')
     expect(calledUrl).toContain('language=pt-BR')
