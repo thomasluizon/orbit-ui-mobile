@@ -345,7 +345,7 @@ describe('mobile alerts', () => {
     const badge = testId(tree, 'notification-count')[0]!
     expect(badge.props.children).toBe('9+')
     const tokens = createTokensV2('purple', mode)
-    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20 })
+    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20, borderRadius: 8 })
     expect(hosts(tree, 'Pressable', 'Alerts, 25 unread')).toHaveLength(1)
   })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
@@ -414,13 +414,18 @@ describe('mobile alerts', () => {
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
   })
-  it('opens the row sheet, restores on undo and dismisses on commit', () => {
+  it('deletes through the sibling row action, restores on undo and dismisses on commit', () => {
     seed(2)
     const tree = render()
-    expect(hosts(tree, 'Pressable', 'Delete: Alert 0')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Delete: Alert 0')).toHaveLength(1)
     const body = hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
     expect(body.findAll((node) => node.props.accessibilityLabel === 'Delete: Alert 0')).toHaveLength(0)
-    deleteFromSheet(tree, 'Alert 0')
+    const remove = hosts(tree, 'Pressable', 'Delete: Alert 0')[0]!
+    expect(remove.parent?.parent).toBe(body.parent?.parent)
+    expect(StyleSheet.flatten(remove.props.style as StyleProp<ViewStyle>)).toMatchObject({ width: 44, minHeight: 44, flexShrink: 0 })
+    press(tree, 'Delete: Alert 0')
+    expect(text(tree, en.notifications.markAsRead)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Alert 1. unread. Progress')).toHaveLength(1)
     expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
     expect(state.remove).not.toHaveBeenCalled()
     TestRenderer.act(() => vi.advanceTimersByTime(4000))
@@ -429,7 +434,7 @@ describe('mobile alerts', () => {
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
-    deleteFromSheet(tree, 'Alert 0')
+    press(tree, 'Delete: Alert 0')
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
     expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
