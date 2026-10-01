@@ -163,6 +163,12 @@ export function formatLocaleDate(
   )
 }
 
+export function formatWeekdayLabels(locale: string, weekStartsOn: 0 | 1): string[] {
+  return Array.from({ length: 7 }, (_, offset) =>
+    formatLocaleDate(new Date(2025, 0, 5 + ((weekStartsOn + offset) % 7)), locale, { weekday: 'narrow' }),
+  )
+}
+
 /** Uppercases only the first character, leaving the rest untouched. Use for
  *  localized month-year labels so locale connectors (e.g. pt-BR "de") stay
  *  lowercase while the month keeps its leading capital. */

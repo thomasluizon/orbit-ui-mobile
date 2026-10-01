@@ -124,9 +124,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 4,
     },
     yearTitle: {
-      fontFamily: 'GeistMono_500Medium',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
-      color: tokens.fg1,
+      color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     yearTitleWide: { fontSize: 14 },

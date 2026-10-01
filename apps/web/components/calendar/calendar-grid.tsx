@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   buildCalendarMonthModel,
+  formatWeekdayLabels,
   buildDayCellAccessibleName,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
@@ -200,20 +201,10 @@ export function CalendarGrid({
   interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
+  const locale = useLocale()
   const { displayWeekdayDate, displayMonthYear } = useDateFormat()
 
-  const weekdayLabels = useMemo(() => {
-    const mondayFirst = [
-      t('dates.daysShort.monday'),
-      t('dates.daysShort.tuesday'),
-      t('dates.daysShort.wednesday'),
-      t('dates.daysShort.thursday'),
-      t('dates.daysShort.friday'),
-      t('dates.daysShort.saturday'),
-      t('dates.daysShort.sunday'),
-    ]
-    return weekStartsOn === 0 ? [mondayFirst[6]!, ...mondayFirst.slice(0, 6)] : mondayFirst
-  }, [t, weekStartsOn])
+  const weekdayLabels = useMemo(() => formatWeekdayLabels(locale, weekStartsOn), [locale, weekStartsOn])
 
   const { gridDays } = useMemo(
     () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),

@@ -286,6 +286,7 @@ export {
   resolveHourCycle,
   createTimeDisplay,
   formatLocaleDate,
+  formatWeekdayLabels,
   formatLocaleDateTime,
   formatLocaleTime,
   getSystemLocale,

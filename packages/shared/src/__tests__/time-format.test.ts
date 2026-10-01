@@ -4,6 +4,7 @@ import {
   resolveHourCycle,
   createTimeDisplay,
   formatLocaleDate,
+  formatWeekdayLabels,
   formatLocaleDateTime,
   formatLocaleTime,
   resolveSupportedLocale,
@@ -12,6 +13,15 @@ import {
 } from '../utils/locale-format'
 
 describe('locale-format utils', () => {
+  it.each([
+    ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
+    ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
+    ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
+    ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
+  ] as const)('formats visible weekday letters in %s starting on %i', (locale, weekStartsOn, labels) => {
+    expect(formatWeekdayLabels(locale, weekStartsOn)).toEqual(labels)
+  })
+
   it('formats time for English locale', () => {
     expect(formatLocaleTime('14:30', 'en')).toBe('2:30 PM')
   })
