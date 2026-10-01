@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Badge } from '@/components/ui/badge'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 const CUSTOM_PROPERTY_REFERENCE = /var\((--[a-z0-9-]+)\)/g
 const CUSTOM_PROPERTY_DECLARATION = /(--[a-z0-9-]+)\s*:/g
@@ -74,7 +75,7 @@ describe('Badge', () => {
   )
 
   it.each(['dark', 'light'] as const)(
-    'resolves the solid label and fill to different colours in %s mode',
+    'uses a neutral well with readable solid text in %s mode',
     (mode) => {
       render(<Badge>solid</Badge>)
       const badge = screen.getByText('solid')
@@ -82,9 +83,11 @@ describe('Badge', () => {
       const fill = resolveCustomProperty(badge.style.background, variables)
       const label = resolveCustomProperty(badge.style.color, variables)
 
-      expect(fill).toBeDefined()
-      expect(label).toBeDefined()
-      expect(label).not.toBe(fill)
+      expect(badge.style.background).toBe('var(--bg-well)')
+      expect(badge.style.color).toBe('var(--fg-1)')
+      expect(contrastOnSurface(label!, [variables['--bg']!, fill!])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(label!, [variables['--bg']!, variables['--bg-card']!, fill!])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(label!, [variables['--bg']!, variables['--primary-dim']!, fill!])).toBeGreaterThanOrEqual(4.5)
     },
   )
 })

@@ -7,9 +7,9 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
       className="inline-flex items-center whitespace-nowrap rounded-[8px] uppercase"
       data-variant={variant}
       style={{
-        background: variant === 'solid' ? 'var(--fg-1)' : 'transparent',
+        background: variant === 'solid' ? 'var(--bg-well)' : 'transparent',
         boxShadow: variant === 'outline' ? 'inset 0 0 0 1px var(--hairline-strong)' : undefined,
-        color: variant === 'solid' ? 'var(--bg)' : 'var(--fg-2)',
+        color: variant === 'solid' ? 'var(--fg-1)' : 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
         fontSize: 10.5,
         fontWeight: 500,
