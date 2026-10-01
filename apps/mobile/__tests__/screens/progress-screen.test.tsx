@@ -299,7 +299,7 @@ describe('mobile ProgressContent', () => {
     const screen = Yoga.Node.create()
     viewport.setWidth(width)
     viewport.setHeight(900)
-    screen.setWidthPercent(100)
+    if (rootStyle.width === '100%') screen.setWidthPercent(100)
     if (rootStyle.maxWidth !== undefined) screen.setMaxWidth(rootStyle.maxWidth as number)
     if (rootStyle.alignSelf === 'center') screen.setAlignSelf(Yoga.ALIGN_CENTER)
     viewport.insertChild(screen, 0)

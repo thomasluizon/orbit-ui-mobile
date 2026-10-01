@@ -14,8 +14,11 @@ import { setLayoutProfileSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
-  items: [makeHabitScheduleItem({ title: 'Read', children: [], hasSubHabits: false, isOverdue: true })],
-  totalCount: 1,
+  items: [
+    makeHabitScheduleItem({ title: 'Read', children: [], hasSubHabits: false, isOverdue: true }),
+    makeHabitScheduleItem({ id: 'habit-2', title: 'Walk', children: [], hasSubHabits: false, isOverdue: true }),
+  ],
+  totalCount: 2,
 })
 const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Walk', position: 1 })],
@@ -52,7 +55,7 @@ for (const width of [1352, 1100, 840, 412]) {
           })
 
           await page.goto('/progress')
-          const streak = page.getByRole('region', { name: messages.progressScreen.sections.streak })
+          const streak = page.getByRole('region', { name: messages.progressScreen.sections.streak, includeHidden: true })
           await expect(streak).toBeVisible()
           if (panelOpen) {
             await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
@@ -61,8 +64,8 @@ for (const width of [1352, 1100, 840, 412]) {
           await page.evaluate(() => document.fonts.ready)
           const surfaces = [
             streak,
-            page.getByRole('heading', { name: messages.progressScreen.sections.goals, exact: true }),
-            page.getByRole('heading', { name: messages.progressScreen.sections.window, exact: true }),
+            page.getByRole('heading', { name: messages.progressScreen.sections.goals, exact: true, includeHidden: true }),
+            page.getByRole('heading', { name: messages.progressScreen.sections.window, exact: true, includeHidden: true }),
             page.locator('[data-goal-id]').first(),
           ]
           for (const surface of surfaces) {
@@ -73,6 +76,13 @@ for (const width of [1352, 1100, 840, 412]) {
             expect(bounds.left).toBeCloseTo(today.left, 1)
             expect(bounds.right).toBeCloseTo(today.right, 1)
           }
+          const firstTile = page.getByText(messages.progressScreen.streak.longest, { exact: true }).locator('..')
+          const tileBounds = await firstTile.evaluate((element) => {
+            const rect = element.getBoundingClientRect()
+            return { left: rect.left, right: rect.right }
+          })
+          expect(tileBounds.left).toBeCloseTo(today.left, 1)
+          expect(tileBounds.right).toBeLessThanOrEqual(today.right)
         })
       })
     }
