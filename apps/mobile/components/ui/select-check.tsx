@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
 const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
@@ -39,6 +40,7 @@ export function RadioGlyph({
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
     onSelect,
@@ -80,7 +82,11 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: selected }}
       onPress={onActivate}
-      style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}
+      style={({ pressed }) => [
+        ...rowStyle,
+        pressed ? { backgroundColor: tokens.bgHover } : null,
+        pressed && !prefersReducedMotion ? { transform: [{ scale: 0.96 }] } : null,
+      ]}
     >{content}</Pressable>
   )
 }

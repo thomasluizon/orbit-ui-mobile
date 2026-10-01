@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -16,6 +16,8 @@ import {
 
 const themeState = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => themeState }))
+const motionState = vi.hoisted(() => ({ prefersReducedMotion: false }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motionState.prefersReducedMotion }))
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -335,6 +337,41 @@ describe('select-check RadioRow group', () => {
     const controls = tree.root.findAllByType(Pressable)
     void act(() => controls[2].props.onPress())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
+  })
+})
+
+describe('RadioRow press feedback', () => {
+  afterEach(() => { motionState.prefersReducedMotion = false })
+
+  const states = [false, true].flatMap((reducedMotion) =>
+    [false, true].map((selected) => ({ reducedMotion, selected })),
+  )
+  it.each(states)('keeps press feedback accessible with reducedMotion=$reducedMotion, selected=$selected', ({ reducedMotion, selected }) => {
+    motionState.prefersReducedMotion = reducedMotion
+    const onSelect = vi.fn()
+    let tree!: ReactTestRenderer
+    void act(() => {
+      tree = create(<RadioGroup accessibilityLabel="Subjects">
+        <RadioRow label="Subject" selected={selected} onSelect={onSelect} />
+      </RadioGroup>)
+    })
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    const pressStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    const accessibilityState = row.props.accessibilityState as { checked: boolean }
+    const onPress = row.props.onPress as () => void
+    const style = (pressed: boolean) => StyleSheet.flatten(pressStyle({ pressed }))
+    const tokens = createTokensV2('orange', 'dark')
+
+    expect(style(false).transform).toBeUndefined()
+    expect(style(true).transform).toEqual(reducedMotion ? undefined : [{ scale: 0.96 }])
+    expect(style(true).backgroundColor).toBe(tokens.bgHover)
+    expect(accessibilityState.checked).toBe(selected)
+    expect(onSelect).not.toHaveBeenCalled()
+    void act(() => onPress())
+    expect(onSelect).toHaveBeenCalledTimes(selected ? 0 : 1)
+    expect(style(false).transform).toBeUndefined()
+    expect(style(false).backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    void act(() => tree.update(<View />))
   })
 })
 

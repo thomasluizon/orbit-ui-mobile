@@ -154,6 +154,53 @@ describe('RadioRow secondary text contrast', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  const pressStates = (['no-preference', 'reduce'] as const).flatMap((reducedMotion) =>
+    [false, true].flatMap((selected) => [false, true].map((disabled) => ({ reducedMotion, selected, disabled }))),
+  )
+  it.each(pressStates)('keeps press feedback accessible with motion=$reducedMotion, selected=$selected, disabled=$disabled', async ({ reducedMotion, selected, disabled }) => {
+    const theme = resolveWebThemeVariables('orange', 'dark')
+    const variables = Object.entries(theme).map(([key, value]) => `${key}:${value}`).join(';')
+    const { container } = render(<RadioGroup aria-label="Subjects">
+      {disabled
+        ? <RadioRow label="Subject" selected={selected} disabled reason="Sending" />
+        : <RadioRow label="Subject" selected={selected} onSelect={vi.fn()} />}
+    </RadioGroup>)
+    const page = await browser.newPage({ hasTouch: true })
+    try {
+      await page.emulateMedia({ reducedMotion })
+      await page.setContent(`<style>${stylesheet}</style><div style="${variables};background:var(--bg)">${container.innerHTML}</div>`)
+      const row = page.locator('[role="radio"]')
+      const restingScale = await row.evaluate((element) => getComputedStyle(element).scale)
+      expect(restingScale).toBe('none')
+      if (!disabled && reducedMotion === 'no-preference') {
+        const scaleTransition = await row.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const index = style.transitionProperty.split(',').map((property) => property.trim()).indexOf('scale')
+          return style.transitionDuration.split(',')[index]?.trim()
+        })
+        expect(scaleTransition).toBe('0.15s')
+      }
+      const center = await row.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      })
+      await page.mouse.move(center.x, center.y)
+      await page.mouse.down()
+      await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale))
+        .toBe(disabled || reducedMotion === 'reduce' ? 'none' : '0.96')
+      if (!disabled) {
+        await expect.poll(async () => contrastOnSurface(
+          await row.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+        )).toBe(contrastOnSurface(theme['--bg-hover']!, [theme['--bg']!]))
+      }
+      await page.mouse.up()
+      await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale)).toBe(restingScale)
+      await expect.poll(async () => contrastOnSurface(
+        await row.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+      )).toBe(contrastOnSurface(selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!]))
+    } finally { await page.close() }
+  })
+
   const states = (['dark', 'light'] as const).flatMap((mode) =>
     [false, true].flatMap((selected) => [false, true].map((disabled) => ({ mode, selected, disabled }))),
   )
