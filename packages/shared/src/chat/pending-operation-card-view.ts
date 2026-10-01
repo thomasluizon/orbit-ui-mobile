@@ -15,7 +15,7 @@ export interface PendingOperationButtonSpec {
   accessibleName?: string
   loading?: boolean
   onClick: () => void
-  variant?: 'destructive' | 'ghost' | 'primary'
+  variant?: 'destructive' | 'ghost' | 'primary' | 'secondary'
 }
 
 export interface PendingOperationConfirmSheetProps {
@@ -97,7 +97,8 @@ export interface PendingOperationCardRenderers<Node> {
   notice: (message: string) => Node
   actionRow: (...children: Node[]) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
-  diffLabel: (field: string, oldValue: string, newValue: string, accessible: string) => Node
+  spacer: () => Node
+  rejected: (message: string) => Node
 }
 
 export interface PendingOperationCardActions {
@@ -142,6 +143,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -182,7 +184,7 @@ function completedTargetControl<Node>(
 }
 
 function itemControl<Node>(
-  item: PendingOperationItem,
+  item: PreviewItem,
   itemCount: number,
   revision: CardRevision,
   card: PendingOperationCardActions,
@@ -195,31 +197,6 @@ function itemControl<Node>(
   const open = completedTargetControl(targetId, item.entityName, card, labels, render)
   if (open || card.status != null || revision.stale) return open
   return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-}
-
-function previewValue(field: PendingOperationItem['fields'][number], labels: PendingOperationCardLabels): string {
-  const value = field.newValue ?? ''
-  if (field.valueType === 'boolean') return localizedBoolean(value, labels)
-  if (field.valueType === 'time') return labels.formatTime(value)
-  if (field.field === 'days') return value.split(',').map((day) => labels.dayLabels[day.trim()] ?? day.trim()).join(', ')
-  return value
-}
-
-function localizedBoolean(value: string, labels: PendingOperationCardLabels): string {
-  if (value.toLowerCase() === 'true') return labels.yes
-  if (value.toLowerCase() === 'false') return labels.no
-  return value
-}
-
-function changeValue(value: string | null, valueType: string, labels: PendingOperationCardLabels): string {
-  if (value == null) return labels.notSet
-  if (valueType === 'boolean') return localizedBoolean(value, labels)
-  if (valueType === 'time') return labels.formatTime(value)
-  return value
-}
-
-function actionLabel(field: string, labels: PendingOperationCardLabels): string {
-  return labels.fieldLabels[field] ?? labels.name
 }
 
 function pendingActions<Node>(
@@ -238,7 +215,7 @@ function pendingActions<Node>(
   })
   if (action !== 'buttons') return undefined
   const reject = render.button({
-    label: revision?.canRevise ? labels.reject : labels.cancel,
+    label: labels.reject,
     variant: 'ghost',
     onClick: revision?.canRevise ? () => void revision.rejectAll() : card.dismiss,
   })
@@ -248,9 +225,9 @@ function pendingActions<Node>(
     disabled: revision?.canRevise === true && revision.items.length === 0,
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
   })
-  if (!revision?.canRevise) return render.fragment(reject, approve)
+  if (!revision?.canRevise) return render.actionRow(approve, render.spacer(), reject)
   const firstEditableItem = revision.items.find((item) => item.fields.some(isPendingOperationEditableField))
-  if (!firstEditableItem) return render.actionRow(approve, reject)
+  if (!firstEditableItem) return render.actionRow(approve, render.spacer(), reject)
   return render.actionRow(
     approve,
     render.button({
@@ -258,108 +235,58 @@ function pendingActions<Node>(
       variant: 'ghost',
       onClick: () => revision.startEdit(firstEditableItem.itemId),
     }),
+    render.spacer(),
     reject,
   )
 }
 
 function previewRows<Node>(
-  revision: CardRevision | undefined,
+  pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
   labels: PendingOperationCardLabels,
   destructive: boolean,
   render: PendingOperationCardRenderers<Node>,
 ): PendingOperationFrame<Node>['items'] | null {
-  if (!revision?.canRevise) return null
-  return revision.items.map((item) => {
-    const edited = revision.editedItemIds.includes(item.itemId)
-    const summary = item.fields.map((field) => {
-      const name = labels.fieldLabels[field.field] ?? field.field
-      const value = previewValue(field, labels)
-      return value ? `${name}: ${value}` : name
-    }).join(' · ')
+  const revision = card.revision
+  const items = pendingOperation.items?.length ? pendingOperation.items : groupedChanges(pendingOperation.changes ?? [])
+  if (!items.length) return null
+  const rows = items.map((item) => {
+    const edited = revision?.editedItemIds.includes(item.itemId) === true
+    const summary = labels.summarize(item.fields) || labels.pending
     return {
       id: item.itemId,
       label: item.entityName,
-      meta: edited ? `${labels.edited} · ${summary || labels.pending}` : summary || labels.pending,
+      meta: edited ? `${labels.edited} · ${summary}` : summary,
       status: card.status,
       irreversible: destructive && card.status == null,
       proposed: card.status == null && !edited,
       wrapLabel: true,
       wrapMeta: true,
-      control: itemControl(item, revision.items.length, revision, card, labels, render),
+      editable: false,
+      control: revision?.canRevise
+        ? itemControl(item, items.length, revision, card, labels, render)
+        : completedTargetControl(items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId, item.entityName, card, labels, render),
     }
   })
-}
-
-function unshownItemRows<Node>(
-  shownEntities: Set<string>,
-  revision: CardRevision | undefined,
-  card: PendingOperationCardActions,
-  labels: PendingOperationCardLabels,
-  render: PendingOperationCardRenderers<Node>,
-  destructive: boolean,
-): PendingOperationFrame<Node>['items'] {
-  if (!revision?.canRevise) return []
-  const rows: Array<PendingOperationFrame<Node>['items'][number]> = []
-  for (const item of revision.items) {
-    if (item.entityId != null && shownEntities.has(item.entityId)) continue
-    const action = item.fields.find((field) => field.valueType === 'action')
-    rows.push({
-      id: item.itemId,
-      label: action ? actionLabel(action.field, labels) : item.entityName,
-      meta: action ? item.entityName : labels.pending,
-      status: card.status,
-      irreversible: destructive && card.status == null,
-      wrapLabel: true,
-      editable: false,
-      control: itemControl(item, revision.items.length, revision, card, labels, render),
-    })
-    if (item.entityId != null) shownEntities.add(item.entityId)
-  }
-  return rows
-}
-
-function changeRows<Node>(
-  changes: readonly PendingOperationChange[],
-  count: number | null | undefined,
-  card: PendingOperationCardActions,
-  labels: PendingOperationCardLabels,
-  render: PendingOperationCardRenderers<Node>,
-  destructive: boolean,
-  revision: CardRevision | undefined,
-): PendingOperationFrame<Node>['items'] {
-  const shownEntities = new Set<string>()
-  const rows: Array<PendingOperationFrame<Node>['items'][number]> = changes.map((change, index) => {
-    const field = change.valueType === 'action'
-      ? actionLabel(change.field, labels)
-      : labels.fieldLabels[change.field] ?? change.field
-    const oldValue = changeValue(change.oldValue, change.valueType, labels)
-    const newValue = changeValue(change.newValue, change.valueType, labels)
-    const item = revision?.items.find((entry) => entry.entityId === change.entityId)
-    const firstField = !shownEntities.has(change.entityId)
-    shownEntities.add(change.entityId)
-    return {
-      id: `${change.entityId}-${change.field}-${index}`,
-      label: change.valueType === 'action'
-        ? field
-        : render.diffLabel(field, oldValue, newValue, labels.diff(field, oldValue, newValue)),
-      meta: change.entityName,
-      status: card.status,
-      irreversible: destructive && card.status == null,
-      wrapLabel: true,
-      editable: false,
-      control: firstField ? completedTargetControl(count === 1 ? card.completedOperation?.targetId ?? change.entityId : change.entityId, change.entityName, card, labels, render) ?? (item && revision && card.status == null && !revision.stale
-        ? render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
-        : undefined) : undefined,
-    }
-  })
-  rows.push(...unshownItemRows(shownEntities, revision, card, labels, render, destructive))
-  const remaining = count == null ? 0 : Math.max(0, count - shownEntities.size)
+  const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({
     id: 'remaining', label: labels.more(remaining), meta: '', status: card.status,
-    irreversible: false, wrapLabel: true, editable: false, control: undefined,
+    irreversible: false, proposed: false, wrapLabel: true, wrapMeta: true, editable: false, control: undefined,
   })
   return rows
+}
+
+function groupedChanges(changes: readonly PendingOperationChange[]): PreviewItem[] {
+  const groups = new Map<string, PreviewItem>()
+  for (const change of changes) {
+    const item = groups.get(change.entityId)
+    if (item) item.fields.push(change)
+    else groups.set(change.entityId, {
+      itemId: change.entityId, entityId: change.entityId, entityName: change.entityName,
+      fields: [change],
+    })
+  }
+  return [...groups.values()]
 }
 
 function previewBody<Node>(
@@ -382,9 +309,7 @@ function previewFrame<Node>(
 ): Node {
   const revision = card.revision
   const actions = pendingActions(presentation.action, presentation.destructive, card, revision, labels, render)
-  const previewItems = pendingOperation.changes?.length
-    ? changeRows(pendingOperation.changes, pendingOperation.changeTargetCount, card, labels, render, presentation.destructive, revision)
-    : previewRows(revision, card, labels, presentation.destructive, render)
+  const previewItems = previewRows(pendingOperation, card, labels, presentation.destructive, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
     wrapTitle: true,
@@ -422,9 +347,8 @@ export function renderPendingOperationCard<Node>({
   pendingOperation: PendingAgentOperation
   render: PendingOperationCardRenderers<Node>
 }): Node | null {
-  if (card.dismissed) return null
   const revision = card.revision
-  if (revision?.rejected) return render.notice(`${labels.rejected} ${labels.name}`)
+  if (card.dismissed || revision?.rejected) return render.rejected(labels.rejected(pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? Math.max(1, new Set(pendingOperation.changes?.map((change) => change.entityId)).size)))
 
   const presentation = getPendingOperationCardPresentation(
     pendingOperation.riskClass, pendingOperation.confirmationRequirement,

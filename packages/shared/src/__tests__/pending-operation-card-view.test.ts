@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { makeAgentOperationResult, makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makeHeldHabitMessage, makePendingAgentOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
   type PendingOperationCardActions,
@@ -13,17 +13,22 @@ import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
+function translateEnglish(key: string, values?: Record<string, string | number>): string {
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, en)
+  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+}
+
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
   approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
-  rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
+  rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
+  summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
-  notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
   more: (count) => `and ${count} more`,
 }
 
@@ -34,7 +39,7 @@ it('formats time values in the pending change preview', () => {
     changeTargetCount: 1,
   })
   const { record, render } = createRenderers()
-  renderPendingOperationCard({ card: createCard(), labels: { ...labels, formatTime: (value) => `clock:${value}` }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
+  renderPendingOperationCard({ card: createCard(), labels: { ...labels, summarize: buildPendingOperationCardLabels(operation, translateEnglish, (value) => `clock:${value}`).summarize }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
   expect(JSON.stringify(record.frame?.items)).toContain('clock:19:30')
 })
 
@@ -142,7 +147,8 @@ function createRenderers() {
     notice: (message) => message,
     actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
-    diffLabel: (_field, _oldValue, _newValue, accessible) => accessible,
+    spacer: () => 'spacer',
+    rejected: (message) => message,
   }
   return { record, render }
 }
@@ -200,13 +206,13 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map(({ label, meta }) => ({ label, meta }))).toEqual([
-      { label: 'Delete', meta: 'Run' },
-      { label: 'Dismiss import', meta: 'Calendar sync' },
-      { label: 'Sync now', meta: 'Calendar sync' },
+      { label: 'Run', meta: 'Delete' },
+      { label: 'Calendar sync', meta: 'Dismiss import' },
+      { label: 'Calendar sync', meta: 'Sync now' },
     ])
   })
 
-  it('localizes boolean values from both bulk and calendar previews', () => {
+  it('keeps boolean field identifiers out of bulk and calendar previews', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
       card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
@@ -220,22 +226,22 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map((item) => item.label)).toEqual([
-      'reminder_enabled: from No to Yes',
-      'enabled: from Yes to No',
+      'Run',
+      'Calendar sync',
     ])
   })
 
-  it('uses Portuguese yes and no labels for boolean changes', () => {
+  it('keeps unknown boolean changes out of the visible item label', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
-      card: createCard(), labels: { ...labels, yes: 'Sim', no: 'Não', diff: (field, oldValue, newValue) => `${field}: de ${oldValue} para ${newValue}` },
+      card: createCard(), labels,
       render, onVerifyStepUp: vi.fn(),
       pendingOperation: makePendingAgentOperation({
         changes: [{ entityId: 'calendar', entityName: 'Calendar sync', field: 'enabled', oldValue: 'False', newValue: 'True', valueType: 'boolean' }],
         changeTargetCount: 1,
       }),
     })
-    expect(record.frame?.items[0]?.label).toBe('enabled: de Não para Sim')
+    expect(record.frame?.items[0]?.label).toBe('Calendar sync')
   })
 
   it('keeps the eleventh target removable when only ten changes are displayed', () => {
@@ -262,12 +268,12 @@ describe('pending operation card view', () => {
     }
     renderPendingOperationCard({ card, labels: { ...labels, fieldLabels: { delete: 'Delete' } }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
     expect(record.frame?.items).toHaveLength(11)
-    expect(record.frame?.items.at(-1)).toMatchObject({ label: 'Delete', meta: 'Habit 11', control: 'Remove Habit 11' })
+    expect(record.frame?.items.at(-1)).toMatchObject({ label: 'Habit 11', meta: 'Delete', control: 'Remove Habit 11' })
     record.buttons.find(({ label }) => label === 'Remove Habit 11')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-11')
   })
 
-  it('shows each changed field and the count of unseen targets', () => {
+  it('shows named items and the count of unseen targets', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
       card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
@@ -281,11 +287,11 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map((item) => item.label)).toEqual([
-      'date: from Not set to Monday',
-      'count: from 2 to 3',
+      'Run',
+      'Read',
       'and 38 more',
     ])
-    expect(record.frame?.items.every((item) => item.proposed !== true)).toBe(true)
+    expect(record.frame?.items.slice(0, 2).every((item) => item.proposed === true)).toBe(true)
   })
 
   it('counts truncated entities rather than changed fields', () => {
@@ -331,8 +337,8 @@ describe('pending operation card view', () => {
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
     expect(record.frame?.count).toBe(operation.changeTargetCount)
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
-    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
-    expect(record.frame?.actions).toBe('Approve|Edit item|Reject')
+    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'Sep 26, 2026' })
+    expect(record.frame?.actions).toBe('Approve|Edit item|spacer|Reject')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-1')
@@ -348,9 +354,9 @@ describe('pending operation card view', () => {
     expect(output).toBe('frame|confirm')
     expect(record.frame).toMatchObject({
       state: 'resting', items: [{ irreversible: true, status: undefined }],
-      actions: 'Cancel|Approve',
+      actions: 'Approve|spacer|Reject',
     })
-    expect(record.buttons.map(({ label }) => label)).toEqual(['Cancel', 'Approve'])
+    expect(record.buttons.map(({ label }) => label)).toEqual(['Reject', 'Approve'])
     record.buttons[1]?.onClick()
     expect(card.setConfirmOpen).toHaveBeenCalledWith(true)
     record.confirm?.onConfirm()
@@ -374,7 +380,7 @@ describe('pending operation card view', () => {
     })
     expect(renderPendingOperationCard({
       card: { ...card, dismissed: true }, labels, onVerifyStepUp, pendingOperation: operation, render,
-    })).toBeNull()
+    })).toBe('The 1 changes were rejected. Nothing was saved.')
   })
 
   it('uses neutral actions for reversible operations and no actions after failure', () => {

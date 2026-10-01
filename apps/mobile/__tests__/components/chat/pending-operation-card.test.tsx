@@ -61,17 +61,21 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
-  it('renders field diffs with accessible old and new values', () => {
-    const { tree } = renderCard({
-      riskClass: 'Low', confirmationRequirement: 'None',
-      changes: [
-        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
-        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
-      ], changeTargetCount: 2,
-    })
-    const labels = tree.root.findAll((node: any) => typeof node.props.accessibilityLabel === 'string').map((node: any) => node.props.accessibilityLabel)
-    expect(labels).toContain('chat.operation.field.date: from chat.preview.notSet to Monday')
-    expect(labels).toContain('count: from 2 to 3')
+  it('renders one named habit with a cadence instead of field diffs', () => {
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    const item = operation.items![0]!
+    const fields = [
+      ...item.fields,
+      { ...item.fields[0]!, field: 'frequency_unit', newValue: 'Day' },
+      { ...item.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' },
+      { ...item.fields[0]!, field: 'emoji', newValue: '📚' },
+    ]
+    const { tree } = renderCard({ ...operation, changes: fields, items: [{ ...item, fields }] }, vi.fn())
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain('habits.frequency.everyDay')
+    expect(text).not.toContain('chat.operation.field')
+    expect(text).not.toContain('from ')
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === 'Beber água')).toHaveLength(1)
   })
 
   const firstItem = {
@@ -166,7 +170,7 @@ describe('PendingOperationCard (mobile)', () => {
     const revise = vi.fn()
     const { tree } = renderCard({ displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null }, revise)
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' })).toHaveLength(0)
-    expect(renderedText(tree.toJSON())).not.toContain('chat.operation.reject')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
     expect(renderedText(tree.toJSON())).toContain('chat.operation.approve')
   })
 
@@ -632,11 +636,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).toContain('status.done')
   })
 
-  it('cancels without executing', () => {
+  it('rejects a legacy preview without executing', () => {
     const { tree, handlers } = renderCard()
-    TestRenderer.act(() => press(tree, 'common.cancel').props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.reject').props.onPress())
 
-    expect(tree.toJSON()).toBeNull()
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.rejected')
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 

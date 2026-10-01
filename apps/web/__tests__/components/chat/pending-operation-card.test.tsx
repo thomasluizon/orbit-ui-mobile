@@ -58,17 +58,21 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
-  it('renders field diffs with accessible old and new values', () => {
-    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({
-      riskClass: 'Low', confirmationRequirement: 'None',
-      changes: [
-        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
-        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
-      ], changeTargetCount: 2,
-    })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByText(/from .* to Monday/)).toHaveClass('sr-only')
-    expect(screen.getByText(/from 2 to 3/)).toHaveClass('sr-only')
-    expect(screen.queryByText('and 1 more')).not.toBeInTheDocument()
+  it('renders one named habit with a cadence instead of field diffs', () => {
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    const item = operation.items![0]!
+    const fields = [
+      ...item.fields,
+      { ...item.fields[0]!, field: 'frequency_unit', newValue: 'Day' },
+      { ...item.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' },
+      { ...item.fields[0]!, field: 'emoji', newValue: '📚' },
+    ]
+    render(<PendingOperationCard pendingOperation={{ ...operation, changes: fields, items: [{ ...item, fields }] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getAllByText('Beber água')).toHaveLength(1)
+    expect(screen.getByText('habits.frequency.everyDay')).toBeInTheDocument()
+    expect(screen.queryByText('Day')).not.toBeInTheDocument()
+    expect(screen.queryByText(/chat.operation.field/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/from .* to/)).not.toBeInTheDocument()
   })
 
   afterEach(() => sheetTestControls.defer(false))
@@ -124,9 +128,9 @@ describe('PendingOperationCard', () => {
     expect(await screen.findByText('status.done')).toBeInTheDocument()
   })
 
-  it('cancels without executing', () => {
+  it('rejects a legacy preview without executing', () => {
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
     expect(screen.queryByText('chat.operation.pendingTitle')).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
   })
@@ -224,6 +228,9 @@ describe('PendingOperationCard', () => {
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('chat.operation.rejected'))
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(screen.queryByText('Read')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.refresh' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
   })
@@ -249,7 +256,7 @@ describe('PendingOperationCard', () => {
       displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null,
     })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.queryByRole('button', { name: 'chat.operation.edit' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'chat.operation.reject' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeEnabled()
   })
 
