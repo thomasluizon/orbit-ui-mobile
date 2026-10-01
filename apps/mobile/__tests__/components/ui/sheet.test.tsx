@@ -395,6 +395,32 @@ describe('Sheet (mobile)', () => {
     expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24)
   })
 
+  it.each([false, true])('separates footer actions with space only with virtualizedBody=%s', async (virtualizedBody) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Sheet open virtualizedBody={virtualizedBody} actions={<Text>Save</Text>}>
+          <Text>Body</Text>
+        </Sheet>,
+      )
+      await Promise.resolve()
+    })
+    try {
+      const footer = tree!.root.findByType(TrueSheet).props.footer
+      const actions = footer.props.children[1]
+      const footerStyle = StyleSheet.flatten(footer.props.style)
+      const actionStyle = StyleSheet.flatten(actions.props.style)
+      const body = tree!.root.findByProps({ testID: virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll' })
+      const bodyStyle = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
+      expect(bodyStyle.paddingBottom).toBe(24)
+      expect(actionStyle.paddingTop).toBe(16)
+      expect(actionStyle.borderTopWidth ?? actionStyle.borderWidth ?? 0).toBe(0)
+      expect(footerStyle.borderTopWidth ?? footerStyle.borderWidth ?? 0).toBe(0)
+    } finally {
+      TestRenderer.act(() => tree!.unmount())
+    }
+  })
+
   it('clears the bottom inset for a sheet toast that has no actions', async () => {
     let tree: any
     await TestRenderer.act(async () => {

@@ -321,6 +321,10 @@ export const Platform = {
 }
 
 export const StyleSheet = {
+  get hairlineWidth() {
+    const scale = windowDimensions.scale
+    return Math.round(0.4 * scale) / scale || 1 / scale
+  },
   absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   create: <T extends Record<string, unknown>>(styles: T) => styles,
   flatten: (style: unknown): unknown => {

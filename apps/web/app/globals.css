@@ -242,6 +242,7 @@
 }
 
 .orbit-sheet-actions {
+  border-top: 0;
   display: flex;
   flex: 0 0 auto;
   flex-wrap: wrap;
