@@ -59,6 +59,7 @@ function applyStyle(node: YogaNode, value: unknown) {
     const padding = style[`padding${suffix}`]
     if (typeof padding === 'number') node.setPadding(edge, padding)
   }
+  if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
 }
 
 function layoutHost(host: Host, nodes: Map<Host, YogaNode>): YogaNode {
@@ -93,8 +94,16 @@ async function mountPicker(hourCycle: 'h12' | 'h23', value: Time24 = '23:59') {
   })
   TestRenderer.act(() => {
     const sheet = tree.root.findByType(TrueSheet)
-    sheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 68 } } })
-    sheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 96 } } })
+    for (const element of [sheet.props.header, sheet.props.footer]) {
+      const host = findHost(tree.toJSON(), (host) => host.props.onLayout === element.props.onLayout)!
+      const node = layoutHost(host, new Map())
+      try {
+        node.calculateLayout(320, undefined)
+        element.props.onLayout({ nativeEvent: { layout: { height: node.getComputedHeight() } } })
+      } finally {
+        node.freeRecursive()
+      }
+    }
   })
   return { tree, onChange }
 }
