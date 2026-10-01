@@ -53,7 +53,7 @@
   "notFoundPage": {
     "title": "Esta página não existe",
     "description": "O endereço pode ter mudado, ou o item foi apagado. O seu dia continua onde estava.",
-    "action": "Abrir Hoje"
+    "action": "Ir para Hoje"
   },
   "notifications": {
     "title": "Avisos",

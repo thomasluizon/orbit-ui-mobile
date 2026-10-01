@@ -53,7 +53,7 @@
   "notFoundPage": {
     "title": "This page does not exist",
     "description": "The address may have changed, or the item was deleted. Your day is still where it was.",
-    "action": "Open Today"
+    "action": "Go to Today"
   },
   "notifications": {
     "title": "Alerts",
