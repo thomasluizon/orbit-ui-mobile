@@ -165,6 +165,29 @@ export const cases = () => {
     T(`${TOOL}: an edgeless tree emits no edge lines`, !/ --> /.test(emptyMermaid), emptyMermaid)
   }
 
+  const typedParameters = join(root, "arch-map-typed-parameters")
+  stageTree(typedParameters, {
+    "packages/shared/src/i18n/en.json": "{}",
+    "packages/shared/src/api/endpoints.ts": [
+      "export const API = {",
+      "  habits: {",
+      '    list: "/api/habits",',
+      "    get: (id: string) => `/api/habits/${id}` as const,",
+      "    undoSkip: (id: string, skipId: string) => `/api/habits/${id}/skip/${skipId}/undo` as const,",
+      "  },",
+      "} as const",
+      "",
+    ].join("\n"),
+  })
+  const typedParametersRun = check(TOOL, "derives endpoints with multiple typed string parameters", [], { status: 0 }, { env: { ARCH_MAP_ROOT: typedParameters } })
+  if (typedParametersRun.status === 0) {
+    const typedEndpoints = JSON.parse(readFileSync(join(typedParameters, "architecture.json"), "utf8")).endpoints
+    const paths = Object.fromEntries(typedEndpoints.map(({ name, path }) => [name, path]))
+    T(`${TOOL}: both skip undo arguments retain their named placeholders`, paths["habits.undoSkip"] === "/api/habits/{id}/skip/{skipId}/undo", JSON.stringify(paths))
+    T(`${TOOL}: a single typed argument retains its named placeholder`, paths["habits.get"] === "/api/habits/{id}", JSON.stringify(paths))
+    T(`${TOOL}: a static endpoint retains its path`, paths["habits.list"] === "/api/habits", JSON.stringify(paths))
+  }
+
   // Hash sensitivity and hash stability, in that order. The stability case is the regression test
   // against anyone reintroducing a timestamp: it is the one that goes red the moment a clock returns.
   const firstRun = readFileSync(join(fixture, "architecture.json"), "utf8")
