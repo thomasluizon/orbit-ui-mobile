@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
@@ -93,6 +94,7 @@ async function renderFlush() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    vi.spyOn(AsyncStorage, 'setItem')
     setAccountId('user-1')
     mocks.authState.isAuthenticated = true
     mocks.draftState._hasHydrated = true
@@ -181,6 +183,7 @@ describe('useOnboardingFlush', () => {
     })
 
     expect(mocks.applyOnboarding).toHaveBeenCalledTimes(2)
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(`orbit_onboarding_pro_pending:${accountId}`, '1')
     expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledTimes(1)
   })

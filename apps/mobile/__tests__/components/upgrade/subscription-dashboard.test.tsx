@@ -637,7 +637,7 @@ describe('subscription dashboards (mobile)', () => {
     [true, false, null, false, false],
     [false, false, null, true, false],
     [true, true, null, true, false],
-    [true, false, 'yearly', false, true],
+    [true, false, 'yearly', true, true],
   ] as const)(
     'dims unavailable links with online=%s restoring=%s checkout=%s',
     (isOnline, isRestoring, checkoutLoading, restoreDisabled, declineDisabled) => {

@@ -10,6 +10,7 @@ export function RowList({ children, style }: Readonly<RowListProps>) {
   return (
     <div
       className="orbit-row-list"
+      data-focus-inset="panel"
       style={{
         background: 'var(--bg-card)',
         borderRadius: 20,

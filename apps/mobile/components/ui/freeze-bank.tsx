@@ -39,7 +39,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
       <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
         <View style={styles.figureRow}>
           <View style={styles.figureBlock}>
-            <Text style={[styles.figure, { color: tokens.fg1 }]}>{props.banked} <Text style={[styles.denominator, { color: tokens.fg3 }]}>/ {props.ceiling}</Text></Text>
+            <Text style={[styles.figure, { color: tokens.fg1 }]}>{props.banked} <Text style={[styles.denominator, { fontFamily: 'SpaceGrotesk_500Medium', color: tokens.fg3 }]}>/ {props.ceiling}</Text></Text>
             <Text style={[styles.meta, { color: tokens.fg3 }]}>{props.words.bankedLabel}</Text>
           </View>
           <View style={styles.figureBlock}>

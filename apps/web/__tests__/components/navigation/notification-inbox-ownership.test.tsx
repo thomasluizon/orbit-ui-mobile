@@ -129,20 +129,18 @@ it.each([
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
-it('announces a delayed delete rejection after the inbox unmounts and keeps undo silent', async () => {
+it('announces a delayed row delete rejection after the inbox unmounts and keeps undo silent', async () => {
   const deferred = deferredResult()
   actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
   const view = render(shell(true))
 
-  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete: Reminder' }))
   fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
   await advance(5000)
   expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
   expect(feedback.showError).not.toHaveBeenCalled()
 
-  fireEvent.click(screen.getByRole('button', { name: /Reminder\. unread/ }))
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete: Reminder' }))
   await advance(5000)
   view.rerender(shell(false))
   deferred.reject()
@@ -281,4 +279,39 @@ it('does not start a poll when both consumers mount while unfocused', async () =
   expect.soft(interval.mock.calls.filter(([, delay]) => delay === NOTIFICATIONS_REFETCH_INTERVAL)).toHaveLength(0)
   await advance(NOTIFICATIONS_REFETCH_INTERVAL)
   expect(fetchJson).not.toHaveBeenCalled()
+})
+
+it.each([false, true])('deletes only the selected row with Undo when read is %s', async (isRead) => {
+  const selected = createMockNotification({ id: 'selected', title: 'Selected', isRead })
+  const sibling = createMockNotification({ id: 'sibling', title: 'Sibling', isRead: false })
+  const response = { items: [selected, sibling], unreadCount: isRead ? 1 : 2 }
+  queryClient.setQueryData(notificationKeys.lists(), response)
+  vi.mocked(fetchJson).mockResolvedValue(response)
+  render(shell(true))
+  const remove = screen.getByRole('button', { name: 'Delete: Selected' })
+  remove.focus()
+  fireEvent.click(remove)
+  expect(screen.queryByRole('button', { name: /^Selected\./ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^Sibling\./ })).toHaveFocus()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('img', { name: 'Alerts, 1 unread' })).toHaveLength(2)
+  expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: /^Selected\./ })).toBeInTheDocument()
+  await advance(5000)
+  expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Delete: Selected' }))
+  await advance(5000)
+  expect(actionMocks.deleteNotification).toHaveBeenCalledTimes(1)
+  expect(actionMocks.deleteNotification.mock.calls[0]?.[0]).toBe('selected')
+  expect(actionMocks.deleteAllNotifications).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /^Sibling\./ })).toBeInTheDocument()
+})
+
+it('keeps focus on the list when its last row is deleted', () => {
+  render(shell(true))
+  screen.getByRole('button', { name: 'Delete: Reminder' }).focus()
+  fireEvent.click(screen.getByRole('button', { name: 'Delete: Reminder' }))
+  expect(screen.getByRole('list', { name: 'Alerts' })).toHaveFocus()
+  expect(screen.getByText('Nothing to see here')).toBeInTheDocument()
 })

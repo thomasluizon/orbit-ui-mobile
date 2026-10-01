@@ -164,10 +164,10 @@ describe('upgrade utils', () => {
       ).toEqual(expect.any(String))
     }
     expect(en.upgrade.plans.renewalNote).toBe(
-      'The subscription renews automatically at the end of each period.',
+      'The subscription renews itself at the end of the period, and you can turn that off in the portal.',
     )
     expect(ptBR.upgrade.plans.renewalNote).toBe(
-      'A assinatura renova automaticamente no fim de cada período.',
+      'A assinatura renova sozinha no fim do período, e dá para desligar isso no portal.',
     )
   })
 

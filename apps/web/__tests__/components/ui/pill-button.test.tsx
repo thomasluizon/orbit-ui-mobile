@@ -1,9 +1,11 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
@@ -31,22 +33,47 @@ describe('PillButton', () => {
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-      const font = readFileSync(require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')).toString('base64')
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}: ${value};`).join(' ')
       stylesheet = `${compiled.css}
         :root { ${variables} }
-        @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
-        :root { --font-sans: TestGeist; }
         body { padding: 48px; }`
     })
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([412, 1280])('measures only rendered onboarding action text lines at %ipx', async (width) => {
+      const { container } = render(<main><div><div><section>
+        <PillButton>See day</PillButton><PillButton>Ver dia</PillButton>
+        <PillButton>Subscribe</PillButton><PillButton>Assinar</PillButton>
+      </section></div></div></main>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const step = page.locator('section')
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual([])
+        await step.evaluate((root) => {
+          const action = document.createElement('button')
+          action.textContent = 'Actually wrapped action'
+          action.style.cssText = 'display:block;width:60px;white-space:normal'
+          root.append(action)
+          const hidden = document.createElement('button')
+          hidden.style.cssText = 'visibility:hidden;display:block;width:30px'
+          hidden.textContent = 'Hidden measurement action'
+          root.append(hidden)
+        })
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual(['Actually wrapped action'])
+      } finally {
+        await page.close()
+      }
+    })
 
     it.each([412, 1280])('paints the import icon target including both pseudo-elements at %ipx', async (width) => {
       const { container } = render(<SelectAllToggle allSelected={false} onToggle={() => {}} selectAllLabel="Select all" deselectAllLabel="Deselect all" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         await page.locator('button').hover()
         const geometry = await page.locator('button').evaluate((button) => {
           for (const animation of button.getAnimations()) animation.finish()
@@ -77,7 +104,7 @@ describe('PillButton', () => {
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await page.evaluate(() => document.fonts.ready)
+        await loadAppFonts(page)
         const measured = await page.evaluate(() => {
           const button = document.querySelector('button')!
           const bounds = button.getBoundingClientRect()

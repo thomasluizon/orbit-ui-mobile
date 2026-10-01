@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render } from '@testing-library/react'
@@ -37,6 +38,7 @@ describe('field indicator readers in Chromium', () => {
         input, textarea { background: white !important; }
         [data-focus-perimeter] { width: 320px; }
       </style>${container.innerHTML}`)
+      await loadAppFonts(page)
       const field = page.locator('input, textarea')
       expect(await readFieldIndicators(field, '[data-input-root]')).toEqual(['div::after:shadow'])
       await page.keyboard.press('Tab')
@@ -69,6 +71,7 @@ describe('field indicator readers in Chromium', () => {
         input { width: 100%; height: 100%; box-sizing: border-box; background: transparent; border: 0; outline: none; }
         ${rules}
       </style><div class="field"><input name="email"></div>`)
+      await loadAppFonts(page)
       await page.keyboard.press('Tab')
       expect((await inspectFocusedRing(page))?.indicators).toHaveLength(count)
       expect(await readFieldIndicators(page.locator('input'), '.field')).toHaveLength(count)
@@ -92,6 +95,7 @@ describe('field indicator readers in Chromium', () => {
         input { width: 100%; height: 100%; box-sizing: border-box; background: white; border: 0; outline: none; }
         ${rules}
       </style><div class="field"><input></div>`)
+      await loadAppFonts(page)
       expect(await readFieldIndicators(page.locator('input'), '.field')).toEqual(indicators)
     } finally {
       await page.close()

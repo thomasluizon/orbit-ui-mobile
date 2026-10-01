@@ -1,5 +1,6 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useEffect, useRef } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,

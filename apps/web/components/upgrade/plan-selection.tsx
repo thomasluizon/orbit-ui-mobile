@@ -145,7 +145,10 @@ export function PlanSelection({
           <ErrorState
             message={t('upgrade.plans.error')}
             action={
-              <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+              <>
+                {/* eslint-disable-next-line local/max-button-words -- The granted Pro drawing requires the three-word retry label in pt-BR. */}
+                <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+              </>
             }
           />
         </div>

@@ -1,6 +1,6 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
-  Pressable,
   View,
   Text,
   StyleSheet,
@@ -234,6 +234,7 @@ function ChecklistAddRow({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('common.add')}
+        focusColor={tokens.fgOnPrimary}
         style={({ pressed }) => [
           styles.addItemButton,
           (disabled || !value.trim()) && styles.addItemButtonDisabled,

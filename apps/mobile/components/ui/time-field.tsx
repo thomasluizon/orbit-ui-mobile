@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { InsetFocusPressable } from './inset-focus-pressable'
 import {
   Pressable,
   ScrollView,
@@ -76,8 +77,9 @@ function TimeOption({
     selected,
   })
   return (
-    <Pressable
+    <InsetFocusPressable
       {...navigationProps}
+      focusColor={selected ? tokens.fgOnPrimary : tokens.fg1}
       ref={elementRef}
       accessibilityLabel={formattedValue}
       accessibilityRole="radio"
@@ -96,7 +98,7 @@ function TimeOption({
       >
         {formattedValue}
       </Text>
-    </Pressable>
+    </InsetFocusPressable>
   )
 }
 

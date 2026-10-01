@@ -1,6 +1,7 @@
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -136,6 +137,43 @@ describe('CreateGoalFromHabitSheet', () => {
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'goals.create'])
     expect(sheetSlotButtons('sheet-body')).not.toContain('goals.create')
     expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
+    const submit = screen.getByRole('button', { name: 'goals.create' }) as HTMLButtonElement
+    const form = screen.getByLabelText('goals.form.description').closest('form')!
+    expect(submit).toHaveAttribute('form', form.id)
+    expect(submit.form).toBe(form)
+  })
+
+  describe('native Enter submission', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await launch
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it('submits once through the external footer pill when Enter is pressed in the description field', async () => {
+      render(<CreateGoalFromHabitSheet open onClose={vi.fn()} />)
+      fillStandardGoal()
+      const markup = screen.getByRole('dialog').outerHTML
+      const page = await browser.newPage()
+      try {
+        await page.setContent(markup)
+        await page.evaluate(() => {
+          const form = document.querySelector('form')!
+          form.addEventListener('submit', (event) => {
+            event.preventDefault()
+            form.dataset.submitCount = String(Number(form.dataset.submitCount ?? 0) + 1)
+            form.dataset.submitter = (event as SubmitEvent).submitter?.textContent ?? ''
+          })
+        })
+        await page.locator('#create-goal-description').press('Enter')
+        expect(await page.locator('form').getAttribute('data-submit-count')).toBe('1')
+        expect(await page.locator('form').getAttribute('data-submitter')).toBe('goals.create')
+      } finally {
+        await page.close()
+      }
+    })
   })
 
   it('switches the goal type between standard and streak', () => {

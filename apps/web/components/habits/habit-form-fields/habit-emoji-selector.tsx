@@ -3,6 +3,7 @@ import { X, Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 interface HabitEmojiSelectorProps {
   selectedEmoji: string
@@ -102,7 +103,7 @@ export function HabitEmojiSelector({
               </button>
             ) : null}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
+          <div data-focus-inset="" onFocusCapture={revealFocusedControl} className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
             {HABIT_EMOJI_CATEGORIES.map((category) => {
               const selected = selectedCategoryId === category.id
               return (

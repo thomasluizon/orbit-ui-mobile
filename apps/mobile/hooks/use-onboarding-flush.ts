@@ -1,3 +1,4 @@
+import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
@@ -63,6 +64,8 @@ export function useOnboardingFlush(): void {
           if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
         }
         if (cancelled || !stillCurrent()) return
+        if (intendedAccountId !== null) await setOnboardingProPending(intendedAccountId, true)
+        if (!stillCurrent()) return
         useOnboardingDraftStore.getState().reset()
         if (!stillCurrent()) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>

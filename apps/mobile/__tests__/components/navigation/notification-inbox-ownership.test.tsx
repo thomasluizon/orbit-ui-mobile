@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AppState, type AppStateStatus } from 'react-native'
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -159,13 +160,12 @@ it.each([
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
-it('keeps an undone delayed delete silent', async () => {
+it('keeps an undone delayed row delete silent', async () => {
   const response = queryClient.getQueryData(notificationKeys.lists())
   vi.mocked(apiClient).mockResolvedValue(response)
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
-  pressStarting('Reminder.')
-  press('Delete')
+  press('Delete: Reminder')
   press('Undo')
   await advance(5000)
   expect(useAppToastStore.getState().currentToast).toBeNull()
@@ -179,12 +179,14 @@ it('runs out the delayed delete failure and holds it while a pointer rests on it
   ))
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
-  pressStarting('Reminder.')
-  press('Delete')
+  press('Delete: Reminder')
   await advance(5000)
   deferred.reject()
   await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
   expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
+  expect(tree?.root.findAll((node) => node.type === 'Pressable'
+    && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Reminder. unread'))).toHaveLength(1)
+  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
   const notice = (tree as unknown as { root: { findByProps: (props: Record<string, unknown>) => { props: { onHoverIn: () => void; onHoverOut: () => void } } } }).root.findByProps({ testID: 'toast-neutral' })
 
   TestRenderer.act(() => notice.props.onHoverIn())
@@ -251,4 +253,31 @@ it('does not start a poll when the retained consumers mount while unfocused', as
   expect.soft(interval.mock.calls.filter(([, delay]) => delay === NOTIFICATIONS_REFETCH_INTERVAL)).toHaveLength(0)
   await advance(NOTIFICATIONS_REFETCH_INTERVAL)
   expect(apiClient).not.toHaveBeenCalled()
+})
+
+it.each([false, true])('deletes only the selected row with Undo when read is %s', async (isRead) => {
+  const selected = createMockNotification({ id: 'selected', title: 'Selected', isRead })
+  const sibling = createMockNotification({ id: 'sibling', title: 'Sibling', isRead: false })
+  const response = { items: [selected, sibling], unreadCount: isRead ? 1 : 2 }
+  queryClient.setQueryData(notificationKeys.lists(), response)
+  vi.mocked(apiClient).mockResolvedValue(response)
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+  const buttons = (prefix: string) => tree?.root.findAll((node) => node.type === 'Pressable'
+    && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith(prefix))
+  press('Delete: Selected')
+  expect(buttons('Selected.')).toHaveLength(0)
+  expect(buttons('Sibling.')).toHaveLength(1)
+  expect(buttons('Mark as read')).toHaveLength(0)
+  expect(tree?.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'image'
+    && node.props.accessibilityLabel === 'Alerts, 1 unread')).toHaveLength(2)
+  expect(apiClient).not.toHaveBeenCalled()
+  press('Undo')
+  expect(buttons('Selected.')).toHaveLength(1)
+  await advance(5000)
+  expect(apiClient).not.toHaveBeenCalled()
+  press('Delete: Selected')
+  await advance(5000)
+  expect(apiClient).toHaveBeenCalledWith(API.notifications.delete('selected'), expect.objectContaining({ method: 'DELETE' }))
+  expect(vi.mocked(apiClient).mock.calls.filter(([, options]) => options?.method === 'DELETE')).toHaveLength(1)
+  expect(buttons('Sibling.')).toHaveLength(1)
 })

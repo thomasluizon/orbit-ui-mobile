@@ -29,7 +29,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
-import packageJson from '@/package.json'
+import { getAppVersion } from '@/lib/app-version'
 
 interface SupportDraft {
   subject: SupportSubjectId | null
@@ -67,6 +67,7 @@ export default function SupportPage() {
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
 
   useResetOnAccountChange(() => {
@@ -82,13 +83,12 @@ export default function SupportPage() {
   const resolvedEmail = profile?.email || ''
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
-  const appVersion = packageJson.version
+  const appVersion = getAppVersion()
   const messageFit = getSupportMessageFit(message, appVersion)
   const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
   const messageOverLimitHint = messageFit.fits
     ? null
     : t('profile.support.messageOverLimit', { overage: messageFit.overage })
-  const isIncomplete = !hasSubject || !hasMessage
   const disabledReasonKey = getSupportSendReasonKey({
     hasMessage,
     hasProfile: Boolean(profile),
@@ -106,16 +106,19 @@ export default function SupportPage() {
 
   const validateFields = useCallback(() => {
     const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
-    const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
+    const nextMessageError = !message.trim()
+      ? t('profile.support.messageRequired')
+      : messageOverLimitHint
     setSubjectError(nextSubjectError)
     setMessageError(nextMessageError)
-    if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextSubjectError && !nextMessageError
-  }, [message, subject, t])
+  }, [message, messageOverLimitHint, subject, t])
 
   const handleSend = useCallback(async () => {
-    if (!profile || !isOnline || !messageFit.fits) return
-    if (!validateFields()) return
+    if (isSending || !isOnline) return
+    if (!validateFields() || !profile) return
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
 
@@ -145,9 +148,9 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [appVersion, isOnline, message, messageFit.fits, profile, subject, t, validateFields])
+  }, [appVersion, isOnline, isSending, message, profile, subject, t, validateFields])
 
-  const disabled = isSending || !isOnline || !profile || isIncomplete || !messageFit.fits
+  const disabled = isSending || !isOnline
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -182,6 +185,7 @@ export default function SupportPage() {
                 isOnline={isOnline}
                 disabled={disabled}
                 disabledReason={disabledReason}
+                subjectFocusRequest={subjectFocusRequest}
                 messageFocusRequest={messageFocusRequest}
                 onSubjectChange={(next) => {
                   setSubject(next)

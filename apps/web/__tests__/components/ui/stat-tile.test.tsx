@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -24,10 +25,7 @@ describe('StatTile', () => {
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-      const font = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf')).toString('base64')
-      stylesheet = `${compiled.css}
-        @font-face { font-family: TestSpaceGrotesk; font-weight: 600; src: url(data:font/ttf;base64,${font}); }
-        :root { --font-display: TestSpaceGrotesk; }`
+      stylesheet = compiled.css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
@@ -41,7 +39,7 @@ describe('StatTile', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await page.evaluate(() => document.fonts.ready)
+        await loadAppFonts(page)
         const geometry = await page.locator('.stat-tile-large-value').evaluateAll((elements) => elements.map((element) => {
           const valueBounds = element.getBoundingClientRect()
           const tile = element.parentElement!

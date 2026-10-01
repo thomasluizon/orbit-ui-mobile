@@ -52,7 +52,7 @@ export function NotificationInbox() {
       />
       <ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
-          onRetry={() => void inbox.refetch()}
+          onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
       </ScrollView>
       {selected ? <NotificationDetailModal open={detailOpen} onClose={() => setDetailOpen(false)}

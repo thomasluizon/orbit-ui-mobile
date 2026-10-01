@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Pencil, Trash2 } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 const VIRTUAL_ROW_HEIGHT = 48
 const VIRTUAL_VIEWPORT_HEIGHT = 320
@@ -76,7 +77,7 @@ function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, onToggle,
       {tags.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: tags.length })}</p> : null}
       {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} /> : null}
       {tags.length === 0 && !editor ? <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}><p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTags')}</p><button type="button" className="chip mt-2" onClick={onCreate}>{t('habits.form.newTag')}</button></div> : null}
-      <div ref={scrollRef} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+      <div ref={scrollRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
         <VirtualSpacer rows={start} />
         {visible.map((tag) => <TagPickerRow key={tag.id} tag={tag} selected={selectedIds.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />)}
         <VirtualSpacer rows={filtered.length - end} />

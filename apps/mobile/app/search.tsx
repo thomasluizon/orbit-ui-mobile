@@ -53,11 +53,11 @@ export default function SearchScreen() {
   }
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
-    <View style={styles.field}>
+    <View style={[styles.field, styles.columnInset]}>
       {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
       <View style={styles.input}><Input label={t('habits.search.title')} placeholder={t('command.placeholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} /></View>
     </View>
-    <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.list, { paddingBottom: clearance }]} accessibilityState={{ busy: search.busy }}>
+    <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.list, styles.columnInset, { paddingBottom: clearance }]} accessibilityState={{ busy: search.busy }}>
       {search.showLoading && (search.text.trim() ? <Searching /> : <><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>)}
       {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></View>}
       {!search.busy && !search.isError && <>
@@ -79,8 +79,8 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, field: { padding: 16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
-  list: { paddingHorizontal: 16, paddingTop: 16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 4 },
+  screen: { flex: 1 }, columnInset: { paddingHorizontal: 16 }, field: { paddingVertical: 16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
+  list: { paddingTop: 16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 4 },
   heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: 12 },
   chip: { padding: 8, borderRadius: radius.sm, borderWidth: 1, fontFamily: 'Geist_500Medium', fontSize: 12 }, pagination: { flexDirection: 'row', gap: 12 },
 })

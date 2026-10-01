@@ -1,5 +1,6 @@
 import type { SwitchProps } from '@orbit/shared/contracts/forms'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -9,6 +10,7 @@ export function Switch({ label, checked, disabled = false, onChange }: Readonly<
 
   return (
     <Pressable
+      focusOffset={-2}
       onPress={() => onChange(!checked)}
       disabled={disabled}
       accessibilityRole="switch"

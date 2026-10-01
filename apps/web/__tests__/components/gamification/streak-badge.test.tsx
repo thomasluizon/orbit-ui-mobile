@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
@@ -105,6 +106,7 @@ describe('Control hover paint in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       const button = page.locator('button')
       const resting = await button.evaluate((element) => getComputedStyle(element).backgroundColor)
       await button.hover()
@@ -133,6 +135,7 @@ describe('Control hover paint in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${document.body.innerHTML}`)
+      await loadAppFonts(page)
       for (const label of ['common.previousMonth', 'common.selectYear', 'common.nextMonth']) {
         const control = page.getByRole('button', { name: label })
         const rest = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -154,6 +157,7 @@ describe('Control hover paint in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       const drag = page.locator('input').first().locator('..').locator('div[aria-hidden="true"]').first()
       const controls = [drag, ...['duplicateChecklistItem', 'removeChecklistItem'].map((key) =>
         page.getByRole('button', { name: `habits.form.${key}`, exact: true }),
@@ -177,6 +181,7 @@ describe('Control hover paint in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       for (const key of ['resetChecklist', 'clearChecklist']) {
         const control = page.getByRole('button', { name: `habits.form.${key}` })
         expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
@@ -195,6 +200,7 @@ describe('Control hover paint in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}} body{padding:48px;background:var(--bg)}</style><div style="background:var(--bg-card)">${container.innerHTML}</div>`)
+      await loadAppFonts(page)
       const reset = page.locator('button[aria-label="habits.form.resetChecklist"]')
       await reset.hover()
       await reset.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))

@@ -5,9 +5,10 @@ import en from '@orbit/shared/i18n/en.json'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
+import { getAppVersion } from '@/lib/app-version'
 import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import { i18n } from '@/lib/i18n'
-import { __resetTestHostConfig } from '../../test-mocks/react-native'
+import { __resetTestHostConfig, __setFocusImpl, __setTouchMode } from '../../test-mocks/react-native'
 import { focusHost, withFocusProvenance } from '../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
@@ -28,9 +29,17 @@ const mocks = vi.hoisted(() => ({
   goBack: vi.fn(),
   routerPush: vi.fn(),
   focusInput: vi.fn(),
+  focusSubject: vi.fn(),
   announceForAccessibility: vi.fn(),
+  nativeVersion: null as string | null,
   expoVersion: new Map<string, string>().get('version'),
   translations: new Map<string, string>(),
+}))
+
+vi.mock('expo-application', () => ({
+  get nativeApplicationVersion() {
+    return mocks.nativeVersion
+  },
 }))
 
 vi.mock('expo-constants', () => ({
@@ -147,14 +156,37 @@ describe('SupportScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     __resetTestHostConfig()
+    __setTouchMode(false)
+    __setFocusImpl((props) => mocks.focusSubject(props.accessibilityLabel))
     mocks.isOnline = true
     mocks.profile = createMockProfile()
     mocks.getItem.mockResolvedValue(null)
     mocks.setItem.mockResolvedValue(undefined)
     mocks.removeItem.mockResolvedValue(undefined)
     mocks.apiClient.mockResolvedValue(undefined)
+    mocks.nativeVersion = null
     mocks.expoVersion = '1.1.4'
     mocks.translations.clear()
+  })
+
+  it.each([
+    ['touch', true],
+    ['keyboard', false],
+  ] as const)('shows both errors on an empty %s submit and focuses the subject first without sending', async (_mode, touchMode) => {
+    __setTouchMode(touchMode)
+    const tree = await renderScreen()
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    for (const key of ['profile.support.subjectRequired', 'profile.support.messageRequired']) {
+      expect(tree.root.findAll((node) => node.props.children === key)).not.toHaveLength(0)
+    }
+    expect(mocks.focusSubject).toHaveBeenCalledWith(expect.stringContaining('profile.support.subjects.problem.label'))
+    expect(mocks.focusInput).not.toHaveBeenCalled()
+    expect(findSubjectChoices(tree.root).every((choice) => !(choice.props.accessibilityState as { checked: boolean }).checked)).toBe(true)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('keeps the support page heading distinct from the About row label', async () => {
@@ -344,7 +376,7 @@ describe('SupportScreen', () => {
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe('')
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint)
       .toBe('profile.support.emailLockedReason')
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint)
       .toBe('profile.support.sendNeedsProfile')
   })
@@ -356,17 +388,14 @@ describe('SupportScreen', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      const group = tree.root.findAll(
-        (node) => node.props.accessibilityRole === 'radiogroup',
-      )[0]!
-      ;(group.props.onBlur as () => void)()
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()
     })
 
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired'),
     ).not.toHaveLength(0)
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
@@ -374,20 +403,21 @@ describe('SupportScreen', () => {
     const tree = await renderScreen()
     await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()
     })
 
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired'),
     ).not.toHaveLength(0)
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(mocks.focusInput).toHaveBeenCalledWith('profile.support.message')
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
-  it('keeps Send disabled with an announced reason until subject and message are filled', async () => {
+  it('keeps Send enabled as subject and message validity changes', async () => {
     const tree = await renderScreen()
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
       'profile.support.sendIncomplete',
     )
@@ -407,10 +437,26 @@ describe('SupportScreen', () => {
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('   ')
       await Promise.resolve()
     })
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
       'profile.support.sendNeedsMessage',
     )
+  })
+
+  it('shows and attaches the installed Android version used by About', async () => {
+    mocks.nativeVersion = '2.3.1'
+    const tree = await renderScreen()
+    expect(tree.root.findAll((node) => node.props.children === `profile.support.versionIncluded({"version":"${getAppVersion()}"})`)).not.toHaveLength(0)
+    await selectSubject(tree.root)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(sentRequestBody().message).toBe(`Message\n\nOrbit ${getAppVersion()}`)
   })
 
   it('accepts the API message length boundary', async () => {
@@ -455,7 +501,7 @@ describe('SupportScreen', () => {
     expect(messageInput.props.value).toBe(message)
     expect(messageInput.props.maxLength).toBe(5000)
     expect(messageInput.props.accessibilityHint).toBe(overLimit)
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(sendReason)
 
     await TestRenderer.act(async () => {
@@ -500,7 +546,7 @@ describe('SupportScreen', () => {
       await Promise.resolve()
     })
     await selectSubject(tree.root)
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
 
     mocks.profile = { ...createMockProfile(), name: 'Profile User', email: 'profile@example.com' }
     await TestRenderer.act(async () => {

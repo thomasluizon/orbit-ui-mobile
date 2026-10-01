@@ -186,12 +186,24 @@ describe('live onboarding actions', () => {
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
   })
 
-  it('finishes onboarding and routes home even when completion fails', async () => {
-    mocks.completeOnboarding.mockRejectedValue(new Error('offline'))
+  it('keeps onboarding open when online completion fails', async () => {
+    mocks.completeOnboarding.mockRejectedValue(new Error('unavailable'))
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    await expect(result.current.finishOnboarding()).rejects.toThrow('unavailable')
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('queues offline completion for the held account and enters the app', async () => {
+    holdAccount('user-1')
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     const { result } = renderHook(() => useLiveOnboardingActions())
     await result.current.finishOnboarding()
-    expect(mocks.setQueryData).toHaveBeenCalled()
+    expect(mocks.completeOnboarding).not.toHaveBeenCalled()
+    expect(localStorage.getItem('orbit_onboarding_completion_pending:user-1')).toBe('1')
     expect(pushMock).toHaveBeenCalledWith('/')
+    online.mockRestore()
+    localStorage.clear()
   })
 
   it('keeps onboarding open when the account switch guard refuses completion', async () => {
