@@ -1,3 +1,4 @@
+import { setOnboardingProPending, useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { runServerAction } from '@/lib/client-action'
@@ -322,6 +323,23 @@ describe('OnboardingFlow state model', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
     expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+  })
+
+  it('shows the flushed final step once and clears only its account flag', async () => {
+    holdAccount('account-1')
+    setOnboardingProPending('account-1', true)
+    setOnboardingProPending('account-2', true)
+    function PendingHost() {
+      return useOnboardingProPending() ? <RetainedOnboardingOverlay finalStepOnly /> : null
+    }
+    render(<PendingHost />)
+    await screen.findByTestId('pro-step')
+    expect(screen.queryByTestId('done')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
+    await waitFor(() => expect(screen.queryByTestId('pro-step')).not.toBeInTheDocument())
+    expect(localStorage.getItem('orbit_onboarding_pro_pending:account-1')).toBeNull()
+    expect(localStorage.getItem('orbit_onboarding_pro_pending:account-2')).toBe('1')
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
   })
 
   it('rejects final completion when the server detects another held account', async () => {

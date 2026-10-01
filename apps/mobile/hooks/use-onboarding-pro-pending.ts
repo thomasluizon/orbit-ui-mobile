@@ -23,7 +23,10 @@ export function useOnboardingProPending() {
     void AsyncStorage.getItem(buildAccountScopedStorageKey(ONBOARDING_PRO_PENDING_KEY, accountId)).then((value) => {
       if (cancelled) return
       usePendingAccounts.setState((state) => ({ accounts: { ...state.accounts, [accountId]: state.accounts[accountId] ?? value === '1' } }))
-    }).catch(captureError)
+    }).catch((error: unknown) => {
+      captureError(error)
+      if (!cancelled) usePendingAccounts.setState((state) => ({ accounts: { ...state.accounts, [accountId]: state.accounts[accountId] ?? false } }))
+    })
     return () => { cancelled = true }
   }, [accountId, pending])
   return pending

@@ -333,9 +333,10 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   }
 
   async function finishDeferredPushRecovery() {
+    const generation = getAccountGeneration()
     if (getCurrentPlan(profile) === 'Pro') {
       await actions.finishOnboarding()
-      useOnboardingDraftStore.getState().reset()
+      if (getAccountGeneration() === generation) useOnboardingDraftStore.getState().reset()
       return
     }
     const accountId = getHeldAccountId()
@@ -387,12 +388,12 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
     const generation = getAccountGeneration()
     try {
       await actions.finishOnboarding()
-      if (resolvingDeferredPush) useOnboardingDraftStore.getState().reset()
     } catch (error) {
       if (reportsAccountChanged(error) && step !== ONBOARDING_PRO_STEP) return
       throw error
     }
     if (getAccountGeneration() !== generation) return
+    if (resolvingDeferredPush) useOnboardingDraftStore.getState().reset()
     if (accountId !== null) setOnboardingProPending(accountId, false)
     setOverlayOpen(false)
     if (destination) router.push(destination)

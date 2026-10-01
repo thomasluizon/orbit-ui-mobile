@@ -37,8 +37,12 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             const range = document.createRange(); range.selectNodeContents(element)
             return new Set(Array.from(range.getClientRects()).map((rectangle) => Math.round(rectangle.top))).size > 1
           }).map((element) => element.textContent.trim())
-          return { overflow, wrappedActions }
+          const column = root.parentElement!.parentElement!.getBoundingClientRect()
+          const main = root.closest('main')!.getBoundingClientRect()
+          const horizontalOffset = Math.abs(column.x + column.width / 2 - main.x - main.width / 2)
+          return { overflow, wrappedActions, horizontalOffset }
         })
+        expect(geometry.horizontalOffset).toBeLessThanOrEqual(1)
         expect(geometry.overflow).toEqual([])
         expect(geometry.wrappedActions).toEqual([])
         if (branch === 'trial') {

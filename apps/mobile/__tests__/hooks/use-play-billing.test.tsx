@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -69,7 +70,7 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ user: mocks.state.authUser }),
 }))
 
-function renderUsePlayBilling(options?: { preferReferralOffer?: boolean }): ReturnType<typeof usePlayBilling> {
+function renderUsePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }): ReturnType<typeof usePlayBilling> {
   const valueHolder: { current: ReturnType<typeof usePlayBilling> | null } = {
     current: null,
   }
@@ -84,10 +85,10 @@ function renderUsePlayBilling(options?: { preferReferralOffer?: boolean }): Retu
   return valueHolder.current
 }
 
-function renderUsePlayBillingLive(): { current: ReturnType<typeof usePlayBilling> } {
+function renderUsePlayBillingLive(options?: { onPurchased?: () => Promise<void> | void }): { current: ReturnType<typeof usePlayBilling> } {
   const holder: { current: ReturnType<typeof usePlayBilling> | null } = { current: null }
   function Harness() {
-    holder.current = usePlayBilling()
+    holder.current = usePlayBilling(options)
     return null
   }
   TestRenderer.act(() => {
@@ -466,6 +467,53 @@ describe('usePlayBilling', () => {
     )
     expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
     expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+  })
+
+  it('settles restored entitlement before notifying the onboarding host', async () => {
+    mocks.getAvailablePurchases.mockResolvedValue([{ productId: 'orbit_pro', purchaseToken: 'tok_restore' }])
+    const onPurchased = vi.fn()
+    const result = renderUsePlayBilling({ onPurchased })
+    await TestRenderer.act(async () => { await result.restorePurchases() })
+    expect(onPurchased).toHaveBeenCalledOnce()
+    expect(mocks.invalidateQueries.mock.invocationCallOrder.at(-1)).toBeLessThan(onPurchased.mock.invocationCallOrder[0]!)
+  })
+
+  it('notifies the purchase host only after profile refresh succeeds', async () => {
+    let release!: () => void
+    mocks.invalidateQueries.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
+    const onPurchased = vi.fn()
+    renderUsePlayBilling({ onPurchased })
+    mocks.state.iapOptions?.onPurchaseSuccess?.({ productId: 'orbit_pro', purchaseToken: 'tok_success' })
+    await flushAsync()
+    expect(onPurchased).not.toHaveBeenCalled()
+    release()
+    await flushAsync()
+    expect(onPurchased).toHaveBeenCalledOnce()
+    expect(mocks.invalidateQueries).toHaveBeenLastCalledWith(expect.anything(), { throwOnError: true })
+  })
+
+  it('keeps a cancelled purchase open without an error or completion callback', async () => {
+    mocks.state.subscriptions = [{ id: 'orbit_pro', subscriptionOffers: [{ basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: '$9.99' }] }]
+    const onPurchased = vi.fn()
+    const hook = renderUsePlayBillingLive({ onPurchased })
+    await TestRenderer.act(async () => { await hook.current.purchase('monthly') })
+    await TestRenderer.act(() => { mocks.state.iapOptions?.onPurchaseError?.({ code: ErrorCode.UserCancelled }) })
+    expect(hook.current.isProcessing).toBe(false)
+    expect(hook.current.errorKey).toBeNull()
+    expect(onPurchased).not.toHaveBeenCalled()
+  })
+
+  it('drops old account purchase settlement after verification', async () => {
+    let release!: () => void
+    mocks.apiClient.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
+    const onPurchased = vi.fn()
+    renderUsePlayBilling({ onPurchased })
+    mocks.state.iapOptions?.onPurchaseSuccess?.({ productId: 'orbit_pro', purchaseToken: 'tok_old' })
+    advanceAccountGeneration()
+    release()
+    await flushAsync()
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    expect(onPurchased).not.toHaveBeenCalled()
   })
 
   it('sets the service-unavailable error and skips verify when restore fails', async () => {

@@ -16,7 +16,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 
 export interface OnboardingProExit { exit: (destination?: string) => void }
 
@@ -85,10 +85,10 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
 const styles = StyleSheet.create({ root: { paddingVertical: 32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 } })
 
 function ProSkeleton({ color }: Readonly<{ color: string }>) {
-  const block = { backgroundColor: color, borderRadius: 8 }
+  const block = { backgroundColor: color, borderRadius: radius.md }
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 32 }}>
     <View style={{ gap: 12 }}><View style={[block, { height: 12, width: '33%' }]} /><View style={[block, { height: 64, width: '80%' }]} /><View style={[block, { height: 56 }]} /></View>
-    <View style={[block, { height: 136, borderRadius: 16 }]} />
+    <View style={[block, { height: 136, borderRadius: radius.xl }]} />
     <View style={{ gap: 12 }}>{[0, 1, 2].map((key) => <View key={key} style={[block, { height: 64 }]} />)}</View>
   </View>
 }
