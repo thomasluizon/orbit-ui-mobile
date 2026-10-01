@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { computeHabitFrequencyLabel } from '@orbit/shared/utils'
 import {
   buildHabitRowAccessibilityLabel,
   buildHabitRowMetaParts,
@@ -21,7 +20,6 @@ describe('resolveHabitRowDotState', () => {
 
 describe('buildHabitRowMetaParts', () => {
   const base = {
-    frequencyLabel: 'Every day',
     isOverdue: false,
     selectedDateStr: '2025-01-01',
     todayStr: '2025-01-01',
@@ -30,17 +28,13 @@ describe('buildHabitRowMetaParts', () => {
     locale: 'en',
   }
 
-  it('includes the frequency label for a scheduled habit', () => {
-    const parts = buildHabitRowMetaParts({ ...base, habit: createMockHabit() })
-    expect(parts).toContain('Every day')
+  it.each([{}, { isGeneral: true }])('omits routine meta on an untimed habit', (overrides) => {
+    expect(buildHabitRowMetaParts({ ...base, habit: createMockHabit(overrides) })).toEqual([])
   })
 
-  it('omits the frequency label for a general habit', () => {
-    const habit = createMockHabit({ isGeneral: true })
-    const frequencyLabel = computeHabitFrequencyLabel(habit, t)
-    expect(frequencyLabel).toBeNull()
-    const parts = buildHabitRowMetaParts({ ...base, habit, frequencyLabel })
-    expect(parts).not.toContain('Every day')
+  it('shows child completion instead of parent timing', () => {
+    expect(buildHabitRowMetaParts({ ...base, childProgress: { done: 1, total: 2 },
+      habit: createMockHabit({ dueTime: '08:00' }) })).toEqual(['habits.rowProgress'])
   })
 
   it('formats a due-time range', () => {
@@ -51,7 +45,7 @@ describe('buildHabitRowMetaParts', () => {
     expect(parts).toContain('08:00 - 09:00')
   })
 
-  it('shows checklist progress', () => {
+  it('keeps checklist progress out of the row', () => {
     const parts = buildHabitRowMetaParts({
       ...base,
       habit: createMockHabit({
@@ -61,7 +55,7 @@ describe('buildHabitRowMetaParts', () => {
         ],
       }),
     })
-    expect(parts).toContain('1/2')
+    expect(parts).toEqual([])
   })
 
   it('pushes an overdue token when overdue', () => {

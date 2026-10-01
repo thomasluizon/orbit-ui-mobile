@@ -549,6 +549,7 @@
     },
     "backToHabits": "All habits",
     "completed": "completed",
+    "rowProgress": "{done} of {total}",
     "drillProgress": "{done} of {total} done",
     "skipConfirmTitle": "Skip {name}?",
     "skipConfirmMessage": "The due date advances to the next occurrence, with nothing logged.",

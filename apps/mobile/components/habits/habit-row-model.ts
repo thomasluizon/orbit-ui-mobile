@@ -18,7 +18,7 @@ export function resolveHabitRowDotState(
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
-  frequencyLabel: string | null
+  childProgress?: { done: number; total: number }
   isOverdue: boolean
   selectedDateStr: string
   todayStr: string
@@ -27,11 +27,10 @@ interface BuildHabitRowMetaPartsParams {
   locale?: string | null
 }
 
-/** Builds the inline meta tokens (frequency, due-time, checklist progress, overdue,
- *  future hint) rendered between a habit row's title and trailing status. */
+/** Parent completion or single-row timing and status metadata. */
 export function buildHabitRowMetaParts({
   habit,
-  frequencyLabel,
+  childProgress,
   isOverdue,
   selectedDateStr,
   todayStr,
@@ -39,15 +38,11 @@ export function buildHabitRowMetaParts({
   t,
   locale,
 }: BuildHabitRowMetaPartsParams): HabitRowMetaPart[] {
+  if (childProgress && childProgress.total > 0) return [t('habits.rowProgress', childProgress)]
   const metaParts: HabitRowMetaPart[] = []
-  if (frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
     metaParts.push(habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due)
-  }
-  if (habit.checklistItems.length > 0) {
-    const checked = habit.checklistItems.filter((item) => item.isChecked).length
-    metaParts.push(`${checked}/${habit.checklistItems.length}`)
   }
   if (isOverdue) metaParts.push({ kind: 'overdue' })
   if (habit.isBadHabit && (habit.isCompleted || habit.isLoggedInRange)) {

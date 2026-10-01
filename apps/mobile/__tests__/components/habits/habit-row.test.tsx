@@ -60,6 +60,36 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
 }
 
 describe('HabitRow canonical content (mobile)', () => {
+  it('shows time alone and omits routine meta on an untimed single row', () => {
+    const timed = renderRowText(createMockHabit({ dueTime: '21:00' }))
+    expect(timed).toContain('21:00')
+    expect(timed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    const untimed = renderRowText(createMockHabit({ checklistItems: [{ text: 'One', isChecked: true }] }))
+    expect(untimed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    expect(untimed).not.toContain('1/1')
+  })
+
+  it('shows child progress instead of the parent schedule', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ dueTime: '21:00' })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text).toContain('habits.rowProgress')
+    expect(text).not.toContain('21:00')
+  })
+
+  it.each([false, true])('uses the empty track for parent selection mode %s', (isSelectMode) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit()} hasChildren
+        childrenDone={1} childrenTotal={2} isSelectMode={isSelectMode} />)
+    })
+    const circles = tree!.root.findAllByType('Circle')
+    expect(circles[0].props.stroke).toBe(createTokensV2('purple', 'dark').trackEmpty)
+  })
+
   it('shows a one-day habit row without an internal type label', () => {
     const texts = renderRowText(createMockHabit({ title: 'Pay bill', frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }))
     expect(texts).toContain('Pay bill')

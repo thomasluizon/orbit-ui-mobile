@@ -46,16 +46,14 @@ function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isD
   parentAction?.()
 }
 
-function resolveParentRingColors(isBadHabit: boolean, state: HabitStatus) {
+function resolveParentRingColors(isBadHabit: boolean) {
   if (isBadHabit) {
     return {
       stroke: 'var(--status-bad)',
-      trackColor: 'color-mix(in srgb, var(--status-bad) 40%, transparent)',
     }
   }
   return {
     stroke: undefined,
-    trackColor: state === 'overdue' ? 'color-mix(in srgb, var(--status-overdue) 40%, transparent)' : undefined,
   }
 }
 
@@ -117,7 +115,7 @@ function SelectionStatusGlyph({
       <span role="img" aria-label={`${statusName}, ${childProgress?.done ?? 0}/${childProgress?.total ?? 0}`}
         className="flex h-11 w-11 items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
         <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
-          size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit, state)} />
+          size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
       </span>
     )
   }
@@ -147,7 +145,7 @@ function InteractiveParentRing({
       title={disabled ? completionReason : undefined}
       className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
       <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
-        size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit, state)} />
+        size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
     </button>
   )

@@ -36,15 +36,13 @@ interface HabitRowTrailingProps {
 
 function resolveParentRingColors(
   habit: NormalizedHabit,
-  dotState: HabitStatus,
   tokens: ReturnType<typeof createTokensV2>,
 ) {
   if (habit.isBadHabit) {
-    return { stroke: tokens.statusBad, trackColor: `${tokens.statusBad}66` }
+    return { stroke: tokens.statusBad }
   }
   return {
     stroke: undefined,
-    trackColor: dotState === 'overdue' ? `${tokens.statusOverdue}66` : undefined,
   }
 }
 
@@ -67,7 +65,7 @@ function SelectionStatusGlyph({
       <View accessibilityRole="image" accessibilityLabel={`${statusName}, ${childrenDone}/${childrenTotal}`}
         style={[styles.parentRingButton, completionReadOnly ? { opacity: 0.4 } : null]}>
         <ParentRing done={childrenDone} total={childrenTotal} size={depth === 1 ? 24 : 30}
-          {...resolveParentRingColors(habit, dotState, tokens)} />
+          {...resolveParentRingColors(habit, tokens)} />
       </View>
     )
   }
@@ -102,7 +100,7 @@ function InteractiveParentRing({
           ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
       ]}>
       <ParentRing done={childrenDone} total={childrenTotal} size={depth === 1 ? 24 : 30}
-        {...resolveParentRingColors(habit, dotState, tokens)} />
+        {...resolveParentRingColors(habit, tokens)} />
     </Pressable>
   )
 }
