@@ -160,7 +160,7 @@ describe('HabitChecklist press paint', () => {
       expect(pressPaint(control, false).backgroundColor).toBeUndefined()
       expect(pressPaint(control, true)).toMatchObject({ backgroundColor: tokens.bgHover, overflow: 'hidden' })
       if (key === 'resetChecklist') {
-        const children = control.props.children as (state: { pressed: boolean }) => ReactElement<{ color: string }>
+        const children = control.parent?.parent?.props.children as (state: { pressed: boolean }) => ReactElement<{ color: string }>
         expect(children({ pressed: false }).props.color).toBe(tokens.primary)
         expect(children({ pressed: true }).props.color).toBe(tokens.fg2)
       }
@@ -297,7 +297,7 @@ it('keeps the reset glyph above the graphic floor on a pressed card child', () =
   const reset = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('habits.form.resetChecklist'))[0]!
   const style = reset.props.style as (state: { pressed: boolean }) => ViewStyle
   const fill = StyleSheet.flatten(style({ pressed: true })).backgroundColor as string
-  const children = reset.props.children
+  const children = reset.parent?.parent?.props.children
   const icon = (typeof children === 'function' ? children({ pressed: true }) : children) as ReactElement<{ color: string }>
   const tokens = createTokensV2('orange', 'dark')
   expect(contrastOnSurface(icon.props.color, [tokens.bg, tokens.bgCard, fill])).toBeGreaterThanOrEqual(3)

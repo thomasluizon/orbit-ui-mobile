@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Calendar, ChartLine, CircleDot, Gift, Home, User } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
@@ -16,12 +16,14 @@ const TARGET_ICONS = {
   'notifications.habit': CircleDot,
 }
 
-export function NotificationRow({ item, onOpen }: Readonly<{
+export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   item: NotificationItem
   onOpen: (item: NotificationItem) => void
+  onDelete: (item: NotificationItem) => void
 }>) {
   const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
+  const [deleteFocused, setDeleteFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
@@ -56,13 +58,25 @@ export function NotificationRow({ item, onOpen }: Readonly<{
           </View> : null}
         </View>
       </Pressable>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={t('notifications.deleteNotification', { title: item.title })}
+        onPress={() => onDelete(item)}
+        onFocus={() => setDeleteFocused(true)} onBlur={() => setDeleteFocused(false)}
+        style={({ pressed }) => [styles.deleteButton, pressed && { backgroundColor: tokens.bgHover },
+          deleteFocused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
+            borderColor: tokens.fg1 }]}>
+        <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">
+          <Trash2 size={20} color={tokens.statusBad} />
+        </View>
+      </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { borderRadius: 12 },
-  row: { width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
+  wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
+  deleteButton: { width: 44, minHeight: 44, flexShrink: 0, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 4, borderColor: 'transparent', overflow: 'hidden' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },

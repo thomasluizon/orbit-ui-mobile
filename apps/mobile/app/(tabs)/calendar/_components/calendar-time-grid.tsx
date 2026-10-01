@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -158,7 +158,7 @@ function TimedBlock({
 }>) {
   const completed = block.entry.status === "completed";
   return (
-    <Pressable
+    <InsetFocusPressable
       testID="time-grid-event"
       accessibilityRole="button"
       onPress={onSelect}
@@ -213,7 +213,7 @@ function TimedBlock({
           {displayTime(block.entry.dueTime)}
         </Text>
       ) : null}
-    </Pressable>
+    </InsetFocusPressable>
   );
 }
 
@@ -267,7 +267,7 @@ function AllDayMoreChip({
   tokens: Tokens;
 }>) {
   return (
-    <Pressable
+    <InsetFocusPressable
       testID="time-grid-all-day-more"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -296,7 +296,7 @@ function AllDayMoreChip({
       >
         +{count}
       </Text>
-    </Pressable>
+    </InsetFocusPressable>
   );
 }
 
@@ -317,8 +317,9 @@ function ColumnHeader({
 }>) {
   const locale = language === "pt-BR" ? ptBR : enUS;
   return (
-    <Pressable
+    <InsetFocusPressable
       testID="time-grid-col-header"
+      focusOffset={-6}
       accessibilityRole="button"
       onPress={() => onSelectDay(column.dateStr)}
       style={({ pressed }) => [
@@ -361,7 +362,7 @@ function ColumnHeader({
           {format(column.date, "d", { locale })}
         </Text>
       </View>
-    </Pressable>
+    </InsetFocusPressable>
   );
 }
 

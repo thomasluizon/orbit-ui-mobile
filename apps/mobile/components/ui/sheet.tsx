@@ -203,6 +203,7 @@ export function Sheet({
           testID="sheet-body-scroll"
           style={{ maxHeight: maxBodyHeight }}
           contentContainerStyle={bodyStyle}
+          keyboardVerticalOffset={footer ? footerHeight : undefined}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -226,7 +227,7 @@ function renderSheetFooter(
 ) {
   if (!actions && !showSheetToast) return undefined
   return (
-    <View style={{ paddingBottom: bottomInset }} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
+    <View style={[styles.footer, { paddingBottom: bottomInset }]} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
       {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
       {actions ? <View style={styles.actions}>{actions}</View> : null}
     </View>
@@ -282,6 +283,7 @@ function createStyles(tokens: Tokens) {
       paddingTop: 16,
       paddingBottom: 24,
     },
+    footer: { backgroundColor: tokens.bgSheet },
     notice: { paddingHorizontal: 24, paddingVertical: 16 },
   })
 }

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  AccessibilityInfo,
   findNodeHandle,
   View,
   type ViewProps,
@@ -40,15 +41,22 @@ interface RadioGroupContextValue {
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
 
-export function RadioGroup({ children, onCommit, ...props }: Readonly<
+export function RadioGroup({ children, onCommit, focusRequest, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
     children: ReactNode
     /** Runs when a row is explicitly pressed, never when native focus moves the selection. */
     onCommit?: () => void
+    focusRequest?: number
   }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, View>())
+  useEffect(() => {
+    if (!focusRequest) return
+    const firstElement = elementsRef.current.values().next().value
+    firstElement?.setNativeProps({ hasTVPreferredFocus: true })
+    if (firstElement) AccessibilityInfo.sendAccessibilityEvent(firstElement, 'focus')
+  }, [focusRequest])
   const armedRedirectRef = useRef<ArmedRedirect | null>(null)
   const getPreviousFocusTarget = usePreviousFocusTarget()
   const onCommitRef = useRef(onCommit)

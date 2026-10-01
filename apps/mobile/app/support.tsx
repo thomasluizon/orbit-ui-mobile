@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import Constants from 'expo-constants'
+import { getAppVersion } from '@/lib/app-version'
 import { Check, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -82,7 +82,7 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
-  appVersion?: string
+  appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
   error: string | null
@@ -90,6 +90,7 @@ interface SupportFormProps {
   messageError: string | null
   canSend: boolean
   disabledReason: string | null
+  subjectFocusRequest: number
   messageFocusRequest: number
   onChangeSubject: (value: SupportSubjectId) => void
   onChangeMessage: (value: string) => void
@@ -113,6 +114,7 @@ function SupportForm({
   messageError,
   canSend,
   disabledReason,
+  subjectFocusRequest,
   messageFocusRequest,
   onChangeSubject,
   onChangeMessage,
@@ -145,6 +147,8 @@ function SupportForm({
         </Text>
         <RadioGroup
           accessibilityLabel={t('profile.support.subject')}
+          focusRequest={subjectFocusRequest}
+          accessibilityHint={subjectError ?? undefined}
           onBlur={onSubjectBlur}
           style={{ gap: 4 }}
         >
@@ -182,7 +186,7 @@ function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={sending}
         error={messageError ?? undefined}
-        hint={messageOverLimitHint ?? undefined}
+        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
         multiline
         rows={6}
@@ -244,7 +248,7 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
-  const appVersion = Constants.expoConfig?.version?.trim() || undefined
+  const appVersion = getAppVersion()
   const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
   const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState<SupportSubjectId | null>(null)
@@ -254,6 +258,7 @@ export default function SupportScreen() {
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || ''
   const hasSubject = subject !== null
@@ -263,7 +268,6 @@ export default function SupportScreen() {
   const messageOverLimitHint = messageFit.fits
     ? null
     : t('profile.support.messageOverLimit', { overage: messageFit.overage })
-  const isIncomplete = !hasSubject || !hasMessage
   const disabledReasonKey = getSupportSendReasonKey({
     hasMessage,
     hasProfile: Boolean(profile),
@@ -306,16 +310,19 @@ export default function SupportScreen() {
 
   const validateFields = () => {
     const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
-    const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
+    const nextMessageError = !message.trim()
+      ? t('profile.support.messageRequired')
+      : messageOverLimitHint
     setSubjectError(nextSubjectError)
     setMessageError(nextMessageError)
-    if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextSubjectError && !nextMessageError
   }
 
   const handleSend = async () => {
-    if (!profile || !isOnline || !messageFit.fits) return
-    if (!validateFields()) return
+    if (sending || !isOnline) return
+    if (!validateFields() || !profile) return
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
 
@@ -349,7 +356,7 @@ export default function SupportScreen() {
     }
   }
 
-  const canSend = isOnline && !sending && Boolean(profile) && !isIncomplete && messageFit.fits
+  const canSend = isOnline && !sending
 
   return (
     <SafeAreaView
@@ -391,6 +398,7 @@ export default function SupportScreen() {
             messageError={messageError}
             canSend={canSend}
             disabledReason={disabledReason}
+            subjectFocusRequest={subjectFocusRequest}
             messageFocusRequest={messageFocusRequest}
             onChangeSubject={(next) => {
               setSubject(next)

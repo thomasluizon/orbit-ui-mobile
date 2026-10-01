@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -86,6 +87,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
     const page = await browser.newPage({ viewport })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
       return await page.evaluate((label) => {
         const coverElement = document.querySelector('[data-state]')!
         const cover = coverElement.getBoundingClientRect()

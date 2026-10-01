@@ -1,5 +1,6 @@
 'use client'
 
+import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import * as Sentry from '@sentry/nextjs'
@@ -60,6 +61,8 @@ export function useOnboardingFlush(): void {
           const push = await subscribeToPushNotifications()
           if (push.status !== 'registered') throw new Error('Failed to register deferred push subscription')
         }
+        if (!stillCurrent()) return
+        if (intendedAccountId !== null) setOnboardingProPending(intendedAccountId, true)
         if (!stillCurrent()) return
         store.reset()
         if (!stillCurrent()) return

@@ -6,19 +6,20 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { NotificationRow } from './notification-row'
 
-export function NotificationList({ items, isLoading, isError, onRetry, onOpen }: Readonly<{
+export function NotificationList({ items, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<{
   items: NotificationItem[]
   isLoading: boolean
   isError: boolean
   onRetry: () => void
   onOpen: (item: NotificationItem) => void
+  onDelete: (item: NotificationItem) => void
 }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={styles.list}>
-      {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} />)
+      {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
         : isLoading ? Array.from({ length: 5 }, (_, index) => (
           <View key={index} accessible={false} style={styles.skeletonRow}>
             <View style={styles.dotColumn} />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ErrorCode,
@@ -9,13 +9,15 @@ import {
 } from 'expo-iap'
 import { API } from '@orbit/shared/api'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
-import type { SubscriptionInterval } from '@orbit/shared/types/profile'
+import type { Profile, SubscriptionInterval } from '@orbit/shared/types/profile'
 import {
   PLAY_REFERRAL_OFFER_TAG,
   PLAY_SUBSCRIPTION_PRODUCT_ID,
   playBasePlanToInterval,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { getAccountId } from '@/lib/account-scope'
 import { useAuthStore } from '@/stores/auth-store'
 
 export interface PlayOffer {
@@ -121,15 +123,36 @@ export function mapPlayErrorKey(error: { code?: ErrorCode }): string | null {
   }
 }
 
-async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
+async function verifyPlayPurchase(purchase: Purchase, isCurrent: () => boolean): Promise<boolean> {
   const purchaseToken = purchase.purchaseToken
   if (!purchaseToken) return false
   await apiClient(API.subscription.playVerify, {
     method: 'POST',
+    isCurrent,
     body: JSON.stringify({ productId: purchase.productId, purchaseToken }),
   })
+  if (!isCurrent()) return false
   await finishTransaction({ purchase, isConsumable: false })
   return true
+}
+
+async function verifyOwnedPurchases(purchases: Purchase[], isCurrent: () => boolean) {
+  let restored = false
+  let failed = false
+  for (const owned of purchases) {
+    if (!isCurrent()) break
+    try {
+      // react-doctor-disable-next-line async-await-in-loop -- Play transaction acknowledgements mutate the billing client and must settle sequentially. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+      if (await verifyPlayPurchase(owned, isCurrent)) restored = true
+    } catch {
+      failed = true
+    }
+  }
+  return { restored, failed }
+}
+
+function isPurchaseAccountCurrent(account: { id: string | null; generation: number }) {
+  return account.id === getAccountId() && account.generation === getAccountGeneration()
 }
 
 /**
@@ -137,9 +160,11 @@ async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
  * server-side, and restores previous purchases. Android-only; the web app uses Stripe.
  */
-export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
+export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }) {
   const preferReferralOffer = options?.preferReferralOffer ?? false
+  const onPurchased = options?.onPurchased
   const queryClient = useQueryClient()
+  const purchaseAccount = useRef({ id: getAccountId(), generation: getAccountGeneration() })
   const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [pendingVerifications, setPendingVerifications] = useState(0)
@@ -151,19 +176,25 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
     [],
   )
 
-  const invalidateEntitlement = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all })
-    await queryClient.invalidateQueries({ queryKey: profileKeys.all })
+  const invalidateEntitlement = useCallback(async (account: { id: string | null; generation: number }) => {
+    if (!isPurchaseAccountCurrent(account)) return
+    await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true })
+    if (!isPurchaseAccountCurrent(account)) return
+    await queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => apiClient<Profile>(API.profile.get), staleTime: 0 })
   }, [queryClient])
 
   const { connected, subscriptions, fetchProducts, requestPurchase } = useIAP({
     onPurchaseSuccess: (purchase) => {
       void (async () => {
+        const account = purchaseAccount.current
         try {
-          await verifyPlayPurchase(purchase)
-          await invalidateEntitlement()
+          if (!isPurchaseAccountCurrent(account)) return
+          if (!await verifyPlayPurchase(purchase, () => isPurchaseAccountCurrent(account))) throw new Error('Missing Play purchase token')
+          if (!isPurchaseAccountCurrent(account)) return
+          await invalidateEntitlement(account)
+          if (isPurchaseAccountCurrent(account)) await onPurchased?.()
         } catch {
-          setErrorKey('upgrade.playError.serviceUnavailable')
+          if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.playError.serviceUnavailable')
         } finally {
           endVerification()
         }
@@ -171,7 +202,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
     },
     onPurchaseError: (error) => {
       endVerification()
-      setErrorKey(mapPlayErrorKey(error))
+      if (isPurchaseAccountCurrent(purchaseAccount.current)) setErrorKey(mapPlayErrorKey(error))
     },
   })
 
@@ -195,6 +226,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         return
       }
       setErrorKey(null)
+      purchaseAccount.current = { id: getAccountId(), generation: getAccountGeneration() }
       beginVerification()
       try {
         await requestPurchase({
@@ -222,32 +254,29 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
   const restorePurchases = useCallback(async (): Promise<boolean> => {
     setErrorKey(null)
     setIsRestoring(true)
+    const account = { id: getAccountId(), generation: getAccountGeneration() }
     try {
       const purchases = await getAvailablePurchases()
+      if (!isPurchaseAccountCurrent(account)) return false
       const orbitPurchases = purchases.filter(
         (owned) => owned.productId === PLAY_SUBSCRIPTION_PRODUCT_ID,
       )
-      let restored = false
-      let failed = false
-      for (const owned of orbitPurchases) {
-        try {
-          // react-doctor-disable-next-line async-await-in-loop -- Deliberately sequential: each verifyPlayPurchase() runs a native Play finishTransaction() (billing-client state mutation) plus a server entitlement grant; concurrent calls would race the native billing client, and the restore set is effectively <=1 Orbit subscription so sequential costs nothing. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          if (await verifyPlayPurchase(owned)) restored = true
-        } catch {
-          failed = true
-        }
-      }
-      if (restored) await invalidateEntitlement()
-      else if (failed) setErrorKey('upgrade.playError.serviceUnavailable')
+      const { restored, failed } = await verifyOwnedPurchases(orbitPurchases, () => isPurchaseAccountCurrent(account))
+      if (!isPurchaseAccountCurrent(account)) return false
+      if (restored) {
+        await invalidateEntitlement(account)
+        if (!isPurchaseAccountCurrent(account)) return false
+        await onPurchased?.()
+      } else if (failed) setErrorKey('upgrade.playError.serviceUnavailable')
       else setErrorKey('upgrade.playError.nothingToRestore')
       return restored
     } catch {
-      setErrorKey('upgrade.playError.serviceUnavailable')
+      if (isPurchaseAccountCurrent(account)) setErrorKey('upgrade.playError.serviceUnavailable')
       return false
     } finally {
       setIsRestoring(false)
     }
-  }, [invalidateEntitlement])
+  }, [invalidateEntitlement, onPurchased])
 
   const clearError = useCallback(() => setErrorKey(null), [])
 

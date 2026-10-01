@@ -39,6 +39,8 @@ import { dismissCalendarImport } from '@/lib/actions/calendar'
 import { dismissImportPrompt } from '@/lib/actions/onboarding'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useOnboardingCompletionQueue } from '@/hooks/use-onboarding-completion-queue'
+import { useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -456,11 +458,15 @@ function GlobalOverlays({
     (s) => s.armMilestoneSharePrompt,
   )
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
-  const showRetainedOnboarding = useRetainedOnboardingGuard(
+  const showPendingPro = useOnboardingProPending()
+  const completionQueued = useOnboardingCompletionQueue()
+  const retainedOnboarding = useRetainedOnboardingGuard(
     profile,
-    suppressOnboardingOverlay,
+    suppressOnboardingOverlay || completionQueued,
     useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
+
+  const showRetainedOnboarding = retainedOnboarding || showPendingPro
 
   useEffect(() => {
     if (
@@ -505,7 +511,7 @@ function GlobalOverlays({
     <div className="contents">
       <ExpiryWarning />
       {!showRetainedOnboarding ? <TrialExpiredModal /> : null}
-      {showRetainedOnboarding && <RetainedOnboardingOverlay />}
+      {showRetainedOnboarding && <RetainedOnboardingOverlay finalStepOnly={showPendingPro} />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePrompt />}

@@ -54,7 +54,7 @@ export function NotificationInbox() {
       />
       <div className="lg:ms-12 lg:ps-3">
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
-          onRetry={() => void inbox.refetch()}
+          onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
       </div>
       {selected ? <NotificationDetailModal open={detailOpen} onOpenChange={setDetailOpen}

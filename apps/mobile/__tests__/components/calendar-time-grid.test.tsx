@@ -94,6 +94,7 @@ function collectText(node: { props?: { children?: unknown } }): unknown[] {
   const list = Array.isArray(children) ? children : [children];
   return list.flatMap((child) => {
     if (typeof child === "string" || typeof child === "number") return [child];
+    if (Array.isArray(child)) return collectText({ props: { children: child } });
     if (child && typeof child === "object" && "props" in child) {
       return collectText(child as { props: { children?: unknown } });
     }

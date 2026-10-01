@@ -64,7 +64,7 @@ function IrreversibleMark({ label, tokens }: Readonly<{ label: string; tokens: A
 }
 
 function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean; tokens: AppTokensV2 }>) {
-  return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }]}>{meta}</Text>
+  return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
 function FrameRow(props: FrameRowProps) {

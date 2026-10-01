@@ -124,7 +124,7 @@ for, and building that instead is the defect.
 | **Habit create and edit** | describe a habit in as few decisions as possible | not a schedule configuration form |
 | **Goal** | what a set of habits adds up to | **not an object you create from a menu** |
 | **The conversation** | say what you did or what you want, and have it happen | not a transcript, not a help desk |
-| **Onboarding** | produce one real habit the person typed | not a tour, not a quiz, not a preference survey |
+| **Onboarding** | produce one real habit the person typed. Per the owner’s decision, onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; this replaces D69 item 17 for that final step only. | not a tour, not a quiz, not a preference survey |
 | **Upgrade** | Astra without the daily ceiling | not a feature matrix |
 | **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |

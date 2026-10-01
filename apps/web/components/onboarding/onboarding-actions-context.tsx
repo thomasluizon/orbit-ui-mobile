@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { completeOnboardingOrQueue } from '@/hooks/use-onboarding-completion-queue'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -15,7 +16,6 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
-  completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
@@ -178,12 +178,12 @@ export function useLiveOnboardingActions(): OnboardingActions {
 
         const accountGeneration = getAccountGeneration()
         try {
-          await completeOnboarding(intendedAccountId)
+          await completeOnboardingOrQueue(intendedAccountId)
         } catch (error) {
           if (reportsAccountChanged(error)) {
             showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
-            throw error
           }
+          throw error
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
           showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))

@@ -9,4 +9,4 @@ export default function ProgressScreen() {
   )
 }
 
-const styles = StyleSheet.create({ root: { flex: 1 } })
+const styles = StyleSheet.create({ root: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' } })

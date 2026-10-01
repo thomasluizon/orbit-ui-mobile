@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
@@ -61,12 +62,7 @@ describe('Empty conversation geometry in Chromium', () => {
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-    const fonts = [400, 500].map((weight) => {
-      const folder = weight === 400 ? '400Regular/Geist_400Regular.ttf' : '500Medium/Geist_500Medium.ttf'
-      const font = readFileSync(require.resolve(`@expo-google-fonts/geist/${folder}`)).toString('base64')
-      return `@font-face { font-family: TestGeist; font-weight: ${weight}; src: url(data:font/ttf;base64,${font}); }`
-    }).join('\n')
-    stylesheet = `${compiled.css}\n${fonts}\n:root { --font-sans: TestGeist; }`
+    stylesheet = compiled.css
   })
   afterEach(() => { cleanup(); suggestionState.ready = true })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -82,7 +78,7 @@ describe('Empty conversation geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.evaluate(() => document.fonts.ready)
+      await loadAppFonts(page)
       const geometry = await page.evaluate((disclosure) => {
         const scroller = document.querySelector<HTMLElement>('[role="log"]')!
         const glyph = scroller.querySelector('[data-asset="astra-mark"]')!

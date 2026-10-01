@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import type { SettingsGroupProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
@@ -20,7 +21,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
         )
         const rowStyle = [styles.row, index === 0 ? null : { borderTopColor: tokens.hairline, borderTopWidth: StyleSheet.hairlineWidth }]
         return item.onClick ? (
-          <Pressable key={`${item.label}-${index}`} accessibilityRole="button" accessibilityLabel={item.label} onPress={item.onClick} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover } : null]}>{content}</Pressable>
+          <Pressable key={`${item.label}-${index}`} focusOffset={-6} accessibilityRole="button" accessibilityLabel={item.label} onPress={item.onClick} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover } : null]}>{content}</Pressable>
         ) : (
           <View key={`${item.label}-${index}`} style={rowStyle}>{content}</View>
         )

@@ -5,7 +5,9 @@ import React from 'react'
 import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
 
 const mockFetch = vi.fn()
-vi.stubGlobal('fetch', mockFetch)
+vi.mock('@/lib/throttle-fetch', () => ({
+  fetchWithThrottle: (...args: unknown[]) => mockFetch(...args),
+}))
 
 function createWrapper() {
   const queryClient = new QueryClient({

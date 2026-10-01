@@ -16,6 +16,8 @@ import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 export interface OverlayLayerProps {
   hasCompletedOnboarding: boolean
   showRetainedOnboarding: boolean
+  showPendingPro?: boolean
+  pendingProLoaded?: boolean
   onboardingActions: OnboardingActions
 }
 
@@ -28,21 +30,24 @@ export interface OverlayLayerProps {
 export function OverlayLayer({
   hasCompletedOnboarding,
   showRetainedOnboarding,
+  showPendingPro = false,
+  pendingProLoaded = true,
   onboardingActions,
 }: Readonly<OverlayLayerProps>) {
+  const onboardingOpen = showRetainedOnboarding || showPendingPro
   return (
     <>
       <ExpiryWarning />
-      {!showRetainedOnboarding ? <TrialExpiredModal /> : null}
-      {showRetainedOnboarding ? (
+      {!onboardingOpen && pendingProLoaded ? <TrialExpiredModal /> : null}
+      {onboardingOpen ? (
         <OnboardingActionsProvider
           actions={onboardingActions}
           isLive
         >
-          <OnboardingFlow />
+          <OnboardingFlow finalStepOnly={showPendingPro} />
         </OnboardingActionsProvider>
       ) : null}
-      {hasCompletedOnboarding && !showRetainedOnboarding ? (
+      {hasCompletedOnboarding && !onboardingOpen && pendingProLoaded ? (
         <>
           <MarketingConsentPrompt />
           <ReferralPrompt />
@@ -50,7 +55,7 @@ export function OverlayLayer({
           <ReviewMomentSheet />
         </>
       ) : null}
-      {hasCompletedOnboarding && !showRetainedOnboarding ? (
+      {hasCompletedOnboarding && !onboardingOpen && pendingProLoaded ? (
         <>
           <CalendarImportPrompt />
           <AstraImportPrompt />

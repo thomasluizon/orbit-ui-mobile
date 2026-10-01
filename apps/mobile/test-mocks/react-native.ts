@@ -1,7 +1,7 @@
 import React from 'react'
 
 type HostProps = Readonly<{
-  children?: React.ReactNode
+  children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode)
   onFocus?: (event: { nativeEvent: { target: number } }) => void
   onBlur?: (event: { nativeEvent: { target: number } }) => void
   [key: string]: unknown
@@ -114,7 +114,7 @@ export function __resetTestHostConfig() {
 
 function createHostComponent(name: string) {
   const HostComponent = React.forwardRef<unknown, HostProps>(function HostComponent(
-    { children, ...props },
+    { children, ...props }: HostProps,
     ref,
   ) {
     const [nativeTag] = React.useState(() => nextNativeTag++)
@@ -156,7 +156,8 @@ function createHostComponent(name: string) {
     }), [nativeTag])
 
     return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
-      React.createElement(name, { ...props, __nativeTag: nativeTag }, children as React.ReactNode),
+      React.createElement(name, { ...props, __nativeTag: nativeTag },
+        typeof children === 'function' && name === 'Pressable' ? children({ pressed: false }) : children as React.ReactNode),
     )
   })
 
@@ -320,6 +321,7 @@ export const Platform = {
 }
 
 export const StyleSheet = {
+  absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   create: <T extends Record<string, unknown>>(styles: T) => styles,
   flatten: (style: unknown): unknown => {
     if (style === null || typeof style !== 'object') return undefined

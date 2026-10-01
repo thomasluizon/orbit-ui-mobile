@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
+import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
@@ -18,7 +18,7 @@ import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
-const STORAGE_KEY = 'orbit_trial_expired_seen'
+const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
   'trial.expired.astraCeiling',

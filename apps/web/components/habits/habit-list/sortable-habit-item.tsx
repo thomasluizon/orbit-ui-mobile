@@ -31,7 +31,7 @@ export function SortableHabitItem({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} className="orbit-focus-inset rounded-[20px]" style={style} {...attributes} {...listeners}>
       {children}
     </div>
   )

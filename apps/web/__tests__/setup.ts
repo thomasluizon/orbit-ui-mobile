@@ -1,10 +1,19 @@
 import '@testing-library/jest-dom'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { vi } from 'vitest'
 
 Object.defineProperty(globalThis, 'AsyncLocalStorage', {
   value: AsyncLocalStorage,
   configurable: true,
 })
+
+if (typeof HTMLElement !== 'undefined') {
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    writable: true,
+    configurable: true,
+    value: vi.fn(),
+  })
+}
 
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {
