@@ -416,7 +416,7 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
-          ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} valueSize="lg" label={t('progressScreen.window.bestWeekday')} />
+          ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
         {topHabit
           ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} />

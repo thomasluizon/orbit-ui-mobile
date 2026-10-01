@@ -1744,15 +1744,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }
 
-.stat-tile-large { container: stat-tile / inline-size; }
-.stat-tile-large-value { font-size: var(--fs-md); }
-@media (width < 344px), (width >= 412px) {
-  @container stat-tile (min-width: 122px) {
-    .stat-tile-large-value { font-size: var(--fs-xl); }
-  }
-}
-
-
 .orbit-streak-badge {
   isolation: isolate;
 }
