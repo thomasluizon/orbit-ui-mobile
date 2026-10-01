@@ -25,6 +25,7 @@ function getMockAccountDateKey(): string {
   return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE)
 }
 
+let calendarLocale = 'en'
 let isWideDesktopValue = false
 let calendarRouteSearch = ''
 let calendarGridSelectionDate = '2026-01-05'
@@ -119,7 +120,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toast
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
+  useLocale: () => calendarLocale,
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
@@ -371,7 +372,21 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe('CalendarPage view switcher', () => {
+  it.each([
+    ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
+    ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
+    ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
+    ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
+  ] as const)('supplies drawn range weekday letters in %s starting on %i', (locale, weekStartDay, labels) => {
+    calendarLocale = locale
+    profileQueryState.profile = { weekStartDay, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true }
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current?.weekdayLabels).toEqual(labels)
+  })
+
   beforeEach(() => {
+    calendarLocale = 'en'
     isWideDesktopValue = false
     calendarRouteSearch = ''
     calendarGridSelectionDate = '2026-01-05'
