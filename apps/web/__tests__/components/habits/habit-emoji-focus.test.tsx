@@ -96,17 +96,23 @@ describe('habit emoji keyboard focus in Chromium', () => {
             focused: element.matches(':focus-visible'),
             shadow: style.boxShadow,
             outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            outlineOffset: style.outlineOffset,
+            outlineColor: style.outlineColor,
+            foreground: getComputedStyle(document.documentElement).getPropertyValue('--fg-1').trim(),
             layers,
             background: style.backgroundColor,
           }
         })
         expect(painted.focused).toBe(true)
-        expect(painted.outlineStyle).toBe('none')
-        expect(painted.shadow).toMatch(/0px 0px 0px 2px inset$/)
-        const ring = painted.shadow.match(/(rgba?\([^)]+\)) 0px 0px 0px 2px inset$/)?.[1]
-        expect(ring).toBeDefined()
-        const surroundingContrast = contrastOnSurface(ring!, painted.layers)
-        const wellContrast = contrastOnSurface(ring!, [...painted.layers, painted.background])
+        expect(painted.outlineStyle).toBe('solid')
+        expect(painted.outlineWidth).toBe('2px')
+        expect(painted.outlineOffset).toBe('-2px')
+        expect(painted.shadow).toBe('none')
+        expect(contrastOnSurface(painted.outlineColor, [painted.foreground])).toBe(1)
+        const ring = painted.outlineColor
+        const surroundingContrast = contrastOnSurface(ring, painted.layers)
+        const wellContrast = contrastOnSurface(ring, [...painted.layers, painted.background])
         process.stdout.write(`${mode}, resolved ${resolved}, hover ${hover}: well ${wellContrast.toFixed(6)}:1; surround ${surroundingContrast.toFixed(6)}:1\n`)
         expect(wellContrast, 'focus ring against the painted well').toBeGreaterThanOrEqual(3)
         expect(surroundingContrast, 'focus ring against the surrounding surface').toBeGreaterThanOrEqual(3)
@@ -136,6 +142,7 @@ describe('habit emoji keyboard focus in Chromium', () => {
           shadow: style.boxShadow,
           outlineStyle: style.outlineStyle,
           outlineWidth: style.outlineWidth,
+          outlineOffset: style.outlineOffset,
           outlineColor: style.outlineColor,
           forcedColorAdjust: style.forcedColorAdjust,
           canvasText,
@@ -146,6 +153,7 @@ describe('habit emoji keyboard focus in Chromium', () => {
         shadow: 'none',
         outlineStyle: 'solid',
         outlineWidth: '2px',
+        outlineOffset: '-2px',
         outlineColor: indicator.canvasText,
         forcedColorAdjust: 'auto',
         canvasText: indicator.canvasText,

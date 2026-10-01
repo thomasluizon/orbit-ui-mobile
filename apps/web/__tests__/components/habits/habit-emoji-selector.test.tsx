@@ -57,6 +57,13 @@ describe('HabitEmojiSelector', () => {
     await user.tab()
     await user.tab()
     expect(well).toHaveFocus()
+    expect(well).toHaveClass(
+      'focus-visible:outline-2',
+      'focus-visible:outline-solid',
+      'focus-visible:outline-[var(--fg-1)]',
+      'focus-visible:-outline-offset-2',
+    )
+    expect(well.className).not.toMatch(/focus-visible:(?:outline-none|shadow-)/)
     await user.keyboard('{Enter}')
     expect(well).toHaveAttribute('aria-expanded', 'true')
     await user.click(screen.getByRole('option', { name: `habits.form.emoji: ${firstEmoji}` }))
