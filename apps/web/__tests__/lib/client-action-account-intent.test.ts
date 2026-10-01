@@ -125,28 +125,26 @@ describe('client account intent', () => {
   })
 
   it('offers a reload when the current server does not recognize the action', async () => {
+    render(createElement(UpdateAvailableBanner))
     const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
     const onUnexpectedRejection = vi.fn()
     void action.catch(onUnexpectedRejection)
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
 
-    expect(toast.error).toHaveBeenCalledWith(en.errors.api.appUpdated, expect.objectContaining({
-      id: 'app-updated',
-      duration: Infinity,
-      action: expect.objectContaining({ label: en.errors.api.reload, onClick: expect.any(Function) }),
-    }))
+    expect(screen.getByRole('status')).toHaveTextContent(en.errors.api.appUpdated)
+    expect(screen.getByRole('button', { name: en.errors.api.reload })).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
-  it('keeps app-updated guidance visible after its toast is dismissed', async () => {
+  it('keeps app-updated guidance visible with a reload action', async () => {
     render(createElement(UpdateAvailableBanner))
     const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
     const onUnexpectedRejection = vi.fn()
     void action.catch(onUnexpectedRejection)
 
     expect(await screen.findByText(en.errors.api.appUpdated)).toBeInTheDocument()
-    toast.dismiss('app-updated')
     expect(screen.getByText(en.errors.api.appUpdated)).toBeInTheDocument()
     expect(screen.queryByLabelText('common.dismiss')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.errors.api.reload }))
