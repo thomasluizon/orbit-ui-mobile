@@ -380,6 +380,50 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it.each([
+    ['en', false, 'ready'], ['en', true, 'ready'], ['pt-BR', false, 'ready'], ['pt-BR', true, 'ready'],
+    ['en', false, 'no timezone'], ['pt-BR', false, 'no timezone'],
+    ['en', false, 'unavailable'], ['pt-BR', false, 'unavailable'],
+  ] as const)('starts each %s profile row name with its visible label (Pro: %s, %s)', (locale, hasProAccess, profileState) => {
+    mockLocale.current = locale
+    mockTranslate.current = (key, params) => {
+      let message: unknown = locale === 'en' ? en : ptBR
+      for (const segment of key.split('.')) {
+        message = (message as Record<string, unknown>)[segment]
+      }
+      return String(message).replace(/\{(\w+)\}/g, (_, parameter: string) => String(params?.[parameter] ?? ''))
+    }
+    mockProfileState.current.profile = createMockProfile({
+      name: 'Voice user', language: locale, timeZone: profileState === 'no timezone' ? null : 'America/Sao_Paulo', hasProAccess,
+      plan: hasProAccess ? 'pro' : 'free',
+    })
+    if (profileState === 'unavailable') mockProfileState.current.profile = undefined
+    render(<ProfilePage />)
+
+    for (const group of ['you', 'astra', 'notifications', 'more', 'ending']) {
+      const section = screen.getByTestId(`profile-settings-group-${group}`)
+      const controls = within(section).queryAllByRole('button').concat(within(section).queryAllByRole('link'))
+      expect(controls.length, group).toBeGreaterThan(0)
+      for (const control of controls) {
+        const visibleLabel = document.createTreeWalker(control, NodeFilter.SHOW_TEXT).nextNode()?.textContent?.trim()
+        expect(visibleLabel, group).toBeTruthy()
+        expect.soft(control).toHaveAccessibleName(new RegExp(`^${visibleLabel?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+      }
+    }
+    for (const control of screen.getAllByRole('switch')) {
+      const accessibleLabel = control.getAttribute('aria-label')
+      const visibleLabel = accessibleLabel === mockTranslate.current('profile.settingsRows.alertsOnThisDevice')
+        ? mockTranslate.current('profile.settingsRows.currentDevice')
+        : accessibleLabel
+      expect(visibleLabel).toBeTruthy()
+      expect(screen.getAllByText(visibleLabel ?? '').length).toBeGreaterThan(0)
+      expect.soft(control).toHaveAccessibleName(new RegExp(`^${visibleLabel}`))
+    }
+    const themeLabel = mockTranslate.current('profile.settingsRows.theme')
+    expect(screen.getAllByText(themeLabel).length).toBeGreaterThan(0)
+    expect(screen.getByRole('group', { name: themeLabel })).toBeInTheDocument()
+  })
+
   it('places the clock choice between week start and language', () => {
     mockProfileState.current.profile = createMockProfile({ uses24HourClock: true })
     render(<ProfilePage />)

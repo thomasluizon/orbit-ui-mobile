@@ -1746,9 +1746,9 @@
       "ending": "Encerrar"
     },
     "settingsRows": {
-      "editName": "Editar nome: {name}, {email}",
+      "editName": "{name}: Editar nome, {email}",
       "timezone": "Fuso horário",
-      "timezoneValue": "Fuso {timeZone}",
+      "timezoneValue": "Fuso horário {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
       "apiKeysMcp": "Chaves de API e MCP",
       "wrapped": "Orbit Wrapped",
@@ -1763,7 +1763,7 @@
       "currentDevice": "Este aparelho",
       "devices": "Aparelhos com aviso",
       "devicesCount": "{count} de {max}",
-      "alertsOnThisDevice": "Avisos para este aparelho",
+      "alertsOnThisDevice": "Este aparelho: avisos",
       "devicesUnavailable": "Não foi possível carregar os aparelhos.",
       "pushDeviceLimit": "Desligue os avisos em outro aparelho para usar este."
     },

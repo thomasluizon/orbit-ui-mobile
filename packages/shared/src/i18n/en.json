@@ -1746,7 +1746,7 @@
       "ending": "Ending things"
     },
     "settingsRows": {
-      "editName": "Edit name: {name}, {email}",
+      "editName": "{name}: Edit name, {email}",
       "timezone": "Timezone",
       "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
@@ -1763,7 +1763,7 @@
       "currentDevice": "This device",
       "devices": "Devices getting alerts",
       "devicesCount": "{count} of {max}",
-      "alertsOnThisDevice": "Alerts on this device",
+      "alertsOnThisDevice": "This device: alerts",
       "devicesUnavailable": "Could not load devices.",
       "pushDeviceLimit": "Turn off alerts on another device to use this one."
     },

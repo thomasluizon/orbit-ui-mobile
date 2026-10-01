@@ -78,6 +78,7 @@ const {
   mockRemoveAppStateListener,
   mockConversationOpen,
   mockRealConsentSection,
+  mockRealListRow,
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
@@ -118,6 +119,7 @@ const {
   mockAddAppStateListener: vi.fn(),
   mockConversationOpen: { current: false },
   mockRealConsentSection: { current: false },
+  mockRealListRow: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
@@ -427,56 +429,37 @@ vi.mock('@/components/ui/sheet', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({
-    icon,
-    danger,
-    title,
-    description,
-    value,
-    trailing,
-    onClick,
-    accessibilityLabel,
-    ref,
-    chevron = true,
-    action,
-    readOnly = false,
-  }: {
-    icon?: React.ReactNode
-    danger?: boolean
-    title: string
-    description?: string
-    value?: string
-    trailing?: React.ReactNode
-    onClick?: () => void
-    accessibilityLabel?: string
-    ref?: React.Ref<unknown>
-    chevron?: boolean
-    action?: { label: string; onPress: () => void }
-    readOnly?: boolean
-  }) => React.createElement(
-    'SettingsRowStub',
-    {
-      label: title,
-      icon,
-      danger,
-      hint: description,
-      value,
-      hasTrailing: Boolean(trailing),
-      onPress: readOnly ? undefined : onClick,
-      chevron,
-      accessibilityRole: !readOnly && onClick ? 'button' : undefined,
-      accessibilityLabel: accessibilityLabel ?? title,
-      ref,
+vi.mock('@/components/ui/list-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
+  return {
+    ListRow: (props: React.ComponentProps<typeof actual.ListRow>) => {
+      if (mockRealListRow.current) return React.createElement(actual.ListRow, props)
+      const { icon, danger, title, description, value, trailing, onClick, accessibilityLabel, ref, chevron = true, action, readOnly = false } = props
+      return React.createElement(
+        'SettingsRowStub',
+        {
+          label: title,
+          icon,
+          danger,
+          hint: description,
+          value,
+          hasTrailing: Boolean(trailing),
+          onPress: readOnly ? undefined : onClick,
+          chevron,
+          accessibilityRole: !readOnly && onClick ? 'button' : undefined,
+          accessibilityLabel: accessibilityLabel ?? title,
+          ref,
+        },
+        action ? React.createElement('RowActionStub', {
+          accessibilityRole: 'button',
+          accessibilityLabel: action.label,
+          onPress: action.onPress,
+        }) : null,
+        trailing ?? null,
+      )
     },
-    action ? React.createElement('RowActionStub', {
-      accessibilityRole: 'button',
-      accessibilityLabel: action.label,
-      onPress: action.onPress,
-    }) : null,
-    trailing ?? null,
-  ),
-}))
+  }
+})
 
 vi.mock('react-native-svg', () => ({
   __esModule: true,
@@ -541,6 +524,7 @@ function findButtonByText(
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
+    mockRealListRow.current = false
     mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
     mockLocale.current = 'en'
     mockApiClient.mockReset()
@@ -766,6 +750,59 @@ describe('ProfileScreen', () => {
       node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme')
     expect(themeChoices.some((choice: { props: { style: { flexWrap?: string; maxWidth?: string } } }) =>
       choice.props.style.flexWrap === 'wrap' && choice.props.style.maxWidth === '100%')).toBe(true)
+  })
+
+  it.each([
+    ['en', false, 'ready'], ['en', true, 'ready'], ['pt-BR', false, 'ready'], ['pt-BR', true, 'ready'],
+    ['en', false, 'no timezone'], ['pt-BR', false, 'no timezone'],
+    ['en', false, 'unavailable'], ['pt-BR', false, 'unavailable'],
+  ] as const)('starts each %s profile row name with its visible label (Pro: %s, %s)', async (locale, hasProAccess, profileState) => {
+    mockPushSupported.current = hasProAccess
+    mockRealListRow.current = true
+    mockRealConsentSection.current = true
+    mockLocale.current = locale
+    mockTranslate.current = (key, params) => {
+      let message: unknown = locale === 'en' ? en : ptBR
+      for (const segment of key.split('.')) {
+        message = (message as Record<string, unknown>)[segment]
+      }
+      return String(message).replace(/\{(\w+)\}/g, (_, parameter: string) => String(params?.[parameter] ?? ''))
+    }
+    mockProfileState.current.profile = createMockProfile({
+      name: 'Voice user', language: locale, timeZone: profileState === 'no timezone' ? null : 'America/Sao_Paulo', hasProAccess,
+      plan: hasProAccess ? 'pro' : 'free',
+    })
+    if (profileState === 'unavailable') mockProfileState.current.profile = undefined
+    const tree = await renderProfileScreen()
+    for (const group of ['you', 'astra', 'notifications', 'more', 'ending']) {
+      const section = tree.root.findByProps({ testID: `profile-settings-group-${group}` })
+      const controls = section.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+      expect(controls.length, group).toBeGreaterThan(0)
+      for (const control of controls) {
+        const visibleLabel = nodeText(control.findAllByType('Text')[0])
+        expect(visibleLabel, group).toBeTruthy()
+        const accessibleName = control.props.accessibilityLabel ?? nodeText(control)
+        expect.soft(accessibleName, visibleLabel).toMatch(new RegExp(`^${visibleLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+      }
+    }
+    const switches = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+    expect(switches.length).toBeGreaterThan(0)
+    for (const control of switches) {
+      const accessibleLabel = control.props.accessibilityLabel
+      const visibleLabel = accessibleLabel === mockTranslate.current('profile.settingsRows.alertsOnThisDevice')
+        ? mockTranslate.current('profile.settingsRows.currentDevice')
+        : accessibleLabel
+      expect(visibleLabel).toBeTruthy()
+      expect(tree.root.findAllByType('Text').some((node: unknown) => nodeText(node) === visibleLabel)).toBe(true)
+      expect.soft(accessibleLabel).toMatch(new RegExp(`^${visibleLabel}`))
+    }
+    const themeLabel = mockTranslate.current('profile.settingsRows.theme')
+    expect(tree.root.findAllByType('Text').some((node: unknown) => nodeText(node) === themeLabel)).toBe(true)
+    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === themeLabel)).toHaveLength(1)
+    await TestRenderer.act(() => tree.unmount())
   })
 
   it('keeps the share card off Perfil', async () => {
