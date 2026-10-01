@@ -1065,6 +1065,20 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [15], scheduledReminders: [] })
   })
 
+  it.each([false, true])('keeps one filled action with a rescue card and schedule editor, Pro %s', (hasProAccess) => {
+    openRescueGate()
+    mocks.hasProAccess = hasProAccess
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const rescueAction = () => screen.getByRole(hasProAccess ? 'button' : 'link', { name: hasProAccess ? 'habits.detail.rescheduleAccept' : 'habits.reschedule.upgrade' })
+    expect(rescueAction()).toHaveAttribute('data-variant', 'primary')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
+    expect(rescueAction()).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'common.save' })).toHaveAttribute('data-variant', 'secondary')
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(rescueAction()).toHaveAttribute('data-variant', 'primary')
+  })
+
   it('uses a ghost cancel before the filled schedule action', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))

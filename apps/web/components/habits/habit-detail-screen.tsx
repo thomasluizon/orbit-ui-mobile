@@ -314,12 +314,13 @@ function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: Re
   </>
 }
 
-function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; returnFocus: () => void }>) {
+function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale, today, scheduleEditing, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasProAccess: boolean; locale: string; today: Date; scheduleEditing: boolean; returnFocus: () => void }>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const { displayTime } = useTimeFormat()
   const updateHabit = useUpdateHabit()
-  const filledVariant = useIsWideDesktop() ? 'secondary' : 'primary'
+  const wideDesktop = useIsWideDesktop()
+  const actionVariant = scheduleEditing ? 'ghost' : wideDesktop ? 'secondary' : 'primary'
   const [dismissed, setDismissed] = useAccountScopedState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const accountGeneration = useAccountGeneration()
@@ -343,7 +344,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         <div className="flex items-center gap-2"><AstraGlyph size={20} color="var(--fg-1)" /><Badge>{t('habits.detail.proGate')}</Badge></div>
         <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.reschedule.freePrompt')}</p>
         <div className="flex flex-wrap gap-2">
-          <PillLink variant={filledVariant} size="sm" href="/upgrade">{t('habits.reschedule.upgrade')}</PillLink>
+          <PillLink variant={actionVariant} size="sm" href="/upgrade">{t('habits.reschedule.upgrade')}</PillLink>
           {notNow}
         </div>
       </div>
@@ -365,7 +366,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
           <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
         </>}</div>
         <div className="flex flex-wrap gap-2">
-          {suggestion ? <PillButton variant={filledVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
           {notNow}
         </div>
       </div>
@@ -605,7 +606,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       </div>
       {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}
-      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} returnFocus={() => stripRef.current?.focus()} />
+      <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={scheduleOpen} returnFocus={() => stripRef.current?.focus()} />
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
       <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
       <ReminderReadout habit={habit} />

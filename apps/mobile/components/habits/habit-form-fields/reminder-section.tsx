@@ -247,7 +247,7 @@ export function ReminderSection({
                       </Pressable>
                     ))}
                   </View>
-                  {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : <>
+                  {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : (
                   <Pressable
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
@@ -260,8 +260,8 @@ export function ReminderSection({
                     onPress={addCustomReminder}
                   >
                     <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                  </Pressable>                  </>}
-
+                  </Pressable>
+                  )}
                 </View>
               )}
               <Pressable

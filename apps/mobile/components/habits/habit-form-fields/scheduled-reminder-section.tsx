@@ -214,11 +214,11 @@ export function ScheduledReminderSection({
                   onClear={() => setTime("")}
                 />
                 <View style={sectionStyles.timeControls}>
-                  {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : <>
+                  {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
                   <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={!time} accessibilityRole="button" onPress={addScheduledReminder}>
                     <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
-                  </Pressable>                  </>}
-
+                  </Pressable>
+                  )}
                   <Pressable style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
                     <X size={16} color={tokens.fg3} strokeWidth={1.8} />
                   </Pressable>

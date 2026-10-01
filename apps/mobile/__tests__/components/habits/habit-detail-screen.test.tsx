@@ -1206,6 +1206,21 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [15], scheduledReminders: [] })
   })
 
+  it.each([false, true])('keeps one filled action with a rescue card and schedule editor, Pro %s', (hasProAccess) => {
+    openRescueGate()
+    mocks.hasProAccess = hasProAccess
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const rescueAction = () => findPillButton(tree.root, hasProAccess ? 'habits.detail.rescheduleAccept' : 'habits.reschedule.upgrade')!
+    expect(rescueAction().props.variant).toBe('primary')
+    TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+    expect(rescueAction().props.variant).toBe('ghost')
+    expect(findPillButton(tree.root, 'common.save')!.props.variant).toBe('secondary')
+    TestRenderer.act(() => pressPillButton(tree.root, 'common.cancel'))
+    expect(rescueAction().props.variant).toBe('primary')
+  })
+
   it('uses a ghost cancel before the filled schedule action', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })

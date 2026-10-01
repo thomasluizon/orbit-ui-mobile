@@ -191,7 +191,7 @@ export function ReminderSection({
                       label={t('habits.form.reminderDirection')}
                       onChange={(value) => setCustomDirection(value as 'before' | 'after')}
                     />
-                    {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton> : <>
+                    {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton> : (
                     <button
                       type="button"
                       aria-label={t('common.add')}
@@ -199,8 +199,8 @@ export function ReminderSection({
                       onClick={addCustomReminder}
                     >
                       <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
-                    </button>                    </>}
-
+                    </button>
+                    )}
                   </div>
                 )}
                 <button
