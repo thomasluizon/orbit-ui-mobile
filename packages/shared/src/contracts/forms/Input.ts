@@ -5,6 +5,7 @@ type InputBase = {
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
+  required?: boolean
   error?: string
   hint?: string
   maxLength?: number

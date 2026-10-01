@@ -127,6 +127,7 @@ export function SupportForm({
       </div>
       <Input
         label={t('profile.support.message')}
+        required
         name="message"
         value={message}
         onChange={onMessageChange}

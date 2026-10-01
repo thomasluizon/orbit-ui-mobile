@@ -1,6 +1,7 @@
 import type { InputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
@@ -21,13 +22,14 @@ function Marks({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }
 }
 
 function Control({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }>) {
+  const { t } = useTranslation()
   const inputRef = useRef<TextInput>(null)
   const keyboardAware = useKeyboardAwareInputReveal()
   const [focused, setFocused] = useState(false)
   const multiline = props.multiline === true
   useEffect(() => { if (props.focusRequest) inputRef.current?.focus() }, [props.focusRequest])
   return <View testID="input-control" style={[styles.control, { backgroundColor: tokens.bgField, borderColor: focused && !props.disabled ? tokens.primary : props.error ? tokens.statusBad : tokens.borderControl, borderWidth: focused && !props.disabled || props.error ? 2 : 1 }, props.disabled ? styles.disabled : null]}>
-    <TextInput ref={inputRef} value={props.value} onChangeText={props.onChange} placeholder={props.placeholder} placeholderTextColor={tokens.fg3} editable={!props.disabled} maxLength={props.maxLength} multiline={multiline || undefined} numberOfLines={multiline ? props.rows : undefined} textAlignVertical={multiline ? 'top' : 'center'} keyboardType={getKeyboardType(props.kind, props.inputMode)} autoComplete={props.autoComplete === 'off' ? 'off' : props.autoComplete} autoCapitalize={props.kind === 'email' ? 'none' : 'sentences'} autoCorrect={props.kind !== 'email'} autoFocus={props.autoFocus} onSubmitEditing={props.onSubmit} accessibilityLabel={props.label} accessibilityState={{ disabled: props.disabled }} accessibilityHint={[props.error, props.hint].filter(Boolean).join(' ') || undefined} onFocus={() => { setFocused(true); keyboardAware?.revealInput(inputRef.current) }} onBlur={() => { setFocused(false); props.onBlur?.() }} style={[styles.input, multiline ? styles.multiline : null, { color: tokens.fg1, fontFamily: props.mono ? 'GeistMono_400Regular' : 'Geist_400Regular' }]} />
+    <TextInput ref={inputRef} value={props.value} onChangeText={props.onChange} placeholder={props.placeholder} placeholderTextColor={tokens.fg3} editable={!props.disabled} maxLength={props.maxLength} multiline={multiline || undefined} numberOfLines={multiline ? props.rows : undefined} textAlignVertical={multiline ? 'top' : 'center'} keyboardType={getKeyboardType(props.kind, props.inputMode)} autoComplete={props.autoComplete === 'off' ? 'off' : props.autoComplete} autoCapitalize={props.kind === 'email' ? 'none' : 'sentences'} autoCorrect={props.kind !== 'email'} autoFocus={props.autoFocus} onSubmitEditing={props.onSubmit} accessibilityLabel={props.label} accessibilityState={{ disabled: props.disabled }} accessibilityHint={[props.required ? t('common.required') : undefined, props.error, props.hint].filter(Boolean).join(' ') || undefined} onFocus={() => { setFocused(true); keyboardAware?.revealInput(inputRef.current) }} onBlur={() => { setFocused(false); props.onBlur?.() }} style={[styles.input, multiline ? styles.multiline : null, { color: tokens.fg1, fontFamily: props.mono ? 'GeistMono_400Regular' : 'Geist_400Regular' }]} />
     {props.trailing ? <View style={styles.trailing}>{props.trailing}</View> : null}
     <Marks props={props} tokens={tokens} />
   </View>
