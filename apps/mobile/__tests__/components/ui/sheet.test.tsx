@@ -18,14 +18,16 @@ import { Toast } from '@/components/ui/app-toast'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
+import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }))
 
+const safeArea = vi.hoisted(() => ({ bottom: 24 }))
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: safeArea.bottom, left: 0 }),
 }))
 
 const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn() }))
@@ -119,6 +121,7 @@ describe('Sheet (mobile)', () => {
     expect(header.props.children[0].props.accessibilityLabel).toBe('Reschedule with AI')
   })
   beforeEach(() => {
+    safeArea.bottom = 24
     useUIStore.setState({ openOverlayIds: [] })
     useAppToastStore.setState({ currentToast: null, queue: [] })
     present.mockReset()
@@ -208,7 +211,7 @@ describe('Sheet (mobile)', () => {
     expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(false)
   })
 
-  it('reveals a focused lower input through the sheet body scroller', async () => {
+  it.each([0, 76])('reveals a focused lower input above a %i-high footer through the sheet body scroller', async (footerHeight) => {
     vi.useFakeTimers()
     const scrollTo = vi.fn()
     __setMeasureInWindowImpl((callback) => callback(0, 620, 100, 54))
@@ -217,12 +220,18 @@ describe('Sheet (mobile)', () => {
 
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <Sheet open>
+        <Sheet open actions={footerHeight ? <PillButton onClick={vi.fn()}>Save</PillButton> : undefined}>
           <BottomSheetAppTextInput testID="lower-input" value="Lower field" />
         </Sheet>,
       )
       await Promise.resolve()
     })
+
+    if (footerHeight) {
+      TestRenderer.act(() => {
+        tree!.root.findByType(TrueSheet).props.footer.props.onLayout({ nativeEvent: { layout: { height: footerHeight } } })
+      })
+    }
 
     TestRenderer.act(() => {
       const lowerInput = tree!.root
@@ -235,7 +244,50 @@ describe('Sheet (mobile)', () => {
       vi.advanceTimersByTime(60)
     })
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 298, animated: true })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 298 + footerHeight, animated: true })
+  })
+
+  it.each([0, 24])('reserves the measured footer above a %i bottom inset and uses its full height for the keyboard', async (bottomInset) => {
+    safeArea.bottom = bottomInset
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open title="T" actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    const footer = tree!.root.findByType(TrueSheet).props.footer
+    TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
+    const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
+    expect(scroller.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76 - bottomInset)
+    expect(scroller.props.children.at(-1).props.testID).toBe('sheet-footer-space')
+    expect(scroller.props.keyboardVerticalOffset).toBe(76)
+    TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } }))
+    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBe(112)
+    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - bottomInset)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('paints the measured native footer with the sheet surface', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    expect(StyleSheet.flatten(tree!.root.findByType(TrueSheet).props.footer.props.style)).toMatchObject({ backgroundColor: createTokensV2().bgSheet })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('clears the footer reserve and keyboard offset when actions leave the sheet', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open actions={<Text>Save</Text>}><Text>Body</Text></Sheet>)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => tree!.root.findByType(TrueSheet).props.footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
+    TestRenderer.act(() => tree!.update(<Sheet open><Text>Body</Text></Sheet>))
+    expect(tree!.root.findByType(TrueSheet).props.footer).toBeUndefined()
+    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(0)
+    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBeUndefined()
+    TestRenderer.act(() => tree!.unmount())
   })
 
   it('routes a dirty Back attempt to its guard and consumes the navigation event', async () => {
