@@ -228,7 +228,7 @@
 .orbit-sheet-close:active { background: var(--bg-hover); }
 
 .orbit-sheet-close:active,
-.orbit-menu-item:active {
+.orbit-menu-item:active:not([data-destructive]) {
   transform: scale(0.96);
 }
 
@@ -323,6 +323,10 @@
   color: var(--icon-color);
 }
 
+.orbit-menu-item[data-destructive]:active:not(:disabled) {
+  background: var(--bg-hover);
+}
+
 .orbit-menu-item[data-destructive] .orbit-menu-label {
   color: var(--status-bad-text);
 }
@@ -358,6 +362,9 @@
   .orbit-sheet-close:hover,
   .orbit-menu-item:hover:not(:disabled) {
     background: var(--bg-hover);
+  }
+
+  .orbit-sheet-close:hover {
     color: var(--fg-1);
   }
 }

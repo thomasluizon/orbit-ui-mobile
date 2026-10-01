@@ -1,9 +1,17 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
+import { Icon } from '@/components/ui/icon'
+import { createTokensV2 } from '@/lib/theme'
+import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
+
+const theme = vi.hoisted<{ mode: 'dark' | 'light' }>(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }),
+}))
 
 vi.unmock('@/components/ui/sheet')
 
@@ -31,6 +39,38 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it.each((['dark', 'light'] as const).flatMap((mode) =>
+    (['sheet', 'anchored'] as const).map((presentation) => ({ mode, presentation }))))(
+    'keeps danger colours and changes only fill when pressed in $mode $presentation',
+    async ({ mode, presentation }) => {
+      theme.mode = mode
+      const tokens = createTokensV2('orange', mode)
+      let tree!: ReactTestRenderer
+      await TestRenderer.act(async () => {
+        const menuPresentation = presentation === 'sheet'
+          ? { presentation: 'sheet' as const }
+          : { presentation: 'anchored' as const, anchorRef: React.createRef() }
+        tree = TestRenderer.create(<Menu open {...menuPresentation} items={[
+          { id: 'delete', label: 'Delete', icon: 'trash', destructive: true },
+          { id: 'disabled', label: 'Unavailable', icon: 'trash', destructive: true, disabled: true },
+        ]} />)
+        await Promise.resolve()
+      })
+      const rows = tree.root.findAll((node: ReactTestInstance) =>
+        String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem')
+      const remove = rows[0]!
+      expect(remove.findAll((node) => node.type === Icon)[0]!.props.color).toBe(tokens.statusBad)
+      expect(StyleSheet.flatten(remove.findAll((node) => node.type === Text)[0]!.props.style as StyleProp<TextStyle>).color).toBe(tokens.statusBadText)
+      const rowStyle = remove.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      const resting = StyleSheet.flatten(rowStyle({ pressed: false }))
+      const pressed = StyleSheet.flatten(rowStyle({ pressed: true }))
+      expect(pressed).toEqual({ ...resting, backgroundColor: tokens.bgHover })
+      expect(rows[1]!.props.disabled).toBe(true)
+      await TestRenderer.act(() => tree.update(<></>))
+      theme.mode = 'dark'
+    },
+  )
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     let tree: any
     await TestRenderer.act(async () => {
