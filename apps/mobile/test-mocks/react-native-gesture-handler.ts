@@ -3,8 +3,8 @@ import { createRequire } from 'node:module'
 import type { NativeGesture as NativeGestureType, TapGesture as TapGestureType } from 'react-native-gesture-handler'
 
 const loadGestureModule = createRequire(import.meta.url)
-const { NativeGesture } = loadGestureModule('../../../node_modules/react-native-gesture-handler/lib/commonjs/handlers/gestures/nativeGesture') as { NativeGesture: new () => NativeGestureType }
-const { TapGesture } = loadGestureModule('../../../node_modules/react-native-gesture-handler/lib/commonjs/handlers/gestures/tapGesture') as { TapGesture: new () => TapGestureType }
+const { NativeGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/nativeGesture') as { NativeGesture: new () => NativeGestureType }
+const { TapGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/tapGesture') as { TapGesture: new () => TapGestureType }
 
 function createHostComponent(name: string) {
   return function HostComponent({
