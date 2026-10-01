@@ -1,6 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent } from '@testing-library/react'
+import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const refetch = vi.fn()
 const goBackOrFallback = vi.fn()
@@ -154,6 +155,34 @@ describe('WrappedPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'month' }))
     expect(screen.getByTestId('period')).toHaveTextContent('month')
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { state: 'loading', recap: null, isEmpty: false, isLoading: true, isError: false },
+    { state: 'failed', recap: null, isEmpty: false, isLoading: false, isError: true },
+    { state: 'empty', recap: createMockRecap({ goalCompletions: 0, metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }) }), isEmpty: true, isLoading: false, isError: false },
+  ])('restores cover navigation and feedback when playback becomes $state', async ({ state, ...wrapped }) => {
+    useVersionGateStore.getState().requireReload('appUpdated')
+    const view = render(<WrappedPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    await act(async () => {})
+    expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.backToProfile' })).not.toBeInTheDocument()
+    act(() => { useAppToastStore.getState().showError('Wrapped fetch failed') })
+    await screen.findByText('Wrapped fetch failed')
+    expect(view.container.querySelector('[data-toast-page-host]')).toBeNull()
+
+    mocks.wrapped = { ...wrapped, slides: [] }
+    view.rerender(<WrappedPage />)
+    await act(async () => {})
+
+    expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cover-state')).toHaveTextContent(state)
+    const back = screen.getByRole('button', { name: 'common.backToProfile' })
+    expect(view.container.querySelector('[data-update-banner]')).toHaveTextContent('errors.api.appUpdated')
+    expect(view.container.querySelector('[data-toast-page-host]')).toBeInTheDocument()
+    fireEvent.click(back)
+    expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
   })
 
   it('keeps an empty recap on the empty cover and refuses to open the player', async () => {

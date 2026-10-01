@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import {
   createMockRecap,
   createMockRetrospectiveMetrics,
 } from '@orbit/shared/__tests__/factories'
-import { useWrapped } from '@/hooks/use-wrapped'
+import { buildWrappedSlides } from '@orbit/shared/utils'
+import { useWrapped, useWrappedStory } from '@/hooks/use-wrapped'
 
 const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
@@ -76,5 +77,46 @@ describe('web useWrapped', () => {
     expect(result.current.isEmpty).toBe(false)
     expect(result.current.slides.at(-1)?.id).toBe('share')
     expect(result.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
+  })
+})
+
+describe('web useWrappedStory', () => {
+  it('clamps to the last slide when a refetch removes the top habit', () => {
+    const slides = buildWrappedSlides(createMockRecap())
+    const shorterSlides = buildWrappedSlides(createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ topHabits: [] }),
+    }))
+    expect(slides).toHaveLength(8)
+    expect(shorterSlides).toHaveLength(7)
+    const { result, rerender } = renderHook(
+      ({ slideCount }) => useWrappedStory(slideCount),
+      { initialProps: { slideCount: slides.length } },
+    )
+    for (let step = 0; step < slides.length - 1; step += 1) {
+      act(() => result.current.next())
+    }
+    expect(result.current.index).toBe(7)
+
+    rerender({ slideCount: shorterSlides.length })
+
+    expect(result.current.index).toBe(6)
+    expect(result.current.isLast).toBe(true)
+    expect(shorterSlides[result.current.index]?.id).toBe('share')
+    act(() => result.current.prev())
+    expect(result.current.index).toBe(5)
+    expect(result.current.isLast).toBe(false)
+    act(() => result.current.next())
+    act(() => result.current.next())
+    expect(result.current.index).toBe(6)
+
+    rerender({ slideCount: 0 })
+    expect(result.current.index).toBe(0)
+    expect(result.current.isFirst).toBe(true)
+    act(() => result.current.prev())
+    act(() => result.current.next())
+    expect(result.current.index).toBe(0)
+    rerender({ slideCount: slides.length })
+    expect(result.current.index).toBe(0)
+    expect(result.current.isLast).toBe(false)
   })
 })

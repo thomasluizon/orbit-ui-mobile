@@ -43,6 +43,7 @@ describe('Today hydration', () => {
     const serverClient = new QueryClient()
     const html = renderToString(<Tree client={serverClient} />)
     expect(html).toContain('Loading habits')
+    expect(html).toContain('max-w-[740px]')
     const container = document.createElement('div')
     container.innerHTML = html
     document.body.append(container)
@@ -56,6 +57,8 @@ describe('Today hydration', () => {
     })
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelector('h1')).toHaveTextContent('Today')
+    const column = container.querySelector('[data-today-day-transition]')?.parentElement
+    expect(column).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
     await act(async () => root?.unmount())
     container.remove()
     client.clear()

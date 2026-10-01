@@ -186,8 +186,8 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       data-shell-bottom=""
       className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
     >
-      {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
-      <div className="relative">
+      <div className="relative mx-auto w-full max-w-[740px]">
+        {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
           <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
             {pinnedSlot}
@@ -196,12 +196,12 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
         {navigationEnabled && props.tabBar !== undefined ? (
           <div data-shell-tab-bar="" className="lg:hidden">{props.tabBar}</div>
         ) : null}
+        {props.fab !== undefined ? (
+          <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
+            {props.fab}
+          </div>
+        ) : null}
       </div>
-      {props.fab !== undefined ? (
-        <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
-          {props.fab}
-        </div>
-      ) : null}
     </div>
   )
 }
