@@ -50,9 +50,10 @@ async function holdControl(page: Page, control: Locator, hasTouch: boolean) {
     await control.hover()
     await page.mouse.down()
     expect(await page.locator('html').getAttribute('data-pointer-type')).toBe('mouse')
-    return async () => {
+    return async (afterLift?: () => Promise<void>) => {
       await page.mouse.move(1, 1)
       await page.mouse.up()
+      await afterLift?.()
     }
   }
   await control.scrollIntoViewIfNeeded()
@@ -66,11 +67,12 @@ async function holdControl(page: Page, control: Locator, hasTouch: boolean) {
     type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1,
   }).catch(() => {})
   await expect.poll(() => page.locator('html').getAttribute('data-pointer-type')).toBe('touch')
-  return async () => {
+  return async (afterLift?: () => Promise<void>) => {
     void session.send('Input.dispatchMouseEvent', {
       type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1,
     }).catch(() => {})
     await expect.poll(() => page.locator('html').getAttribute('data-pointer-release-type')).toBe('touch')
+    await afterLift?.()
     await session.send('Emulation.setEmitTouchEventsForMouse', { enabled: false })
     await page.mouse.move(1, 1)
     await session.detach()
@@ -154,8 +156,7 @@ describe('neutral press feedback in Chromium', () => {
               const variables = resolveWebThemeVariables('orange', mode)
               expect(contrastOnSurface(foreground, [variables['--bg']!, variables['--bg-sheet']!, expectedFill])).toBeGreaterThanOrEqual(4.5)
             }
-            await release()
-            await expectFill(control, rest.fill, `${label} release`)
+            await release(() => expectFill(control, rest.fill, `${label} release`))
             expect(await control.evaluate(measureControl), `${label} restored geometry`).toEqual(rest)
             expect(await control.evaluate((element) => getComputedStyle(element).color), `${label} restored text`).toBe(restingColor)
           }
@@ -195,8 +196,9 @@ describe('neutral press feedback in Chromium', () => {
           expect(await control.isDisabled(), label).toBe(true)
           const release = await holdControl(page, control, true)
           expect(await control.evaluate(measureControl), `${label} disabled press`).toEqual(rest)
-          await release()
-          expect(await control.evaluate(measureControl), `${label} disabled release`).toEqual(rest)
+          await release(async () => {
+            expect(await control.evaluate(measureControl), `${label} disabled release`).toEqual(rest)
+          })
         }
       } finally { await page.close() }
     })
@@ -211,15 +213,15 @@ describe('neutral press feedback in Chromium', () => {
           const rest = await control.evaluate(measureControl)
           const release = await holdControl(page, control, true)
           expect(await control.evaluate(measureControl), `${label} read-only press`).toEqual(rest)
-          await release()
-          expect(await control.evaluate(measureControl), `${label} read-only release`).toEqual(rest)
+          await release(async () => {
+            expect(await control.evaluate(measureControl), `${label} read-only release`).toEqual(rest)
+          })
         }
         const remove = page.getByRole('button', { name: 'habits.bulkBar.delete', exact: true })
         expect(await remove.isDisabled()).toBe(false)
         const release = await holdControl(page, remove, true)
         await expectFill(remove, await neutralFill(page), 'read-only delete press')
-        await release()
-        await expectFill(remove, 'rgba(0, 0, 0, 0)', 'read-only delete release')
+        await release(() => expectFill(remove, 'rgba(0, 0, 0, 0)', 'read-only delete release'))
       } finally { await page.close() }
     })
   }
