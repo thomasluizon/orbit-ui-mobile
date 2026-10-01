@@ -1,9 +1,11 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
-import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
@@ -16,7 +18,16 @@ vi.mock('react-native', async (importOriginal) => ({
   I18nManager: { isRTL: false },
 }))
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en' }, t: (key: string, values?: Record<string, string | number>) => {
+const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
+
+function translateVisible(key: string, values?: Record<string, string | number>): string {
+  const messages = visibleLocale.language === 'en' ? en : ptBR
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
+  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+}
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: visibleLocale.language }, t: (key: string, values?: Record<string, string | number>) => {
+  if (visibleLocale.actual) return translateVisible(key, values)
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -57,10 +68,31 @@ function press(tree: any, label: string) {
   )[0]
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => { vi.clearAllMocks(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
+    it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePendingWriteSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const { tree } = renderCard(operation)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+      expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
+    })
+
+    it.each(partialScheduleSummaryCases)('shows only the changed schedule fields: $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePartialScheduleSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const { tree } = renderCard(operation)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+    })
+  })
+
   it('renders one named habit with a cadence instead of field diffs', () => {
     const operation = makeHeldHabitMessage().pendingOperations![0]!
     const item = operation.items![0]!

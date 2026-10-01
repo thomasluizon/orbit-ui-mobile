@@ -73,7 +73,7 @@ export function buildPendingOperationCardLabels(
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),
     rejected: (count) => translate('chat.operation.rejected', { count }),
-    summarize: (fields) => summarizePendingOperationItem(fields, translate, formatTime, locale),
+    summarize: (fields) => summarizePendingOperationItem(fields, translate, formatTime, locale, pendingOperation.actionKey),
     save: translate('common.save'),
     search: translate('common.search'),
     invalid: translate('chat.operation.invalid'),

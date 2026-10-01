@@ -126,6 +126,7 @@ export const pendingAgentOperationSchema = z.object({
   changeTargetCount: z.number().nullable().optional(),
   items: z.array(pendingOperationItemSchema).nullable().optional(),
   previewFingerprint: z.string().nullable().optional(),
+  actionKey: z.string().nullable().optional(),
 })
 export type PendingAgentOperation = z.infer<typeof pendingAgentOperationSchema>
 

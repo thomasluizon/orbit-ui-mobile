@@ -1,6 +1,8 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import type { PendingOperationExecutionResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
@@ -8,7 +10,16 @@ import { sheetTestControls } from '../../support/sheet-double'
 const capturedSheet = vi.hoisted(() => ({ onConfirm: undefined as (() => void) | undefined }))
 const capturedVerification = vi.hoisted(() => ({ onVerify: undefined as ((id: string, challengeId: string, code: string, token: string) => Promise<unknown>) | undefined }))
 const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean) | undefined }))
-vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
+
+function translateVisible(key: string, values?: Record<string, string | number>): string {
+  const messages = visibleLocale.language === 'en' ? en : ptBR
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
+  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+}
+
+vi.mock('next-intl', () => ({ useLocale: () => visibleLocale.language, useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+  if (visibleLocale.actual) return translateVisible(key, values)
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -58,6 +69,28 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
+    it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePendingWriteSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      expect(screen.getByText(expected)).toBeInTheDocument()
+      expect(screen.getAllByText('Read')).toHaveLength(1)
+      expect(screen.queryByText(operation.items![0]!.entityId!)).not.toBeInTheDocument()
+    })
+
+    it.each(partialScheduleSummaryCases)('shows only the changed schedule fields: $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePartialScheduleSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
+  })
+
   it('renders one named habit with a cadence instead of field diffs', () => {
     const operation = makeHeldHabitMessage().pendingOperations![0]!
     const item = operation.items![0]!
@@ -77,6 +110,8 @@ describe('PendingOperationCard', () => {
 
   afterEach(() => sheetTestControls.defer(false))
   beforeEach(() => {
+    visibleLocale.actual = false
+    visibleLocale.language = 'en'
     capturedSheet.onConfirm = undefined
     capturedVerification.onVerify = undefined
     capturedCard.isCurrent = undefined

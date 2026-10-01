@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { makeAgentOperationResult, makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
   type PendingOperationCardActions,
@@ -10,6 +10,7 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 
@@ -39,14 +40,14 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   })
 
   it('does not invent a count for a unit-only update', () => {
-    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day')])).toBe(messages.habits.filter.monthly)
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day')])).toBe(messages.chat.preview.summary.repeatInMonths)
   })
 
   it('keeps mode changes visible when a unit-only update lacks the full cadence', () => {
     expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_general', 'true')]))
       .toBe(messages.chat.preview.summary.anytime)
     expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_flexible', 'true')]))
-      .toBe(`${messages.habits.filter.monthly} · ${messages.chat.preview.summary.anyDay}`)
+      .toBe(`${messages.chat.preview.summary.repeatInMonths} · ${messages.chat.preview.summary.anyDay}`)
   })
 
   it('localizes weekdays from the typed proposal instead of exposing the JSON display value', () => {
@@ -65,6 +66,65 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   it('describes clearing editable lists and dates', () => {
     expect(summarize([change('days', '', []), change('due_date', ''), change('due_time', ''), change('checklist_items', '', [])]))
       .toBe([messages.chat.preview.summary.clearDays, messages.chat.preview.summary.removeDate, messages.chat.preview.summary.removeTime, messages.chat.preview.summary.clearChecklist].join(' · '))
+  })
+
+  it.each([
+    ['status', 'Abandoned', 'Abandoned', 'Active', 'Mark abandoned', 'Marcar abandonada'],
+    ['current_value', '100', 100, '20', 'Set progress to 100', 'Definir progresso: 100'],
+    ['tag_names', '["Reading","Evening"]', ['Reading', 'Evening'], 'Morning', 'Replace all tags with: Reading, Evening', 'Substituir todas as tags por: Reading, Evening'],
+    ['tag_ids', '[]', [], 'Morning', 'Remove all tags', 'Remover todas as tags'],
+    ['tag_ids', '["tag-1","tag-2"]', ['tag-1', 'tag-2'], 'Morning', 'Replace all tags with 2 selected tags', 'Substituir todas as tags por 2 tags selecionadas'],
+  ] as const)('shows the proposed %s outcome', (field, newValue, proposedValue, oldValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue, oldValue)]))
+      .toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it.each(partialScheduleSummaryCases)('does not assume unchanged schedule attributes: $name', (scenario) => {
+    const operation = makePartialScheduleSummaryOperation(scenario)
+    expect(summarize(operation.items![0]!.fields)).toBe(locale === 'en' ? scenario.english : scenario.portuguese)
+  })
+
+  it('shows changed days without inventing the retained cadence', () => {
+    expect(summarize([
+      change('habit_id', 'habit-1', 'habit-1'),
+      change('days', '["Thursday"]', ['Thursday'], 'Monday, Wednesday'),
+      change('frequency_quantity', '1', 1, '1'),
+    ])).toBe(locale === 'en' ? 'Thu · Set the repeat count to 1' : 'Qui · Definir quantidade de repetições: 1')
+  })
+
+  it('uses the complete supplied schedule when flexibility is explicit', () => {
+    expect(summarize([
+      change('habit_id', 'habit-1', 'habit-1'),
+      change('frequency_unit', 'Week', 'Week', 'Week'),
+      change('frequency_quantity', '3', 3, '2'),
+      change('is_flexible', 'true', true, 'true'),
+    ])).toBe(locale === 'en' ? '3x / Week' : '3x / Semana')
+  })
+
+  it.each([
+    ['target_value', '12', 12, 'Set the target to 12', 'Definir alvo: 12'],
+    ['unit', 'books', 'books', 'Measure in books', 'Medir em books'],
+    ['deadline', null, null, 'Remove the deadline', 'Remover o prazo'],
+    ['goal_type', 'Streak', 'Streak', 'Streak', 'Sequência'],
+    ['habit_ids', '[]', [], 'Remove all habit links', 'Remover todos os vínculos com hábitos'],
+    ['goal_ids', '[]', [], 'Remove all goal links', 'Remover todos os vínculos com metas'],
+    ['new_parent_id', null, null, 'Move out of the parent habit', 'Mover para fora do hábito pai'],
+    ['slip_alert_enabled', 'false', false, 'Stop slip alerts', 'Parar alertas de recaída'],
+    ['items', '["Pack shoes"]', ['Pack shoes'], 'Pack shoes', 'Pack shoes'],
+    ['action', 'mark_all_read', 'mark_all_read', 'Mark all alerts as read', 'Marcar todos os alertas como lidos'],
+    ['theme_preference', null, null, 'Use the system theme', 'Usar tema do sistema'],
+  ] as const)('describes supported %s writes', (field, newValue, proposedValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it.each(["deleteHabit", "updateHabits", "rescheduleHabits", "logHabits", "skipHabits", "createHabits", "deleteHabits", "deleteGoal", "deleteTag", "deleteNotification", "deleteAllNotifications", "deleteNotifications", "setCalendarSync", "dismissCalendarImport", "dismissCalendarSuggestion", "syncCalendar", "manageCalendarSync", "deleteUserFacts", "updateHabitEmojis", "createHabit", "createSubHabit", "updateHabit", "duplicateHabit", "moveHabit", "moveHabitParent", "reorderHabits", "logHabit", "skipHabit", "updateChecklist", "createGoal", "updateGoal", "updateGoalProgress", "updateGoalStatus", "reorderGoals", "linkGoalsToHabit", "linkHabitsToGoal", "createTag", "updateTag", "assignTags", "createChecklistTemplate", "deleteChecklistTemplate", "updateProfilePreferences", "setAiMemory", "setAiSummary", "markNotificationRead", "markAllNotificationsRead", "subscribePush", "unsubscribePush", "sendTestPush", "updateNotifications", "viewReferralCode", "sendSupportRequest", "createCheckout", "openBillingPortal", "manageSubscription", "viewApiKeys", "createApiKey", "revokeApiKey", "manageApiKeys", "resetAccount", "requestAccountDeletion", "confirmAccountDeletion", "manageAccount"])('names the producer action %s instead of generic pending copy', (actionKey) => {
+    const operation = pendingAgentOperationSchema.parse(makePendingAgentOperation({ actionKey }))
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const summary = labels.summarize([])
+    expect(summary).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+    expect(summary).not.toContain('chat.')
+    expect(summary).not.toBe(messages.chat.operation.pending)
+    expect(summary).not.toBe('')
   })
 
   it('keeps unknown fields and enum values out of the preview', () => {

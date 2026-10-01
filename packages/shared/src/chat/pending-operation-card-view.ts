@@ -255,7 +255,7 @@ function previewRows<Node>(
     const summary = labels.summarize(item.fields) || labels.pending
     return {
       id: item.itemId,
-      label: item.fields.find((field) => field.field === 'title')?.newValue || item.entityName,
+      label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status: card.status,
       irreversible: destructive && card.status == null,
