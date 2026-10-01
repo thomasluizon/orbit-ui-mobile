@@ -15,7 +15,7 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
-  appVersion: string
+  appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
   error: string | null
@@ -25,6 +25,7 @@ interface SupportFormProps {
   isOnline: boolean
   disabled: boolean
   disabledReason: string | null
+  subjectFocusRequest: number
   messageFocusRequest: number
   onSubjectChange: (next: SupportSubjectId) => void
   onMessageChange: (next: string) => void
@@ -47,6 +48,7 @@ export function SupportForm({
   isOnline,
   disabled,
   disabledReason,
+  subjectFocusRequest,
   messageFocusRequest,
   onSubjectChange,
   onMessageChange,
@@ -92,6 +94,8 @@ export function SupportForm({
           aria-labelledby="support-subject-label"
           aria-describedby={subjectError ? 'support-subject-error' : undefined}
           aria-invalid={subjectError ? true : undefined}
+          aria-required
+          focusRequest={subjectFocusRequest}
           onBlur={onSubjectBlur}
         >
           {SUPPORT_SUBJECT_OPTIONS.map((option) => (
@@ -129,7 +133,7 @@ export function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={isSending}
         error={messageError ?? undefined}
-        hint={messageOverLimitHint ?? undefined}
+        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
         autoComplete="off"
         multiline
@@ -148,9 +152,11 @@ export function SupportForm({
         inputMode="email"
         autoComplete="off"
       />
-      <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
-        {t('profile.support.versionIncluded', { version: appVersion })}
-      </p>
+      {appVersion ? (
+        <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
+          {t('profile.support.versionIncluded', { version: appVersion })}
+        </p>
+      ) : null}
       {!isOnline ? (
         <div
           id="support-send-reason"

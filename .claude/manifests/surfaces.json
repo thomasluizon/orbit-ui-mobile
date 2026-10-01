@@ -75,8 +75,7 @@
       "sourceFile": "apps/web/app/(app)/about/page.tsx",
       "href": "/about",
       "ownedFiles": [
-        "apps/web/app/(app)/about/page.tsx",
-        "apps/web/lib/app-version.ts"
+        "apps/web/app/(app)/about/page.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -89,8 +88,7 @@
       "sourceFile": "apps/web/app/(app)/about/page.tsx",
       "href": "/about",
       "ownedFiles": [
-        "apps/web/app/(app)/about/page.tsx",
-        "apps/web/lib/app-version.ts"
+        "apps/web/app/(app)/about/page.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -103,8 +101,7 @@
       "sourceFile": "apps/web/app/(app)/about/page.tsx",
       "href": "/about",
       "ownedFiles": [
-        "apps/web/app/(app)/about/page.tsx",
-        "apps/web/lib/app-version.ts"
+        "apps/web/app/(app)/about/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -117,8 +114,7 @@
       "sourceFile": "apps/web/app/(app)/about/page.tsx",
       "href": "/about",
       "ownedFiles": [
-        "apps/web/app/(app)/about/page.tsx",
-        "apps/web/lib/app-version.ts"
+        "apps/web/app/(app)/about/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
