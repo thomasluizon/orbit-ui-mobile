@@ -157,6 +157,13 @@ describe('onboarding through owning layouts', () => {
     expect(await screen.findByText('signed-out onboarding')).toBeInTheDocument()
   })
 
+  it('lets an auth callback finish sign-in on a fresh device', async () => {
+    state.pathname = '/auth-callback'
+    render(<AuthLayout><div>auth callback</div></AuthLayout>)
+    expect(await screen.findByText('auth callback')).toBeInTheDocument()
+    expect(routeHistory).not.toContain('/onboarding')
+  })
+
   it('never renders onboarding after sign-out, including a legacy device flag', async () => {
     await signIn(true)
     useOnboardingDraftStore.setState({ onboardingLocallyDone: false })

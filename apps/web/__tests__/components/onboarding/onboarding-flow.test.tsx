@@ -426,6 +426,13 @@ describe('OnboardingFlow state model', () => {
     expect(continueButton).not.toHaveAttribute('aria-describedby')
   })
 
+  it('ends device onboarding when choosing sign-in', () => {
+    useOnboardingDraftStore.setState({ onboardingLocallyDone: false })
+    mount(false)
+    fireEvent.click(screen.getByRole('button', { name: 'what.haveAccount' }))
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+  })
+
   it('hides the account action for a signed-in account', () => {
     mount(true)
     expect(screen.queryByRole('button', { name: 'what.haveAccount' })).not.toBeInTheDocument()
