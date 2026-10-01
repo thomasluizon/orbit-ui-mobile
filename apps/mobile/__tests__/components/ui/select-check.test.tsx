@@ -373,6 +373,28 @@ describe('RadioRow press feedback', () => {
     expect(style(false).backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
     void act(() => tree.update(<View />))
   })
+
+  it('responds to a reduced-motion preference change while pressed', () => {
+    let tree!: ReactTestRenderer
+    const renderRow = () => <RadioGroup accessibilityLabel="Subjects">
+      <RadioRow label="Subject" onSelect={vi.fn()} />
+    </RadioGroup>
+    void act(() => { tree = create(renderRow()) })
+    const pressedStyle = () => {
+      const row = tree.root.findAll((node) => node.type === Pressable)[0]!
+      const style = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      return StyleSheet.flatten(style({ pressed: true }))
+    }
+    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    motionState.prefersReducedMotion = true
+    void act(() => { tree.update(renderRow()) })
+    expect(pressedStyle().transform).toBeUndefined()
+    expect(pressedStyle().backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    motionState.prefersReducedMotion = false
+    void act(() => { tree.update(renderRow()) })
+    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    void act(() => { tree.update(<View />) })
+  })
 })
 
 describe('RadioRow secondary text contrast', () => {
@@ -443,10 +465,13 @@ describe('RadioRow secondary text contrast', () => {
       const glyph = tree.root.findAll((node) => node.type === RadioGlyph)[0]!
       const glyphHost = glyph.findAll((node) => typeof node.type === 'string')[0]!
       const glyphStyle = StyleSheet.flatten(glyphHost.props.style) as { borderColor: string }
-      const trackContrasts = selected ? [] : [[], [tokens.bgCard], [tokens.bgSheet]].map((surface) =>
-        contrastOnSurface(glyphStyle.borderColor, [tokens.bg, ...surface, pressed.backgroundColor]),
-      )
-      expect(Math.min(...trackContrasts)).toBeGreaterThanOrEqual(3)
+      if (!selected) {
+        const trackContrasts = [[], [tokens.bgCard], [tokens.bgSheet]].map((surface) =>
+          contrastOnSurface(glyphStyle.borderColor, [tokens.bg, ...surface, pressed.backgroundColor]),
+        )
+        expect(trackContrasts).toHaveLength(3)
+        expect(Math.min(...trackContrasts)).toBeGreaterThanOrEqual(3)
+      }
     }
     expect(descriptionStyle.color).toBe(expectedForeground)
     expect(metaStyle.color).toBe(expectedForeground)

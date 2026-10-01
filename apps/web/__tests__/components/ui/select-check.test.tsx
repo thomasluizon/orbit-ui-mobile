@@ -172,14 +172,6 @@ describe('RadioRow secondary text contrast', () => {
       const row = page.locator('[role="radio"]')
       const restingScale = await row.evaluate((element) => getComputedStyle(element).scale)
       expect(restingScale).toBe('none')
-      if (!disabled && reducedMotion === 'no-preference') {
-        const scaleTransition = await row.evaluate((element) => {
-          const style = getComputedStyle(element)
-          const index = style.transitionProperty.split(',').map((property) => property.trim()).indexOf('scale')
-          return style.transitionDuration.split(',')[index]?.trim()
-        })
-        expect(scaleTransition).toBe('0.15s')
-      }
       const center = await row.evaluate((element) => {
         const bounds = element.getBoundingClientRect()
         return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
@@ -188,10 +180,22 @@ describe('RadioRow secondary text contrast', () => {
       await page.mouse.down()
       await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale))
         .toBe(disabled || reducedMotion === 'reduce' ? 'none' : '0.96')
+      if (!disabled && reducedMotion === 'no-preference') {
+        const scaleTransition = await row.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const index = style.transitionProperty.split(',').map((property) => property.trim()).indexOf('scale')
+          return style.transitionDuration.split(',')[index]?.trim()
+        })
+        expect(scaleTransition).toBe('0.15s')
+      }
       if (!disabled) {
         await expect.poll(async () => contrastOnSurface(
           await row.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
         )).toBe(contrastOnSurface(theme['--bg-hover']!, [theme['--bg']!]))
+        await page.emulateMedia({ reducedMotion: reducedMotion === 'reduce' ? 'no-preference' : 'reduce' })
+        await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale))
+          .toBe(reducedMotion === 'reduce' ? '0.96' : 'none')
+        await page.emulateMedia({ reducedMotion })
       }
       await page.mouse.up()
       await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale)).toBe(restingScale)
