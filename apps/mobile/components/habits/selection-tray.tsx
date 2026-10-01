@@ -79,14 +79,21 @@ export function SelectionTray({
           onPress={allSelected ? onDeselectAll : onSelectAll}
           style={({ pressed }) => [
             styles.selectAllBtn,
-            pressed ? { backgroundColor: tokens.bgHoverOpaque } : null,
             pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
           {({ pressed }) => (
-            <Text style={[styles.selectAllText, { color: pressed ? tokens.fg1 : tokens.fg2 }]}>
-            {allSelected ? deselectAllLabel : selectAllLabel}
-            </Text>
+            <>
+              <View
+                testID="selection-all-fill"
+                pointerEvents="none"
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.selectAllFill, { backgroundColor: tokens.bgHoverOpaque, opacity: pressed ? 1 : 0 }]}
+              />
+              <Text style={[styles.selectAllText, { color: pressed ? tokens.fg1 : tokens.fg2 }]}>
+                {allSelected ? deselectAllLabel : selectAllLabel}
+              </Text>
+            </>
           )}
         </Pressable>
       </View>
@@ -199,6 +206,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,
+  },
+  selectAllFill: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 999,
   },
   selectAllText: {
     fontFamily: 'Geist_500Medium',

@@ -143,19 +143,57 @@ describe('SelectionTray painted targets in Chromium', () => {
         element.append(probe)
         const expected = getComputedStyle(probe).backgroundColor
         probe.remove()
-        return { actual: getComputedStyle(element).backgroundColor, expected }
+        const layer = element.querySelector('[data-press-fill]') ?? element
+        const painted = layer.getBoundingClientRect()
+        const hit = element.getBoundingClientRect()
+        return { actual: getComputedStyle(layer).backgroundColor, opacity: getComputedStyle(layer).opacity,
+            painted: { x: painted.x, y: painted.y, width: painted.width, height: painted.height },
+            hit: { x: hit.x, y: hit.y, width: hit.width, height: hit.height }, expected }
       })
       expect(fill.actual).toBe(fill.expected)
+      expect(fill.painted).toEqual(fill.hit)
+      expect(fill.opacity).toBe('1')
       await page.mouse.down()
-      expect(await retry.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(fill.expected)
+      expect(await retry.evaluate((element) => getComputedStyle(element.querySelector('[data-press-fill]') ?? element).backgroundColor)).toBe(fill.expected)
       await page.mouse.up()
     } finally { await page.close() }
   })
 
-  it.each([{ allSelected: false, mode: 'dark' }, { allSelected: true, mode: 'dark' }, { allSelected: false, mode: 'light' }, { allSelected: true, mode: 'light' }] as const)('paints every 44px target with allSelected: $allSelected in $mode', async ({ allSelected, mode }) => {
+  it.each([412, 1280])('keeps the select-all hover token stable during its transition at %spx', async (width) => {
+    renderBar()
+    const markup = screen.getByTestId('bulk-action-bar').outerHTML
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}}</style>${markup}`)
+      await page.getByTestId('bulk-action-bar').evaluate((element) => { element.style.transform = 'none'; element.style.opacity = '1' })
+      const control = page.getByRole('button', { name: 'common.selectAll', exact: true })
+      await control.hover()
+      const fill = await control.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        const layer = element.querySelector('[data-press-fill]') ?? element
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-hover-opaque)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return { actual: getComputedStyle(layer).backgroundColor, opacity: getComputedStyle(layer).opacity, expected }
+      })
+      expect(fill.actual).toBe(fill.expected)
+      expect(Number(fill.opacity)).toBeGreaterThan(0)
+      await page.mouse.move(0, 0)
+      await expect.poll(() => control.evaluate((element) => getComputedStyle(element.querySelector('[data-press-fill]') ?? element).opacity)).toBe('0')
+    } finally { await page.close() }
+  })
+
+  it.each(([320, 412, 1280] as const).flatMap((width) =>
+    ([false, true] as const).flatMap((allSelected) =>
+      (['dark', 'light'] as const).map((mode) => ({ width, allSelected, mode })),
+    ),
+  ))('paints every 44px target at $width with allSelected: $allSelected in $mode', async ({ width, allSelected, mode }) => {
     renderBar({ allSelected })
     const markup = screen.getByTestId('bulk-action-bar').outerHTML
-    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
+    const page = await browser.newPage({ viewport: { width, height: 568 }, reducedMotion: 'reduce' })
     try {
       const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${markup}`)
@@ -173,11 +211,21 @@ describe('SelectionTray painted targets in Chromium', () => {
           element.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return { actual: getComputedStyle(element).backgroundColor, expected }
+          const layer = element.querySelector('[data-press-fill]') ?? element
+          const painted = layer.getBoundingClientRect()
+          const hit = element.getBoundingClientRect()
+          return { actual: getComputedStyle(layer).backgroundColor, opacity: getComputedStyle(layer).opacity,
+            painted: { x: painted.x, y: painted.y, width: painted.width, height: painted.height },
+            hit: { x: hit.x, y: hit.y, width: hit.width, height: hit.height }, expected }
         })
         expect(fill.actual).toBe(fill.expected)
+        expect(fill.painted).toEqual(fill.hit)
+        expect(fill.opacity).toBe('1')
         await page.mouse.down()
-        expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(fill.expected)
+        expect(await button.evaluate((element) => {
+          const style = getComputedStyle(element.querySelector('[data-press-fill]') ?? element)
+          return { background: style.backgroundColor, opacity: style.opacity }
+        })).toEqual({ background: fill.expected, opacity: '1' })
         await page.mouse.up()
       }
     } finally { await page.close() }

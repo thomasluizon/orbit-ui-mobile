@@ -148,9 +148,14 @@ export function SelectionTray({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          className="group touch-target isolate inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] motion-safe:active:scale-[0.96] transition-[color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={SELECT_ALL_BUTTON_STYLE}
         >
+          <span
+            data-press-fill=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-[var(--bg-hover-opaque)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100"
+          />
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}
         </button>
       </div>

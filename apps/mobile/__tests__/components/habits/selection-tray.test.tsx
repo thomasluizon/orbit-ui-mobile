@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type ReactElement } from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { SelectionTray } from '@/components/habits/selection-tray'
@@ -81,14 +81,23 @@ describe('SelectionTray', () => {
 
   it.each([false, true])('fills the whole select-all target with allSelected: %s', async (allSelected) => {
     const { tree } = await renderBar({ allSelected })
-    const control = tree.root.findAll((node) => typeof node.type === 'string'
+    const control = tree.root.findAll((node) => typeof node.props.children === 'function'
       && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === undefined)[0]!
     const style = control.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     expect(control.props.hitSlop).toBeUndefined()
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({
-      minHeight: 44, minWidth: 44, backgroundColor: createTokensV2('purple', 'dark').bgHoverOpaque,
+      minHeight: 44, minWidth: 44,
       borderRadius: 999, overflow: 'hidden',
     })
+    const child = control.props.children as (state: { pressed: boolean }) => ReactElement<{ children: [ReactElement<{ style: StyleProp<ViewStyle>; pointerEvents: string }>, ReactElement] }>
+    for (const pressed of [false, true]) {
+      const layer = child({ pressed }).props.children[0]
+      expect(layer.props.pointerEvents).toBe('none')
+      expect(StyleSheet.flatten(layer.props.style)).toMatchObject({
+        position: 'absolute', inset: 0, borderRadius: 999,
+        backgroundColor: createTokensV2('purple', 'dark').bgHoverOpaque, opacity: pressed ? 1 : 0,
+      })
+    }
     expect(StyleSheet.flatten(style({ pressed: false })).backgroundColor).toBeUndefined()
   })
 
