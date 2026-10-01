@@ -1486,10 +1486,19 @@ export const PostApiHabitsIdSkipParams = zod.object({
 })
 
 export const PostApiHabitsIdSkipBody = zod.union([zod.null(),zod.object({
-  "date": zod.iso.date().nullish()
+  "date": zod.iso.date().nullish(),
+  "skipId": zod.uuid().nullish()
 })])
 
 export const PostApiHabitsIdSkipResponse = zod.void()
+
+
+export const PostApiHabitsIdSkipSkipIdUndoParams = zod.object({
+  "id": zod.uuid(),
+  "skipId": zod.uuid()
+})
+
+export const PostApiHabitsIdSkipSkipIdUndoResponse = zod.void()
 
 
 export const PutApiHabitsIdChecklistParams = zod.object({
@@ -1748,10 +1757,13 @@ export const PostApiNotificationsSubscribeBody = zod.object({
 export const PostApiNotificationsSubscribeResponse = zod.unknown()
 
 
+export const postApiNotificationsUnsubscribeBodyReleaseOtherAccountDefault = false;
+
 export const PostApiNotificationsUnsubscribeBody = zod.object({
   "endpoint": zod.string(),
-  "p256dh": zod.string(),
-  "auth": zod.string()
+  "p256dh": zod.string().nullish(),
+  "auth": zod.string().nullish(),
+  "releaseOtherAccount": zod.boolean().default(postApiNotificationsUnsubscribeBodyReleaseOtherAccountDefault)
 })
 
 export const PostApiNotificationsUnsubscribeResponse = zod.unknown()
@@ -1778,10 +1790,18 @@ export const GetOauthAuthorizeQueryParams = zod.object({
   "state": zod.string().optional(),
   "code_challenge": zod.string().optional(),
   "code_challenge_method": zod.string().optional(),
-  "nonce": zod.string().optional()
+  "nonce": zod.string().optional(),
+  "google_error": zod.string().optional()
 })
 
 export const GetOauthAuthorizeResponse = zod.unknown()
+
+
+export const GetOauthAssetsNameParams = zod.object({
+  "name": zod.string()
+})
+
+export const GetOauthAssetsNameResponse = zod.unknown()
 
 
 export const postOauthSendCodeBodyLanguageDefault = `en`;
@@ -1808,17 +1828,25 @@ export const PostOauthVerifyCodeBody = zod.object({
 export const PostOauthVerifyCodeResponse = zod.unknown()
 
 
-export const postOauthGoogleBodyLanguageDefault = `en`;
-
-export const PostOauthGoogleBody = zod.object({
-  "accessToken": zod.string(),
-  "language": zod.string().default(postOauthGoogleBodyLanguageDefault),
-  "googleAccessToken": zod.string().nullish(),
-  "googleRefreshToken": zod.string().nullish(),
-  "referralCode": zod.string().nullish()
+export const GetOauthGoogleStartQueryParams = zod.object({
+  "client_id": zod.string().optional(),
+  "redirect_uri": zod.string().optional(),
+  "state": zod.string().optional(),
+  "code_challenge": zod.string().optional(),
+  "code_challenge_method": zod.string().optional(),
+  "nonce": zod.string().optional()
 })
 
-export const PostOauthGoogleResponse = zod.unknown()
+export const GetOauthGoogleStartResponse = zod.unknown()
+
+
+export const GetOauthGoogleCallbackQueryParams = zod.object({
+  "state": zod.string().optional(),
+  "code": zod.string().optional(),
+  "error": zod.string().optional()
+})
+
+export const GetOauthGoogleCallbackResponse = zod.unknown()
 
 
 export const PostOauthTokenBody = zod.object({
