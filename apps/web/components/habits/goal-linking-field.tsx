@@ -11,6 +11,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 const VIRTUAL_ROW_HEIGHT = 48
 const VIRTUAL_VIEWPORT_HEIGHT = 320
@@ -61,7 +62,7 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
     <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
       {goals.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: goals.length })}</p> : null}
       {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={t('habits.form.searchGoals')} placeholder={t('habits.form.searchGoals')} /> : null}
-      <div ref={scrollRef} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+      <div ref={scrollRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
         {virtualized && start > 0 ? <div aria-hidden="true" style={{ height: start * VIRTUAL_ROW_HEIGHT }} /> : null}
         {visible.map((goal) => {
           const selected = selectedIds.has(goal.id)

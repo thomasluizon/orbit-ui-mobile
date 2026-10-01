@@ -1,4 +1,5 @@
-import { Pressable, View } from 'react-native'
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'

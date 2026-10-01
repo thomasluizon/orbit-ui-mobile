@@ -11,6 +11,7 @@ import {
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
@@ -66,6 +67,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
       aria-label={label}
       role="group"
       data-focus-inset=""
+      onFocusCapture={revealFocusedControl}
       className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {suggestions.map((suggestion) => (

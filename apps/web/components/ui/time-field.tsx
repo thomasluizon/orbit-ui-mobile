@@ -25,6 +25,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useProfile } from '@/hooks/use-profile'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 
 interface TimeColumnProps {
   values: readonly (number | string)[]
@@ -55,6 +56,7 @@ function TimeOption({
       type="button"
       role="radio"
       aria-checked={selected}
+      data-focus-on-primary={selected ? '' : undefined}
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
@@ -81,7 +83,7 @@ function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly
   }, [])
 
   return (
-    <div ref={listRef} className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]">
+    <div ref={listRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]">
       <RadioGroup aria-label={label}>
         {values.map((option) => (
           <TimeOption

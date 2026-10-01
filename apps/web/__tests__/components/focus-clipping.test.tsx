@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { DndContext } from '@dnd-kit/core'
 import { SortableContext } from '@dnd-kit/sortable'
 import postcss from 'postcss'
@@ -15,6 +15,7 @@ import { Composer } from '@/components/shell/composer'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { Switch } from '@/components/ui/switch'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectFocusedRing, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -35,6 +36,7 @@ describe('clipped focus perimeters in Chromium', () => {
   let stylesheet: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
@@ -46,6 +48,12 @@ describe('clipped focus perimeters in Chromium', () => {
       suggestions={suggestions}
       onChangeValue={vi.fn()} onSend={vi.fn()}
     />)
+    const firstChip = container.querySelector('[data-focus-inset] button')!
+    const scrolling = vi.spyOn(firstChip, 'scrollIntoView')
+    scrolling.mockClear()
+    fireEvent.focus(firstChip)
+    expect(scrolling).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+    scrolling.mockRestore()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
@@ -74,6 +82,7 @@ describe('clipped focus perimeters in Chromium', () => {
       </div></SortableContext></DndContext>
       <SettingsGroup items={[{ label: 'First', onClick: vi.fn() }, { label: 'Last', onClick: vi.fn() }]} />
       <RowList><SettingsRow label="Settings" onClick={vi.fn()} /></RowList>
+      <RowList><SettingsRow label="Switches"><Switch label="On" checked onChange={vi.fn()} /><Switch label="Off" checked={false} onChange={vi.fn()} /></SettingsRow></RowList>
     </>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

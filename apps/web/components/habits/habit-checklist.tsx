@@ -204,6 +204,7 @@ export function HabitChecklist({
       ) : (
         items.length > 0 && (
           <div
+            data-focus-inset="panel"
             style={{
               borderRadius: 18,
               background: 'var(--bg-card)',

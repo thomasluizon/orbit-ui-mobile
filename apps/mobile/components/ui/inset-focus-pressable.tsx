@@ -1,11 +1,12 @@
 import { useState, type Ref } from 'react'
-import { Pressable, type PressableProps, type View } from 'react-native'
+import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
 export interface InsetFocusPressableProps extends PressableProps {
   ref?: Ref<View>
   focusOffset?: number
+  focusColor?: ColorValue
 }
 
 export function InsetFocusPressable({
@@ -13,6 +14,7 @@ export function InsetFocusPressable({
   onFocus,
   onBlur,
   focusOffset = -4,
+  focusColor,
   ...props
 }: Readonly<InsetFocusPressableProps>) {
   const [focused, setFocused] = useState(false)
@@ -21,15 +23,15 @@ export function InsetFocusPressable({
   return (
     <Pressable
       {...props}
-      onFocus={(event) => { setFocused(true); onFocus?.(event) }}
-      onBlur={(event) => { setFocused(false); onBlur?.(event) }}
+      onFocus={(event) => { if (event.target === event.currentTarget) setFocused(true); onFocus?.(event) }}
+      onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false); onBlur?.(event) }}
       style={(state) => [
         typeof style === 'function' ? style(state) : style,
         focused && !props.disabled ? {
           outlineWidth: 2,
           outlineOffset: focusOffset,
           outlineStyle: 'solid',
-          outlineColor: tokens.fg1,
+          outlineColor: focusColor ?? tokens.fg1,
         } : null,
       ]}
     />

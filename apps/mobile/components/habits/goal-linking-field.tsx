@@ -52,7 +52,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
   const renderGoal = ({ item: goal }: { item: Goal }) => {
     const selected = selectedSet.has(goal.id)
     return (
-      <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled: !selected && atGoalLimit }} disabled={!selected && atGoalLimit} style={({ pressed }) => [styles.row, !selected && atGoalLimit ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleGoal(goal.id)}>
+      <Pressable focusInset accessibilityRole="button" accessibilityState={{ selected, disabled: !selected && atGoalLimit }} disabled={!selected && atGoalLimit} style={({ pressed }) => [styles.row, !selected && atGoalLimit ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleGoal(goal.id)}>
         <Text numberOfLines={1} style={styles.rowTitle}>{goal.title}</Text>
         <Text style={styles.rowValue}>{selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}</Text>
       </Pressable>
@@ -64,7 +64,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
       <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} inForm onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><Text numberOfLines={1} style={styles.chipText}>{goal.title}</Text></View>)}{selectedGoals.length > 3 ? <View style={styles.chip}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
       {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} onClose={() => { setOpen(false); setQuery('') }}>
-        {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={openCreateGoal}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.createGoal')}</Text></Pressable></View> : <View style={styles.list}>
+        {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><Pressable focusInset accessibilityRole="button" style={styles.action} onPress={openCreateGoal}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.createGoal')}</Text></Pressable></View> : <View style={styles.list}>
           {activeGoals.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: activeGoals.length })}</Text> : null}
           {activeGoals.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} accessibilityLabel={t('habits.form.searchGoals')} placeholder={t('habits.form.searchGoals')} style={styles.search} /> : null}
           {activeGoals.length >= 21 ? <KeyboardAwareFlatList key={query} data={filteredGoals} renderItem={renderGoal} keyExtractor={(goal) => goal.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filteredGoals.map((goal) => <View key={goal.id}>{renderGoal({ item: goal })}</View>)}

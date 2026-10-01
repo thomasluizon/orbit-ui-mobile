@@ -98,13 +98,15 @@ it('keeps one complete suggestion focus outline inside the scroller without resi
   const tree = renderComposer(props())
   const chip = () => byLabel(tree.root, 'chip sentinel 0')[0]
   const resting = StyleSheet.flatten(chip().props.style)
-  TestRenderer.act(() => chip().props.onFocus?.())
+  const target = {}
+  const event = { nativeEvent: { target: 1 }, target, currentTarget: target }
+  TestRenderer.act(() => chip().props.onFocus?.(event))
   const focused = StyleSheet.flatten(chip().props.style)
   expect(focused.outlineWidth).toBe(2)
   expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
   expect(focused.minHeight).toBe(resting.minHeight)
   expect(focused.paddingHorizontal).toBe(resting.paddingHorizontal)
-  TestRenderer.act(() => chip().props.onBlur?.())
+  TestRenderer.act(() => chip().props.onBlur?.(event))
   expect(StyleSheet.flatten(chip().props.style).outlineWidth ?? 0).toBe(0)
 })
 

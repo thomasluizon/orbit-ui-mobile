@@ -1111,6 +1111,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -6px;
 }
 
+[data-focus-inset] [role='switch']:focus-visible {
+  outline-offset: -2px;
+}
+
+[data-focus-inset] [data-focus-on-primary]:focus-visible {
+  outline-color: var(--fg-on-primary);
+}
+
 .orbit-menu-catcher {
   position: fixed;
   inset: 0;

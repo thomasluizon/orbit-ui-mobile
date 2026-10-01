@@ -317,6 +317,7 @@ export function CalendarTimeGrid({
       </span>
       <div
         data-testid="calendar-time-grid"
+        data-focus-inset="panel"
         data-columns={columns.length}
         className="relative"
         style={{

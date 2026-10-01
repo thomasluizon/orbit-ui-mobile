@@ -1,7 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 export async function readOutlineVisibility(target: Locator) {
-  return target.evaluate((element) => {
+  return target.evaluate(async (element) => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     const style = getComputedStyle(element)
     const width = Number.parseFloat(style.outlineWidth)
     const offset = Number.parseFloat(style.outlineOffset)
