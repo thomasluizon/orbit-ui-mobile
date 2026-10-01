@@ -6,9 +6,14 @@ import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useThrottleStore } from '@/stores/throttle-store'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => '/login',
+}))
 
 const payload = {
   error: 'Rate limited', requestId: 'request-reference', limit: 1, count: 2,
@@ -16,7 +21,12 @@ const payload = {
 }
 
 describe('client response throttle adapter', () => {
-  beforeEach(() => { useThrottleStore.getState().clear(); useVersionGateStore.setState(useVersionGateStore.getInitialState()) })
+  beforeEach(async () => {
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+    await useOnboardingDraftStore.persist.rehydrate()
+    useThrottleStore.getState().clear()
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+  })
   afterEach(() => { vi.unstubAllGlobals() })
 
   it('records an auth upgrade refusal without consuming or replaying the response', async () => {

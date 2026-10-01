@@ -1,14 +1,21 @@
 import AuthLayout from '@/app/(auth)/layout'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ setAuth: vi.fn(), push: vi.fn(), replace: vi.fn(), generation: 0,
   continueAccount: null as null | (() => void) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+  usePathname: () => '/auth-callback',
+}))
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({ setAuth: mocks.setAuth }),
+  useAuthStore: (selector?: (state: { setAuth: typeof mocks.setAuth; isAuthenticated: boolean; sessionInactive: boolean }) => unknown) => {
+    const state = { setAuth: mocks.setAuth, isAuthenticated: false, sessionInactive: false }
+    return selector ? selector(state) : state
+  },
   withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 vi.mock('@/app/(auth)/login/login-content', () => ({
@@ -25,7 +32,8 @@ const fetchMock = vi.fn()
 
 describe('Google code callback', () => {
   afterEach(() => vi.unstubAllGlobals())
-  beforeEach(() => {
+  beforeEach(async () => {
+    await useOnboardingDraftStore.persist.rehydrate()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     mocks.setAuth.mockReset()
     mocks.push.mockReset()
