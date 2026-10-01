@@ -197,9 +197,8 @@ ${baseInstruction}
 
 **Scope.** Only files this ticket names or provably requires. File and line counts are advisory
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
-model change, generated Designer or contract output with its source/schema, architecture artifacts
-with the module or route change that requires regeneration, and required lockfiles or codemod output
-in this pull request. Do not split required generated output away to make the diff look smaller, and
+model change, generated Designer or contract output with its source/schema, and required lockfiles
+or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
 do not deliver partial behaviour silently.${browserBan}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
@@ -252,9 +251,7 @@ const finishing = `## Finishing contract
 
 **Commit after each coherent piece of work, even if imperfect: a ceiling kill keeps commits and loses an uncommitted index. If unsure, commit the piece and fix it forward. A pushed branch without a pull request is invisible to review; open the pull request and correct its body, which becomes \`main\`'s squash commit message, before reporting success.**
 
-Before committing, if your change alters routes, endpoints, or module structure,
-run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
-include the changed artifacts in the same commit as the source change.
+You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
 For each piece, compile and run focused tests, then commit before broader verification.
 
@@ -286,9 +283,7 @@ does not reach it.`
 
 const reviewBatchFinishing = `## Finishing contract
 
-Before committing, if your change alters routes, endpoints, or module structure,
-run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
-include the changed artifacts in the same commit as the source change.
+You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
 **Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
 

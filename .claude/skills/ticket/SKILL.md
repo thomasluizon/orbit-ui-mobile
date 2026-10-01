@@ -99,10 +99,11 @@ defect if violated:
 - One ticket = one repo = one coherent, independently mergeable PR. Normally design small tickets
   that a reviewer can understand in one sitting, and split separable behavior or deployment
   boundaries. File and line estimates are planning signals, never correctness or delivery rules.
-- Estimate mandatory generated artifacts as part of the ticket: architecture artifacts with their
-  route/module source, EF migrations and generated Designer output with the model change, generated
-  contracts with their schema, and required lockfiles or codemod output. Never split those artifacts
+- Estimate mandatory generated artifacts as part of the ticket: EF migrations and generated Designer
+  output with the model change, generated contracts with their schema, and required lockfiles or
+  codemod output. Never split those artifacts
   away from the change that requires them.
+- You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`.
 - Do not split one atomic behavior merely to satisfy a numeric threshold. Arbitrary splits must not
   produce incomplete behavior, temporary bypasses, broken drift gates, unused foundations, or a
   migration detached from its model change.
