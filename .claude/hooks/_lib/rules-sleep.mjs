@@ -109,6 +109,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       `This is a --sleep run with ${outstanding} and NO live background task to wake it. Ending the\n` +
       "turn here ends the night silently: the queue simply stops, and what it leaves behind looks\n" +
       "exactly like a run that finished.\n\n" +
+      "Start this wakeup with `node tools/run-status.mjs --session <this session id>` and follow its nextActions.\n" +
       "Launch the next ticket only when a slot is free AND the admission gate allows it.\n" +
       "When work waits on CI or review, start `node tools/wait-ci.mjs --repo <key> --pr <n>`\n" +
       "as a background task. It registers a live wake source until checks settle.\n\n" +

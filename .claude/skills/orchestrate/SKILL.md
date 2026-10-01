@@ -18,6 +18,40 @@ Constants:
 - **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
   goes there. Never inside a repo: a file written into the worktree gets committed by the worker.
 
+## Every wakeup starts with the run snapshot
+
+The first command after every task notification or background-task exit is:
+
+```bash
+node tools/run-status.mjs --session "<this session id>"
+```
+
+Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
+Commands use relative paths when those are shorter. The action set is closed:
+`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
+`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `NO_ACTION`.
+Delivery and readiness remain decisions of their named tools. A merge candidate calls the
+recorder again; it grants no merge authority. A foreign session has no actions. A linked
+worktree warning names the main checkout where the orchestrating run lives.
+
+A `NO_ACTION` wakeup ends immediately after at most one background re-arm, using its command
+only when no live wake source remains. Do not list the board, read logs, poll review or repeat
+the snapshot during that wakeup. An unreadable or rate-limited repository supplies no PR
+actions; its missing observations never prove a slot free. For a pending PR, background the
+`REARM_WAIT_CI` command once. Existing waiters are matched by repository and PR numbers.
+An `ORPHANED_WORKER` requires inspection and recovery before another launch in that worktree.
+
+Keep `issue`, `worktree`, `branch`, `deliveryPath` and `ticketPath` on each ledger identity.
+`writeRunState` preserves these command inputs across sightings. Delivery output goes to
+`deliveryPath`; the ticket synchronization artifact goes to `ticketPath` before recording
+readiness. Previously recorded merge and closure dispositions are reported from the ledger without
+spending a GitHub read on settled work. Older rows use launcher metadata, the receipt's issue,
+the ticket number in the branch and Git's registered branch worktree; missing legacy inputs are named shell variables in the verification command.
+Without artifact paths, the commands use `<receiptPath>.delivery.json` and
+`<receiptPath>.ticket.json`. These are paths to the deciding tools' artifacts, never verdicts
+asserted by the snapshot. Admission reservations are counted conservatively without releasing
+or cleaning them. Only the wake-source reader's proven-dead registration sweep writes.
+
 ## Invocation
 
 ```

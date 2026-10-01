@@ -236,3 +236,25 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     if (unlock) unlock()
   }
 }
+
+/** Snapshot counts never reconcile, release, reserve, lock or delete admission records. */
+export const readAdmissionCounts = ({ repoRoot = REPO_ROOT, snapshots, limits, now = Date.now() }) => {
+  const reservations = { pullRequests: 0, queuedRuns: 0, unreadable: 0 }
+  const directory = reservationDirectory(repoRoot)
+  const names = existsSync(directory) ? readdirSync(directory).filter((name) => name.startsWith("admission-") && name.endsWith(".json")) : []
+  for (const name of names) {
+    const reservation = readReservation(join(directory, name))
+    if (!reservation) { reservations.unreadable++; continue }
+    const terminalAt = reservation.cloud ? cloudTerminalAt(cloudReceipt(reservation.cloud)) : NaN
+    const releasedAt = Number.isFinite(reservation.releasedAt) ? reservation.releasedAt : terminalAt
+    if (Number.isFinite(releasedAt) && now - releasedAt >= RELEASE_HOLD_MS) continue
+    reservations.queuedRuns++
+    const snapshot = snapshots.find((entry) => entry.slug === reservation.repository)
+    if (!snapshot?.openBranches.includes(reservation.branch)) reservations.pullRequests++
+  }
+  const complete = snapshots.every((entry) => entry.status === "OK" && Number.isInteger(entry.openPullRequests) && Number.isInteger(entry.queuedRuns)) && reservations.unreadable === 0
+  const openPullRequests = complete ? snapshots.reduce((sum, entry) => sum + entry.openPullRequests, 0) : null
+  const queuedRuns = complete ? snapshots.reduce((sum, entry) => sum + entry.queuedRuns, 0) : null
+  return { openPullRequests, queuedRuns, reservations, complete,
+    slotFree: complete && openPullRequests + reservations.pullRequests <= limits.maxOpenPullRequests && queuedRuns + reservations.queuedRuns <= limits.maxQueuedRuns }
+}

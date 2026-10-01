@@ -281,17 +281,19 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   for (const entry of identities) {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
     const key = `${entry.repositoryKey}#${entry.prNumber}`
+    const context = Object.fromEntries(["issue", "worktree", "branch", "deliveryPath", "ticketPath"].filter((key) => typeof entry[key] === "string" && entry[key] !== "").map((key) => [key, entry[key]]))
     const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
     const merged = typeof entry.merged === "string" && MERGE_SHA.test(entry.merged) ? entry.merged : null
     const closed = entry.closed === true
     const existing = rows.get(key)
     if (!existing) {
-      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged, closed })
+      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged, closed, ...context })
       continue
     }
     // A later sighting supersedes the receipt path. An explicit closed value updates the row;
     // silence preserves a closure and its blocker. Reopening clears the old blocker unless this
     // sighting records one of its own.
+    Object.assign(existing, context)
     existing.receiptPath = entry.receiptPath
     if (typeof entry.closed === "boolean") existing.closed = closed
     existing.blocker = blocker ?? (existing.closed ? existing.blocker : null)
@@ -302,6 +304,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     repositoryKey: row.repositoryKey,
     prNumber: row.prNumber,
     receiptPath: row.receiptPath,
+    ...Object.fromEntries(["issue", "worktree", "branch", "deliveryPath", "ticketPath"].filter((key) => typeof row[key] === "string").map((key) => [key, row[key]])),
     receiptWritten: existsSync(row.receiptPath),
     blocker: row.blocker,
     merged: row.merged,
