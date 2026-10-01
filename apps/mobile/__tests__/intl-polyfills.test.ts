@@ -31,15 +31,15 @@ describe.each([
     locale: 'en',
     messages: en,
     dates: 'Thursday, Oct 1 and Friday, Oct 2',
-    pair: 'Every Monday and Wednesday',
-    triple: 'Every Monday, Wednesday and Friday at 08:00',
+    pair: 'Monday and Wednesday',
+    triple: 'Monday, Wednesday and Friday',
   },
   {
     locale: 'pt-BR',
     messages: ptBR,
     dates: 'quinta-feira, 1 de out. e sexta-feira, 2 de out.',
-    pair: 'Segunda-feira e Quarta-feira',
-    triple: 'Segunda-feira, Quarta-feira e Sexta-feira às 08:00',
+    pair: 'segunda e quarta',
+    triple: 'segunda, quarta e sexta',
   },
 ])('mobile Intl startup in $locale', ({ locale, messages, dates, pair, triple }) => {
   it('formats repair dates without a native ListFormat', () => {
@@ -55,7 +55,9 @@ describe.each([
       { value: 'Friday', label: messages.dates.daysLong.friday },
     ]
     const translate = (key: string, values?: Record<string, string | number>) => {
-      const template = messages.habits.form[key.replace('habits.form.', '') as keyof typeof messages.habits.form]
+      const template = key.split('.').reduce<unknown>(
+        (catalog, segment) => (catalog as Record<string, unknown>)[segment], messages,
+      ) as string
       return Object.entries(values ?? {}).reduce(
         (sentence, [name, value]) => sentence.replace(`{${name}}`, String(value)),
         template,
@@ -63,10 +65,10 @@ describe.each([
     }
     expect(buildHabitUnderstandingSentence(
       ['Monday', 'Wednesday'], dayOptions, false, 'Day', 1, '', locale, translate,
-    )).toBe(pair)
+    )).toBe(messages.habits.form.understoodDays.replace('{days}', pair))
     expect(buildHabitUnderstandingSentence(
       ['Monday', 'Wednesday', 'Friday'], dayOptions, false, 'Day', 1, '08:00', locale, translate,
-    )).toBe(triple)
+    )).toBe(messages.habits.form.understoodDaysAt.replace('{days}', triple).replace('{time}', '08:00'))
   })
 
   it('rejects malformed locales', () => {
