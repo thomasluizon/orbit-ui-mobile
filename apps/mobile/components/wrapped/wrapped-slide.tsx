@@ -23,6 +23,10 @@ import {
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
@@ -55,6 +59,7 @@ interface WrappedSlideProps {
 
 export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
+  const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = useReducedMotion()
   const { width } = useWindowDimensions()
 
@@ -96,18 +101,28 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
         />
       )
     case 'consistency': {
-      const values = getWrappedWeekdayValues(slide.weeklyConsistency, period)
+      const values = getWrappedWeekdayValues(
+        slide.weeklyConsistency, period, recap.metrics.periodDays, profile?.weekStartDay,
+      )
       return (
         <View style={[styles.slide, styles.weekdaySlide]} testID="wrapped-slide-consistency">
           <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
-          <WeekdayColumns values={values} reducedMotion={reducedMotion} />
-          <WeekdayInterpretation
-            values={values}
-            tokens={tokens}
-            reducedMotion={reducedMotion}
-          />
+          {period === 'week' && !profile ? (
+            <View testID="wrapped-figure" style={styles.figureWidth}>
+              {isProfileError ? (
+                <ErrorState message={t('wrapped.error')} action={
+                  <Button size="sm" onClick={() => void refetchProfile()}>{t('wrapped.retry')}</Button>
+                } />
+              ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
+            </View>
+          ) : (
+            <>
+              <WeekdayColumns values={values} reducedMotion={reducedMotion} />
+              <WeekdayInterpretation values={values} tokens={tokens} reducedMotion={reducedMotion} />
+            </>
+          )}
         </View>
       )
     }

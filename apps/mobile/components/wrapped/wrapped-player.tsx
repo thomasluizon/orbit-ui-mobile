@@ -10,6 +10,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import { formatClosedWrappedMonth, type ClosedRecapMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
+import { useProfile } from '@/hooks/use-profile'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { WrappedSlide } from './wrapped-slide'
@@ -42,7 +43,9 @@ export function WrappedPlayer({
   const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
+  const { profile } = useProfile()
   const current = slides[index]
+  const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
 
   function page(direction: PageDirection) {
     if (direction === 'forward') next()
@@ -110,7 +113,7 @@ export function WrappedPlayer({
               savedFileName={savedFileName}
             />
 
-            {!isLast ? <TapZones isFirst={isFirst} onPage={page} /> : null}
+            {!isLast && canTapToPage ? <TapZones isFirst={isFirst} onPage={page} /> : null}
           </View>
         </ScrollView>
         <PlayerPager

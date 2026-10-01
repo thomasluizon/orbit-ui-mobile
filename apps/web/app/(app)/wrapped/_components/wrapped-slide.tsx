@@ -15,6 +15,10 @@ import {
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import {
   captionStyle,
@@ -55,6 +59,7 @@ function motionProps(step: number, reducedMotion: boolean) {
 
 export function WrappedSlide({ slide, recap, period, captureRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const t = useTranslations()
+  const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = Boolean(useReducedMotion())
 
   switch (slide.id) {
@@ -99,14 +104,28 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
         />
       )
     case 'consistency': {
-      const values = getWrappedWeekdayValues(slide.weeklyConsistency, period)
+      const values = getWrappedWeekdayValues(
+        slide.weeklyConsistency, period, recap.metrics.periodDays, profile?.weekStartDay,
+      )
       return (
         <SlideShell testId="wrapped-slide-consistency" gap={24}>
           <motion.h2 data-testid="wrapped-motion-part" {...motionProps(0, reducedMotion)} style={titleStyle}>
             {t('wrapped.slides.consistency.title')}
           </motion.h2>
-          <WeekdayColumns values={values} reducedMotion={reducedMotion} />
-          <WeekdayInterpretation values={values} reducedMotion={reducedMotion} />
+          {period === 'week' && !profile ? (
+            <div data-wrapped-figure="primary" className="w-full">
+              {isProfileError ? (
+                <ErrorState message={t('wrapped.error')} action={
+                  <Button size="sm" onClick={() => void refetchProfile()}>{t('wrapped.retry')}</Button>
+                } />
+              ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
+            </div>
+          ) : (
+            <>
+              <WeekdayColumns values={values} reducedMotion={reducedMotion} />
+              <WeekdayInterpretation values={values} reducedMotion={reducedMotion} />
+            </>
+          )}
         </SlideShell>
       )
     }

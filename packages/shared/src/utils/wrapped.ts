@@ -1,4 +1,5 @@
 import type { Recap } from '../types/gamification'
+import type { Profile } from '../types/profile'
 import type { RetrospectiveHabitStat } from './retrospective'
 import type { RecapSharePeriod, ClosedRecapMonth } from './share-card'
 
@@ -37,12 +38,15 @@ export type WeeklyConsistencyReading =
 export function getWrappedWeekdayValues(
   weeklyConsistency: readonly number[],
   period: RecapSharePeriod,
-  today: Date = new Date(),
+  periodDays: number,
+  weekStartDay: Profile['weekStartDay'] | undefined,
 ): (number | null)[] {
-  const todayIndex = (today.getDay() + 6) % 7
-  return weeklyConsistency.slice(0, 7).map((value, index) =>
-    period === 'week' && index > todayIndex ? null : value,
-  )
+  return weeklyConsistency.slice(0, 7).map((value, index) => {
+    if (period !== 'week') return value
+    if (weekStartDay === undefined) return null
+    const daysFromWeekStart = (index + 1 - weekStartDay + 7) % 7
+    return daysFromWeekStart < periodDays ? value : null
+  })
 }
 
 export function getWeeklyConsistencyReading(

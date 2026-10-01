@@ -1,9 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const profileState = vi.hoisted<{ weekStartDay: 0 | 1 | undefined; isError: boolean; refetch: ReturnType<typeof vi.fn> }>(() => ({ weekStartDay: 1, isError: false, refetch: vi.fn() }))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: profileState.weekStartDay === undefined ? undefined : createMockProfile({ weekStartDay: profileState.weekStartDay }),
+    isError: profileState.isError,
+    refetch: profileState.refetch,
+  }),
+}))
 
 const motionTestState = vi.hoisted(() => ({ reduced: false, realLocale: '' }))
 
@@ -54,11 +64,17 @@ const recap = createMockRecap({
   }),
 })
 
-function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number], period: 'week' | 'month' | 'year' = 'week') {
+function renderSlide(
+  slide: ReturnType<typeof buildWrappedSlides>[number],
+  period: 'week' | 'month' | 'year' = 'week',
+  storyRecap = recap,
+  weekStartDay: 0 | 1 | null = 1,
+) {
+  profileState.weekStartDay = weekStartDay ?? undefined
   return render(
     <WrappedSlide
       slide={slide}
-      recap={recap}
+      recap={storyRecap}
       period={period}
       captureRef={{ current: null }}
       shareError={false}
@@ -69,6 +85,9 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number], perio
 
 describe('WrappedSlide', () => {
   beforeEach(() => {
+    profileState.weekStartDay = 1
+    profileState.isError = false
+    profileState.refetch.mockReset()
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 9, 4, 12))
   })
@@ -97,7 +116,11 @@ describe('WrappedSlide', () => {
     motionTestState.realLocale = locale
     vi.setSystemTime(new Date(2026, 9, 1, 12))
     const messages = locale === 'en' ? en : ptBR
-    renderSlide({ id: 'consistency', weeklyConsistency: [70, 50, 0, 0, futureValue, futureValue, futureValue] })
+    renderSlide(
+      { id: 'consistency', weeklyConsistency: [70, 50, 0, 0, futureValue, futureValue, futureValue] },
+      'week',
+      createMockRecap({ metrics: createMockRetrospectiveMetrics({ periodDays: 4 }) }),
+    )
     for (const weekday of ['friday', 'saturday', 'sunday'] as const) {
       const column = screen.getByRole('img', { name: `${messages.dates.daysShort[weekday]}: ${messages.calendar.dayCell.future}` })
       expect(column).toHaveTextContent(messages.calendar.dayCell.future)
@@ -107,6 +130,49 @@ describe('WrappedSlide', () => {
     expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent(
       messages.wrapped.slides.consistency.summary.replace('{strong}', messages.dates.daysLong.monday),
     )
+  })
+
+  it.each(([
+    [0, 'Thursday', 5, [20, 20, 0, 20, null, null, 100]],
+    [1, 'Thursday', 4, [20, 20, 0, 20, null, null, null]],
+    [0, 'Sunday', 1, [null, null, null, null, null, null, 100]],
+    [1, 'Sunday', 7, [20, 20, 0, 20, 0, 0, 100]],
+  ] as const).flatMap(([weekStartDay, accountDay, periodDays, expected]) =>
+    [false, true].map((deviceDateMismatch) => ({ weekStartDay, accountDay, periodDays, expected, deviceDateMismatch })),
+  ))('uses the returned $weekStartDay-start window on $accountDay with device mismatch $deviceDateMismatch', ({ weekStartDay, accountDay, periodDays, expected, deviceDateMismatch }) => {
+    motionTestState.realLocale = 'en'
+    vi.setSystemTime(new Date(2026, 9, deviceDateMismatch ? 5 : accountDay === 'Thursday' ? 1 : 4, 12))
+    const storyRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({
+        periodDays,
+        weeklyConsistency: [20, 20, 0, 20, 0, 0, 100],
+      }),
+    })
+    const slide = buildWrappedSlides(storyRecap).find((entry) => entry.id === 'consistency')!
+    renderSlide(slide, 'week', storyRecap, weekStartDay)
+    const weekdays = Object.values(en.dates.daysShort)
+    expect(screen.getAllByRole('img').map((column) => column.getAttribute('aria-label'))).toEqual(
+      expected.map((value, index) => `${weekdays[index]}: ${value === null ? en.calendar.dayCell.future : value}`),
+    )
+    expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent(
+      weekStartDay === 1 && accountDay === 'Thursday'
+        ? en.wrapped.slides.consistency.even
+        : en.wrapped.slides.consistency.summary.replace('{strong}', en.dates.daysLong.sunday),
+    )
+  })
+
+  it.each([false, true])('withholds weekday claims while the profile is unavailable, error %s', (isError) => {
+    profileState.isError = isError
+    renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+    expect(screen.queryByText('wrapped.slides.consistency.thin')).not.toBeInTheDocument()
+    if (isError) {
+      expect(screen.getByRole('alert')).toHaveTextContent('wrapped.error')
+      fireEvent.click(screen.getByRole('button', { name: 'wrapped.retry' }))
+      expect(profileState.refetch).toHaveBeenCalledOnce()
+    } else {
+      expect(screen.getByRole('progressbar', { name: 'wrapped.loading' })).toHaveAttribute('aria-busy', 'true')
+    }
   })
 
   it.each(['month', 'year'] as const)('keeps all weekday averages available for a %s recap on Thursday', (period) => {

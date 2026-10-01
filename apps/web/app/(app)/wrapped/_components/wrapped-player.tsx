@@ -7,6 +7,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import { formatClosedWrappedMonth, type ClosedRecapMonth, type RecapSharePeriod } from '@orbit/shared/utils'
 import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
+import { useProfile } from '@/hooks/use-profile'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
@@ -39,7 +40,9 @@ export function WrappedPlayer({
     : t(`wrapped.player.window.${period}`)
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
+  const { profile } = useProfile()
   const current = slides[index]
+  const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
   const closeRef = useRef<HTMLButtonElement>(null)
   const overlayId = useId()
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
@@ -129,7 +132,7 @@ export function WrappedPlayer({
             shareError={hasError}
             savedFileName={savedFileName}
           />
-          {!isLast && <TapZones isFirst={isFirst} onPage={page} />}
+          {!isLast && canTapToPage && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
         <div className="shrink-0 bg-[var(--bg)]">
           {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}

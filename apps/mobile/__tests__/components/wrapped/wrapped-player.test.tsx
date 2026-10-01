@@ -2,11 +2,17 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
+
+const profileState = vi.hoisted(() => ({ available: true }))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: profileState.available ? createMockProfile({ weekStartDay: 1 }) : undefined }),
+}))
 
 const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
 
@@ -117,12 +123,29 @@ function advanceToLastSlide(tree: ReactTestRenderer, slideCount: number) {
 
 describe('WrappedPlayer', () => {
   beforeEach(() => {
+    profileState.available = true
     translationMock.labels = {}
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
     shareCardMock.canShareFiles = true
     shareCardMock.share.mockReset()
     shareCardMock.download.mockReset()
+  })
+
+  it('keeps pending weekday content reachable without page tap zones and retains the pager', () => {
+    profileState.available = false
+    const { tree } = renderPlayer()
+    for (let index = 0; index < 3; index += 1) {
+      const next = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-next-zone')[0]!
+      void renderer.act(() => (next.props.onPress as () => void)())
+    }
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-consistency')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-next-zone')).toHaveLength(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-previous-zone')).toHaveLength(0)
+    const next = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.props.children === 'wrapped.next').length > 0)[0]!
+    void renderer.act(() => (next.props.onPress as () => void)())
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'wrapped-slide-streak')).toHaveLength(1)
+    void renderer.act(() => tree.update(<></>))
   })
 
   it('shows the month header before close and formats a closed month', () => {

@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import type { Recap } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -21,6 +21,10 @@ import {
 const wrapped = vi.hoisted(() => ({
   recap: null as Recap | null,
   slides: [] as unknown[],
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: createMockProfile({ weekStartDay: 1 }) }),
 }))
 
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))
@@ -90,7 +94,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     vi.setSystemTime(new Date(2026, 9, 1, 12))
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     useAppToastStore.setState({ currentToast: null, queue: [] })
-    wrapped.recap = createMockRecap()
+    wrapped.recap = createMockRecap({ metrics: createMockRetrospectiveMetrics({ periodDays: 4 }) })
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
