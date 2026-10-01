@@ -43,7 +43,7 @@ export function AccountEventConnection(): null {
             headers: lastEventId ? { 'Last-Event-ID': lastEventId } : undefined,
           })
         },
-        onOpen: (openedAt) => invalidateAccountQueriesBefore(queryClient, openedAt),
+        onOpen: (openedAt, hasReplayCursor) => invalidateAccountQueriesBefore(queryClient, openedAt, hasReplayCursor),
         onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, connectionSignal),
         onReconnect: () => setAccountEventOrigin(null),
         onEvent: (event) => {

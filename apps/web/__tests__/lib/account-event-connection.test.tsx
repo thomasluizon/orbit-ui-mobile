@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import { focusManager, QueryClient, QueryObserver } from '@tanstack/react-query'
 import { calendarKeys, checklistTemplateKeys, gamificationKeys, goalKeys, habitKeys, notificationKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { createQueryClient } from '@/lib/query-client'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
@@ -184,13 +185,67 @@ it.each([false, true])('refreshes stale account queries after the return open, c
     openSecondStream(idleStream())
     await settle()
     expect({ beforeOpen, afterOpen: refreshCounts(queries) }).toEqual({
-      beforeOpen: Array(7).fill(0), afterOpen: Array(7).fill(cursor ? 0 : 1),
+      beforeOpen: Array(7).fill(0), afterOpen: cursor ? [1, 0, 0, 0, 0, 0, 0] : Array(7).fill(1),
     })
     expect(refreshCounts(calendar)).toEqual([1])
   } finally {
     stopObserving(queries)
     stopObserving(calendar)
     view.unmount()
+  }
+})
+
+it.each([false, true])('refreshes exhausted AI usage after midnight only after the return stream opens, cursor: %s', async (cursor) => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-01-01T02:55:00Z'))
+  const setVisibility = stubVisibility()
+  const client = createQueryClient()
+  queryClientState.current = client
+  client.mount()
+  let openSecondStream!: (response: Response) => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(ticketResponse('first'))
+    .mockResolvedValueOnce(cursorStream(cursor))
+    .mockResolvedValueOnce(ticketResponse('second'))
+    .mockReturnValueOnce(new Promise<Response>((resolve) => { openSecondStream = resolve }))
+    .mockResolvedValueOnce(ticketResponse('third'))
+    .mockResolvedValueOnce(idleStream())
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  await settle()
+  const exhausted = createMockProfile({ aiMessagesUsed: 20 })
+  client.setQueryData(profileKeys.detail(), exhausted)
+  const fetchProfile = vi.fn(async () => createMockProfile({ aiMessagesUsed: 0 }))
+  const observer = new QueryObserver(client, { queryKey: profileKeys.detail(), queryFn: fetchProfile })
+  const unsubscribe = observer.subscribe(() => {})
+  const habits = observeStaleQueries(client, [habitKeys.count()])
+  try {
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(exhausted.aiMessagesLimit)
+    setVisibility('hidden')
+    vi.setSystemTime(new Date('2026-01-01T03:05:00Z'))
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+    await settle()
+    expect(fetchProfile).not.toHaveBeenCalled()
+    expect(refreshCounts(habits)).toEqual([0])
+    openSecondStream(idleStream())
+    await settle()
+    expect(fetchProfile).toHaveBeenCalledTimes(1)
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(0)
+    expect(refreshCounts(habits)).toEqual([cursor ? 0 : 1])
+    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: cursor ? { 'Last-Event-ID': 'epoch.5' } : undefined })
+    setVisibility('hidden')
+    vi.setSystemTime(new Date('2026-01-01T03:06:00Z'))
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(6))
+    await settle()
+    expect(fetchProfile).toHaveBeenCalledTimes(cursor ? 1 : 2)
+  } finally {
+    unsubscribe()
+    stopObserving(habits)
+    view.unmount()
+    vi.useRealTimers()
   }
 })
 

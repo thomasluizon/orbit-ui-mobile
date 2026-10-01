@@ -212,7 +212,7 @@ describe('account events', () => {
       .mockResolvedValueOnce(closedStream())
     const calls = await recordStreamCallbacks(open, { resumed: true }, 3000)
     expect(open.mock.calls.map((call) => call[1])).toEqual([null, 'epoch.1', 'epoch.1'])
-    expect(calls).toEqual(['open', 'reconnect', 'failure', 'reconnect'])
+    expect(calls).toEqual(['open', 'reconnect', 'failure', 'cursor open', 'reconnect'])
   })
 })
 
@@ -251,7 +251,7 @@ async function recordStreamCallbacks(
       open,
       signal: controller.signal,
       onEvent: () => {},
-      onOpen: () => { calls.push('open') },
+      onOpen: (_openedAt, hasReplayCursor) => { calls.push(hasReplayCursor ? 'cursor open' : 'open') },
       onFirstFailure: () => { calls.push('failure') },
       onReconnect: () => { calls.push('reconnect') },
     })

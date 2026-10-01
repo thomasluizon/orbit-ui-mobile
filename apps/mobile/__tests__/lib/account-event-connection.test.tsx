@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
 import { focusManager, QueryObserver } from '@tanstack/react-query'
 import { calendarKeys, checklistTemplateKeys, gamificationKeys, goalKeys, habitKeys, notificationKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
 import { QUERY_CACHE_VERSION, queryClient, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
@@ -224,13 +225,58 @@ it.each([false, true])('refreshes stale account queries after the return open, c
       await vi.advanceTimersByTimeAsync(0)
     })
     expect({ beforeOpen, afterOpen: refreshCounts(queries) }).toEqual({
-      beforeOpen: Array(7).fill(0), afterOpen: Array(7).fill(cursor ? 0 : 1),
+      beforeOpen: Array(7).fill(0), afterOpen: cursor ? [1, 0, 0, 0, 0, 0, 0] : Array(7).fill(1),
     })
     expect(refreshCounts(calendar)).toEqual([1])
   } finally {
     await act(() => { (view as unknown as { unmount: () => void }).unmount() })
     stopObserving(queries)
     stopObserving(calendar)
+    queryClient.unmount()
+    vi.useRealTimers()
+  }
+})
+
+it.each([false, true])('refreshes exhausted AI usage after midnight only after the return stream opens, cursor: %s', async (cursor) => {
+  mocks.queryClient = queryClient
+  queryClient.mount()
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-01-01T02:55:00Z'))
+  let openSecondStream!: (response: ReturnType<typeof idleStream>) => void
+  mocks.expoFetch
+    .mockResolvedValueOnce(cursorStream(cursor))
+    .mockReturnValueOnce(new Promise<ReturnType<typeof idleStream>>((resolve) => { openSecondStream = resolve }))
+    .mockResolvedValueOnce(idleStream())
+  let view!: ReturnType<typeof TestRenderer.create>
+  let unsubscribe = () => {}
+  let habits: ReturnType<typeof observeAccountQueries> = []
+  try {
+    await act(async () => { view = TestRenderer.create(React.createElement(AccountEventConnection)); await vi.advanceTimersByTimeAsync(0) })
+    const exhausted = createMockProfile({ aiMessagesUsed: 20 })
+    queryClient.setQueryData(profileKeys.detail(), exhausted)
+    const fetchProfile = vi.fn(() => Promise.resolve(createMockProfile({ aiMessagesUsed: 0 })))
+    const observer = new QueryObserver(queryClient, { queryKey: profileKeys.detail(), queryFn: fetchProfile })
+    unsubscribe = observer.subscribe(() => {})
+    habits = observeStaleQueries([habitKeys.count()])
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(exhausted.aiMessagesLimit)
+    await act(async () => { mocks.onAppState('background'); await vi.advanceTimersByTimeAsync(600_000) })
+    await act(async () => { mocks.onAppState('active'); await vi.advanceTimersByTimeAsync(0) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    expect(fetchProfile).not.toHaveBeenCalled()
+    expect(refreshCounts(habits)).toEqual([0])
+    await act(async () => { openSecondStream(idleStream()); await vi.advanceTimersByTimeAsync(0) })
+    expect(fetchProfile).toHaveBeenCalledTimes(1)
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(0)
+    expect(refreshCounts(habits)).toEqual([cursor ? 0 : 1])
+    expect(mocks.expoFetch.mock.calls[1]?.[1]?.headers?.['Last-Event-ID']).toBe(cursor ? 'epoch.5' : undefined)
+    await act(async () => { mocks.onAppState('background'); await vi.advanceTimersByTimeAsync(60_000) })
+    await act(async () => { mocks.onAppState('active'); await vi.advanceTimersByTimeAsync(0) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(3)
+    expect(fetchProfile).toHaveBeenCalledTimes(cursor ? 1 : 2)
+  } finally {
+    await act(() => { (view as unknown as { unmount: () => void }).unmount() })
+    unsubscribe()
+    stopObserving(habits)
     queryClient.unmount()
     vi.useRealTimers()
   }
