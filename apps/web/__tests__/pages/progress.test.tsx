@@ -120,13 +120,16 @@ const mocks = vi.hoisted(() => ({
   },
   streakSnapshotZones: null as Set<string> | null,
   isDesktop: false,
+  usePortugueseCatalog: false,
 }))
 
 vi.mock('next-intl', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next-intl')>()),
-  useLocale: () => 'en',
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${JSON.stringify(values)}` : key,
+  useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
+  useTranslations: () => mocks.usePortugueseCatalog
+    ? createTranslator({ locale: 'pt-BR', messages: ptBR })
+    : (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
@@ -252,6 +255,23 @@ describe('ProgressContent', () => {
       for (const family of families) expect(family).toContain('Space Grotesk')
     } finally {
       await page.close()
+    }
+  })
+
+  it.each([
+    { count: 0, label: 'dias seguidos' },
+    { count: 1, label: 'dia seguido' },
+    { count: 2, label: 'dias seguidos' },
+  ])('renders the Portuguese streak figure at $count through next-intl', ({ count, label }) => {
+    mocks.usePortugueseCatalog = true
+    mocks.freeze.streakInfo.currentStreak = count
+    try {
+      render(<ProgressPage />)
+      const streak = screen.getByRole('region', { name: ptBR.progressScreen.sections.streak })
+      expect(within(streak).getByText(label).previousElementSibling).toHaveTextContent(String(count))
+      expect(within(streak).queryByText(count === 1 ? 'dias seguidos' : 'dia seguido')).not.toBeInTheDocument()
+    } finally {
+      mocks.usePortugueseCatalog = false
     }
   })
 

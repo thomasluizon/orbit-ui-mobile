@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
   drag: vi.fn(),
   dragActive: false,
+  usePortugueseCatalog: false,
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
     profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
@@ -153,9 +154,11 @@ vi.mock('react-i18next', async () => {
   return {
     ...actual,
     useTranslation: () => ({
-      t: (key: string, values?: Record<string, unknown>) =>
-        values ? `${key}:${JSON.stringify(values)}` : key,
-      i18n: { language: 'en' },
+      t: mocks.usePortugueseCatalog
+        ? i18n.t.bind(i18n)
+        : (key: string, values?: Record<string, unknown>) =>
+          values ? `${key}:${JSON.stringify(values)}` : key,
+      i18n: { language: mocks.usePortugueseCatalog ? i18n.language : 'en' },
     }),
   }
 })
@@ -1380,6 +1383,28 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => (active.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.accessibilityActions !== undefined)).toHaveLength(0)
+  })
+
+  it.each([
+    { count: 0, label: 'dias seguidos' },
+    { count: 1, label: 'dia seguido' },
+    { count: 2, label: 'dias seguidos' },
+  ])('renders the Portuguese streak figure at $count through mobile i18n', async ({ count, label }) => {
+    await i18n.changeLanguage('pt-BR')
+    mocks.usePortugueseCatalog = true
+    mocks.freeze.streakInfo.currentStreak = count
+    try {
+      const tree = await renderProgress()
+      const streakLabel = tree.root.findAll((node) => node.type === 'Text' && node.props.children === label)[0]!
+      expect(streakLabel).toBeDefined()
+      let figure = streakLabel.parent!
+      while (figure.type !== 'View') figure = figure.parent!
+      expect(figure.findAll((node) => node.type === 'Text' && node.props.children === String(count))).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.props.children === (count === 1 ? 'dias seguidos' : 'dia seguido'))).toHaveLength(0)
+    } finally {
+      mocks.usePortugueseCatalog = false
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('renders fourteen account days and exposes the bank on the owning screen', async () => {
