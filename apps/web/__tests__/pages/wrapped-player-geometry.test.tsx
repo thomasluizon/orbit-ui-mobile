@@ -55,6 +55,7 @@ vi.mock('@/hooks/use-share-card', () => ({
 import WrappedPage from '@/app/(app)/wrapped/page'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -118,6 +119,10 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
           return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
         }).length
         const atStart = {
+          undersizedControls: [...dialog.querySelectorAll('button')].filter((button) => {
+            const bounds = button.getBoundingClientRect()
+            return bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44)
+          }).map((button) => button.getAttribute('aria-label') ?? button.textContent),
           unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
           unavailableValueOverflow,
           closeTop: close.getBoundingClientRect().top,
@@ -166,6 +171,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         .toEqual({ slide: slide.id, pagerBottom: true })
       expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
       expect(measured.unavailableValueOverflow).toBe(0)
+      expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
       expect(measured.closeTop).toBeGreaterThanOrEqual(0)
       expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
       expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
@@ -179,5 +185,40 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       const next = screen.queryByTestId('wrapped-next-zone')
       if (next) fireEvent.click(next)
     }
+  })
+
+  it.each(['dark', 'light'] as const)('fills the whole close target on hover and press in %s mode', async (mode) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
+    await act(async () => {})
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}} button{transition:none !important}</style>${container.innerHTML}`)
+      const close = page.getByRole('button', { name: en.wrapped.close, exact: true })
+      const bounds = await close.boundingBox()
+      expect(bounds!.width).toBeGreaterThanOrEqual(44)
+      expect(bounds!.height).toBeGreaterThanOrEqual(44)
+      const readFill = () => close.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-hover)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return {
+          background: style.backgroundColor, expected, overflow: style.overflow,
+          before: getComputedStyle(element, '::before').content,
+          after: getComputedStyle(element, '::after').content,
+        }
+      })
+      await close.hover()
+      const hovered = await readFill()
+      expect(hovered).toMatchObject({ background: hovered.expected, overflow: 'hidden', before: 'none', after: 'none' })
+      await page.mouse.down()
+      const pressed = await readFill()
+      expect(pressed.background).toBe(pressed.expected)
+      await page.mouse.up()
+    } finally { await page.close() }
   })
 })

@@ -88,8 +88,7 @@ export function WrappedPlayer({
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel={t('wrapped.close')}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            style={({ pressed }) => [styles.closeBtn, pressed ? styles.closeBtnPressed : null]}
+            style={({ pressed }) => [styles.closeBtn, pressed ? [styles.closeBtnPressed, { backgroundColor: tokens.bgHover }] : null]}
           >
             <X size={20} color={tokens.fg1} strokeWidth={1.8} />
           </Pressable>
