@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet, type ViewStyle } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 import { ApiClientError } from "@orbit/shared";
@@ -320,6 +321,17 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.eventsQuery.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the import body bottom inset to its sheet', async () => {
+    let tree: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    const body = tree!.root.findAll((node) => node.type === 'View')[0];
+    const style = (StyleSheet.flatten(body!.props.style) as ViewStyle | undefined) ?? {};
+    expect(style.paddingBottom ?? style.paddingVertical ?? style.padding ?? 0).toBe(0);
   });
 
   async function pressConnect() {

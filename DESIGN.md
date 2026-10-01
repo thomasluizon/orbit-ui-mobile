@@ -841,6 +841,20 @@ may flip the flag.
 
 Grabber (mobile presentation only) · header (title, optional description, close) · body (the single scroll container) · footer (actions, pinned, never scrolling with the body) · safe-area and keyboard insets on both.
 
+**The sheet primitive owns the body's outer padding on both platforms:** 8px at the top,
+24px horizontally and 24px at the bottom. Callers add only spacing between their content groups,
+never a second outer inset or a trailing spacer. A card or row inside the body keeps its own
+internal padding. Header padding is 16px top, 24px horizontally and 8px bottom; the pinned action
+row uses 16px top, 24px horizontally and 24px bottom. Safe-area clearance and mobile footer
+reservation belong to the primitive separately from this content padding.
+
+**Fixed-column date grids keep all seven 44px targets inside the body.** The date picker requests
+a 308px minimum body width. The primitive reduces only that body's horizontal inset as the panel
+narrows below 356px, stepping down the spacing scale (24, 16, 12, 8, 4) to the largest inset that
+still fits the grid, and restores 24px when space permits. The top and bottom padding, header and
+footer stay canonical. This stepped inset applies on both platforms;
+ordinary sheet content keeps its 24px horizontal inset at every supported width.
+
 **The panel is `--bg-elev`, authored opaque.** An overlay sits over arbitrary content, so a translucent panel cannot have its text contrast checked. The backdrop is `--scrim`. Radius 28 at the top on mobile presentation, 20 all round at `sm` and above.
 
 ### Dismissal contract

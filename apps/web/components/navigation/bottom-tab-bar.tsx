@@ -5,7 +5,7 @@ import type { TabBarProps } from '@orbit/shared/contracts/navigation'
 export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabBarProps>) {
   const activeIndex = items.findIndex((item) => item.id === activeId)
   return (
-    <nav aria-label={label} className="flex h-14 border-t border-[var(--hairline)] bg-[var(--bg)]">
+    <nav aria-label={label} className="mx-auto flex h-14 w-full max-w-[740px] border-t border-[var(--hairline)] bg-[var(--bg)]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
