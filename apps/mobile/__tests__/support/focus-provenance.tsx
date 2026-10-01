@@ -5,7 +5,7 @@ interface FocusableHost {
   findAll?: (predicate: (node: any) => boolean) => any[]
   props: {
     __nativeTag?: number
-    onFocus?: () => void
+    onFocus?: (event: { nativeEvent: { target: number }; target: FocusableHost; currentTarget: FocusableHost }) => void
   }
 }
 
@@ -35,5 +35,5 @@ function nativeTagOf(target: FocusableHost): number {
 /** Reproduces Android's real order: the root captures the new target first, then the host reports focus. */
 export function focusHost(tree: any, target: FocusableHost): void {
   findFocusRoot(tree).props.onFocusCapture({ nativeEvent: { target: nativeTagOf(target) } })
-  target.props.onFocus?.()
+  target.props.onFocus?.({ nativeEvent: { target: nativeTagOf(target) }, target, currentTarget: target })
 }

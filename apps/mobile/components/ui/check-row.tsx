@@ -1,5 +1,6 @@
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -19,6 +20,7 @@ export function CheckRow({
 
   return (
     <Pressable
+      focusOffset={-6}
       onPress={() => onChange(!checked)}
       disabled={disabled || loading}
       accessibilityRole="checkbox"

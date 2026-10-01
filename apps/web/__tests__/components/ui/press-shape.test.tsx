@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { execFileSync } from 'node:child_process'
 import { NextIntlClientProvider } from 'next-intl'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -107,6 +108,7 @@ describe('interaction fill parity in Chromium', () => {
       const variables = resolveWebThemeVariables('orange', 'dark')
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root {${declarations}} button {transition:none !important}</style>${markup}`)
+      await loadAppFonts(page)
       const customReminder = page.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).locator('..')
       const button = customReminder.getByRole('button', { name: ptBr.common.add, exact: true })
       await button.hover()
@@ -150,6 +152,7 @@ describe('interaction fill parity in Chromium', () => {
       const variables = resolveWebThemeVariables('orange', mode)
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
+      await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
       for (const label of ['Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
         const control = page.getByRole('button', { name: label, exact: true })

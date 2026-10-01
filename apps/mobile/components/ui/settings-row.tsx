@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { ChevronRight, type IconProps } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -56,6 +57,7 @@ export function SettingsRow({
 
   return (
     <Pressable
+      focusOffset={-6}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'none'}

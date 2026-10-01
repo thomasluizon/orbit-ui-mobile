@@ -62,7 +62,7 @@ export function HabitEmojiSelector({
   return (
     <>
       <View style={styles.emojiField}>
-        <Pressable
+        <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
             { width: wellSize, height: wellSize, borderRadius: 999, overflow: 'hidden' },
@@ -96,7 +96,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: 44, justifyContent: 'center', width: 44 }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
+            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: 44, justifyContent: 'center', width: 44 }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -114,7 +114,7 @@ export function HabitEmojiSelector({
                 style={{ flex: 1 }}
               />
               {query ? (
-                <Pressable
+                <Pressable focusInset
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.emojiClearSearch")}
                   style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
@@ -132,7 +132,7 @@ export function HabitEmojiSelector({
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (
-                  <Pressable
+                  <Pressable focusInset
                     key={category.id}
                     style={({ pressed }) => [
                       styles.emojiCategoryTab,
@@ -163,7 +163,7 @@ export function HabitEmojiSelector({
                     {category.emojis.map((emoji) => {
                       const selected = selectedEmoji === emoji;
                       return (
-                        <Pressable
+                        <Pressable focusInset
                           key={`${category.id}-${emoji}`}
                           style={({ pressed }) => [
                             styles.emojiOption,

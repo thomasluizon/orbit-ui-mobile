@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -31,6 +32,7 @@ describe('PageHeader', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         const title = page.getByRole('heading', { level: 1, name: 'About' })
         expect(await title.evaluate((element) => ({ size: getComputedStyle(element).fontSize, weight: getComputedStyle(element).fontWeight })))
           .toEqual({ size: '20px', weight: '500' })
@@ -52,6 +54,7 @@ describe('PageHeader', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         const fontSize = (element: Element) => getComputedStyle(element).fontSize
         expect(await page.getByText('April', { exact: true }).evaluate(fontSize)).toBe('28px')
         expect(await page.getByRole('button', { name: 'Select year' }).evaluate(fontSize)).toBe(width >= 1024 ? '14px' : '12px')
@@ -68,6 +71,7 @@ describe('PageHeader', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         for (const [level, size] of [[1, '28px'], [2, '22px'], [3, '17px']] as const) {
           const heading = page.getByRole('heading', { level })
           expect(await heading.evaluate((element) => getComputedStyle(element).fontSize)).toBe(size)

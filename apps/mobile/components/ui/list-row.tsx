@@ -1,7 +1,8 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
 import { cloneElement, isValidElement, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
@@ -63,7 +64,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
+        <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, pressed ? { backgroundColor: tokens.bgHover } : null]}>

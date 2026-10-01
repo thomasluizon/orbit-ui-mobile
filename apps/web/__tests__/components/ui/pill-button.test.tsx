@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -31,12 +32,9 @@ describe('PillButton', () => {
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-      const font = readFileSync(require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')).toString('base64')
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}: ${value};`).join(' ')
       stylesheet = `${compiled.css}
         :root { ${variables} }
-        @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
-        :root { --font-sans: TestGeist; }
         body { padding: 48px; }`
     })
 
@@ -47,6 +45,7 @@ describe('PillButton', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         await page.locator('button').hover()
         const geometry = await page.locator('button').evaluate((button) => {
           for (const animation of button.getAnimations()) animation.finish()
@@ -77,7 +76,7 @@ describe('PillButton', () => {
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await page.evaluate(() => document.fonts.ready)
+        await loadAppFonts(page)
         const measured = await page.evaluate(() => {
           const button = document.querySelector('button')!
           const bounds = button.getBoundingClientRect()

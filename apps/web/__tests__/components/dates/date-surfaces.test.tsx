@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
@@ -148,6 +149,7 @@ describe('MonthGrid', () => {
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>.grid { display: grid; }</style>${container.innerHTML}`)
+        await loadAppFonts(page)
         const measured = await page.getByTestId('month-grid-days').evaluate((grid) => {
           const children = [...grid.children]
           const rowTops = [...new Set(children.map((child) => child.getBoundingClientRect().top))]

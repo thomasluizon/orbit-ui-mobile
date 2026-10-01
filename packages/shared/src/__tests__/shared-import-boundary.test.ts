@@ -1,11 +1,17 @@
 import { ESLint } from 'eslint'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 const packageRoot = new URL('../../', import.meta.url).pathname
 const sourcePath = new URL('../hooks/tag-selection-core.ts', import.meta.url).pathname
 const testPath = new URL('./tag-selection-core.test.ts', import.meta.url).pathname
 
 describe('shared source import boundary', () => {
+  let eslint: ESLint
+  beforeAll(async () => {
+    eslint = new ESLint({ cwd: packageRoot })
+    await eslint.lintText('', { filePath: sourcePath })
+  }, 60_000)
+
   it.each([
     'react',
     'react/jsx-runtime',
@@ -16,7 +22,6 @@ describe('shared source import boundary', () => {
     'next/navigation',
     'react-native/gesture-handler',
   ])('rejects %s at error severity', async (moduleName) => {
-    const eslint = new ESLint({ cwd: packageRoot })
     const [result] = await eslint.lintText(`import '${moduleName}'\n`, {
       filePath: sourcePath,
     })
@@ -41,7 +46,6 @@ describe('shared source import boundary', () => {
     'next',
     'next/navigation',
   ])('rejects a dynamic import of %s at error severity', async (moduleName) => {
-    const eslint = new ESLint({ cwd: packageRoot })
     const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
       filePath: sourcePath,
     })
@@ -67,7 +71,6 @@ describe('shared source import boundary', () => {
   ])(
     'rejects the non-literal dynamic import %s at error severity',
     async (expression) => {
-      const eslint = new ESLint({ cwd: packageRoot })
       const [result] = await eslint.lintText(`export const load = () => ${expression}\n`, {
         filePath: sourcePath,
       })
@@ -86,7 +89,6 @@ describe('shared source import boundary', () => {
   )
 
   it('allows a relative string-literal dynamic import, as the locale loader uses', async () => {
-    const eslint = new ESLint({ cwd: packageRoot })
     const [result] = await eslint.lintText("export const load = () => import('./en.json')\n", {
       filePath: sourcePath,
     })
@@ -98,7 +100,6 @@ describe('shared source import boundary', () => {
   it.each(['react-i18next', 'next-intl', 'reactive'])(
     'allows a dynamic import of %s, which only shares a prefix',
     async (moduleName) => {
-      const eslint = new ESLint({ cwd: packageRoot })
       const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
         filePath: sourcePath,
       })
@@ -109,7 +110,6 @@ describe('shared source import boundary', () => {
   )
 
   it('allows test files to import React', async () => {
-    const eslint = new ESLint({ cwd: packageRoot })
     const [result] = await eslint.lintText("import 'react'\n", {
       filePath: testPath,
     })

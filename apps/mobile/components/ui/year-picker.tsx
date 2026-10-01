@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { ScrollView, StyleSheet, Text } from 'react-native'
+import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { buildYearRange } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -50,6 +51,7 @@ export function YearPicker({
         const isSelected = year === selectedYear
         return (
           <Pressable
+            focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
             key={year}
             onPress={() => onSelectYear(year)}
             accessibilityRole="button"

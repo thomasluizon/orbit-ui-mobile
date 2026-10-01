@@ -7,7 +7,8 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -55,7 +56,7 @@ function AttachmentTray({
           <Text numberOfLines={1} style={[styles.attachmentName, { color: tokens.fg2 }]}>
             {attachment.name}
           </Text>
-          <Pressable
+          <InsetFocusPressable
             accessibilityRole="button"
             accessibilityLabel={words.remove(attachment.name)}
             onPress={() => onRemove(attachment.id)}
@@ -65,7 +66,7 @@ function AttachmentTray({
             ]}
           >
             <X size={20} strokeWidth={1.8} color={tokens.fg3} />
-          </Pressable>
+          </InsetFocusPressable>
         </View>
       ))}
     </View>
@@ -86,7 +87,7 @@ function SuggestionStrip({
       contentContainerStyle={styles.suggestions}
     >
       {suggestions.map((suggestion) => (
-        <Pressable
+        <InsetFocusPressable
           key={suggestion.id}
           accessibilityRole="button"
           accessibilityLabel={suggestion.label}
@@ -101,7 +102,7 @@ function SuggestionStrip({
         >
           {suggestion.icon}
           <Text numberOfLines={1} style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
-        </Pressable>
+        </InsetFocusPressable>
       ))}
     </ScrollView>
   )
@@ -169,69 +170,82 @@ function composerFieldStyle(tokens: AppTokensV2, focused: boolean, disabled: boo
   }
 }
 
+function ComposerVoiceControl({ props, tokens, words }: Readonly<{
+  props: MobileComposerProps
+  tokens: AppTokensV2
+  words: NonNullable<ComposerProps['voiceWords']>
+}>) {
+  const isRecording = props.state === 'recording'
+  const isTranscribing = props.state === 'transcribing'
+  const voiceActive = isRecording || isTranscribing
+  const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
+  return (
+    <InsetFocusPressable
+      accessibilityRole="button"
+      accessibilityLabel={voiceActive ? words.stop : words.start}
+      focusColor={isRecording ? tokens.fgOnPrimary : tokens.fg1}
+      accessibilityState={{ disabled: voiceDisabled }}
+      disabled={voiceDisabled}
+      onPress={props.onVoice}
+      style={({ pressed }) => [
+        styles.iconButton,
+        isRecording ? { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary } : null,
+        pressed && !isRecording ? { backgroundColor: tokens.bgHover } : null,
+        voiceDisabled ? styles.disabled : null,
+      ]}
+    >
+      {voiceActive ? (
+        <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} />
+      ) : (
+        <Mic size={20} strokeWidth={1.8} color={tokens.fg3} />
+      )}
+    </InsetFocusPressable>
+  )
+}
+
 function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
   const inputDisabled = props.state !== 'idle'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
+  const voiceActive = isRecording || isTranscribing
   return (
-        <View testID="composer-controls" style={styles.controls}>
-        {!isRecording && !isTranscribing && props.onAttachFile ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={props.attachWords.file}
-            accessibilityState={{ disabled: inputDisabled }}
-            disabled={inputDisabled}
-            onPress={props.onAttachFile}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgHover } : null,
-              inputDisabled ? styles.disabled : null,
-            ]}
-          >
-            <FileText size={20} strokeWidth={1.8} color={tokens.fg3} />
-          </Pressable>
-        ) : null}
+    <View testID="composer-controls" style={styles.controls}>
+      {!voiceActive && props.onAttachFile ? (
+        <InsetFocusPressable
+          accessibilityRole="button"
+          accessibilityLabel={props.attachWords.file}
+          accessibilityState={{ disabled: inputDisabled }}
+          disabled={inputDisabled}
+          onPress={props.onAttachFile}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? { backgroundColor: tokens.bgHover } : null,
+            inputDisabled ? styles.disabled : null,
+          ]}
+        >
+          <FileText size={20} strokeWidth={1.8} color={tokens.fg3} />
+        </InsetFocusPressable>
+      ) : null}
 
-        {!isRecording && !isTranscribing && props.onAttachImage ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={props.attachWords.image}
-            accessibilityState={{ disabled: inputDisabled }}
-            disabled={inputDisabled}
-            onPress={props.onAttachImage}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgHover } : null,
-              inputDisabled ? styles.disabled : null,
-            ]}
-          >
-            <Image size={20} strokeWidth={1.8} color={tokens.fg3} />
-          </Pressable>
-        ) : null}
+      {!voiceActive && props.onAttachImage ? (
+        <InsetFocusPressable
+          accessibilityRole="button"
+          accessibilityLabel={props.attachWords.image}
+          accessibilityState={{ disabled: inputDisabled }}
+          disabled={inputDisabled}
+          onPress={props.onAttachImage}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? { backgroundColor: tokens.bgHover } : null,
+            inputDisabled ? styles.disabled : null,
+          ]}
+        >
+          <Image size={20} strokeWidth={1.8} color={tokens.fg3} />
+        </InsetFocusPressable>
+      ) : null}
 
-        {props.onVoice ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isRecording || isTranscribing ? props.voiceWords.stop : props.voiceWords.start}
-            accessibilityState={{ disabled: voiceDisabled }}
-            disabled={voiceDisabled}
-            onPress={props.onVoice}
-            style={({ pressed }) => [
-              styles.iconButton,
-              isRecording ? { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary } : null,
-              pressed && !isRecording ? { backgroundColor: tokens.bgHover } : null,
-              voiceDisabled ? styles.disabled : null,
-            ]}
-          >
-            {isRecording || isTranscribing ? (
-              <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} />
-            ) : (
-              <Mic size={20} strokeWidth={1.8} color={tokens.fg3} />
-            )}
-          </Pressable>
-        ) : null}
-        </View>
+      {props.onVoice ? <ComposerVoiceControl props={props} tokens={tokens} words={props.voiceWords} /> : null}
+    </View>
   )
 }
 
@@ -296,7 +310,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
     <View style={styles.inputRow}>
       {props.onOpenConversation && props.conversationLabel ? (
         <Animated.View style={{ transform: [{ scale: openConversationScale }] }}>
-          <Pressable
+          <InsetFocusPressable
             accessibilityRole="button"
             accessibilityLabel={props.conversationLabel}
             onPress={props.onOpenConversation}
@@ -305,7 +319,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
             style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
             <AstraGlyph size={20} color={tokens.fg3} />
-          </Pressable>
+          </InsetFocusPressable>
         </Animated.View>
       ) : null}
       <View
@@ -319,8 +333,9 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         <ComposerControls props={props} tokens={tokens} />
       </View>
 
-      <Pressable
+      <InsetFocusPressable
         testID={sendIsAccent ? 'composer-send-accent' : 'composer-send-neutral'}
+        focusColor={sendIsAccent ? tokens.fgOnPrimary : tokens.fg1}
         accessibilityRole="button"
         accessibilityLabel={props.words.send}
         accessibilityState={{ disabled: !canSend }}
@@ -341,7 +356,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         ]}
       >
         <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
-      </Pressable>
+      </InsetFocusPressable>
     </View>
   )
 }
@@ -349,14 +364,14 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
   if (!props.onRetry) return null
   return (
-    <Pressable
+    <InsetFocusPressable
       accessibilityRole="button"
       onPress={props.onRetry}
       style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : null]}
     >
       <RefreshCw size={16} strokeWidth={1.8} color={tokens.fg2} />
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text>
-    </Pressable>
+    </InsetFocusPressable>
   )
 }
 
