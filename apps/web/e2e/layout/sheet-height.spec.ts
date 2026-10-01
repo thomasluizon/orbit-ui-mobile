@@ -117,21 +117,21 @@ test('a short widget sheet has one bottom inset below its last line', async ({ p
   await panel.evaluate(() => document.fonts.ready.then(() => undefined))
   const measured = await panel.evaluate((element) => {
     const body = element.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
-    const lastLine = body.querySelectorAll('li span:last-child')
+    const rows = body.querySelectorAll('li')
     const bodyStyle = getComputedStyle(body)
     return {
       panelHeight: element.getBoundingClientRect().height,
       bodyPaddingBottom: Number.parseFloat(bodyStyle.paddingBottom),
       bodyPaddingLeft: Number.parseFloat(bodyStyle.paddingLeft),
       bodyPaddingRight: Number.parseFloat(bodyStyle.paddingRight),
-      lastLineBottomGap: body.getBoundingClientRect().bottom - lastLine[lastLine.length - 1]!.getBoundingClientRect().bottom,
+      lastRowBottomGap: body.getBoundingClientRect().bottom - rows[rows.length - 1]!.getBoundingClientRect().bottom,
     }
   })
   expect(measured.panelHeight).toBeLessThan(MAX_PANEL_HEIGHT)
   expect(measured.bodyPaddingBottom).toBe(BODY_PADDING)
   expect(measured.bodyPaddingLeft).toBe(BODY_PADDING)
   expect(measured.bodyPaddingRight).toBe(BODY_PADDING)
-  expect(measured.lastLineBottomGap).toBeCloseTo(BODY_PADDING, 0)
+  expect(measured.lastRowBottomGap).toBeCloseTo(BODY_PADDING, 0)
 })
 
 test('a long creation sheet scrolls under its pinned safe area footer', async ({ page }) => {

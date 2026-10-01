@@ -1228,7 +1228,6 @@ function createStyles() {
       flex: 1,
     },
     sheetContent: {
-      paddingTop: 4,
       gap: 12,
     },
   });

@@ -146,7 +146,7 @@ export function MoveParentDialog({
         </DialogActionPair>
       }
     >
-      <View style={styles.sheetBody}>
+      <View>
         <MoveDialogDescription
           title={movingHabitTitle}
           text={t('habits.moveParent.description', { name: movingHabitTitle })}
@@ -210,9 +210,6 @@ export function MoveParentDialog({
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    sheetBody: {
-      paddingTop: 4,
-    },
     moveDialogDescription: {
       fontFamily: 'Geist_400Regular',
       fontSize: 15,
@@ -237,7 +234,6 @@ function createStyles(tokens: AppTokensV2) {
     moveOptionsContent: {
       gap: 4,
       paddingTop: 4,
-      paddingBottom: 8,
     },
     wellEmoji: {
       fontSize: 16,
