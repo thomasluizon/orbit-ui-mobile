@@ -18,6 +18,7 @@ import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
 import { resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
@@ -225,7 +226,7 @@ function DestinationShellContent({
         resetRouteTransitionIntent()
         return
       }
-      router.push(route)
+      requestHabitCreateNavigation(() => router.push(route))
     },
     [pathname, router],
   )
@@ -266,7 +267,7 @@ function DestinationShellContent({
       onCreateHabit={onCreate}
     />
   )
-  const wideCreate = pathname === '/upgrade'
+  const wideCreate = pathname === '/upgrade' || pathname === '/habits/new'
     ? { onCreate: undefined, createLabel: undefined }
     : { onCreate, createLabel: t('nav.createHabit') }
 

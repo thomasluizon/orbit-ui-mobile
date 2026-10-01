@@ -1,7 +1,10 @@
 import { useTranslation } from "react-i18next";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import { plural } from "@/lib/plural";
-import { CreateHabitModal } from "@/components/habits/create-habit-modal";
+import { useEffect } from 'react'
+import { usePathname, useRouter } from 'expo-router'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
+import { useUIStore } from '@/stores/ui-store'
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
@@ -45,15 +48,18 @@ export function TodayModals({
   onCloseReferral,
 }: Readonly<TodayModalsProps>) {
   const { t } = useTranslation();
+  const router = useRouter()
+  const pathname = usePathname()
+  useEffect(() => {
+    if (!showCreateModal || !useUIStore.getState().showCreateModal) return
+    const conversation = useUIStore.getState().astraConversationOpen
+    onCloseCreateModal()
+    useUIStore.getState().setAstraConversationOpen(false)
+    router.push(buildHabitCreateHref({ date: createInitialDate, from: pathname, conversation }))
+  }, [createInitialDate, onCloseCreateModal, pathname, router, showCreateModal])
 
   return (
     <>
-      <CreateHabitModal
-        open={showCreateModal}
-        onClose={onCloseCreateModal}
-        initialDate={createInitialDate}
-      />
-
       <EditHabitModal
         open={!!editHabit}
         onClose={onCloseEdit}

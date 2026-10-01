@@ -7,7 +7,7 @@ import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const route = vi.hoisted(() => {
-  const params: Record<string, string> = {}
+  const params: Record<string, string | string[]> = {}
   return ({ params, back: vi.fn(), replace: vi.fn(), canGoBack: true, guard: vi.fn(), form: null as ComponentProps<typeof CreateHabitModal> | null })
 })
 vi.mock('expo-router', () => ({ useLocalSearchParams: () => route.params, useRouter: () => ({ back: route.back, replace: route.replace, canGoBack: () => route.canGoBack }) }))
@@ -26,6 +26,17 @@ async function mount() {
   return async () => await TestRenderer.act(() => tree.unmount())
 }
 describe('native habit creation route', () => {
+  it('uses the first value of repeated deep-link parameters', async () => {
+    route.params = { title: ['Walk', 'Read'], from: ['/search', '/calendar'], origin: ['conversation', 'other'] }
+    route.canGoBack = false
+    const unmount = await mount()
+    expect(route.form).toMatchObject({ initialTitle: 'Walk', fromConversation: true })
+    await TestRenderer.act(() => route.form?.onClose())
+    expect(route.replace).toHaveBeenCalledWith('/search')
+    await unmount()
+  })
+
+
   it.each(['/', '/calendar', '/search', '/profile'])('preserves prefills and returns from %s', async (from) => {
     route.params = Object.fromEntries(new URL(buildHabitCreateHref({ from, title: 'Walk & read', date: '2026-09-05' }), 'https://example.test').searchParams)
     const unmount = await mount()

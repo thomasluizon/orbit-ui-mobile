@@ -24,7 +24,7 @@ import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { mobileMotion } from '@/lib/motion'
+import { mobileMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { syncWidgetTheme } from '@/lib/orbit-widget'
 import {
   dismissOrFallback,
@@ -102,6 +102,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
 function RootStackScreens({
   screenBackgroundColor,
 }: Readonly<{ screenBackgroundColor: string }>) {
+  const reducedMotion = usePrefersReducedMotion()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const allowErrorLogin = useGoogleErrorLogin()
   const onboardingLocallyDone = useOnboardingDraftStore(
@@ -143,6 +144,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="habits/new" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
         <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
         <Stack.Screen
@@ -266,6 +268,7 @@ function RootLayoutNav() {
     linkingUrl,
   )
   const hideAppShellChrome =
+    pathname === '/habits/new' ||
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
     topSegment === 'chat' ||

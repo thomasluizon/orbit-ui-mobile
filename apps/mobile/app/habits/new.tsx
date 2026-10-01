@@ -12,19 +12,23 @@ function NativeHabitCreateGuard({ leaving, requestLeave }: Readonly<{ leaving: b
   return null
 }
 
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
 export default function HabitCreateRoute() {
-  const params = useLocalSearchParams<{ title?: string; date?: string; from?: string; origin?: string; recovery?: string }>()
+  const params = useLocalSearchParams<{ title?: string | string[]; date?: string | string[]; from?: string | string[]; origin?: string | string[]; recovery?: string | string[] }>()
   const router = useRouter()
   const { t } = useTranslation()
-  const drop = useOfflineSyncStore((state) => state.drops.find((entry) => entry.id === params.recovery))
-  const conversation = params.origin === 'conversation'
+  const drop = useOfflineSyncStore((state) => state.drops.find((entry) => entry.id === firstParam(params.recovery)))
+  const conversation = firstParam(params.origin) === 'conversation'
   function back() {
     if (conversation) useUIStore.getState().setAstraConversationOpen(true)
     if (router.canGoBack()) router.back()
-    else router.replace(resolveHabitCreateReturnPath(params.from))
+    else router.replace(resolveHabitCreateReturnPath(firstParam(params.from)))
   }
   const recoveryMessage = drop ? getRecoveryMessage(drop.mutation, drop.itemName ?? getDroppedItemName(drop.mutation) ?? t('common.syncEntity.habits'), t) : undefined
   return <CreateHabitModal open presentation="screen" leaveGuard={NativeHabitCreateGuard} fromConversation={conversation}
-    initialTitle={params.title} initialDate={resolveHabitDetailRouteDate(params.date)} recoveryMessage={recoveryMessage}
+    initialTitle={firstParam(params.title)} initialDate={resolveHabitDetailRouteDate(params.date)} recoveryMessage={recoveryMessage}
     onClose={back} onCreated={drop ? () => useOfflineSyncStore.getState().dismissDrop(drop.id) : undefined} />
 }

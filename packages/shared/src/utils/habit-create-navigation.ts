@@ -18,7 +18,7 @@ export function buildHabitCreateHref(input: HabitCreateRouteInput = {}): string 
 }
 
 export function resolveHabitCreateReturnPath(from: string | undefined): string {
-  if (!from || !from.startsWith('/') || from.startsWith('//') || from.includes('\\') || /[\u0000-\u0020\u007f]/.test(from)) return '/'
-  const path = from.split(/[?#]/)[0]
+  if (!from || !from.startsWith('/') || from.startsWith('//') || from.includes('\\') || /\s/.test(from)) return '/'
+  const path = from.replace(/[?#].*$/, '')
   return path.replace(/\/+$/, '') === '/habits/new' ? '/' : from
 }

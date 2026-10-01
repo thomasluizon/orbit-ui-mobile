@@ -26,7 +26,7 @@ function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, on
   const t = useTranslations()
   useHabitCreateNavigationGuard({ active: true, dirty: !onClose, leaving, onNavigate, onReturn })
   const renderHeader = useCallback(() => <AppBar title={title ?? ''} onBack={() => onAttemptDismiss?.()} backLabel={t('common.back')} />, [onAttemptDismiss, t, title])
-  const footer = <div data-habit-create-action="" className="px-4 py-4 [&_button]:w-full">{actions}</div>
+  const footer = <div data-habit-create-action="" className="px-4 py-4 [&_button]:w-full sm:[&_button]:w-auto sm:[&_button]:max-w-[360px]">{actions}</div>
   const hosted = useShellHeaderSlot(renderHeader, title ?? '')
   useShellComposerSlot(true, () => footer, actionRefreshKey)
   return <div data-habit-create-screen="" className="flex flex-col gap-6 px-4 py-4">

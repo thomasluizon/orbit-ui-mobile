@@ -3,6 +3,7 @@ import { addDays, differenceInCalendarDays } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  buildHabitCreateHref,
   formatAPIDate,
   formatAPIDateInTimeZone,
   parseAPIDate,
@@ -1154,8 +1155,8 @@ describe("CalendarScreen views (mobile)", () => {
     );
     expect(buttons.length).toBeGreaterThan(0);
     TestRenderer.act(() => buttons[0]!.props.onPress());
-    expect(state.setShowCreateModal).toHaveBeenCalledWith(true);
-    expect(state.routerPush).toHaveBeenCalledWith("/");
+    expect(state.routerPush).toHaveBeenCalledWith(buildHabitCreateHref({ from: '/calendar' }));
+    expect(state.setShowCreateModal).not.toHaveBeenCalled();
   });
 
   it("keeps paging but removes creation for a future month", () => {

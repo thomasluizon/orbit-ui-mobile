@@ -34,6 +34,7 @@ import {
 import { enUS, ptBR } from "date-fns/locale";
 import {
   capitalizeFirstLetter,
+  buildHabitCreateHref,
   buildCalendarRangeModel,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
@@ -421,7 +422,6 @@ function CalendarScreenContent({
   const { showError, showSuccess } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
-  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
   const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -868,9 +868,8 @@ function CalendarScreenContent({
   const monthEntering = resolveMonthEntering(monthSlide);
 
   const openHabitCreation = useCallback(() => {
-    setShowCreateModal(true);
-    router.push('/');
-  }, [router, setShowCreateModal]);
+    router.push(buildHabitCreateHref({ from: '/calendar' }));
+  }, [router]);
 
   const listHeader = (
     <>

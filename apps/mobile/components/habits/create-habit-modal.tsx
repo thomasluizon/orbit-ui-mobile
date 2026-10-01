@@ -525,10 +525,6 @@ export function CreateHabitModal({
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
         leaveGuard={leaveGuard}
-        onNavigate={(action) => {
-          pendingNavigation.current = action
-          dismissGuard.requestDismiss()
-        }}
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}

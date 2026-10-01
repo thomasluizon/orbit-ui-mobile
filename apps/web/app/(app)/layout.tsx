@@ -65,13 +65,9 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
-
-const CreateHabitModal = dynamic(() =>
-  import('@/components/habits/create-habit-modal').then((module) => module.CreateHabitModal),
-)
 
 const AstraConversation = dynamic(
   () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
@@ -117,23 +113,23 @@ function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
   return null
 }
 
-function CreateHabitModalFromQuery({ pathname, activeView, onOpenChange }: Readonly<{
+function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonly<{
   pathname: string
   activeView: string
-  onOpenChange: (open: boolean) => void
+  onNavigated: () => void
 }>) {
   const searchParams = useSearchParams()
-  return (
-    <CreateHabitModal
-      open
-      onOpenChange={onOpenChange}
-      initialDate={
-        activeView === 'today' && pathname === '/'
-          ? getSelectedDateFromParam(searchParams.get('date'))
-          : null
-      }
-    />
-  )
+  const router = useRouter()
+  useEffect(() => {
+    if (!useUIStore.getState().showCreateModal) return
+    const from = `${pathname}${searchParams.size ? `?${searchParams}` : ''}`
+    const conversation = useUIStore.getState().astraConversationOpen
+    onNavigated()
+    useUIStore.getState().setAstraConversationOpen(false)
+    setRouteTransitionIntent('forward')
+    router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? getSelectedDateFromParam(searchParams.get('date')) : null }))
+  }, [activeView, onNavigated, pathname, router, searchParams])
+  return null
 }
 
 function subscribeToGeneralPreference() { return () => {} }
@@ -250,6 +246,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [importPromptId, showImportPrompt, unregisterOpenOverlay])
 
   const handleCreate = useCallback(() => {
+    if (pathname === '/habits/new') return
     if (!isOnline) {
       setShowCreateRefusal(true)
       return
@@ -261,7 +258,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       return
     }
     setShowCreateModal(true)
-  }, [isOnline, profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateRefusal])
+  }, [pathname, isOnline, profile, hasProAccess, habitCountLoaded, totalHabitCount, router, setShowCreateModal, setShowCreateRefusal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
@@ -406,10 +403,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
       {showCreateModal && (
         <Suspense fallback={null}>
-          <CreateHabitModalFromQuery
+          <PushHabitCreateFromQuery
             pathname={pathname}
             activeView={activeView}
-            onOpenChange={setShowCreateModal}
+            onNavigated={() => setShowCreateModal(false)}
           />
         </Suspense>
       )}

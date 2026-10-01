@@ -13,16 +13,15 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   presentation: 'sheet' | 'screen'
   fromConversation: boolean
   leaving: boolean
-  onNavigate: (action: () => void) => void
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, leaving, leaveGuard, onNavigate: _onNavigate, ...props }: Readonly<HabitCreateFrameProps>) {
+export function HabitCreateFrame({ presentation, fromConversation, leaving, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
 
-function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGuard, ...props }: Readonly<Omit<HabitCreateFrameProps, 'presentation' | 'onNavigate'>>) {
+function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGuard, ...props }: Readonly<Omit<HabitCreateFrameProps, 'presentation'>>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
