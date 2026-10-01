@@ -47,7 +47,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | `ui#1461` (`#1085`) at `f0051805` | PluralRules polyfill, base-merged over `#1460`'s test rewrite; waiting on CI and its first review; merge on the bar |
 | `ui#1457` (`#1080`, into `main`) at `d1bd4e4a` | approved, every check green after `parity:exempt`; fresh review requested after the body edit; merge to `main` |
 | `ui#1459` (`#1043`, into `main`) at `866fea29` | review batch pushed, both threads resolved; waiting on CI and a fresh review; merge to `main`, then ship Android to the open track |
-| `#1084` worker | outcome unknown: five commits in `ticket-1084-onboarding-once` (branch `fix/ticket-1084-onboarding-once`, unpushed, no pull request), log `#1084-*` under `orbit-workers` in the OS temp directory; read the tree, then relaunch with a continuation order naming its commits |
+| `ui#1462` (`#1084`) at `a38bcc12` | the worker finished after the handoff and opened this non-draft pull request into `redesign/main` (five commits); wait on CI and its first review, check its files against `#1082` and `ui#1459`'s `_layout.tsx` change, then merge on the bar |
 | `#1081` worker | outcome unknown: one commit `4d003f7c` plus four modified files in `ticket-1081-radiorow-press-scale` (branch `fix/ticket-1081-radiorow-press-scale`), its pre-launch `npm ci` exited 190; run `npm ci`, read the tree, relaunch with a continuation order |
 | `#1087` | worker found no defect from code; `ticket-1087-shell-bottom-clearance` holds no commits; relaunch after the AVD measurement (first step) |
 | `#1086` | no worker yet; launch after the AVD repro (first step) |
@@ -59,9 +59,9 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | Open pull requests elsewhere | none in `orbit-api` or `orbit-landing-page` |
 | Stashes | none in any repository |
 | Uncommitted work | none in the three main checkouts; `ticket-1081-radiorow-press-scale` has four modified files (above) |
-| Unpushed commits | `fix/ticket-1084-onboarding-once` (five commits, above) |
+| Unpushed commits | none |
 | Detached HEADs | `questions-manual-steps` worktree: a local merge-check commit only, disposable; the scratch merge-check worktree `mc-trio` lived in the session scratchpad and goes with `git worktree prune` |
-| Branches without a pull request | `fix/ticket-1084-onboarding-once`, `fix/ticket-1081-radiorow-press-scale`, `fix/ticket-1087-shell-bottom-clearance` (above), plus older ticket worktrees as the spec's Current state describes |
+| Branches without a pull request | `fix/ticket-1081-radiorow-press-scale`, `fix/ticket-1087-shell-bottom-clearance` (above), plus older ticket worktrees as the spec's Current state describes |
 | Merged this run, worktrees to tear down | `#1441`, `#1453`, `#1455`, `#1460` (tickets `#1057`, `#991`, `#1079`, `#1083` closed) |
 | Ignored files | the session decision log stayed in its scratchpad; every durable rule and fact is in the spec |
 
@@ -83,7 +83,7 @@ Workers launched by a session die when it ends: read each worktree before relaun
 - First step, Orbit Staging's Play review: partly done (testers "Bonis", release from 1.3.51 (110) saved, ad ID declared, en-US translation added); the send is carried, now behind real screenshots and the en-US default because Play's pre-review check flagged a listing that shows only the Entrar screen.
 - First step, Cloudflare pinger: apply done (workers.dev subdomain `useorbit` created through the API, Worker and both cron schedules live, first scheduled run succeeded); the observation hour and the keepalive deletion are carried.
 - In flight: `ui#1441` done (`6b7da44c`), `ui#1453` done (`1972feb3`), `ui#1455` done (`fc725352`), `#1083` done (`ui#1460`, `25f00d77`); `ui#1446`, `ui#1456`, `ui#1458` carried (base-merged, in CI); `ui#1454` carried (review fix pushed, base-merged); `ui#1457` carried (parity fixed, re-review); `ui#1459` carried (review batch pushed).
-- The owner's four bugs: `#1085` has `ui#1461`; `#1084` carried (worker commits unpushed); `#1086` and `#1087` carried behind the AVD session.
+- The owner's four bugs: `#1085` has `ui#1461`; `#1084` has `ui#1462`; `#1086` and `#1087` carried behind the AVD session.
 - Then, in order: steps 1 to 7 carried as steps 1 to 7; the eleven new tickets placed in the order.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
