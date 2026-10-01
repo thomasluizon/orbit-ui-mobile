@@ -78,6 +78,7 @@ function PlanLoadMotion({
 }
 
 export function PlanSelection({
+  inset = true,
   plans,
   isLoading,
   isError,
@@ -96,6 +97,7 @@ export function PlanSelection({
   t,
   tokens,
 }: Readonly<{
+  inset?: boolean
   plans: SubscriptionPlans | null | undefined
   isLoading: boolean
   isError: boolean
@@ -139,7 +141,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <View style={styles.planState}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: 0 }]}>
           {intervalControl}
           <View style={styles.planChoices}>
             {(['yearly', 'monthly'] as const).map((interval) => (
@@ -165,7 +167,7 @@ export function PlanSelection({
   if (isError && !plans && isOnline) {
     return (
       <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
-        <View style={styles.planState}>
+        <View style={[styles.planState, !inset && { paddingHorizontal: 0 }]}>
           {intervalControl}
           <ErrorState
             message={t('upgrade.plans.error')}
@@ -219,7 +221,7 @@ export function PlanSelection({
 
   return (
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
-      <View style={styles.planGroup}>
+      <View style={[styles.planGroup, !inset && { paddingHorizontal: 0 }]}>
         {intervalControl}
         <View style={styles.planChoices}>
           {tiers.map((tier) => (

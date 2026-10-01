@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ErrorCode,
@@ -16,6 +16,8 @@ import {
   playBasePlanToInterval,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { getAccountId } from '@/lib/account-scope'
 import { useAuthStore } from '@/stores/auth-store'
 
 export interface PlayOffer {
@@ -137,9 +139,10 @@ async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
  * server-side, and restores previous purchases. Android-only; the web app uses Stripe.
  */
-export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
+export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurchased?: () => Promise<void> | void }) {
   const preferReferralOffer = options?.preferReferralOffer ?? false
   const queryClient = useQueryClient()
+  const purchaseAccount = useRef({ id: getAccountId(), generation: getAccountGeneration() })
   const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [pendingVerifications, setPendingVerifications] = useState(0)
@@ -160,8 +163,12 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
     onPurchaseSuccess: (purchase) => {
       void (async () => {
         try {
-          await verifyPlayPurchase(purchase)
+          const account = purchaseAccount.current
+          if (account.id !== getAccountId() || account.generation !== getAccountGeneration()) return
+          if (!await verifyPlayPurchase(purchase)) throw new Error('Missing Play purchase token')
+          if (account.id !== getAccountId() || account.generation !== getAccountGeneration()) return
           await invalidateEntitlement()
+          if (account.id === getAccountId() && account.generation === getAccountGeneration()) await options?.onPurchased?.()
         } catch {
           setErrorKey('upgrade.playError.serviceUnavailable')
         } finally {
@@ -195,6 +202,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         return
       }
       setErrorKey(null)
+      purchaseAccount.current = { id: getAccountId(), generation: getAccountGeneration() }
       beginVerification()
       try {
         await requestPurchase({

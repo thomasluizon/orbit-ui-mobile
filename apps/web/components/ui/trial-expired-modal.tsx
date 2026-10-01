@@ -3,7 +3,7 @@
 import { useEffect, useId } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
+import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -16,7 +16,7 @@ import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useUIStore } from '@/stores/ui-store'
 
-const STORAGE_KEY = 'orbit_trial_expired_seen'
+const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
   'trial.expired.astraCeiling',

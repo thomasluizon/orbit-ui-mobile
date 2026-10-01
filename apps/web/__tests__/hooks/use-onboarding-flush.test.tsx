@@ -66,6 +66,7 @@ function installPushEnvironment() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    localStorage.clear()
     installWebLocks()
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
@@ -131,6 +132,14 @@ describe('useOnboardingFlush', () => {
 
     expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')
     expect(patchProfileMock).not.toHaveBeenCalled()
+  })
+
+  it('sets the final Pro flag for the account after the draft applies', async () => {
+    applyOnboardingMock.mockResolvedValue(undefined)
+    await seedPendingDraft()
+    renderHook(() => useOnboardingFlush(), { wrapper })
+    await waitFor(() => expect(localStorage.getItem('orbit_onboarding_pro_pending:user-1')).toBe('1'))
+    expect(localStorage.getItem('orbit_onboarding_pro_pending:user-2')).toBeNull()
   })
 
   it('registers a signed-out permission grant after authentication flushes onboarding', async () => {

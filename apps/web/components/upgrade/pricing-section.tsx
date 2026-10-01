@@ -85,7 +85,7 @@ export function PricingSection({
                   event.preventDefault()
                   return
                 }
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+                if (stayFreeHref === '/profile' && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return
                 event.preventDefault()
                 onStayFree()
               }}

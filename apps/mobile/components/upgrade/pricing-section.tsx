@@ -8,6 +8,7 @@ import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
+  inset = true,
   focusOnMount = false,
   profile,
   plans,
@@ -32,6 +33,7 @@ export function PricingSection({
   t,
   tokens,
 }: Readonly<{
+  inset?: boolean
   focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: SubscriptionPlans | null | undefined
@@ -58,11 +60,12 @@ export function PricingSection({
 }>) {
   return (
     <View style={styles.pricingSections}>
-      <ProPitch profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
+      <ProPitch inset={inset} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
 
       <View style={styles.purchaseGroup}>
         <View style={styles.purchaseActions}>
           <PlanSelection
+            inset={inset}
             plans={plans}
             isLoading={isLoadingPlans}
             isError={isPlansError}
@@ -103,7 +106,7 @@ export function PricingSection({
           ) : null}
         </View>
 
-        <View style={styles.reassurance}>
+        <View style={[styles.reassurance, !inset && { paddingHorizontal: 0 }]}>
           {plans ? <View style={styles.reassuranceCopy}>
               <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
                 {t('upgrade.convert.cancelAnytime')}

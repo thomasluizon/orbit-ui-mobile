@@ -1,3 +1,4 @@
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { runServerAction } from '@/lib/client-action'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
@@ -16,10 +17,9 @@ import { setAccountId } from '@/lib/account-scope'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => {
-  const profile: { aiMessagesLimit: number; aiMessagesUsed: number; timeZone: string | null } = {
-    aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
-  }
+  const profile = { aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC' as string | null, hasProAccess: true, isTrialActive: false, isLifetimePro: false, trialEndsAt: null as string | null }
   return {
+    finalFinish: undefined as (() => Promise<void>) | undefined,
     useRealPush: false,
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
@@ -78,6 +78,11 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
+vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: ({ onFinish, ref }: { onFinish: (destination?: string) => Promise<void>; ref?: React.Ref<{ exit: (destination?: string) => void }> }) => {
+  mocks.finalFinish = onFinish
+  React.useImperativeHandle(ref, () => ({ exit: (destination?: string) => { void onFinish(destination) } }))
+  return <div data-testid="pro-step"><button type="button" onClick={() => void onFinish()}>enter-day</button></div>
+} }))
 vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general, onFinish }: { dueToday: boolean; general: boolean; onFinish: () => void }) => <div data-testid="done" data-due-today={String(dueToday)} data-general={String(general)}><button type="button" onClick={onFinish}>finish</button></div> }))
 
 function actions(): OnboardingActions {
@@ -139,6 +144,7 @@ describe('OnboardingFlow state model', () => {
     mocks.finishOnboarding.mockReset()
     mocks.suggest.mockReset()
     vi.useRealTimers()
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
     mocks.profileAvailable = true
@@ -316,6 +322,53 @@ describe('OnboardingFlow state model', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
     expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+  })
+
+  it('rejects final completion when the server detects another held account', async () => {
+    mocks.profile.hasProAccess = false
+    mocks.finishOnboarding.mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }))
+    mount(true)
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await screen.findByTestId('done')
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+    await screen.findByTestId('pro-step')
+    await expect(mocks.finalFinish!()).rejects.toThrow('Account changed')
+    expect(screen.getByTestId('pro-step')).toBeInTheDocument()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+  })
+
+  it.each(['trial', 'free'])('Escape preserves the final %s ending from a decision', async (plan) => {
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: plan === 'trial', isTrialActive: plan === 'trial', isLifetimePro: false }))
+    mount(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await screen.findByTestId('done')
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+    await screen.findByTestId('pro-step')
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+  })
+
+  it.each(['trial', 'free'])('Skip reaches Done then the final %s step before completion', async (plan) => {
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: plan === 'trial', isTrialActive: plan === 'trial', isLifetimePro: false }))
+    mount(true)
+    fireEvent.click(screen.getByRole('button', { name: 'skip' }))
+    await screen.findByTestId('done')
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+    await screen.findByTestId('pro-step')
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+  })
+
+  it('keeps the selected Done tab until the final step finishes', async () => {
+    mocks.profile.hasProAccess = false
+    await reachDone(true)
+    fireEvent.click(screen.getByRole('button', { name: 'nav.calendar' }))
+    await screen.findByTestId('pro-step')
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/calendar'))
   })
 
   it('counts each rendered decision once and drops the counter on the done screen', async () => {

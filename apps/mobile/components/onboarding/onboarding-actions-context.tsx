@@ -1,3 +1,4 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
@@ -155,8 +156,8 @@ export function useLiveOnboardingActions(): OnboardingActions {
       },
       deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
-        try {
-          await performQueuedApiMutation({
+        const generation = getAccountGeneration()
+        await performQueuedApiMutation({
             type: 'completeOnboarding',
             scope: 'profile',
             endpoint: API.profile.onboarding,
@@ -164,7 +165,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             payload: undefined,
             dedupeKey: 'profile-onboarding-complete',
           })
-        } catch {}
+        if (getAccountGeneration() !== generation) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )

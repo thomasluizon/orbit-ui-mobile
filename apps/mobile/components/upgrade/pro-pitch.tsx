@@ -11,7 +11,7 @@ const OUTCOMES = [
   { key: 'noticing', Icon: Eye },
 ] as const
 
-export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ profile: { isTrialActive?: boolean } | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: { isTrialActive?: boolean } | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
   const headingRef = useRef<Text>(null)
   useEffect(() => {
     if (focusOnMount && headingRef.current) {
@@ -30,7 +30,7 @@ export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titl
   const heading = titleKey ? t(titleKey) : trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (<View style={styles.pricingSections}>
-      <View style={styles.convertHeader}>
+      <View style={[styles.convertHeader, !inset && { paddingHorizontal: 0 }]}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text nativeID={headingId} ref={headingRef} accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t(bodyKey ?? 'upgrade.convert.promise')}</Text>
@@ -40,7 +40,7 @@ export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titl
         {dateHint ? <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{dateHint}</Text> : null}
       </View>
 
-      <View style={styles.allowanceSection}>
+      <View style={[styles.allowanceSection, !inset && { paddingHorizontal: 0 }]}>
         <View
           style={[
             styles.allowanceCard,
@@ -54,7 +54,7 @@ export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titl
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
       </View>
 
-      <View style={styles.outcomes}>
+      <View style={[styles.outcomes, !inset && { paddingHorizontal: 0 }]}>
         {OUTCOMES.map(({ key, Icon }) => (
           <View key={key} style={styles.outcomeRow}>
             <View

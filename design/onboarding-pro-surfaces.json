@@ -1,0 +1,13 @@
+{
+  "authority": ["DESIGN.md", "BRAND.md", "design/canvas/Orbit Onboarding.dc.html", "design/canvas/Orbit Pro.dc.html", "design/canvas/Orbit Assinatura.dc.html"],
+  "surfaces": [
+    { "name": "Done exits before sign-in", "states": ["created", "skipped", "sign-in handoff"], "web": "apps/web/components/onboarding/onboarding-flow.tsx", "android": "apps/mobile/components/onboarding/onboarding-flow.tsx" },
+    { "name": "Done exits after sign-in", "states": ["trial continues", "free continues", "paid Pro completes", "selected tab", "back exit"], "web": "apps/web/components/onboarding/onboarding-flow.tsx", "android": "apps/mobile/components/onboarding/onboarding-flow.tsx" },
+    { "name": "Final Pro step", "states": ["profile loading", "profile unavailable", "retry", "trial", "last trial day", "paywall", "completion failure"], "web": "apps/web/components/onboarding/onboarding-pro-step.tsx", "android": "apps/mobile/components/onboarding/onboarding-pro-step.tsx" },
+    { "name": "Shared Pro pitch", "states": ["trial facts", "free allowance", "Pro allowance", "three outcomes"], "web": "apps/web/components/upgrade/pro-pitch.tsx", "android": "apps/mobile/components/upgrade/pro-pitch.tsx" },
+    { "name": "Shared paywall", "states": ["plans loading", "plans error", "offline", "plans loaded", "purchase pending", "purchase error", "decline"], "web": "apps/web/components/upgrade/pricing-section.tsx", "android": "apps/mobile/components/upgrade/pricing-section.tsx" },
+    { "name": "Post-sign-in pending final step", "states": ["flush succeeds", "account replacement", "exit clears flag", "paid Pro bypass"], "web": "apps/web/components/onboarding/retained-onboarding-overlay.tsx", "android": "apps/mobile/components/global-overlays.tsx" },
+    { "name": "Purchase settlement", "states": ["checkout", "cancel", "success done toast", "account replacement"], "web": "apps/web/app/(app)/upgrade/page.tsx", "android": "apps/mobile/app/upgrade.tsx" },
+    { "name": "Trial-expired notice suppression", "states": ["free step exit seen for account"], "web": "apps/web/components/ui/trial-expired-modal.tsx", "android": "apps/mobile/components/ui/trial-expired-modal.tsx" }
+  ]
+}
