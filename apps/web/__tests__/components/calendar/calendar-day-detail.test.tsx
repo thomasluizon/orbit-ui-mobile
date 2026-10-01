@@ -159,17 +159,27 @@ function renderDetail(props: RenderProps = {}) {
 }
 
 describe('CalendarDayDetail', () => {
-  it.each([
-    ['en', 'Today, June 15', 'Saturday, June 14'],
-    ['pt-BR', 'Hoje, 15 de junho', 'Sábado, 14 de junho'],
-  ])('renders the drawn day card heading in %s', (locale, todayTitle, otherTitle) => {
-    detailLocale.language = locale
-    const view = renderDetail()
-    expect(screen.getByText(todayTitle)).toBeDefined()
-    view.unmount()
-    renderDetail({ dateStr: '2025-06-14' })
-    expect(screen.getByText(otherTitle)).toBeDefined()
-    detailLocale.language = 'en'
+  describe.each(['UTC', 'America/Sao_Paulo', 'Pacific/Auckland'])('day card headings in %s', (timeZone) => {
+    it.each([
+      ['en', 'Today, June 15', 'Saturday, June 14'],
+      ['pt-BR', 'Hoje, 15 de junho', 'Sábado, 14 de junho'],
+    ])('renders the drawn day card heading in %s', (locale, todayTitle, otherTitle) => {
+      const originalTimeZone = process.env.TZ
+      process.env.TZ = timeZone
+      detailLocale.language = locale
+      try {
+        const view = renderDetail()
+        expect(screen.getByText(todayTitle)).toBeDefined()
+        view.unmount()
+        const otherView = renderDetail({ dateStr: '2025-06-14' })
+        expect(screen.getByText(otherTitle)).toBeDefined()
+        otherView.unmount()
+      } finally {
+        detailLocale.language = 'en'
+        if (originalTimeZone === undefined) delete process.env.TZ
+        else process.env.TZ = originalTimeZone
+      }
+    })
   })
 
   it('renders nothing without a selected date', () => {

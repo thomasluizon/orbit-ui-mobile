@@ -154,6 +154,13 @@ export function formatLocaleDate(
   options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseDateInput(value)
+  if (date && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const calendarDate = new Date(0)
+    calendarDate.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate())
+    return formatIntlDateValue(calendarDate, value, locale, {
+      ...(options ?? DEFAULT_DATE_OPTIONS), timeZone: 'UTC',
+    })
+  }
   return formatIntlDateValue(
     date,
     typeof value === 'string' ? value : '',

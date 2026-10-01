@@ -1232,28 +1232,39 @@ describe("CalendarScreen views (mobile)", () => {
     )).toHaveLength(0);
   });
 
-  it.each([
-    ['en', 'Today, September 30', 'Tuesday, September 29'],
-    ['pt-BR', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro'],
-  ])('renders the drawn selected day headings in %s', (locale, todayTitle, otherTitle) => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-30T12:00:00Z'));
-    state.language = locale;
-    let tree!: Tree;
-    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
-    const header = renderMonthHeader(tree);
-    expect(calendarDayDetailProps.current?.title).toBe(todayTitle);
-    TestRenderer.act(() => { calendarGridProps.current!.onSelectDay('2026-09-29'); });
-    const flatList = tree.root.findAll((node) => node.type === 'FlatList')[0]!;
-    TestRenderer.act(() => { header.update(flatList.props.ListHeaderComponent); });
-    expect(calendarDayDetailProps.current?.title).toBe(otherTitle);
-    TestRenderer.act(() => header.update(<></>));
-    pressView(tree, 'week');
-    const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
-    TestRenderer.act(() => { week.props.onSelectDay('2026-09-30'); });
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === todayTitle)).toHaveLength(1);
-    TestRenderer.act(() => tree.update(<></>));
-    vi.useRealTimers();
+  describe.each(['UTC', 'America/Sao_Paulo', 'Pacific/Auckland'])('selected day headings in %s', (timeZone) => {
+    it.each([
+      ['en', 'Today, September 30', 'Tuesday, September 29'],
+      ['pt-BR', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro'],
+    ])('renders the drawn selected day headings in %s', (locale, todayTitle, otherTitle) => {
+      const originalTimeZone = process.env.TZ;
+      process.env.TZ = timeZone;
+      vi.setSystemTime(new Date(2026, 8, 30, 12));
+      state.language = locale;
+      state.profile = { weekStartDay: 1, timeZone, hasProAccess: false };
+      let tree: Tree | undefined;
+      let header: Tree | undefined;
+      try {
+        TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+        const mountedTree = tree!;
+        const mountedHeader = renderMonthHeader(mountedTree);
+        header = mountedHeader;
+        expect(calendarDayDetailProps.current?.title).toBe(todayTitle);
+        TestRenderer.act(() => { calendarGridProps.current!.onSelectDay('2026-09-29'); });
+        const flatList = mountedTree.root.findAll((node) => node.type === 'FlatList')[0]!;
+        TestRenderer.act(() => { mountedHeader.update(flatList.props.ListHeaderComponent); });
+        expect(calendarDayDetailProps.current?.title).toBe(otherTitle);
+        TestRenderer.act(() => mountedHeader.update(<></>));
+        pressView(mountedTree, 'week');
+        const week = mountedTree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+        TestRenderer.act(() => { week.props.onSelectDay('2026-09-30'); });
+        expect(mountedTree.root.findAll((node) => node.type === 'Sheet' && node.props.title === todayTitle)).toHaveLength(1);
+      } finally {
+        TestRenderer.act(() => { header?.update(<></>); tree?.update(<></>); });
+        if (originalTimeZone === undefined) delete process.env.TZ;
+        else process.env.TZ = originalTimeZone;
+      }
+    });
   });
 
   it('keeps a selected month day inline below the grid without a sheet', () => {

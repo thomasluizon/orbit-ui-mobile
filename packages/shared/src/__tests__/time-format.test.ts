@@ -37,6 +37,27 @@ describe('locale-format utils', () => {
     expect(formatLocaleDayMonth('invalid-date', locale)).toBe('invalid-date')
   })
 
+  it.each(['en', 'pt-BR'])('keeps calendar date labels stable across device time zones in %s', (locale) => {
+    const originalTimeZone = process.env.TZ
+    const todayLabel = locale === 'en' ? 'Today' : 'Hoje'
+    const expected = locale === 'en'
+      ? ['September 30', 'Today, September 30', 'Tuesday, September 29']
+      : ['30 de setembro', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro']
+    try {
+      for (const timeZone of ['UTC', 'America/Sao_Paulo', 'Pacific/Auckland']) {
+        process.env.TZ = timeZone
+        expect([
+          formatLocaleDayMonth('2026-09-30', locale),
+          formatCalendarDayTitle('2026-09-30', locale, '2026-09-30', todayLabel),
+          formatCalendarDayTitle('2026-09-29', locale, '2026-09-30', todayLabel),
+        ], timeZone).toEqual(expected)
+      }
+    } finally {
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
+    }
+  })
+
   it('formats time for English locale', () => {
     expect(formatLocaleTime('14:30', 'en')).toBe('2:30 PM')
   })
