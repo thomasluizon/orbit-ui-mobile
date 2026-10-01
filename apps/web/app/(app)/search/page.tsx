@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
 import { Command, CommandList } from 'cmdk'
 import { buildHabitCreateHref, buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
@@ -12,6 +11,7 @@ import { Button } from '@/components/ui/pill-button'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useOffline } from '@/hooks/use-offline'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 export default function SearchPage() {
   const t = useTranslations()
@@ -31,7 +31,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
   const t = useTranslations()
   const router = useRouter()
   const { isOnline } = useOffline()
-  const [createRefusal, setCreateRefusal] = useState(false)
+  const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
   const entries = buildSearchEntries(search.data, search.query, null)
   const hasQuery = search.text.trim().length > 0
   function createHabit() {

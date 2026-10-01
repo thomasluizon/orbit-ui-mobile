@@ -253,6 +253,24 @@ describe('habit search', () => {
     expect(screen.getByRole('combobox')).toHaveValue('')
   })
 
+  it.each([false, true])('clears an offline create refusal when the account changes with wide=%s', async (wide) => {
+    mocks.wide = wide
+    vi.stubGlobal('fetch', vi.fn())
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    holdAccount('user-1')
+    mount(true)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
+    fireEvent.click(await screen.findByRole('button', { name: en.habits.search.create }))
+    expect(screen.getByText(en.offline.create.reason)).toBeVisible()
+
+    await replaceAccountWith('user-2')
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'reading' } })
+    await screen.findByText('“reading”')
+    expect(screen.queryByText(en.offline.create.reason)).toBeNull()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
   it.each(['', 'walk'])('leaves the standalone search page on Escape with query "%s"', async (query) => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
