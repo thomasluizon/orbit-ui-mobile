@@ -4,6 +4,7 @@ import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/a
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
+import { HabitListEmptyState } from '@/components/habits/habit-list/empty-state'
 
 const router: AppRouterInstance = {
   back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {},
@@ -15,6 +16,7 @@ process.stdout.write(renderToStaticMarkup(
     <NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
       <StreakBadge streak={3} />
       <HabitChecklist items={[{ text: 'Beber água', isChecked: true }]} interactive onReset={() => {}} onClear={() => {}} />
+      <HabitListEmptyState variant="secondary" title={ptBr.habits.loadError} description="" actionLabel={ptBr.common.retry} onAction={() => {}} />
     </NextIntlClientProvider>
   </AppRouterContext.Provider>,
 ))

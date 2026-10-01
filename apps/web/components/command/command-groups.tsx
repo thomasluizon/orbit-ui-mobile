@@ -12,12 +12,12 @@ import { GROUP_CLASS } from './command-menu-chrome'
 const ICONS = { create: Plus, log: Check, skip: SkipForward }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions' } as const
 
-export function CommandGroups({ query, navItems, onSelect, onNavigate, hideCreate = false, createRefusal = false }: Readonly<{
-  hideCreate?: boolean; createRefusal?: boolean; query: string; navItems: readonly CommandNavigationItem[]
+export function CommandGroups({ query, navItems, onSelect, onNavigate, createRefusal = false }: Readonly<{
+  createRefusal?: boolean; query: string; navItems: readonly CommandNavigationItem[]
   onSelect: (id: SearchCommandId) => void; onNavigate: (action: () => void) => void
 }>) {
   const t = useTranslations()
-  const commands = searchCommands(query, null, t).filter((command) => !hideCreate || command.id !== 'create')
+  const commands = searchCommands(query, null, t)
   const destinations = navItems.filter((item) => item.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   return <>
     {(['create', 'actions'] as const).map((group) => {

@@ -7,6 +7,10 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { test } from './upgrade-fixtures'
+import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import { recapResponseSchema } from '@orbit/shared/types/gamification'
+import { buildRecapRequestUrl } from '@orbit/shared/utils'
+import { LAYOUT_ORIGIN } from '../support/env'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   title: 'Beber água',
@@ -113,7 +117,7 @@ for (const width of [412, 1280] as const) {
   test.describe(`press shapes at ${width}px`, () => {
     test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
 
-    test('fills navigation, composer, icon, and pill hit areas', async ({ page }) => {
+    test('fills navigation, composer, icon, and pill hit areas', async ({ page, context }) => {
       await page.goto('/?date=2026-09-04')
       for (const label of [ptBr.dates.previousDay, ptBr.dates.nextDay, ptBr.habits.listOptions]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
@@ -152,12 +156,15 @@ for (const width of [412, 1280] as const) {
       for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
         await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: label, exact: true }), 'pill')
       }
+      await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: ptBr.common.retry, exact: true }), 'pill', '--bg-hover')
       await expectHoverOnHitArea(page.locator('header button[aria-label]').first(), 'pill')
       await page.goto('/profile')
       await expectFullTouchTarget(page.locator('a[href="/upgrade"]').filter({ hasText: ptBr.profile.allowance.seePro }).first(), 'pill')
       await expectHoverOnHitArea(page.locator('.orbit-list-row-body').first(), 12)
       await page.goto('/upgrade')
       await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
+      await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`,
+        (route) => route.fulfill({ json: recapResponseSchema.parse(createMockRecap()) }))
       await page.goto('/wrapped')
       const restingChip = page.locator('.chip:not(.chip-active)').first()
       const activeChip = page.locator('.chip.chip-active').first()
@@ -169,6 +176,8 @@ for (const width of [412, 1280] as const) {
         const chipPseudo = await chip.evaluate((element) => getComputedStyle(element, '::after').content)
         expect(chipPseudo, 'a chip carries no hit area the fill cannot reach').toBe('none')
       }
+      await page.getByRole('button', { name: ptBr.wrapped.start, exact: true }).click()
+      await expectFullTouchTarget(page.getByRole('button', { name: ptBr.wrapped.close, exact: true }), 'pill', '--bg-hover')
     })
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
@@ -180,6 +189,13 @@ for (const width of [412, 1280] as const) {
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expectHoverOnHitArea(listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }), 12)
       await listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
+      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await listMenu.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
+      const selectionTray = page.getByTestId('bulk-action-bar')
+      await expectFullTouchTarget(selectionTray.getByRole('button', { name: ptBr.common.selectAll, exact: true }), 'pill', '--bg-hover-opaque')
+      await selectionTray.getByRole('button', { name: ptBr.common.selectAll, exact: true }).click()
+      await expectFullTouchTarget(selectionTray.getByRole('button', { name: ptBr.common.deselectAll, exact: true }), 'pill', '--bg-hover-opaque')
+      await selectionTray.getByRole('button', { name: ptBr.common.cancel, exact: true }).click()
 
       const row = page.locator('[data-habit-title="Beber água"]')
       await expect(row).toBeVisible()

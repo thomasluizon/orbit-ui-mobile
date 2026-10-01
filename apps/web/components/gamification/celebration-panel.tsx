@@ -85,7 +85,7 @@ export function CelebrationPanel() {
       aria-atomic="true"
       aria-live="polite"
       data-celebration-panel=""
-      className="mx-4 flex items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]"
+      className="flex items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]"
       style={reducedMotion ? undefined : { animation: 'celebration-rise 280ms var(--ease-out) both' }}
     >
       <svg aria-hidden="true" className="size-11 shrink-0" viewBox="0 0 44 44">

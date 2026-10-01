@@ -5,10 +5,10 @@ import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigatio
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
-import { buildSearchEntries, searchCommands, type CommandHabitEntry, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
+import { Searching } from '@/components/search/search-results'
 import { Button } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
@@ -20,23 +20,20 @@ import type { CommandNavigationItem } from './command-palette'
 
 interface CommandMenuProps {
   navItems: readonly CommandNavigationItem[]
-  resultsMode?: boolean
   onCreateHabit: (title?: string) => void
   onClose: () => void
 }
 
-type HabitSearchState = ReturnType<typeof useHabitSearch>
-
 function useCreateRefusal(onCreateHabit: (title?: string) => void, onClose: () => void) {
-  const [createRefusal, setCreateRefusal] = useAccountScopedState<'command' | 'search' | null>(null)
+  const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
   const { isOnline } = useOffline()
-  useEffect(() => { if (isOnline) setCreateRefusal(null) }, [isOnline, setCreateRefusal])
-  function createHabit(title?: string, source: 'command' | 'search' = 'command') {
-    if (!isOnline) { setCreateRefusal(source); return }
+  useEffect(() => { if (isOnline) setCreateRefusal(false) }, [isOnline, setCreateRefusal])
+  function createHabit(title?: string) {
+    if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(title)
     onClose()
   }
-  return { createRefusal: isOnline ? null : createRefusal, createHabit }
+  return { createRefusal: !isOnline && createRefusal, createHabit }
 }
 
 function HabitSearchLoading({ show, text, heading }: Readonly<{ show: boolean; text: string; heading: string }>) {
@@ -44,12 +41,8 @@ function HabitSearchLoading({ show, text, heading }: Readonly<{ show: boolean; t
   return text.trim() ? <Searching /> : <CommandHabitSkeleton heading={heading} />
 }
 
-export function CommandMenu(props: Readonly<CommandMenuProps>) {
+export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<CommandMenuProps>) {
   const search = useHabitSearch()
-  return <CommandMenuWithSearch {...props} search={search} />
-}
-
-export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search, resultsMode = false }: Readonly<CommandMenuProps & { search: HabitSearchState }>) {
   const t = useTranslations()
   const router = useRouter()
   /**
@@ -65,14 +58,13 @@ export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search
   const skipHabit = useSkipHabit()
   const entries = buildSearchEntries(search.data, search.query, page)
   const pageLabel = page === 'log' ? t('command.page.log') : t('command.page.skip')
-  const showResults = resultsMode && page === null && !!search.query
   const visibleEntries = !search.busy && !search.isError ? entries : []
   const firstCommand = page === null
-    ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations' && !(showResults && visibleEntries.length === 0 && command.id === 'create'))[0]
+    ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations')[0]
     : undefined
   const firstDestination = navItems.find((item) => item.label.toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase()))
   const firstValue = visibleEntries.length > 0
-    ? showResults ? visibleEntries[0]!.habit.id : commandHabitValue(visibleEntries[0]!)
+    ? commandHabitValue(visibleEntries[0]!)
     : firstCommand?.id ?? firstDestination?.id ?? ''
   const [selection, setSelection] = useState({ first: firstValue, selected: firstValue })
   if (selection.first !== firstValue) setSelection({ first: firstValue, selected: firstValue })
@@ -94,14 +86,14 @@ export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className={resultsMode ? 'flex flex-col' : 'flex min-h-0 flex-1 flex-col overflow-hidden'} onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className="flex min-h-0 flex-1 flex-col overflow-hidden" onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
-    <CommandList label={t('command.title')} aria-busy={search.busy} className={resultsMode ? 'px-4 py-2' : 'h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2'}>
-      {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
+    <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2">
+      {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
-      {!search.busy && !search.isError && <CommandResults showResults={showResults} entries={entries} totalCount={search.data?.totalCount ?? 0} query={search.query} onOpen={chooseHabit} onCreate={() => createHabit(search.query, 'search')} createRefusal={createRefusal === 'search'} disabled={logHabit.isPending || skipHabit.isPending} />}
-      {page === null && <CommandGroups hideCreate={showResults && entries.length === 0 && !search.busy} query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal === 'command'} />}
+      {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
+      {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}
       <div className="flex gap-3">
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
         {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
@@ -113,16 +105,4 @@ export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search
       <CommandKeyHint keys={['esc']} label={t(page ? 'command.hints.back' : 'command.hints.close')} />
     </div>
   </Command>
-}
-
-function CommandResults({ showResults, entries, totalCount, query, onOpen, onCreate, createRefusal, disabled }: Readonly<{
-  showResults: boolean; entries: CommandHabitEntry[]; totalCount: number; query: string
-  onOpen: (id: string) => void; onCreate: () => void; createRefusal: boolean; disabled: boolean
-}>) {
-  const t = useTranslations()
-  if (showResults) return entries.length > 0
-    ? <SearchResults totalCount={totalCount} habits={entries.map(({ habit }) => habit)} query={query} onOpen={onOpen} />
-    : <SearchEmpty query={query} onCreate={onCreate} createRefusal={createRefusal} />
-  if (entries.length === 0) return null
-  return <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={disabled} entries={entries} query={query} onSelectHabit={(habit) => onOpen(habit.id)} /></CommandGroup>
 }

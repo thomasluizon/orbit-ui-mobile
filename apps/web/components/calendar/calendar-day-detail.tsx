@@ -439,6 +439,7 @@ export function CalendarDayDetail({
   return (
     <section
       aria-label={formattedDate}
+      data-field-surface="card"
       className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
       style={{ paddingBlock: 24 }}
     >

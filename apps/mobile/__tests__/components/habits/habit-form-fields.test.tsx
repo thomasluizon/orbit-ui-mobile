@@ -19,10 +19,11 @@ const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, 
 const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
 const testTranslations: Record<string, string> = {
-  'habits.form.understoodDaily': 'Every day',
-  'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDayAt': 'Every {days} at {time}',
-  'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+  'dates.daysValue.monday': 'Monday',
+  'habits.form.understoodDaily': 'every day',
+  'habits.form.understoodDailyAt': 'every day at {time}',
+  'habits.form.understoodDayAt': 'every {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day, at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
 
@@ -181,7 +182,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every day')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('every day')
     expect(tree.root.findByType(HabitUnderstanding).props.daily).toBe(true)
     tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday')
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
@@ -193,7 +194,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every day at 07:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('every day at 07:00')
 
     controlValues.days = ['Monday']
     controlValues.dueTime = '08:00'
@@ -202,7 +203,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('Every Mon at 08:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('every Monday at 08:00')
     expect(tree.root.findByType(HabitUnderstanding).props.daily).toBe(false)
 
     controlValues.days = []
@@ -215,7 +216,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('3 times a week, any day at 09:00')
+    expect(tree.root.findByType(HabitUnderstanding).props.sentence).toBe('3 times a week, any day, at 09:00')
 
     controlValues.isFlexible = false
     controlValues.frequencyUnit = null
@@ -633,4 +634,16 @@ describe('mobile understanding sentence', () => {
     expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'A')).toHaveLength(0)
     expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'B')).toHaveLength(1)
   })
+})
+
+
+it('returns to a weekly target when the last selected day is cleared', () => {
+  const formHelpers = createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
+  })
+  TestRenderer.act(() => tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday'))
+  expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
+  expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 3, { shouldDirty: true })
 })

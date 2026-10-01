@@ -45,7 +45,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
-import { HabitUnderstanding } from './habit-form-fields/habit-understanding'
+import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
@@ -404,9 +404,7 @@ export function HabitFormFields({
         inputRef={titleField.ref}
         labels={understandingLabels}
         onQuantityChange={controller.setQuantity}
-        onModeChange={controller.setScheduleMode}
-        onIntervalWeeksChange={controller.setIntervalWeeks}
-        onToggleDay={(day) => controller.toggleDay(day, daily)}
+        onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onEmojiSelect={controller.setEmoji}
         isSuggestionDisabled={isSuggesting}
         onValueChange={controller.setTitle}
@@ -416,7 +414,6 @@ export function HabitFormFields({
         sentence={sentence}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
-        intervalWeeks={intervalWeeks}
         dayOptions={daysList}
         days={days}
         daily={daily}
@@ -438,6 +435,7 @@ export function HabitFormFields({
         <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} inset={false} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
+            <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
             <View>
               <TimeField
                 label={t('habits.form.exactTime')}

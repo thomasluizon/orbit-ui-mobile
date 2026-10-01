@@ -32,7 +32,7 @@ function createTintAdapter(color: string): ProposedTintAdapter {
   }
 }
 
-export function Proposed({ proposed, scope, label, children }: Readonly<ProposedProps>) {
+export function Proposed({ proposed, scope, label, children, inset = false }: Readonly<ProposedProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -42,10 +42,8 @@ export function Proposed({ proposed, scope, label, children }: Readonly<Proposed
     <View
       accessible={false}
       style={{
-        borderColor: tokens.hairlineStrong,
         borderRadius: PROPOSED_RADIUS[scope],
-        borderStyle: 'dashed',
-        borderWidth: 1,
+        ...(!inset ? { borderColor: tokens.hairlineStrong, borderStyle: 'dashed', borderWidth: 1 } : {}),
       }}
       testID={`proposed-${scope}`}
     >
@@ -58,6 +56,13 @@ export function Proposed({ proposed, scope, label, children }: Readonly<Proposed
         {label}
       </Text>
       {tintProposedChildren(children, createTintAdapter(tokens.fg3))}
+      {inset ? <View
+        pointerEvents="none"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        testID={`proposed-${scope}-outline`}
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderColor: tokens.hairlineStrong, borderRadius: PROPOSED_RADIUS[scope], borderStyle: 'dashed', borderWidth: 1 }}
+      /> : null}
     </View>
   )
 }

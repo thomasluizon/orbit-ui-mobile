@@ -117,9 +117,9 @@ export function WrappedPlayer({
             type="button"
             aria-label={t('wrapped.close')}
             onClick={onClose}
-            className="icon-btn"
+            className="icon-btn touch-target shrink-0 overflow-hidden"
           >
-            <X size={20} strokeWidth={1.8} />
+            <X size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
 

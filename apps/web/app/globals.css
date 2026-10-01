@@ -989,6 +989,41 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin: 0 0 0.375rem 0;
 }
 
+/* WHY: Opaque inset fills cover native autofill without adding a perimeter https://github.com/thomasluizon/orbit-tickets/issues/1001 */
+@media (forced-colors: none) {
+  [data-input-root] :is(input, textarea):autofill {
+    box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg);
+    -webkit-text-fill-color: var(--fg-1);
+    caret-color: var(--fg-1);
+  }
+
+  @scope (.orbit-row-list, [data-field-surface="card"]) {
+    [data-input-root] :is(input, textarea):autofill {
+      box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg);
+    }
+  }
+
+  @variant md {
+    @scope ([data-field-surface="responsive-card"]) {
+      [data-input-root] :is(input, textarea):autofill {
+        box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg);
+      }
+    }
+  }
+
+  @scope (.orbit-sheet-panel) {
+    [data-input-root] :is(input, textarea):autofill {
+      box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-sheet);
+    }
+
+    @scope (.orbit-row-list, [data-field-surface="card"]) {
+      [data-input-root] :is(input, textarea):autofill {
+        box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg-sheet);
+      }
+    }
+  }
+}
+
 .form-input {
   @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3.5 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
   min-height: 54px;
@@ -1718,7 +1753,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   overflow-wrap: anywhere;
 }
 .error-surface--in-shell {
+  max-width: none;
   padding: 64px 16px 0;
+}
+.error-surface--in-shell .error-surface-title {
+  align-self: stretch;
+}
+.error-surface--in-shell .error-surface-body {
+  max-width: 65ch;
 }
 .error-surface-title {
   font-family: var(--font-display);
@@ -1736,7 +1778,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 @media (min-width: 64rem) {
   .error-surface { padding: 32px; }
-  .error-surface--in-shell { padding: 0; }
+  .error-surface--in-shell { padding: 0 16px; }
   .error-surface-title { font-size: 28px; line-height: 1.15; }
   .error-surface-action [data-variant="primary"] {
     background: var(--fg-1);

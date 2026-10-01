@@ -65,7 +65,7 @@ export function HabitEmojiSelector({
         <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
-            { width: wellSize, height: wellSize, borderRadius: wellSize === 76 ? 12 : 999, overflow: 'hidden' },
+            { width: wellSize, height: wellSize, borderRadius: 12, overflow: 'hidden' },
             pressed
               ? {
                   backgroundColor: tokens.bgHover,
