@@ -848,6 +848,12 @@ internal padding. Header padding is 16px top, 24px horizontally and 8px bottom; 
 row uses 16px top, 24px horizontally and 24px bottom. Safe-area clearance and mobile footer
 reservation belong to the primitive separately from this content padding.
 
+**Fixed-column date grids keep all seven 44px targets inside the body.** The date picker requests
+a 308px minimum body width. The primitive reduces only that body's horizontal inset as the panel
+narrows below 356px, down to a 4px floor, and restores 24px when space permits. The top and bottom
+padding, header and footer stay canonical. This geometry-derived inset applies on both platforms;
+ordinary sheet content keeps its 24px horizontal inset at every supported width.
+
 **The panel is `--bg-elev`, authored opaque.** An overlay sits over arbitrary content, so a translucent panel cannot have its text contrast checked. The backdrop is `--scrim`. Radius 28 at the top on mobile presentation, 20 all round at `sm` and above.
 
 ### Dismissal contract

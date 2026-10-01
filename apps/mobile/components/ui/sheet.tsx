@@ -59,6 +59,7 @@ export function Sheet({
   accessibleTitle,
   headerAccessory,
   actions,
+  minimumBodyWidth,
   onClose,
   onAttemptDismiss,
   virtualizedBody = false,
@@ -71,7 +72,11 @@ export function Sheet({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { height } = useWindowDimensions()
+  const { height, width } = useWindowDimensions()
+  const bodyPaddingHorizontal = minimumBodyWidth == null
+    ? 24
+    : Math.max(4, Math.min(24, (Math.min(width, MAX_CONTENT_WIDTH) - minimumBodyWidth) / 2))
+  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
   const { bottom: bottomInset } = useSafeAreaInsets()
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
@@ -186,7 +191,7 @@ export function Sheet({
       scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: maxBodyHeight }]}>
+        <View testID="sheet-virtualized-body" style={[bodyStyle, { maxHeight: maxBodyHeight }]}>
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
@@ -194,7 +199,7 @@ export function Sheet({
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
           style={{ maxHeight: maxBodyHeight }}
-          contentContainerStyle={styles.body}
+          contentContainerStyle={bodyStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

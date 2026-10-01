@@ -49,7 +49,7 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, virtualizedBody, initialFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, virtualizedBody, initialFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -137,7 +137,10 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
               ) : null}
             </header>
             {children == null ? null : (
-              <div className="orbit-sheet-body" data-slot="sheet-body" style={virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } : undefined}>
+              <div className="orbit-sheet-body" data-slot="sheet-body" style={{
+                ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
+                paddingInline: minimumBodyWidth == null ? undefined : `clamp(4px, calc((100% - ${minimumBodyWidth}px) / 2), 24px)`,
+              }}>
                 {children}
               </div>
             )}
