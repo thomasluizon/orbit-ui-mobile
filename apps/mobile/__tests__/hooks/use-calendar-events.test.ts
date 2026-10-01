@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { calendarKeys } from '@orbit/shared/query'
-import type { CalendarSyncEvent } from '@orbit/shared'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
+import { ZodError } from 'zod'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 
 import {
   useCalendarEvents,
@@ -25,20 +27,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
-
-function buildEvent(id: string): CalendarSyncEvent {
-  return {
-    id,
-    title: `Event ${id}`,
-    description: null,
-    startDate: '2025-01-01',
-    startTime: null,
-    endTime: null,
-    isRecurring: false,
-    recurrenceRule: null,
-    reminders: [],
-  }
-}
 
 function useCapturedQueryFn(): () => Promise<CalendarEventsResult> {
   let captured: (() => Promise<CalendarEventsResult>) | null = null
@@ -81,8 +69,8 @@ describe('mobile useCalendarEvents', () => {
   it('returns a connected result with the fetched events', async () => {
     const queryFn = useCapturedQueryFn()
     const events = [
-      { ...buildEvent('a'), isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' },
-      { ...buildEvent('b'), isImported: false },
+      createMockCalendarSyncEvent({ id: 'a', isImported: true, importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa' }),
+      createMockCalendarSyncEvent({ id: 'b', isImported: false }),
     ]
     mocks.apiClient.mockResolvedValue(events)
 
@@ -95,9 +83,25 @@ describe('mobile useCalendarEvents', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/events?includeImported=true')
   })
 
-  it('coerces a non-array payload to an empty connected list', async () => {
+  it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
     const queryFn = useCapturedQueryFn()
-    mocks.apiClient.mockResolvedValue(null)
+    mocks.apiClient.mockResolvedValue(body)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const observer = new QueryObserver(queryClient, {
+      queryKey: [...calendarKeys.all, 'manual-fetch', 'UTC'],
+      queryFn,
+    })
+    const result = await observer.refetch()
+
+    expect(result.isError).toBe(true)
+    expect(result.error).toBeInstanceOf(ZodError)
+    expect(result.data).toBeUndefined()
+    queryClient.clear()
+  })
+
+  it('returns an empty connected list when no events are available', async () => {
+    const queryFn = useCapturedQueryFn()
+    mocks.apiClient.mockResolvedValue([])
 
     const result = await queryFn()
 
