@@ -34,16 +34,17 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
 
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
+  const secondaryColor = selected ? 'var(--fg-2)' : 'var(--fg-3)'
   const content = (
     <>
       {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.3 }}>{label}</span>
-        {description ? <span style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
-        {disabled && reason ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
+        {description ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
+        {disabled && reason ? <span style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
       </span>
-      {meta ? <span className="shrink-0" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
-      {tag ? <span className="shrink-0 uppercase" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
+      {meta ? <span className="shrink-0" style={{ color: secondaryColor, fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
+      {tag ? <span className="shrink-0 uppercase" style={{ color: secondaryColor, fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
       <RadioGlyph selected={selected} size={24} />
     </>
   )

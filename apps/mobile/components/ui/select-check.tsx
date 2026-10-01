@@ -44,16 +44,17 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     onSelect,
     selected,
   })
+  const secondaryColor = selected ? tokens.fg2 : tokens.fg3
   const content = (
     <>
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.textBlock}>
         <Text style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
-        {description ? <Text style={[styles.description, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{description}</Text> : null}
-        {disabled && reason ? <Text style={[styles.reason, { color: tokens.fg3 }]}>{reason}</Text> : null}
+        {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
+        {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
       </View>
-      {meta ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{meta}</Text> : null}
-      {tag ? <Text style={[styles.tag, { color: tokens.fg3 }]}>{tag}</Text> : null}
+      {meta ? <Text style={[styles.meta, { color: secondaryColor }]}>{meta}</Text> : null}
+      {tag ? <Text style={[styles.tag, { color: secondaryColor }]}>{tag}</Text> : null}
       <RadioGlyph selected={selected} size={24} tokens={tokens} />
     </>
   )
