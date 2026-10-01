@@ -4,6 +4,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { Gesture } from 'react-native-gesture-handler'
 import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { TimeField } from '@/components/ui/time-field'
 
@@ -63,6 +64,11 @@ function applyStyle(node: YogaNode, value: unknown) {
 }
 
 function layoutHost(host: Host, nodes: Map<Host, YogaNode>): YogaNode {
+  if (host.type === 'GestureDetector') {
+    const node = layoutHost(children(host)[0]!, nodes)
+    nodes.set(host, node)
+    return node
+  }
   const node = Yoga.Node.create()
   nodes.set(host, node)
   if (host.type === 'ScrollView') {
@@ -111,6 +117,48 @@ async function mountPicker(hourCycle: 'h12' | 'h23', value: Time24 = '23:59') {
 afterEach(() => __resetTestHostConfig())
 
 describe('TimeField scroll ownership in the native Sheet', () => {
+  it.each(['h12', 'h23'] as const)('keeps %s native taps simultaneous with the claimed scroll and rejects cancelled drags', async (hourCycle) => {
+    __setWindowDimensions({ width: 320, height: 320, scale: 1, fontScale: 1 })
+    const { tree, onChange } = await mountPicker(hourCycle)
+    try {
+      const detectors = tree.root.findAllByType('GestureDetector')
+      const nativeGestures = detectors.map((node: { props: { gesture: ReturnType<typeof Gesture.Native> } }) => node.props.gesture)
+        .filter((gesture: ReturnType<typeof Gesture.Native>) => gesture.handlerName === 'NativeViewGestureHandler')
+      expect(nativeGestures).toHaveLength(hourCycle === 'h23' ? 2 : 3)
+      for (const nativeGesture of nativeGestures) {
+        const optionDetectors = detectors.filter((node: { props: { gesture: ReturnType<typeof Gesture.Tap> } }) => node.props.gesture.config.simultaneousWith?.includes(nativeGesture))
+        expect(optionDetectors.length).toBeGreaterThan(0)
+        for (const detector of optionDetectors) {
+          const tap = detector.props.gesture as ReturnType<typeof Gesture.Tap>
+          expect(tap.config).toMatchObject({ maxDist: 8, maxDurationMs: 2 ** 31 - 1, runOnJS: true })
+        }
+        const detector = optionDetectors.find((node: { findByType: (type: string) => { props: { accessibilityState: { checked: boolean } } } }) => !node.findByType('Pressable').props.accessibilityState.checked)
+        const tap = detector.props.gesture as ReturnType<typeof Gesture.Tap>
+        TestRenderer.act(() => {
+          tap.handlers.onBegin!(undefined as never)
+          tap.handlers.onEnd!(undefined as never, false)
+          tap.handlers.onFinalize!(undefined as never, false)
+        })
+        expect(detector.findByType('Pressable').props.accessibilityState.checked).toBe(false)
+        expect(onChange).not.toHaveBeenCalled()
+        TestRenderer.act(() => {
+          tap.handlers.onBegin!(undefined as never)
+          tap.handlers.onEnd!(undefined as never, true)
+          tap.handlers.onFinalize!(undefined as never, true)
+        })
+        expect(detector.findByType('Pressable').props.accessibilityState.checked).toBe(true)
+        expect(onChange).not.toHaveBeenCalled()
+      }
+      await TestRenderer.act(async () => {
+        tree.root.findAllByType('Pressable').find((node: { findAll: (predicate: (child: Host) => boolean) => Host[] }) => node.findAll((child: Host) => child.type === 'Text' && child.props.children === 'common.done').length > 0).props.onPress()
+        await Promise.resolve()
+      })
+      expect(onChange).toHaveBeenCalledWith(hourCycle === 'h23' ? '00:00' : '01:00')
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
   it.each([
     { width: 320, height: 320, hourCycle: 'h23' as const, value: '23:59' as const },
     { width: 320, height: 320, hourCycle: 'h12' as const, value: '23:59' as const },
@@ -133,6 +181,15 @@ describe('TimeField scroll ownership in the native Sheet', () => {
       expect(groups.map((group) => children(findHost(group, (host) => host.type === 'ScrollView')!).length)).toEqual(hourCycle === 'h23' ? [24, 60] : [12, 60, 2])
       for (const group of groups) {
         const scrollHost = findHost(group, (host) => host.type === 'ScrollView')!
+        const gestureRoot = findHost(group, (host) => host.type === 'GestureHandlerRootView')
+        expect(gestureRoot, `${String(group.props.accessibilityLabel)} needs TrueSheet's native gesture grace boundary`).toBeDefined()
+        expect(findHost(gestureRoot!, (host) => host === scrollHost)).toBe(scrollHost)
+        const nativeDetector = children(gestureRoot!)[0]!
+        expect(nativeDetector.type).toBe('GestureDetector')
+        expect(nativeDetector.props.gesture).toMatchObject({
+          handlerName: 'NativeViewGestureHandler',
+          config: { shouldActivateOnStart: true, disallowInterruption: true, shouldCancelWhenOutside: false },
+        })
         const scrollNode = nodes.get(scrollHost)!
         const viewportHeight = scrollNode.getComputedHeight()
         expect(viewportHeight).toBeGreaterThanOrEqual(44)
@@ -143,7 +200,7 @@ describe('TimeField scroll ownership in the native Sheet', () => {
         TestRenderer.act(() => scroll.props.onLayout({ nativeEvent: { layout: { height: viewportHeight } } }))
         const offset = scrollTo.mock.calls.at(-1)![0].y as number
         const content = scrollNode.getChild(0)
-        const selected = children(scrollHost).find((host) => (host.props.accessibilityState as { checked?: boolean } | undefined)?.checked)!
+        const selected = findHost(scrollHost, (host) => (host.props.accessibilityState as { checked?: boolean } | undefined)?.checked === true)!
         const selectedNode = nodes.get(selected)!
         expect(selectedNode.getComputedTop() - offset).toBeGreaterThanOrEqual(-0.5)
         expect(selectedNode.getComputedTop() - offset + selectedNode.getComputedHeight()).toBeLessThanOrEqual(viewportHeight + 0.5)

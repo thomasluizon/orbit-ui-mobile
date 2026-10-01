@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
   Pressable,
@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Gesture, GestureDetector, GestureHandlerRootView, type NativeGesture } from 'react-native-gesture-handler'
 import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
@@ -64,41 +65,54 @@ function TimeOption({
   formattedValue,
   onSelect,
   selected,
+  scrollGesture,
   tokens,
 }: Readonly<{
   formattedValue: string
   onSelect: () => void
   selected: boolean
+  scrollGesture: NativeGesture
   tokens: Tokens
 }>) {
+  const [touchPressed, setTouchPressed] = useState(false)
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled: false,
     onSelect,
     selected,
   })
+  const tapGesture = Gesture.Tap()
+    .maxDistance(8)
+    .maxDuration(2 ** 31 - 1)
+    .simultaneousWithExternalGesture(scrollGesture)
+    .runOnJS(true)
+    .onBegin(() => setTouchPressed(true))
+    .onEnd((_event, success) => { if (success) onActivate() })
+    .onFinalize(() => setTouchPressed(false))
   return (
-    <InsetFocusPressable
-      {...navigationProps}
-      focusColor={selected ? tokens.fgOnPrimary : tokens.fg1}
-      ref={elementRef}
-      accessibilityLabel={formattedValue}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      onPress={onActivate}
-      style={({ pressed }) => [
-        styles.option,
-        { backgroundColor: pressedOptionBackground(tokens, selected, pressed) },
-      ]}
-    >
-      <Text
-        style={[
-          styles.optionLabel,
-          { color: selected ? tokens.fgOnPrimary : tokens.fg1 },
+    <GestureDetector gesture={tapGesture}>
+      <InsetFocusPressable
+        {...navigationProps}
+        focusColor={selected ? tokens.fgOnPrimary : tokens.fg1}
+        ref={elementRef}
+        accessibilityLabel={formattedValue}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: selected }}
+        onPress={onActivate}
+        style={({ pressed }) => [
+          styles.option,
+          { backgroundColor: pressedOptionBackground(tokens, selected, pressed || touchPressed) },
         ]}
       >
-        {formattedValue}
-      </Text>
-    </InsetFocusPressable>
+        <Text
+          style={[
+            styles.optionLabel,
+            { color: selected ? tokens.fgOnPrimary : tokens.fg1 },
+          ]}
+        >
+          {formattedValue}
+        </Text>
+      </InsetFocusPressable>
+    </GestureDetector>
   )
 }
 
@@ -110,6 +124,11 @@ function TimeColumn({
   tokens,
   onSelect,
 }: Readonly<TimeColumnProps>) {
+  const scrollGesture = useMemo(() => Gesture.Native()
+    .shouldActivateOnStart(true)
+    .disallowInterruption(true)
+    .shouldCancelWhenOutside(false)
+    .runOnJS(true), [])
   const listRef = useRef<ScrollView>(null)
   const viewportHeightRef = useRef(0)
   const selectedIndex = values.indexOf(selected)
@@ -126,29 +145,34 @@ function TimeColumn({
 
   return (
     <RadioGroup accessibilityLabel={label} style={styles.column}>
-      <ScrollView
-        ref={listRef}
-        contentContainerStyle={styles.columnContent}
-        nestedScrollEnabled={false}
-        overScrollMode="never"
-        onLayout={(event) => {
-          viewportHeightRef.current = event.nativeEvent.layout.height
-          revealSelected(viewportHeightRef.current)
-        }}
-        onContentSizeChange={() => revealSelected(viewportHeightRef.current)}
-        showsVerticalScrollIndicator
-        style={styles.columnScroll}
-      >
-        {values.map((option) => (
-          <TimeOption
-            key={String(option)}
-            formattedValue={formatValue(option)}
-            selected={option === selected}
-            tokens={tokens}
-            onSelect={() => onSelect(option)}
-          />
-        ))}
-      </ScrollView>
+      <GestureHandlerRootView style={styles.columnScroll}>
+        <GestureDetector gesture={scrollGesture}>
+          <ScrollView
+            ref={listRef}
+            contentContainerStyle={styles.columnContent}
+            nestedScrollEnabled={false}
+            overScrollMode="never"
+            onLayout={(event) => {
+              viewportHeightRef.current = event.nativeEvent.layout.height
+              revealSelected(viewportHeightRef.current)
+            }}
+            onContentSizeChange={() => revealSelected(viewportHeightRef.current)}
+            showsVerticalScrollIndicator
+            style={styles.columnScroll}
+          >
+            {values.map((option) => (
+              <TimeOption
+                key={String(option)}
+                formattedValue={formatValue(option)}
+                selected={option === selected}
+                scrollGesture={scrollGesture}
+                tokens={tokens}
+                onSelect={() => onSelect(option)}
+              />
+            ))}
+          </ScrollView>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </RadioGroup>
   )
 }

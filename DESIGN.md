@@ -844,7 +844,12 @@ day-period columns scroll only their own values. Each column has a bounded viewp
 220px and shrinking with the space left by the sheet header, body padding and pinned footer.
 The primitive's `boundedBody` option owns that allocation and keeps the page-level body scroller.
 Columns must not transfer scrolling to the body: web uses `overscroll-behavior: contain`, and
-Android disables nested scrolling on each column. Scroll indicators expose the remaining values.
+Android disables nested scrolling on each column and wraps its viewport in a local gesture-handler
+root with a native scroll handler that activates on touch-down and disallows interruption.
+TrueSheet yields the claimed stream before the first move, keeping drags with the column in
+either direction. Simultaneous option tap handlers preserve selection and reject drags, while
+the radio controls retain keyboard and accessibility activation. Scroll indicators expose the
+remaining values.
 
 Render tests on both platforms must prove that the selected values open fully in view and every
 value remains reachable in short, narrow windows. Done stays in the pinned footer, cancellation
