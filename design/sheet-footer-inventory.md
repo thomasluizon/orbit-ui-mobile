@@ -30,6 +30,8 @@ with the existing ghost dismissal before the filled action.
 | Reschedule | `components/habits/reschedule-sheet.tsx` | `components/habits/reschedule-sheet.tsx` | Already small and trailing: free, error, accept |
 | Version update | Native update adapter | `components/version-update-drawer.tsx` | Already small and trailing: later, update |
 | Notification detail | `components/navigation/notification-detail-modal.tsx` | `components/navigation/notification-detail-modal.tsx` | Read, view, delete; intrinsic trailing group |
+| Operation editor | `components/chat/pending-operation-card.tsx` | `components/chat/pending-operation-card.tsx` | Already small and trailing: cancel, save |
+| Operation step-up confirmation | `components/chat/pending-operation-card.tsx` | `components/chat/pending-operation-card.tsx` | Already small and trailing: cancel, continue |
 
 Single acknowledgement and import footers keep their existing action count and use the
 same small, intrinsic-width geometry. Prompt wording and the referral drawer's body
