@@ -150,6 +150,8 @@ describe('useCalendarAutoSyncState', () => {
     const { Wrapper } = createWrapper()
     const { result } = renderHook(() => useCalendarAutoSyncState(), { wrapper: Wrapper })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data).toEqual(sampleState)
