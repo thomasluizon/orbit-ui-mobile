@@ -143,7 +143,7 @@ function StepUpVerificationSheet({
   onCompleted,
   onVerify,
 }: Readonly<PendingOperationVerificationProps>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
   const openRef = useRef(open)
   useLayoutEffect(() => { openRef.current = open }, [open])
@@ -186,10 +186,15 @@ const pendingOperationRenderers = {
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>,
-  actionRow: (...children) => <View testID="preview-actions" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{children}</View>,
+  actionRow: (...children) => <PreviewActions>{children}</PreviewActions>,
   spacer: () => <View style={{ flex: 1 }} />,
   rejected: (message) => <RejectedPreview message={message} />,
 } satisfies PendingOperationCardRenderers
+
+function PreviewActions({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { width } = useWindowDimensions()
+  return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: width < 360 ? 'wrap' : 'nowrap', alignItems: 'center', gap: 8 }}>{children}</View>
+}
 
 function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
   const { width } = useWindowDimensions()
@@ -199,9 +204,9 @@ function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/sha
 function RejectedPreview({ message }: Readonly<{ message: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+  return <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 12, backgroundColor: tokens.bgWell }}>
     <XCircle accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} />
-    <Text accessibilityLiveRegion="polite" style={{ flex: 1, color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{message}</Text>
+    <Text accessibilityLiveRegion="polite" style={{ flex: 1, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
   </View>
 }
 

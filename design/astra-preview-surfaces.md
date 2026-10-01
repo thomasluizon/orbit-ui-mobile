@@ -6,7 +6,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Surface | Web and Android behavior |
 | --- | --- |
 | Pending item preview | One named row per item with a localized cadence, date or time; irreversible changes retain their mark. |
-| Compact preview actions | Primary Approve, ghost Edit, a spacer and ghost Reject on one row. |
+| Compact preview actions | Primary Approve, ghost Edit, a spacer and ghost Reject on one row at the drawn width; whole controls reflow below 360px. |
 | Wide preview actions | Secondary Approve, ghost Edit, a spacer and ghost Reject on one row. |
 | Item editing sheet | Existing typed editing, per-item removal and batch revision remain available. |
 | Irreversible confirmation and identity verification | Existing confirmation and verification remain required before execution. |
