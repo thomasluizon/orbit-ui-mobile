@@ -1,9 +1,8 @@
-import type { PendingAgentOperation } from '../types/ai'
+import type { PendingAgentOperation, PendingOperationChange } from '../types/ai'
+import { PENDING_OPERATION_WEEKDAYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 
-export const PENDING_OPERATION_WEEKDAYS = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-] as const
+export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
@@ -16,7 +15,8 @@ export interface PendingOperationCardLabels {
   editTitle: string
   reject: string
   remove: string
-  rejected: string
+  rejected: (count: number) => string
+  summarize: (fields: readonly PendingOperationChange[]) => string
   save: string
   search: string
   invalid: string
@@ -45,13 +45,11 @@ export interface PendingOperationCardLabels {
   pending: string
   pendingTitle: string
   proposed: string
-  notSet: string
   open: string
   openNamed: (name: string) => string
   failed: string
   denied: string
   unsupported: string
-  diff: (field: string, oldValue: string, newValue: string) => string
   more: (count: number) => string
   stepUpAction: string
   stepUpMessage: string
@@ -61,6 +59,7 @@ export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
   translate: (key: string, values?: Record<string, string | number>) => string,
   formatTime: (value: string) => string,
+  locale = 'en',
 ): PendingOperationCardLabels {
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
   return {
@@ -73,7 +72,8 @@ export function buildPendingOperationCardLabels(
     editTitle: translate('chat.operation.editTitle'),
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),
-    rejected: translate('chat.operation.rejected'),
+    rejected: (count) => translate('chat.operation.rejected', { count }),
+    summarize: (fields) => summarizePendingOperationItem(fields, translate, formatTime, locale, pendingOperation.actionKey),
     save: translate('common.save'),
     search: translate('common.search'),
     invalid: translate('chat.operation.invalid'),
@@ -108,13 +108,11 @@ export function buildPendingOperationCardLabels(
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
-    notSet: translate('chat.preview.notSet'),
     open: translate('chat.action.open'),
     openNamed: (name) => translate('chat.action.openEntity', { name }),
     failed: translate('chat.operationFailed'),
     denied: translate('chat.operation.status.Denied'),
     unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
-    diff: (field, oldValue, newValue) => translate('chat.preview.diff', { field, old: oldValue, new: newValue }),
     more: (count) => translate('chat.preview.more', { count }),
     stepUpAction: translate('chat.operation.stepUpAction'),
     stepUpMessage: translate('chat.operation.stepUpMessage'),

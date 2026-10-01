@@ -4,7 +4,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
-import { I18nManager, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -15,8 +15,9 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { ArrowRight, X } from '@/components/ui/icons'
+import { XCircle, X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
@@ -178,25 +179,34 @@ function StepUpVerificationSheet({
 
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} />,
-  button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
+  button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <StepUp {...props} />,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>,
-  actionRow: (...children) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>,
-  diffLabel: (field, oldValue, newValue, accessible) => <DiffLabel field={field} oldValue={oldValue} newValue={newValue} accessible={accessible} />,
+  actionRow: (...children) => <PreviewActions>{children}</PreviewActions>,
+  spacer: () => <View style={{ flex: 1 }} />,
+  rejected: (message) => <RejectedPreview message={message} />,
 } satisfies PendingOperationCardRenderers
 
-function DiffLabel({ field, oldValue, newValue, accessible }: Readonly<{ field: string; oldValue: string; newValue: string; accessible: string }>) {
+function PreviewActions({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { width } = useWindowDimensions()
+  return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: width < 360 ? 'wrap' : 'nowrap', alignItems: 'center', gap: 8 }}>{children}</View>
+}
+
+function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+  const { width } = useWindowDimensions()
+  return <Button size="sm" variant={variant === 'primary' && width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : variant} {...props}>{label}</Button>
+}
+
+function RejectedPreview({ message }: Readonly<{ message: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <View accessible accessibilityLabel={accessible} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-    <Text style={{ color: tokens.fg1, fontSize: 14 }}>{field}:</Text>
-    <Text style={{ color: tokens.fg3, fontSize: 14 }}>{oldValue}</Text>
-    <ArrowRight accessible={false} color={tokens.fg2} size={16} strokeWidth={1.5} style={I18nManager.isRTL ? { transform: [{ rotate: '180deg' }] } : undefined} />
-    <Text style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{newValue}</Text>
+  return <View style={message ? { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 12, backgroundColor: tokens.bgWell } : { position: 'absolute', height: 0, overflow: 'hidden' }}>
+    {message ? <XCircle accessible={false} color={tokens.fg3} size={20} strokeWidth={1.5} /> : null}
+    <Text testID="preview-rejection-status" accessibilityLiveRegion="polite" style={{ flex: message ? 1 : undefined, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
   </View>
 }
 
@@ -212,7 +222,7 @@ export function PendingOperationCard({
   savedState,
   onStateChange,
 }: Readonly<PendingOperationCardAdapterProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { displayTime } = useTimeFormat()
 
   return <SharedPendingOperationCard
@@ -227,6 +237,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
+    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime, i18n.language)}
   />
 }

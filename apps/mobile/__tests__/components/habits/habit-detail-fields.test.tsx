@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { HabitDetailFields } from '@/components/habits/habit-detail-fields'
+import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -22,7 +22,7 @@ type PressableNode = Readonly<{
   props: {
     accessibilityLabel?: string
     accessibilityRole?: string
-    accessibilityState?: { checked?: boolean; selected?: boolean }
+    accessibilityState?: { checked?: boolean; selected?: boolean; expanded?: boolean }
     style: (state: { pressed: boolean }) => StyleProp<ViewStyle>
     onPress: () => void
   }
@@ -44,26 +44,23 @@ const renderer = require('react-test-renderer') as {
 
 const tokens = createTokensV2('purple', 'dark')
 
-function renderScheduleEditor(onPatch: (patch: unknown) => Promise<boolean>) {
+function renderScheduleEditor(onPatch: (patch: unknown) => Promise<boolean>, daily = false, open = !daily) {
   let tree: TestTree | undefined
   renderer.act(() => {
     tree = renderer.create(
-      <HabitDetailFields
-        habit={makeHabitDetailScopedChild('2026-09-29')}
-        hasProAccess
-        locale="en"
-        relationshipControlsAvailable={false}
+      <HabitDetailSchedule
+        habit={{ ...makeHabitDetailScopedChild('2026-09-29'), frequencyQuantity: daily ? 1 : 2 }}
         summary="Every day"
+        open={open}
         tokens={tokens}
-        onPatch={onPatch}
-        onUpgrade={() => {}}
+        onSave={(patch) => { void onPatch(patch) }}
+        onToggle={() => {}}
+        onCancel={() => {}}
       />,
     )
   })
   if (!tree) throw new Error('The renderer produced no tree')
-  const rendered = tree
-  renderer.act(() => rendered.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
-  return rendered
+  return tree
 }
 
 function control(tree: TestTree, label: string) {
@@ -76,32 +73,33 @@ function fill(tree: TestTree, label: string, pressed: boolean) {
   return StyleSheet.flatten(control(tree, label).props.style({ pressed }))
 }
 
-describe('HabitDetailFields schedule chips', () => {
+describe('HabitDetailSchedule schedule chips', () => {
+  it.each([false, true])('announces the daily cadence editor expanded state %s', (open) => {
+    const tree = renderScheduleEditor(vi.fn().mockResolvedValue(true), true, open)
+    expect(tree.root.findAllByType(Pressable)[0]!.props.accessibilityState).toMatchObject({ expanded: open })
+  })
+
   it('fills a pressed frequency unit inside its pill and keeps the chosen unit marked', () => {
     const tree = renderScheduleEditor(vi.fn().mockResolvedValue(true))
 
     expect(control(tree, 'habits.form.unitDay').props.accessibilityState).toMatchObject({ checked: true })
-    expect(fill(tree, 'habits.form.unitDay', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.selectionBg })
-    expect(fill(tree, 'habits.form.unitWeek', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bg })
+    expect(fill(tree, 'habits.form.unitDay', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
+    expect(fill(tree, 'habits.form.unitWeek', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bgWell })
     expect(fill(tree, 'habits.form.unitWeek', true).backgroundColor).toBe(tokens.bgHover)
     expect(fill(tree, 'habits.form.unitDay', true).backgroundColor).toBe(tokens.bgHover)
   })
 
   it('fills a pressed weekday inside its pill and saves the days left selected', async () => {
     const onPatch = vi.fn().mockResolvedValue(true)
-    const tree = renderScheduleEditor(onPatch)
+    const tree = renderScheduleEditor(onPatch, true)
 
     renderer.act(() => control(tree, 'dates.daysLong.sunday').props.onPress())
-    expect(control(tree, 'dates.daysLong.sunday').props.accessibilityState).toMatchObject({ selected: false })
-    expect(fill(tree, 'dates.daysLong.sunday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bg })
-    expect(fill(tree, 'dates.daysLong.monday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.selectionBg })
+    expect(fill(tree, 'dates.daysLong.sunday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
+    expect(fill(tree, 'dates.daysLong.monday', false)).toMatchObject({ borderRadius: 999, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
     expect(fill(tree, 'dates.daysLong.sunday', true).backgroundColor).toBe(tokens.bgHover)
     expect(fill(tree, 'dates.daysLong.monday', true).backgroundColor).toBe(tokens.bgHover)
 
-    await renderer.act(async () => {
-      tree.root.findAll((node) => node.props.children === 'common.save' && typeof node.props.onClick === 'function')[0]!.props.onClick()
-      await Promise.resolve()
-    })
+    await renderer.act(async () => { await Promise.resolve() })
     expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({
       frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     }))

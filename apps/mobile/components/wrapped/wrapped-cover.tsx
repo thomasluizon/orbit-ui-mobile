@@ -58,6 +58,7 @@ export function WrappedCover({
         {RECAP_SHARE_PERIODS.map((value) => (
           <Chip
             key={value}
+            variant="period"
             active={period === value}
             onPress={() => onSelectPeriod(value)}
             accessibilityLabel={t(`wrapped.periods.${value}`)}

@@ -1,6 +1,8 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import type { PendingOperationExecutionResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
@@ -8,7 +10,16 @@ import { sheetTestControls } from '../../support/sheet-double'
 const capturedSheet = vi.hoisted(() => ({ onConfirm: undefined as (() => void) | undefined }))
 const capturedVerification = vi.hoisted(() => ({ onVerify: undefined as ((id: string, challengeId: string, code: string, token: string) => Promise<unknown>) | undefined }))
 const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean) | undefined }))
-vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
+
+function translateVisible(key: string, values?: Record<string, string | number>): string {
+  const messages = visibleLocale.language === 'en' ? en : ptBR
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
+  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+}
+
+vi.mock('next-intl', () => ({ useLocale: () => visibleLocale.language, useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+  if (visibleLocale.actual) return translateVisible(key, values)
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -58,21 +69,49 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
-  it('renders field diffs with accessible old and new values', () => {
-    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({
-      riskClass: 'Low', confirmationRequirement: 'None',
-      changes: [
-        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
-        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
-      ], changeTargetCount: 2,
-    })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByText(/from .* to Monday/)).toHaveClass('sr-only')
-    expect(screen.getByText(/from 2 to 3/)).toHaveClass('sr-only')
-    expect(screen.queryByText('and 1 more')).not.toBeInTheDocument()
+  describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
+    it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePendingWriteSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      expect(screen.getByText(expected)).toBeInTheDocument()
+      expect(screen.getAllByText('Read')).toHaveLength(1)
+      expect(screen.queryByText(operation.items![0]!.entityId!)).not.toBeInTheDocument()
+    })
+
+    it.each(partialScheduleSummaryCases)('shows only the changed schedule fields: $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePartialScheduleSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      expect(screen.getByText(expected)).toBeInTheDocument()
+    })
+  })
+
+  it('renders one named habit with a cadence instead of field diffs', () => {
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    const item = operation.items![0]!
+    const fields = [
+      ...item.fields,
+      { ...item.fields[0]!, field: 'frequency_unit', newValue: 'Day' },
+      { ...item.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' },
+      { ...item.fields[0]!, field: 'emoji', newValue: '📚' },
+    ]
+    render(<PendingOperationCard pendingOperation={{ ...operation, changes: fields, items: [{ ...item, fields }] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getAllByText('Beber água')).toHaveLength(1)
+    expect(screen.getByText(/habits.frequency.everyDay/)).toBeInTheDocument()
+    expect(screen.queryByText('Day')).not.toBeInTheDocument()
+    expect(screen.queryByText(/chat.operation.field/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/from .* to/)).not.toBeInTheDocument()
   })
 
   afterEach(() => sheetTestControls.defer(false))
   beforeEach(() => {
+    visibleLocale.actual = false
+    visibleLocale.language = 'en'
     capturedSheet.onConfirm = undefined
     capturedVerification.onVerify = undefined
     capturedCard.isCurrent = undefined
@@ -124,9 +163,9 @@ describe('PendingOperationCard', () => {
     expect(await screen.findByText('status.done')).toBeInTheDocument()
   })
 
-  it('cancels without executing', () => {
+  it('rejects a legacy preview without executing', () => {
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
     expect(screen.queryByText('chat.operation.pendingTitle')).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
   })
@@ -222,8 +261,15 @@ describe('PendingOperationCard', () => {
       isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
     } })
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const announcement = document.querySelector('[data-preview-rejection-status]')
+    expect(announcement).toBeInTheDocument()
+    expect(announcement).toBeEmptyDOMElement()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('chat.operation.rejected'))
+    expect(screen.getByRole('status')).toBe(announcement)
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(screen.queryByText('Read')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.refresh' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
     expect(confirm).not.toHaveBeenCalled()
   })
@@ -249,7 +295,7 @@ describe('PendingOperationCard', () => {
       displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null,
     })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(screen.queryByRole('button', { name: 'chat.operation.edit' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'chat.operation.reject' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeEnabled()
   })
 

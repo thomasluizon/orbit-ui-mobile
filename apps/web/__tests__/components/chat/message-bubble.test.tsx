@@ -512,11 +512,11 @@ describe('MessageBubble', () => {
     }
     const first = render(<StoredBubble />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
-    await screen.findByText('chat.operation.rejected chat.pendingOp.capability.habits-write')
+    await screen.findByText('chat.operation.rejected:{"count":1}')
     first.unmount()
     render(<StoredBubble />)
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
-    expect(screen.getByText('chat.operation.rejected chat.pendingOp.capability.habits-write')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('chat.operation.rejected:{"count":1}')
   })
 
   it('keeps a failed approval retryable after the bubble remounts', async () => {

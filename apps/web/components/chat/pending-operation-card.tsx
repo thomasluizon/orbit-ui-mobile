@@ -6,7 +6,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
 import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -17,7 +17,8 @@ import { StepUp } from '@/components/ui/step-up'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
-import { ArrowRight, X } from '@/components/ui/icons'
+import { XCircle, X } from '@/components/ui/icons'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -165,7 +166,7 @@ function StepUpVerificationSheet({
 
 const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} />,
-  button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
+  button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <StepUp {...props} />,
   verification: (props) => <StepUpVerificationSheet {...props} />,
@@ -175,14 +176,15 @@ const pendingOperationRenderers = {
     className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
-  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2">{children}</div>,
-  diffLabel: (field, oldValue, newValue, accessible) => <span className="flex flex-wrap items-center gap-2 text-sm">
-    <span className="sr-only">{accessible}</span>
-    <span aria-hidden="true">{field}:</span><span aria-hidden="true" className="text-[var(--fg-3)]">{oldValue}</span>
-    <ArrowRight aria-hidden="true" size={16} strokeWidth={1.5} className="rtl:rotate-180" />
-    <span aria-hidden="true" className="font-medium text-[var(--fg-1)]">{newValue}</span>
-  </span>,
+  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap" data-preview-actions="">{children}</div>,
+  spacer: () => <span className="flex-1" />,
+  rejected: (message) => <p role="status" data-preview-rejection-status="" className={message ? 'flex items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]' : 'sr-only'}>{message ? <><XCircle aria-hidden="true" size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg-3)]" /><span className="min-w-0 flex-1 leading-[1.55]">{message}</span></> : null}</p>,
 } satisfies PendingOperationCardRenderers
+
+function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
+  const wide = useIsWideDesktop()
+  return <Button size="sm" variant={variant === 'primary' && wide ? 'secondary' : variant} {...props}>{label}</Button>
+}
 
 export function PendingOperationCard({
   pendingOperation,
@@ -197,6 +199,7 @@ export function PendingOperationCard({
   onStateChange,
 }: Readonly<PendingOperationCardAdapterProps>) {
   const t = useTranslations()
+  const locale = useLocale()
   const { displayTime } = useTimeFormat()
 
   return <SharedPendingOperationCard
@@ -211,6 +214,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime)}
+    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime, locale)}
   />
 }

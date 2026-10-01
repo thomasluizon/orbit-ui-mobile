@@ -11,6 +11,8 @@ export interface ListRowBase {
   title: string
   wrapTitle?: boolean
   accessibilityLabel?: string
+  expanded?: boolean
+  controls?: string
   description?: string
   value?: string
   wrapValue?: boolean

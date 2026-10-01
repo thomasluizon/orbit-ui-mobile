@@ -24,6 +24,20 @@ export function useHabitDetailFieldsState(
   const [reminderTimes, setReminderTimes] = useState(habit.reminderTimes)
   const [scheduledReminders, setScheduledReminders] = useState(habit.scheduledReminders)
   const [goalIds, setGoalIds] = useState(habit.linkedGoals?.map((goal) => goal.id) ?? [])
+  const reminderSnapshot = JSON.stringify([habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders])
+  const goalSnapshot = JSON.stringify(habit.linkedGoals?.map((goal) => goal.id) ?? [])
+  const [savedReminderSnapshot, setSavedReminderSnapshot] = useState(reminderSnapshot)
+  const [savedGoalSnapshot, setSavedGoalSnapshot] = useState(goalSnapshot)
+  if (reminderSnapshot !== savedReminderSnapshot) {
+    setSavedReminderSnapshot(reminderSnapshot)
+    setReminderEnabled(habit.reminderEnabled)
+    setReminderTimes(habit.reminderTimes)
+    setScheduledReminders(habit.scheduledReminders)
+  }
+  if (goalSnapshot !== savedGoalSnapshot) {
+    setSavedGoalSnapshot(goalSnapshot)
+    setGoalIds(habit.linkedGoals?.map((goal) => goal.id) ?? [])
+  }
 
   const close = useCallback(() => setOpenField(null), [])
   const resetReminderDraft = useCallback(() => {
@@ -47,7 +61,9 @@ export function useHabitDetailFieldsState(
   const toggleGoal = useCallback((goalId: string) => {
     const next = toggleHabitDetailGoal(goalIds, goalId)
     setGoalIds(next)
-    void onPatch({ goalIds: next })
+    void onPatch({ goalIds: next }).then((saved) => {
+      if (!saved) setGoalIds((current) => current === next ? goalIds : current)
+    })
   }, [goalIds, onPatch])
   const updateReminders = useCallback((changes: ReminderChanges) => {
     const next = mergeHabitReminderChanges(reminderEnabled, reminderTimes, scheduledReminders, changes)

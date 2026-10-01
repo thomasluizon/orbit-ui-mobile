@@ -10,6 +10,8 @@ import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
+import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+
 const mockFetch = vi.fn()
 
 beforeEach(() => {
@@ -1546,6 +1548,31 @@ describe('useUpdateHabit', () => {
     })
 
     expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false }, 'account-a')
+  })
+
+  it('cancels an outstanding detail refresh before an inline edit', async () => {
+    const { updateHabit } = await import('@/lib/actions/habits')
+    const queryClient = createQueryClient()
+    const habit = makeHabitDetail()
+    queryClient.setQueryData(habitKeys.detail(habit.id), habit)
+    let finishRefresh!: (detail: HabitDetail) => void
+    const refresh = queryClient.fetchQuery({
+      queryKey: habitKeys.detail(habit.id),
+      queryFn: () => new Promise<HabitDetail>((resolve) => { finishRefresh = resolve }),
+    }).catch(() => undefined)
+    let finishWrite!: () => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((resolve) => { finishWrite = resolve }))
+    const { result } = renderHook(() => useUpdateHabit(), { wrapper: createWrapper(queryClient) })
+    act(() => result.current.mutate({ habitId: habit.id, data: { title: 'Habit', isBadHabit: false, dueTime: '10:15' } }))
+    await waitFor(() => expect(finishWrite).toBeTypeOf('function'))
+    queryClient.setQueryData(habitKeys.detail(habit.id), { ...habit, dueTime: '10:15' })
+    await act(async () => {
+      finishRefresh({ ...habit, dueTime: '09:00' })
+      await refresh
+    })
+    expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail(habit.id))?.dueTime).toBe('10:15')
+    await act(async () => { finishWrite() })
+    queryClient.clear()
   })
 
   it('optimistically patches emoji changes', async () => {

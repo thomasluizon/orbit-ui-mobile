@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => {
     const t = (key: string, params?: Record<string, unknown>) => {
       if (params) return `${key}(${JSON.stringify(params)})`

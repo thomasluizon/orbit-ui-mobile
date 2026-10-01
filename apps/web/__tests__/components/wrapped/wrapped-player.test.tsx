@@ -1,3 +1,5 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
@@ -7,10 +9,12 @@ import { useUIStore } from '@/stores/ui-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
+const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+    params ? `${key}:${JSON.stringify(params)}` : translationMock.labels[key] ?? key,
 }))
 
 vi.mock('@/components/share/share-card-qr', () => ({
@@ -58,6 +62,7 @@ function advanceToLastSlide() {
 
 describe('WrappedPlayer', () => {
   beforeEach(() => {
+    translationMock.labels = {}
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
     shareCardMock.canShareFiles = true
@@ -116,11 +121,33 @@ describe('WrappedPlayer', () => {
     expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
   })
 
+  it.each([
+    ['en', en, 'Back', 'Continue'],
+    ['pt-BR', ptBR, 'Voltar', 'Continuar'],
+  ] as const)('uses the drawn accessible Pager labels in %s', (_locale, messages, back, forward) => {
+    translationMock.labels = {
+      'wrapped.previous': messages.wrapped.previous,
+      'wrapped.next': messages.wrapped.next,
+    }
+    renderPlayer()
+    const pager = screen.getByTestId('wrapped-pager')
+    expect(within(pager).getByRole('button', { name: back })).toBeDisabled()
+    fireEvent.click(within(pager).getByRole('button', { name: forward }))
+    expect(screen.getByTestId('wrapped-slide-completions')).toBeInTheDocument()
+    fireEvent.click(within(pager).getByRole('button', { name: back }))
+    expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
+  })
+
   it('pages through the transparent tap zones', () => {
     renderPlayer()
     const previousZone = screen.getByTestId('wrapped-previous-zone')
     expect(previousZone).toBeDisabled()
     expect(previousZone).toHaveAttribute('tabindex', '-1')
+    expect(previousZone.closest('[aria-hidden="true"]')).not.toBeNull()
+    const nextZone = screen.getByTestId('wrapped-next-zone')
+    expect(nextZone).toHaveAttribute('tabindex', '-1')
+    expect(nextZone.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(screen.getAllByRole('button').every((button) => button.textContent || button.getAttribute('aria-label'))).toBe(true)
     fireEvent.click(screen.getByTestId('wrapped-next-zone'))
     expect(screen.getByTestId('wrapped-slide-completions')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('wrapped-previous-zone'))

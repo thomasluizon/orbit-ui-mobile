@@ -417,6 +417,7 @@ export function buildHabitDetailUpdateRequest(
   habit: NormalizedHabit,
   patch: Partial<Pick<UpdateHabitRequest,
     | 'title'
+    | 'isBadHabit'
     | 'description'
     | 'emoji'
     | 'frequencyUnit'
@@ -440,7 +441,7 @@ export function buildHabitDetailUpdateRequest(
     frequencyUnit: patch.frequencyUnit ?? habit.frequencyUnit ?? undefined,
     frequencyQuantity: patch.frequencyQuantity ?? habit.frequencyQuantity ?? undefined,
     days: patch.days ?? habit.days,
-    isBadHabit: habit.isBadHabit,
+    isBadHabit: patch.isBadHabit ?? habit.isBadHabit,
     isGeneral: habit.isGeneral,
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,
@@ -456,6 +457,77 @@ export function buildHabitDetailUpdateRequest(
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
   return request
+}
+
+
+type HabitDetailUpdatePatch = Parameters<typeof buildHabitDetailUpdateRequest>[1]
+
+export function createHabitDetailWriteQueue(): {
+  save: (habit: NormalizedHabit, patch: HabitDetailUpdatePatch, write: (request: UpdateHabitRequest) => Promise<boolean>) => Promise<boolean>
+} {
+  let savedPatch: HabitDetailUpdatePatch = {}
+  let pending: Promise<boolean> | null = null
+  const snapshots = new Set<UpdateHabitRequest>()
+
+  const save = (
+    habit: NormalizedHabit,
+    patch: HabitDetailUpdatePatch,
+    write: (request: UpdateHabitRequest) => Promise<boolean>,
+  ): Promise<boolean> => {
+    const snapshot = buildHabitDetailUpdateRequest(habit, { goalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [], slipAlertEnabled: habit.slipAlertEnabled })
+    snapshots.add(snapshot)
+    const execute = async () => {
+      for (const key of Object.keys(savedPatch) as (keyof HabitDetailUpdatePatch)[]) {
+        if ([...snapshots].every((queued) => JSON.stringify(queued[key]) === JSON.stringify(savedPatch[key]))) delete savedPatch[key]
+      }
+      const nextPatch = { ...savedPatch, ...patch }
+      const saved = await write(buildHabitDetailUpdateRequest(habit, nextPatch))
+      if (saved) savedPatch = nextPatch
+      return saved
+    }
+    const result = pending ? pending.then(execute) : execute()
+    pending = result
+    const settled = () => {
+      snapshots.delete(snapshot)
+      if (pending === result) pending = null
+    }
+    void result.then(settled, settled)
+    return result
+  }
+  return { save }
+}
+
+export function createAccountScopedHabitDetailWriteQueue(
+  accountGeneration: number,
+  currentGeneration: () => number,
+): ReturnType<typeof createHabitDetailWriteQueue> {
+  const queue = createHabitDetailWriteQueue()
+  return {
+    save: (habit, patch, write) => queue.save(habit, patch, async (request) => {
+      if (currentGeneration() !== accountGeneration) return false
+      const saved = await write(request)
+      return saved && currentGeneration() === accountGeneration
+    }),
+  }
+}
+
+export function buildHabitDetailHeaderSummary(
+  summary: string | null,
+  dueTime: string | null,
+  formattedTime: string | null,
+): string {
+  return summary && formattedTime && !summary.includes(dueTime ?? '')
+    ? `${summary} · ${formattedTime}`
+    : summary || formattedTime || ''
+}
+
+export function isHabitDetailCompletionDisabled(
+  habit: NormalizedHabit | null,
+  date: string,
+  today: string,
+): boolean {
+  const boundary = getTodayBoundary(date, today)
+  return boundary === 'read-only' || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, date, today)))
 }
 
 export function buildHabitDetailTimePatch(
@@ -497,17 +569,25 @@ export function canInlineEditHabitSchedule(
   return habit.frequencyUnit !== null && !habit.isFlexible && !habit.isGeneral
 }
 
-export function formatHabitDetailReminderValue(
-  habit: Pick<NormalizedHabit, 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'>,
+export function buildHabitDetailReminderRows(
+  habit: Pick<NormalizedHabit, 'dueTime' | 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'>,
   translate: (key: string) => string,
-  formatTime: (time: string) => string,
-): string {
-  if (!habit.reminderEnabled) return translate('habits.detail.noValue')
-  const values = [
-    ...habit.reminderTimes.map((minutes) => formatHabitReminderLabel(minutes, translate)),
-    ...habit.scheduledReminders.map((reminder) => formatTime(reminder.time)),
-  ]
-  return values.length ? values.join(', ') : translate('habits.detail.noValue')
+): { key: string; time: string; label: string }[] {
+  if (!habit.reminderEnabled) return []
+  const dueMinutes = habit.dueTime ? Number(habit.dueTime.slice(0, 2)) * 60 + Number(habit.dueTime.slice(3, 5)) : null
+  const offsets = dueMinutes === null ? [] : habit.reminderTimes.map((minutes) => {
+    const clockMinutes = ((dueMinutes - minutes) % 1440 + 1440) % 1440
+    return {
+      key: `offset:${minutes}`,
+      time: `${String(Math.floor(clockMinutes / 60)).padStart(2, '0')}:${String(clockMinutes % 60).padStart(2, '0')}`,
+      label: minutes === 0 ? translate('habits.detail.reminderHabitTime') : formatHabitReminderLabel(minutes, translate),
+    }
+  })
+  return [...offsets, ...habit.scheduledReminders.map((reminder) => ({
+    key: `${reminder.when}:${reminder.time}`,
+    time: reminder.time,
+    label: translate(reminder.when === 'day_before' ? 'habits.detail.reminderDayBefore' : 'habits.detail.reminderSameDay'),
+  }))]
 }
 
 function getHabitRelationshipAuthority(

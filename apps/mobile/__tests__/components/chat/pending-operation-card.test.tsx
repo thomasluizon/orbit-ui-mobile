@@ -1,9 +1,11 @@
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
-import { makeHeldHabitMessage, makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
+import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
@@ -16,7 +18,16 @@ vi.mock('react-native', async (importOriginal) => ({
   I18nManager: { isRTL: false },
 }))
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en' }, t: (key: string, values?: Record<string, string | number>) => {
+const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
+
+function translateVisible(key: string, values?: Record<string, string | number>): string {
+  const messages = visibleLocale.language === 'en' ? en : ptBR
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
+  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+}
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: visibleLocale.language }, t: (key: string, values?: Record<string, string | number>) => {
+  if (visibleLocale.actual) return translateVisible(key, values)
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -57,21 +68,46 @@ function press(tree: any, label: string) {
   )[0]
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => { vi.clearAllMocks(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
-  it('renders field diffs with accessible old and new values', () => {
-    const { tree } = renderCard({
-      riskClass: 'Low', confirmationRequirement: 'None',
-      changes: [
-        { entityId: 'one', entityName: 'Run', field: 'date', oldValue: null, newValue: 'Monday', valueType: 'date' },
-        { entityId: 'two', entityName: 'Read', field: 'count', oldValue: '2', newValue: '3', valueType: 'number' },
-      ], changeTargetCount: 2,
+  describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
+    it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePendingWriteSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const { tree } = renderCard(operation)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+      expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
     })
-    const labels = tree.root.findAll((node: any) => typeof node.props.accessibilityLabel === 'string').map((node: any) => node.props.accessibilityLabel)
-    expect(labels).toContain('chat.operation.field.date: from chat.preview.notSet to Monday')
-    expect(labels).toContain('count: from 2 to 3')
+
+    it.each(partialScheduleSummaryCases)('shows only the changed schedule fields: $name', (scenario) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makePartialScheduleSummaryOperation(scenario)
+      const expected = locale === 'en' ? scenario.english : scenario.portuguese
+      const { tree } = renderCard(operation)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+    })
+  })
+
+  it('renders one named habit with a cadence instead of field diffs', () => {
+    const operation = makeHeldHabitMessage().pendingOperations![0]!
+    const item = operation.items![0]!
+    const fields = [
+      ...item.fields,
+      { ...item.fields[0]!, field: 'frequency_unit', newValue: 'Day' },
+      { ...item.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' },
+      { ...item.fields[0]!, field: 'emoji', newValue: '📚' },
+    ]
+    const { tree } = renderCard({ ...operation, changes: fields, items: [{ ...item, fields }] }, vi.fn())
+    const text = renderedText(tree.toJSON())
+    expect(text).toContain('habits.frequency.everyDay')
+    expect(text).not.toContain('chat.operation.field')
+    expect(text).not.toContain('from ')
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === 'Beber água')).toHaveLength(1)
   })
 
   const firstItem = {
@@ -132,11 +168,15 @@ describe('PendingOperationCard (mobile)', () => {
       isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
     } })
     const { tree, handlers } = renderCard(preview, revise)
+    const announcement = tree.root.findByProps({ testID: 'preview-rejection-status' })
+    expect(announcement.props.children).toBe('')
     await TestRenderer.act(async () => {
       press(tree, 'chat.operation.reject').props.onPress()
       await Promise.resolve()
     })
     expect(renderedText(tree.toJSON())).toContain('chat.operation.rejected')
+    expect(tree.root.findByProps({ testID: 'preview-rejection-status' })).toBe(announcement)
+    expect(announcement.props.accessibilityLiveRegion).toBe('polite')
     expect(renderedText(tree.toJSON())).not.toContain('chat.operation.approve')
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
@@ -166,7 +206,7 @@ describe('PendingOperationCard (mobile)', () => {
     const revise = vi.fn()
     const { tree } = renderCard({ displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null }, revise)
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' })).toHaveLength(0)
-    expect(renderedText(tree.toJSON())).not.toContain('chat.operation.reject')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.reject')
     expect(renderedText(tree.toJSON())).toContain('chat.operation.approve')
   })
 
@@ -632,11 +672,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).toContain('status.done')
   })
 
-  it('cancels without executing', () => {
+  it('rejects a legacy preview without executing', () => {
     const { tree, handlers } = renderCard()
-    TestRenderer.act(() => press(tree, 'common.cancel').props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.reject').props.onPress())
 
-    expect(tree.toJSON()).toBeNull()
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.rejected')
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 

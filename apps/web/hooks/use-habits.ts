@@ -392,7 +392,11 @@ export function useUpdateHabit() {
       updateHabitAction(habitId, data, intendedAccountId),
 
     onMutate: async ({ habitId, data }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
       const patch = buildOptimisticHabitPatch(queryClient, data)

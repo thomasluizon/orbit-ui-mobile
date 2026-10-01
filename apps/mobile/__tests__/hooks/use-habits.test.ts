@@ -1553,6 +1553,16 @@ describe('mobile habit hooks', () => {
     expect(fullAfter.habit.checklistItems).toEqual(originalItems)
   })
 
+  it('cancels both detail queries before optimistically editing a habit', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      unknown, { habitId: string; data: UpdateHabitRequest }, unknown
+    >
+    await mutation.onMutate?.({ habitId: 'habit-1', data: { title: 'Habit', isBadHabit: false, dueTime: '10:15' } })
+    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.detail('habit-1') })
+    expect(mocks.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetail('habit-1') })
+  })
+
   it('keeps queued inline schedule and text updates in the detail cache', async () => {
     seedHabitState([makeHabit({ id: 'habit-1', title: 'Old title' })], 1)
     mocks.queryClient.setQueryData(habitKeys.detail('habit-1'), {
