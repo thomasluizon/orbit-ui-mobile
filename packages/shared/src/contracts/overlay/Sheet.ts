@@ -6,6 +6,8 @@ export interface SheetProps {
   accessibleTitle?: string
   headerAccessory?: React.ReactNode
   actions?: React.ReactNode
+  /** Reduces the body's horizontal inset when fixed-size controls need more room. */
+  minimumBodyWidth?: number
   onClose?: () => void
   /** Receives dismissal attempts while the host blocks closing. */
   onAttemptDismiss?: () => void

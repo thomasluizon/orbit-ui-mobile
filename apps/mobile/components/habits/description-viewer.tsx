@@ -45,7 +45,7 @@ export function DescriptionViewer({
       onClose={handleClose}
       title={title}
     >
-      <View style={styles.scrollContent}>
+      <View>
         <View style={styles.copyRow}>
           <Pressable
             onPress={copyDescription}
@@ -82,10 +82,6 @@ export function DescriptionViewer({
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-      paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
   copyRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
