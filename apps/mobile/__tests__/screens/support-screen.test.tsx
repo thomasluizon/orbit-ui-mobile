@@ -199,12 +199,14 @@ describe('SupportScreen', () => {
 
   it.each([en, ptBR])('announces required fields before validation with localized wording', async (messages) => {
     mocks.translations.set('common.required', messages.common.required)
+    mocks.translations.set('profile.support.subject', messages.profile.support.subject)
+    const requiredSubjectHint = `${messages.profile.support.subject} ${messages.common.required}`
     const tree = await renderScreen()
     const group = tree.root.findAll((node) => node.type === View && node.props.accessibilityRole === 'radiogroup')[0]!
-    expect(group.props.accessibilityHint).toBe(messages.common.required)
+    expect(group.props.accessibilityHint).toBe(requiredSubjectHint)
     const choices = findSubjectChoices(tree.root)
     expect(choices).toHaveLength(4)
-    expect(choices.every((choice) => choice.props.accessibilityHint === messages.common.required)).toBe(true)
+    expect(choices.every((choice) => choice.props.accessibilityHint === requiredSubjectHint)).toBe(true)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(messages.common.required)
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint).toBe('profile.support.emailLockedReason')
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired')).toHaveLength(0)
@@ -214,7 +216,7 @@ describe('SupportScreen', () => {
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(findSubjectChoices(tree.root).every((choice) => choice.props.accessibilityHint === `${messages.common.required} profile.support.subjectRequired`)).toBe(true)
+    expect(findSubjectChoices(tree.root).every((choice) => choice.props.accessibilityHint === `${requiredSubjectHint} profile.support.subjectRequired`)).toBe(true)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(`${messages.common.required} profile.support.messageRequired`)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
@@ -752,7 +754,7 @@ describe('SupportScreen', () => {
     ).toBe(true)
     expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
     expect(choices.every((choice) => choice.props.focusable === false)).toBe(true)
-    expect(choices.every((choice) => choice.props.accessibilityHint === 'common.required')).toBe(true)
+    expect(choices.every((choice) => choice.props.accessibilityHint === 'profile.support.subject common.required')).toBe(true)
     expect(
       (choices[0]!.props.accessibilityState as { checked: boolean }).checked,
     ).toBe(true)
