@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 let uses24HourClock = true
 
@@ -53,6 +54,8 @@ describe('TimeField', () => {
     openPicker()
     pickOption('common.hours', '07')
     pickOption('common.minutes', '13')
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.done'])
+    expectSmallSheetActions()
     fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
 
     expect(onChange).toHaveBeenCalledWith('07:13')

@@ -93,6 +93,7 @@ export function CalendarImportPrompt() {
       actions={(
         <DialogActionPair>
           <PillButton
+            size="sm"
             variant="ghost"
             accessibleName={t('common.later')}
             onClick={() =>
@@ -104,7 +105,7 @@ export function CalendarImportPrompt() {
           >
             {t('common.later')}
           </PillButton>
-          <PillButton onClick={handleImport}>
+          <PillButton size="sm" onClick={handleImport}>
             {t('onboarding.wizard.calendarButton')}
           </PillButton>
         </DialogActionPair>

@@ -111,6 +111,7 @@ export function AstraImportPrompt() {
       actions={(
         <DialogActionPair>
           <PillButton
+            size="sm"
             variant="ghost"
             accessibleName={t('onboarding.wizard.importNotNow')}
             onClick={() =>
@@ -123,7 +124,7 @@ export function AstraImportPrompt() {
             {t('onboarding.wizard.importNotNow')}
           </PillButton>
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
-          <PillButton onClick={() => void handleImport()}>
+          <PillButton size="sm" onClick={() => void handleImport()}>
             {t('onboarding.wizard.importButton')}
           </PillButton>
         </DialogActionPair>

@@ -8,6 +8,7 @@ import {
 } from '../../../test-mocks/react-native'
 
 import { TimeField } from '@/components/ui/time-field'
+import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
@@ -176,6 +177,9 @@ await Promise.resolve()
     await openPicker(tree)
     await pressOption(tree, 'common.hours', '07')
     await pressOption(tree, 'common.minutes', '13')
+    const done = tree.root.findAllByType(PillButton)[0]
+    expect(done.props.size).toBe('sm')
+    expect(done.props.matchedWidth).toBeFalsy()
     await pressDone(tree)
 
     expect(onChange).toHaveBeenCalledWith('07:13')

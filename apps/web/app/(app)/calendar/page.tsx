@@ -103,7 +103,7 @@ function CalendarImportActions({ state, onImport, t }: {
   onImport: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
-  return <PillButton disabled={state.disabled} onClick={onImport}>
+  return <PillButton size="sm" disabled={state.disabled} onClick={onImport}>
     {plural(t('calendar.importButton', { count: state.count }), state.count)}
   </PillButton>
 }

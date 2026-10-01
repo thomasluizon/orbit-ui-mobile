@@ -10,7 +10,7 @@ import { EditGoalDeadlineField } from '@/components/goals/edit-goal-modal/edit-g
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 import { createStyles } from '@/components/goals/edit-goal-modal/styles'
 import { createTokensV2 } from '@/lib/theme'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -114,6 +114,7 @@ describe('EditGoalModal helpers', () => {
     const { tree } = renderModal()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.save')
   })

@@ -43,12 +43,12 @@ describe('DialogActionPair (web)', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([en, ptBR])('wraps import actions within a narrow footer without stretching the pills', async (catalog) => {
+    it.each([en, ptBR].flatMap((catalog) => [320, 412, 740].flatMap((width) => [false, true].map((inline) => ({ catalog, width, inline })))))('keeps import actions within a $width px footer with inline=$inline', async ({ catalog, width, inline }) => {
       const { container } = render(
-        <footer className="orbit-sheet-actions" style={{ width: 320 }}>
-          <DialogActionPair>
-            <PillButton variant="ghost">{catalog.onboarding.wizard.importNotNow}</PillButton>
-            <PillButton>{catalog.onboarding.wizard.importButton}</PillButton>
+        <footer className="orbit-sheet-actions" style={{ width }}>
+          <DialogActionPair inline={inline}>
+            <PillButton size="sm" variant="ghost">{catalog.onboarding.wizard.importNotNow}</PillButton>
+            <PillButton size="sm">{catalog.onboarding.wizard.importButton}</PillButton>
           </DialogActionPair>
         </footer>,
       )
@@ -64,7 +64,7 @@ describe('DialogActionPair (web)', () => {
           const right = bounds.right - Number.parseFloat(styles.paddingRight)
           const buttons = [...footer.querySelectorAll('button')].map((button) => {
             const action = button.getBoundingClientRect()
-            return { left: action.left, right: action.right, height: action.height, width: action.width }
+            return { left: action.left, right: action.right, height: action.height, width: action.width, top: action.top }
           })
           return { left, right, buttons }
         })
@@ -75,6 +75,10 @@ describe('DialogActionPair (web)', () => {
           expect(button.width).toBeLessThan(measured.right - measured.left)
         }
         expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right, 1)
+        if (width === 740) {
+          expect(measured.buttons[0]!.top).toBe(measured.buttons[1]!.top)
+          expect(measured.buttons[1]!.left - measured.buttons[0]!.right).toBeCloseTo(12, 1)
+        }
       } finally {
         await page.close()
       }

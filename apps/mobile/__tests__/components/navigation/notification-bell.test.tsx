@@ -490,19 +490,20 @@ describe('mobile alerts', () => {
     expect(text(tree, confirmBody)).toHaveLength(1)
   })
 
-  it('sets the detail delete apart at the far end behind a growing spacer', () => {
+  it('groups the small intrinsic detail actions at the trailing edge', () => {
     const tree = render(<NotificationDetailModal open
       notification={createMockNotification({ url: '/progress', isRead: false })}
       onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
     const slot = testId(tree, 'sheet-actions-slot')[0]!
-    const isSpacer = (node: Node) => node.type === 'View'
-      && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1
-    const row = slot.findAll((node) => node.type === 'View' && !isSpacer(node))[0]!
-
-    expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).flexGrow).toBe(1)
-    expect(slot.findAll((node) => isSpacer(node) || (node.type === 'Text' && typeof node.props.children === 'string'))
-      .map((node) => isSpacer(node) ? 'spacer' : node.props.children))
-      .toEqual(['Open in Progress', en.notifications.markAsRead, 'spacer', en.notifications.delete])
+    const row = slot.findAll((node) => node.type === 'View' && node.props.testID === 'dialog-action-pair')[0]
+    expect(row).toBeDefined()
+    expect(StyleSheet.flatten(row!.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      flexDirection: 'row', justifyContent: 'flex-end', gap: 12,
+    })
+    expect(slot.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string')
+      .map((node) => node.props.children))
+      .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
+    expect(slot.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).flex === 1)).toHaveLength(0)
   })
 
   it.each([

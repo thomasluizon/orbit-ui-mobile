@@ -225,10 +225,10 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         title={t('goals.create')}
         actions={(
           <DialogActionPair>
-            <PillButton variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
+            <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
               {t('common.cancel')}
             </PillButton>
-            <PillButton formId={formId} disabled={isSubmitting} loading={isSubmitting}>
+            <PillButton size="sm" formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>
           </DialogActionPair>

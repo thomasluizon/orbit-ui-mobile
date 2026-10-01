@@ -140,6 +140,7 @@ export function MilestoneSharePrompt() {
           ) : null}
           <DialogActionPair>
             <PillButton
+              size="sm"
               variant="ghost"
               accessibleName={t('milestoneShare.later')}
               onClick={dismiss}
@@ -147,6 +148,7 @@ export function MilestoneSharePrompt() {
               {t('milestoneShare.later')}
             </PillButton>
             <PillButton
+              size="sm"
               loading={isSharing}
               disabled={isSharing}
               onClick={() =>

@@ -6,7 +6,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -122,17 +122,8 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({
-    children,
-    onPress,
-    onClick,
-    disabled,
-  }: {
-    children?: React.ReactNode
-    onPress?: () => void
-    onClick?: () => void
-    disabled?: boolean
-  }) => React.createElement('PillButton', { onPress, onClick, disabled }, children),
+  PillButton: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement('PillButton', props, children),
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
@@ -233,6 +224,7 @@ describe('EditHabitModal (mobile)', () => {
     const tree = await renderModal()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

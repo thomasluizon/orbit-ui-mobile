@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({
@@ -135,6 +135,7 @@ describe('CreateGoalFromHabitSheet', () => {
   it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
     render(<CreateGoalFromHabitSheet open={true} onClose={vi.fn()} />)
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'goals.create'])
+    expectSmallSheetActions()
     expect(sheetSlotButtons('sheet-body')).not.toContain('goals.create')
     expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
     const submit = screen.getByRole('button', { name: 'goals.create' }) as HTMLButtonElement

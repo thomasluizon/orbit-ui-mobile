@@ -2,7 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReferralStats } from '@orbit/shared/types/referral'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -99,9 +99,19 @@ describe('ReferralDrawer (mobile)', () => {
   it('pins Share in the sheet footer and keeps only the copy control in the body', () => {
     const tree = renderDrawer()
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['referral.drawer.share'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'referral.drawer.share'])
+    expectSmallSheetActions(tree.root)
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual(['referral.drawer.copyLink'])
+  })
+
+  it('cancels through the sheet host without sharing', async () => {
+    const onClose = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ReferralDrawer open onClose={onClose} />) })
+    await pressButton(slot(tree, 'SheetActions'), 'common.cancel')
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mocks.share).not.toHaveBeenCalled()
   })
 
   it.each([

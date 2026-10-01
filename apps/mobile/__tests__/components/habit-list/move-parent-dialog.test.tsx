@@ -7,7 +7,7 @@ import {
 } from '@/components/habit-list/move-parent-dialog'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { Sheet as SheetDouble } from '@/__tests__/support/sheet-double'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -172,6 +172,7 @@ describe('MoveParentDialog', () => {
     const { tree } = renderDialog()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

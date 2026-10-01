@@ -20,7 +20,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -144,6 +144,7 @@ function LoadedContent({
 }
 
 function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, 'onClose'>>) {
+  const { sheetRef, closeSheet } = useSheetHost()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -187,6 +188,7 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
 
   return (
     <Sheet
+      ref={sheetRef}
       open
       onClose={onClose}
       title={t('referral.drawer.title')}
@@ -202,7 +204,8 @@ function ReferralDrawerContent({ onClose }: Readonly<Pick<ReferralDrawerProps, '
               </Text>
             ) : null}
             <DialogActionPair>
-              <PillButton onClick={() => void shareLink()}>
+              <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+              <PillButton size="sm" onClick={() => void shareLink()}>
                 {t('referral.drawer.share')}
               </PillButton>
             </DialogActionPair>

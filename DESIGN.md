@@ -841,6 +841,8 @@ may flip the flag.
 
 Grabber (mobile presentation only) · header (title, optional description, close) · body (the single scroll container) · footer (actions, pinned, never scrolling with the body) · safe-area and keyboard insets on both.
 
+Every sheet footer on web and Android uses trailing, label-hugging `sm` actions, with the ghost dismissal before the filled action when paired.
+
 **The sheet primitive owns the body's outer padding on both platforms:** 8px at the top,
 24px horizontally and 24px at the bottom. Callers add only spacing between their content groups,
 never a second outer inset or a trailing spacer. A card or row inside the body keeps its own
