@@ -34,6 +34,7 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
@@ -69,7 +70,7 @@ function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: st
     const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
     return <Icon size={24} strokeWidth={active ? 2 : 1.5} />
   } }))} onSelect={onSelect} />
-  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<AppToastHost placement="modal" modalId={modalId} />}>
+  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-6 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
 }
@@ -377,7 +378,7 @@ export function OnboardingFlow() {
   const overlay = step === ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneShell>
   ) : (
-    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={<>{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={<><UpdateAvailableBanner modalId={modalId} />{createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><DecisionContent {...decisionProps} /></FlowShell>
   )
   return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

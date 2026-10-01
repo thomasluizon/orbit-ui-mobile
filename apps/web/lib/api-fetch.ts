@@ -97,6 +97,15 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
   await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
+export async function fetchWithUpgradeGuidance(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, init)
+  if (response.status === 426) {
+    const { useVersionGateStore } = await import('@/stores/version-gate-store')
+    useVersionGateStore.getState().markUpgradeRequired(null)
+  }
+  return response
+}
+
 export async function sessionAwareFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -109,7 +118,7 @@ export async function sessionAwareFetch(
     headers.set('X-Orbit-Event-Origin', origin)
     requestInit = { ...init, headers }
   }
-  const response = await fetch(input, requestInit)
+  const response = await fetchWithUpgradeGuidance(input, requestInit)
   await applySessionRefreshFailure(response)
   return response
 }

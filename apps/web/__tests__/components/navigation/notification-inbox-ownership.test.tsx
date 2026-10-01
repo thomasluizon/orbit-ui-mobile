@@ -36,7 +36,10 @@ vi.mock('next-intl', async () => {
 })
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
+  fetchJson: vi.fn(),
+}))
 vi.mock('@/app/actions/notifications', () => actionMocks)
 
 let queryClient: QueryClient

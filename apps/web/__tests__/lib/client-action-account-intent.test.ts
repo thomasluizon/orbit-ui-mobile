@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { wrapServerAction } from '@/app/actions/action-result'
+import { createApiClientError } from '@orbit/shared'
 import { createElement } from 'react'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
@@ -66,7 +68,7 @@ describe('client account intent', () => {
     })
   })
 
-  it('keeps the account and generation from the action start', () => {
+  it('keeps the account and generation from the action start', async () => {
     const intent = captureAccountIntent()
     expect(intent.intendedAccountId).toBe('account-a')
     expect(intent.stillCurrent()).toBe(true)
@@ -75,7 +77,7 @@ describe('client account intent', () => {
     expect(intent.stillCurrent()).toBe(false)
   })
 
-  it('shows account-specific reload guidance for an account refusal', () => {
+  it('shows account-specific reload guidance for an account refusal', async () => {
     reportAccountChanged()
 
     expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
@@ -83,8 +85,9 @@ describe('client account intent', () => {
     })
   })
 
-  it('keeps account-changed guidance visible after its toast is dismissed', () => {
+  it('keeps account-changed guidance visible after its toast is dismissed', async () => {
     render(createElement(UpdateAvailableBanner))
+    await act(async () => {})
     act(() => reportAccountChanged())
     act(() => useAppToastStore.getState().dismissToast())
 
@@ -94,9 +97,10 @@ describe('client account intent', () => {
     expect(reloadMock).toHaveBeenCalledOnce()
   })
 
-  it('shows account-changed guidance after the version banner was dismissed', () => {
+  it('shows account-changed guidance after the version banner was dismissed', async () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(createElement(UpdateAvailableBanner))
+    await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
@@ -104,7 +108,7 @@ describe('client account intent', () => {
     expect(screen.getByText(en.errors.api.accountChanged)).toBeInTheDocument()
   })
 
-  it('reports only account refusals from fire-and-forget actions', () => {
+  it('reports only account refusals from fire-and-forget actions', async () => {
     reportAccountChangedIfNeeded(new Error('network'))
     expect(useAppToastStore.getState().currentToast).toBeNull()
 
@@ -127,14 +131,14 @@ describe('client account intent', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({
-      kind: 'neutral', message: en.errors.api.appUpdated, actionLabel: en.errors.api.reload, onAction: expect.any(Function),
-    })
+    expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
+    expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
   it('keeps app-updated guidance visible after its toast is dismissed', async () => {
     render(createElement(UpdateAvailableBanner))
+    await act(async () => {})
     const action = runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')))
     const onUnexpectedRejection = vi.fn()
     void action.catch(onUnexpectedRejection)
@@ -146,6 +150,13 @@ describe('client account intent', () => {
     fireEvent.click(screen.getByRole('button', { name: en.errors.api.reload }))
     expect(reloadMock).toHaveBeenCalledOnce()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
+  })
+
+  it('shows upgrade guidance from the real serialized failure producer', async () => {
+    await expect(runServerAction(wrapServerAction(async () => {
+      throw createApiClientError(426, null, 'Upgrade required')
+    }))).rejects.toMatchObject({ status: 426 })
+    expect(useVersionGateStore.getState().upgradeRequired).toBe(true)
   })
 
   it('leaves network failures for the existing connection error path', async () => {

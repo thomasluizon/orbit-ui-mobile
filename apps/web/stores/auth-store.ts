@@ -1,3 +1,4 @@
+import { fetchWithUpgradeGuidance } from '@/lib/api-fetch'
 import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import * as Sentry from '@sentry/nextjs'
@@ -169,7 +170,7 @@ type SessionSnapshot =
 async function readCurrentSession(): Promise<SessionSnapshot> {
   let response: Response
   try {
-    response = await fetch('/api/auth/session')
+    response = await fetchWithUpgradeGuidance('/api/auth/session')
   } catch {
     return { kind: 'retryable' }
   }
@@ -373,7 +374,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()
         try {
-          await fetch('/api/auth/logout', { method: 'POST' })
+          await fetchWithUpgradeGuidance('/api/auth/logout', { method: 'POST' })
         } catch {
         }
         endSessionLocally()

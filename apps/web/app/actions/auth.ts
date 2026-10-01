@@ -9,6 +9,7 @@ import type { AccountDeactivationResponse } from '@orbit/shared/types/step-up'
 import {
   extractBackendError,
   extractBackendErrorCode,
+  extractBackendStatus,
   extractStepUpAttemptsRemaining,
   validateApiResponse,
 } from '@orbit/shared/utils'
@@ -62,7 +63,7 @@ export async function confirmDeletion(
         ),
       }
     } catch (caught: unknown) {
-      if (reportsSessionRefreshFailure(caught) || reportsAccountChanged(caught)) throw caught
+      if (reportsSessionRefreshFailure(caught) || reportsAccountChanged(caught) || extractBackendStatus(caught) === 426) throw caught
       return {
         success: false,
         errorCode: extractBackendErrorCode(caught) ?? null,

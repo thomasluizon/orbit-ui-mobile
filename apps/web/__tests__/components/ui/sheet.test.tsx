@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { runServerAction } from '@/lib/client-action'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -14,7 +19,50 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
+function NestedReloadSheets() {
+  const [upperOpen, setUpperOpen] = useState(true)
+  return <><UpdateAvailableBanner /><AppToastHost /><Sheet title="Lower sheet">
+    {upperOpen ? <Sheet title="Upper sheet" onClose={() => setUpperOpen(false)}>
+      <button type="button" onClick={() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) }}>Save</button>
+    </Sheet> : null}
+  </Sheet></>
+}
+
 describe('Sheet', () => {
+  it('announces a stale action once inside the active dialog', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+
+    render(<><UpdateAvailableBanner /><AppToastHost /><Sheet title="Options"><button type="button" onClick={() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) }}>Save</button></Sheet></>)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+  })
+
+  it('keeps one reload notice in the topmost sheet and restores the lower host on close', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+    render(<NestedReloadSheets />)
+    await act(async () => {})
+    const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true }).querySelector('[data-update-live-region]')
+    const upper = screen.getByRole('dialog', { name: 'Upper sheet' }).querySelector('[data-update-live-region]')
+    expect(lower).toBeEmptyDOMElement()
+    expect(upper).toBeEmptyDOMElement()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    expect(lower).toBeEmptyDOMElement()
+    expect(upper).toHaveTextContent('errors.api.appUpdated')
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upper sheet' })).toBeNull())
+    expect(lower).toHaveTextContent('errors.api.appUpdated')
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+  })
+
   it('places an actionable toast only in the topmost sheet', async () => {
     const undo = vi.fn()
     useUIStore.setState({ openOverlayIds: [] })
@@ -33,12 +81,12 @@ describe('Sheet', () => {
 
     const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true })
     const upper = screen.getByRole('dialog', { name: 'Upper sheet' })
-    await waitFor(() => expect(upper.querySelector('[role="status"]')).toHaveTextContent('Removed'))
-    expect(lower.querySelector('[role="status"]')).toBeNull()
+    await waitFor(() => expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Removed'))
+    expect(lower.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
     expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[role="status"]')).toBeNull()
+    expect(upper.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)

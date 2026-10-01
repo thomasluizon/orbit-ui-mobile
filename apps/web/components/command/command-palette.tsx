@@ -20,6 +20,7 @@ import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { CommandMenu } from './command-menu'
 
@@ -123,6 +124,7 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
           onCreateHabit={onCreateHabit}
           onClose={close}
         />
+        <UpdateAvailableBanner modalId={modalId} />
         <div className="empty:hidden shrink-0 px-4 pb-4" data-shell-notice="">
           <AppToastHost placement="modal" modalId={modalId} />
         </div>

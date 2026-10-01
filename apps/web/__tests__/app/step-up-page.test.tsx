@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
   STEP_UP_ATTEMPT_WINDOW_MS,
@@ -12,8 +12,13 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+
 const mocks = vi.hoisted(() => ({
   beginChallenge: vi.fn(),
+  staleAction: false,
   clearTiming: vi.fn(),
   logout: vi.fn(),
   markAttemptFailed: vi.fn(),
@@ -33,7 +38,8 @@ const mocks = vi.hoisted(() => ({
   heldAccountId: 'account-a',
 }))
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => mocks.router,
   useSearchParams: () => new URLSearchParams(`operation=${mocks.operation}`),
 }))
@@ -64,6 +70,13 @@ vi.mock('@/stores/auth-store', () => {
     useHeldAccountId: () => mocks.heldAccountId,
   }
 })
+vi.mock('@/app/actions/auth', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/app/actions/auth')>()
+  return { ...original, confirmDeletion: (...arguments_: Parameters<typeof original.confirmDeletion>) => {
+    if (mocks.staleAction) return Promise.reject(new UnrecognizedActionError('Unknown action'))
+    return original.confirmDeletion(...arguments_)
+  } }
+})
 vi.mock('@/lib/server-fetch', () => ({
   serverAuthMutate: (...args: unknown[]) => mocks.serverAuthMutate(...args),
 }))
@@ -81,8 +94,9 @@ vi.mock('@/lib/step-up-storage', () => ({
     mocks.readTiming(operation, accountId),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
-  FlowShell: ({ children, action }: Readonly<{ children: React.ReactNode; action?: React.ReactNode }>) => (
+  FlowShell: ({ children, action, notice }: Readonly<{ children: React.ReactNode; action?: React.ReactNode; notice?: React.ReactNode }>) => (
     <main>
+      {notice}
       <section>{children}</section>
       <footer data-testid="shell-action">{action}</footer>
     </main>
@@ -116,6 +130,9 @@ function clickConfirm() {
 describe('web step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.staleAction = false
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
     mocks.operation = 'delete'
     mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
@@ -153,6 +170,19 @@ describe('web step up screen', () => {
       ...record,
       failedAttempts: (record.failedAttempts ?? 0) + 1,
     }))
+  })
+
+  it('announces a stale confirmation once in the mounted reload region while checking', async () => {
+    mocks.staleAction = true
+    await renderLiveScreen()
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    enterCode()
+    await act(async () => { clickConfirm() })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeEnabled()
+    expect(screen.getByLabelText('codeLabel')).toBeDisabled()
   })
 
   it('enables confirm only when all six digits are present', async () => {

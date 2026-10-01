@@ -5,6 +5,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { Dialog } from '@base-ui/react/dialog'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import {
   registerModalFocusOwner,
@@ -140,6 +141,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
                 {children}
               </div>
             )}
+            <UpdateAvailableBanner modalId={modalId} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
               <AppToastHost placement="modal" modalId={modalId} />
             </div>

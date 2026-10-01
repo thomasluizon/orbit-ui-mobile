@@ -15,6 +15,7 @@ interface WebVersionGateStoreState extends VersionGateStoreState {
 
 export const useVersionGateStore = create<WebVersionGateStoreState>((set) => ({
   ...createVersionGateStoreState(set as Parameters<typeof createVersionGateStoreState>[0]),
+  markUpgradeRequired: (minVersion) => set({ upgradeRequired: true, minVersion, updateDismissed: false }),
   reloadReason: null,
   requireReload: (reason) => set({ reloadReason: reason }),
   updateDismissed: false,

@@ -1,3 +1,8 @@
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { runServerAction } from '@/lib/client-action'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { useState, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -58,7 +63,8 @@ vi.mock('next-intl', () => ({
     key === 'command.groups.destinations' ? 'Destinations' : key,
 }))
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: mockPush }),
 }))
 
@@ -124,6 +130,22 @@ beforeEach(() => {
 })
 
 describe('CommandPalette', () => {
+  it('announces a stale action once inside the active dialog', async () => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
+    setApiFetchTranslate((key) => key)
+    mockSkipHabitMutate.mockImplementation(() => { void runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action'))) })
+    render(<CommandPaletteBackground><UpdateAvailableBanner /><AppToastHost /><CommandPalette navItems={navItems} onCreateHabit={vi.fn()} /></CommandPaletteBackground>)
+    const dialog = screen.getByRole('dialog')
+    const region = dialog.querySelector('[data-update-live-region]')
+    expect(region).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    await act(async () => { fireEvent.click(screen.getByText('Run')) })
+    expect(region).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
+    expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+    expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+  })
+
   it('renders the search input when the palette is open', () => {
     renderPalette()
     expect(
@@ -211,8 +233,8 @@ describe('CommandPalette', () => {
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
-    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('errors.updateHabit'))
-    expect(palette.querySelector('[role="status"]')).toHaveAttribute('aria-live', 'polite')
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.updateHabit'))
+    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveAttribute('aria-live', 'polite')
     expect(mockSkipHabitMutate).toHaveBeenCalledOnce()
   })
 
@@ -237,7 +259,7 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByText('Run'))
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
-    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('errors.api.accountChanged'))
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('errors.api.accountChanged'))
     expect(palette).toContainElement(screen.getByRole('button', { name: 'errorScreen.reload' }))
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
   })
@@ -266,13 +288,13 @@ describe('CommandPalette', () => {
     expect(mockSkipHabitMutate).toHaveBeenCalledWith(
       { habitId: 'h1' }, expect.objectContaining({ onError: expect.any(Function) }),
     )
-    await waitFor(() => expect(palette.querySelector('[role="status"]')).toHaveTextContent('Account changed'))
+    await waitFor(() => expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Account changed'))
     const reloadButton = screen.getByRole('button', { name: 'Reload' })
     reloadButton.focus()
     expect(reloadButton).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(reload).toHaveBeenCalledOnce()
-    expect(palette.querySelector('[role="status"]')).toBeNull()
+    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
@@ -392,8 +414,8 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
     const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
     act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
-    await waitFor(() => expect(sheetDialog.querySelector('[role="status"]')).toHaveTextContent('Still here'))
-    expect(document.querySelector('[aria-label="command.title"] [role="status"]')).toBeNull()
+    await waitFor(() => expect(sheetDialog.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Still here'))
+    expect(document.querySelector('[aria-label="command.title"] [role="status"]:not([data-update-live-region])')).toBeNull()
     await waitFor(() =>
       expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
     )
@@ -401,7 +423,7 @@ describe('CommandPalette', () => {
     await user.keyboard('{Escape}')
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
-    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[role="status"]')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[role="status"]:not([data-update-live-region])')).toBeInTheDocument()
     expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
     await waitFor(() => expect(paletteInput).toHaveFocus())
 

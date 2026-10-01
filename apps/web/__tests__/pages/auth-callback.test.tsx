@@ -1,3 +1,5 @@
+import AuthLayout from '@/app/(auth)/layout'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,6 +26,7 @@ const fetchMock = vi.fn()
 describe('Google code callback', () => {
   afterEach(() => vi.unstubAllGlobals())
   beforeEach(() => {
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     mocks.setAuth.mockReset()
     mocks.push.mockReset()
     mocks.replace.mockReset()
@@ -33,6 +36,16 @@ describe('Google code callback', () => {
     vi.stubGlobal('fetch', fetchMock)
     sessionStorage.clear()
     window.history.replaceState(null, '', '/auth-callback')
+  })
+
+  it('shows upgrade guidance in the auth layout when Google returns 426', async () => {
+    window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
+    fetchMock.mockResolvedValue(new Response(null, { status: 426 }))
+    render(<AuthLayout><AuthCallbackPage /></AuthLayout>)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner'))
+    expect(screen.getByRole('button', { name: 'forceUpdate.refresh' })).toBeEnabled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('leaves a replacement session untouched when the response body arrives late', async () => {

@@ -135,20 +135,20 @@ describe('Today create during first load', () => {
 
   afterEach(() => localStorage.clear())
 
-  it('keeps reload guidance in the main app layout', () => {
+  it('keeps reload guidance in the main app layout', async () => {
     render(<AppLayout><div>Today</div></AppLayout>)
 
-    act(() => useVersionGateStore.getState().requireReload('appUpdated'))
+    await act(async () => useVersionGateStore.getState().requireReload('appUpdated'))
 
     expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
     expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
   })
 
-  it('keeps reload guidance reachable while the Astra conversation is open', () => {
+  it('keeps reload guidance reachable while the Astra conversation is open', async () => {
     render(<AppLayout><div>Today</div></AppLayout>)
 
     act(() => useUIStore.getState().setAstraConversationOpen(true))
-    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+    await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
 
     const banners = screen.getAllByRole('status')
       .filter((node) => node.hasAttribute('data-update-banner'))
@@ -157,12 +157,12 @@ describe('Today create during first load', () => {
     expect(banners[0]?.closest('[inert]')).toBeNull()
   })
 
-  it('announces reload guidance once while the conversation is a side panel', () => {
+  it('announces reload guidance once while the conversation is a side panel', async () => {
     state.wide = true
     render(<AppLayout><div>Today</div></AppLayout>)
 
     act(() => useUIStore.getState().setAstraConversationOpen(true))
-    act(() => useVersionGateStore.getState().requireReload('accountChanged'))
+    await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
 
     const banners = screen.getAllByRole('status')
       .filter((node) => node.hasAttribute('data-update-banner'))

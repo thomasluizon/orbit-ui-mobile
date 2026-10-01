@@ -52,6 +52,7 @@ export function accountIntentWithOrigin(accountId: string | null): string | null
 }
 
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
+  if (!result.ok && result.status === 426) useVersionGateStore.getState().markUpgradeRequired(null)
   if (!result.ok && reportsAccountChanged(result)) {
     reportAccountChanged()
     throw createApiClientError(result.status, { error: result.error, errorCode: result.code }, result.error)
@@ -73,15 +74,8 @@ export async function runServerActionResult<T>(
     result = await action
   } catch (error: unknown) {
     if (unstable_isUnrecognizedActionError(error)) {
-      const message = translateApiFetchMessage('errors.api.appUpdated')
-      const reloadLabel = translateApiFetchMessage('errors.api.reload')
-      if (message && reloadLabel) {
-        useVersionGateStore.getState().requireReload('appUpdated')
-        useAppToastStore.getState().showToast({
-          kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload(),
-        })
-        if (failureMode === 'reload') return new Promise<ServerActionResult<T>>(() => {})
-      }
+      useVersionGateStore.getState().requireReload('appUpdated')
+      if (failureMode === 'reload') return new Promise<ServerActionResult<T>>(() => {})
     }
     throw error
   }

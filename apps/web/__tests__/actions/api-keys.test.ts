@@ -24,6 +24,11 @@ describe('API key server actions', () => {
     })
   })
 
+  it('preserves upgrade-required status during confirmation', async () => {
+    mockFetch.mockResolvedValue(new Response(null, { status: 426 }))
+    await expect(confirmApiKeyCreationChallenge('123456', 'account-a')).resolves.toMatchObject({ ok: false, status: 426 })
+  })
+
   it('returns a serializable challenge result for the confirmed 428 error', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

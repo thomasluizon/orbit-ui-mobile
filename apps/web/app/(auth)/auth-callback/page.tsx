@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
+import { fetchWithUpgradeGuidance } from '@/lib/api-fetch'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { LoginContent } from '../login/login-content'
 import { getCookieValue } from '../login/login-form-helpers'
@@ -40,7 +41,7 @@ function AuthCallbackContent() {
         else setState('failed')
       }
       if (oauthState) {
-        void fetch(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
+        void fetchWithUpgradeGuidance(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
           .then(finish, finish)
       } else queueMicrotask(finish)
       return
@@ -52,7 +53,7 @@ function AuthCallbackContent() {
       const generation = ownedGeneration
       const loginResponse = await withCookieSettingLogin(async () => {
         if (generation !== getAccountGeneration()) throw new Error('Authentication session changed')
-        const response = await fetch('/api/auth/google/code', {
+        const response = await fetchWithUpgradeGuidance('/api/auth/google/code', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, state: oauthState, language: locale,
             ...(referralCode ? { referralCode } : {}) }),
