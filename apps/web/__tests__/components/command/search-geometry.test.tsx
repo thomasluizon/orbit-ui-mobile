@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import SearchPage from '@/app/(app)/search/page'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -38,7 +39,7 @@ describe('search result geometry in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
-    mocks.wide = width >= 1280
+    mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
     const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))
     mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: count, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
