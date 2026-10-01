@@ -10,6 +10,11 @@ const labels: Record<string, string> = {
 }
 
 describe('BottomTabBar', () => {
+  it('centres navigation in the same capped column as the mobile tab bar', () => {
+    render(<BottomTabBar activeId="hoje" items={Object.entries(labels).map(([id, label]) => ({ id, label }))} label="Navegação principal" onSelect={() => {}} />)
+    expect(screen.getByRole('navigation')).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
+  })
+
   it('renders exactly the four locked destinations', () => {
     render(
       <BottomTabBar

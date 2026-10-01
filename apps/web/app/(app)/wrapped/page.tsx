@@ -86,7 +86,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
     <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
       {!playerOpen ? <UpdateAvailableBanner /> : null}
       <div className="flex flex-1 flex-col">
-        {!isPlaying ? (
+        {!playerOpen ? (
           <AppBar
             title=""
             titleIsHeading={false}

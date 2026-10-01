@@ -71,20 +71,27 @@ function firstQueryOptions(): WrappedQueryOptions {
 function renderStory(slideCount: number) {
   const ref: { current: Story | null } = { current: null }
 
-  function Harness() {
-    ref.current = useWrappedStory(slideCount)
+  function Harness({ count }: { count: number }) {
+    ref.current = useWrappedStory(count)
     return null
   }
 
+  let tree!: { update: (element: React.ReactElement) => void; unmount: () => void }
   TestRenderer.act(() => {
-    TestRenderer.create(React.createElement(Harness))
+    tree = TestRenderer.create(React.createElement(Harness, { count: slideCount }))
   })
+  mountedTrees.push(tree)
 
   if (!ref.current) {
     throw new Error('Expected useWrappedStory to initialize')
   }
 
-  return ref as { current: Story }
+  return {
+    get current(): Story { return ref.current as Story },
+    rerender: (count: number) => {
+      TestRenderer.act(() => tree.update(React.createElement(Harness, { count })))
+    },
+  }
 }
 
 const mountedTrees: { unmount: () => void }[] = []
@@ -299,6 +306,49 @@ describe('mobile useWrapped', () => {
 })
 
 describe('mobile useWrappedStory', () => {
+  afterEach(() => {
+    while (mountedTrees.length > 0) {
+      const tree = mountedTrees.pop()
+      TestRenderer.act(() => tree?.unmount())
+    }
+  })
+
+  it('clamps to the last slide when a refetch removes the top habit', () => {
+    const slides = buildWrappedSlides(createMockRecap())
+    const shorterSlides = buildWrappedSlides(createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ topHabits: [] }),
+    }))
+    expect(slides).toHaveLength(8)
+    expect(shorterSlides).toHaveLength(7)
+    const story = renderStory(slides.length)
+    for (let step = 0; step < slides.length - 1; step += 1) {
+      TestRenderer.act(() => story.current.next())
+    }
+    expect(story.current.index).toBe(7)
+
+    story.rerender(shorterSlides.length)
+
+    expect(story.current.index).toBe(6)
+    expect(story.current.isLast).toBe(true)
+    expect(shorterSlides[story.current.index]?.id).toBe('share')
+    TestRenderer.act(() => story.current.prev())
+    expect(story.current.index).toBe(5)
+    expect(story.current.isLast).toBe(false)
+    TestRenderer.act(() => story.current.next())
+    TestRenderer.act(() => story.current.next())
+    expect(story.current.index).toBe(6)
+
+    story.rerender(0)
+    expect(story.current.index).toBe(0)
+    expect(story.current.isFirst).toBe(true)
+    TestRenderer.act(() => story.current.prev())
+    TestRenderer.act(() => story.current.next())
+    expect(story.current.index).toBe(0)
+    story.rerender(slides.length)
+    expect(story.current.index).toBe(0)
+    expect(story.current.isLast).toBe(false)
+  })
+
   it('opens on the first slide', () => {
     const story = renderStory(7)
     expect(story.current.index).toBe(0)
