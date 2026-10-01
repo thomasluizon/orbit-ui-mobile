@@ -53,6 +53,7 @@ import {
 } from '@/stores/review-reminder-store'
 import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
@@ -486,6 +487,7 @@ function GlobalOverlays({
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
+  const pendingPro = useOnboardingProPending()
   const liveOnboardingActions = useLiveOnboardingActions()
   const showRetainedOnboarding = useRetainedOnboardingGuard(
     profile,
@@ -537,6 +539,8 @@ function GlobalOverlays({
     <OverlayLayer
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
       showRetainedOnboarding={showRetainedOnboarding}
+      showPendingPro={pendingPro === true}
+      pendingProLoaded={pendingPro !== undefined}
       onboardingActions={liveOnboardingActions}
     />
   )

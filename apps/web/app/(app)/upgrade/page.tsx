@@ -1,13 +1,8 @@
 'use client'
 
-import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { API } from '@orbit/shared/api'
 import {
-  createApiClientError,
-  getClientTimeZone,
-  getFriendlyErrorMessage,
   getTrialDaysLeft,
   resolveSubscriptionScreen,
   resolveUpgradeHeader,
@@ -27,6 +22,8 @@ import { openCustomerPortal } from '@/lib/actions/subscription'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
+import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useBilling } from '@/hooks/use-billing'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
@@ -37,7 +34,6 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useHeldAccountId } from '@/stores/auth-store'
 
 
-type SubscriptionInterval = 'monthly' | 'yearly'
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 
 export default function UpgradePage() {
@@ -71,16 +67,15 @@ export default function UpgradePage() {
     refetch: refetchBilling,
   } = useBilling(isStripeBilling)
 
-  const [checkoutLoading, setCheckoutLoading] = useAccountScopedState<SubscriptionInterval | null>(null)
-  const checkoutPendingRef = useRef<number | null>(null)
-  const [checkoutError, setCheckoutError] = useAccountScopedState('')
+  const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout()
+  const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const [showPitch, setShowPitch] = useAccountScopedState(false)
   const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
 
   const model = resolveSubscriptionScreen({
     status,
     isStatusLoading,
-    isStatusError,
+    isStatusError: isStatusError || hasReturnError,
     isBillingLoading,
     isBillingError,
     billingStatus: billing?.status,
@@ -123,56 +118,6 @@ export default function UpgradePage() {
     }
   }, [heldAccountId, portalState, refetchBilling, refetchStatus, setPortalState, showSuccess, t])
 
-  const handleCheckout = useCallback(
-    async (interval: SubscriptionInterval) => {
-      const checkoutAccount = getAccountGeneration()
-      const checkoutOwner = getHeldAccountId()
-      if (checkoutPendingRef.current === checkoutAccount || !isOnline || checkoutOwner === null) return
-      checkoutPendingRef.current = checkoutAccount
-      setCheckoutLoading(interval)
-      setCheckoutError('')
-      try {
-        const timeZone = getClientTimeZone()
-        const checkoutUrl = timeZone
-          ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
-          : API.subscription.checkout
-        const response = await fetchWithThrottle(checkoutUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Orbit-Held-Account-Id': checkoutOwner,
-          },
-          body: JSON.stringify({ interval }),
-        })
-        if (!response.ok) {
-          const errorBody: unknown = await response.json().catch(() => null)
-          throw createApiClientError(
-            response.status,
-            errorBody,
-            `Failed with status ${response.status}`,
-          )
-        }
-        const data = (await response.json()) as { url?: string }
-        /**
-         * The tab may hold another account by now. A checkout session belongs to the account that
-         * opened it, so following its url would bill the wrong person, and reporting its failure
-         * would alarm someone who never pressed the button.
-         */
-        if (getAccountGeneration() !== checkoutAccount) return
-        if (data.url) globalThis.location.href = data.url
-      } catch (error: unknown) {
-        if (getAccountGeneration() !== checkoutAccount) return
-        setCheckoutError(getFriendlyErrorMessage(error, t, 'auth.genericError', 'generic'))
-      } finally {
-        if (checkoutPendingRef.current === checkoutAccount) {
-          checkoutPendingRef.current = null
-          setCheckoutLoading(null)
-        }
-      }
-    },
-    [isOnline, setCheckoutError, setCheckoutLoading, t],
-  )
-
   const handleOpenPortal = useCallback(async () => {
     const intendedAccountId = getHeldAccountId()
     if (!isOnline || intendedAccountId === null) return
@@ -206,6 +151,7 @@ export default function UpgradePage() {
 
 
   const retryLoad = () => {
+    if (hasReturnError) { retryReturn(); return }
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
   }
 
@@ -218,12 +164,12 @@ export default function UpgradePage() {
         <Skeleton variant="settings" label={t('common.loading')} />
       </div>
     )
-  } else if (model.state === 'load-failed') {
+  } else if (screenState === 'load-failed') {
     content = (
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-          <PillButton variant="ghost" onClick={retryLoad}>
+          <PillButton variant="ghost" loading={isSettling} onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>
         }

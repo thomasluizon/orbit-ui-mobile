@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import {
@@ -208,13 +209,25 @@ describe('onboarding action provider factories', () => {
     expect(updater(undefined)).toBeUndefined()
   })
 
-  it('tolerates a failed completion mutation but still advances', async () => {
+  it('drops completion after the account changes while its mutation is pending', async () => {
+    let release!: () => void
+    mocks.performQueuedApiMutation.mockImplementationOnce(() => new Promise<undefined>((resolve) => { release = () => resolve(undefined) }))
+    const actions = captureActions(useLiveOnboardingActions)
+    const completion = actions.finishOnboarding()
+    advanceAccountGeneration()
+    release()
+    await completion
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('keeps onboarding open when completion cannot be queued', async () => {
     mocks.performQueuedApiMutation.mockRejectedValueOnce(new Error('offline'))
     const actions = captureActions(useLiveOnboardingActions)
 
-    await actions.finishOnboarding()
+    await expect(actions.finishOnboarding()).rejects.toThrow('offline')
 
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it('imports the onboarding prompt into the chat draft in live mode', async () => {

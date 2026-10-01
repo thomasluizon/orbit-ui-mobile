@@ -1,5 +1,7 @@
 import type { CreateHabitRequest, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
 import type { SupportedLocale } from '../types/profile'
+import type { Profile } from '../types/profile'
+import { getCurrentPlan } from './profile-selectors'
 import { formatAPIDateInTimeZone } from './dates'
 import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
 import { readHabitPhrase } from './habit-phrase-parser'
@@ -10,6 +12,16 @@ export const ONBOARDING_WHAT_STEP = 0
 export const ONBOARDING_WHEN_STEP = 1
 export const ONBOARDING_REMIND_STEP = 2
 export const ONBOARDING_DONE_STEP = 3
+export const ONBOARDING_PRO_STEP = 4
+export const ONBOARDING_PRO_PENDING_KEY = 'orbit_onboarding_pro_pending'
+export const TRIAL_EXPIRED_SEEN_KEY = 'orbit_trial_expired_seen'
+
+export function resolveOnboardingPlan(profile: Profile | null | undefined, refreshFailed = false, now = new Date()): 'Free' | 'Pro' | 'Trial' | null {
+  if (!profile) return null
+  if (refreshFailed && profile.isTrialActive && profile.trialEndsAt && new Date(profile.trialEndsAt) <= now) return 'Free'
+  return getCurrentPlan(profile)
+}
+
 export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'tidy'] as const
 export const ONBOARDING_REMINDER_MINUTES = 15
 export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean }): boolean {

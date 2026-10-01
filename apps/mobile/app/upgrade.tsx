@@ -117,6 +117,7 @@ export default function UpgradeScreen() {
   } = useSubscriptionPlans()
   const playBilling = usePlayBilling({
     preferReferralOffer: !!plans?.couponPercentOff,
+    onPurchased: () => showSuccess(t('upgrade.purchaseSuccess')),
   })
   const isPlaySource = status?.source === 'play'
   const showBilling = Boolean(status?.hasProAccess && !status.isTrialActive)

@@ -5,6 +5,7 @@ import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
@@ -39,6 +40,33 @@ describe('PillButton', () => {
     })
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([412, 1280])('measures only rendered onboarding action text lines at %ipx', async (width) => {
+      const { container } = render(<main><div><div><section>
+        <PillButton>See day</PillButton><PillButton>Ver dia</PillButton>
+        <PillButton>Subscribe</PillButton><PillButton>Assinar</PillButton>
+      </section></div></div></main>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const step = page.locator('section')
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual([])
+        await step.evaluate((root) => {
+          const action = document.createElement('button')
+          action.textContent = 'Actually wrapped action'
+          action.style.cssText = 'display:block;width:60px;white-space:normal'
+          root.append(action)
+          const hidden = document.createElement('button')
+          hidden.style.cssText = 'visibility:hidden;display:block;width:30px'
+          hidden.textContent = 'Hidden measurement action'
+          root.append(hidden)
+        })
+        expect((await step.evaluate(measureOnboardingProStep)).wrappedActions).toEqual(['Actually wrapped action'])
+      } finally {
+        await page.close()
+      }
+    })
 
     it.each([412, 1280])('paints the import icon target including both pseudo-elements at %ipx', async (width) => {
       const { container } = render(<SelectAllToggle allSelected={false} onToggle={() => {}} selectAllLabel="Select all" deselectAllLabel="Deselect all" />)

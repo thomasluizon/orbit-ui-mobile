@@ -2115,6 +2115,11 @@
   },
   "onboarding": {
     "flow": {
+      "completionFailed": "Onboarding could not finish. Try again.",
+      "trial": {
+        "title": "Your Orbit Pro trial is on.",
+        "body": "Everything in Pro is on during the free trial. If you do not subscribe, your account returns to the free plan."
+      },
       "step": "{current} of {total}",
       "skip": "Skip",
       "back": "Back",
@@ -2411,6 +2416,7 @@
     }
   },
   "upgrade": {
+    "purchaseSuccess": "Orbit Pro is on.",
     "title": "Subscription",
     "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
@@ -2483,9 +2489,9 @@
       "coupon": {
         "line": "With your coupon, {percent}% off the first charge."
       },
-      "renewalNote": "The subscription renews automatically at the end of each period.",
+      "renewalNote": "The subscription renews itself at the end of the period, and you can turn that off in the portal.",
       "loading": "Fetching the amounts",
-      "error": "Couldn't load pricing",
+      "error": "We could not fetch the amounts just now. Check the connection and try again.",
       "retry": "Try again"
     },
     "billing": {

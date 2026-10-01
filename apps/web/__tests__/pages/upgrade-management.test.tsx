@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
@@ -959,3 +960,8 @@ describe('UpgradePage subscription management', () => {
   })
 
 })
+
+function render(element: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}

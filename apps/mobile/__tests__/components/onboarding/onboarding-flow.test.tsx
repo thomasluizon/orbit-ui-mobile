@@ -1,3 +1,4 @@
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -26,9 +27,7 @@ function prop<T>(node: TestNode, key: string): T {
 }
 
 const mocks = vi.hoisted(() => {
-  const profile: { aiMessagesLimit: number; aiMessagesUsed: number; timeZone: string | null } = {
-    aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
-  }
+  const profile = { aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC' as string | null, hasProAccess: true, isTrialActive: false, isLifetimePro: false, trialEndsAt: null as string | null }
   return {
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
@@ -97,6 +96,10 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange }),
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
+vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: ({ onFinish, ref }: { onFinish: (destination?: string) => Promise<void>; ref?: React.Ref<{ exit: (destination?: string) => void }> }) => {
+  React.useImperativeHandle(ref, () => ({ exit: (destination?: string) => { void onFinish(destination) } }))
+  return React.createElement('ProStep', { onFinish })
+} }))
 vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general, onFinish }: { dueToday: boolean; general: boolean; onFinish: () => void }) => React.createElement('Done', { dueToday, general, onFinish }) }))
 
 async function mount(isLive: boolean) {
@@ -177,6 +180,7 @@ describe('OnboardingFlow state model', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
     mocks.profileAvailable = true
@@ -190,6 +194,29 @@ describe('OnboardingFlow state model', () => {
     mocks.requestPermission.mockResolvedValue(true)
     mocks.requestPermissionOutcome.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+  })
+
+  it.each(['trial', 'free'])('Skip reaches Done then the final %s step before completion', async (plan) => {
+    Object.assign(mocks.profile, createMockProfile({ hasProAccess: plan === 'trial', isTrialActive: plan === 'trial', isLifetimePro: false }))
+    const tree = await mount(true)
+    await click(tree, 'onboarding.flow.skip')
+    expect(oneByType(tree.root, 'Done')).toBeDefined()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    await TestRenderer.act(() => prop<() => void>(oneByType(tree.root, 'Done'), 'onFinish')())
+    expect(oneByType(tree.root, 'ProStep')).toBeDefined()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    await TestRenderer.act(() => prop<() => Promise<void>>(oneByType(tree.root, 'ProStep'), 'onFinish')())
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the selected Done tab until the final step finishes', async () => {
+    mocks.profile.hasProAccess = false
+    const tree = await reachDone(true)
+    await selectTab(tree, 'calendario')
+    expect(oneByType(tree.root, 'ProStep')).toBeDefined()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    await TestRenderer.act(() => prop<() => Promise<void>>(oneByType(tree.root, 'ProStep'), 'onFinish')())
+    expect(mocks.navigate).toHaveBeenCalledWith('/calendar')
   })
 
   it('counts each rendered decision once and drops the counter on the done screen', async () => {
