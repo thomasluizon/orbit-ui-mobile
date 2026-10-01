@@ -10,6 +10,7 @@ vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
   usePathname: () => '/auth-callback',
+  useSearchParams: () => new URLSearchParams(globalThis.location.search),
 }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector?: (state: { setAuth: typeof mocks.setAuth; isAuthenticated: boolean; sessionInactive: boolean }) => unknown) => {

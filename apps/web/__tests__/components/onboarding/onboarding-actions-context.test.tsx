@@ -8,6 +8,7 @@ const pushMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 const mocks = vi.hoisted(() => ({

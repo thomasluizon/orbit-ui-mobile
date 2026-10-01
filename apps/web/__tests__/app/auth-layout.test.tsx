@@ -10,7 +10,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
-vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({ replace: vi.fn() }) }))
+vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 

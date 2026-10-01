@@ -15,6 +15,12 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { setAccountId } from '@/lib/account-scope'
+import AuthLayout from '@/app/(auth)/layout'
+import OnboardingLayout from '@/app/(onboarding)/layout'
+import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
+import { useBufferOnboardingActions } from '@/components/onboarding/onboarding-actions-context'
+import { installWebLocks } from '@/__tests__/helpers/web-locks'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => {
@@ -38,6 +44,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+const NavigationContext = React.createContext({ url: '/', navigate: mocks.navigate as (url: string) => void })
+
 vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>()),
   useLiveOnboardingActions: () => mocks.liveActions(),
@@ -47,7 +55,9 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
-vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => ({ push: mocks.navigate }) }))
+vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
+vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
@@ -660,5 +670,76 @@ describe('OnboardingFlow state model', () => {
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
     expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
     expect(useOnboardingDraftStore.getState().habits).toEqual([])
+  })
+})
+
+function BufferedOnboarding() {
+  const actions = useBufferOnboardingActions()
+  return <OnboardingActionsProvider actions={actions} isLive={false}><OnboardingFlow /></OnboardingActionsProvider>
+}
+
+function LoginContext() {
+  const flow = useLoginFlow()
+  return <div>Entrar {flow.referralCode} {flow.step} {flow.errorKey}</div>
+}
+
+function LoginEntry({ initialUrl }: Readonly<{ initialUrl: string }>) {
+  const [url, setUrl] = React.useState(initialUrl)
+  const navigation = React.useMemo(() => ({ url, navigate: setUrl }), [url])
+  const pathname = new URL(url, 'https://orbit.test').pathname
+  return <NavigationContext.Provider value={navigation}><output aria-label="Current URL">{url}</output>{pathname === '/onboarding'
+    ? <OnboardingLayout><BufferedOnboarding /></OnboardingLayout>
+    : <AuthLayout><LoginContext /></AuthLayout>}</NavigationContext.Provider>
+}
+
+describe('login context through the owning onboarding layouts', () => {
+  beforeEach(async () => {
+    installWebLocks()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    await resetAuthStore()
+    localStorage.clear()
+    document.cookie = 'referral_code=;max-age=0;path=/'
+    useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
+    await useOnboardingDraftStore.persist.rehydrate()
+    mocks.navigate.mockReset()
+    mocks.profileAvailable = false
+    mocks.push.supported = false
+    useUIStore.setState({ openOverlayIds: [] })
+  })
+  afterEach(() => { vi.unstubAllGlobals(); mocks.navigate.mockReset() })
+
+  it.each(['shortcut', 'completion'] as const)('preserves referral and return URL through the %s exit', async (exit) => {
+    render(<LoginEntry initialUrl="/login?ref=friend-42&returnUrl=%2Fcalendar" />)
+    await waitFor(() => expect(screen.getByLabelText('Current URL')).toHaveTextContent('/onboarding?ref=friend-42&returnUrl=%2Fcalendar'))
+    expect(screen.queryByText(/Entrar/)).not.toBeInTheDocument()
+    if (exit === 'shortcut') {
+      fireEvent.click(screen.getByRole('button', { name: 'what.haveAccount' }))
+    } else {
+      fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+      fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'create' }))
+      await screen.findByTestId('reminder-state')
+      fireEvent.click(screen.getByRole('button', { name: 'remind.continue' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'finish' }))
+    }
+    await screen.findByText(/Entrar friend-42/)
+    const destination = new URL(screen.getByLabelText('Current URL').textContent!, 'https://orbit.test')
+    expect(destination.pathname).toBe('/login')
+    expect(destination.searchParams.get('ref')).toBe('friend-42')
+    expect(destination.searchParams.get('returnUrl')).toBe('/calendar')
+    expect(destination.searchParams.get('from')).toBe(exit === 'completion' ? 'onboarding' : null)
+    expect(document.cookie).toContain('referral_code=friend-42')
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(exit === 'completion' ? 1 : 0)
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+  })
+
+  it.each([
+    ['email=person%40example.com&code=123456&ref=friend-42&returnUrl=%2Fcalendar', 'code'],
+    ['googleError=1&returnUrl=%2Fcalendar', 'auth.errors.googleError'],
+  ])('opens an in-progress sign-in directly: %s', async (query, state) => {
+    render(<LoginEntry initialUrl={`/login?${query}`} />)
+    expect(await screen.findByText(new RegExp(`Entrar.*${state}`))).toBeInTheDocument()
+    expect(screen.getByLabelText('Current URL')).toHaveTextContent(`/login?${query}`)
+    expect(mocks.navigate).not.toHaveBeenCalled()
   })
 })

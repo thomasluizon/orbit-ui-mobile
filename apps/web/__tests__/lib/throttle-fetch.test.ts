@@ -13,6 +13,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => '/login',
+  useSearchParams: () => new URLSearchParams(globalThis.location.search),
 }))
 
 const payload = {

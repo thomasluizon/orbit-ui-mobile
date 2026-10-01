@@ -10,6 +10,10 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { queryClient } from '@/lib/query-client'
 import { setAccountId } from '@/lib/account-scope'
 import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import ReferralRedirectScreen from '@/app/r/[code]'
+import { useLoginFlow } from '@/app/use-login-flow'
+import { getAuthReturnUrlAttempt, getStoredAuthReturnUrl, getStoredReferralCode } from '@/lib/auth-flow'
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
@@ -20,6 +24,8 @@ import {
 } from '@/lib/pending-notification-deletes'
 
 const routeState = vi.hoisted(() => ({
+  contextEntry: false,
+  replace: vi.fn(),
   pathname: '/wrapped',
   segments: ['wrapped'],
 }))
@@ -40,7 +46,13 @@ vi.mock('expo-router', () => {
     ({ children }: Readonly<{ children?: ReactNode }>) => children,
     {
       Protected: ({ children, guard }: Readonly<{ children?: ReactNode; guard: boolean }>) => guard ? children : null,
-      Screen: ({ name }: { name: string }) => { renderedRoutes.push(name); return React.createElement(Text, { testID: `route:${name}` }, name) },
+      Screen: ({ name }: { name: string }) => {
+        if (routeState.contextEntry) {
+          if (name === 'r' && routeState.pathname.startsWith('/r/')) return React.createElement(ReferralRedirectScreen)
+          if (name === 'login' && routeState.pathname.startsWith('/login')) return React.createElement(LoginContext)
+          return null
+        }
+        renderedRoutes.push(name); return React.createElement(Text, { testID: `route:${name}` }, name) },
     },
   )
 
@@ -50,12 +62,16 @@ vi.mock('expo-router', () => {
     Stack,
     ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) => children,
     useGlobalSearchParams: () => ({}),
+    useLocalSearchParams: () => routeState.pathname.startsWith('/r/')
+      ? { code: routeState.pathname.slice(3) }
+      : Object.fromEntries(new URL(routeState.pathname, 'https://orbit.test').searchParams),
     usePathname: () => routeState.pathname,
-    useRouter: () => ({ push: createState.push, replace: vi.fn() }),
+    useRouter: () => ({ push: createState.push, replace: routeState.replace }),
     useSegments: () => routeState.segments,
   }
 })
 
+vi.mock('@/lib/google-auth', () => ({ startMobileGoogleAuth: vi.fn() }))
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-status-bar', () => ({ StatusBar: () => null }))
 vi.mock('expo-router/react-navigation', () => ({}))
@@ -219,6 +235,8 @@ beforeEach(async () => {
   api.apply.mockClear()
   api.profile = undefined
   renderedRoutes.length = 0
+  routeState.contextEntry = false
+  routeState.replace.mockReset()
   routeState.pathname = '/'
   routeState.segments = ['(tabs)']
   createState.count = 0
@@ -305,3 +323,48 @@ vi.mock('@/components/review-moment/review-moment-sheet', () => ({ ReviewMomentS
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/version-update-drawer', () => ({ VersionUpdateDrawer: () => null }))
+
+function LoginContext() {
+  const flow = useLoginFlow()
+  return React.createElement(Text, { testID: 'login-context' }, `${flow.step} ${flow.showReferralBanner} ${flow.errorKey}`)
+}
+
+describe('explicit sign-in context through the root layout', () => {
+  beforeEach(() => {
+    const storage = new Map<string, string>()
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key: string) => Promise.resolve(storage.get(key) ?? null))
+    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key: string, value: string) => { storage.set(key, value); return Promise.resolve() })
+    vi.spyOn(AsyncStorage, 'removeItem').mockImplementation((key: string) => { storage.delete(key); return Promise.resolve() })
+    routeState.contextEntry = true
+  })
+
+  it('keeps a referral deep link available on a fresh install and persists its referral at login', async () => {
+    routeState.pathname = '/r/friend-42'
+    routeState.segments = ['r', '[code]']
+    mounted = await renderRoot()
+    expect(routeState.replace).toHaveBeenCalledWith('/login?ref=friend-42')
+    routeState.pathname = routeState.replace.mock.calls[0]![0] as string
+    routeState.segments = ['login']
+    await TestRenderer.act(() => { mounted?.update(React.createElement(RootLayout)) })
+    await settle()
+    expect(await getStoredReferralCode()).toBe('friend-42')
+    expect(findByTestId(mounted, 'login-context')[0]?.props.children).toContain('email true')
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(false)
+  })
+
+  it.each([
+    ['/login?ref=friend-42&returnUrl=%2Fcalendar', '/calendar', 'email true'],
+    ['/login?email=person%40example.com&code=123456&returnUrl=%2Fcalendar', '/calendar', 'code false'],
+    ['/login?googleError=1&returnUrl=%2Fcalendar', '/calendar', 'auth.errors.googleError'],
+    ['/login?returnUrl=%2F%2Fevil.example', null, 'email false'],
+  ])('keeps an explicit login entry and validates its return URL: %s', async (url, destination, content) => {
+    routeState.pathname = url
+    routeState.segments = ['login']
+    mounted = await renderRoot()
+    await settle()
+    expect(findByTestId(mounted, 'login-context')[0]?.props.children).toContain(content)
+    expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBe(destination)
+    expect(routeState.replace).not.toHaveBeenCalled()
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(false)
+  })
+})

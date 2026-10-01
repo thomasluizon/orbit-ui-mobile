@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { completeOnboardingOrQueue } from '@/hooks/use-onboarding-completion-queue'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -12,6 +12,7 @@ import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habi
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
+import { getOnboardingLoginUrl } from '@/lib/onboarding-login-route'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -86,6 +87,7 @@ export function useOnboardingIsLive(): boolean {
 /** Pre-auth actions: buffer every answer into the local draft store, then route to signup. */
 export function useBufferOnboardingActions(): OnboardingActions {
   const router = useRouter()
+  const loginUrl = getOnboardingLoginUrl(useSearchParams().toString(), true)
 
   return useMemo(
     () => ({
@@ -117,11 +119,11 @@ export function useBufferOnboardingActions(): OnboardingActions {
       deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-        router.push('/login?from=onboarding')
+        router.push(loginUrl)
         return Promise.resolve()
       },
     }),
-    [router],
+    [loginUrl, router],
   )
 }
 

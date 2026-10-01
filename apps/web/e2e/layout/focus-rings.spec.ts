@@ -1,3 +1,4 @@
+import { completeInstallOnboarding } from './install-onboarding'
 import { expect, test, type Page } from '@playwright/test'
 import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -195,6 +196,7 @@ for (const width of [412, 1280] as const) {
   test.describe(`login focus rings at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 }, storageState: { cookies: [], origins: [] } })
     test('Entrar has one ring at each Tab stop', async ({ page }) => {
+      await completeInstallOnboarding(page)
       await page.goto('/login')
       await expect(page.getByRole('textbox').first()).toBeVisible()
       await inspectTabStops(page, `Entrar ${width}px`)
@@ -203,6 +205,7 @@ for (const width of [412, 1280] as const) {
 
     test('code entry has one ring on its active box', async ({ page }) => {
       await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
+      await completeInstallOnboarding(page)
       await page.goto('/login')
       await page.locator('input[name="email"]').fill('focus@example.com')
       await page.getByRole('button', { name: messages.auth.sendCode, exact: true }).click()
@@ -214,6 +217,7 @@ for (const width of [412, 1280] as const) {
     test('sign-in fields draw one indicator in forced colors', async ({ page }) => {
       await page.emulateMedia({ forcedColors: 'active' })
       await page.route('**/api/auth/send-code', (route) => route.fulfill({ json: {} }))
+      await completeInstallOnboarding(page)
       await page.goto('/login')
       const email = page.locator('input[name="email"]')
       await expectOneFieldIndicator(page, email, '[data-input-root]', `sign-in email forced colors ${width}px`, { forcedColors: true })
