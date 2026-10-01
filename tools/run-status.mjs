@@ -83,9 +83,9 @@ const checkCounts = (rollup) => {
 const validPull = (pull, number) => pull?.number === number &&
   ["OPEN", "CLOSED", "MERGED"].includes(pull.state) && typeof pull.isDraft === "boolean" &&
   ["headRefName", "headRefOid", "baseRefName", "baseRefOid", "mergeStateStatus"].every((key) => typeof pull[key] === "string") &&
-  Array.isArray(pull.reviews?.nodes) && typeof pull.reviews.pageInfo?.hasPreviousPage === "boolean" &&
+  Array.isArray(pull.reviews?.nodes) && pull.reviews.nodes.every((review) => review && typeof review.state === "string" && typeof review.submittedAt === "string") && typeof pull.reviews.pageInfo?.hasPreviousPage === "boolean" &&
   Array.isArray(pull.reviewThreads?.nodes) && typeof pull.reviewThreads.pageInfo?.hasNextPage === "boolean" &&
-  pull.reviewThreads.nodes.every((thread) => typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
+  pull.reviewThreads.nodes.every((thread) => thread && typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
   (pull.statusCheckRollup === null || (Array.isArray(pull.statusCheckRollup?.contexts?.nodes) && pull.statusCheckRollup.contexts.nodes.every((check) => check.__typename === "CheckRun" ? typeof check.name === "string" && typeof check.status === "string" : check.__typename === "StatusContext" && typeof check.context === "string" && typeof check.state === "string") && typeof pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === "boolean"))
 
 const observePull = (row, pull, launches, wakes) => {
@@ -121,7 +121,9 @@ const observePull = (row, pull, launches, wakes) => {
   else if (checks.failed > 0) add("CHECK_FAILED", deliveryCommand(row, pull, launch, receipt))
   else if (receiptStatus !== "CURRENT" || !launch || launch.corrupt) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
   else if (checks.total === 0 || checks.pending > 0 || !review) {
-    const waiter = wakes.live.some((source) => source.repositoryKey === row.repositoryKey && source.prNumbers?.includes(row.prNumber))
+    const waiter = wakes.live.some((source) =>
+      (source.repositoryKey === row.repositoryKey && source.prNumbers?.includes(row.prNumber)) ||
+      (source.what?.startsWith(`CI ${row.repositoryKey} pull requests `) && source.what.split(/[, ]+/).includes(`#${row.prNumber}`)))
     if (!waiter) add(checks.pending > 0 || checks.total === 0 ? "REARM_WAIT_CI" : "READ_REVIEW", checks.pending > 0 || checks.total === 0 ? waitCommand(row) : reviewCommand(row))
   } else if (receiptVerdict !== "READY") {
     const delivery = row.deliveryPath ?? `${row.receiptPath}.delivery.json`
@@ -159,7 +161,8 @@ const readWorktrees = (repoRoot) => {
 const githubRead = async (args, auth, runner) => {
   const result = await runner(process.env.GH_BIN || "gh", args, { env: auth.environment, timeoutMs: 3500, maxBuffer: 8 * 1024 * 1024 })
   if (result.error || result.timedOut || result.overflowed || result.status !== 0) throw new Error(redactSecrets(result.stderr || result.error?.message || (result.timedOut ? "GitHub read timed out" : `exit ${result.status}`), auth.secrets))
-  const response = JSON.parse(result.stdout)
+  let response
+  try { response = JSON.parse(result.stdout) } catch (error) { throw new Error(redactSecrets(error.message, auth.secrets)) }
   if (response.errors) throw new Error(redactSecrets(JSON.stringify(response.errors), auth.secrets))
   return response
 }

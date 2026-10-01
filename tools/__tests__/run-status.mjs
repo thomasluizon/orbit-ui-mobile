@@ -26,6 +26,7 @@ export const cases = async () => {
   let rateLimit = structuredClone(fixture.rateLimit)
   let queued = 0
   let failingOwner = null
+  let malformedJson = false
   const authenticate = async (path) => {
     if (path === failingOwner) throw new Error("auth failure ghp_abcdefghijklmnopqrstuvwx")
     return { environment: { GH_TOKEN: "status-secret" }, secrets: ["status-secret"] }
@@ -36,7 +37,7 @@ export const cases = async () => {
       (args[1] === "rate_limit" || args[1].includes("actions/runs?status=queued") || (args[1] === "graphql" && args.at(-1).startsWith("query=query RunStatus") && !args.at(-1).includes("mutation"))))
     T("run-status: the token exists only in the child environment", invocation.env.GH_TOKEN === "status-secret" && !args.some((argument) => argument.includes("status-secret")))
     const payload = args[1] === "rate_limit" ? rateLimit : args[1] === "graphql" ? response : { total_count: queued, workflow_runs: [] }
-    return { status: 0, stdout: JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
+    return { status: 0, stdout: malformedJson ? "status-secret" : JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
   }
   const snapshot = (extra = {}) => runStatus({ ...options, authenticate, runner, ...extra })
   T("run-status: no record exits without any GitHub calls", (await snapshot()).status === "no run record" && readCalls.length === 0)
@@ -136,6 +137,11 @@ export const cases = async () => {
   T("run-status: truncated connections cannot produce a merge or verification inference", !(await snapshot()).nextActions.some((entry) => ["MERGE_CANDIDATE", "VERIFY_DELIVERY", "RECORD_READINESS"].includes(entry.type)))
   reset(); response.data.repository[`pr${number}`] = { number }
   T("run-status: malformed PRs are unreadable without crashing", (await snapshot()).pullRequests[0].status === "UNREADABLE")
+
+  reset(); malformedJson = true
+  report = await snapshot()
+  T("run-status: invalid JSON errors redact the selected child token", !JSON.stringify(report).includes("status-secret"))
+  malformedJson = false
 
   reset(); const sibling = stageRepo("run-status-other-owner"); sibling.git(["remote", "set-url", "origin", "https://github.com/another-owner/api.git"])
   failingOwner = sibling.path
