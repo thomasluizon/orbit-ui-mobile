@@ -18,8 +18,11 @@ import { Toast } from '@/components/ui/app-toast'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
+import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }))
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
@@ -90,6 +93,20 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it('gives a short description one body inset without a second caller inset', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<DescriptionViewer open title="Description" description="One short line." onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+    const scroller = tree!.root.findByProps({ testID: 'sheet-body-scroll' })
+    const content = scroller.props.children[0]
+    const callerStyle = StyleSheet.flatten(content.props.style) ?? {}
+    expect(callerStyle.paddingBottom ?? callerStyle.paddingVertical ?? callerStyle.padding ?? 0).toBe(0)
+    expect(callerStyle.paddingHorizontal ?? callerStyle.padding ?? 0).toBe(0)
+    expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({ paddingHorizontal: 24, paddingBottom: 24 })
+    TestRenderer.act(() => tree!.unmount())
+  })
   it('labels an untitled header for accessibility', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
@@ -301,7 +318,7 @@ describe('Sheet (mobile)', () => {
     expect(contentStyle.flexGrow).toBeUndefined()
     const actions = nativeSheet.props.footer.props.children[1]
     expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).toMatchObject({ paddingBottom: 24 })
-    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ padding: 16 })
+    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 })
     expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
     await TestRenderer.act(() => {
       nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })

@@ -115,13 +115,13 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
 
   return (
     open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')} titleTranslate="no">
-      <div className="overlay-bleed">
+      <div>
         <div
           role="tablist"
           className="flex"
           style={{
             gap: 8,
-            padding: '4px 24px 12px',
+            paddingBlock: 8,
             overflowX: 'auto',
           }}
         >
@@ -142,37 +142,38 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           })}
         </div>
 
-        {items.map((item) => (
-          <div
-            key={item.titleKey}
-            className="flex flex-col"
-            style={{
-              padding: '12px 24px',
-              gap: 4,
-            }}
-          >
-            <h3
+        <div className="flex flex-col gap-4" style={{ paddingTop: 16 }}>
+          {items.map((item) => (
+            <div
+              key={item.titleKey}
+              className="flex flex-col"
               style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
+                gap: 4,
               }}
             >
-              {t(item.titleKey)}
-            </h3>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13.5,
-                color: 'var(--fg-3)',
-                lineHeight: 1.55,
-              }}
-            >
-              {t(item.descKey)}
-            </p>
-          </div>
-        ))}
+              <h3
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {t(item.titleKey)}
+              </h3>
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13.5,
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.55,
+                }}
+              >
+                {t(item.descKey)}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </Sheet>) : null
   )
