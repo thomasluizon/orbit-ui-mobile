@@ -1,6 +1,7 @@
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
+import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
@@ -10,6 +11,8 @@ import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
 import { sheetTestControls } from '../../support/sheet-double'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { __resetTestHostConfig, __setFocusImpl, __setTouchMode } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -49,7 +52,7 @@ vi.mock('@/components/ui/otp-input', () => ({
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
 }))
 
-function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: RevisePendingOperation, onRefresh?: RefreshPendingOperation, onOpenTarget?: (entityId: string, actionType: string) => void) {
+function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: RevisePendingOperation, onRefresh?: RefreshPendingOperation, onOpenTarget?: (entityId: string, actionType: string) => void, focusProvenance = false) {
   const handlers = {
     onConfirmExecute: vi.fn(),
     onPrepareStepUp: vi.fn(),
@@ -57,7 +60,8 @@ function renderCard(overrides: Partial<PendingAgentOperation> = {}, onRevise?: R
   }
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} onRevise={onRevise} onRefresh={onRefresh} onOpenTarget={onOpenTarget} {...handlers} />)
+    const card = <PendingOperationCard pendingOperation={makePendingAgentOperation(overrides)} onRevise={onRevise} onRefresh={onRefresh} onOpenTarget={onOpenTarget} {...handlers} />
+    tree = TestRenderer.create(focusProvenance ? withFocusProvenance(card) : card)
   })
   return { tree, handlers }
 }
@@ -68,7 +72,7 @@ function press(tree: any, label: string) {
   )[0]
 }
 
-beforeEach(() => { vi.clearAllMocks(); visibleLocale.actual = false; visibleLocale.language = 'en' })
+beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
@@ -333,6 +337,109 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Run' }).props.onPress())
     expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
     expect(tree.root.findAllByProps({ accessibilityLabel: 'common.search' })).toHaveLength(0)
+  })
+
+  function itemGroup(tree: ReactTestRenderer) {
+    const groups = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'chat.operation.editTitle')
+    expect(groups).toHaveLength(1)
+    return groups[0]!
+  }
+
+  function itemRadios(group: ReactTestInstance) {
+    return group.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
+  }
+
+  it.each(['en', 'pt-BR'])('names the editable item group in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { tree } = renderCard(preview, vi.fn())
+    TestRenderer.act(() => press(tree, translateVisible('chat.operation.edit')).props.onPress())
+    const groups = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup')
+    expect(groups).toHaveLength(1)
+    expect(groups[0].props.accessibilityLabel).toBe(translateVisible('chat.operation.editTitle'))
+  })
+
+  it('groups editable items and preserves checked selection on hardware focus entry', () => {
+    __setTouchMode(false)
+    const focused = vi.fn()
+    __setFocusImpl(focused)
+    const revise = vi.fn()
+    const { tree } = renderCard(preview, revise, undefined, undefined, true)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const group = itemGroup(tree)
+    const [run, read] = itemRadios(group)
+    expect(run!.props.accessibilityState).toMatchObject({ checked: true })
+    TestRenderer.act(() => focusHost(tree, read!))
+    expect(run!.props.accessibilityState).toMatchObject({ checked: true })
+    expect(read!.props.accessibilityState).toMatchObject({ checked: false })
+    expect(focused).toHaveBeenCalledWith(expect.objectContaining({ accessibilityLabel: 'Run' }))
+    TestRenderer.act(() => focusHost(tree, run!))
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    TestRenderer.act(() => focusHost(tree, read!))
+    expect(read!.props.accessibilityState).toMatchObject({ checked: true })
+    expect(run!.props.accessibilityState).toMatchObject({ checked: false })
+    TestRenderer.act(run!.props.onPress)
+    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
+    expect(revise).not.toHaveBeenCalled()
+    TestRenderer.act(() => press(tree, 'common.cancel').props.onPress())
+    expect(tree.root.findAllByProps({ accessibilityRole: 'radiogroup' })).toHaveLength(0)
+  })
+
+  it('retains selection and valid hardware focus after filtering editable items', () => {
+    __setTouchMode(false)
+    const items = Array.from({ length: 9 }, (_, index) => ({ ...firstItem, itemId: `habit-${index}`, entityName: `Habit ${index}` }))
+    const { tree } = renderCard({ ...preview, items, changeTargetCount: items.length }, vi.fn(), undefined, undefined, true)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const group = itemGroup(tree)
+    const search = tree.root.findByProps({ accessibilityLabel: 'common.search' })
+    TestRenderer.act(() => search.props.onChangeText('Habit 8'))
+    const [last] = itemRadios(group)
+    expect(itemRadios(group)).toHaveLength(1)
+    TestRenderer.act(() => focusHost(tree, search))
+    TestRenderer.act(() => focusHost(tree, last!))
+    expect(last!.props.accessibilityState).toMatchObject({ checked: false })
+    TestRenderer.act(last!.props.onPress)
+    expect(last!.props.accessibilityState).toMatchObject({ checked: true })
+    TestRenderer.act(() => search.props.onChangeText(''))
+    expect(itemRadios(group)).toHaveLength(9)
+    const first = itemRadios(group)[0]!
+    TestRenderer.act(() => focusHost(tree, last!))
+    TestRenderer.act(() => focusHost(tree, first))
+    expect(first.props.accessibilityState).toMatchObject({ checked: true })
+    TestRenderer.act(() => search.props.onChangeText('missing'))
+    expect(itemRadios(group)).toHaveLength(0)
+    TestRenderer.act(() => search.props.onChangeText(''))
+    expect(itemRadios(group)[0]!.props.accessibilityState).toMatchObject({ checked: true })
+  })
+
+  it('keeps grouped items disabled with reasons while saving', async () => {
+    let finishRevision!: (result: { ok: false; error: string }) => void
+    const revise = vi.fn<RevisePendingOperation>(() => new Promise((resolve) => { finishRevision = resolve }))
+    const { tree } = renderCard(preview, revise, undefined, undefined, true)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Read' }).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    TestRenderer.act(() => press(tree, 'common.save').props.onPress())
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1' }, { itemId: 'habit-2', edits: { date: '2026-09-30' } }],
+    })
+    const group = itemGroup(tree)
+    const rows = itemRadios(group)
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row.props.accessibilityState).toMatchObject({ disabled: true })
+      expect(row.props.accessibilityLabel).toContain('blockFrame.status.acting')
+      expect(row.props.focusable).toBe(false)
+      expect(row.props.onPress).toBeUndefined()
+      TestRenderer.act(() => focusHost(tree, row))
+    }
+    expect(rows[0]!.props.accessibilityState).toMatchObject({ checked: false })
+    expect(rows[1]!.props.accessibilityState).toMatchObject({ checked: true })
+    expect(press(tree, 'common.cancel').props.disabled).toBe(true)
+    await TestRenderer.act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }); await Promise.resolve() })
+    expect(itemRadios(group)[1]!.props.accessibilityState).toMatchObject({ checked: true })
+    expect(itemRadios(group)[1]!.props.onPress).toBeTypeOf('function')
+    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
   })
 
   it('uses theme foreground for every editor label and weekday chip', () => {
