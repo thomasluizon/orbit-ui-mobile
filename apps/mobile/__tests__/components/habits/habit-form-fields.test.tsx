@@ -1,4 +1,6 @@
 import React from 'react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -9,6 +11,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
+const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false, checklistItems: 1, subHabitItems: 0 }
@@ -24,7 +27,8 @@ const testTranslations: Record<string, string> = {
 }
 
 function translateTestValue(key: string, values?: Record<string, unknown>): string {
-  const template = testTranslations[key]
+  const messages = formLocale.language === 'en' ? en : ptBR
+  const template = key === 'habits.form.startDateValue' ? messages.habits.form.startDateValue : testTranslations[key]
   if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
   return Object.entries(values ?? {}).reduce(
     (message, [name, value]) => message.replace(`{${name}}`, String(value)),
@@ -33,7 +37,7 @@ function translateTestValue(key: string, values?: Record<string, unknown>): stri
 }
 
 vi.mock('react-hook-form', () => ({ useController: () => ({ field: { ref: vi.fn() } }), useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: 'en' } }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: formLocale.language } }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
@@ -92,8 +96,22 @@ describe('HabitFormFields mobile', () => {
     expect(askIndex).toBeGreaterThan(correctionIndex)
   })
 
+  it.each([
+    ['en', 'Starts on September 2'],
+    ['pt-BR', 'Começa em 2 de setembro'],
+  ])('renders a word start date in %s', (locale, expected) => {
+    formLocale.language = locale
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
+    })
+    expect(tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    formLocale.language = 'en'
     mockProfileState.aiMessagesUsed = 0
     mockProfileState.hasProAccess = false
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])

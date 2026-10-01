@@ -63,6 +63,7 @@ describe('mobile Today account day', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<Probe />) })
     expect(current!.dayName).toBe(expected)
+    expect(current!.numericDate).toBe(locale === 'en' ? `September ${Number(selected.slice(-2))}` : `${Number(selected.slice(-2))} de setembro`)
     TestRenderer.act(() => tree!.unmount())
   })
 

@@ -34,6 +34,7 @@ import {
 import { enUS, ptBR } from "date-fns/locale";
 import {
   capitalizeFirstLetter,
+  formatCalendarDayTitle,
   buildCalendarRangeModel,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
@@ -768,11 +769,8 @@ function CalendarScreenContent({
 
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDay) return "";
-    const date = parseAPIDate(selectedDay);
-    return capitalizeFirstLetter(
-      format(date, "EEEE, MMM d", { locale: dateFnsLocale }),
-    );
-  }, [dateFnsLocale, selectedDay]);
+    return formatCalendarDayTitle(selectedDay, i18n.language, todayKey, t('dates.today'));
+  }, [i18n.language, selectedDay, todayKey, t]);
 
   const completedCount = filteredEntries.filter(
     (entry: CalendarDayEntry) => entry.status === "completed",
