@@ -207,7 +207,7 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
-  it('tears down a store that remains signed in after its token disappears', async () => {
+  it('delegates rejection teardown to the refresh store when a signed in token disappears', async () => {
     authStateMock.sessionPhase = 'signed-in'
     authStateMock.isAuthenticated = true
     getTokenMock.mockResolvedValue(null)
@@ -217,8 +217,8 @@ describe('mobile apiClient', () => {
     await expect(apiClient(API.config.get)).rejects.toMatchObject({ status: 401 })
 
     expect(refreshSessionMock).toHaveBeenCalledOnce()
-    expect(clearSessionAndResetAuthMock).toHaveBeenCalledOnce()
-    expect(routerReplaceMock).toHaveBeenCalledExactlyOnceWith('/login')
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
   it('retries an anonymous request with a token published while the request was in flight', async () => {
@@ -249,7 +249,7 @@ describe('mobile apiClient', () => {
 
     await expect(apiClient('/secure')).resolves.toEqual({ ok: true })
 
-    expect(refreshSessionMock).toHaveBeenCalledWith({ clearOnFailure: false })
+    expect(refreshSessionMock).toHaveBeenCalledWith()
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -289,15 +289,15 @@ describe('mobile apiClient', () => {
     )
   })
 
-  it('clears auth state when refresh cannot recover a 401', async () => {
+  it('delegates rejection teardown to the refresh store', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
-    expect(clearSessionAndResetAuthMock).toHaveBeenCalledTimes(1)
-    expect(routerReplaceMock).toHaveBeenCalledWith('/login')
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
   it('clears the session and redirects when the retried request still 401s after a refresh', async () => {

@@ -693,7 +693,66 @@ describe('auth store', () => {
       cleanup()
     })
 
-    it('keeps polling after a confirmed failure so a delayed winner can recover', async () => {
+    it('bounds recovery checks after a confirmed refresh rejection', async () => {
+      mockFetch.mockImplementation(() => Promise.resolve(Response.json(
+        { expiresAt: null, refreshFailed: true }, { status: 401 },
+      )))
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+        const callsAtRejection = mockFetch.mock.calls.length
+        await vi.advanceTimersByTimeAsync(180000)
+        expect(mockFetch).toHaveBeenCalledTimes(callsAtRejection + 3)
+        await vi.advanceTimersByTimeAsync(600000)
+        expect(mockFetch).toHaveBeenCalledTimes(callsAtRejection + 3)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it.each(['refresh', 'login'])('observes a %s cookie winner installed by a second runtime after rejection', async (winnerKind) => {
+      vi.resetModules()
+      const { useAuthStore: winnerTab } = await import('@/stores/auth-store')
+      const { sessionAwareFetch: winnerFetch } = await import('@/lib/api-fetch')
+      const { fetchAuthEndpoint: winnerLogin } = await import('@/app/(auth)/login/login-form-helpers')
+      expect(winnerTab).not.toBe(useAuthStore)
+      const loginResponse = makeLoginResponse()
+      const expiresAt = Date.now() + 3600000
+      let winnerCookiesInstalled = false
+      mockFetch.mockImplementation((url: string) => {
+        if (url === '/api/auth/verify-code' || url === '/api/profile') {
+          winnerCookiesInstalled = true
+          return Promise.resolve(Response.json(loginResponse))
+        }
+        return Promise.resolve(winnerCookiesInstalled
+          ? Response.json({ expiresAt, accountId: loginResponse.userId, refreshFailed: false })
+          : Response.json({ expiresAt: null, refreshFailed: true }, { status: 401 }))
+      })
+      useAuthStore.getState().setAuth(loginResponse)
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+        if (winnerKind === 'login') {
+          await winnerLogin('/api/auth/verify-code', { email: loginResponse.email, code: '123456' })
+          winnerTab.getState().setAuth(loginResponse)
+        } else {
+          winnerTab.getState().setAuth(loginResponse)
+          await winnerFetch('/api/profile')
+        }
+        await vi.advanceTimersByTimeAsync(60000)
+        expect(useAuthStore.getState()).toMatchObject({
+          isAuthenticated: true, sessionRefreshFailed: false, expiresAt,
+          user: { userId: loginResponse.userId },
+        })
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('recovers a delayed winner through explicit response recovery', async () => {
       const expiresAt = Date.now() + 3600000
       mockFetch.mockResolvedValue({
         ok: true,
@@ -712,7 +771,7 @@ describe('auth store', () => {
         sessionRefreshFailed: true,
       })
 
-      await vi.advanceTimersByTimeAsync(60000)
+      await useAuthStore.getState().recoverSessionRefreshFailure()
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(useAuthStore.getState()).toMatchObject({

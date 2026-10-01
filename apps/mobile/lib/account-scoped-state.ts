@@ -21,7 +21,12 @@ export async function startAccountScopedSession(
   await setUIAccountScope(accountId)
   if (!isCurrent()) return
   if (accountId === null) {
-    useOnboardingDraftStore.getState().reset()
+    const { onboardingLocallyDone, _hasHydrated } = useOnboardingDraftStore.getState()
+    useOnboardingDraftStore.setState({
+      ...useOnboardingDraftStore.getInitialState(),
+      onboardingLocallyDone,
+      _hasHydrated,
+    })
   } else {
     if (!preserveAnonymousDraft) await useOnboardingDraftStore.persist.rehydrate()
     if (!isCurrent()) return

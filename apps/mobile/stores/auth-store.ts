@@ -36,7 +36,7 @@ let credentialVersion = 0
 let credentialMutationTail = Promise.resolve()
 
 let profileHydrationInFlight: Promise<void> | null = null
-let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
+let refreshSessionInFlight: Promise<RefreshSessionOutcome> | null = null
 
 type SessionSnapshot = {
   epoch: number
@@ -212,6 +212,7 @@ async function clearSessionCredentials(
     sessionEpoch += 1
     credentialVersion += 1
     resetPostHogUser()
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
       isLoading: false,
@@ -252,10 +253,8 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   useChatStore.getState().clearMessages()
-  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
   if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
-  if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
   return teardown
@@ -270,19 +269,13 @@ export async function clearSessionAndResetAuth(
 /**
  * Outcome of a token rotation attempt. `network-error` is a transient blip,
  * `superseded` belongs to a newer session, and `unauthorized` is a real auth
- * failure where the session is cleared when `clearOnFailure`.
+ * failure that ends the observed session.
  */
 export type RefreshSessionOutcome =
   | { status: 'refreshed'; token: string }
   | { status: 'unauthorized' }
   | { status: 'network-error' }
   | { status: 'superseded' }
-
-type RefreshSessionAttempt = {
-  epoch: number
-  credentialVersion: number
-  outcome: RefreshSessionOutcome
-}
 
 function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true
@@ -353,44 +346,33 @@ async function rotateSessionToken(
   return { status: 'refreshed', token: data.token }
 }
 
-async function runRefreshSession(): Promise<RefreshSessionAttempt> {
-  const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
+async function runRefreshSession(): Promise<RefreshSessionOutcome> {
+  const observation = getSessionGeneration()
   try {
-    return {
-      epoch,
-      credentialVersion: expectedCredentialVersion,
-      outcome: await rotateSessionToken(epoch, expectedCredentialVersion),
+    const outcome = await rotateSessionToken(observation.epoch, observation.credentialVersion)
+    if (outcome.status === 'unauthorized') {
+      const cleared = await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...observation,
+      })
+      if (!cleared) return { status: 'superseded' }
     }
+    return outcome
   } finally {
     refreshSessionInFlight = null
   }
 }
 
-export async function refreshSession(options?: {
-  clearOnFailure?: boolean
-}): Promise<RefreshSessionOutcome> {
-  const clearOnFailure = options?.clearOnFailure ?? true
-  const attempt = await (refreshSessionInFlight ??= runRefreshSession())
-
-  if (attempt.outcome.status === 'unauthorized' && clearOnFailure) {
-    await clearSessionAndResetAuth({
-      authority: 'observed-credential',
-      epoch: attempt.epoch,
-      credentialVersion: attempt.credentialVersion,
-    })
-  }
-
-  return attempt.outcome
+export function refreshSession(): Promise<RefreshSessionOutcome> {
+  return refreshSessionInFlight ??= runRefreshSession()
 }
 
 /**
  * Backwards-compatible wrapper returning the rotated access token, or null when
  * the rotation did not yield a token (transient or unauthorized).
  */
-export async function refreshSessionToken(options?: {
-  clearOnFailure?: boolean
-}): Promise<string | null> {
-  const outcome = await refreshSession(options)
+export async function refreshSessionToken(): Promise<string | null> {
+  const outcome = await refreshSession()
   switch (outcome.status) {
     case 'refreshed':
       return outcome.token
