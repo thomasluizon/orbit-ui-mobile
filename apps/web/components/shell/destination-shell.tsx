@@ -54,7 +54,7 @@ function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
   const register = useCallback((nextRenderer: ComposerRenderer) => {
     setRenderer(() => nextRenderer)
-    return () => setRenderer(null)
+    return () => setRenderer((current) => current === nextRenderer ? null : current)
   }, [])
   const value = useMemo(() => ({ register }), [register])
   return { value, content: renderer?.() }

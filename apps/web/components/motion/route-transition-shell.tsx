@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import {
-  AnimatePresence,
   domMax,
   LazyMotion,
   m,
@@ -36,6 +35,7 @@ type RouteTransitionMotion = Readonly<{
 
 interface RoutePathState {
   current: string
+  hasNavigated: boolean
   intent: MotionNavigationIntent
   previous: string
 }
@@ -53,14 +53,6 @@ const routeVariants: Variants = {
       ease: motionPreset.enterEasing,
     },
   }),
-  exit: ({ direction, isPrimaryTabSwitch, motionPreset }: RouteTransitionMotion) => ({
-    opacity: isPrimaryTabSwitch ? 1 : 0,
-    x: direction === 0 ? 0 : -direction * motionPreset.shift,
-    transition: {
-      duration: motionPreset.exitDuration / 1000,
-      ease: motionPreset.exitEasing,
-    },
-  }),
 }
 
 export function RouteTransitionShell({
@@ -73,12 +65,14 @@ export function RouteTransitionShell({
   const committedPathnameRef = useRef(pathname)
   const [routePaths, setRoutePaths] = useState<RoutePathState>(() => ({
     current: pathname,
+    hasNavigated: false,
     intent: routeIntent.intent,
     previous: pathname,
   }))
   if (routePaths.current !== pathname) {
     setRoutePaths({
       current: pathname,
+      hasNavigated: true,
       intent: routeIntent.intent,
       previous: routePaths.current,
     })
@@ -120,23 +114,16 @@ export function RouteTransitionShell({
 
   return (
     <LazyMotion features={domMax}>
-      <AnimatePresence
-        mode="popLayout"
-        initial={false}
+      <m.div
+        key={pathname}
+        className={className}
         custom={transitionMotion}
+        variants={routeVariants}
+        initial={routePaths.hasNavigated ? 'initial' : false}
+        animate="animate"
       >
-        <m.div
-          key={pathname}
-          className={className}
-          custom={transitionMotion}
-          variants={routeVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
-          {children}
-        </m.div>
-      </AnimatePresence>
+        {children}
+      </m.div>
     </LazyMotion>
   )
 }
