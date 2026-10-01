@@ -8,6 +8,9 @@ import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -29,6 +32,49 @@ describe('Composer compact geometry in Chromium', () => {
     await closeChrome(browserLaunch)
     writeFileSync(join(tmpdir(), 'orbit-composer-widths.json'), JSON.stringify(measurements, null, 2))
   }, 30_000)
+
+  it.each([320, 360, 412, 600])('fully reveals long suggestion chips after scrolling and resizing from $0', async (width) => {
+    const chips = buildComposerChips({
+      surface: 'progress', status: 'success', totalHabitCount: 1,
+      habits: [createMockHabit({ title: 'Read a longer book chapter '.repeat(8), linkedGoals: [] })],
+      profile: createMockProfile({ currentStreak: 0, longestStreak: 1 }),
+    })
+    const suggestions = toComposerSuggestions(chips.map(({ id, params }) => ({
+      id,
+      label: en.shell.composer.chips.progress[id.replace('progress.', '') as keyof typeof en.shell.composer.chips.progress].replace('{title}', params?.title ?? ''),
+      onSelect: vi.fn(),
+    })))
+    const { container } = render(<Composer state="idle" value="" suggestions={suggestions}
+      words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const viewportWidth of [width, 840, width]) {
+        await page.setViewportSize({ width: viewportWidth, height: 740 })
+        const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
+        for (const control of await strip.getByRole('button').all()) {
+          await control.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
+          await control.focus()
+          const measured = await control.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const scroller = element.parentElement!.getBoundingClientRect()
+            const label = element.querySelector('span')!
+            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
+              scrollerLeft: scroller.left, scrollerRight: scroller.right,
+              labelHeight: label.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(label).lineHeight) }
+          })
+          expect(measured.width).toBeGreaterThanOrEqual(44)
+          expect(measured.height).toBeGreaterThanOrEqual(44)
+          expect(measured.left).toBeGreaterThanOrEqual(measured.scrollerLeft)
+          expect(measured.right).toBeLessThanOrEqual(measured.scrollerRight)
+          expect(measured.labelHeight).toBeLessThanOrEqual(measured.lineHeight)
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewportWidth)
+      }
+      expect(await page.getByRole('button', { name: suggestions[0]!.label, exact: true }).getAttribute('aria-label')).toBe(suggestions[0]!.label)
+    } finally { await page.close() }
+  })
 
   it.each(cases)('keeps usable text at $width with value "$value" and $messages.shell.composer.placeholder', async ({ width, messages, value }) => {
     const { container } = render(<Composer

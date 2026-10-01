@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Keyboard, StyleSheet, View } from 'react-native'
+import { Keyboard, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { zLayers } from '@orbit/shared/theme'
+import { zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
@@ -71,6 +71,8 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     || props.fab !== undefined
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
@@ -93,7 +95,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     >
       <View
         testID="shell-background"
-        style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
+        style={[styles.background, { width: columnWidth, paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
         {props.header !== undefined ? (
@@ -124,7 +126,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           accessibilityLabel={props.conversationLabel}
           accessibilityViewIsModal
           testID="shell-conversation"
-          style={[styles.conversation, { backgroundColor: tokens.bg }]}
+          style={[styles.conversation, { backgroundColor: tokens.bg, width: columnWidth }]}
         >
           {props.conversation}
         </View>
@@ -154,6 +156,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   background: {
+    alignSelf: 'center',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     flex: 1,
   },
   scroller: {
@@ -168,7 +172,7 @@ const styles = StyleSheet.create({
   },
   bottomColumn: {
     alignSelf: 'center',
-    maxWidth: 740,
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     width: '100%',
   },
   fabBand: {
@@ -184,10 +188,10 @@ const styles = StyleSheet.create({
     right: 16,
   },
   conversation: {
+    alignSelf: 'center',
+    maxWidth: SHELL_CONTENT_MAX_WIDTH,
     bottom: 0,
-    left: 0,
     position: 'absolute',
-    right: 0,
     top: 0,
     zIndex: zLayers.modal,
   },
