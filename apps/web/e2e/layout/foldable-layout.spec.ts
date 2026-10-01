@@ -2,11 +2,14 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
-import { formatAPIDate } from '@orbit/shared/utils'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { setLayoutProfileSession } from './profile-session'
+
+const fixtureDate = '2026-09-04'
 
 const windows = ([[360, 740], [412, 915], [480, 800], [600, 900], [840, 900], [1100, 900]] as const)
   .flatMap(([width, height]) => [{ width, height }, { width: height, height: width }])
@@ -32,11 +35,12 @@ async function assertColumnGeometry(page: Page, viewportWidth: number) {
     scroller.scrollTop = scroller.scrollHeight
     const chrome = element.querySelector('[data-shell-bottom]')
     const content = Array.from(scroller.children).filter((child) => !child.hasAttribute('data-shell-scroll-origin') && child.getBoundingClientRect().height > 0).at(-1)!
-    const controls = Array.from(element.querySelectorAll('button, input, textarea, [role="tab"]'))
-      .filter((control) => control.getBoundingClientRect().width > 1 && control.getBoundingClientRect().height > 1)
-      .map((control) => {
-        const target = control.getBoundingClientRect()
-        return { left: target.left, right: target.right, label: control.getAttribute('aria-label') ?? control.textContent }
+    const horizontalScrollers = Array.from(element.querySelectorAll<HTMLElement>('*'))
+      .filter((child) => ['auto', 'scroll'].includes(getComputedStyle(child).overflowX))
+      .filter((child) => child.getBoundingClientRect().width > 1 && child.getBoundingClientRect().height > 1)
+      .map((child) => {
+        const target = child.getBoundingClientRect()
+        return { left: target.left, right: target.right, label: child.getAttribute('aria-label') ?? 'horizontal scroller' }
       })
     return {
       documentWidth: document.documentElement.scrollWidth,
@@ -45,7 +49,7 @@ async function assertColumnGeometry(page: Page, viewportWidth: number) {
       scrollerWidth: scroller.scrollWidth, clientWidth: scroller.clientWidth,
       clearance: chrome ? chrome.getBoundingClientRect().top - content.getBoundingClientRect().bottom : null,
       chromeBottom: chrome?.getBoundingClientRect().bottom,
-      viewportHeight: window.innerHeight, controls,
+      viewportHeight: window.innerHeight, horizontalScrollers,
     }
   })
   expect(geometry.documentWidth).toBe(viewportWidth)
@@ -55,9 +59,9 @@ async function assertColumnGeometry(page: Page, viewportWidth: number) {
   expect(geometry.scrollerWidth).toBe(geometry.clientWidth)
   if (geometry.clearance !== null) expect(geometry.clearance).toBeGreaterThanOrEqual(viewportWidth < 1024 ? 95 : 31)
   if (geometry.chromeBottom !== undefined) expect(geometry.chromeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
-  for (const control of geometry.controls) {
-    expect(control.left, control.label).toBeGreaterThanOrEqual(geometry.left - 1)
-    expect(control.right, control.label).toBeLessThanOrEqual(geometry.right + 1)
+  for (const scroller of geometry.horizontalScrollers) {
+    expect(scroller.left, scroller.label).toBeGreaterThanOrEqual(geometry.left - 1)
+    expect(scroller.right, scroller.label).toBeLessThanOrEqual(geometry.right + 1)
   }
 }
 
@@ -67,8 +71,16 @@ async function assertReachableControls(container: Locator) {
     if (!await control.isVisible()) continue
     const bounds = await control.boundingBox()
     if (!bounds || bounds.width <= 1 || bounds.height <= 1) continue
-    await control.scrollIntoViewIfNeeded()
+    await control.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
     await expect(control).toBeInViewport({ ratio: 1 })
+    const geometry = await control.evaluate((element) => {
+      const column = element.closest('[data-shell-column]') ?? element.closest('main')!.firstElementChild!
+      const target = element.getBoundingClientRect()
+      const bounds = column.getBoundingClientRect()
+      return { left: target.left, right: target.right, columnLeft: bounds.left, columnRight: bounds.right }
+    })
+    expect(geometry.left).toBeGreaterThanOrEqual(geometry.columnLeft - 1)
+    expect(geometry.right).toBeLessThanOrEqual(geometry.columnRight + 1)
   }
 }
 
@@ -79,14 +91,12 @@ for (const { width, height } of windows) {
     for (const [name, path] of [['Hoje', '/'], ['Calendário', '/calendar'], ['Progresso', '/progress'], ['Perfil', '/profile'], ['Habit detail', `/habits/${habit.id}`]] as const) {
       test(`${name} centres content without overflow or clipped chrome`, async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
-        const tomorrow = new Date()
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        const scheduledDate = formatAPIDate(tomorrow)
-        const today = formatAPIDate(new Date())
+        await setLayoutProfileSession(context, profileFixture)
+        await page.clock.setFixedTime(new Date(`${fixtureDate}T12:00:00Z`))
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
           items: Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({
             id: `foldable-habit-${index}`, title: `Read a longer book chapter ${index}`,
-            scheduledDates: [today, scheduledDate], dueDate: today, children: [], hasSubHabits: false,
+            scheduledDates: [fixtureDate], dueDate: fixtureDate, children: [], hasSubHabits: false,
           })),
           page: 1, pageSize: 200, totalCount: 12, totalPages: 1,
         })
@@ -96,13 +106,19 @@ for (const { width, height } of windows) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
-        await page.goto(path)
+        await page.goto(name === 'Hoje' ? `/?date=${fixtureDate}` : path)
         if (name === 'Hoje') {
-          await page.getByRole('button', { name: en.dates.nextDay, exact: true }).click()
-          await expect(page.getByText(habits.items[0]!.title, { exact: true })).toBeVisible()
+          await page.getByRole('button', { name: en.habits.listOptions }).click()
+          await page.getByRole('menu', { name: en.habits.listOptions })
+            .getByRole('menuitem', { name: en.habits.refresh }).click()
+          await expect(page.locator('[data-habit-title]')).toHaveCount(habits.items.length)
+          await expect(page.locator('[data-habit-title]').first()).toHaveAttribute('data-habit-title', habits.items[0]!.title)
+          await expect(page.getByRole('menu', { name: en.habits.listOptions })).toHaveCount(0)
         }
         if (name === 'Calendário') {
+          await expect(page.getByRole('radio', { name: en.calendar.view.month, exact: true })).toBeChecked()
           await expect(page.getByTestId('calendar-grid')).toBeVisible()
+          await page.getByTestId(`calendar-day-select-${fixtureDate}`).click()
           await expect(page.getByText(habits.items[0]!.title, { exact: true })).toBeVisible()
         }
         if (name === 'Progresso') await expect(page.getByText(goals.items[0]!.title, { exact: true })).toBeVisible()
