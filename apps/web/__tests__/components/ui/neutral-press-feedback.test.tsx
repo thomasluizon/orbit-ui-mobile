@@ -9,6 +9,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -24,7 +25,7 @@ function feedbackControls(allSelected: boolean, unavailable = false, completionR
       onSelectAll={noop} onDeselectAll={noop} onBulkLog={noop} onBulkSkip={noop} onBulkDelete={noop} onCancel={noop} />
     <AstraAllowancePanel profile={createMockProfile()} />
     <PillButton variant="ghost" disabled={unavailable}>Ghost</PillButton>
-    <PillButton variant="ghost" quiet disabled={unavailable}>Quiet</PillButton>
+    <div style={{ background: 'var(--bg-elev)' }}><PromptQuietAction disabled={unavailable}>Quiet</PromptQuietAction></div>
     <PillButton variant="ghost" loading>Saving</PillButton>
     <PillLink href="/upgrade" variant="ghost">Ghost link</PillLink>
   </>
@@ -33,22 +34,22 @@ function feedbackControls(allSelected: boolean, unavailable = false, completionR
 function measureControl(element: Element) {
   const style = getComputedStyle(element)
   const bounds = element.getBoundingClientRect()
-  return { fill: style.backgroundColor, width: bounds.width, height: bounds.height, scale: style.scale }
+  return { fill: style.backgroundColor, width: bounds.width, height: bounds.height, scale: style.scale, radius: style.borderTopLeftRadius, overflow: style.overflow }
 }
 
 async function expectFill(control: Locator, fill: string, label: string) {
   await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor), { message: label }).toBe(fill)
 }
 
-async function neutralFill(page: Page) {
-  return page.evaluate(() => {
+async function neutralFill(page: Page, opaque = false) {
+  return page.evaluate((opaque) => {
     const probe = document.createElement('span')
-    probe.style.backgroundColor = 'var(--bg-hover)'
+    probe.style.backgroundColor = opaque ? 'var(--bg-hover-opaque)' : 'var(--bg-hover)'
     document.body.append(probe)
     const fill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return fill
-  })
+  }, opaque)
 }
 
 describe('neutral press feedback in Chromium', () => {
@@ -85,16 +86,20 @@ describe('neutral press feedback in Chromium', () => {
           const expectedFill = await neutralFill(page)
           for (const label of [allSelected ? 'common.deselectAll' : 'common.selectAll', 'habits.bulkBar.log', 'habits.bulkBar.skip', 'habits.bulkBar.delete', 'common.cancel', 'Ghost', 'Quiet', 'Ghost link', 'profile.allowance.seePro']) {
             const control = page.getByRole(label.includes('link') || label.startsWith('profile.') ? 'link' : 'button', { name: label, exact: true })
+            const expectedControlFill = label === 'Quiet' ? await neutralFill(page, true) : expectedFill
             const rest = await control.evaluate(measureControl)
             const restingColor = await control.evaluate((element) => getComputedStyle(element).color)
             expect(rest.fill, `${label} rest`).toBe('rgba(0, 0, 0, 0)')
             expect(rest.width, `${label} width`).toBeGreaterThanOrEqual(44)
             expect(rest.height, `${label} height`).toBeGreaterThanOrEqual(label === 'common.selectAll' || label === 'common.deselectAll' ? 42 : 44)
+            expect(rest.overflow, `${label} clipping`).toBe('hidden')
+            expect(Number.parseFloat(rest.radius), `${label} radius`).toBeGreaterThan(0)
+            if (label === 'common.selectAll' || label === 'common.deselectAll') expect(rest.radius).toBe('8px')
             await control.hover()
-            if (!hasTouch) await expectFill(control, expectedFill, `${label} hover`)
+            if (!hasTouch) await expectFill(control, expectedControlFill, `${label} hover`)
             await page.mouse.down()
-            await expectFill(control, expectedFill, `${label} press`)
-            expect(await control.evaluate(measureControl), `${label} pressed geometry`).toEqual({ ...rest, fill: expectedFill })
+            await expectFill(control, expectedControlFill, `${label} press`)
+            expect(await control.evaluate(measureControl), `${label} pressed geometry`).toEqual({ ...rest, fill: expectedControlFill })
             if (label === 'common.selectAll' || label === 'common.deselectAll') {
               const foreground = await control.evaluate((element) => getComputedStyle(element).color)
               const variables = resolveWebThemeVariables('orange', mode)

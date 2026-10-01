@@ -41,13 +41,14 @@ export function Button({
     caution: tokens.fgOnOverdue,
   }
 
+  const ghostPressedFill = quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: tokens.fg1 }
     }
     if (variant === 'ghost') {
       return {
-        backgroundColor: pressed ? tokens.bgHover : 'transparent',
+        backgroundColor: pressed ? ghostPressedFill : 'transparent',
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   selectAllBtn: {
+    borderRadius: radius.sm,
     overflow: 'hidden',
     minHeight: 44,
     minWidth: 44,

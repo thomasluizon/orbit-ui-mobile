@@ -146,7 +146,7 @@ export function SelectionTray({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="appearance-none border-0 bg-transparent overflow-hidden cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          className="appearance-none border-0 bg-transparent rounded-sm overflow-hidden cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={SELECT_ALL_BUTTON_STYLE}
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}

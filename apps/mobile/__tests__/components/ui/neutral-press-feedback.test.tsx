@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle, type TextStyle, View } from 'react-native'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -47,7 +48,7 @@ describe('neutral press feedback on Android', () => {
       {selectionTray(true, false)}
       <AstraAllowancePanel profile={createMockProfile()} onPlanAction={noop} />
       <PillButton variant="ghost">Ghost</PillButton>
-      <PillButton variant="ghost" quiet>Quiet</PillButton>
+      <View style={{ backgroundColor: createTokensV2('orange', mode).bgElev }}><PromptQuietAction accessibleName="Quiet">Quiet</PromptQuietAction></View>
     </>)
     expect(buttons).toHaveLength(13)
     for (const button of buttons) {
@@ -56,8 +57,10 @@ describe('neutral press feedback on Android', () => {
       expect(rest.minHeight ?? rest.height).toBeGreaterThanOrEqual(44)
       expect(rest.minWidth ?? rest.width).toBeGreaterThanOrEqual(44)
       const pressed = resolvedStyle(button, true)
-      expect(pressed.backgroundColor).toBe(createTokensV2('orange', mode).bgHover)
+      expect(pressed.backgroundColor).toBe(button.props.accessibilityLabel === 'Quiet' ? createTokensV2('orange', mode).bgHoverOpaque : createTokensV2('orange', mode).bgHover)
       expect(pressed.transform).toBeUndefined()
+      expect(pressed.overflow).toBe('hidden')
+      expect(pressed.borderRadius).toBeGreaterThan(0)
       expect(resolvedStyle(button, false)).toEqual(rest)
     }
   })
@@ -71,6 +74,7 @@ describe('neutral press feedback on Android', () => {
       expect(child({ pressed: false }).props.children).toBe(allSelected ? 'Deselect all' : 'Select all')
       const rest = StyleSheet.flatten(child({ pressed: false }).props.style)
       const pressed = StyleSheet.flatten(child({ pressed: true }).props.style)
+      expect(resolvedStyle(button, true).borderRadius).toBe(8)
       expect(rest.color).toBe(tokens.fg3)
       expect(pressed.color).toBe(tokens.fg1)
       expect(contrastOnSurface(String(pressed.color), [tokens.bg, tokens.bgSheet, tokens.bgHover])).toBeGreaterThanOrEqual(4.5)
