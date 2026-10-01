@@ -18,9 +18,10 @@ export function useHabitDetailFieldsState(
   onPatch: (patch: HabitDetailPatch) => Promise<boolean>,
 ): HabitDetailFieldsState {
   const [openField, setOpenField] = useState<HabitDetailField | null>(null)
-  const [reminders, setReminders] = useState(() => mergeHabitReminderChanges(
-    habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {},
-  ))
+  const [reminders, setReminders] = useState(() => {
+    const selection = mergeHabitReminderChanges(habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {})
+    return { selection, confirmed: selection }
+  })
   const [goalIds, setGoalIds] = useState(habit.linkedGoals?.map((goal) => goal.id) ?? [])
   const reminderSnapshot = JSON.stringify([habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders])
   const goalSnapshot = JSON.stringify(habit.linkedGoals?.map((goal) => goal.id) ?? [])
@@ -28,7 +29,8 @@ export function useHabitDetailFieldsState(
   const [savedGoalSnapshot, setSavedGoalSnapshot] = useState(goalSnapshot)
   if (reminderSnapshot !== savedReminderSnapshot) {
     setSavedReminderSnapshot(reminderSnapshot)
-    setReminders(mergeHabitReminderChanges(habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {}))
+    const selection = mergeHabitReminderChanges(habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {})
+    setReminders({ selection, confirmed: selection })
   }
   if (goalSnapshot !== savedGoalSnapshot) {
     setSavedGoalSnapshot(goalSnapshot)
@@ -52,16 +54,18 @@ export function useHabitDetailFieldsState(
     })
   }, [goalIds, onPatch])
   const updateReminders = useCallback((changes: ReminderChanges) => {
-    const next = mergeHabitReminderChanges(reminders.reminderEnabled, reminders.reminderTimes, reminders.scheduledReminders, changes)
+    const next = mergeHabitReminderChanges(reminders.selection.reminderEnabled, reminders.selection.reminderTimes, reminders.selection.scheduledReminders, changes)
     const { error, patch } = getHabitReminderPatch(habit, next.reminderEnabled, next.reminderTimes, next.scheduledReminders)
-    setReminders(next)
+    setReminders((current) => ({ ...current, selection: next }))
     if (error !== null) return error
     void onPatch(patch).then((saved) => {
-      if (!saved) setReminders((current) => current === next ? reminders : current)
+      setReminders((current) => saved
+        ? { ...current, confirmed: next }
+        : { ...current, selection: current.selection === next ? current.confirmed : current.selection })
     })
     return null
-  }, [habit, onPatch, reminders])
-  const reminderHabit = useMemo(() => ({ ...habit, ...reminders }), [habit, reminders])
+  }, [habit, onPatch, reminders.selection])
+  const reminderHabit = useMemo(() => ({ ...habit, ...reminders.selection }), [habit, reminders.selection])
 
   return {
     close,

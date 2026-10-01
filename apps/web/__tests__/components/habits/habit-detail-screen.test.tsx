@@ -28,6 +28,7 @@ import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-cha
 
 const mocks = vi.hoisted(() => ({
   realTimeField: false,
+  realReminderSections: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
@@ -204,12 +205,23 @@ vi.mock('@/components/ui/time-field', async (importOriginal) => {
   ),
 })
 })
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
-  ReminderSection: ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button>{children}</div>,
+vi.mock('@/hooks/use-reminder-permission', () => ({
+  useReminderPermission: (_enabled: boolean, onToggleReminder: () => void) => ({ toggleReminder: onToggleReminder, showNotice: false, openSettings: vi.fn() }),
 }))
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({
-  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>,
-}))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
+  const mockSection = ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button>{children}</div>
+  return {
+    ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => mocks.realReminderSections ? <actual.ReminderSection {...props} /> : mockSection(props),
+  }
+})
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/scheduled-reminder-section')>()
+  const mockSection = ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>
+  return {
+    ScheduledReminderSection: (props: React.ComponentProps<typeof actual.ScheduledReminderSection>) => mocks.realReminderSections ? <actual.ScheduledReminderSection {...props} /> : mockSection(props),
+  }
+})
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ interactive, editable, onToggle, onClear }: { interactive: boolean; editable: boolean; onToggle: (index: number) => void; onClear: () => void }) => (
     <div data-testid="habit-checklist" data-interactive={interactive} data-editable={editable}>
@@ -265,6 +277,7 @@ describe('HabitDetailScreen', () => {
   })
   beforeEach(() => {
     mocks.realTimeField = false;
+    mocks.realReminderSections = false;
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
     mocks.detail = makeDetail()
@@ -1057,6 +1070,81 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
     expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getByRole('button', { name: 'common.save' })).toHaveAttribute('data-variant', 'secondary')
+  })
+
+  it('persists each real reminder control once without filling another action', async () => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByRole('switch', { name: 'habits.form.reminders', checked: true })).toBeInTheDocument()
+    expect(screen.getAllByText('habits.form.reminders')).toHaveLength(1)
+    expect(screen.queryByText('habits.form.reminder')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminder1hour' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([60, 15])
+    fireEvent.click(screen.getAllByRole('button', { name: 'habits.form.removeReminder' })[0]!)
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([15])
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderCustom' }))
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(mocks.showError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), { target: { value: '45' } })
+    expect(screen.getByRole('button', { name: 'common.add' })).toHaveAttribute('data-variant', 'ghost')
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(3)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([45, 15])
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAddTime' }))
+    fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), { target: { value: '08:00' } })
+    expect(screen.getByRole('button', { name: 'common.add' })).toHaveAttribute('data-variant', 'ghost')
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(4)
+    expect(mocks.update.mock.calls.at(-1)![0].data.scheduledReminders).toEqual([{ when: 'same_day', time: '08:00' }])
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.removeScheduledReminder' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(5)
+    expect(mocks.update.mock.calls.at(-1)![0].data.scheduledReminders).toEqual([])
+    expect(screen.getAllByRole('button').filter((button) => button.dataset.variant === 'secondary')).toHaveLength(1)
+  })
+
+  it('restores the reminder switch and reports a failed patch', async () => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    let rejectPatch!: (error: Error) => void
+    mocks.update.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectPatch = reject }))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.reminders' }))
+    expect(screen.getByRole('switch', { name: 'habits.form.reminders', checked: false })).toBeInTheDocument()
+    await act(async () => { rejectPatch(new Error('update failed')); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
+    expect(screen.getByRole('switch', { name: 'habits.form.reminders', checked: true })).toBeInTheDocument()
+  })
+
+  it.each(['relative', 'scheduled'])('keeps the real %s reminder cap visible without a patch', (cap) => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true,
+      reminderTimes: cap === 'relative' ? Array.from({ length: 15 }, (_, index) => index * 10) : [15],
+      scheduledReminders: cap === 'scheduled' ? Array.from({ length: 5 }, (_, index) => ({ when: 'same_day' as const, time: `0${index}:00` })) : [],
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getAllByText(cap === 'relative' ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'habits.form.reminderAddTime' })).not.toBeInTheDocument()
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it('edits reminders inside the disclosure and shows the saved readout', async () => {

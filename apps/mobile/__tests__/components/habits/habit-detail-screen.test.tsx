@@ -63,6 +63,7 @@ function openRescueGate() {
 const mocks = vi.hoisted(() => ({
   screenFocused: true,
   realTimeField: false,
+  realReminderSections: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
@@ -336,17 +337,28 @@ vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () 
 vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', atGoalLimit, onToggleGoal: () => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2') }),
 }))
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
-  ReminderSection: ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => React.createElement('ReminderSection', { testID: 'offset-reminders', onReminderTimesChange, onToggleReminder }, children),
+vi.mock('@/hooks/use-reminder-permission', () => ({
+  useReminderPermission: (_enabled: boolean, onToggleReminder: () => void) => ({ toggleReminder: onToggleReminder, showNotice: false, openSettings: vi.fn() }),
 }))
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({
-  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => React.createElement('ScheduledReminderSection', { testID: 'scheduled-reminders', onSetScheduledReminders, onRemoveScheduledReminders: () => onSetScheduledReminders([]), onToggleReminder }),
-}))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
+  const mockSection = ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => React.createElement('ReminderSection', { testID: 'offset-reminders', onReminderTimesChange, onToggleReminder }, children)
+  return {
+    ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => mocks.realReminderSections ? <actual.ReminderSection {...props} /> : mockSection(props),
+  }
+})
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/scheduled-reminder-section')>()
+  const mockSection = ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => React.createElement('ScheduledReminderSection', { testID: 'scheduled-reminders', onSetScheduledReminders, onRemoveScheduledReminders: () => onSetScheduledReminders([]), onToggleReminder })
+  return {
+    ScheduledReminderSection: (props: React.ComponentProps<typeof actual.ScheduledReminderSection>) => mocks.realReminderSections ? <actual.ScheduledReminderSection {...props} /> : mockSection(props),
+  }
+})
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ interactive, editable, onToggle, onClear }: { interactive: boolean; editable: boolean; onToggle: (index: number) => void; onClear: () => void }) => React.createElement('HabitChecklist', { testID: 'habit-checklist', interactive, editable, onToggle, onClear }),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
-vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
+vi.mock('@/components/habits/habit-form-fields/styles', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/components/habits/habit-form-fields/styles')>()), createStyles: () => ({}) }))
 vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
@@ -381,6 +393,7 @@ describe('HabitDetailScreen', () => {
   })
   beforeEach(() => {
     mocks.realTimeField = false;
+    mocks.realReminderSections = false;
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
     clearOfflineQueue()
@@ -1199,6 +1212,91 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
     expect(findPillButton(tree.root, 'common.cancel')!.props.variant).toBe('ghost')
     expect(findPillButton(tree.root, 'common.save')!.props.variant).toBe('secondary')
+  })
+
+  it('persists each real reminder control once without filling another action', async () => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const press = (label: string) => {
+      const node = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes(label))[0]
+      if (!node) throw new Error(`Missing control: ${label}`)
+      node.props.onPress()
+    }
+    TestRenderer.act(() => press('habits.detail.moreDetails'))
+    expect(tree.root.findByProps({ testID: 'habits.form.reminders' }).props.checked).toBe(true)
+    expect(textsOf(tree.root).filter((label) => label === 'habits.form.reminders')).toHaveLength(1)
+    expect(textsOf(tree.root)).not.toContain('habits.form.reminder')
+    TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+
+    TestRenderer.act(() => press('habits.form.reminderAdd'))
+    await TestRenderer.act(async () => { press('habits.form.reminder1hour'); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([60, 15])
+    await TestRenderer.act(async () => {
+      tree.root.findAllByProps({ accessibilityLabel: 'habits.form.removeReminder' })[0].props.onPress()
+      await Promise.resolve()
+    })
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([15])
+
+    TestRenderer.act(() => press('habits.form.reminderAdd'))
+    TestRenderer.act(() => press('habits.form.reminderCustom'))
+    const custom = () => tree.root.findByProps({ placeholder: 'habits.form.reminderCustomPlaceholder' })
+    TestRenderer.act(() => custom().props.onChangeText('0'))
+    TestRenderer.act(() => tree.root.findByProps({ label: 'common.add' }).props.onClick())
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(mocks.showError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
+    TestRenderer.act(() => custom().props.onChangeText('45'))
+    expect(tree.root.findByProps({ label: 'common.add' }).props.variant).toBe('ghost')
+    await TestRenderer.act(async () => { tree.root.findByProps({ label: 'common.add' }).props.onClick(); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(3)
+    expect(mocks.update.mock.calls.at(-1)![0].data.reminderTimes).toEqual([45, 15])
+
+    TestRenderer.act(() => press('habits.form.reminderAddTime'))
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'habits.form.scheduledReminderTimePlaceholder' }).props.onChangeText('08:00'))
+    expect(findPillButton(tree.root, 'common.add')!.props.variant).toBe('ghost')
+    await TestRenderer.act(async () => { pressPillButton(tree.root, 'common.add'); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(4)
+    expect(mocks.update.mock.calls.at(-1)![0].data.scheduledReminders).toEqual([{ when: 'same_day', time: '08:00' }])
+    await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'habits.form.removeScheduledReminder' }).props.onPress(); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(5)
+    expect(mocks.update.mock.calls.at(-1)![0].data.scheduledReminders).toEqual([])
+    expect(tree.root.findAllByType('PillButton').filter((node: TestNode) => node.props.variant === 'secondary')).toHaveLength(1)
+  })
+
+  it('restores the reminder switch and reports a failed patch', async () => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    let rejectPatch!: (error: Error) => void
+    mocks.update.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectPatch = reject }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
+    TestRenderer.act(() => disclosure.props.onPress())
+    const reminderSwitch = () => tree.root.findByProps({ testID: 'habits.form.reminders' })
+    TestRenderer.act(() => reminderSwitch().props.onChange(false))
+    expect(reminderSwitch().props.checked).toBe(false)
+    await TestRenderer.act(async () => { rejectPatch(new Error('update failed')); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.updateError')
+    expect(reminderSwitch().props.checked).toBe(true)
+  })
+
+  it.each(['relative', 'scheduled'])('keeps the real %s reminder cap visible without a patch', (cap) => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true,
+      reminderTimes: cap === 'relative' ? Array.from({ length: 15 }, (_, index) => index * 10) : [15],
+      scheduledReminders: cap === 'scheduled' ? Array.from({ length: 5 }, (_, index) => ({ when: 'same_day' as const, time: `0${index}:00` })) : [],
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
+    TestRenderer.act(() => disclosure.props.onPress())
+    expect(textsOf(tree.root)).toContain(cap === 'relative' ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')
+    expect(textsOf(tree.root)).not.toContain('habits.form.reminderAddTime')
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it('edits reminders inside the disclosure and shows the saved readout', async () => {

@@ -6,12 +6,12 @@ import { makeHabitDetailScopedParent } from '@orbit/shared/test-support/habit-de
 
 type FieldsState = ReturnType<typeof useHabitDetailFieldsState>
 
-async function renderFieldsState(onPatch: Parameters<typeof useHabitDetailFieldsState>[1]) {
+async function renderFieldsState(onPatch: Parameters<typeof useHabitDetailFieldsState>[1], habit = makeHabitDetailScopedParent()) {
   let state: FieldsState | undefined
   let renderer: ReactTestRenderer | undefined
 
   function Harness() {
-    state = useHabitDetailFieldsState(makeHabitDetailScopedParent(), onPatch)
+    state = useHabitDetailFieldsState(habit, onPatch)
     return null
   }
 
@@ -86,4 +86,46 @@ describe('habit detail fields state', () => {
     expect(fields.current().openField).toBeNull()
     fields.renderer.update(React.createElement(React.Fragment))
   })
+  it.each(['relative', 'scheduled'])('rejects an over-cap %s reminder change before patching', async (cap) => {
+    const onPatch = vi.fn().mockResolvedValue(true)
+    const habit = { ...makeHabitDetailScopedParent(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    const fields = await renderFieldsState(onPatch, habit)
+    await act(() => {
+      const changes = cap === 'relative'
+        ? { offsets: Array.from({ length: 16 }, (_, index) => index * 10) }
+        : { scheduled: Array.from({ length: 6 }, (_, index) => ({ when: 'same_day' as const, time: `0${index}:00` })) }
+      expect(fields.current().updateReminders(changes)).toBe(cap === 'relative' ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')
+    })
+    expect(onPatch).not.toHaveBeenCalled()
+    await act(() => { fields.renderer.update(React.createElement(React.Fragment)) })
+  })
+
+  it('keeps a newer reminder selection when an older patch fails', async () => {
+    let finishFirst!: (saved: boolean) => void
+    const onPatch = vi.fn().mockReturnValueOnce(new Promise<boolean>((resolve) => { finishFirst = resolve })).mockResolvedValue(true)
+    const fields = await renderFieldsState(onPatch)
+    await act(() => { fields.current().updateReminders({ offsets: [30] }) })
+    await act(() => { fields.current().updateReminders({ offsets: [60] }) })
+    expect(fields.current().reminderHabit.reminderTimes).toEqual([60])
+    await act(async () => { finishFirst(false); await Promise.resolve() })
+    expect(fields.current().reminderHabit.reminderTimes).toEqual([60])
+    expect(onPatch).toHaveBeenCalledTimes(2)
+    await act(() => { fields.renderer.update(React.createElement(React.Fragment)) })
+  })
+
+  it('restores the last persisted reminders when consecutive patches fail', async () => {
+    let finishFirst!: (saved: boolean) => void
+    let finishSecond!: (saved: boolean) => void
+    const onPatch = vi.fn()
+      .mockReturnValueOnce(new Promise<boolean>((resolve) => { finishFirst = resolve }))
+      .mockReturnValueOnce(new Promise<boolean>((resolve) => { finishSecond = resolve }))
+    const fields = await renderFieldsState(onPatch)
+    await act(() => { fields.current().updateReminders({ offsets: [30] }) })
+    await act(() => { fields.current().updateReminders({ offsets: [60] }) })
+    await act(async () => { finishFirst(false); await Promise.resolve() })
+    await act(async () => { finishSecond(false); await Promise.resolve() })
+    expect(fields.current().reminderHabit.reminderTimes).toEqual([])
+    await act(() => { fields.renderer.update(React.createElement(React.Fragment)) })
+  })
+
 })
