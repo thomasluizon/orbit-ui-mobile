@@ -1,0 +1,102 @@
+{
+  "duration_api_ms": 11025,
+  "stop_reason": "tool_use",
+  "session_id": "<session-id>",
+  "total_cost_usd": 0.0168238,
+  "usage": {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 5447,
+    "cache_read_input_tokens": 4448,
+    "output_tokens": 1093,
+    "output_tokens_details": {
+      "thinking_tokens": 966
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5447,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 10,
+        "output_tokens": 131,
+        "cache_read_input_tokens": 4448,
+        "cache_creation_input_tokens": 999,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 999
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 20,
+      "outputTokens": 1093,
+      "cacheReadInputTokens": 4448,
+      "cacheCreationInputTokens": 5447,
+      "webSearchRequests": 0,
+      "costUSD": 0.0168238,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "thinkingTokens": 966,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "is_error": false,
+  "num_turns": 3,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "{\"deferrals\":[],\"signals\":[]}",
+  "structured_output": {
+    "deferrals": [],
+    "signals": []
+  },
+  "ttft_ms": 9012,
+  "type": "result",
+  "duration_ms": 11052,
+  "uuid": "<result-id>",
+  "ttft_stream_ms": 516,
+  "time_to_request_ms": 23,
+  "first_content_frame_ms": 516,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

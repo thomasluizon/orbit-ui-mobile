@@ -6,11 +6,13 @@ import { stage, T } from "./_harness.mjs"
 const TOOL = "lib/ticket-executability.mjs"
 const fixtures = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8"))
 const responses = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-responses.json", import.meta.url), "utf8"))
+const envelope = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-envelope.json", import.meta.url), "utf8"))
 const load = async (name) => import(`../lib/ticket-executability.mjs?test=${name}`)
 const replay = (response, count) => async (input, args) => {
   count.calls++
-  writeFileSync(args[args.indexOf("-o") + 1], JSON.stringify(response))
-  return { code: 0, stdout: "", stderr: "" }
+  T(`${TOOL}: invocation disables tools and customizations`, args.includes("--strict-mcp-config") && args[args.indexOf("--tools") + 1] === "" && args.includes("--safe-mode") && args.includes("--disable-slash-commands"))
+  T(`${TOOL}: invocation supplies a structured-output schema`, args[args.indexOf("--output-format") + 1] === "json" && JSON.parse(args[args.indexOf("--json-schema") + 1]).required.join(",") === "deferrals,signals")
+  return { code: 0, stdout: JSON.stringify({ ...envelope, structured_output: response }), stderr: "" }
 }
 
 export const cases = async () => {
@@ -82,9 +84,8 @@ export const cases = async () => {
     activeCalls++
     maximumCalls = Math.max(maximumCalls, activeCalls)
     await new Promise((resolve) => setTimeout(resolve, 10))
-    writeFileSync(args[args.indexOf("-o") + 1], JSON.stringify(responses.ordinary))
     activeCalls--
-    return { code: 0, stdout: "" }
+    return { code: 0, stdout: JSON.stringify({ ...envelope, structured_output: responses.ordinary }) }
   }
   await Promise.all([
     serialModule.classifyExecutability("## Scope\n\n- First ordinary task", { run: serialRun }),
@@ -147,8 +148,7 @@ export const cases = async () => {
   T(`${TOOL}: launch rejection fails closed after two attempts`, rejectedCount === 2 && rejected.signals[0]?.kind === "CLASSIFIER_ERROR" && !rejected.questions[0].includes("private detail"))
   const nonJsonModule = await load("invalid-json")
   const nonJson = await nonJsonModule.classifyConversationFirst("## Scope\n\n- A small fix", { run: async (input, args) => {
-    writeFileSync(args[args.indexOf("-o") + 1], "not json")
-    return { code: 0, stdout: "", stderr: "" }
+    return { code: 0, stdout: "not json", stderr: "" }
   } })
   T(`${TOOL}: non-JSON output fails closed`, nonJson.signals[0]?.kind === "CLASSIFIER_ERROR")
   const timeoutModule = await load("process-timeout")
@@ -182,19 +182,28 @@ const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE
 const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
 process.stdout.write(JSON.stringify({ kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
 `)
+  const claudeEnvelope = readFileSync(new URL("../__fixtures__/ticket-classifier-envelope.json", import.meta.url), "utf8")
+  const claudeBinary = stage("ticket-executability/claude-envelope.mjs", `#!/usr/bin/env node
+process.stdout.write(${JSON.stringify(claudeEnvelope)})
+`)
+  chmodSync(claudeBinary, 0o755)
+  const claudeObserved = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: claudeBinary } })
+  let claudeVerdict
+  try { claudeVerdict = JSON.parse(claudeObserved.stdout) } catch { claudeVerdict = null }
+  T(`${TOOL}: native Claude structured envelope admits ordinary code work`, claudeObserved.status === 0 && claudeVerdict && !claudeVerdict.kind, claudeObserved.stderr || claudeObserved.stdout)
   for (const [name, source, timeoutMs, large] of [
     ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n", 500, true],
     ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n", 100, false],
-    ["output-overflow", "#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[process.argv.indexOf('-o') + 1], JSON.stringify({ deferrals: [], signals: [] }))\nprocess.stdout.write('x'.repeat(2_000_000))\n", 1000, false],
+    ["output-overflow", "#!/usr/bin/env node\nprocess.stdout.write('x'.repeat(2_000_000))\n", 1000, false],
   ]) {
     const binary = stage(`ticket-executability/${name}.mjs`, source)
     chmodSync(binary, 0o755)
-    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "" } })
+    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "" } })
     let verdict
     try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
     T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < 900, observed.stderr || observed.stdout || String(observed.error))
   }
-  const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: "/orbit-test/missing-codex" } })
+  const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: "/orbit-test/missing-claude" } })
   let missingVerdict
   try { missingVerdict = JSON.parse(missingBinary.stdout) } catch { missingVerdict = null }
   T(`${TOOL}: native launch failure fails closed`, missingBinary.status === 0 && missingVerdict?.kind === "CLASSIFIER_ERROR", missingBinary.stderr || missingBinary.stdout || String(missingBinary.error))
