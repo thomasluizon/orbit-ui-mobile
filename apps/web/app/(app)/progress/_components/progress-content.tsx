@@ -290,7 +290,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
   return (
     <section aria-labelledby={headingId} className="flex w-full flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
       <div className="flex items-baseline gap-3">
-        <p className="font-[var(--font-display)] text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
+        <p className="font-display text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
       </div>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
@@ -588,7 +588,7 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 pt-4 md:px-0">
+    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 pt-4">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>

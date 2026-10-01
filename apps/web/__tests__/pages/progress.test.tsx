@@ -12,6 +12,8 @@ import { createTranslator } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -191,6 +193,67 @@ function getStreakStatus(): HTMLElement {
 
 describe('ProgressContent', () => {
   let textStyles: string
+  let stylesheet: string
+  let browser: Browser
+  let browserLaunch: BrowserLaunch | undefined
+
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
+    browser = await launch
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
+    'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
+      const matchMedia = window.matchMedia.bind(window)
+      const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+        ...matchMedia(query), matches: width >= 1024,
+      }))
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        const { container } = render(
+          <ShellWide items={[]} activeId="progresso" navLabel="Navigation"
+            conversation={<button>Conversation</button>}
+            conversationOpen={panelOpen} conversationLabel="Conversation">
+            <ProgressPage />
+          </ShellWide>,
+        )
+        await act(async () => {})
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const bounds = await page.evaluate(() => {
+          const column = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+          const section = document.querySelector('section')!.getBoundingClientRect()
+          const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
+          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left, columnWidth: column.width }
+        })
+        const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
+        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth })
+      } finally {
+        media.mockRestore()
+        await page.close()
+      }
+    },
+  )
+
+  it('uses the display family for the streak and every freeze bank numeral', async () => {
+    const { container } = render(<ProgressPage />)
+    await act(async () => {})
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}:root { --font-space-grotesk: "Space Grotesk"; --font-geist: Geist; }</style>${container.innerHTML}`)
+      const families = await page.evaluate(() => {
+        const streak = document.querySelector('section p')!
+        const bank = document.querySelector('[data-component="freeze-bank"]')!
+        const card = bank.children[2]!
+        const banked = card.querySelector('p')!
+        const used = card.querySelectorAll('p')[2]!
+        return [streak, banked, banked.querySelector('span')!, used].map((element) => getComputedStyle(element).fontFamily)
+      })
+      for (const family of families) expect(family).toContain('Space Grotesk')
+    } finally {
+      await page.close()
+    }
+  })
 
   it('opens Progresso with its drawn sections and no Wrapped entry', () => {
     render(<ProgressPage />)
@@ -202,6 +265,7 @@ describe('ProgressContent', () => {
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+    stylesheet = compiled.css
     const rules: string[] = []
     compiled.root.walkRules((rule) => {
       if (rule.selector.startsWith('.text-')) {
