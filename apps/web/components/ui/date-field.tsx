@@ -167,8 +167,8 @@ export function DateField({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
-      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * 44}>
-        <div className="flex items-center justify-between mb-2">
+      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * 44} virtualizedBody={pickerMode === 'years'}>
+        <div className="flex shrink-0 items-center justify-between mb-2">
           <button
             type="button"
             className={`p-3 rounded-sm transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] ${pickerMode === 'years' ? 'invisible' : ''}`}

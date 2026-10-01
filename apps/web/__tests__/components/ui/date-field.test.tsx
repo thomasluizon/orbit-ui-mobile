@@ -144,6 +144,27 @@ describe('DateField', () => {
     expect(screen.getByLabelText('common.previousMonth')).toBeInTheDocument()
   })
 
+
+  it('preserves the date through year mode and commits a day only after year selection', async () => {
+    const onChange = vi.fn()
+    render(<DateField value="2025-06-15" onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    expect(screen.getByRole('button', { name: 'June 15, 2025' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    fireEvent.click(screen.getByRole('button', { name: '2030' }))
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByText('June')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '2030' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('common.previousMonth'))
+    expect(screen.getByText('May')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('common.nextMonth'))
+    fireEvent.click(screen.getByRole('button', { name: 'June 15, 2030' }))
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('2030-06-15'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('steps to the previous and next month', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
