@@ -11,11 +11,15 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   titleTranslate?: 'no'
 }
 
-function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean) {
+function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, inForm: boolean) {
   if (!inset) return { minHeight: 'var(--row-h-compact)', paddingBlock: 4, paddingInlineStart: 0, paddingInlineEnd: 0 }
   return compact
-    ? { minHeight: 52, padding: '4px 12px', paddingInlineEnd: hasAction ? 0 : 12 }
-    : { minHeight: 76, padding: 16, paddingInlineEnd: hasAction ? 0 : 16 }
+    ? { minHeight: 'var(--row-h-compact)', paddingBlock: 4, paddingInline: inForm ? 12 : 16, paddingInlineEnd: hasAction ? 0 : inForm ? 12 : 16 }
+    : { minHeight: hasDescription ? 76 : 56, paddingBlock: hasDescription ? 16 : 4, paddingInline: 16, paddingInlineEnd: hasAction ? 0 : 16 }
+}
+
+function getActionStyle(compact: boolean, inset: boolean, inForm: boolean, hasDescription: boolean) {
+  return { marginBlock: !compact && inset && hasDescription ? 16 : 4, marginInlineEnd: inset ? compact && inForm ? 12 : 16 : 0, marginInlineStart: 0, alignSelf: 'center' as const }
 }
 
 function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<WebListRowProps, 'title' | 'titleTranslate' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
@@ -42,7 +46,7 @@ export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = false, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
-  const bodyStyle = getBodyStyle(compact, !!action, inset)
+  const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, inForm)
 
   return (
     <div className={`orbit-list-row-shell flex items-stretch ${inForm ? 'orbit-list-row-form' : ''}`} style={{ minHeight: 52 }}>
@@ -54,7 +58,7 @@ export function ListRow(props: Readonly<WebListRowProps>) {
         <button type="button" aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={{ margin: 16, marginInlineStart: 0 }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, inForm, !!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>

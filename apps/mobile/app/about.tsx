@@ -105,6 +105,7 @@ export default function AboutScreen() {
                   accessibilityLabel={t(destination.titleKey)}
                   onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
                   title={t(destination.titleKey)}
+                  compact
                   wrapTitle
                 />
               ))}

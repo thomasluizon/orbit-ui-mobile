@@ -1,5 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
@@ -105,5 +112,40 @@ describe('AboutPage', () => {
       expect(label).toHaveStyle({ minWidth: '0px', flexGrow: '1', flexShrink: '1' })
       expect(value).toHaveStyle({ minWidth: '0px', flexShrink: '1', overflowWrap: 'anywhere' })
     }
+  })
+})
+
+
+describe('About destination geometry in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1280])('renders four 52px destinations with reachable targets at %ipx', async (width) => {
+    render(<AboutPage />)
+    const content = screen.getByTestId('about-content')
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${content.outerHTML}`)
+      await loadAppFonts(page)
+      const rows = await page.locator('[data-testid="about-destinations"] button').evaluateAll((buttons) => buttons.map((button) => {
+        const bounds = button.getBoundingClientRect()
+        const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+        return { height: bounds.height, width: bounds.width, reachable: button.contains(hit), clipped: button.scrollWidth > button.clientWidth }
+      }))
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        expect(row.height).toBe(52)
+        expect(row.width).toBeGreaterThanOrEqual(44)
+        expect(row.reachable).toBe(true)
+        expect(row.clipped).toBe(false)
+      }
+    } finally { await page.close() }
   })
 })
