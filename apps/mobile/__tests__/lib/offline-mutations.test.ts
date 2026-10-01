@@ -7,7 +7,7 @@ import type {
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 import { calendarKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { ApiClientError } from '@orbit/shared/utils'
+import { ApiClientError, createApiClientError } from '@orbit/shared/utils'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 
 import {
@@ -787,9 +787,9 @@ describe('offline mutations', () => {
 
   it('accepts a missing receipt after cancellation but propagates undo conflicts', async () => {
     const mutation = { id: 'undo', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') }
-    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(404, 'Skip not found', { code: 'SKIP_NOT_FOUND' }))
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(404, { error: 'Skip not found', errorCode: 'SKIP_NOT_FOUND' }, 'Skip not found'))
     await expect(executeSkipUndo(mutation)).resolves.toBeUndefined()
-    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(409, 'Habit changed', { code: 'SKIP_UNDO_CONFLICT' }))
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(409, { error: 'Habit changed', errorCode: 'SKIP_UNDO_CONFLICT' }, 'Habit changed'))
     await expect(executeSkipUndo(mutation)).rejects.toThrow('Habit changed')
   })
 
@@ -797,7 +797,7 @@ describe('offline mutations', () => {
     const mutation = buildQueuedMutation({ type: 'undoSkipHabit', scope: 'habits', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111'), method: 'POST', payload: undefined })
     mocks.queued.push(mutation)
     mocks.setOnline(true)
-    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(404, 'Skip not found', { code: 'SKIP_NOT_FOUND' }))
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(404, { error: 'Skip not found', errorCode: 'SKIP_NOT_FOUND' }, 'Skip not found'))
     const result = await flushQueuedMutations()
     expect(result).toMatchObject({ succeeded: 1, failed: 0, remaining: 0 })
     expect(mocks.apiClient).toHaveBeenCalledWith(mutation.endpoint, { method: 'POST', idempotencyKey: mutation.id })
