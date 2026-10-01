@@ -22,14 +22,15 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
-  const content = <>
-      <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
-      {count > 0 ? <Text accessible={false} testID="notification-count" style={styles.bellCount}>
-        {count > 9 ? '9+' : count}
-      </Text> : null}
-  </>
-  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
-    style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
-    onPress={onPress}>{content}</Pressable>
-    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{content}</View>
+  const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
+  const marker = count > 0 ? <Text accessible={false} pointerEvents="none" testID="notification-count" style={styles.bellCount}>
+    {count > 9 ? '9+' : count}
+  </Text> : null
+  return onPress ? <View style={styles.bellDisplay}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label}
+        style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
+        onPress={onPress}>{glyph}</Pressable>
+      {marker}
+    </View>
+    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{glyph}{marker}</View>
 }

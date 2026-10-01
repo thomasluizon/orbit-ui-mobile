@@ -351,9 +351,10 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20, borderRadius: 8 })
     const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
     expect(buttons).toHaveLength(1)
-    const buttonStyle = buttons[0]!.props.style
-    expect(StyleSheet.flatten(typeof buttonStyle === 'function' ? buttonStyle({ pressed: false }) : buttonStyle).overflow)
-      .not.toBe('hidden')
+    expect(buttons[0]!.findAll((node) => node.props.testID === 'notification-count')).toHaveLength(0)
+    let markerParent = badge.parent
+    while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
+    expect(StyleSheet.flatten(markerParent?.props.style as StyleProp<ViewStyle>).overflow).not.toBe('hidden')
   })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count

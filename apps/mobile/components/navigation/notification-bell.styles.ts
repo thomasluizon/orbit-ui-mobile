@@ -8,7 +8,7 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center', justifyContent: 'center',
     },
     bellButton: {
-      width: 44, height: 44, borderRadius: 999,
+      width: 44, height: 44, borderRadius: 999, overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',
     },
     bellCount: {
