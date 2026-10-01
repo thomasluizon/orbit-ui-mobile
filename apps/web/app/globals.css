@@ -1107,6 +1107,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -4px;
 }
 
+[data-focus-inset='panel']:focus-visible,
 [data-focus-inset='panel'] :focus-visible {
   outline-offset: -6px;
 }

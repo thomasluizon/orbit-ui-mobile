@@ -1,4 +1,4 @@
-import { useState, type Ref } from 'react'
+import { useMemo, useState, type Ref } from 'react'
 import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -19,7 +19,7 @@ export function InsetFocusPressable({
 }: Readonly<InsetFocusPressableProps>) {
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   return (
     <Pressable
       {...props}

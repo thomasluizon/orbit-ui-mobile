@@ -119,6 +119,16 @@ describe('other clipped control containers in Chromium', () => {
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
           const geometry = await control.evaluate((element) => ({ label: element.textContent, bounds: element.getBoundingClientRect().toJSON(), parent: element.parentElement!.getBoundingClientRect().toJSON() }))
           expect(await readOutlineVisibility(control), JSON.stringify({ index, geometry })).toMatchObject({ visible: true, clippedBy: [] })
+          if (surface === 'calendar controls' && await control.getAttribute('data-testid') === 'time-grid-event') {
+            const contentClearance = await control.evaluate((element) => {
+              const style = getComputedStyle(element)
+              return {
+                textInset: element.querySelector('span')!.getBoundingClientRect().left - element.getBoundingClientRect().left,
+                outlineInset: -Number.parseFloat(style.outlineOffset),
+              }
+            })
+            expect(contentClearance.textInset).toBeGreaterThanOrEqual(contentClearance.outlineInset)
+          }
         }
         if (surface === 'tag picker' || surface === 'goal picker') {
           const firstControl = container.querySelector('button[aria-pressed]')!

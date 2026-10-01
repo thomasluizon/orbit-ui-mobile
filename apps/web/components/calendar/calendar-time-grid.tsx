@@ -317,7 +317,7 @@ export function CalendarTimeGrid({
       </span>
       <div
         data-testid="calendar-time-grid"
-        data-focus-inset="panel"
+        data-focus-inset="grid"
         data-columns={columns.length}
         className="relative"
         style={{
@@ -346,6 +346,7 @@ export function CalendarTimeGrid({
                 key={column.dateStr}
                 type="button"
                 data-testid="time-grid-col-header"
+                data-focus-inset="panel"
                 onClick={() => onSelectDay(column.dateStr)}
                 className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
                 style={{
