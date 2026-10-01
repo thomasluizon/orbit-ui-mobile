@@ -302,6 +302,25 @@ describe('RadioRow secondary text contrast', () => {
           ))
         }).toBeGreaterThanOrEqual(4.5)
         await page.mouse.up()
+        await page.mouse.move(0, 0)
+        const releasing = await radio.evaluate((element) => ({
+          background: getComputedStyle(element).backgroundColor,
+          trackShadow: getComputedStyle(element.querySelector('[aria-hidden="true"]')!).boxShadow,
+          foregrounds: [...element.querySelectorAll('span')]
+            .filter((span) => ['Subject details', '3', 'Current'].includes(span.textContent))
+            .map((span) => getComputedStyle(span).color),
+        }))
+        expect(releasing.foregrounds).toHaveLength(3)
+        const releasingSurfaces = [[], [theme['--bg-card']!], [theme['--bg-sheet']!]]
+        expect(Math.min(...releasingSurfaces.flatMap((surface) => releasing.foregrounds.map((foreground) =>
+          contrastOnSurface(foreground, [theme['--bg']!, ...surface, releasing.background]),
+        )))).toBeGreaterThanOrEqual(4.5)
+        if (!selected) {
+          const trackColor = releasing.trackShadow.match(/rgba?\([^)]*\)/)![0]
+          expect(Math.min(...releasingSurfaces.map((surface) =>
+            contrastOnSurface(trackColor, [theme['--bg']!, ...surface, releasing.background]),
+          ))).toBeGreaterThanOrEqual(3)
+        }
       }
       expect(contrastOnSurface(row.background, [theme['--bg']!])).toBe(contrastOnSurface(
         row.selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!],

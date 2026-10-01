@@ -81,6 +81,14 @@
   --radio-row-track: var(--track-empty);
 }
 
+.orbit-radio-row .orbit-radio-row-secondary {
+  transition: color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-radio-row > [aria-hidden="true"] {
+  transition: box-shadow var(--dur-hover) var(--ease-standard);
+}
+
 .orbit-radio-row:active {
   --radio-row-secondary: var(--fg-2);
   --radio-row-track: var(--fg-3);
