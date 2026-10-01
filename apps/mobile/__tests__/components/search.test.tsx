@@ -23,7 +23,6 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mock
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
-vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: { open: boolean; initialTitle: string }) => props.open ? React.createElement('CreateForm', props) : null }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -218,7 +217,7 @@ describe('mobile search', () => {
     expect(text()).toContain('“yoga”')
     expect(text()).toContain('No habit with that name, that description or that tag.')
     await pressText('Create habit')
-    expect(host('CreateForm').props.initialTitle).toBe('yoga')
+    expect(mocks.push).toHaveBeenCalledWith('/habits/new?title=yoga&from=%2Fsearch')
   })
 
   it('delays searching feedback while preserving editable input', async () => {

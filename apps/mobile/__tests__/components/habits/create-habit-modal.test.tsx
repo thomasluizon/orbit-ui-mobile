@@ -8,6 +8,8 @@ import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/shared/utils'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
@@ -29,6 +31,7 @@ const mockPush = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
+const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 
@@ -44,6 +47,8 @@ vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
     useWatchMock(args),
 }))
+
+vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
@@ -87,9 +92,13 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: () => 'today',
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+  }
+})
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
@@ -99,7 +108,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       setValue: mockSetValue,
       getValues: mockGetValues,
       trigger: vi.fn().mockResolvedValue(true),
-      formState: { isDirty: false, errors: {} },
+      formState: { get isDirty() { return mockFormStatus.dirty }, errors: {} },
     },
     isOneTime: false,
     isGeneral: false,
@@ -216,6 +225,12 @@ function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }
 }
 
 describe('CreateHabitModal (mobile)', () => {
+  it('renders the pushed creation header and back control', () => {
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.props.testID === 'sheet-body')).toHaveLength(0)
+  })
+
   it('uses the sub-habit row as its single focus border', async () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     await TestRenderer.act(async () => { await Promise.resolve() })
@@ -237,6 +252,7 @@ describe('CreateHabitModal (mobile)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFormStatus.dirty = false
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
     mockCreateMutateAsync.mockReset()
@@ -266,6 +282,32 @@ describe('CreateHabitModal (mobile)', () => {
 
   afterEach(() => {
     sheetTestControls.defer(false)
+  })
+
+  it('returns on clean screen Back without a discard sheet', async () => {
+    const close = vi.fn()
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={close} />)
+    const back = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')[0]
+    await TestRenderer.act(async () => { back.props.onPress(); await Promise.resolve() })
+    expect(close).toHaveBeenCalledOnce()
+    expect(tree.root.findAll((node) => node.type === DiscardChangesSheet)[0].props.open).toBe(false)
+    tree.unmount()
+  })
+
+  it('guards Android Back, keeps editing, then leaves only after discard', async () => {
+    mockFormStatus.dirty = true
+    const close = vi.fn()
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={close} />)
+    TestRenderer.act(() => { expect(dismissTopOverlay('system-back')).toBe(true) })
+    expect(close).not.toHaveBeenCalled()
+    const discard = () => tree.root.findAll((node) => node.type === DiscardChangesSheet)[0]
+    expect(discard().props.open).toBe(true)
+    TestRenderer.act(() => discard().props.onKeepEditing())
+    expect(discard().props.open).toBe(false)
+    TestRenderer.act(() => { dismissTopOverlay('system-back') })
+    await TestRenderer.act(async () => { discard().props.onDiscard(); await Promise.resolve() })
+    expect(close).toHaveBeenCalledOnce()
+    tree.unmount()
   })
 
   it('renders nothing when closed', () => {
