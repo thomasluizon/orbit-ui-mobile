@@ -45,6 +45,7 @@ import {
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
   formatLocaleDate,
+  formatWeekdayLabels,
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
@@ -697,21 +698,10 @@ function CalendarScreenContent({
     [t],
   );
 
-  const weekdayHeaders = useMemo(() => {
-    const mondayFirst = [
-      { key: "monday", label: t("dates.daysShort.monday") },
-      { key: "tuesday", label: t("dates.daysShort.tuesday") },
-      { key: "wednesday", label: t("dates.daysShort.wednesday") },
-      { key: "thursday", label: t("dates.daysShort.thursday") },
-      { key: "friday", label: t("dates.daysShort.friday") },
-      { key: "saturday", label: t("dates.daysShort.saturday") },
-      { key: "sunday", label: t("dates.daysShort.sunday") },
-    ];
-    if (weekStartsOn === 0) {
-      return [mondayFirst[6]!, ...mondayFirst.slice(0, 6)];
-    }
-    return mondayFirst;
-  }, [t, weekStartsOn]);
+  const weekdayHeaders = useMemo(
+    () => formatWeekdayLabels(i18n.language, weekStartsOn).map((label, index) => ({ key: String(index), label })),
+    [i18n.language, weekStartsOn],
+  );
 
   const { gridDays, monthStats } = useMemo(
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),

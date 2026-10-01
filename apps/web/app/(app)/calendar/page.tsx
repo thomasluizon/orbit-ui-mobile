@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
   formatAPIDate,
+  formatWeekdayLabels,
   parseAPIDate,
   capitalizeFirstLetter,
   filterCalendarSyncEventsByDate,
@@ -658,18 +659,7 @@ function CalendarPageContent({
     [rangeEnd, displayRangeDayMap, weekStartsOn, todayKey],
   )
 
-  const weekdayLabels = useMemo(() => {
-    const mondayFirst = [
-      t('dates.daysShort.monday'),
-      t('dates.daysShort.tuesday'),
-      t('dates.daysShort.wednesday'),
-      t('dates.daysShort.thursday'),
-      t('dates.daysShort.friday'),
-      t('dates.daysShort.saturday'),
-      t('dates.daysShort.sunday'),
-    ]
-    return weekStartsOn === 0 ? [mondayFirst[6]!, ...mondayFirst.slice(0, 6)] : mondayFirst
-  }, [t, weekStartsOn])
+  const weekdayLabels = useMemo(() => formatWeekdayLabels(locale, weekStartsOn), [locale, weekStartsOn])
 
   const rangeLabel = useMemo(() => {
     const pattern = locale === 'pt-BR' ? 'd MMM' : 'MMM d'
