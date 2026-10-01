@@ -132,18 +132,21 @@ session's decision log. A step you never wrote down cannot be filtered or handed
 
 ### The gate: only what you ABSOLUTELY cannot do
 
-Every candidate passes this gate before it reaches him. Stop at the first line that resolves it.
+Every candidate passes this gate before it reaches him. Run the lines in order and stop at the first
+line that resolves it. The owner-only rule comes first, because a tool that can do a step does not
+make the run allowed to do it.
 
-1. **Can an installed tool do it?** A CLI, an API, an MCP server, Terraform, a repository tool, or
+1. **Is it his by rule?** It is his when it needs one of these: his password, a 2FA prompt, a
+   payment or purchase, a legal identity choice, a credential the run may not read or type, a
+   physical device in his hands, a permanent deletion only a browser can do, or a permission only
+   his account can grant. Name which one. It goes on his list even when an installed tool could
+   click it, and the run never tries it by another method.
+2. **Can an installed tool do it?** A CLI, an API, an MCP server, Terraform, a repository tool, or
    the browser through `claude-in-chrome`. If yes, it is the run's work: do it now, or put it in the
    handoff as the run's next task. Never hand him a step a tool can take.
-2. **Did the first method fail?** Try every other installed tool and account that reaches the same
+3. **Did the first method fail?** Try every other installed tool and account that reaches the same
    goal, and write down what each returned. A step reaches him only when every method is exhausted,
    and the step names the goal, not the first method's precondition.
-3. **Is it his by rule?** It survives the gate only when it needs one of these: his password, a 2FA
-   prompt, a payment or purchase, a legal identity choice, a credential the run may not read or type,
-   a physical device in his hands, a permanent deletion only a browser can do, or a permission only
-   his account can grant. Name which one.
 
 What fails the gate becomes run work and is recorded where the next session reads it. What passes is
 his.
@@ -156,7 +159,7 @@ One numbered list, ordered by how much work each step unblocks. Each step carrie
 - exactly where: the URL or the menu path, and the field or button name as the screen shows it
 - what to enter or choose, with no secret written out (point to where the value lives instead)
 - how he knows it worked
-- in one short clause, why the run cannot do it (the rule from gate 3)
+- in one short clause, why the run cannot do it (the rule from gate 1, or the methods gate 3 exhausted)
 - what it unblocks
 
 Split a long action into several numbered steps rather than one long one. If no step survives the

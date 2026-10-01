@@ -205,7 +205,7 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "f5e8d85c0c10b47c",
+      "digest": "4582a634fe14f04d",
       "calibratedAt": "2026-10-01",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
