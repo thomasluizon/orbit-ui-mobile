@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   storedReturnUrl: null as string | null,
   complete: vi.fn(),
   openAuthSessionAsync: vi.fn(),
+  getSecureItem: vi.fn(),
   secureStore: new Map<string, string>(),
 }))
 
@@ -88,7 +89,7 @@ vi.mock('@/lib/google-auth', async (importActual) => ({
 }))
 
 vi.mock('expo-secure-store', () => ({
-  getItemAsync: (key: string) => Promise.resolve(mocks.secureStore.get(key) ?? null),
+  getItemAsync: mocks.getSecureItem,
   setItemAsync: (key: string, value: string) => { mocks.secureStore.set(key, value); return Promise.resolve() },
   deleteItemAsync: (key: string) => { mocks.secureStore.delete(key); return Promise.resolve() },
 }))
@@ -132,7 +133,9 @@ vi.mock('@/lib/capture-mode', () => ({
 }))
 
 describe('AuthCallbackScreen capture retention', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const { clearPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
+    await clearPendingGoogleAuthSession()
     vi.useFakeTimers()
     mocks.retainEmptyCallback = true
     mocks.replace.mockClear()
@@ -141,6 +144,7 @@ describe('AuthCallbackScreen capture retention', () => {
       userId: 'account-a', name: 'A', email: 'a@example.com' })
     mocks.openAuthSessionAsync.mockReset()
     mocks.secureStore.clear()
+    mocks.getSecureItem.mockReset().mockImplementation((key: string) => Promise.resolve(mocks.secureStore.get(key) ?? null))
     vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'client-id')
     mocks.rawUrl = null
     mocks.sessionCallbackUrl = null
@@ -206,6 +210,9 @@ describe('AuthCallbackScreen capture retention', () => {
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    const { markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } = await import('@/lib/google-auth-callback')
+    await markPendingGoogleAuthSession(mocks.sessionReturnUrlAttemptId, 'verifier', 'expected')
+    setPendingGoogleAuthCallbackUrl(mocks.sessionCallbackUrl, mocks.sessionReturnUrlAttemptId)
     mocks.complete.mockRejectedValue(new Error('API rejected the code'))
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
@@ -220,6 +227,9 @@ describe('AuthCallbackScreen capture retention', () => {
     const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
     mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    const { markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } = await import('@/lib/google-auth-callback')
+    await markPendingGoogleAuthSession(mocks.sessionReturnUrlAttemptId, 'verifier', 'expected')
+    setPendingGoogleAuthCallbackUrl(mocks.sessionCallbackUrl, mocks.sessionReturnUrlAttemptId)
     await TestRenderer.act(async () => {
       renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
@@ -239,6 +249,41 @@ describe('AuthCallbackScreen capture retention', () => {
 
     expect(mocks.complete).not.toHaveBeenCalled()
     expect(mocks.login).not.toHaveBeenCalled()
+  })
+
+  it('keeps one recovered attempt when two cold-start screens finish storage reads at different times', async () => {
+    const { markPendingGoogleAuthSession, clearPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
+    const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
+    await markPendingGoogleAuthSession(createAuthReturnUrlAttempt(), 'verifier', 'expected')
+    const savedAttempt = new Map(mocks.secureStore)
+    await clearPendingGoogleAuthSession()
+    for (const [key, value] of savedAttempt) mocks.secureStore.set(key, value)
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback?code=fresh&state=expected'
+    mocks.useActualSession = true
+    mocks.storedReturnUrl = '/calendar?import=1'
+    const reads: (() => void)[] = []
+    mocks.getSecureItem.mockImplementation((key: string) => {
+      const saved = mocks.secureStore.get(key) ?? null
+      return new Promise<string | null>((resolve) => { reads.push(() => resolve(saved)) })
+    })
+    let finishExchange!: () => void
+    mocks.complete.mockImplementation(() => new Promise((resolve) => {
+      finishExchange = () => resolve({ token: 'orbit-token', refreshToken: 'orbit-refresh',
+        userId: 'account-a', name: 'A', email: 'a@example.com' })
+    }))
+    await TestRenderer.act(async () => {
+      renderScreen(<AuthCallbackScreen />)
+      renderScreen(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+    expect(reads).toHaveLength(2)
+    await TestRenderer.act(async () => { reads[0]!(); await Promise.resolve() })
+    expect(mocks.complete).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { reads[1]!(); await Promise.resolve() })
+    await TestRenderer.act(async () => { finishExchange(); await Promise.resolve() })
+    expect(mocks.complete).toHaveBeenCalledOnce()
+    expect(mocks.login).toHaveBeenCalledOnce()
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/calendar?import=1')
   })
 
   it.each([

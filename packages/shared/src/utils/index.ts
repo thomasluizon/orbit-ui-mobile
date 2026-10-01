@@ -361,7 +361,7 @@ export {
 } from './time-field'
 export { buildPreferencePickerModel } from './preference-picker'
 export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
-export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
+export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
   canSnapshotOnboardingEntry,

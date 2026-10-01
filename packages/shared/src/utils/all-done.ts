@@ -32,7 +32,7 @@ export function getAllDoneOnDate(
       const logged = isHabitLoggedOnDate(habit, date)
       const skipped = isHabitSkippedOnDate(habit, date)
       const completed = habit.isCompleted || logged
-      const done = !skipped && completed
+      const done = !skipped && !pendingSkip && completed
       if (!done && (!skipped || pendingSkip)) openCount++
       if (done) count++
     }

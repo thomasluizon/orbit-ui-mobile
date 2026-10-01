@@ -12,7 +12,7 @@ import { RowList } from '@/components/ui/row-list'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
-import packageJson from '@/package.json'
+import { getAppVersion } from '@/lib/app-version'
 
 interface AboutFactProps {
   id: 'version' | 'account'
@@ -70,6 +70,7 @@ export default function AboutPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [showGuide, setShowGuide] = useState(false)
+  const appVersion = getAppVersion()
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -137,11 +138,13 @@ export default function AboutPage() {
               data-testid="about-facts"
               style={{ gap: 8 }}
             >
-              <AboutFact
-                id="version"
-                label={t('about.versionLabel')}
-                value={packageJson.version}
-              />
+              {appVersion ? (
+                <AboutFact
+                  id="version"
+                  label={t('about.versionLabel')}
+                  value={appVersion}
+                />
+              ) : null}
               {isAuthenticated ? (
                 <ProfileAccountFact label={t('about.accountLabel')} />
               ) : null}

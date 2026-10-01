@@ -36,7 +36,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
-  form: { control: {}, reset: vi.fn(), setValue: vi.fn(), getValues: vi.fn(), formState: { isDirty: false } },
+  form: { control: {}, reset: vi.fn(), setValue: vi.fn(), getValues: vi.fn(), trigger: vi.fn().mockResolvedValue(true), formState: { isDirty: false } },
   validateAll: habitMocks.validateAll,
   setGeneral: vi.fn(),
 }) }))

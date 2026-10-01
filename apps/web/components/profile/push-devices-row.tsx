@@ -1,12 +1,12 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import type { WebPushPermission, WebPushPreferenceStatus } from '@orbit/shared/utils'
+import type { WebPushPermission } from '@orbit/shared/utils'
 import { RowList } from '@/components/ui/row-list'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw } from '@/components/ui/icons'
-import { getPushStatusMessageKey, getPushStatusTone } from '@/hooks/use-push-notification-preferences'
+import { getPushStatusMessageKey, getPushStatusTone, type PushPreferenceStatus } from '@/hooks/use-push-notification-preferences'
 
 export function PushDevicesRow({
   count,
@@ -27,15 +27,16 @@ export function PushDevicesRow({
   loading: boolean
   error: boolean
   permission: WebPushPermission
-  status: WebPushPreferenceStatus
+  status: PushPreferenceStatus
   onToggle: () => void
   onRetry: () => void
 }>) {
   const t = useTranslations()
   const canEnable = count !== undefined && max !== undefined && count < max
-  const disabled = loading || error || !supported || (!currentDeviceRegistered && !canEnable)
+  const checking = status === 'checking'
+  const disabled = checking || loading || error || !supported || (!currentDeviceRegistered && !canEnable)
   return (
-    <div aria-busy={loading}>
+    <div aria-busy={loading || checking}>
     <RowList>
       <div className="flex min-h-11 items-center gap-3 px-4 py-3">
         <span className="min-w-0 flex-1 text-[length:var(--fs-md)] text-[var(--fg-1)]">{t('profile.settingsRows.devices')}</span>
@@ -47,7 +48,7 @@ export function PushDevicesRow({
       </div>
       <div className="flex min-h-11 items-center gap-3 px-4 py-3">
         <span className="min-w-0 flex-1 text-sm text-[var(--fg-2)]">{t('profile.settingsRows.currentDevice')}</span>
-        <fieldset disabled={disabled} className="m-0 border-0 p-0">
+        <fieldset disabled={disabled} aria-hidden={checking || undefined} className={`m-0 border-0 p-0${checking ? ' invisible' : ''}`}>
           <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
         </fieldset>
       </div>
@@ -60,12 +61,22 @@ export function PushDevicesRow({
       {!error && !currentDeviceRegistered && !canEnable && count !== undefined ? (
         <p role="status" className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.settingsRows.pushDeviceLimit')}</p>
       ) : null}
-      {['unsupported', 'denied', 'sync-failed', 'requesting'].includes(status) ? (
-        <p role="status" className={`m-0 px-4 pb-3 text-sm ${getPushStatusTone(status)}`}>
-          {t(getPushStatusMessageKey(status, permission))}
-        </p>
-      ) : null}
+      <PushDeviceStatus status={status} permission={permission} />
     </RowList>
     </div>
+  )
+}
+
+function PushDeviceStatus({ status, permission }: Readonly<{
+  status: PushPreferenceStatus
+  permission: WebPushPermission
+}>) {
+  const t = useTranslations()
+  const checking = status === 'checking'
+  if (!checking && !['unsupported', 'denied', 'sync-failed', 'requesting'].includes(status)) return null
+  return (
+    <p role="status" data-testid="push-status" className={`m-0 px-4 pb-3 text-sm ${checking ? '' : getPushStatusTone(status)}`}>
+      {checking ? '\u00A0' : t(status === 'unsupported' ? 'settings.notifications.unsupported' : getPushStatusMessageKey(status, permission))}
+    </p>
   )
 }

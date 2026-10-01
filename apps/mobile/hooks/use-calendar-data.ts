@@ -23,8 +23,8 @@ function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = t
 
   const dayMap = useMemo<Map<string, CalendarDayEntry[]>>(() => {
     if (!query.data) return new Map()
-    return buildCalendarDayMap(query.data)
-  }, [query.data])
+    return buildCalendarDayMap(query.data, { from: rangeStart, to: rangeEnd })
+  }, [query.data, rangeStart, rangeEnd])
 
   return {
     dayMap,

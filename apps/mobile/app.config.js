@@ -17,7 +17,7 @@ function withLocalPlugin(plugins, pluginPath) {
 module.exports = () => {
   const baseConfig = appJson.expo ?? {};
   const captureMode = readBooleanEnv("EXPO_PUBLIC_CAPTURE_MODE", false);
-  return {
+  const productionConfig = {
     ...baseConfig,
     android: {
       ...baseConfig.android,
@@ -28,4 +28,28 @@ module.exports = () => {
       "./plugins/with-react-native-imperative-focus"
     ),
   };
+  const variant = process.env.ORBIT_APP_VARIANT ?? 'production'
+  if (variant === 'production') return productionConfig
+  if (variant !== 'staging') throw new Error(`Unknown Orbit app variant: ${variant}`)
+
+  const packageName = 'org.useorbit.app.staging'
+  const linkHost = 'app-staging.useorbit.org'
+  return {
+    ...productionConfig,
+    name: 'Orbit Staging',
+    scheme: 'orbit-staging',
+    android: {
+      ...productionConfig.android,
+      package: packageName,
+      playStoreUrl: `https://play.google.com/store/apps/details?id=${packageName}`,
+      intentFilters: productionConfig.android.intentFilters.map((filter) => ({
+        ...filter,
+        data: filter.data.map((entry) => ({ ...entry, host: linkHost })),
+      })),
+    },
+    extra: {
+      ...productionConfig.extra,
+      router: { ...productionConfig.extra.router, origin: `https://${linkHost}` },
+    },
+  }
 };
