@@ -109,7 +109,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
   const view = useTodayPage(initialToday, initialHabits)
 
   return (
-    <div className="relative">
+    <div className="relative mx-auto w-full max-w-[740px]">
       <TodayDayTransition date={view.nav.dateStr}>
         <TodayAstra
           isTodaySelected={view.nav.dateStr === view.nav.today}
