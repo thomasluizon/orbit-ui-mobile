@@ -49,7 +49,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
-import { HabitUnderstanding } from './habit-form-fields/habit-understanding'
+import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
@@ -384,7 +384,6 @@ export function HabitFormFields({
         dayOptions={daysList}
         quantity={frequencyQuantity}
         mode={isFlexible ? 'flexible' : 'fixed'}
-        intervalWeeks={intervalWeeks}
         sentence={sentence}
         consumed={localRead.consumed}
         proposed={proposal.setup}
@@ -394,10 +393,8 @@ export function HabitFormFields({
         }}
         onEmojiSelect={controller.setEmoji}
         isSuggestionDisabled={isSuggesting}
-        onToggleDay={(day) => controller.toggleDay(day, daily)}
+        onToggleDay={(day) => controller.toggleDay(day, daily, days)}
         onQuantityChange={controller.setQuantity}
-        onModeChange={controller.setScheduleMode}
-        onIntervalWeeksChange={controller.setIntervalWeeks}
         labels={understandingLabels}
       />
 
@@ -435,6 +432,8 @@ export function HabitFormFields({
               if (!detailsOpen && event.propertyName === 'opacity') setDetailsPresented(false)
             }}
           >
+            <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
+
             <section>
               <TimeField
                 label={t('habits.form.exactTime')}

@@ -1,5 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 import {
   HabitListEmptyState,
 } from '@/components/habit-list/empty-state'
@@ -113,6 +115,7 @@ describe('HabitListEmptyState', () => {
     expect(textStrings(tree)).not.toContain('Ask Astra')
     const link = pressableWithLabel(tree, 'Browse all')
     expect(link).toBeTruthy()
+    expectPressFill(tree, 'Browse all', createTokensV2('purple', 'dark').bgHover, 999)
     TestRenderer.act(() => {
       ;(link!.props as { onPress: () => void }).onPress()
     })

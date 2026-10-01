@@ -229,3 +229,18 @@ describe('Proposed on mobile', () => {
     expect(tree.root.findByProps({ testID: 'caller-words' })).toBeDefined()
   })
 })
+
+it('paints the inset proposal marker above an opaque child without consuming layout', () => {
+  const tree = render(<Proposed proposed inset scope="block" label="Proposed by Astra">
+    <View testID="opaque-child" style={{ backgroundColor: createTokensV2('orange', 'light').bgCard }} />
+  </Proposed>)
+  const wrapper = tree.root.findByProps({ testID: 'proposed-block' })
+  expect(flattenedStyle(wrapper).borderWidth).toBeUndefined()
+  const markers = tree.root.findAllByType('View').filter((node) => node.props.testID === 'proposed-block-outline')
+  expect(markers).toHaveLength(1)
+  expect(flattenedStyle(markers[0]!)).toMatchObject({ position: 'absolute', borderWidth: 1, borderStyle: 'dashed', borderRadius: 20 })
+  expect(prop(markers[0]!, 'pointerEvents')).toBe('none')
+  expect(prop(markers[0]!, 'importantForAccessibility')).toBe('no-hide-descendants')
+  const children = prop<ReactElement[]>(wrapper, 'children')
+  expect(children.at(-1)?.props).toMatchObject({ testID: 'proposed-block-outline' })
+})

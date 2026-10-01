@@ -10,6 +10,8 @@ const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
   fontSize: 13,
   fontWeight: 500,
+  minHeight: 44,
+  minWidth: 44,
   padding: '12px 16px',
   margin: '-4px 0',
   textDecoration: 'underline',
@@ -111,7 +113,7 @@ export function HabitListEmptyState({
           <button
             type="button"
             onClick={onAction}
-            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary-soft)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
             style={SECONDARY_ACTION_STYLE}
           >
             {actionLabel}

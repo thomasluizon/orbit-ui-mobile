@@ -49,7 +49,7 @@ for (const width of [412, 600] as const) {
       const geometry = await notice.evaluate((slot, closeLabel) => {
         const panel = document.createElement('section')
         panel.setAttribute('data-celebration-panel', '')
-        panel.style.cssText = 'height:92px;margin:0 16px;display:flex;align-items:center;justify-content:flex-end'
+        panel.style.cssText = 'height:92px;display:flex;align-items:center;justify-content:flex-end'
         const close = document.createElement('button')
         close.type = 'button'
         close.setAttribute('aria-label', closeLabel)
