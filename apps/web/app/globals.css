@@ -997,9 +997,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     caret-color: var(--fg-1);
   }
 
-  @scope (.orbit-row-list, .bg-\[var\(--bg-card\)\]) {
+  @scope (.orbit-row-list, [data-field-surface="card"]) {
     [data-input-root] :is(input, textarea):autofill {
       box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg);
+    }
+  }
+
+  @variant md {
+    @scope ([data-field-surface="responsive-card"]) {
+      [data-input-root] :is(input, textarea):autofill {
+        box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg);
+      }
     }
   }
 
@@ -1008,7 +1016,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-sheet);
     }
 
-    @scope (.orbit-row-list, .bg-\[var\(--bg-card\)\]) {
+    @scope (.orbit-row-list, [data-field-surface="card"]) {
       [data-input-root] :is(input, textarea):autofill {
         box-shadow: inset 0 0 0 100vmax var(--bg-field), inset 0 0 0 100vmax var(--bg-card), inset 0 0 0 100vmax var(--bg-sheet);
       }

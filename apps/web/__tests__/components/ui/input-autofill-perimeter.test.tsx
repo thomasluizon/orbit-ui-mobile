@@ -5,23 +5,32 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Page } from '@playwright/test'
+import type { ReactNode } from 'react'
+import en from '@orbit/shared/i18n/en.json'
+import { LoginContent } from '@/app/(auth)/login/login-content'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { Input } from '@/components/ui/input'
+import { FlowShell } from '@/components/shell/flow-shell'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet } from '@/components/ui/sheet'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return { ...actual, useTranslations: () => actual.createTranslator({ locale: 'en', messages: en }), useLocale: () => 'en' }
+})
+vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children }: { children: ReactNode }) => <>{children}</> }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 
-const surfaces = ['canvas', 'card', 'sheet', 'utility card', 'sheet in card'] as const
+const surfaces = ['canvas', 'card', 'sheet', 'marked card', 'sheet in card'] as const
 const states = ['rest', 'focus', 'error', 'focused error'] as const
 
 async function renderSurface(surface: (typeof surfaces)[number], state: (typeof states)[number], multiline = false, trailing = false) {
   const props = { label: 'Email', name: 'email', autoComplete: 'email', value: 'field@example.com', onChange: () => {}, error: state.includes('error') ? 'Enter a complete email' : undefined } as const
   const input = multiline ? <Input {...props} multiline rows={3} /> : <Input {...props} kind="email" trailing={trailing ? <span aria-hidden="true">@</span> : undefined} />
   const card = <RowList style={{ padding: 24 }}>{input}</RowList>
-  const content = surface === 'card' ? card : surface === 'utility card' ? <div className="bg-[var(--bg-card)] p-6">{input}</div>
+  const content = surface === 'card' ? card : surface === 'marked card' ? <div data-field-surface="card" className="bg-[var(--bg-card)] p-6">{input}</div>
     : surface === 'sheet in card' ? <RowList><Sheet title="Edit name">{input}</Sheet></RowList>
       : surface === 'sheet' ? <Sheet title="Edit name">{input}</Sheet> : input
   const mounted = await act(async () => render(content))
@@ -111,7 +120,6 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
         const filled = await readPaint(page)
         expect(filled.background).toBe(mode === 'dark' ? 'rgba(70, 90, 126, 0.4)' : 'rgb(232, 240, 254)')
         expect(filled.strokeCount).toBe(1)
-        expect(filled.fillCount).toBeGreaterThanOrEqual(2)
         expect(filled.pointerEvents).toBe('none')
         expect(filled.focused).toBe(state.includes('focus'))
         expect(filled.rings[0]!.spread).toBe(state === 'rest' ? 1 : 2)
@@ -120,6 +128,7 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
           expect(contrastOnSurface(ring, filled.innerLayers), 'inner edge contrast').toBeGreaterThanOrEqual(3)
           expect(contrastOnSurface(ring, filled.outerLayers), 'outer edge contrast').toBeGreaterThanOrEqual(3)
         }
+        expect(filled.fillCount).toBeGreaterThanOrEqual(2)
         expectSameFill(typed, filled)
         expect(contrastOnSurface(filled.text, filled.innerLayers)).toBeGreaterThanOrEqual(4.5)
         expect(filled.caret).toBe(typed.caret)
@@ -134,6 +143,40 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
     }
   })
 
+  it.each(['sign-in', 'card', 'detail', 'document', 'onboarding'] as const)(
+    'matches the typed fill in the owning %s composition across its responsive boundary', async (owner) => {
+      const content = owner === 'sign-in' ? <LoginContent />
+        : <FlowShell mode={owner}><Input label="Message" value="Typed value" onChange={() => {}} /></FlowShell>
+      const mounted = await act(async () => render(content))
+      const markup = mounted.container.innerHTML
+      await act(async () => { mounted.unmount() })
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<!doctype html><style>${stylesheet}</style>${markup}`)
+        for (const width of [412, 1280, 412]) {
+          await page.setViewportSize({ width, height: 915 })
+          await page.locator('input').focus()
+          const typed = await readPaint(page)
+          expect(typed.shadow).toBe('none')
+          const autofill = await nativeAutofill(page)
+          try {
+            await autofill.set(true)
+            const filled = await readPaint(page)
+            expectSameFill(typed, filled)
+            expect(filled.strokeCount).toBe(1)
+            expect(filled.bounds).toEqual(typed.bounds)
+            expect(contrastOnSurface(filled.rings[0]!.color, filled.innerLayers)).toBeGreaterThanOrEqual(3)
+            expect(contrastOnSurface(filled.rings[0]!.color, filled.outerLayers)).toBeGreaterThanOrEqual(3)
+          } finally {
+            await autofill.set(false)
+            await autofill.close()
+          }
+        }
+      } finally {
+        await page.close()
+      }
+    },
+  )
 
   it.each([false, true])('keeps the typed fill for multiline %s with a trailing accessory on a single line', async (multiline) => {
     const page = await browser.newPage()
