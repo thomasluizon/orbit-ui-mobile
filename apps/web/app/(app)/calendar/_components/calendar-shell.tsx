@@ -58,7 +58,7 @@ export function CalendarHeader({
             onClick={onCurrentMonth}
             className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
             style={{
-              height: 36,
+              minHeight: 44,
               padding: '0 8px',
               fontFamily: 'var(--font-display)',
               fontSize: 'var(--fs-2xl)',
@@ -77,7 +77,7 @@ export function CalendarHeader({
             onClick={() => setIsYearOpen(true)}
             className="text-[length:var(--fs-xs)] lg:text-[length:var(--fs-sm)] touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
             style={{
-              height: 36,
+              minHeight: 44,
               padding: '0 8px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 500,
@@ -159,7 +159,7 @@ export function CalendarWeekNav({
           onClick={onCurrentWeek}
           className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
           style={{
-            height: 36,
+            minHeight: 44,
             padding: '0 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 17,

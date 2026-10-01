@@ -27,7 +27,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       const warningKey = key.slice('profile.deleteAccount.'.length)
-      const warning = key.startsWith('profile.deleteAccount.warning')
+      const warning = key.startsWith('profile.deleteAccount.warning') || key === 'profile.deleteAccount.offlineDescription'
         ? Reflect.get(ptBR.profile.deleteAccount, warningKey) as unknown
         : undefined
       if (typeof warning === 'string') {
@@ -135,6 +135,44 @@ describe('DeleteAccountModal', () => {
     })
     expect(mocks.onClose).toHaveBeenCalledTimes(1)
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('shows the offline message without offering or requesting a deletion code', async () => {
+    mocks.isOnline.current = false
+    const tree = await renderModal()
+    const alert = tree.root.find(
+      (node: { type: unknown; props: { accessibilityRole?: string } }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'alert',
+    )
+
+    expect(textContent(alert)).toBe(ptBR.profile.deleteAccount.offlineDescription)
+    expect(textContent(tree.root)).not.toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('restores the deletion flow when the open modal reconnects', async () => {
+    mocks.isOnline.current = false
+    const tree = await renderModal()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      mocks.isOnline.current = true
+      tree.update(<DeleteAccountModal open onClose={mocks.onClose} profile={createMockProfile()} />)
+    })
+
+    expect(textContent(tree.root)).not.toContain(ptBR.profile.deleteAccount.offlineDescription)
+    expect(textContent(tree.root)).toContain(ptBR.profile.deleteAccount.warningFree)
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })
 
   it('shows the Pro deletion upper bound without tying it to the plan ending', async () => {

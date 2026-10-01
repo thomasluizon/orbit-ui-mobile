@@ -98,7 +98,6 @@ function EditableChecklistItem({
           ]}
           onPress={onMoveUp}
           disabled={isFirst}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
@@ -111,7 +110,6 @@ function EditableChecklistItem({
           ]}
           onPress={onMoveDown}
           disabled={isLast}
-          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
@@ -354,7 +352,6 @@ export function HabitChecklist({
                 pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onReset}
-              hitSlop={9}
             >
               {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
             </Pressable>
@@ -368,7 +365,6 @@ export function HabitChecklist({
                 pressed ? { backgroundColor: tokens.bgHover } : null,
               ]}
               onPress={onClear}
-              hitSlop={9}
             >
               <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
             </Pressable>
@@ -427,7 +423,6 @@ export function HabitChecklist({
             accessibilityRole="button"
             onPress={clearAll}
             style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
-            hitSlop={14}
           >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
@@ -474,15 +469,20 @@ function createStyles(tokens: AppTokens) {
   },
   actionButton: {
     overflow: 'hidden',
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   clearAction: {
+    minHeight: 44,
+    minWidth: 44,
     borderRadius: 8,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   clearText: {
     fontFamily: 'Geist_500Medium',
@@ -514,7 +514,7 @@ function createStyles(tokens: AppTokens) {
     paddingVertical: 4,
   },
   moveButtons: {
-    width: 24,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -522,8 +522,8 @@ function createStyles(tokens: AppTokens) {
   moveButton: {
     overflow: 'hidden',
     borderRadius: 999,
-    width: 24,
-    height: 26,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -546,8 +546,8 @@ function createStyles(tokens: AppTokens) {
   },
   itemAction: {
     overflow: 'hidden',
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

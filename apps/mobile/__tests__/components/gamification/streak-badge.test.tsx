@@ -109,16 +109,23 @@ describe('StreakBadge pressed paint', () => {
     const [button] = findButton(tree.root)
     const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
     const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
+    expect(button.props.hitSlop).toBeUndefined()
+    expect(rest).toMatchObject({ minWidth: 44, minHeight: 44 })
+    expect(rest.borderWidth ?? 0).toBe(0)
     expect(pressed.backgroundColor).toBe(rest.backgroundColor)
     expect(typeof button.props.children).toBe('function')
     const restingContents = button.props.children({ pressed: false })
-    const [restingLayer, restingGlyph, restingCount] = restingContents.props.children
+    const [restingRing, restingLayer, restingGlyph, restingCount] = restingContents.props.children
+    expect(StyleSheet.flatten(restingRing.props.style)).toMatchObject({ top: 0, bottom: 0, left: 0, right: 0, borderWidth: 1.5, borderColor: tokens.hairlineStrong })
     expect(StyleSheet.flatten(restingLayer.props.style).backgroundColor).toBe('transparent')
     expect(StyleSheet.flatten(restingCount.props.style).color).toBe(streak === 0 && !isFrozen ? tokens.fg3 : tokens.fg1)
     const contents = button.props.children({ pressed: true })
-    const [layer, , count] = contents.props.children
+    const [, layer, , count] = contents.props.children
     const fill = StyleSheet.flatten(layer.props.style).backgroundColor
     const text = StyleSheet.flatten(count.props.style).color
+    expect(StyleSheet.flatten(layer.props.style)).toMatchObject({
+      position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 999,
+    })
     expect(fill).toBe(tokens.bgHoverOpaque)
     expect(text).toBe(streak === 0 && !isFrozen ? tokens.fg2 : tokens.fg1)
     expect(layer.props.pointerEvents).toBe('none')

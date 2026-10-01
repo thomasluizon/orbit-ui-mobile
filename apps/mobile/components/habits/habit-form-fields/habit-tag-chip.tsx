@@ -63,7 +63,7 @@ export function HabitTagChip({
           styles.tagChipMain,
           pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
         ]}
-        hitSlop={{ top: 4, bottom: 4 }}
+
         disabled={!selected && atLimit}
         accessibilityRole="button"
         accessibilityState={{ selected }}
@@ -88,7 +88,7 @@ export function HabitTagChip({
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={editAriaLabel}
-        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+
         onPress={onEdit}
       >
         <PenSquare
@@ -106,7 +106,7 @@ export function HabitTagChip({
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={deleteAriaLabel}
-        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+
         onPress={onDelete}
       >
         <X
