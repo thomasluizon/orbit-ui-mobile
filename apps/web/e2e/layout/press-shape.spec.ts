@@ -10,6 +10,7 @@ import { test } from './upgrade-fixtures'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
 import { recapResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRecapRequestUrl } from '@orbit/shared/utils'
+import { LAYOUT_ORIGIN } from '../support/env'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   title: 'Beber água',
@@ -162,7 +163,7 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(page.locator('.orbit-list-row-body').first(), 12)
       await page.goto('/upgrade')
       await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
-      await context.route(new RegExp(`${buildRecapRequestUrl('week').replace(/[?]/g, '\\?')}$`),
+      await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`,
         (route) => route.fulfill({ json: recapResponseSchema.parse(createMockRecap()) }))
       await page.goto('/wrapped')
       const restingChip = page.locator('.chip:not(.chip-active)').first()
