@@ -47,8 +47,8 @@ describe('ShellWide', () => {
     )
     const bottom = container.querySelector('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
-    const column = pinnedSlot?.closest<HTMLElement>('[class~="max-w-[740px]"]') ?? null
-    expect(column).toHaveClass('mx-auto', 'w-full', 'max-w-[740px]')
+    const column = pinnedSlot?.parentElement ?? null
+    expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-notice]'))
     expect(column).toContainElement(container.querySelector('[data-shell-fab]'))
     expect(bottom).toContainElement(column)
@@ -60,7 +60,7 @@ describe('ShellWide', () => {
     media.width = 1440
     const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
     const column = container.querySelector('[data-shell-scroller]')?.parentElement
-    expect(column).toHaveClass('lg:max-w-[740px]')
+    expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-pinned-slot]'))
   })
 
@@ -87,7 +87,7 @@ describe('ShellWide', () => {
     )
 
     expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('w-[232px]')
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveStyle({ maxWidth: '740px' })
     expect(container.querySelector('[data-shell-notice]')).toHaveTextContent('Notice')
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
@@ -249,7 +249,7 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveClass('lg:max-w-[740px]')
+    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveStyle({ maxWidth: '740px' })
     expect(container.querySelector('[data-shell-scroller]')?.parentElement?.parentElement).not.toHaveClass('px-8')
   })
 

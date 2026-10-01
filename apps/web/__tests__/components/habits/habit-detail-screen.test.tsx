@@ -1647,14 +1647,20 @@ describe('HabitDetailScreen', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([412, 1280])('resolves the title display family and column cap at %ipx', async (width) => {
+    it.each([
+      [412, 'Read'],
+      [1280, 'Read'],
+      [360, 'Read a longer book chapter with notes and discuss it with the reading group'],
+      [840, 'Read a longer book chapter with notes and discuss it with the reading group'],
+    ])('resolves the title display family and column cap at %ipx for %s', async (width, habitTitle) => {
       vi.useRealTimers()
+      mocks.detail = { ...makeDetail(), title: habitTitle }
       mocks.metrics = { ...mocks.metrics, totalCompletions: 0 }
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}:root { --font-space-grotesk: "Space Grotesk"; --font-geist: "Geist"; --font-geist-mono: "Geist Mono"; }</style>${container.innerHTML}`)
-        const title = page.getByRole('heading', { level: 1, name: 'Read' })
+        const title = page.getByRole('heading', { level: 1, name: habitTitle })
         const geometry = await title.evaluate((element) => {
           const row = element.closest('[data-habit-detail-header-row]')!
           const column = element.closest('[data-habit-detail-content]')!
@@ -1670,10 +1676,20 @@ describe('HabitDetailScreen', () => {
           }
         })
         expect(geometry.family).toContain('Space Grotesk')
-        expect(geometry.size).toBe(width === 412 ? '22px' : '28px')
+        expect(geometry.size).toBe(width < 640 ? '22px' : '28px')
         expect(geometry.weight).toBe('500')
-        expect(geometry.contentWidth).toBe(width === 412 ? 380 : 620)
+        expect(geometry.contentWidth).toBe(width < 640 ? width - 32 : 620)
         expect(geometry.headerInset).toBe(geometry.columnInset)
+        const rename = title.getByRole('button', { name: habitTitle, exact: true })
+        await rename.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
+        const visibleRatio = await rename.evaluate((element) => new Promise<number>((resolveRatio) => {
+          const observer = new IntersectionObserver(([entry]) => {
+            observer.disconnect()
+            resolveRatio(entry!.intersectionRatio)
+          })
+          observer.observe(element)
+        }))
+        expect(visibleRatio, 'the entire rename target is reachable without ancestor clipping').toBe(1)
         const emptyMetrics = await page.getByText('noDataYet', { exact: true }).evaluate((element) => {
           const style = getComputedStyle(element)
           return { align: style.textAlign, top: style.paddingTop, bottom: style.paddingBottom }

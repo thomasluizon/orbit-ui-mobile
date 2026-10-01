@@ -1,1 +1,3 @@
 export const WIDE_DESKTOP_BREAKPOINT = 1024
+
+export const SHELL_CONTENT_MAX_WIDTH = 740
