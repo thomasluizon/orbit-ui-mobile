@@ -23,9 +23,12 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   const styles = createStyles(tokens)
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
-  const marker = count > 0 ? <Text accessible={false} pointerEvents="none" testID="notification-count" style={styles.bellCount}>
-    {count > 9 ? '9+' : count}
-  </Text> : null
+  const marker = count > 0 ? <View accessible={false} importantForAccessibility="no-hide-descendants"
+    pointerEvents="none" style={styles.countMarker}>
+    <Text accessible={false} testID="notification-count" style={styles.bellCount}>
+      {count > 9 ? '9+' : count}
+    </Text>
+  </View> : null
   return onPress ? <View style={styles.bellDisplay}>
       <Pressable accessibilityRole="button" accessibilityLabel={label}
         style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}

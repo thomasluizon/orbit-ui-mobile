@@ -11,8 +11,8 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       width: 44, height: 44, borderRadius: 999, overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',
     },
+    countMarker: { position: 'absolute', top: 0, right: 0 },
     bellCount: {
-      position: 'absolute', top: 0, right: 0,
       minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 8,
       backgroundColor: tokens.fg1, color: tokens.bg,
       fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 20,

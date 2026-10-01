@@ -354,6 +354,7 @@ describe('mobile alerts', () => {
     expect(buttons[0]!.findAll((node) => node.props.testID === 'notification-count')).toHaveLength(0)
     let markerParent = badge.parent
     while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
+    expect(markerParent?.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
     expect(StyleSheet.flatten(markerParent?.props.style as StyleProp<ViewStyle>).overflow).not.toBe('hidden')
   })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
