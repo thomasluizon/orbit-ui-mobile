@@ -1,6 +1,14 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+import { ListRow } from '@/components/ui/list-row'
 import AboutPage from '@/app/(app)/about/page'
 import { useAuthStore } from '@/stores/auth-store'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -106,4 +114,80 @@ describe('AboutPage', () => {
       expect(value).toHaveStyle({ minWidth: '0px', flexShrink: '1', overflowWrap: 'anywhere' })
     }
   })
+})
+
+
+describe('About destination geometry in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1280])('renders four 52px destinations with reachable targets at %ipx', async (width) => {
+    render(<AboutPage />)
+    const content = screen.getByTestId('about-content')
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${content.outerHTML}`)
+      await loadAppFonts(page)
+      const rows = await page.locator('[data-testid="about-destinations"] button').evaluateAll((buttons) => buttons.map((button) => {
+        const bounds = button.getBoundingClientRect()
+        const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+        return { height: bounds.height, width: bounds.width, reachable: button.contains(hit), clipped: button.scrollWidth > button.clientWidth }
+      }))
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        expect(row.height).toBe(52)
+        expect(row.width).toBeGreaterThanOrEqual(44)
+        expect(row.reachable).toBe(true)
+        expect(row.clipped).toBe(false)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([
+    ['regular', <ListRow key="regular" title="Habit" compact={false} onClick={() => {}} />, 56],
+    ['plain', <ListRow key="plain" title="Habit" onClick={() => {}} />, 52],
+    ['compact read only', <ListRow key="compact read only" title="Calendar habit" compact readOnly />, 52],
+    ['read only', <ListRow key="read only" title="Habit" readOnly />, 52],
+    ['described', <ListRow key="described" title="Account" description="account@example.com" onClick={() => {}} />, 76],
+    ['compact with action', <ListRow key="compact with action" title="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 52],
+    ['plain with action', <ListRow key="plain with action" title="Key" onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 52],
+    ['described with action', <ListRow key="described with action" title="Invoice" description="Paid" action={{ icon: 'download', label: 'Download', onPress: () => {} }} />, 76],
+    ['bare', <ListRow key="bare" title="Schedule" inset={false} onClick={() => {}} />, 52],
+    ['compact in form', <ListRow key="compact in form" title="Template" compact inForm onClick={() => {}} />, 52],
+  ] as const)('keeps the %s row at its drawn height and its action at 44px', async (_name, element, height) => {
+    const { container } = render(element)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('.orbit-list-row-shell').evaluate((row) => {
+        const action = row.querySelector('.orbit-list-row-action')
+        const body = row.firstElementChild!
+        const bounds = body.getBoundingClientRect()
+        return {
+          height: row.getBoundingClientRect().height,
+          bodyHeight: bounds.height,
+          actionHeight: action?.getBoundingClientRect().height,
+          actionWidth: action?.getBoundingClientRect().width,
+          overlap: action ? bounds.right > action.getBoundingClientRect().left : false,
+        }
+      })
+      if (element.props.description) expect(measured.height).toBeGreaterThanOrEqual(height)
+      else expect(measured.height).toBe(height)
+      expect(measured.bodyHeight).toBe(measured.height)
+      expect(measured.overlap).toBe(false)
+      if (measured.actionHeight !== undefined) {
+        expect(measured.actionHeight).toBe(44)
+        expect(measured.actionWidth).toBe(44)
+      }
+    } finally { await page.close() }
+  })
+
 })

@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { __emitKeyboardEvent } from '../../test-mocks/react-native'
+import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
@@ -41,6 +41,45 @@ function ScrollSurface() {
 describe('Shell412 mobile', () => {
   beforeEach(() => {
     safeArea.bottom = 24
+  })
+
+  it.each([412, 840])('centres every shell surface in a capped column at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 header={<ScrollSurface />} tabBar={<ScrollSurface />} composer={<ScrollSurface />} fab={<ScrollSurface />} conversation={<ScrollSurface />} conversationLabel="Conversation"><ScrollSurface /></Shell412>)
+    })
+    const background = findByTestId(tree, 'shell-background')[0]!
+    expect(StyleSheet.flatten(background.props.style)).toMatchObject({ alignSelf: 'center', width: Math.min(width, 740), maxWidth: 740 })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-conversation')[0]!.props.style)).toMatchObject({ alignSelf: 'center', width: Math.min(width, 740), maxWidth: 740 })
+    for (const testID of ['shell-header', 'shell-scroller', 'shell-tab-bar', 'shell-fab']) {
+      expect(background.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)).toHaveLength(1)
+    }
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('reflows after folding without remounting or losing screen state', async () => {
+    const mounted = vi.fn()
+    let increment!: () => void
+    function StatefulScreen() {
+      const [count, setCount] = useState(0)
+      useEffect(() => { mounted() }, [])
+      increment = () => setCount((previous) => previous + 1)
+      return React.createElement('Screen', { count })
+    }
+    __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+    const renderShell = () => <Shell412 tabBar={<ScrollSurface />}><StatefulScreen /></Shell412>
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(renderShell()) })
+    await TestRenderer.act(() => increment())
+    for (const [width, height] of [[840, 900], [900, 480], [412, 915]] as const) {
+      __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
+      await TestRenderer.act(() => tree.update(renderShell()))
+      expect((StyleSheet.flatten(findByTestId(tree, 'shell-background')[0]!.props.style) as ViewStyle).width).toBe(Math.min(width, 740))
+      expect(tree.root.findAll((node) => String(node.type) === 'Screen')[0]!.props.count).toBe(1)
+      expect(mounted).toHaveBeenCalledTimes(1)
+    }
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('centres the notice, pinned slot, and FAB in one capped bottom column', async () => {

@@ -15,8 +15,6 @@ const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal()], page: 1, pageSize: 100, totalCount: 1, totalPages: 1,
 })
 
-const narrowWeekdaySize = 17
-
 for (const width of [320, 344, 360, 411, 412]) {
   for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     test.describe(`${locale} progress weekday at ${width}px`, () => {
@@ -48,22 +46,39 @@ for (const width of [320, 344, 360, 411, 412]) {
         const weekday = locale === 'en' ? messages.dates.daysValue.wednesday : messages.dates.daysValue.sunday
         await expect(value).toHaveText(weekday)
         await page.evaluate(() => document.fonts.ready)
+        const siblingSizes = await Promise.all([
+          messages.progressScreen.window.completionRate,
+          messages.progressScreen.window.activeDays,
+          messages.progressScreen.window.topHabit,
+        ].map((label) => page.getByText(label, { exact: true }).locator('..').locator('span').first()
+          .evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))))
 
         const geometry = await value.evaluate((element) => {
           const valueBounds = element.getBoundingClientRect()
           const tileBounds = element.parentElement!.getBoundingClientRect()
           const style = getComputedStyle(element)
+          const unwrapped = element.cloneNode(true) as HTMLElement
+          Object.assign(unwrapped.style, {
+            position: 'absolute', width: 'max-content', maxWidth: 'none', whiteSpace: 'nowrap', visibility: 'hidden',
+          })
+          element.parentElement!.append(unwrapped)
+          const unwrappedWidth = unwrapped.getBoundingClientRect().width
+          unwrapped.remove()
           return {
             fontSize: Number.parseFloat(style.fontSize),
             lineHeight: Number.parseFloat(style.lineHeight),
+            mustWrap: unwrappedWidth > valueBounds.width,
             scrollWidth: element.scrollWidth,
             clientWidth: element.clientWidth,
             valueBounds: { left: valueBounds.left, right: valueBounds.right, top: valueBounds.top, bottom: valueBounds.bottom },
             tileBounds: { left: tileBounds.left, right: tileBounds.right, top: tileBounds.top, bottom: tileBounds.bottom },
           }
         })
-        expect(geometry.fontSize).toBe(width >= 344 && width < 412 ? narrowWeekdaySize : 22)
-        expect(geometry.valueBounds.bottom - geometry.valueBounds.top).toBe(geometry.lineHeight)
+        expect(siblingSizes).toEqual([geometry.fontSize, geometry.fontSize, geometry.fontSize])
+        expect(geometry.fontSize).toBe(24)
+        const valueHeight = geometry.valueBounds.bottom - geometry.valueBounds.top
+        if (geometry.mustWrap) expect(valueHeight).toBeGreaterThan(geometry.lineHeight)
+        else expect(valueHeight).toBeCloseTo(geometry.lineHeight, 1)
         expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
         expect(geometry.valueBounds.left).toBeGreaterThanOrEqual(geometry.tileBounds.left)
         expect(geometry.valueBounds.right).toBeLessThanOrEqual(geometry.tileBounds.right)

@@ -133,7 +133,7 @@ interface ComposerHost {
 }
 
 function applyComposerLayoutStyle(node: YogaNode, style: Record<string, unknown>) {
-  const dimensions = ['Width', 'Height', 'MinWidth', 'MinHeight', 'MaxHeight', 'Flex', 'FlexGrow', 'FlexShrink', 'FlexBasis'] as const
+  const dimensions = ['Width', 'Height', 'MinWidth', 'MinHeight', 'MaxWidth', 'MaxHeight', 'Flex', 'FlexGrow', 'FlexShrink', 'FlexBasis'] as const
   for (const dimension of dimensions) {
     const key = `${dimension.charAt(0).toLowerCase()}${dimension.slice(1)}`
     const value = style[key]
@@ -181,6 +181,37 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it('caps long suggestion targets to the live scroll viewport without remounting', () => {
+    const chips = suggestions(3)
+    const tree = renderComposer(props({ suggestions: chips, value: 'Keep this draft' }))
+    const firstChip = byLabel(tree.root, chips[0]!.label)[0]
+    const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
+    for (const width of [328, 568, 328]) {
+      TestRenderer.act(() => scroller.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width, height: 44 } } }))
+      const config = Yoga.Config.create()
+      config.setErrata(Yoga.ERRATA_ALL)
+      const target = Yoga.Node.create(config)
+      const label = Yoga.Node.create(config)
+      try {
+        applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
+        applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
+        applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findByType('Text').props.style))
+        label.setMeasureFunc(() => ({ width: 1600, height: 20 }))
+        target.insertChild(label, 0)
+        target.calculateLayout(undefined, undefined)
+        expect(target.getComputedWidth()).toBeLessThanOrEqual(width)
+        expect(target.getComputedHeight()).toBeGreaterThanOrEqual(44)
+        expect(label.getComputedLeft() + label.getComputedWidth()).toBeLessThanOrEqual(target.getComputedWidth())
+        expect(byLabel(tree.root, chips[0]!.label)[0]).toBe(firstChip)
+        expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
+        expect(firstChip.findByType('Text').props.numberOfLines).toBe(1)
+      } finally { target.freeRecursive(); config.free() }
+    }
+    pressControl(firstChip)
+    expect(chips[0]!.onSelect).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([320, 360, 412, 600])('contains content-sized input and grouped controls at %ipx with native Yoga errata', (width) => {
     const config = Yoga.Config.create()
     config.setErrata(Yoga.ERRATA_ALL)

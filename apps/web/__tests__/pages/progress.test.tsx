@@ -766,7 +766,9 @@ describe('ProgressContent', () => {
       'dates.daysValue.thursdayprogressScreen.window.bestWeekday',
       'ReadprogressScreen.window.topHabit',
     ])
-    expect(within(windowSection).getByText('dates.daysValue.thursday')).toHaveClass('stat-tile-large-value', 'whitespace-nowrap')
+    for (const value of ['75%', '12', 'dates.daysValue.thursday', 'Read']) {
+      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 24, overflowWrap: 'anywhere' })
+    }
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {

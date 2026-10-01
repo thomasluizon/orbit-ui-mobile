@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useDateFormat } from '@/hooks/use-date-format'
 import {
   determineHabitDayStatus,
-  capitalizeFirstLetter,
+  formatCalendarDayTitle,
   filterRecurringEntries,
   isCalendarSyncConnectionActive,
   parseAPIDate,
@@ -33,6 +32,7 @@ import { plural } from '@/lib/plural'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
+  today: string
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
   autoSyncState: CalendarAutoSyncState | undefined
@@ -303,6 +303,7 @@ function CalendarDayRows({
 
     return (
       <ListRow
+        compact
         key={`${dateStr}:${entry.habitId}`}
         title={entry.title}
         value={value}
@@ -316,6 +317,7 @@ function CalendarDayRows({
 
 export function CalendarDayDetail({
   dateStr,
+  today,
   entries,
   calendarEvents,
   autoSyncState,
@@ -335,12 +337,12 @@ export function CalendarDayDetail({
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
-  const { displayWeekdayDate } = useDateFormat()
+  const locale = useLocale()
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
-    return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(dateStr)))
-  }, [dateStr, displayWeekdayDate])
+    return formatCalendarDayTitle(dateStr, locale, today, t('dates.today'))
+  }, [dateStr, locale, today, t])
 
   const filteredEntries = useMemo(
     () => filterRecurringEntries(entries, showRecurring),
@@ -367,6 +369,7 @@ export function CalendarDayDetail({
     >
       {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
       <ListRow
+        compact
         icon="external-link"
         title={t('calendar.goToDay')}
         wrapTitle

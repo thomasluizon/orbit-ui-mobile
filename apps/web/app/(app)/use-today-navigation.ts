@@ -4,7 +4,7 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { addDays, subDays } from 'date-fns'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { canNavigateToNextDay, formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
+import { canNavigateToNextDay, formatAPIDate, formatLocaleDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useToday } from './today-provider'
@@ -93,7 +93,7 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
     return weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1)
   }, [selectedDateStr, today, selectedDate, locale, t])
   const numericDate = useMemo(
-    () => formatLocaleDate(selectedDate, locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    () => formatLocaleDayMonth(selectedDate, locale),
     [selectedDate, locale],
   )
 

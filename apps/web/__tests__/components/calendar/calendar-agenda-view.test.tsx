@@ -58,6 +58,7 @@ describe('CalendarAgendaView', () => {
     expect(screen.getByText('Morning walk')).toBeDefined()
     expect(screen.getByText('Morning walk')).toHaveClass('break-words')
     expect(screen.getByText('Morning walk')).not.toHaveClass('truncate')
+    expect(screen.getByText('Morning walk').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
     expect(screen.queryByRole('button')).toBeNull()
   })
 

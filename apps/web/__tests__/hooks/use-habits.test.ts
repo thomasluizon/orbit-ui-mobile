@@ -273,6 +273,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data).toBeDefined()
@@ -295,6 +297,8 @@ describe('useHabits', () => {
     const queryClient = createQueryClient()
     const filters = { dateFrom: date, dateTo: date, includeOverdue: true, includeGeneral: true }
     const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.habitsById.size).toBe(52)
     expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(51)
@@ -310,6 +314,8 @@ describe('useHabits', () => {
     const queryClient = createQueryClient()
 
     const { result } = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper: createWrapper(queryClient) })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(queryClient.getQueryData(habitKeys.listTotalCount(filters))).toBe(50)
@@ -359,6 +365,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.has('child-1')).toBe(true)
@@ -378,6 +386,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toContain('Server error')
   })
@@ -393,6 +403,8 @@ describe('useHabits', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.size).toBe(0)

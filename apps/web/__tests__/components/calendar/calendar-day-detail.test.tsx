@@ -12,7 +12,9 @@ import {
 } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
+const detailLocale = vi.hoisted(() => ({ language: 'en' }))
 const network = vi.hoisted(() => ({ isOnline: true }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: network.isOnline }) }))
 
@@ -39,23 +41,15 @@ vi.mock('next-intl', () => ({
     if (key === 'calendar.dayDetail.completionSummary') {
       return `${String(params?.done)} of ${String(params?.total)} logged`
     }
+    if (key === 'dates.today') return detailLocale.language === 'en' ? en.dates.today : ptBR.dates.today
     return translations[key] ?? key
   },
-  useLocale: () => 'en',
+  useLocale: () => detailLocale.language,
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))
-
-vi.mock('@/hooks/use-date-format', () => ({
-  useDateFormat: () => ({ displayWeekdayDate: () => 'Sunday, June 15' }),
-}))
-
-vi.mock('@orbit/shared/utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
-  return { ...actual, parseAPIDate: (date: string) => new Date(date) }
-})
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 
@@ -140,6 +134,7 @@ function CalendarDayDetailHarness({
     <CalendarDayDetail
       key={dateStr ?? 'no-date'}
       dateStr={dateStr}
+      today="2025-06-15"
       entries={entries}
       calendarEvents={calendarEvents}
       autoSyncState={autoSyncState}
@@ -164,6 +159,29 @@ function renderDetail(props: RenderProps = {}) {
 }
 
 describe('CalendarDayDetail', () => {
+  describe.each(['UTC', 'America/Sao_Paulo', 'Pacific/Auckland'])('day card headings in %s', (timeZone) => {
+    it.each([
+      ['en', 'Today, June 15', 'Saturday, June 14'],
+      ['pt-BR', 'Hoje, 15 de junho', 'Sábado, 14 de junho'],
+    ])('renders the drawn day card heading in %s', (locale, todayTitle, otherTitle) => {
+      const originalTimeZone = process.env.TZ
+      process.env.TZ = timeZone
+      detailLocale.language = locale
+      try {
+        const view = renderDetail()
+        expect(screen.getByText(todayTitle)).toBeDefined()
+        view.unmount()
+        const otherView = renderDetail({ dateStr: '2025-06-14' })
+        expect(screen.getByText(otherTitle)).toBeDefined()
+        otherView.unmount()
+      } finally {
+        detailLocale.language = 'en'
+        if (originalTimeZone === undefined) delete process.env.TZ
+        else process.env.TZ = originalTimeZone
+      }
+    })
+  })
+
   it('renders nothing without a selected date', () => {
     const { container } = renderDetail({ dateStr: null })
     expect(container).toBeEmptyDOMElement()
@@ -433,6 +451,7 @@ describe('CalendarDayDetail', () => {
       ],
     })
 
+    expect(screen.getByText('Read').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00 · done')).toBeInTheDocument()
     expect(screen.getByText('09:00 · not logged')).toBeInTheDocument()
