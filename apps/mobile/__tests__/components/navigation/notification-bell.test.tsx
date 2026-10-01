@@ -309,6 +309,9 @@ describe('mobile alerts', () => {
       const indicator = hosts(tree, 'View', label)[0]!
       expect(indicator.props).toMatchObject({ accessible: true, accessibilityRole: 'image' })
       expect(indicator.props.onPress).toBeUndefined()
+      const displayStyle = StyleSheet.flatten(indicator.props.style as StyleProp<ViewStyle>)
+      expect(displayStyle.overflow).not.toBe('hidden')
+      expect(displayStyle.borderRadius).not.toBe(999)
       expect(testId(tree, 'notification-count')[0]!.props.children).toBe(count)
     }
     expectCount(2)
@@ -345,8 +348,14 @@ describe('mobile alerts', () => {
     const badge = testId(tree, 'notification-count')[0]!
     expect(badge.props.children).toBe('9+')
     const tokens = createTokensV2('purple', mode)
-    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20 })
-    expect(hosts(tree, 'Pressable', 'Alerts, 25 unread')).toHaveLength(1)
+    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20, borderRadius: 8 })
+    const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.findAll((node) => node.props.testID === 'notification-count')).toHaveLength(0)
+    let markerParent = badge.parent
+    while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
+    expect(markerParent?.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
+    expect(StyleSheet.flatten(markerParent?.props.style as StyleProp<ViewStyle>).overflow).not.toBe('hidden')
   })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count
@@ -414,25 +423,37 @@ describe('mobile alerts', () => {
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
   })
-  it('opens the row sheet, restores on undo and dismisses on commit', () => {
+  it.each(['en', 'pt-BR'])('deletes through the sibling row action with Undo in %s', (locale) => {
+    state.locale = locale
+    const messages = locale === 'en' ? en : pt
+    const deleteLabel = `${locale === 'en' ? 'Delete' : 'Apagar'}: Alert 0`
+    const bodyLabel = `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`
+    const siblingLabel = `Alert 1. ${messages.notifications.unread}. ${messages.nav.progress}`
     seed(2)
     const tree = render()
-    expect(hosts(tree, 'Pressable', 'Delete: Alert 0')).toHaveLength(0)
-    const body = hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
-    expect(body.findAll((node) => node.props.accessibilityLabel === 'Delete: Alert 0')).toHaveLength(0)
-    deleteFromSheet(tree, 'Alert 0')
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', deleteLabel)).toHaveLength(1)
+    const body = hosts(tree, 'Pressable', bodyLabel)[0]!
+    expect(body.findAll((node) => node.props.accessibilityLabel === deleteLabel)).toHaveLength(0)
+    const remove = hosts(tree, 'Pressable', deleteLabel)[0]!
+    expect(remove.parent?.parent).toBe(body.parent?.parent)
+    const style = remove.props.style
+    expect(StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style))
+      .toMatchObject({ width: 44, minHeight: 44, flexShrink: 0 })
+    press(tree, deleteLabel)
+    expect(text(tree, messages.notifications.markAsRead)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', siblingLabel)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(0)
     expect(state.remove).not.toHaveBeenCalled()
     TestRenderer.act(() => vi.advanceTimersByTime(4000))
-    press(tree, 'Undo')
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(1)
-    expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
+    press(tree, messages.notifications.deleteUndo)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
-    deleteFromSheet(tree, 'Alert 0')
+    press(tree, deleteLabel)
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
-    expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', messages.notifications.deleteUndo)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', bodyLabel)).toHaveLength(0)
     expect(state.remove).toHaveBeenCalledOnce()
   })
   it.each([
@@ -545,4 +566,24 @@ describe('mobile alerts', () => {
     )
     expect(renderedText).toContain(metadata)
   })
+})
+
+it.each(['dark', 'light'] as const)('keeps the row delete focus and pressed feedback distinct in %s', (mode) => {
+  state.mode = mode
+  seed(2)
+  const tree = render()
+  const button = () => hosts(tree, 'Pressable', 'Delete: Alert 0')[0]!
+  const style = (pressed: boolean) => {
+    const current = button().props.style
+    return StyleSheet.flatten(typeof current === 'function' ? current({ pressed }) : current)
+  }
+  const tokens = createTokensV2('purple', mode)
+  expect(style(false).outlineWidth).toBeUndefined()
+  TestRenderer.act(() => button().props.onFocus?.())
+  expect(style(false)).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary, borderColor: tokens.fg1 })
+  expect(style(true).backgroundColor).toBe(tokens.bgHover)
+  expect(contrastOnSurface(tokens.primary, [tokens.fg1])).toBeGreaterThanOrEqual(3)
+  expect(contrastOnSurface(tokens.statusBad, [tokens.bg, tokens.bgCard, tokens.bgHover])).toBeGreaterThanOrEqual(3)
+  TestRenderer.act(() => button().props.onBlur?.())
+  expect(style(false).outlineWidth).toBeUndefined()
 })
