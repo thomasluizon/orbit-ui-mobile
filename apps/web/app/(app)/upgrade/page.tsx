@@ -16,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
-import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -196,7 +195,6 @@ export default function UpgradePage() {
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
-        {status ? <UsageStats usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} /> : null}
       </div>
     )
   } else if (model.content === 'play') {
