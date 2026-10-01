@@ -71,7 +71,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className={`flex w-full cursor-pointer items-center border-0 text-left transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] [--radio-row-secondary:var(--fg-3)] [--radio-row-track:var(--track-empty)] hover:[--radio-row-secondary:var(--fg-2)] active:[--radio-row-secondary:var(--fg-2)] hover:[--radio-row-track:var(--fg-3)] active:[--radio-row-track:var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected ? 'bg-[rgba(var(--primary-rgb),0.10)]' : 'bg-transparent'}`}
+      className={`orbit-radio-row flex w-full cursor-pointer items-center border-0 text-left transition-[background-color,scale] duration-[var(--dur-hover),150ms] ease-[var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected ? 'bg-[rgba(var(--primary-rgb),0.10)]' : 'bg-transparent'}`}
       style={style}
     >{content}</button>
   )
