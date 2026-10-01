@@ -451,6 +451,7 @@ describe('CalendarDayDetail', () => {
       ],
     })
 
+    expect(screen.getByText('Read').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00 · done')).toBeInTheDocument()
     expect(screen.getByText('09:00 · not logged')).toBeInTheDocument()

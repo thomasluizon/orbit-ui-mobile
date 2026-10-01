@@ -41,6 +41,7 @@ export function GoalActionFooter({
   return (
     <View style={styles.actions}>
       <ListRow
+        compact={false}
         title={t('goals.detail.edit')}
         accessibilityLabel={t('goals.detail.edit')}
         icon={<PencilLine size={24} strokeWidth={1.5} color={defaultIconColor} />}
@@ -49,6 +50,7 @@ export function GoalActionFooter({
       />
       {isAbandoned ? (
         <ListRow
+          compact={false}
           title={t('goals.detail.reactivate')}
           accessibilityLabel={t('goals.detail.reactivate')}
           icon={<RotateCw size={24} strokeWidth={1.5} color={defaultIconColor} />}
@@ -59,6 +61,7 @@ export function GoalActionFooter({
       ) : null}
       {isActive ? (
           <ListRow
+            compact={false}
             title={t('goals.detail.markAbandoned')}
             accessibilityLabel={t('goals.detail.markAbandoned')}
             icon={<ArchiveX size={24} strokeWidth={1.5} color={defaultIconColor} />}
@@ -68,6 +71,7 @@ export function GoalActionFooter({
           />
       ) : null}
       <ListRow
+        compact={false}
         title={t('goals.detail.delete')}
         accessibilityLabel={t('goals.detail.delete')}
         icon={<Trash2 size={24} strokeWidth={1.5} color={iconColor} />}

@@ -538,6 +538,18 @@ describe('ProfilePage', () => {
     ])
   })
 
+  it('renders the account chevron and undecorated preference rows in You', () => {
+    render(<ProfilePage />)
+    const group = within(screen.getByTestId('profile-settings-group-you'))
+    const rows = group.getAllByRole('button').filter((row) => row.textContent !== 'preferences.themeModeDark' && row.textContent !== 'preferences.themeModeLight')
+    expect(rows[0]!.querySelectorAll('svg')).toHaveLength(1)
+    for (const key of ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title']) {
+      const row = group.getByText(key).closest('button')!
+      expect(row.querySelectorAll('svg')).toHaveLength(0)
+    }
+    expect(group.getByText('profile.settingsRows.export').closest('button')!.querySelectorAll('svg')).toHaveLength(1)
+  })
+
   it('lets Perfil rows set the stroke color of ordinary and danger icons', () => {
     render(<ProfilePage />)
     const ending = within(screen.getByTestId('profile-settings-group-ending'))

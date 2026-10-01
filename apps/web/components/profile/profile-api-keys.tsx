@@ -60,6 +60,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     <RowList>
       {apiKeys.map((apiKey) => (
         <ListRow
+          compact
           key={apiKey.id}
           icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={apiKey.name}
@@ -194,6 +195,7 @@ function ApiKeyGate({ busy, accountReady, error, activeApiKeyCount, onStartStepU
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
         <ListRow
+          compact
           icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.open')}
           wrapTitle
@@ -247,6 +249,7 @@ function ApiKeyAccessContent({
       <RowList>
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
         <ListRow
+          compact
           icon={<Lock size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
           title={t('profile.apiKeys.unlock')}
           accessibilityLabel={t('profile.apiKeys.unlock')}

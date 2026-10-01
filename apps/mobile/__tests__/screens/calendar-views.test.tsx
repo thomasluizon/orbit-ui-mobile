@@ -510,6 +510,7 @@ describe("CalendarScreen views (mobile)", () => {
     ).toHaveLength(8);
     for (const row of agendaRows) {
       expect(row.props.readOnly).toBe(true);
+      expect(row.props.compact).toBe(true);
       expect(row.props.wrapTitle).toBe(true);
       expect(row.props.onPress).toBeUndefined();
       expect(row.props.onClick).toBeUndefined();
