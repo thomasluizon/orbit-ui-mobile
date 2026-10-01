@@ -61,10 +61,10 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       aria-disabled={disabled && reason ? true : undefined}
       aria-describedby={disabled && reason ? reasonId : undefined}
       title={disabled ? reason : undefined}
-      className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
+      className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
-          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] active:scale-[0.96]'
+          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]'
       }`}
       style={{
         width: 44,
@@ -148,7 +148,7 @@ export function SelectionTray({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] active:scale-[0.96] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          className="touch-target inline-flex items-center justify-center rounded-full overflow-hidden whitespace-nowrap appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={SELECT_ALL_BUTTON_STYLE}
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}

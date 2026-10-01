@@ -242,6 +242,7 @@
 }
 
 .orbit-sheet-actions {
+  border-top: 0;
   display: flex;
   flex: 0 0 auto;
   flex-wrap: wrap;
@@ -1183,6 +1184,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   content: '';
 }
 
+[data-habit-row-body] {
+  --habit-row-meta-color: var(--fg-3);
+}
+
+.habit-row-meta {
+  color: var(--habit-row-meta-color);
+  transition: color var(--dur-hover) var(--ease-standard);
+}
+
+[data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):active {
+  background: var(--bg-hover);
+  --habit-row-meta-color: var(--fg-2);
+}
+
 @media (hover: hover) and (pointer: fine) {
   @layer components {
   .icon-btn:not(:disabled):hover,
@@ -1202,6 +1217,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
   [data-habit-row-body]:not(:disabled):not([aria-disabled="true"]):hover {
     background: var(--bg-hover);
+    --habit-row-meta-color: var(--fg-2);
   }
 
   @layer components {

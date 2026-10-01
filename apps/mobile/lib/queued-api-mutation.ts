@@ -17,14 +17,17 @@ export async function performQueuedApiMutation<
   execute,
   queuedResult,
   queuedResultFactory,
+  isCurrent,
   ...mutation
 }: QueuedMutationBuildOptions & {
   execute?: (mutation: QueuedMutation) => Promise<TResult>
+  isCurrent?: () => boolean
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
   return runQueuedMutation({
     mutation,
+    isCurrent,
     execute:
       execute ??
       (async (resolvedMutation) =>

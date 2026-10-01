@@ -1,6 +1,7 @@
 "use client"
 
 import { type KeyboardEvent, useEffect, useState } from 'react'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
@@ -86,7 +87,7 @@ export function CommandMenuWithSearch({ navItems, onCreateHabit, onClose, search
     if (logHabit.isPending || skipHabit.isPending) return
     if (page === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: () => { back(); onClose() } })
     else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
-    else run(() => router.push(`/habits/${id}`))
+    else run(() => requestHabitCreateNavigation(() => router.push(`/habits/${id}`)))
   }
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (page && (event.key === 'Escape' || (event.key === 'Backspace' && search.text === ''))) {

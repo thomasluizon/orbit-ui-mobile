@@ -226,15 +226,13 @@ for (const width of [412, 1280] as const) {
     })
 
     test('fills checklist, reminder, and date-picker targets', async ({ page }) => {
-      await page.goto('/')
-      const create = width === 1280
-        ? page.locator('[data-shell-sidebar]').getByRole('button', { name: ptBr.nav.createHabit })
-        : page.getByRole('button', { name: ptBr.habits.createManually })
-      await create.click()
+      await page.goto('/habits/new')
+      const screen = page.locator('[data-habit-create-screen]')
+      await expect(screen).toBeVisible()
       const recurringTitleThatShowsEndDate = 'Beber água todo dia'
-      await page.getByRole('textbox', { name: ptBr.habits.form.describe, exact: true }).fill(recurringTitleThatShowsEndDate)
-      await page.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
-      const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
+      await screen.getByRole('textbox', { name: ptBr.habits.form.describe, exact: true }).fill(recurringTitleThatShowsEndDate)
+      await screen.getByRole('button', { name: ptBr.habits.form.moreDetails }).click()
+      const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByPlaceholder(ptBr.habits.form.checklistPlaceholder).fill('Beber água')
       await disclosure.getByPlaceholder(ptBr.habits.form.checklistPlaceholder).press('Enter')
       const step = disclosure.locator('.checklist-drag-handle').locator('xpath=..')

@@ -129,9 +129,7 @@ export function deriveStreakFreezeState(
   fallbackProfile?: StreakFreezeFallback | null,
   today = formatAPIDate(new Date()),
 ): StreakFreezeDerivedState {
-  const streakFreezesAccumulated = streakInfo?.streakFreezesAccumulated
-    ?? fallbackProfile?.streakFreezesAvailable
-    ?? 0
+  const streakFreezesAccumulated = streakInfo?.streakFreezesAccumulated ?? 0
   const maxStreakFreezesAccumulated = streakInfo?.maxStreakFreezesAccumulated ?? 3
   const freezesUsedThisMonth = streakInfo?.freezesUsedThisMonth ?? 0
   const maxFreezesPerMonth = streakInfo?.maxFreezesPerMonth ?? 3

@@ -118,7 +118,6 @@ function DeferredConfirmDialogs(
   const open =
     props.showDeleteConfirm ||
     props.deletePending ||
-    props.habitToSkip !== null ||
     props.duplicateHabitName !== null ||
     props.parentPrompt !== null
   if (open && !activated) setActivated(true)
@@ -704,12 +703,6 @@ export function HabitList({
     id: string; name: string; descendantCount: number
   } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
-  const [habitToSkip, setHabitToSkip] = useAccountScopedState<{ habit: NormalizedHabit; date: string } | null>(null)
-  const [skipStateDate, setSkipStateDate] = useState(selectedDateStr)
-  if (skipStateDate !== selectedDateStr) {
-    setSkipStateDate(selectedDateStr)
-    setHabitToSkip(null)
-  }
 
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useAccountScopedState(false)
   const [movingHabitId, setMovingHabitId] = useAccountScopedState<string | null>(null)
@@ -740,7 +733,6 @@ export function HabitList({
     showRescheduleSheet ||
     showDeleteConfirm ||
     deletePending ||
-    habitToSkip?.date === selectedDateStr ||
     habitToDuplicate ||
     parentPrompt ||
     showMoveParentOverlay,
@@ -1080,7 +1072,14 @@ export function HabitList({
     const settlementData = promptDataRef.current
     const confirmedResolutions = confirmedResolutionsRef.current
     try {
-      await skipHabit.mutateAsync({ habitId, date })
+      await skipHabit.mutateAsync({
+        habitId,
+        date,
+        onUndo: () => {
+          confirmedResolutions.modes.delete(habitId)
+          confirmedResolutions.skippedIds.delete(habitId)
+        },
+      })
       if (
         promptDataRef.current?.selectedDateStr !== date ||
         confirmedResolutionsRef.current !== confirmedResolutions
@@ -1272,7 +1271,7 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: completionReadOnly ? undefined : () => setHabitToSkip({ habit, date: selectedDateStr }),
+          onSkip: completionReadOnly ? undefined : () => { void skipFromRow(habit) },
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -1454,7 +1453,6 @@ export function HabitList({
         deleteHabitName={deleteConfirmation.name}
         deleteDescendantCount={deleteConfirmation.descendantCount}
         duplicateHabitName={habitToDuplicate?.title ?? null}
-        habitToSkip={habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null}
         parentPrompt={parentPrompt?.date === selectedDateStr
           ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
           : null}
@@ -1469,12 +1467,6 @@ export function HabitList({
         }}
         onConfirmDuplicate={() => void confirmDuplicate()}
         onCancelDuplicate={() => setHabitToDuplicate(null)}
-        onConfirmSkip={() => {
-          const habit = habitToSkip?.date === selectedDateStr ? habitToSkip.habit : null
-          setHabitToSkip(null)
-          if (habit) void skipFromRow(habit)
-        }}
-        onCancelSkip={() => setHabitToSkip(null)}
         onConfirmParent={confirmParentSettlement}
         onCancelParent={() => setParentPromptQueue(
           (current) => shiftParentPrompt(current, selectedDateStr),

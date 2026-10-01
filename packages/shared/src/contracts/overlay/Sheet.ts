@@ -8,6 +8,8 @@ export interface SheetProps {
   actions?: React.ReactNode
   /** Reduces the body's horizontal inset when fixed-size controls need more room. */
   minimumBodyWidth?: number
+  /** Keeps bounded picker controls within the space left by the header and footer. */
+  boundedBody?: boolean
   onClose?: () => void
   /** Receives dismissal attempts while the host blocks closing. */
   onAttemptDismiss?: () => void

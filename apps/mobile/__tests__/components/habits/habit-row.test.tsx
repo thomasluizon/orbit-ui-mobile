@@ -7,6 +7,7 @@ import { Icon } from '@/components/ui/icon'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import {
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -28,8 +29,9 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
+const themeMock = vi.hoisted((): { currentTheme: 'dark' | 'light' } => ({ currentTheme: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeMock.currentTheme }),
 }))
 
 vi.mock('@/lib/motion', () => ({
@@ -59,6 +61,68 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
   return collectStrings(tree!.toJSON())
 }
 
+describe('HabitRow neutral metadata contrast (mobile)', () => {
+  afterEach(() => { themeMock.currentTheme = 'dark' })
+
+  const cases = [
+    { label: 'parent count', parent: true, exceptional: false },
+    { label: 'single time', parent: false, exceptional: false },
+    { label: 'count with state words', parent: true, exceptional: true },
+    { label: 'time with state words', parent: false, exceptional: true },
+  ]
+  const scenarios = (['dark', 'light'] as const).flatMap((mode) =>
+    cases.flatMap((row) => ([0, 1] as const).map((depth) => ({ mode, ...row, depth }))),
+  )
+
+  it.each(scenarios)('$mode $label, depth=$depth clears the text floor', ({ mode, label, parent, exceptional, depth }) => {
+    themeMock.currentTheme = mode
+    const tokens = createTokensV2('orange', mode)
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow depth={depth} hasChildren={parent}
+        childrenDone={parent ? 1 : 0} childrenTotal={parent ? 2 : 0}
+        habit={createMockHabit({ title: label, dueTime: '21:00',
+          isOverdue: exceptional, isBadHabit: exceptional, isLoggedInRange: exceptional })} />)
+    })
+    const body = renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    const metadata = body.findAllByType('Text').find(
+      (node: { children: unknown[] }) => node.children.includes(parent ? 'habits.rowProgress' : '21:00'),
+    )
+    expect(metadata).toBeDefined()
+    function assertStateWords() {
+      for (const [word, color] of [['habits.overdue', tokens.statusOverdueText], ['habits.statusDot.bad', tokens.statusBadText]]) {
+        const stateWord = metadata.findAllByType('Text').find(
+          (node: { children: unknown[] }) => node.children.includes(word),
+        )
+        expect(StyleSheet.flatten(stateWord.props.style).color).toBe(color)
+      }
+    }
+    for (const pressed of [false, true, false]) {
+      TestRenderer.act(() => pressed ? body.props.onPressIn() : body.props.onPressOut())
+      const card = renderer!.root.findByProps({ testID: 'habit-row' })
+      const layers = [tokens.bg, StyleSheet.flatten(card.props.style).backgroundColor]
+      const bodyFill = StyleSheet.flatten(body.props.style({ pressed })).backgroundColor
+      if (bodyFill) layers.push(bodyFill)
+      const foreground = StyleSheet.flatten(metadata.props.style).color
+      expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
+      expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
+      if (pressed && mode === 'dark') {
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+      }
+      for (const separator of metadata.findAllByType('Text').filter(
+        (node: { children: unknown[] }) => node.children.includes(' · '),
+      )) {
+        expect(StyleSheet.flatten(separator.props.style).color).toBe(pressed ? tokens.fg2 : tokens.fg3)
+        expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
+      }
+      if (exceptional) assertStateWords()
+    }
+    TestRenderer.act(() => renderer.unmount())
+  })
+})
+
 describe('HabitRow canonical content (mobile)', () => {
   it('shows time alone and omits routine meta on an untimed single row', () => {
     const timed = renderRowText(createMockHabit({ dueTime: '21:00' }))
@@ -81,17 +145,19 @@ describe('HabitRow canonical content (mobile)', () => {
   })
 
   it.each([
+    { label: 'ordinary', isOverdue: false, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: [], state: 'empty' },
     { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
-      words: ['habits.overdue'] },
+      words: ['habits.overdue'], state: 'overdue' },
     { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
-      words: ['habits.statusDot.bad'] },
+      words: ['habits.statusDot.bad'], state: 'bad' },
     { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
-      words: ['habits.overdue', 'habits.statusDot.bad'] },
+      words: ['habits.overdue', 'habits.statusDot.bad'], state: 'bad' },
     { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
-      words: [] },
+      words: [], state: 'bad' },
     { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
-      words: [] },
-  ])('renders parent progress with applicable state words for $label', ({ label, words, ...flags }) => {
+      words: [], state: 'done' },
+  ])('renders parent progress with applicable state words for $label', ({ label, words, state, ...flags }) => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: label,
@@ -105,6 +171,18 @@ describe('HabitRow canonical content (mobile)', () => {
       if (!words.includes(word)) expect(text).not.toContain(word)
     }
     expect(text).not.toContain('21:00')
+    const body = tree!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    const supplementaryWords = state === 'bad' && flags.isOverdue ? ['habits.overdue'] : []
+    expect(body.props.accessibilityLabel).toBe(
+      [label, `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
+    )
+    expect(body.props.accessibilityHint).toBeUndefined()
+    expect(tree!.root.findAllByType('Pressable').some(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === `habits.statusDot.${state}, habits.${flags.isCompleted || flags.isLoggedInRange ? 'actions.unlog' : 'logHabit'}: ${label}, 1/2`,
+    )).toBe(true)
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -229,6 +307,43 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('updates the body metadata while its title and primary state stay the same', () => {
+    const onDetail = vi.fn()
+    const habit = createMockHabit({ title: 'Evening routine', isBadHabit: true, isLoggedInRange: true })
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={habit} actions={{ onDetail }} />)
+    })
+    const body = () => renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.statusDot.bad')
+    TestRenderer.act(() => {
+      renderer.update(<HabitRow habit={{ ...habit, isOverdue: true }} hasChildren
+        childrenDone={1} childrenTotal={2} actions={{ onDetail }} />)
+    })
+    expect(body().props.accessibilityLabel).toBe(
+      'Evening routine, habits.statusDot.bad, habits.rowProgress, habits.overdue',
+    )
+    TestRenderer.act(() => body().props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('includes a single row time range and keeps its future hint separate', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read',
+        dueTime: '08:00', dueEndTime: '09:00', dueDate: '2026-09-15' })} />)
+    })
+    const body = renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body.props.accessibilityLabel).toBe('Read, habits.statusDot.empty, 08:00 - 09:00')
+    expect(body.props.accessibilityHint).toBe('habits.schedule.dueInDays')
+    TestRenderer.act(() => renderer.unmount())
+  })
+
   it('reports the row overflow menu state through open and close', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

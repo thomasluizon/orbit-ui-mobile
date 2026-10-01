@@ -126,6 +126,30 @@ describe('Sheet', () => {
     expect(screen.getByRole('button', { name: 'Delete' }).closest('[data-slot="sheet-actions"]')).not.toBeNull()
   })
 
+  it.each([1, 14])('separates footer actions from a %i-row body with space only', (rowCount) => {
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    document.head.append(stylesheet)
+    try {
+      render(
+        <Sheet open title="Options" actions={<button type="button">Save</button>}>
+          {Array.from({ length: rowCount }, (_, index) => <p key={index}>Row {index + 1}</p>)}
+        </Sheet>,
+      )
+      const dialog = screen.getByRole('dialog')
+      const body = dialog.querySelector('[data-slot="sheet-body"]')!
+      const footer = screen.getByRole('button', { name: 'Save' }).closest<HTMLElement>('[data-slot="sheet-actions"]')!
+      expect(body).not.toContainElement(footer)
+      expect(getComputedStyle(body).paddingBottom).toBe('24px')
+      const footerStyle = getComputedStyle(footer)
+      expect(footerStyle.paddingTop).toBe('16px')
+      expect(Number.parseFloat(footerStyle.borderTopWidth) || 0).toBe(0)
+      expect(footerStyle.boxShadow).toMatch(/^(none)?$/)
+    } finally {
+      stylesheet.remove()
+    }
+  })
+
   it('finishes its exit before reporting close', async () => {
     const onClose = vi.fn()
     render(<Sheet open title="Options" onClose={onClose} />)

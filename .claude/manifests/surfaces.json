@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 195,
-  "cellCount": 836,
+  "surfaceCount": 199,
+  "cellCount": 852,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -461,6 +461,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-habits-new",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/habits/new/page.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/web/app/(app)/habits/new/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-habits-new",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/habits/new/page.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/web/app/(app)/habits/new/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-habits-new",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/habits/new/page.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/web/app/(app)/habits/new/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-habits-new",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/habits/new/page.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/web/app/(app)/habits/new/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-notifications",
       "platform": "web",
       "kind": "route",
@@ -4557,6 +4609,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habits-habit-create-frame",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-create-frame",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-create-frame",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-create-frame",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-habit-detail-fields",
       "platform": "web",
       "kind": "overlay",
@@ -6831,6 +6935,62 @@
       "href": "/habits/[id]",
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-habits-new",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/habits/new.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/mobile/app/habits/new.tsx",
+        "apps/mobile/lib/offline-recovery.ts"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-habits-new",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/habits/new.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/mobile/app/habits/new.tsx",
+        "apps/mobile/lib/offline-recovery.ts"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-habits-new",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/habits/new.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/mobile/app/habits/new.tsx",
+        "apps/mobile/lib/offline-recovery.ts"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-habits-new",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/habits/new.tsx",
+      "href": "/habits/new",
+      "ownedFiles": [
+        "apps/mobile/app/habits/new.tsx",
+        "apps/mobile/lib/offline-recovery.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -9847,6 +10007,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-create-frame",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-create-frame",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-create-frame",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-create-frame",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-create-frame.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-create-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",

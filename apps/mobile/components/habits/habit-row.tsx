@@ -170,6 +170,7 @@ function useBodyPressFeedback(
 ) {
   const [pressed, setPressed] = useState(false)
   return {
+    metaColor: pressed ? tokens.fg2 : tokens.fg3,
     feedbackStyle:
       pressed
         ? { borderColor: tokens.hairlineStrong }
@@ -318,19 +319,15 @@ export const HabitRow = memo(function HabitRow({
     tokens,
   })
 
-  const knownRowAccessibilityLabel = useMemo(
-    () =>
-      buildHabitRowAccessibilityLabel({
-        title: habit.title,
-        dotState,
-        linkedGoal: false,
-        showStreak: false,
-        streak: 0,
-        t,
-      }),
-    // react-doctor-disable-next-line exhaustive-deps -- streak is the extracted habit.currentStreak and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [habit.title, dotState, t],
-  )
+  const knownRowAccessibilityLabel = buildHabitRowAccessibilityLabel({
+    title: habit.title,
+    dotState,
+    metaParts,
+    linkedGoal: false,
+    showStreak: false,
+    streak: 0,
+    t,
+  })
   const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
 
   return (
@@ -391,6 +388,7 @@ export const HabitRow = memo(function HabitRow({
             habit={habit}
             titleSize={titleSize}
             titleColor={titleColor}
+            metaColor={bodyPressFeedback.metaColor}
             metaParts={metaParts}
             tokens={tokens}
           />

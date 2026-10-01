@@ -3,6 +3,7 @@ import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 interface SelectionTrayProps {
   count: number
@@ -49,6 +50,7 @@ export function SelectionTray({
 }: Readonly<SelectionTrayProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const prefersReducedMotion = usePrefersReducedMotion()
   const disabled = count === 0
   const completionDisabled = disabled || completionReadOnly
 
@@ -77,12 +79,15 @@ export function SelectionTray({
           onPress={allSelected ? onDeselectAll : onSelectAll}
           style={({ pressed }) => [
             styles.selectAllBtn,
-            pressed ? [styles.pressedScale, { backgroundColor: tokens.bgHoverOpaque }] : null,
+            pressed ? { backgroundColor: tokens.bgHoverOpaque } : null,
+            pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
-          <Text style={[styles.selectAllText, { color: tokens.fg2 }]}>
+          {({ pressed }) => (
+            <Text style={[styles.selectAllText, { color: pressed ? tokens.fg1 : tokens.fg2 }]}>
             {allSelected ? deselectAllLabel : selectAllLabel}
-          </Text>
+            </Text>
+          )}
         </Pressable>
       </View>
       <View style={styles.actions}>
@@ -95,8 +100,8 @@ export function SelectionTray({
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
-            pressed ? styles.pressedScale : null,
+            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
+            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
         >
@@ -115,8 +120,8 @@ export function SelectionTray({
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
-            pressed ? styles.pressedScale : null,
+            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
+            pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
         >
@@ -134,8 +139,8 @@ export function SelectionTray({
           onPress={onDelete}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
-            pressed ? styles.pressedScale : null,
+            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
+            pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
         >
@@ -153,7 +158,7 @@ export function SelectionTray({
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
-            pressed ? styles.pressedScale : null,
+            pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
           <X size={20} color={tokens.fg2} strokeWidth={1.8} />
