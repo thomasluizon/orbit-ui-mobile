@@ -1,12 +1,14 @@
 import { Suspense, useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { TodayHeaderRegion, TodayHabitsPanel, TodayOverlays } from '@/app/(app)/today-page-view'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodayView } from '@/app/(app)/use-today-page'
-import { DestinationShell } from '@/components/shell/destination-shell'
 import { getTodayBoundary } from '@orbit/shared/utils'
 
-const chunks = vi.hoisted(() => {
+let chunks: ReturnType<typeof createChunks>
+let todayComponents: typeof import('@/app/(app)/today-page-view')
+let DestinationShell: typeof import('@/components/shell/destination-shell')['DestinationShell']
+
+function createChunks() {
   let resolveSelection!: () => void
   let resolveConfirmation!: () => void
   return {
@@ -19,19 +21,11 @@ const chunks = vi.hoisted(() => {
       resolve: () => resolveConfirmation(),
     },
   }
-})
+}
 
 vi.mock('next/dynamic', async () => ({
   default: (await import('next/dist/shared/lib/app-dynamic')).default,
 }))
-vi.mock('@/components/habits/selection-tray', async (importOriginal) => {
-  await chunks.selection.promise
-  return importOriginal<typeof import('@/components/habits/selection-tray')>()
-})
-vi.mock('@/components/ui/confirm-sheet', async (importOriginal) => {
-  await chunks.confirmation.promise
-  return importOriginal<typeof import('@/components/ui/confirm-sheet')>()
-})
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
@@ -69,6 +63,7 @@ vi.mock('@/components/habits/habit-list', () => ({
 }))
 
 function TodayHarness() {
+  const { TodayHeaderRegion, TodayHabitsPanel, TodayOverlays } = todayComponents
   const [today, setToday] = useState('2026-09-13')
   const [isSelectMode, setSelectMode] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
@@ -129,6 +124,28 @@ function expectTodayVisible() {
 }
 
 describe('Today lazy overlays', () => {
+  beforeEach(async () => {
+    vi.resetModules()
+    chunks = createChunks()
+    vi.doMock('@/components/habits/selection-tray', async (importOriginal) => {
+      await chunks.selection.promise
+      return importOriginal<typeof import('@/components/habits/selection-tray')>()
+    })
+    vi.doMock('@/components/ui/confirm-sheet', async (importOriginal) => {
+      await chunks.confirmation.promise
+      return importOriginal<typeof import('@/components/ui/confirm-sheet')>()
+    })
+    todayComponents = await import('@/app/(app)/today-page-view')
+    DestinationShell = (await import('@/components/shell/destination-shell')).DestinationShell
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      chunks.selection.resolve()
+      chunks.confirmation.resolve()
+    })
+  })
+
   it('keeps Today visible during each first chunk load and preserves the overlay actions', async () => {
     render(<TodayHarness />)
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
@@ -183,6 +200,7 @@ describe('Today lazy overlays', () => {
   it('refreshes the hosted tray when a pinned selection passes the logging limit', async () => {
     render(<TodayHarness />)
     enterSelection()
+    await act(async () => { chunks.selection.resolve() })
     const tray = await screen.findByTestId('bulk-action-bar')
     expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Advance day' }))
