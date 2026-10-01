@@ -260,6 +260,7 @@ export type {
   HabitPhraseFormOwnership,
   HabitUnderstandingLabels,
   HabitUnderstandingProps,
+  HabitRepeatIntervalProps,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

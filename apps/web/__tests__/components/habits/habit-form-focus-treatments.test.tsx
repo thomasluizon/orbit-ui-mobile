@@ -48,9 +48,6 @@ const understandingLabels = {
   less: 'Less often',
   more: 'More often',
   count: (count: number) => `${count} times a week`,
-  scheduleMode: 'Schedule',
-  setDays: 'Set days',
-  timesAWeek: 'Times a week',
   repeat: (count: number) => `Every ${count} weeks`,
   repeatLess: 'Repeat less often',
   repeatMore: 'Repeat more often',
@@ -74,15 +71,12 @@ function renderPhraseField(sentence: string | null = null) {
       dayOptions={[]}
       quantity={1}
       mode="fixed"
-      intervalWeeks={1}
       sentence={sentence}
       consumed={[]}
       onValueChange={vi.fn()}
       onEmojiSelect={vi.fn()}
       onToggleDay={vi.fn()}
       onQuantityChange={vi.fn()}
-      onModeChange={vi.fn()}
-      onIntervalWeeksChange={vi.fn()}
       labels={understandingLabels}
     />,
   )
@@ -91,7 +85,7 @@ function renderPhraseField(sentence: string | null = null) {
 describe('habit form focus treatments', () => {
   it('replaces a readable sentence in place without retaining the old copy', () => {
     const view = renderPhraseField('A')
-    const props = { value: 'Run', emoji: '', days: [], dayOptions: [], quantity: 1, mode: 'fixed' as const, intervalWeeks: 1, consumed: [], onValueChange: vi.fn(), onEmojiSelect: vi.fn(), onToggleDay: vi.fn(), onQuantityChange: vi.fn(), onModeChange: vi.fn(), onIntervalWeeksChange: vi.fn(), labels: understandingLabels }
+    const props = { value: 'Run', emoji: '', days: [], dayOptions: [], quantity: 1, mode: 'fixed' as const, consumed: [], onValueChange: vi.fn(), onEmojiSelect: vi.fn(), onToggleDay: vi.fn(), onQuantityChange: vi.fn(), labels: understandingLabels }
     view.rerender(<HabitUnderstanding {...props} sentence="B" />)
     expect(screen.queryByText('A')).toBeNull()
     expect(screen.getByText('B')).toBeInTheDocument()

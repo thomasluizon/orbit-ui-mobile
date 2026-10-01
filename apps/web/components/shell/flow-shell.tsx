@@ -61,6 +61,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
       className={contentClassName(mode)}
     >
       <div
+        data-field-surface={mode === 'card' ? 'responsive-card' : undefined}
         className={contentFrameClassName(mode)}
         style={{ gap: 24 }}
       >

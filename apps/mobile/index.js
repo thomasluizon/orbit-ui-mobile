@@ -1,2 +1,8 @@
+import "@formatjs/intl-getcanonicallocales/polyfill.js";
+import "@formatjs/intl-locale/polyfill.js";
+import "@formatjs/intl-listformat/polyfill.js";
+import "@formatjs/intl-listformat/locale-data/en.js";
+import "@formatjs/intl-listformat/locale-data/en-GB.js";
+import "@formatjs/intl-listformat/locale-data/pt.js";
 import "./lib/sentry-init";
 import "expo-router/entry";

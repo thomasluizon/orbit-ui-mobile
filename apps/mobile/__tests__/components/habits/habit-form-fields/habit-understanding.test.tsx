@@ -49,9 +49,6 @@ const labels = {
   less: "Less often",
   more: "More often",
   count: (count: number) => `${count === 1 ? "time" : "times"} a week`,
-  scheduleMode: "Schedule",
-  setDays: "Set days",
-  timesAWeek: "Times a week",
   repeat: (count: number) => count === 1 ? "Every week" : `Every ${count} weeks`,
   repeatLess: "Repeat less often",
   repeatMore: "Repeat more often",
@@ -71,15 +68,12 @@ function renderUnderstanding(
     ],
     quantity: 1,
     mode: "fixed",
-    intervalWeeks: 1,
     sentence: null,
     consumed: [],
     onValueChange: vi.fn(),
     onEmojiSelect: vi.fn(),
     onToggleDay: vi.fn(),
     onQuantityChange: vi.fn(),
-    onModeChange: vi.fn(),
-    onIntervalWeeksChange: vi.fn(),
     labels,
     ...overrides,
   };
@@ -261,9 +255,9 @@ describe("HabitUnderstanding mobile", () => {
 });
 
 describe('schedule press fills', () => {
-  it('fills selected and idle weekdays and both repeat controls', () => {
-    const { tree } = renderUnderstanding({ value: 'Run', days: ['Monday'], intervalWeeks: 2 });
-    for (const label of ['Segunda-feira', 'Terça-feira', labels.repeatLess, labels.repeatMore]) {
+  it('fills selected and idle weekdays controls', () => {
+    const { tree } = renderUnderstanding({ value: 'Run', days: ['Monday'] });
+    for (const label of ['Segunda-feira', 'Terça-feira']) {
       expectPressFill(tree, label, tokens.bgHover, radius.full);
     }
   });
@@ -272,3 +266,20 @@ describe('schedule press fills', () => {
     for (const label of [labels.less, labels.more]) expectPressFill(tree, label, tokens.bgHover, radius.full);
   });
 });
+
+
+describe('cadence correction visibility', () => {
+  it.each([
+    { mode: 'fixed' as const, sentence: 'every Monday', hasCount: false },
+    { mode: 'flexible' as const, sentence: '3 times a week, any day', hasCount: true },
+    { mode: 'fixed' as const, sentence: null, hasCount: true },
+  ])('keeps days visible with count: $hasCount for $sentence', ({ mode, sentence, hasCount }) => {
+    const { tree, props } = renderUnderstanding({ value: 'Run', mode, sentence })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup')).toHaveLength(0)
+    expect(button(tree, 'Segunda-feira')).toBeDefined()
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === labels.more)).toHaveLength(hasCount ? 1 : 0)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === labels.repeatMore)).toHaveLength(0)
+    TestRenderer.act(() => (button(tree, 'Segunda-feira').props.onPress as () => void)())
+    expect(props.onToggleDay).toHaveBeenCalledWith('Monday')
+  })
+})
