@@ -29,18 +29,23 @@ describe('StatTile', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([320, 344, 360, 411, 412, 1352])('fits every localized weekday at %ipx', async (width) => {
+    it.each([320, 344, 360, 411, 412, 500, 768, 1352, 1440])('keeps every localized weekday at the same 24px size without overflow at %ipx', async (width) => {
       const weekdays = [...Object.values(en.dates.daysValue), ...Object.values(ptBR.dates.daysValue)]
       const { container } = render(
         <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4" style={{ width: Math.min(width - 32, 740) }}>
-          {weekdays.map((weekday) => <StatTile key={weekday} value={weekday} label="Best weekday" valueSize="lg" />)}
+          <StatTile value="38%" label="Completion rate" />
+          <StatTile value={2} label="Active days" />
+          <StatTile value="Caminhar" label="Top habit" />
+          <StatTile value="A long habit name that needs several lines" label="Top habit" />
+          <StatTile value="AnUnbrokenHabitNameThatNeedsSeveralLines" label="Top habit" />
+          {weekdays.map((weekday) => <StatTile key={weekday} value={weekday} label="Best weekday" />)}
         </div>,
       )
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
-        const geometry = await page.locator('.stat-tile-large-value').evaluateAll((elements) => elements.map((element) => {
+        const geometry = await page.locator('[data-state="default"] > span:first-child').evaluateAll((elements) => elements.map((element) => {
           const valueBounds = element.getBoundingClientRect()
           const tile = element.parentElement!
           const tileBounds = tile.getBoundingClientRect()
@@ -48,10 +53,12 @@ describe('StatTile', () => {
           const range = document.createRange()
           range.selectNodeContents(element)
           const textWidth = range.getBoundingClientRect().width
+          const lines = range.getClientRects().length
           return {
             weekday: element.textContent,
             size: Number.parseFloat(style.fontSize),
             textWidth,
+            lines,
             contentWidth: tile.clientWidth - Number.parseFloat(getComputedStyle(tile).paddingLeft) - Number.parseFloat(getComputedStyle(tile).paddingRight),
             scrollWidth: element.scrollWidth,
             clientWidth: element.clientWidth,
@@ -59,21 +66,14 @@ describe('StatTile', () => {
               && valueBounds.top >= tileBounds.top && valueBounds.bottom <= tileBounds.bottom,
           }
         }))
+        if (width === 344) expect(geometry.some((measured) => measured.lines > 1)).toBe(true)
         for (const measured of geometry) {
-          expect(measured.size, measured.weekday!).toBe(width >= 344 && width < 412 ? 17 : 22)
-          expect(measured.textWidth, measured.weekday!).toBeLessThanOrEqual(measured.contentWidth)
+          expect(measured.size, measured.weekday!).toBe(24)
+          expect(measured.textWidth, measured.weekday!).toBeLessThanOrEqual(measured.contentWidth + 0.5)
           expect(measured.scrollWidth, measured.weekday!).toBeLessThanOrEqual(measured.clientWidth)
           expect(measured.inside, measured.weekday!).toBe(true)
         }
-        if (width === 344) {
-          const nextSizeWidths = await page.locator('.stat-tile-large-value').evaluateAll((elements) => elements.map((element) => {
-            (element as HTMLElement).style.fontSize = 'var(--fs-lg)'
-            const range = document.createRange()
-            range.selectNodeContents(element)
-            return range.getBoundingClientRect().width
-          }))
-          expect(Math.max(...nextSizeWidths), 'the next canvas size cannot fit the narrowest two-column tile').toBeGreaterThan(geometry[0]!.contentWidth)
-        }
+
       } finally {
         await page.close()
       }
@@ -91,15 +91,11 @@ describe('StatTile', () => {
     expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
-  it('keeps large weekday values on one line for the tile width query', () => {
-    render(<StatTile value="Wednesday" label="Best weekday" valueSize="lg" />)
+  it('keeps long values readable at the common value size', () => {
+    render(<StatTile value="Wednesday" label="Best weekday" />)
     const value = screen.getByText('Wednesday')
-    expect(value).toHaveClass('stat-tile-large-value', 'max-w-full', 'whitespace-nowrap')
-    expect(value).not.toHaveClass('overflow-hidden', 'text-ellipsis', 'break-words')
-    expect(value).not.toHaveStyle({ overflowWrap: 'anywhere' })
-    expect(value.parentElement).toHaveClass('stat-tile-large', 'px-6', 'py-4')
+    expect(value).toHaveStyle({ fontSize: 24, overflowWrap: 'anywhere' })
     expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
-    expect(24 + 40 + 8 + 2 * 16).toBeLessThanOrEqual(STAT_TILE_MIN_HEIGHT)
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {
