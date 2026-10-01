@@ -94,7 +94,7 @@ export function OfflineNotice() {
 }
 
 const styles = StyleSheet.create({
-  host: { padding: 16, gap: 12, zIndex: zLayers.toast },
+  host: { paddingVertical: 16, gap: 12, zIndex: zLayers.toast },
   dropped: { gap: 4 },
   dismiss: { alignSelf: 'flex-end', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
 })
