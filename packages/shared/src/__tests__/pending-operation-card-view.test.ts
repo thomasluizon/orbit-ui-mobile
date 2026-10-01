@@ -109,9 +109,9 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['habit_ids', '[]', [], 'Remove all habit links', 'Remover todos os vínculos com hábitos'],
     ['goal_ids', '[]', [], 'Remove all goal links', 'Remover todos os vínculos com metas'],
     ['new_parent_id', null, null, 'Move out of the parent habit', 'Mover para fora do hábito pai'],
-    ['slip_alert_enabled', 'false', false, 'Stop slip alerts', 'Parar alertas de recaída'],
+    ['slip_alert_enabled', 'false', false, 'Stop slip alerts', 'Parar alertas de deslize'],
     ['items', '["Pack shoes"]', ['Pack shoes'], 'Pack shoes', 'Pack shoes'],
-    ['action', 'mark_all_read', 'mark_all_read', 'Mark all alerts as read', 'Marcar todos os alertas como lidos'],
+    ['action', 'mark_all_read', 'mark_all_read', 'Mark all alerts as read', 'Marcar todos os avisos como lidos'],
     ['theme_preference', null, null, 'Use the system theme', 'Usar tema do sistema'],
   ] as const)('describes supported %s writes', (field, newValue, proposedValue, english, portuguese) => {
     expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
