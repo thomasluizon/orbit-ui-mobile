@@ -6,6 +6,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { profileSchema } from '@orbit/shared/types/profile'
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
 import { expectOneFieldIndicator, inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
@@ -19,6 +20,12 @@ async function expectCompleteTabIndicator(page: Page, control: Locator, surface:
   expect(ring?.focusVisible, surface).toBe(true)
   expect(ring?.indicators, surface).toHaveLength(1)
   expect(await readOutlineVisibility(control), surface).toMatchObject({ visible: true, clippedBy: [] })
+}
+
+async function refreshTodayHabits(page: Page) {
+  await page.getByRole('button', { name: messages.habits.listOptions }).click()
+  await page.getByRole('menu', { name: messages.habits.listOptions })
+    .getByRole('menuitem', { name: messages.habits.refresh }).click()
 }
 
 for (const width of [412, 1352] as const) {
@@ -38,7 +45,7 @@ for (const width of [412, 1352] as const) {
         const child = makeHabitScheduleItem().children[0]!
         parent.children = [0, 1].map((index) => ({ ...child, id: `focus-child-${index}`, title: `Child ${index}`, isGeneral: true, isCompleted: false, children: [] }))
         parent.hasSubHabits = true
-        const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 })
+        const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ ...emptyHabitsPageFixture, items, totalCount: items.length })
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: items.length } }))
       })
@@ -46,8 +53,9 @@ for (const width of [412, 1352] as const) {
       test('Hoje exposes complete rings at every control including sortable wrappers', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('html')).toHaveClass(new RegExp(mode))
+        await refreshTodayHabits(page)
         const main = page.locator('main[data-shell-scroller]')
-        await expect(main.locator('[data-testid="habit-row"]')).toHaveCount(14)
+        await expect(main.locator('[data-habit-title]')).toHaveCount(14)
         const handles = main.locator('[aria-roledescription="sortable"]')
         await expect(handles).toHaveCount(14)
         const controls = main.locator('button:visible:not(:disabled), a[href]:visible, [tabindex="0"]:visible')
@@ -68,6 +76,7 @@ for (const width of [412, 1352] as const) {
       test('pinned and conversation composers expose complete chip and control rings', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('html')).toHaveClass(new RegExp(mode))
+        await refreshTodayHabits(page)
         const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
         await expect(pinned).toBeVisible()
         const chips = pinned.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')

@@ -68,7 +68,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
       role="group"
       data-focus-inset=""
       onFocusCapture={revealFocusedControl}
-      className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="-mx-1 -my-1 flex min-w-0 gap-2 overflow-x-auto p-1 scroll-p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {suggestions.map((suggestion) => (
         <button

@@ -13,7 +13,7 @@ vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
   const ReactModule = await import('react')
   type PressableMockProps = Record<string, unknown> & {
-    children?: React.ReactNode
+    children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode)
     style?: React.ComponentProps<typeof original.Pressable>['style']
     onPressIn?: unknown
     onPressOut?: unknown
@@ -38,7 +38,7 @@ vi.mock('react-native', async (importOriginal) => {
             if (typeof onPressOut === 'function') onPressOut()
           },
         },
-        children as React.ReactNode,
+        typeof children === 'function' ? children({ pressed }) : children,
       )
     },
   )
@@ -101,11 +101,10 @@ it('keeps one complete suggestion focus outline inside the scroller without resi
   const target = {}
   const event = { nativeEvent: { target: 1 }, target, currentTarget: target }
   TestRenderer.act(() => chip().props.onFocus?.(event))
-  const focused = StyleSheet.flatten(chip().props.style)
+  const focused = StyleSheet.flatten(chip().findAllByType('View').at(-1).props.style)
   expect(focused.outlineWidth).toBe(2)
   expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
-  expect(focused.minHeight).toBe(resting.minHeight)
-  expect(focused.paddingHorizontal).toBe(resting.paddingHorizontal)
+  expect(StyleSheet.flatten(chip().props.style)).toEqual(resting)
   TestRenderer.act(() => chip().props.onBlur?.(event))
   expect(StyleSheet.flatten(chip().props.style).outlineWidth ?? 0).toBe(0)
 })

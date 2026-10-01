@@ -20,13 +20,12 @@ describe('feature guide chip focus', () => {
       const target = {}
       const event = { nativeEvent: { target: index + 1 }, target, currentTarget: target }
       TestRenderer.act(() => chips()[index].props.onFocus?.(event))
-      const focused = readStyle(index)
+      const focused = StyleSheet.flatten(chips()[index].findAllByType('View').at(-1).props.style)
       expect(focused.outlineWidth).toBe(2)
       expect(focused.outlineStyle).toBe('solid')
       expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
-      expect(focused.minHeight).toBe(resting.minHeight)
-      expect(focused.paddingHorizontal).toBe(resting.paddingHorizontal)
-      expect(chips().map((_: unknown, chipIndex: number) => readStyle(chipIndex).outlineWidth ?? 0).filter(Boolean)).toEqual([2])
+      expect(readStyle(index)).toEqual(resting)
+      expect(scroller.findAllByType('View').filter((view: { props: { pointerEvents?: string } }) => view.props.pointerEvents === 'none')).toHaveLength(1)
       TestRenderer.act(() => chips()[index].props.onBlur?.(event))
       expect(readStyle(index).outlineWidth ?? 0).toBe(0)
     }

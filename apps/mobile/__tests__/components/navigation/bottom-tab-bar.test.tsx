@@ -19,8 +19,8 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => theme }))
 
 const items = [{ id: 'today', label: 'Hoje' }, { id: 'calendar', label: 'Calendário' }, { id: 'progress', label: 'Progresso' }, { id: 'profile', label: 'Perfil' }]
 
-function getTabLabelStyle(tab: { props: { children?: unknown } }, pressed: boolean): unknown {
-  const renderContent = tab.props.children
+function getTabLabelStyle(tab: { props: { children?: unknown }; parent?: { props: { children?: unknown } } }, pressed: boolean): unknown {
+  const renderContent = tab.parent?.props.children
   if (typeof renderContent !== 'function') throw new Error('Tab content does not use Pressable state')
   const content: unknown = renderContent({ pressed })
   if (!isValidElement<{ children?: ReactNode }>(content)) {
