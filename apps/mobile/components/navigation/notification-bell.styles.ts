@@ -3,8 +3,12 @@ import type { createTokensV2 } from '@/lib/theme'
 
 export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
+    bellDisplay: {
+      width: 44, height: 44,
+      alignItems: 'center', justifyContent: 'center',
+    },
     bellButton: {
-      width: 44, height: 44, borderRadius: 999, overflow: 'hidden',
+      width: 44, height: 44, borderRadius: 999,
       alignItems: 'center', justifyContent: 'center',
     },
     bellCount: {

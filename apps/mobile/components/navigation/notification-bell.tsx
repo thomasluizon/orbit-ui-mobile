@@ -31,5 +31,5 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
     style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
     onPress={onPress}>{content}</Pressable>
-    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellButton}>{content}</View>
+    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{content}</View>
 }

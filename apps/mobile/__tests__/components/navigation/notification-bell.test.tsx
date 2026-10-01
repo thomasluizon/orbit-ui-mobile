@@ -309,6 +309,9 @@ describe('mobile alerts', () => {
       const indicator = hosts(tree, 'View', label)[0]!
       expect(indicator.props).toMatchObject({ accessible: true, accessibilityRole: 'image' })
       expect(indicator.props.onPress).toBeUndefined()
+      const displayStyle = StyleSheet.flatten(indicator.props.style as StyleProp<ViewStyle>)
+      expect(displayStyle.overflow).not.toBe('hidden')
+      expect(displayStyle.borderRadius).not.toBe(999)
       expect(testId(tree, 'notification-count')[0]!.props.children).toBe(count)
     }
     expectCount(2)
@@ -346,7 +349,11 @@ describe('mobile alerts', () => {
     expect(badge.props.children).toBe('9+')
     const tokens = createTokensV2('purple', mode)
     expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20, borderRadius: 8 })
-    expect(hosts(tree, 'Pressable', 'Alerts, 25 unread')).toHaveLength(1)
+    const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
+    expect(buttons).toHaveLength(1)
+    const buttonStyle = buttons[0]!.props.style
+    expect(StyleSheet.flatten(typeof buttonStyle === 'function' ? buttonStyle({ pressed: false }) : buttonStyle).overflow)
+      .not.toBe('hidden')
   })
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count
