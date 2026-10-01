@@ -127,7 +127,7 @@ function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
   const t = useTranslations()
   const status = reasonKey === 'calendar.dayCell.notScheduled' ? '' : t(reasonKey)
-  return <div className={status ? 'flex flex-wrap items-center gap-3 py-3' : undefined}><p className="text-sm text-[var(--fg-2)]">{status}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="secondary" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</div>
+  return <div className={status ? 'flex flex-wrap items-center gap-3 py-3' : undefined}><p className="text-sm text-[var(--fg-2)]">{status}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</div>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {

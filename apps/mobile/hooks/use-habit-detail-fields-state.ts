@@ -3,11 +3,9 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getHabitReminderPatch, toggleHabitDetailGoal, toggleHabitDetailField, mergeHabitReminderChanges, type HabitDetailField, type HabitDetailPatch, type ReminderChanges } from '@orbit/shared/hooks'
 
 interface HabitDetailFieldsState {
-  close: () => void
   goalIds: string[]
   openField: HabitDetailField | null
   reminderHabit: NormalizedHabit
-  save: (patch: HabitDetailPatch) => void
   toggleField: (field: HabitDetailField) => void
   toggleGoal: (goalId: string) => void
   updateReminders: (changes: ReminderChanges) => string | null
@@ -37,15 +35,9 @@ export function useHabitDetailFieldsState(
     setGoalIds(habit.linkedGoals?.map((goal) => goal.id) ?? [])
   }
 
-  const close = useCallback(() => setOpenField(null), [])
   const toggleField = useCallback((field: HabitDetailField) => {
     setOpenField(toggleHabitDetailField(openField, field))
   }, [openField])
-  const save = useCallback((patch: HabitDetailPatch) => {
-    void onPatch(patch).then((saved) => {
-      if (saved) close()
-    })
-  }, [close, onPatch])
   const toggleGoal = useCallback((goalId: string) => {
     const next = toggleHabitDetailGoal(goalIds, goalId)
     setGoalIds(next)
@@ -68,11 +60,9 @@ export function useHabitDetailFieldsState(
   const reminderHabit = useMemo(() => ({ ...habit, ...reminders.selection }), [habit, reminders.selection])
 
   return {
-    close,
     goalIds,
     openField,
     reminderHabit,
-    save,
     toggleField,
     toggleGoal,
     updateReminders,

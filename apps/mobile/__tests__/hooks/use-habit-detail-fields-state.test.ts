@@ -29,24 +29,18 @@ async function renderFieldsState(onPatch: Parameters<typeof useHabitDetailFields
 }
 
 describe('habit detail fields state', () => {
-  it('toggles one editor and keeps it open when a save fails', async () => {
-    const onPatch = vi.fn().mockResolvedValue(false)
+  it('toggles the goal editor without patching the habit', async () => {
+    const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)
-
-    await act(() => fields.current().toggleField('schedule'))
-    expect(fields.current().openField).toBe('schedule')
-    await act(() => fields.current().toggleField('schedule'))
+    await act(() => { fields.current().toggleField('goals') })
+    expect(fields.current().openField).toBe('goals')
+    await act(() => { fields.current().toggleField('goals') })
     expect(fields.current().openField).toBeNull()
-    await act(() => fields.current().toggleField('time'))
-    await act(() => fields.current().save({ dueTime: '08:00' }))
-    await act(async () => Promise.resolve())
-
-    expect(onPatch).toHaveBeenLastCalledWith({ dueTime: '08:00' })
-    expect(fields.current().openField).toBe('time')
-    fields.renderer.update(React.createElement(React.Fragment))
+    expect(onPatch).not.toHaveBeenCalled()
+    await act(() => { fields.renderer.update(React.createElement(React.Fragment)) })
   })
 
-  it('closes a saved editor and patches goals and valid reminder changes', async () => {
+  it('patches goals and valid reminder changes', async () => {
     const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)
 
@@ -80,10 +74,6 @@ describe('habit detail fields state', () => {
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
     })
 
-    await act(() => fields.current().toggleField('description'))
-    await act(() => fields.current().save({ description: 'Read deliberately' }))
-    await act(async () => Promise.resolve())
-    expect(fields.current().openField).toBeNull()
     fields.renderer.update(React.createElement(React.Fragment))
   })
   it.each(['relative', 'scheduled'])('rejects an over-cap %s reminder change before patching', async (cap) => {

@@ -829,6 +829,7 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoadError')
     expect(child().props.completionStatusUnavailable).toBe(true)
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoadError')).toBe(true)
+    expect(findPillButton(tree!.root, 'habits.detail.retry')!.props.variant).toBe('ghost')
     expect(tree!.root.findAllByType('ListRow').some((node: { props: { title?: string } }) => node.props.title === 'habits.detail.addSubHabit')).toBe(true)
     TestRenderer.act(() => child().props.actions.onDetail())
     expect(mocks.routerPush).toHaveBeenCalledOnce()

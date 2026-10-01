@@ -678,6 +678,7 @@ describe('HabitDetailScreen', () => {
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoadError')
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('habits.detail.dayHabitsLoadError')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'habits.detail.retry' })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getByText('habits.detail.addSubHabit')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.scopedRefetch).toHaveBeenCalledOnce()

@@ -107,7 +107,7 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const status = reasonKey === 'calendar.dayCell.notScheduled' ? '' : t(reasonKey)
-  return <View style={status ? styles.dayHabitsStatus : undefined}><Text style={[styles.muted, { color: tokens.fg2 }]}>{status}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="secondary" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
+  return <View style={status ? styles.dayHabitsStatus : undefined}><Text style={[styles.muted, { color: tokens.fg2 }]}>{status}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly<{ reason?: string; notScheduledReason: string; tokens: ReturnType<typeof createTokensV2> }>) {
