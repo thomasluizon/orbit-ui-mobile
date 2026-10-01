@@ -31,7 +31,49 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           (route) => route.fulfill({ json: recap }))
 
         await page.goto('/wrapped')
+        const periodGroup = page.getByRole('group', { name: messages.wrapped.periodGroup })
+        await expect(periodGroup.getByRole('button')).toHaveCount(3)
+        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons) => {
+          const reference = document.createElement('span')
+          document.body.append(reference)
+          const resolveColor = (token: string) => {
+            reference.style.backgroundColor = `var(${token})`
+            return getComputedStyle(reference).backgroundColor
+          }
+          const measured = buttons.map((button) => {
+            const selected = button.getAttribute('aria-pressed') === 'true'
+            const style = getComputedStyle(button)
+            reference.style.fontSize = 'var(--fs-sm)'
+            reference.style.boxShadow = selected
+              ? 'inset 0 0 0 1.5px var(--primary)'
+              : 'inset 0 0 0 1px var(--hairline)'
+            return {
+              selected,
+              fontSize: style.fontSize,
+              expectedFontSize: getComputedStyle(reference).fontSize,
+              background: style.backgroundColor,
+              expectedBackground: resolveColor(selected ? '--primary-dim' : '--bg-well'),
+              ring: style.boxShadow,
+              expectedRing: getComputedStyle(reference).boxShadow,
+              height: button.getBoundingClientRect().height,
+            }
+          })
+          reference.remove()
+          return measured
+        })
+        expect(chipStyles.filter((chip) => chip.selected)).toHaveLength(1)
+        for (const chip of chipStyles) {
+          expect(chip.fontSize).toBe(chip.expectedFontSize)
+          expect(chip.background).toBe(chip.expectedBackground)
+          expect(chip.ring).toBe(chip.expectedRing)
+          expect(chip.height).toBeGreaterThanOrEqual(44)
+        }
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
+          const zone = page.getByTestId(id)
+          await expect(zone).toHaveAttribute('tabindex', '-1')
+          await expect(zone.locator('..')).toHaveAttribute('aria-hidden', 'true')
+        }
         if (width === 412) {
           await page.evaluate(() => document.fonts.ready)
           const frame = await page.getByTestId('wrapped-frame').boundingBox()

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { typeRoles } from '@orbit/shared/theme'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -11,6 +12,7 @@ interface ChipProps {
   leading?: ReactNode
   /** Accessibility label override. Defaults to the chip text content. */
   accessibilityLabel?: string
+  variant?: 'default' | 'period'
 }
 
 /** Kit pill chip: bg-elev well with a hairline ring; active fills selection-bg
@@ -21,9 +23,11 @@ export function Chip({
   onPress,
   leading,
   accessibilityLabel,
+  variant = 'default',
 }: Readonly<ChipProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const isPeriod = variant === 'period'
 
   return (
     <Pressable
@@ -32,12 +36,15 @@ export function Chip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
       style={({ pressed }) => {
-        const pressedBackground = pressed ? tokens.bgHover : tokens.bgElev
+        const restingBackground = isPeriod ? tokens.bgWell : tokens.bgElev
+        const selectedBackground = isPeriod ? tokens.primaryDim : tokens.selectionBg
+        const pressedBackground = pressed ? tokens.bgHover : restingBackground
         return [
           styles.chip,
           {
-            backgroundColor: active ? pressed ? tokens.bgHover : tokens.selectionBg : pressedBackground,
-            borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
+            backgroundColor: active ? pressed ? tokens.bgHover : selectedBackground : pressedBackground,
+            borderColor: active ? isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45) : tokens.hairline,
+            borderWidth: active && isPeriod ? 1.5 : 1,
           },
           pressed && !active ? styles.chipPressed : null,
         ]
@@ -45,7 +52,7 @@ export function Chip({
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text
-        style={[styles.label, { color: active ? tokens.fg1 : tokens.fg2 }]}
+        style={[styles.label, isPeriod ? styles.periodLabel : null, { color: active ? tokens.fg1 : tokens.fg2 }]}
         numberOfLines={1}
       >
         {children}
@@ -77,5 +84,8 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: 'Geist_500Medium',
     fontSize: 13,
+  },
+  periodLabel: {
+    fontSize: typeRoles.secondary.size,
   },
 })

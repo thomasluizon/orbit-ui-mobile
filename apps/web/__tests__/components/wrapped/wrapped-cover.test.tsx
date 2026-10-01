@@ -19,13 +19,6 @@ vi.mock('@/components/gamification/ring-motif', () => ({
     <div>{eyebrow}{anchor}</div>
   ),
 }))
-vi.mock('@/components/ui/chip', () => ({
-  Chip: ({ active, onClick, children, ariaLabel }: {
-    active: boolean; onClick: () => void; children: React.ReactNode; ariaLabel: string
-  }) => (
-    <button type="button" aria-label={ariaLabel} aria-pressed={active} onClick={onClick}>{children}</button>
-  ),
-}))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ disabled, onClick, children, size = 'md', variant = 'primary' }: {
     disabled?: boolean; onClick: () => void; children: React.ReactNode; size?: string; variant?: string

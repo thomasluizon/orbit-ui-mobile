@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { readFileSync } from 'node:fs'
@@ -25,6 +26,7 @@ vi.mock('@/hooks/use-wrapped', () => ({
 }))
 
 import WrappedPage from '@/app/(app)/wrapped/page'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const VIEWPORTS = [
@@ -111,6 +113,68 @@ describe('WrappedPage cover geometry in Chromium', () => {
       await page.close()
     }
   }
+
+  it.each(LOCALES.flatMap((locale) => (['dark', 'light'] as const).map((mode) => ({ locale, mode }))))(
+    'uses the drawn period chip tokens in $locale, $mode',
+    async ({ locale, mode }) => {
+      const messages = locale === 'en' ? en : pt
+      let rendered!: ReturnType<typeof renderPage>
+      await act(async () => { rendered = renderPage(locale) })
+      const page = await browser.newPage({ viewport: { width: 320, height: 800 } })
+      try {
+        for (const period of RECAP_SHARE_PERIODS) {
+          fireEvent.click(screen.getByRole('button', { name: messages.wrapped.periods[period] }))
+          await act(async () => {})
+          const themeStyle = Object.entries(resolveWebThemeVariables('orange', mode))
+            .map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<html class="${mode}" style="${themeStyle}"><style>${stylesheet}</style><body>${rendered.container.innerHTML}</body></html>`)
+          const chips = await page.evaluate((label) => {
+            const group = document.querySelector(`[aria-label="${label}"]`)!
+            const reference = document.createElement('span')
+            document.body.append(reference)
+            const resolveColor = (token: string) => {
+              reference.style.backgroundColor = `var(${token})`
+              return getComputedStyle(reference).backgroundColor
+            }
+            return Array.from(group.querySelectorAll('button')).map((button) => {
+              const selected = button.getAttribute('aria-pressed') === 'true'
+              const style = getComputedStyle(button)
+              reference.style.fontSize = 'var(--fs-sm)'
+              reference.style.boxShadow = selected
+                ? 'inset 0 0 0 1.5px var(--primary)'
+                : 'inset 0 0 0 1px var(--hairline)'
+              const bounds = button.getBoundingClientRect()
+              return {
+                selected,
+                fontSize: style.fontSize,
+                expectedFontSize: getComputedStyle(reference).fontSize,
+                background: style.backgroundColor,
+                expectedBackground: resolveColor(selected ? '--primary-dim' : '--bg-well'),
+                color: style.color,
+                expectedColor: resolveColor(selected ? '--fg-1' : '--fg-2'),
+                ring: style.boxShadow,
+                expectedRing: getComputedStyle(reference).boxShadow,
+                height: bounds.height,
+                right: bounds.right,
+              }
+            })
+          }, messages.wrapped.periodGroup)
+          expect(chips).toHaveLength(3)
+          expect(chips.filter((chip) => chip.selected)).toHaveLength(1)
+          for (const chip of chips) {
+            expect(chip.fontSize).toBe(chip.expectedFontSize)
+            expect(chip.background).toBe(chip.expectedBackground)
+            expect(chip.color).toBe(chip.expectedColor)
+            expect(chip.ring).toBe(chip.expectedRing)
+            expect(chip.height).toBeGreaterThanOrEqual(44)
+            expect(chip.right).toBeLessThanOrEqual(320)
+          }
+        }
+      } finally {
+        await page.close()
+      }
+    },
+  )
 
   it.each(COLLISION_CASES)(
     'separates the back control from the $state cover at $width by $height, banner $reloadBanner, $locale',

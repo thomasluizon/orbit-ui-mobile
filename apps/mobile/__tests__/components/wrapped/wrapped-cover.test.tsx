@@ -1,8 +1,16 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { typeRoles } from '@orbit/shared/theme'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { WrappedCover } from '@/components/wrapped/wrapped-cover'
+
+const themeState = vi.hoisted<{ mode: 'dark' | 'light' }>(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeState.mode }),
+}))
 
 const coverCopyState = vi.hoisted(() => ({ localized: false }))
 vi.mock('react-i18next', () => ({
@@ -26,14 +34,6 @@ type TestNode = {
 vi.mock('@/components/gamification/ring-motif', () => ({
   RingMotif: ({ eyebrow, anchor }: { eyebrow: string; anchor: React.ReactNode }) =>
     React.createElement('RingMotif', { eyebrow }, anchor),
-}))
-vi.mock('@/components/ui/chip', () => ({
-  Chip: ({ active, onPress, children, accessibilityLabel }: {
-    active?: boolean
-    onPress?: () => void
-    children: React.ReactNode
-    accessibilityLabel?: string
-  }) => React.createElement('Chip', { active, onPress, accessibilityLabel }, children),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ disabled, onClick, children, size = 'md', variant = 'primary' }: {
@@ -97,6 +97,7 @@ describe('mobile WrappedCover', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     coverCopyState.localized = false
+    themeState.mode = 'dark'
   })
 
   it('shows the drawn Portuguese subtitle and empty way out with period choices', () => {
@@ -104,7 +105,7 @@ describe('mobile WrappedCover', () => {
     const tree = renderCover({ state: 'empty' })
     expect(nodeWithChild(tree.root, 'Text', 'Os registros do período, uma página de cada vez.')).toBeTruthy()
     expect(nodeWithChild(tree.root, 'Text', 'Nada registrado nesse período. Escolha outro período para ver um fechamento.')).toBeTruthy()
-    expect(nodesByType(tree.root, 'Chip')).toHaveLength(3)
+    expect(nodesByType(tree.root, 'Pressable')).toHaveLength(3)
   })
 
   it('renders the ready cover and starts the player', () => {
@@ -113,9 +114,9 @@ describe('mobile WrappedCover', () => {
     const tree = renderCover({ onSelectPeriod, onStart })
 
     expect(nodeWithChild(tree.root, 'Text', 'wrapped.coverTitles.week')).toBeTruthy()
-    expect(nodesByType(tree.root, 'Chip')).toHaveLength(RECAP_SHARE_PERIODS.length)
+    expect(nodesByType(tree.root, 'Pressable')).toHaveLength(RECAP_SHARE_PERIODS.length)
     TestRenderer.act(() => {
-      ;(nodesByType(tree.root, 'Chip')[1]!.props.onPress as () => void)()
+      ;(nodesByType(tree.root, 'Pressable')[1]!.props.onPress as () => void)()
     })
     expect(onSelectPeriod).toHaveBeenCalledWith(RECAP_SHARE_PERIODS[1])
     const start = nodeWithChild(tree.root, 'Button', 'wrapped.start')!
@@ -124,6 +125,40 @@ describe('mobile WrappedCover', () => {
       ;(start.props.onPress as () => void)()
     })
     expect(onStart).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['dark', 'light'] as const)('uses the drawn period chip tokens in %s mode', (mode) => {
+    themeState.mode = mode
+    const palette = createTokensV2('orange', mode)
+    for (const period of RECAP_SHARE_PERIODS) {
+      const onSelectPeriod = vi.fn()
+      const tree = renderCover({ tokens: palette, period, onSelectPeriod })
+      const chips = nodesByType(tree.root, 'Pressable')
+      expect(chips).toHaveLength(3)
+      for (const [index, chip] of chips.entries()) {
+        const selected = RECAP_SHARE_PERIODS[index] === period
+        const resolveStyle = chip.props.style as (state: { pressed: boolean }) => unknown
+        expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
+          minHeight: 44,
+          backgroundColor: selected ? palette.primaryDim : palette.bgWell,
+          borderColor: selected ? palette.primary : palette.hairline,
+          borderWidth: selected ? 1.5 : 1,
+        })
+        expect(chip.props.accessibilityState).toEqual({ selected })
+        const label = nodesByType(chip, 'Text')[0]!
+        expect(StyleSheet.flatten(label.props.style)).toMatchObject({
+          fontFamily: 'Geist_500Medium',
+          fontSize: typeRoles.secondary.size,
+          color: selected ? palette.fg1 : palette.fg2,
+        })
+        expect(StyleSheet.flatten(resolveStyle({ pressed: true }))).toMatchObject({
+          backgroundColor: palette.bgHover,
+        })
+        TestRenderer.act(() => { (chip.props.onPress as () => void)() })
+        expect(onSelectPeriod).toHaveBeenLastCalledWith(RECAP_SHARE_PERIODS[index])
+      }
+      TestRenderer.act(() => { tree.unmount() })
+    }
   })
 
   it('renders the loading treatment without a Start action', () => {
