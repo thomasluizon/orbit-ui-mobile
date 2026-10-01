@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 /** Inline meta token rendered between dots in the row's meta strip.
- *  String tokens render in fg-3; tagged tokens get status color. */
+ *  String tokens render in fg-2; tagged tokens get status color. */
 export type HabitRowMetaToken =
   | string
   | { kind: 'overdue'; label: string }
@@ -74,13 +74,13 @@ export function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
       style={{
         fontFamily: 'var(--font-mono)',
         fontSize: 13,
-        color: 'var(--fg-3)',
+        color: 'var(--fg-2)',
         fontVariantNumeric: 'tabular-nums',
       }}
     >
       {tokens.map((token, i) => (
         <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: '0 4px', color: 'var(--fg-3)' }}>·</span>}
+          {i > 0 && <span style={{ margin: '0 4px', color: 'var(--fg-2)' }}>·</span>}
           {renderMetaToken(token)}
         </Fragment>
       ))}

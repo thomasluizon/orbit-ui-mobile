@@ -8,6 +8,8 @@ import { resolve } from 'node:path'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const localeMock = vi.hoisted(() => ({ rescheduleLabel: null as string | null }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'habits.actions.reschedule' && localeMock.rescheduleLabel ? localeMock.rescheduleLabel : key }))
@@ -129,7 +131,7 @@ function renderRowInPanel(row: ReactNode): HTMLElement {
   return document.querySelector('.habit-panel')!
 }
 
-function matchingHabitHoverBackgrounds(element: Element): string[] {
+function matchingRowBackgrounds(element: Element, selectorMarker = 'data-habit-row'): string[] {
   const backgrounds: string[] = []
 
   function visitRules(rules: CSSRuleList): void {
@@ -137,7 +139,7 @@ function matchingHabitHoverBackgrounds(element: Element): string[] {
       const styleRule = rule as CSSStyleRule
       if (typeof styleRule.selectorText === 'string') {
         if (
-          styleRule.selectorText.includes('data-habit-row') &&
+          styleRule.selectorText.includes(selectorMarker) &&
           element.matches(styleRule.selectorText)
         ) {
           const background = styleRule.style.getPropertyValue('background')
@@ -154,6 +156,63 @@ function matchingHabitHoverBackgrounds(element: Element): string[] {
   }
   return backgrounds
 }
+
+describe('HabitRow neutral metadata contrast', () => {
+  const cases = [
+    { label: 'parent count', value: '1/2', parent: true, exceptional: false },
+    { label: 'single time', value: '21:00', parent: false, exceptional: false },
+    { label: 'count with state words', value: '1/2', parent: true, exceptional: true },
+    { label: 'time with state words', value: '21:00', parent: false, exceptional: true },
+  ]
+  const scenarios = (['dark', 'light'] as const).flatMap((mode) =>
+    cases.flatMap((row) => [false, true].map((child) => ({ mode, ...row, child }))),
+  )
+
+  it.each(scenarios)('$mode $label, child=$child clears the text floor', ({ mode, label, value, parent, exceptional, child }) => {
+    const variables = resolveWebThemeVariables('orange', mode)
+    function resolveColor(color: string): string {
+      const variable = color.match(/^var\((--[\w-]+)\)$/)?.[1]
+      return variable ? variables[variable as keyof typeof variables]! : color
+    }
+    const habit = createMockHabit({ title: label, dueTime: '21:00' })
+    const { unmount } = render(<div className="habit-panel"><HabitRow habit={habit}
+      child={child} depth={child ? 1 : 0} hasChildren={parent}
+      childProgress={parent ? { done: 1, total: 2 } : undefined}
+      meta={exceptional ? [value, { kind: 'overdue', label: 'Overdue' }, { kind: 'bad', label: 'Recorded' }] : [value]} />
+    </div>)
+    const metadata = screen.getByText(value)
+    const panel = document.querySelector('.habit-panel')!
+    const body = metadata.closest('button')!
+    expect(body).toHaveAttribute('data-habit-row-body')
+    const panelBackgrounds = matchingRowBackgrounds(panel, '.habit-panel')
+    expect(panelBackgrounds).toEqual(['var(--bg-card)'])
+    const restLayers = [variables['--bg']!, ...panelBackgrounds.map(resolveColor)]
+    const foreground = resolveColor(getComputedStyle(metadata).color)
+    expect(contrastOnSurface(foreground, restLayers), `${label} at rest`).toBeGreaterThanOrEqual(4.5)
+    fireEvent.mouseOver(body)
+    const hoverBackgrounds = matchingRowBackgrounds(body)
+    expect(hoverBackgrounds).toHaveLength(1)
+    const hoverLayers = [...restLayers, ...hoverBackgrounds.map(resolveColor)]
+    expect(contrastOnSurface(foreground, hoverLayers), `${label} on hover`).toBeGreaterThanOrEqual(4.5)
+    if (exceptional) {
+      for (const separator of within(metadata).getAllByText('·')) {
+        const separatorColor = resolveColor(getComputedStyle(separator).color)
+        expect(contrastOnSurface(separatorColor, restLayers)).toBeGreaterThanOrEqual(4.5)
+        expect(contrastOnSurface(separatorColor, hoverLayers)).toBeGreaterThanOrEqual(4.5)
+      }
+      expect(screen.getByText('Overdue')).toHaveStyle({ color: 'var(--status-overdue-text)' })
+      expect(screen.getByText('Recorded')).toHaveStyle({ color: 'var(--status-bad-text)' })
+    }
+    unmount()
+  })
+
+  it('exposes the old foreground failure only after the hover layer is nested in the card', () => {
+    const variables = resolveWebThemeVariables('orange', 'dark')
+    const layers = [variables['--bg']!, variables['--bg-card']!, variables['--bg-hover']!]
+    expect(contrastOnSurface(variables['--fg-3']!, layers)).toBeCloseTo(4.029, 3)
+    expect(contrastOnSurface(variables['--fg-3']!, layers.slice(0, 2))).toBeGreaterThanOrEqual(4.5)
+  })
+})
 
 describe('HabitRow canonical content', () => {
   it('omits the structural column by default and indents only a child body', () => {
@@ -321,9 +380,9 @@ describe('HabitRow check circle accessible name', () => {
     expect(body).toHaveAttribute('data-habit-row-body')
     expect(body).not.toHaveAttribute('data-habit-row-control')
     fireEvent.mouseOver(body)
-    expect(matchingHabitHoverBackgrounds(body)).toEqual(['var(--bg-hover)'])
-    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
-    expect(matchingHabitHoverBackgrounds(ring)).toEqual([])
+    expect(matchingRowBackgrounds(body)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(panel)).toEqual([])
+    expect(matchingRowBackgrounds(ring)).toEqual([])
   })
 
   it('lights an enabled ring locally without lighting the panel', () => {
@@ -335,8 +394,8 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.mouseOver(ring)
 
     expect(ring).toHaveAttribute('data-habit-row-control', 'ring')
-    expect(matchingHabitHoverBackgrounds(ring)).toEqual(['var(--bg-hover)'])
-    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+    expect(matchingRowBackgrounds(ring)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(panel)).toEqual([])
   })
 
   it('lights an enabled disclosure control locally without lighting the panel', () => {
@@ -353,8 +412,8 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.mouseOver(disclosure)
 
     expect(disclosure).toHaveAttribute('data-habit-row-control', 'disclosure')
-    expect(matchingHabitHoverBackgrounds(disclosure)).toEqual(['var(--bg-hover)'])
-    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+    expect(matchingRowBackgrounds(disclosure)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(panel)).toEqual([])
   })
 
   it('lights an enabled selection control locally without lighting the panel', () => {
@@ -371,8 +430,8 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.mouseOver(selection)
 
     expect(selection).toHaveAttribute('data-habit-row-control', 'selection')
-    expect(matchingHabitHoverBackgrounds(selection)).toEqual(['var(--bg-hover)'])
-    expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
+    expect(matchingRowBackgrounds(selection)).toEqual(['var(--bg-hover)'])
+    expect(matchingRowBackgrounds(panel)).toEqual([])
   })
 
   it('keeps future row navigation live while disabling only its completion ring', () => {

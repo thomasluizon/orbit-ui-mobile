@@ -47,7 +47,7 @@ export function HabitRowContent({
       {visibleMeta.length > 0 ? (
         <Text
           numberOfLines={1}
-          style={[styles.meta, { color: tokens.fg3 }]}
+          style={[styles.meta, { color: tokens.fg2 }]}
         >
           {visibleMeta.map((part, i) => {
             let partContent: ReactNode
@@ -78,7 +78,7 @@ export function HabitRowContent({
             return (
               <Fragment key={metaKeys[i]}>
                 {i > 0 ? (
-                  <Text style={{ color: tokens.fg3 }}> · </Text>
+                  <Text style={{ color: tokens.fg2 }}> · </Text>
                 ) : null}
                 {partContent}
               </Fragment>
