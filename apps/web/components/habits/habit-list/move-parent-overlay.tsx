@@ -126,10 +126,10 @@ export function MoveParentOverlay({
       title={t('habits.moveParent.title')}
       actions={
         <DialogActionPair>
-          <PillButton variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
+          <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
-          <PillButton disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>
+          <PillButton size="sm" disabled={!canSubmit} loading={isMoving} onClick={onConfirm}>
             {t('habits.moveParent.confirm')}
           </PillButton>
         </DialogActionPair>

@@ -435,15 +435,19 @@ describe('alerts', () => {
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
   })
 
-  it('sets the detail delete apart at the far end behind a growing spacer', () => {
+  it('groups the small intrinsic detail actions at the trailing edge', () => {
     seed(1)
     showInbox()
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
-    const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild!
-    expect(getComputedStyle(row).width).toBe('100%')
-    expect([...row.children].map((child) => child.tagName === 'SPAN' ? 'spacer' : child.textContent))
-      .toEqual(['Open in Progress', en.notifications.markAsRead, 'spacer', en.notifications.delete])
-    expect(getComputedStyle(row.children[2]!).flexGrow).toBe('1')
+    const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild as HTMLElement
+    expect(row).toHaveAttribute('data-slot', 'dialog-action-pair')
+    expect(row.style.justifyContent).toBe('flex-end')
+    expect([...row.children].map((button) => button.textContent))
+      .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
+    for (const button of row.querySelectorAll('button')) {
+      expect(button).toHaveAttribute('data-size', 'sm')
+      expect(button.style.width).toBe('')
+    }
   })
 
   it.each([

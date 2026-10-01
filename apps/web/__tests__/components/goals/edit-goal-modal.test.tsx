@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({
@@ -136,6 +136,7 @@ describe('EditGoalModal', () => {
     mockMutateAsync.mockResolvedValue(undefined)
     render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'common.save'])
+    expectSmallSheetActions()
     expect(sheetSlotButtons('sheet-body')).not.toContain('common.save')
     expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
     const submit = screen.getByRole('button', { name: 'common.save' }) as HTMLButtonElement

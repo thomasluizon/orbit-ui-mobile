@@ -129,10 +129,10 @@ export function ReferralPrompt() {
           title={title}
           actions={(
             <DialogActionPair>
-              <PillButton variant="ghost" onClick={() => closeSheet()}>
+              <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
                 {t('referral.prompt.later')}
               </PillButton>
-              <PillButton onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
+              <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
             </DialogActionPair>
           )}
         >

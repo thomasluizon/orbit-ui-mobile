@@ -8,6 +8,7 @@ import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { retireHeldAccount } from '@/__tests__/support/account-change'
 import type { Profile } from '@orbit/shared/types/profile'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -123,7 +124,16 @@ async function revealAccountAKey() {
     fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
   })
   expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+  expectSmallSheetActions()
 }
+
+it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.createScoped }))
+  expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
+  expectSmallSheetActions()
+})
 
 it('takes the revealed API key off the screen when another account replaces the tab', async () => {
   await revealAccountAKey()

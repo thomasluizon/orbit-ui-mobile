@@ -133,6 +133,7 @@ export function ReviewMomentSheet() {
       actions={(
         <DialogActionPair>
           <PillButton
+            size="sm"
             variant="ghost"
             accessibleName={t('reviewMoment.notNow')}
             onClick={requestSnooze}
@@ -140,6 +141,7 @@ export function ReviewMomentSheet() {
             {t('reviewMoment.notNow')}
           </PillButton>
           <PillButton
+            size="sm"
             loading={isRequesting}
             disabled={isRequesting}
             onClick={() => void rate()}

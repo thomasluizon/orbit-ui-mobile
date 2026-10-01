@@ -1,6 +1,8 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
+import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -152,7 +154,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
-  CalendarImportContent: ({ reviewMode }: { reviewMode: boolean }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)} />,
+  CalendarImportContent: ({ reviewMode, onActionStateChange }: { reviewMode: boolean; onActionStateChange: (state: CalendarImportActionState) => void }) => <div data-testid="calendar-import-content" data-review={String(reviewMode)}><button type="button" onClick={() => onActionStateChange({ count: 1, disabled: false })}>select-event</button></div>,
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -205,14 +207,16 @@ vi.mock('@/components/ui/sheet', () => ({
     sheetRef: { current: null },
     closeSheet: (exitAction?: () => void) => exitAction?.(),
   }),
-  Sheet: ({ children, open, onClose }: {
+  Sheet: ({ children, open, onClose, actions }: {
     children: React.ReactNode
     open: boolean
     onClose?: () => void
+    actions?: React.ReactNode
   }) => open ? (
     <div>
       <button type="button" aria-label="close-day-detail" onClick={onClose} />
       {children}
+      <footer data-slot="sheet-actions">{actions}</footer>
     </div>
   ) : null,
 }))
@@ -865,6 +869,8 @@ describe('CalendarPage view switcher', () => {
     calendarRouteSearch = 'mode=review'
     render(<CalendarPage />)
     expect(screen.getByTestId('calendar-import-content')).toHaveAttribute('data-review', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'select-event' }))
+    expectSmallSheetActions()
   })
 
   it('opens review targets after the initial account binding', () => {

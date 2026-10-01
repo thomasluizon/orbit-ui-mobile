@@ -5,7 +5,7 @@ import { API } from '@orbit/shared/api'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const TestRenderer = require('react-test-renderer')
@@ -125,6 +125,7 @@ describe('DeleteAccountModal', () => {
     const tree = await renderModal()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(footer)
+    if (footer.length > 0) expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })
 

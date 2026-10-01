@@ -89,15 +89,14 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" matchedWidth={!inlineActions} size={inlineActions ? 'sm' : 'md'} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
+    <PillButton variant="ghost" size="sm" buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
       {cancelLabel ?? t('common.cancel')}
     </PillButton>
   )
   const confirmButton = (
     <PillButton
       variant={destructive ? 'destructive' : inlineActions && isDesktop ? 'secondary' : 'primary'}
-      matchedWidth={!inlineActions}
-      size={inlineActions ? 'sm' : 'md'}
+      size="sm"
       disabled={actionsDisabled}
       loading={loading}
       onClick={confirm}
@@ -123,7 +122,7 @@ export function ConfirmSheet({
       }}
       actions={
         <DialogActionPair inline={inlineActions}>
-          {inlineActions ? <>{cancelButton}{confirmButton}</> : <>{confirmButton}{cancelButton}</>}
+          {cancelButton}{confirmButton}
         </DialogActionPair>
       }
     >

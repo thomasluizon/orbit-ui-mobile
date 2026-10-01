@@ -452,6 +452,7 @@ export function CreateHabitModal({
               {watchedTitle.trim().length === 0 ? <p id={`${formId}-create-reason`} className="text-sm text-[var(--fg-3)]">{t('habits.form.createWhy')}</p> : null}
               <DialogActionPair>
                 <PillButton
+                  size="sm"
                   variant="ghost"
                   disabled={isPending}
                   onClick={dismissGuard.requestDismiss}
@@ -459,6 +460,7 @@ export function CreateHabitModal({
                   {t('common.cancel')}
                 </PillButton>
                 <PillButton
+                  size="sm"
                   formId={formId}
                   descriptionId={watchedTitle.trim().length === 0 ? `${formId}-create-reason` : undefined}
                   loading={isPending}

@@ -5,7 +5,7 @@ import { ReviewMomentSheet } from '@/components/review-moment/review-moment-shee
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -156,6 +156,7 @@ describe('ReviewMomentSheet (mobile)', () => {
     await settle()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.notNow', 'reviewMoment.cta'])
+    expectSmallSheetActions(tree.root)
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })

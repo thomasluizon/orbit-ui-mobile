@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { holdAccount, replaceAccountWith, resetAuthStore } from '@/__tests__/support/account-change'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 
 const pushMock = vi.fn()
@@ -131,7 +131,9 @@ describe('buffer onboarding actions', () => {
 
 describe('live onboarding actions', () => {
   afterEach(() => { vi.unstubAllGlobals() })
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    await resetAuthStore()
     pushMock.mockReset()
     Object.values(mocks).forEach((fn) => fn.mockReset())
     mocks.createHabit.mockResolvedValue({ id: 'h-1' })

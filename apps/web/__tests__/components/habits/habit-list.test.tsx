@@ -2735,7 +2735,7 @@ describe('HabitList', () => {
     expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
   })
 
-  it('locks the edit modal General toggle to the parent isGeneral when editing a sub-habit', () => {
+  it('locks the edit modal General toggle to the parent isGeneral when editing a sub-habit', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -2762,10 +2762,10 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
     fireEvent.click(screen.getByTestId('edit-child'))
-    expect(screen.getByTestId('edit-habit-modal-locked-general')).toHaveTextContent('true')
+    expect(await screen.findByTestId('edit-habit-modal-locked-general')).toHaveTextContent('true')
   })
 
-  it('locks the edit modal General toggle to an existing child isGeneral when editing a parent', () => {
+  it('locks the edit modal General toggle to an existing child isGeneral when editing a parent', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -2787,7 +2787,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
 
     fireEvent.click(screen.getByTestId('edit-parent'))
-    expect(screen.getByTestId('edit-habit-modal-locked-general')).toHaveTextContent('false')
+    expect(await screen.findByTestId('edit-habit-modal-locked-general')).toHaveTextContent('false')
   })
 
   it('retries loading drill children from the drill error state', () => {

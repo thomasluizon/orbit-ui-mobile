@@ -2,6 +2,10 @@ import React from 'react'
 import type { AppStateStatus } from 'react-native'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createInstance } from 'i18next'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
 
@@ -24,11 +28,17 @@ const mocks = vi.hoisted(() => ({
   appStateListeners: new Set<(state: AppStateStatus) => void>(),
   showSuccess: vi.fn(),
   isOnline: true,
+  renderComposition: false,
+  locale: 'en',
   from: undefined as string | undefined,
   hasProAccess: false,
   trialDaysLeft: 5,
   profile: null as ReturnType<typeof createMockProfile> | null,
-  plans: { couponPercentOff: 0 },
+  plans: {
+    monthly: { unitAmount: 999, currency: 'usd' },
+    yearly: { unitAmount: 6999, currency: 'usd' },
+    savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+  } satisfies SubscriptionPlans,
   billing: undefined as Record<string, unknown> | undefined,
   statusLoading: false,
   statusError: false,
@@ -53,10 +63,17 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+const testI18n = createInstance()
+void testI18n.init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
+  lng: 'en', initAsync: false,
+  interpolation: { prefix: '{', suffix: '}' },
+})
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'en' },
+    t: mocks.renderComposition ? testI18n.t : (key: string) => key,
+    i18n: { language: mocks.locale },
   }),
 }))
 
@@ -98,7 +115,8 @@ vi.mock('@/hooks/use-billing', () => ({
 vi.mock('@/hooks/use-play-billing', () => ({
   usePlayBilling: () => mocks.playBilling,
 }))
-vi.mock('@/hooks/use-subscription-plans', () => ({
+vi.mock('@/hooks/use-subscription-plans', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-subscription-plans')>(),
   useSubscriptionPlans: () => ({
     plans: mocks.plans,
     isLoading: false,
@@ -150,17 +168,21 @@ vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
 }))
-vi.mock('@/components/upgrade/billing-dashboard', () => ({
-  BillingDashboard: (props: Record<string, unknown>) =>
-    React.createElement('BillingDashboard', props),
-}))
-vi.mock('@/components/upgrade/play-billing-dashboard', () => ({
-  PlayBillingDashboard: (props: Record<string, unknown>) =>
-    React.createElement('PlayBillingDashboard', props),
-}))
-vi.mock('@/components/upgrade/pricing-section', () => ({
-  PricingSection: (props: Record<string, unknown>) => React.createElement('PricingSection', props),
-}))
+vi.mock('@/components/upgrade/billing-dashboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/billing-dashboard')>()
+  return { BillingDashboard: (props: React.ComponentProps<typeof actual.BillingDashboard>) =>
+    React.createElement(mocks.renderComposition ? actual.BillingDashboard : 'BillingDashboard', props) }
+})
+vi.mock('@/components/upgrade/play-billing-dashboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/play-billing-dashboard')>()
+  return { PlayBillingDashboard: (props: React.ComponentProps<typeof actual.PlayBillingDashboard>) =>
+    React.createElement(mocks.renderComposition ? actual.PlayBillingDashboard : 'PlayBillingDashboard', props) }
+})
+vi.mock('@/components/upgrade/pricing-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/upgrade/pricing-section')>()
+  return { PricingSection: (props: React.ComponentProps<typeof actual.PricingSection>) =>
+    React.createElement(mocks.renderComposition ? actual.PricingSection : 'PricingSection', props) }
+})
 
 async function renderScreen() {
   let tree: { root: TestNode; unmount: () => void } | undefined
@@ -183,6 +205,8 @@ describe('UpgradeScreen', () => {
     mocks.refetchStatus.mockReset().mockResolvedValue(undefined)
     mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
+    mocks.renderComposition = false
+    mocks.locale = 'en'
     mocks.from = undefined
     mocks.hasProAccess = false
     mocks.trialDaysLeft = 5
@@ -190,7 +214,11 @@ describe('UpgradeScreen', () => {
       isTrialActive: false,
       subscriptionSource: 'stripe',
     })
-    mocks.plans = { couponPercentOff: 0 }
+    mocks.plans = {
+      monthly: { unitAmount: 999, currency: 'usd' },
+      yearly: { unitAmount: 6999, currency: 'usd' },
+      savingsPercent: 42, couponPercentOff: null, currency: 'usd',
+    }
     mocks.billing = { plan: 'yearly' }
     mocks.statusLoading = false
     mocks.statusError = false
@@ -200,6 +228,66 @@ describe('UpgradeScreen', () => {
     mocks.subscriptionEndedAtUtc = null
     mocks.playBilling.isProcessing = false
     mocks.playBilling.errorKey = ''
+  })
+
+  describe.each([
+    { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
+  ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    beforeEach(async () => {
+      mocks.renderComposition = true
+      mocks.locale = locale
+      mocks.billing = undefined
+      await testI18n.changeLanguage(locale)
+    })
+
+    it.each([4, 1, 0, null])('uses the trial heading with %s days left', async (daysLeft) => {
+      mocks.hasProAccess = true
+      mocks.profile = createMockProfile({
+        isTrialActive: true,
+        trialEndsAt: daysLeft === null ? null : new Date(Date.now() + (daysLeft === 0 ? 3600000 : daysLeft * 86400000)).toISOString(),
+        aiMessagesLimit: 50,
+      })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === trialHeading)).toHaveLength(1)
+      const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
+        : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
+      if (eyebrow) expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === eyebrow)).toHaveLength(1)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it('keeps the free heading outside a trial', async () => {
+      mocks.profile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === messages.upgrade.convert.freeHeading)).toHaveLength(1)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', async (isTrialActive) => {
+      mocks.hasProAccess = isTrialActive
+      mocks.profile = createMockProfile({ isTrialActive, aiMessagesUsed: 45, aiMessagesLimit: 50 })
+      const tree = await renderScreen()
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.convert.stayFree)).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.title)).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.nearLimit)).toHaveLength(0)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
+    it.each(['stripe', 'play', 'lifetime'] as const)('keeps usage on the %s billing dashboard', async (source) => {
+      mocks.hasProAccess = true
+      mocks.profile = createMockProfile({
+        isTrialActive: false, isLifetimePro: source === 'lifetime',
+        subscriptionSource: source === 'lifetime' ? null : source,
+        aiMessagesUsed: 12, aiMessagesLimit: 50,
+      })
+      const tree = await renderScreen()
+      const meters = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === messages.upgrade.billing.usage.aiMessages)
+      expect(meters).toHaveLength(1)
+      expect(meters[0]!.props.accessibilityValue).toEqual({ min: 0, max: 1, now: 0.24 })
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.aiMessagesOf.replace('{used}', '12').replace('{limit}', '50'))).toHaveLength(1)
+      await TestRenderer.act(() => tree.unmount())
+    })
   })
 
   it('shows the pricing section for a free user', async () => {

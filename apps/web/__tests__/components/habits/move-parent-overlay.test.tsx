@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -46,6 +47,11 @@ function renderOverlay(
 }
 
 describe('MoveParentOverlay', () => {
+  it('uses small intrinsic Cancel then Move footer actions', () => {
+    renderOverlay([])
+    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
+    expectSmallSheetActions()
+  })
   it('renders a selectable root row and the destinations eyebrow', () => {
     const { onSelectOption } = renderOverlay(
       [

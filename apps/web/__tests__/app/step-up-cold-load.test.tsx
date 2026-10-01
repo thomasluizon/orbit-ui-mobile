@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { getStepUpStorageKey } from '@orbit/shared/utils'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
-import { replaceAccountWith, respondWithAccount } from '@/__tests__/support/account-change'
+import { replaceAccountWith, respondWithAccount, resetAuthStore } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({ router: { replace: vi.fn() }, serverAuthFetch: vi.fn() }))
 
@@ -46,9 +46,10 @@ function storeLiveChallenge(accountId: string) {
   )
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   globalThis.localStorage.clear()
   vi.stubGlobal('fetch', vi.fn())
+  await resetAuthStore()
   respondWithAccount('user-1')
 })
 

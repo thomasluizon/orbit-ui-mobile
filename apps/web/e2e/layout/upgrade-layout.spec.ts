@@ -86,7 +86,7 @@ async function assertSubscriptionOutcome(upgradeScreen: Locator, state: string, 
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const subscriptionState of ['free', 'trial'] as const) {
-    for (const width of [320, 412, 640] as const) {
+    for (const width of [320, 412, 640, 1440] as const) {
       test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
 
@@ -99,6 +99,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
           await expect(pitchHeading, `${locale} ${subscriptionState}: pitch heading was not found`).toBeVisible({ timeout: 5000 })
           await expect(upgradeScreen.getByText(messages.upgrade.convert.stayFree, { exact: true })).toBeVisible()
+          await expect(upgradeScreen.getByRole('progressbar')).toHaveCount(0)
+          await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toHaveCount(0)
           await page.evaluate(() => document.fonts.ready)
 
           const overflows = await upgradeScreen.evaluate((root) =>

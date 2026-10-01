@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const state = vi.hoisted(() => ({
@@ -96,10 +96,6 @@ vi.mock('@/stores/referral-prompt-store', () => ({
   }),
 }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, onClick, variant }: { children?: React.ReactNode; onClick?: () => void; variant?: string }) =>
-    <button type="button" data-variant={variant} onClick={onClick}>{children}</button>,
-}))
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
@@ -203,6 +199,7 @@ describe('Today create during first load', () => {
     await act(async () => {})
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(footer)
+    expectSmallSheetActions()
     expect(sheetActionsUseActionPair()).toBe(true)
     expect(sheetSlotButtons('sheet-body')).toEqual([])
   })

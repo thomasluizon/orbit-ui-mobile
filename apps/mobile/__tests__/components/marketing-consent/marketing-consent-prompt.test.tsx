@@ -5,7 +5,7 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
-import { sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -163,6 +163,7 @@ describe('MarketingConsentPrompt (mobile)', () => {
     await settle()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['marketingConsent.prompt.decline', 'marketingConsent.prompt.accept'])
+    expectSmallSheetActions(tree.root)
     expect(sheetActionsUseActionPair(tree.root)).toBe(true)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
   })

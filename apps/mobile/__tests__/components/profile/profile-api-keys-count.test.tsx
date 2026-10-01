@@ -3,6 +3,10 @@ import { expect, it, vi } from 'vitest'
 import type { Profile } from '@orbit/shared/types/profile'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+
+const mocks = vi.hoisted(() => ({ create: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -14,13 +18,13 @@ vi.mock('@/app/advanced-api-keys', () => ({
     apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
     apiKeys: [],
     canCreateKey: true,
-    createGrantAvailable: false,
+    createGrantAvailable: true,
     createKeyError: null,
     clearCreateKeyError: vi.fn(),
     revokingKeyId: null,
     setRevokingKeyId: vi.fn(),
     revokeKeyMutation: { mutate: vi.fn(), isPending: false },
-    handleCreateKey: vi.fn(),
+    handleCreateKey: mocks.create,
   }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -47,4 +51,23 @@ it.each([0, 1, 3])('shows the count before key step-up for %i active keys', (cou
   expect(rows[0].props.value).toBe(count === 0
     ? 'profile.apiKeys.noKeys'
     : `profile.apiKeys.activeCount:{"count":${count}}`)
+})
+
+it('uses small intrinsic Cancel then Create actions in the scoped-key sheet', () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const scoped = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.createScoped')!
+  TestRenderer.act(() => scoped.props.onClick())
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'profile.apiKeys.scopeAction'])
+  expectSmallSheetActions(tree.root)
+})
+
+it('uses a small intrinsic acknowledgement for the revealed key', async () => {
+  mocks.create.mockResolvedValueOnce({ id: 'key', name: 'Key', key: 'key-value' })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />) })
+  const create = tree.root.findAllByType(PillButton).find((button: { props: { children: string } }) => button.props.children === 'profile.apiKeys.create')!
+  await TestRenderer.act(async () => { await create.props.onClick() })
+  expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
+  expectSmallSheetActions(tree.root)
 })

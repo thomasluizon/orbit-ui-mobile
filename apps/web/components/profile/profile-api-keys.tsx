@@ -118,8 +118,8 @@ function ScopeSheet({
       onClose={onClose}
       actions={(
         <>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-          <PillButton disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
+          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
         </>
       )}
     >
@@ -160,7 +160,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
       ref={sheetRef}
       title={t('orbitMcp.revealHeading')}
       onClose={onClose}
-      actions={<PillButton onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>}
+      actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('orbitMcp.done')}</PillButton>}
     >
       <div className="flex flex-col" style={{ gap: 12 }}>
         <p className="text-sm font-medium text-[var(--status-overdue-text)]">

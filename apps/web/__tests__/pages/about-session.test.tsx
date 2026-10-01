@@ -128,7 +128,7 @@ beforeEach(() => {
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   vi.stubGlobal('fetch', mocks.fetch)
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
-  useUIStore.setState({ activeView: 'today', showCreateModal: false })
+  useUIStore.setState(useUIStore.getInitialState())
   useAppToastStore.setState({ currentToast: null, queue: [] })
 })
 
