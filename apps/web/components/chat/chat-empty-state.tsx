@@ -18,7 +18,7 @@ export function ChatEmptyState({ onSelectSuggestion, contextualAction }: Readonl
   const hasOpeners = suggestions !== null || contextualAction !== undefined
 
   return (
-    <div className="flex h-full min-h-[420px] flex-col justify-center" style={{ gap: 24 }} aria-live="off">
+    <div className="flex min-h-full flex-col justify-center-safe" style={{ gap: 24 }} aria-live="off">
       <EmptyState mark="astra" title={t('chat.empty.title')} />
       {hasOpeners ? (
         <div className="flex flex-col items-center" style={{ gap: 8 }}>
