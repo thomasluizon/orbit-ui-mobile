@@ -417,6 +417,7 @@ export function buildHabitDetailUpdateRequest(
   habit: NormalizedHabit,
   patch: Partial<Pick<UpdateHabitRequest,
     | 'title'
+    | 'isBadHabit'
     | 'description'
     | 'emoji'
     | 'frequencyUnit'
@@ -440,7 +441,7 @@ export function buildHabitDetailUpdateRequest(
     frequencyUnit: patch.frequencyUnit ?? habit.frequencyUnit ?? undefined,
     frequencyQuantity: patch.frequencyQuantity ?? habit.frequencyQuantity ?? undefined,
     days: patch.days ?? habit.days,
-    isBadHabit: habit.isBadHabit,
+    isBadHabit: patch.isBadHabit ?? habit.isBadHabit,
     isGeneral: habit.isGeneral,
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,

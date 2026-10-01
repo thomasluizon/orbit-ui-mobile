@@ -4,17 +4,22 @@ import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
+import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
-import { useTimeFormat } from '@/hooks/use-time-format'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { createTokensV2 } from '@/lib/theme'
+import { Input } from '@/components/ui/input'
+import { X } from '@/components/ui/icons'
+import { DateField } from '@/components/ui/date-field'
+import { HabitChecklist } from './habit-checklist'
+import { ChecklistTemplates } from './checklist-templates'
+import { HabitDetailTags } from './habit-detail-tags'
 import { GoalLinkingField } from './goal-linking-field'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
@@ -24,9 +29,8 @@ type Tokens = ReturnType<typeof createTokensV2>
 interface HabitDetailFieldsProps {
   habit: NormalizedHabit
   hasProAccess: boolean
-  locale: string
   relationshipControlsAvailable: boolean
-  summary: string
+  onItemsChange: (items: NormalizedHabit['checklistItems']) => void
   tokens: Tokens
   onPatch: (patch: HabitDetailPatch) => Promise<boolean>
   onUpgrade: () => void
@@ -38,23 +42,12 @@ function FieldWell({ children, tokens }: Readonly<{ children: React.ReactNode; t
 
 function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
   const { t } = useTranslation()
-  return <View style={styles.actions}><PillButton variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton size="sm" onClick={onSave}>{t('common.save')}</PillButton></View>
-}
-
-function TextEditor({ initialValue, multiline = false, tokens, onCancel, onSave }: Readonly<{ initialValue: string; multiline?: boolean; tokens: Tokens; onCancel: () => void; onSave: (value: string) => void }>) {
-  const [value, setValue] = useState(initialValue)
-  return <FieldWell tokens={tokens}><TextInput autoFocus value={value} multiline={multiline} numberOfLines={multiline ? 4 : 1} style={[styles.input, multiline ? styles.multiline : null, { backgroundColor: tokens.bg, borderColor: tokens.primary, borderWidth: 2, color: tokens.fg1 }]} onChangeText={setValue} /><FieldActions onCancel={onCancel} onSave={() => onSave(value.trim())} /></FieldWell>
-}
-
-function TimeEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
-  const { t } = useTranslation()
-  const [dueTime, setDueTime] = useState<Time24 | ''>((habit.dueTime ?? '') as Time24 | '')
-  return <FieldWell tokens={tokens}><TimeField label={t('habits.detail.time')} value={dueTime} onChange={setDueTime} onClear={() => setDueTime('')} /><FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) onSave(patch) }} /></FieldWell>
+  return <View style={styles.actions}><PillButton variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></View>
 }
 
 function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected })
-  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={({ pressed }) => [styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.selectionBg : tokens.bg }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
+  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={({ pressed }) => [styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
 }
 
 function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]; tokens: Tokens; onChange: (unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]) => void }>) {
@@ -65,7 +58,7 @@ function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof
 function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tokens: Tokens; onChange: (days: string[]) => void }>) {
   const { t } = useTranslation()
   const toggle = (day: string) => onChange(toggleHabitDaySelection(days, day, HABIT_DETAIL_WEEKDAYS, days.length === 0))
-  return <View style={styles.chips}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.selectionBg : tokens.bg }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
+  return <View style={styles.days}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
 }
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
@@ -85,10 +78,11 @@ function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: N
   )
 }
 
-function ScheduleField({ habit, summary, open, tokens, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; tokens: Tokens; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+export function HabitDetailSchedule({ habit, summary, open, tokens, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; tokens: Tokens; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const { t } = useTranslation()
   const editable = canInlineEditHabitSchedule(habit)
   if (!editable && !summary) return null
+  if (editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1) return <View style={styles.list}><Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.detail.schedule')}</Text><WeekdayChips days={habit.days} tokens={tokens} onChange={(days) => { const patch = buildHabitDetailSchedulePatch('Day', 1, days); if (patch) onSave(patch) }} /></View>
   return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={onCancel} onSave={onSave} /> : null}</>
 }
 
@@ -98,41 +92,63 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
   return <ListRow title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) }} /> : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
 }
 
-export function HabitDetailFields({ habit, hasProAccess, locale, relationshipControlsAvailable, summary, tokens, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
+
+export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade, tokens }: Readonly<HabitDetailFieldsProps>) {
   const { t } = useTranslation()
-  const { displayTime } = useTimeFormat()
   const { showError } = useAppToast()
-  const fields = useHabitDetailFieldsState(habit, onPatch)
-  const { cancelReminders, close, goalIds, openField, reminderHabit, save, saveReminders, toggleField, toggleGoal, updateReminders } = fields
+  const { cancelReminders, goalIds, openField, reminderHabit, saveReminders, toggleField, toggleGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
+  const [description, setDescription] = useState(habit.description ?? '')
+  const [savedDescription, setSavedDescription] = useState(habit.description ?? '')
+  if ((habit.description ?? '') !== savedDescription) {
+    setSavedDescription(habit.description ?? '')
+    if (description === savedDescription) setDescription(habit.description ?? '')
+  }
+
   const saveReminderDraft = () => {
     const validationError = saveReminders()
     if (validationError) showError(t(validationError))
   }
   return (
-    <View style={styles.list}>
-      {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell tokens={tokens}><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
-      <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, t, displayTime)} onClick={() => toggleField('reminders')} />
-      {openField === 'reminders' ? <FieldWell tokens={tokens}>{habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
-      <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} tokens={tokens} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
-      <ListRow title={t('habits.detail.time')} value={displayTime(habit.dueTime) || t('habits.detail.noValue')} onClick={() => toggleField('time')} />
-      {openField === 'time' ? <TimeEditor habit={habit} tokens={tokens} onCancel={close} onSave={save} /> : null}
-      <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
-      {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline tokens={tokens} onCancel={close} onSave={(description) => save({ description })} /> : null}
-      <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? formatLocaleDate(habit.endDate, locale, { dateStyle: 'medium' }) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />
-      {openField === 'endDate' ? <TextEditor initialValue={habit.endDate ?? ''} tokens={tokens} onCancel={close} onSave={(endDate) => save({ endDate: endDate || null })} /> : null}
+    <View style={styles.fields}>
+      <TimeField label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <View>
+        <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.reminders')}</Text>
+        {habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError}>
+          <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested />
+        </ReminderSection> : <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} />}
+        <FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} />
+      </View>
+      <View>
+        <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.checklist')}</Text>
+        <HabitChecklist items={habit.checklistItems} editable onItemsChange={onItemsChange} />
+        <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
+      </View>
+      <View>
+        <Switch label={t('habits.form.habitTypeAvoid')} checked={habit.isBadHabit} onChange={(isBadHabit) => { void onPatch({ isBadHabit }) }} />
+        <Text style={[styles.chipText, { color: tokens.fg3 }]}>{t('habits.form.habitTypeAvoidHint')}</Text>
+      </View>
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
-      <ListRow title={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), locale, { dateStyle: 'medium' })} readOnly />
+      {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
+      {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell tokens={tokens}><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
+      <View>
+        <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.endDate')}</Text>
+        <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />
+        {habit.endDate ? <PillButton variant="ghost" size="sm" iconOnly label={t('habits.form.removeEndDate')} onClick={() => { void onPatch({ endDate: null }) }}><X size={20} color={tokens.fg1} /></PillButton> : null}
+      </View>
+      <Input label={t('habits.form.description')} value={description} onChange={setDescription} onBlur={() => { if (description.trim() !== (habit.description ?? '')) void onPatch({ description: description.trim() }) }} multiline rows={3} maxLength={10000} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 4 },
-  fieldWell: { borderRadius: 12, borderWidth: 1, gap: 12, marginBottom: 12, marginHorizontal: 12, padding: 16 },
+  list: { gap: 8 },
+  fields: { gap: 24 },
+  fieldWell: { gap: 12 },
   actions: { flexDirection: 'row', gap: 8 },
   input: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, paddingVertical: 12 },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
+  days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 999, overflow: 'hidden', borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
   dayChip: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },

@@ -48,6 +48,12 @@ for (const width of [412, 1280]) {
         const geometry = await column.evaluate((element) => {
           const header = element.querySelector('header')!
           const well = header.querySelector('button[aria-haspopup="dialog"]')!
+          const row = header.querySelector('[data-habit-detail-header-row]')!
+          const heading = header.querySelector('h1')!
+          const summary = row.querySelector('p')!
+          const columnStyle = getComputedStyle(element)
+          const headingStyle = getComputedStyle(heading)
+          const summaryStyle = getComputedStyle(summary)
           const strip = element.querySelector('.habit-detail-strip')!
           const label = strip.querySelector('p')!
           const headerSlot = Array.from(element.children).find((child) => child.contains(header))!
@@ -62,6 +68,17 @@ for (const width of [412, 1280]) {
             return gap
           })
           return {
+            contentWidth: element.getBoundingClientRect().width - Number.parseFloat(columnStyle.paddingLeft) - Number.parseFloat(columnStyle.paddingRight),
+            headerInset: row.getBoundingClientRect().left - element.getBoundingClientRect().left,
+            columnInset: Number.parseFloat(columnStyle.paddingLeft),
+            wellWidth: well.getBoundingClientRect().width,
+            wellHeight: well.getBoundingClientRect().height,
+            wellRadius: getComputedStyle(well).borderRadius,
+            titleSize: headingStyle.fontSize,
+            titleWeight: headingStyle.fontWeight,
+            titleFont: headingStyle.fontFamily,
+            summarySize: summaryStyle.fontSize,
+            summaryFont: summaryStyle.fontFamily,
             headerToLabel: label.getBoundingClientRect().top - well.getBoundingClientRect().bottom,
             contentToLabel: label.getBoundingClientRect().top - previousBottom,
             metadataGaps,
@@ -70,6 +87,16 @@ for (const width of [412, 1280]) {
             emptyLiveRegion: headerSlot.querySelector('[role="status"][aria-live="polite"]')?.textContent === '',
           }
         })
+        expect(geometry.contentWidth).toBe(width === 412 ? 380 : 620)
+        expect(geometry.headerInset).toBe(geometry.columnInset)
+        expect(geometry.wellWidth).toBe(76)
+        expect(geometry.wellHeight).toBe(76)
+        expect(geometry.wellRadius).toBe('12px')
+        expect(geometry.titleSize).toBe(width === 412 ? '22px' : '28px')
+        expect(geometry.titleWeight).toBe('500')
+        expect(geometry.titleFont).toContain('Space Grotesk')
+        expect(geometry.summarySize).toBe('12px')
+        expect(geometry.summaryFont).toContain('Geist Mono')
         if (!hasTags && !hasDescription) expect(geometry.headerToLabel).toBe(24)
         expect(geometry.contentToLabel).toBe(24)
         expect(geometry.metadataGaps).toEqual(Array(Number(hasTags) + Number(hasDescription)).fill(12))

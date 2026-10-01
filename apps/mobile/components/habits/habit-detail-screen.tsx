@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
+import { useReducedMotion } from 'react-native-reanimated'
+import { motionEasings } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
+  formatHabitDetailReminderValue,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
   buildHabitStripModel,
@@ -52,9 +55,11 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { DateRow } from '@/components/ui/date-row'
+import { StatTile } from '@/components/ui/stat-tile'
 import { CreateHabitModal } from './create-habit-modal'
-import { HabitDetailFields } from './habit-detail-fields'
+import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
 import { HabitChecklist } from './habit-checklist'
 import { HabitEmojiSelector } from './habit-form-fields/habit-emoji-selector'
 import { createStyles as createFormStyles } from './habit-form-fields/styles'
@@ -89,8 +94,8 @@ function SectionTitle({ children, color }: Readonly<{ children: string; color: s
   return <Text numberOfLines={1} style={[styles.sectionTitle, { color }]}>{children}</Text>
 }
 
-function Surface({ children, backgroundColor, borderColor }: Readonly<{ children: React.ReactNode; backgroundColor: string; borderColor: string }>) {
-  return <View style={[styles.surface, { backgroundColor, borderColor }]}>{children}</View>
+function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <View style={styles.surface}>{children}</View>
 }
 
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -104,9 +109,16 @@ function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly
   return <Text style={[styles.muted, styles.childReason, { color: tokens.fg2 }]}>{reason}</Text>
 }
 
+function ReminderReadout({ habit, tokens }: Readonly<{ habit: NormalizedHabit; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  const { displayTime } = useTimeFormat()
+  if (!habit.reminderEnabled) return null
+  return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.reminders')}: {formatHabitDetailReminderValue(habit, t, displayTime)}</Text>
+}
+
 function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
-  if (!visible) return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.noDataYet')}</Text>
+  if (!visible) return null
   if (loading) return <View style={styles.tileGrid}><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /></View>
   if (!metrics || metrics.totalCompletions === 0) return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.noDataYet')}</Text>
   const values = [
@@ -114,7 +126,7 @@ function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ v
     { label: t('habits.detail.longestStreak'), value: String(metrics.longestStreak) },
     { label: t('habits.detail.monthlyRate'), value: `${Math.round(metrics.monthlyCompletionRate)}%` },
   ]
-  return <View style={styles.tileGrid}>{values.map((item) => <View key={item.label} style={styles.metric}><Text style={[styles.metricValue, { color: tokens.fg1 }]}>{item.value}</Text><Text numberOfLines={1} style={[styles.metricLabel, { color: tokens.fg2 }]}>{item.label}</Text></View>)}</View>
+  return <View style={styles.tileGrid}>{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</View>
 }
 
 function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
@@ -140,8 +152,9 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
           {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text numberOfLines={1} style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
-          {summary ? <Text numberOfLines={1} style={[styles.muted, { color: tokens.fg3 }]}>{summary}</Text> : null}
+          {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
+        <PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.rename')} onClick={() => setEditing(true)}><Pencil size={20} color={tokens.fg1} /></PillButton>
         <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View></View> : null}
@@ -153,7 +166,6 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
 function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<{ habit: NormalizedHabit; logs: ReturnType<typeof useHabitLogs>['data']; today: Date; locale: string; weekStartsOn: 0 | 1; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const [month, setMonth] = useState(startOfMonth(today))
-  const [monthOpacity] = useState(() => new Animated.Value(1))
   const { displayClock } = useTimeFormat()
   const loaded = isHabitHistoryMonthLoaded(month, today)
   const days = buildHabitHistoryMonth(habit, loaded ? logs ?? [] : [], month, today, weekStartsOn)
@@ -161,14 +173,12 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   const weekdayLabels = Array.from({ length: 7 }, (_, offset) => new Date(2025, 0, 5 + ((weekStartsOn + offset) % 7)).toLocaleDateString(locale, { weekday: 'narrow' }))
   const words = { none: t('habits.detail.missedWord'), partial: t('habits.detail.missedWord'), full: t('habits.detail.doneWord'), notScheduled: t('habits.detail.notScheduledWord'), of: t('habits.detail.ofWord'), today: t('habits.detail.todayWord'), readOnly: t('habits.detail.readOnlyWord') }
   const changeMonth = (offset: number) => {
-    monthOpacity.setValue(0)
     setMonth((value) => addMonths(value, offset))
-    Animated.timing(monthOpacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
   }
   return (
-    <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}>
-      <View style={styles.sectionHeader}><View><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{capitalizeFirstLetter(label)}</Text></View><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
-      <Animated.View style={{ opacity: monthOpacity }}><MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => {
+    <Surface>
+      <View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><Text style={[styles.summary, { flex: 1, textAlign: 'center', color: tokens.fg3 }]}>{capitalizeFirstLetter(label)}</Text><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
+      <View><MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => {
         const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
         const cellLabel = day.loggedAt
           ? t('habits.detail.loggedAt', {
@@ -192,7 +202,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
           )
         }
         return <DayCell key={day.dateStr} day={day.day} done={day.outcome === 'full' ? 1 : 0} scheduled={day.outcome === 'not-scheduled' ? 0 : 1} outsideMonth={day.outsideMonth} today={day.today} label={cellLabel} words={words} habitHistory />
-      })}</MonthGrid></Animated.View>
+      })}</MonthGrid></View>
     </Surface>
   )
 }
@@ -364,6 +374,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const updateChecklist = useUpdateChecklist()
   const deleteHabit = useDeleteHabit()
   const { showError } = useAppToast()
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
@@ -401,15 +412,16 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const completionReason = boundary === 'read-only'
     ? t('habits.todayBoundary.readOnly')
     : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
+  const reducedMotion = useReducedMotion()
   const [detailChevron] = useState(() => new Animated.Value(0))
   const [detailOpacity] = useState(() => new Animated.Value(0))
   useEffect(() => {
-    Animated.timing(detailChevron, { toValue: detailsOpen ? 1 : 0, duration: 220, useNativeDriver: true }).start()
+    Animated.timing(detailChevron, { toValue: detailsOpen ? 1 : 0, duration: reducedMotion ? 0 : 220, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true }).start()
     if (detailsOpen) {
       detailOpacity.setValue(0)
-      Animated.timing(detailOpacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
+      Animated.timing(detailOpacity, { toValue: 1, duration: reducedMotion ? 0 : 160, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true }).start()
     }
-  }, [detailChevron, detailOpacity, detailsOpen])
+  }, [detailChevron, detailOpacity, detailsOpen, reducedMotion])
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()
@@ -520,16 +532,22 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     })
   return (
     <FlowShell nav={false} header={appBar}>
+      <View testID="habit-detail-content" style={styles.content}>
       <View>
         <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
-        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /><View style={styles.stripMetrics}><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></View></View> : null}
+        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}
       </View>
       <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} returnFocus={focusStrip} />
+      <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
+      <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
+      <ReminderReadout habit={habit} tokens={tokens} />
+      <Surface><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle></View><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" style={{ backgroundColor: tokens.bgCard, borderRadius: 20, borderColor: tokens.hairlineGhost, borderWidth: 1 }} accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><Text numberOfLines={1} style={[styles.sectionTitle, styles.disclosureTitle, { color: tokens.fg1 }]}>{t('habits.detail.moreDetails')}</Text><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary ?? ''} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
+      <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
+      <Surface><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><Text numberOfLines={1} style={[styles.sectionTitle, styles.disclosureTitle, { color: tokens.fg1 }]}>{t('habits.detail.moreDetails')}</Text><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={habit.id} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
+      <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
       <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
@@ -541,6 +559,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
+    </View>
     </FlowShell>
   )
 }
@@ -548,25 +567,26 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 const styles = StyleSheet.create({
   stripSection: { gap: 8, paddingTop: 24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  stripMetrics: { paddingTop: 8 },
+  content: { width: '100%', maxWidth: 620, alignSelf: 'center', gap: 24 },
+  summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16, padding: 16 },
-  surface: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
-  headerCopy: { flex: 1, minWidth: 0, gap: 4, paddingTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 26.4 },
-  titleWide: { fontSize: 28, lineHeight: 32.2 },
+  surface: { gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerCopy: { flex: 1, minWidth: 0, gap: 4 },
+  title: { fontFamily: 'SpaceGrotesk_500Medium', letterSpacing: -0.44, fontSize: 22, lineHeight: 26.4 },
+  titleWide: { fontSize: 28, letterSpacing: -0.56, lineHeight: 32.2 },
   renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
-  titleInput: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 26.4, borderBottomWidth: 2, padding: 0 },
+  titleInput: { fontFamily: 'SpaceGrotesk_500Medium', letterSpacing: -0.44, fontSize: 22, lineHeight: 26.4, borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  sectionHeader: { gap: 8 },
   sectionHeading: { gap: 4 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: 12 },
   childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
   disclosureTitle: { fontSize: 17 },
-  historyActions: { flexDirection: 'row', gap: 8 },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tileGrid: { flexDirection: 'row', gap: 8 },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
   metricValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, fontVariant: ['tabular-nums'] },
   metricLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16, width: '100%', textAlign: 'center' },
