@@ -1,4 +1,10 @@
 import React from 'react'
+import { createRequire } from 'node:module'
+import type { NativeGesture as NativeGestureType, TapGesture as TapGestureType } from 'react-native-gesture-handler'
+
+const loadGestureModule = createRequire(import.meta.url)
+const { NativeGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/nativeGesture') as { NativeGesture: new () => NativeGestureType }
+const { TapGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/tapGesture') as { TapGesture: new () => TapGestureType }
 
 function createHostComponent(name: string) {
   return function HostComponent({
@@ -31,6 +37,8 @@ function createPanGestureBuilder() {
 
 export const Gesture = {
   Pan: createPanGestureBuilder,
+  Native: () => new NativeGesture(),
+  Tap: () => new TapGesture(),
 }
 
 export default {

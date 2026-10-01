@@ -77,13 +77,20 @@ function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly
 
   useEffect(() => {
     const list = listRef.current
-    const option = list?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
-    if (!list || !option) return
-    list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2
+    if (!list) return
+    const revealSelected = () => {
+      const option = list.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+      if (!option) return
+      list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2
+    }
+    revealSelected()
+    const observer = new ResizeObserver(revealSelected)
+    observer.observe(list)
+    return () => observer.disconnect()
   }, [])
 
   return (
-    <div ref={listRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]">
+    <div ref={listRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className="relative h-full min-h-0 min-w-0 flex-1 snap-y overflow-y-auto overscroll-contain px-1 [scrollbar-width:thin]">
       <RadioGroup aria-label={label}>
         {values.map((option) => (
           <TimeOption
@@ -262,12 +269,13 @@ export function TimeField({
       {open ? (
         <Sheet
           ref={sheetRef}
+          boundedBody
           open
           title={t('common.selectTime')}
           onClose={() => setOpen(false)}
           actions={<PillButton size="sm" onClick={applyDraft}>{t('common.done')}</PillButton>}
         >
-          <div className="flex gap-1" style={{ height: 220 }}>
+          <div className="flex min-h-[44px] shrink gap-1" style={{ height: 220 }}>
             <TimeColumn
               values={resolvedHourCycle === 'h23' ? HOURS_24 : HOURS_12}
               selected={resolvedHourCycle === 'h23' ? pickerDraft.hour24 : hour12}
