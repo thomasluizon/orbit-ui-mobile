@@ -1,9 +1,9 @@
 {
   "calibratedAt": "2026-10-01",
   "classifier": {
-    "model": "gpt-6-luna",
+    "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
-    "calibratedAt": "2026-09-26",
+    "calibratedAt": "2026-10-01",
     "verdict": "classifier matched all 41 recorded ticket cases"
   },
   "workerEngine": "codex",
