@@ -156,7 +156,8 @@ describe('habit search', () => {
     expect(screen.queryByRole('dialog', { name: 'Create habit' })).toBeNull()
   })
 
-  it('explains offline refusal beside empty search results', async () => {
+  it.each([false, true])('explains offline refusal beside empty results with wide=%s', async (wide) => {
+    mocks.wide = wide
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'new habit' } })
@@ -416,12 +417,19 @@ describe('habit search', () => {
     expect(mocks.push).toHaveBeenCalledWith('/habits/stretch')
   })
 
-  it('pages past twenty and resets to the first page for a different query', async () => {
-    mocks.query.mockReturnValue(result(Array.from({ length: 20 }, (_, index) => createMockHabit({ id: String(index), title: `Walk ${index}`, isOverdue: true }))))
-    mount()
+  it.each([false, true])('pages search results and resets for a different query with wide=%s', async (wide) => {
+    mocks.wide = wide
+    mocks.query.mockReturnValue(result(Array.from({ length: 20 }, (_, index) => createMockHabit({ id: String(index), title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))))
+    mount(true)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: 'Open Walk 0 in the name' })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(mocks.query).toHaveBeenLastCalledWith({ search: '', page: 2, pageSize: 20 })
+    expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 2, pageSize: 20 })
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'run' } })
+    expect(screen.queryByRole('button', { name: 'Previous' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
     await waitFor(() => expect(mocks.query).toHaveBeenLastCalledWith({ search: 'run', page: 1, pageSize: 20 }))
   })
 
@@ -440,9 +448,10 @@ describe('habit search', () => {
     expect(await screen.findByRole('button', { name: 'Create habit' })).toHaveAttribute('data-variant', variant)
   })
 
-  it('offers retry on failure while preserving the query', async () => {
+  it.each([false, true])('offers retry on the search page while preserving the query with wide=%s', async (wide) => {
+    mocks.wide = wide
     mocks.query.mockReturnValue(result([], false, true))
-    mount()
+    mount(true)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(mocks.retry).toHaveBeenCalled()
