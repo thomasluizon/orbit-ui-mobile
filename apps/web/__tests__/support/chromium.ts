@@ -29,11 +29,12 @@ async function closeChromeServer(server: BrowserServer): Promise<void> {
   if (!gracefullyClosed) await server.kill()
 }
 
-export function launchChrome(): BrowserLaunch {
+export function launchChrome(args: string[] = []): BrowserLaunch {
   const serverLaunch = chromium.launchServer({
     channel: 'chrome',
     host: '127.0.0.1',
     timeout: CHROME_LAUNCH_TIMEOUT_MS,
+    args,
   })
   const browserLaunch = serverLaunch.then(async (server) => {
     try {
@@ -65,8 +66,9 @@ export function launchChrome(): BrowserLaunch {
 export function registerChromeLaunchHook(
   registerHook: HookRegistrar,
   useBrowserLaunch: (browserLaunch: BrowserLaunch) => Promise<void> | void,
+  args: string[] = [],
 ): void {
-  registerHook(async () => { await useBrowserLaunch(launchChrome()) }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
+  registerHook(async () => { await useBrowserLaunch(launchChrome(args)) }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
 }
 
 export async function closeChrome(browserLaunch: BrowserLaunch | undefined): Promise<void> {
