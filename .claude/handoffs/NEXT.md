@@ -6,7 +6,19 @@ Read `.claude/specs/orbit-prod-release.md` before anything else, then, through t
 
 `/sleep` is the only entry point. It enters `/orchestrate --sleep` itself; do not start `/orchestrate` separately.
 
-## First step: the throwaway-AVD session (Play screenshots, `#1086`, `#1087`)
+## First: the five token-cost tickets (owner priority)
+
+The owner moved these ahead of everything else in this prompt. They take the next free worker slots, before any other launch or relaunch (`#1081`, `#1086` and `#1087` included):
+
+1. `#1092` One deterministic status call answers every orchestrator wakeup.
+2. `#1093` The ticket classifier on Claude headless, recalibrated.
+3. `#1094` `/second-opinion` on Claude headless.
+4. `#1091` Relay an unattended run to a fresh session at 400K context, with the whole session chain kept for the next wrap-up. Launch it only after `#1092` merges: both rewrite the orchestrate wakeup text.
+5. `#1089` Worker sub-agents only for the redesign close gate. Launch it only after `#1091` merges: both change `.claude/orchestrator.json`, the launcher and the orchestrate skill.
+
+Eight pull requests are open, so the ten cap admits two workers now: launch `#1092` and `#1093` first, and `#1094` when a slot frees. `#1093` and `#1094` need no second Claude account, and both must merge before the owner's ChatGPT plan ends. Keep driving the in-flight pull requests to merge meanwhile, because that needs no worker slot. A merged harness change to the hooks or skills takes effect in the next session, not in this one.
+
+## Second: the throwaway-AVD session (Play screenshots, `#1086`, `#1087`)
 
 One throwaway AVD session serves three needs; run it as a background agent so merges continue meanwhile. Follow the spec's device repro recipe and its `#1086` and `#1087` bullets in Batch R: an instrumented release rebuild of `3709832e` (Orbit Staging 1.3.51) on a separate AVD (never `Orbit_Pixel_9_API_35`, no personal account, deleted after), signed in against a local mock API on the host that answers the Google code exchange with success and serves schema-valid reads.
 
@@ -31,12 +43,12 @@ The owner's written authorization overrides the sleep skill's generic hard stops
 1. When EVERYTHING the redesign needs is done (every redesign ticket merged and closed, every service released to staging from `redesign/main`, an Orbit Staging internal build uploaded after the last redesign merge, a full rendered sweep finding nothing), tell the owner plainly that the redesign is ready for his test: send a push notification with the `PushNotification` tool and make it the first line of the report, and list the owner checks for the gate review from the spec's Current state. That is THE REDESIGN GATE; stop the redesign there and never merge `redesign/main` to `main`; `main`-branch work (step 7 below) continues.
 2. No recurring Orbit Pro prompt for free accounts (decided).
 3. Orbit Staging must be the most up to date build possible, installable, named "Orbit Staging" with the redesigned icon (the Play review in the first step finishes the name and icon).
-4. The owner's reported bugs come first, then the redesign.
+4. The five token-cost tickets come first, then the owner's reported bugs, then the redesign.
 5. Onboarding follows the ADR named above.
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are Orbit Staging's Play review and the owner's four bugs, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 157 open tickets, all 157 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket); the eleven new ones are `#1063` (now leading its own Batch R bullet) and `#1089` to `#1099` (Batch 0b, with the move off OpenAI in its own ordered list).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the five token-cost tickets, then Orbit Staging's Play review and the owner's four bugs, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 157 open tickets, all 157 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket); the new ones are `#1063` (now leading its own Batch R bullet) and the eleven `#1089` to `#1099` (Batch 0b: five token-cost tickets first, then the move off OpenAI in its own ordered list).
 
 ## In flight
 
@@ -69,13 +81,14 @@ Workers launched by a session die when it ends: read each worktree before relaun
 
 ## Then, in order
 
-1. The first step (the throwaway-AVD session, the Play review, the `#1009` proof).
-2. The in-flight rows above, top to bottom; release `redesign/main` web to staging after each merged batch and ship a new Orbit Staging internal build after each batch of redesign merges.
-3. The owner's four bugs (`#1084` to `#1087`).
-4. The spec's `### Batch R` list in its order (including `#1081`, `#1082`, `#1038`, `#976`, `#995`), checking file overlap with open pull requests and running workers before each launch. Correct production's content rating with a new questionnaire mirroring Orbit Staging's honest answers.
-5. A full rendered sweep of staging at desktop, phone and foldable widths, covering what the last sweep could not reach (spec, Sweep coverage), filing and fixing until a full pass finds nothing; then an Orbit Staging internal build after the last redesign merge.
-6. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
-7. The rest of `### Batch M` (`#943` with the SES switch, then the retired-project list for the owner), Batch 0c (`#1043` via `ui#1459`, `#1040`, the rest), Batch E and Batch 0b (`#556` with the `#987` and `#1080` carry, `#746`, `#926`, `#1019`, `#1018`, the `#1070` backport, `#1072`, `#1089`, `#1091`, `#1092`, then the move off OpenAI once the owner finishes `#1090`), as the spec orders them.
+1. The five token-cost tickets (the first section above), in their order.
+2. The second step (the throwaway-AVD session, the Play review, the `#1009` proof).
+3. The in-flight rows above, top to bottom; release `redesign/main` web to staging after each merged batch and ship a new Orbit Staging internal build after each batch of redesign merges.
+4. The owner's four bugs (`#1084` to `#1087`).
+5. The spec's `### Batch R` list in its order (including `#1081`, `#1082`, `#1038`, `#976`, `#995`), checking file overlap with open pull requests and running workers before each launch. Correct production's content rating with a new questionnaire mirroring Orbit Staging's honest answers.
+6. A full rendered sweep of staging at desktop, phone and foldable widths, covering what the last sweep could not reach (spec, Sweep coverage), filing and fixing until a full pass finds nothing; then an Orbit Staging internal build after the last redesign merge.
+7. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
+8. The rest of `### Batch M` (`#943` with the SES switch, then the retired-project list for the owner), Batch 0c (`#1043` via `ui#1459`, `#1040`, the rest), Batch E and Batch 0b (`#556` with the `#987` and `#1080` carry, `#746`, `#926`, `#1019`, `#1018`, the `#1070` backport, `#1072`, then the move off OpenAI from `#1095` once the owner finishes `#1090`), as the spec orders them.
 
 ## Previous prompt, disposition
 
@@ -84,6 +97,7 @@ Workers launched by a session die when it ends: read each worktree before relaun
 - First step, Cloudflare pinger: apply done (workers.dev subdomain `useorbit` created through the API, Worker and both cron schedules live, first scheduled run succeeded); the observation hour and the keepalive deletion are carried.
 - In flight: `ui#1441` done (`6b7da44c`), `ui#1453` done (`1972feb3`), `ui#1455` done (`fc725352`), `#1083` done (`ui#1460`, `25f00d77`); `ui#1446`, `ui#1456`, `ui#1458` carried (base-merged, in CI); `ui#1454` carried (review fix pushed, base-merged); `ui#1457` carried (parity fixed, re-review); `ui#1459` carried (review batch pushed).
 - The owner's four bugs: `#1085` has `ui#1461`; `#1084` has `ui#1462`; `#1086` and `#1087` carried behind the AVD session.
-- Then, in order: steps 1 to 7 carried as steps 1 to 7; the eleven new tickets placed in the order.
+- Then, in order: steps 1 to 7 carried as steps 2 to 8; the eleven new tickets placed in the order.
+- Owner change after the handoff: the five token-cost tickets (`#1092`, `#1093`, `#1094`, `#1091`, `#1089`) moved from the end of step 8 to a new first section and step 1, and owner instruction 4 now puts them first. `#1093` and `#1094` left the move-off-OpenAI list's account wait, because they need no second account.
 
 Every identifier here came from a previous session: treat each as a lead to verify.

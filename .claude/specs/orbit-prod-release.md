@@ -210,17 +210,18 @@ file a harness ticket as a substitute for a fix.
 - Backport the architecture generator fix for endpoint functions with several arguments (`#1070`, merged on `redesign/main`) to `main` by cherry-pick with `-x`
 - `#1072` The surface scope guard pairs hover and press foreground overrides with the background of the same state (three navigation owners are flagged though they already switch to `--primary-text`)
 - `#1080` Staging Sentry events report as `staging` on web and Android: `ui#1457` into `main` at `d1bd4e4a`, approved, every check green after the `parity:exempt` label and a `## Parity` line (the web half lives in `apps/web/instrumentation-client.ts` and `sentry.*.config.ts`, outside the directories the parity job counts); a fresh Pullfrog review was requested after the body edit. Merge to `main` on the bar; the `#556` sync carries it to staging
-- `#1089` Allow worker sub-agents only for the redesign close gate, on both engines
-- `#1091` Relay an unattended run to a fresh session at a context threshold, and keep the whole chain for the next wrap-up
+The owner put five token-cost tickets ahead of every other launch in every batch, in this order. `#1091` waits for `#1092` to merge and `#1089` waits for `#1091`, because each pair rewrites the same orchestrate, launcher or config text. `#1093` and `#1094` need no second Claude account, and both must merge before the owner's ChatGPT plan ends:
 - `#1092` One deterministic status call answers every orchestrator wakeup
+- `#1093` The ticket classifier on Claude headless, recalibrated
+- `#1094` `/second-opinion` on Claude headless
+- `#1091` Relay an unattended run to a fresh session at a context threshold, and keep the whole chain for the next wrap-up
+- `#1089` Allow worker sub-agents only for the redesign close gate, on both engines
 The move off OpenAI runs in this order; every ticket after `#1090` needs its account and secrets first:
 - `#1090` Owner-only: the second Claude Max account, its worker config directory and the two OAuth token secrets
 - `#1095` Headless Claude is the committed worker engine, under that account
 - `#1096` Pullfrog's primary review on Claude (ui)
 - `#1097` Pullfrog's primary review on Claude (api)
 - `#1098` Pullfrog's primary review on Claude (landing)
-- `#1093` The ticket classifier on Claude headless, recalibrated
-- `#1094` `/second-opinion` on Claude headless
 - `#1099` Delete the Codex-only harness paths, last
 
 The contract rebaseline App (`#702`) is done: its pull requests now start every required check. The redesign rebaseline passes the App key to its reusable workflow (`#787`): dispatch `redesign-drift.yml` on `redesign/main` after each orbit-api `redesign/main` merge that changes the contract. Worktree teardown accepts clean local base merges (`#785`) and merged carry worktrees of the standing tickets listed in `tickets.standing` (`#786`); a closed, unmerged ledger row with a blocker and `closed: true` ends a sleep run BLOCKED (`#788`), and an explicit `closed: false` reopens it (`#789`).
