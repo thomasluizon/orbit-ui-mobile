@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useBilling } from '@/hooks/use-billing'
@@ -66,6 +66,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.billing).toBeDefined()
     expect(result.current.billing!.status).toBe('active')
@@ -83,6 +84,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.billing).toBeNull()
   })
@@ -98,6 +100,7 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })

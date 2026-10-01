@@ -41,6 +41,8 @@ describe('useCalendarEvents', () => {
     ]
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(events) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toEqual({ status: 'connected', events })
     expect(mockFetch.mock.calls[0]?.[0]).toBe(`${API.calendar.events}?includeImported=true`)
@@ -49,6 +51,10 @@ describe('useCalendarEvents', () => {
   it.each([{}, [{ id: 1 }], null])('exposes a schema error for malformed events %j', async (body) => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isError).toBe(false)
+    await act(async () => {
+      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toBeInstanceOf(ZodError)
+    })
     await waitFor(() => expect(result.current.fetchStatus).toBe('idle'))
     expect(result.current.isError).toBe(true)
     expect(result.current.error).toBeInstanceOf(ZodError)
@@ -58,6 +64,8 @@ describe('useCalendarEvents', () => {
   it('returns an empty connected list when no events are available', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toEqual({ status: 'connected', events: [] })
   })
@@ -69,6 +77,8 @@ describe('useCalendarEvents', () => {
       json: () => Promise.resolve({ error: 'Calendar not connected' }),
     })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toEqual({ status: 'not-connected' })
   })
@@ -158,6 +168,8 @@ describe('useCalendarEvents', () => {
       json: () => Promise.resolve({ message: 'Boom' }),
     })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toBe('Boom')
   })
@@ -169,6 +181,8 @@ describe('useCalendarEvents', () => {
       json: () => Promise.reject(new Error('no json')),
     })
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error?.message).toBe('Failed with status 503')
   })
@@ -216,11 +230,15 @@ describe('useCalendarEvents', () => {
       ({ timeZone }) => useCalendarEvents({ timeZone }),
       { initialProps: { timeZone: 'UTC' as string | null }, wrapper: createWrapper() },
     )
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.data?.status).toBe('connected'))
     expect(filterCalendarSyncEventsByDate(result.current.data?.status === 'connected' ? result.current.data.events : [], '2026-09-13')).toHaveLength(1)
 
     rerender({ timeZone: 'America/Los_Angeles' })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
     await waitFor(() => {
       expect(filterCalendarSyncEventsByDate(result.current.data?.status === 'connected' ? result.current.data.events : [], '2026-09-12')).toHaveLength(1)

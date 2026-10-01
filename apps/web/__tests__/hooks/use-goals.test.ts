@@ -116,6 +116,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.allGoals).toHaveLength(3)
@@ -136,6 +138,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.goalsById.size).toBe(2)
@@ -158,6 +162,8 @@ describe('useGoals', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
@@ -172,6 +178,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.goalsById.size).toBe(0)
@@ -187,6 +195,8 @@ describe('useGoals', () => {
 
     const { result } = renderHook(() => useGoals(), { wrapper: createWrapper() })
 
+    expect(result.current.isError).toBe(false)
+    await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
     await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })
@@ -475,6 +485,8 @@ describe('useGoalDetail', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toBeDefined()
   })
@@ -505,6 +517,8 @@ describe('useGoalMetrics', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.isFetching).toBe(true)
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toBeDefined()
   })

@@ -83,6 +83,7 @@ describe('useNotifications', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.notifications).toHaveLength(2)
@@ -96,6 +97,7 @@ describe('useNotifications', () => {
       wrapper: createWrapper(),
     })
 
+    await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.notifications).toEqual([])
