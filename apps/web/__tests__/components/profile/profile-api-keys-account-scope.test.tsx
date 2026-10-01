@@ -6,7 +6,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
-import { retireHeldAccount } from '@/__tests__/support/account-change'
+import { resetAuthStore, retireHeldAccount } from '@/__tests__/support/account-change'
 import type { Profile } from '@orbit/shared/types/profile'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -88,15 +88,22 @@ function respondWithAccount(userId: string) {
   } as unknown as Response)
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal('fetch', vi.fn())
+  await resetAuthStore()
+  localStorage.clear()
+  vi.mocked(requestApiKeyCreationChallenge).mockReset()
+  management.handleCreateKey.mockReset()
+  management.push.mockReset()
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   management.handleCreateKey.mockResolvedValue({ id: 'key-1', name: 'Orbit key', key: ACCOUNT_A_KEY })
 })
 
-afterEach(() => {
+afterEach(async () => {
   cleanup()
   queryClient.clear()
+  await resetAuthStore()
+  localStorage.clear()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   vi.clearAllMocks()
@@ -191,6 +198,8 @@ it('does not route the next account after an old key challenge resolves', async 
       <ProfileApiKeys profile={proProfile()} unlocked={false} />
     </QueryClientProvider>,
   )
+  expect(readStepUpTiming('keys', 'user-1')).toBeNull()
+  expect(readStepUpTiming('keys', 'user-2')).toBeNull()
   fireEvent.click(screen.getByText('Open the keys'))
   fireEvent.click(screen.getByText('Sign in again'))
 
@@ -199,8 +208,17 @@ it('does not route the next account after an old key challenge resolves', async 
   await act(async () => { releaseChallenge(); await Promise.resolve() })
 
   expect(readStepUpTiming('keys', 'user-1')).toBeNull()
+  expect(readStepUpTiming('keys', 'user-2')).toBeNull()
   expect(management.push).not.toHaveBeenCalled()
   expect(screen.queryByText('Sign in again')).not.toBeInTheDocument()
+
+  vi.mocked(requestApiKeyCreationChallenge).mockResolvedValueOnce(undefined as never)
+  fireEvent.click(screen.getByText('Open the keys'))
+  await act(async () => { fireEvent.click(screen.getByText('Sign in again')) })
+
+  expect(readStepUpTiming('keys', 'user-1')).toBeNull()
+  expect(readStepUpTiming('keys', 'user-2')).not.toBeNull()
+  expect(management.push).toHaveBeenCalledExactlyOnceWith('/step-up?operation=keys')
 })
 
 it('waits for the first account check before requesting an API key challenge', async () => {
