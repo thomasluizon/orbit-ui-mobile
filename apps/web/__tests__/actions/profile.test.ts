@@ -50,6 +50,12 @@ const { sendSupportMessage } = await import('@/lib/actions/support')
 describe('profile server actions', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    vi.mocked(resolveServerSession).mockReset().mockResolvedValue({
+      token: 'test-token',
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
   })
 
   function mockApiResponse(body: unknown, status = 200) {

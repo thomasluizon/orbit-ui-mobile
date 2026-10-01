@@ -2,7 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
-import { replaceAccountWith, respondWithAccount, retireHeldAccount } from '@/__tests__/support/account-change'
+import { replaceAccountWith, respondWithAccount, retireHeldAccount, resetAuthStore } from '@/__tests__/support/account-change'
 import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 
 function HeldAccount() {
@@ -14,8 +14,9 @@ function heldAccount(): string {
   return screen.getByTestId('held').textContent
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal('fetch', vi.fn())
+  await resetAuthStore()
 })
 
 afterEach(() => {

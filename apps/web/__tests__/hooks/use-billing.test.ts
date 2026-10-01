@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useBilling } from '@/hooks/use-billing'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 
 const mockFetch = vi.fn()
@@ -40,7 +41,8 @@ function makeBillingDetails(overrides: Partial<BillingDetails> = {}): BillingDet
 }
 
 describe('useBilling', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await resetAuthStore()
     mockFetch.mockReset()
   })
 
