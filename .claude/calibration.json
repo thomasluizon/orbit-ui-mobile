@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-30",
+  "calibratedAt": "2026-10-01",
   "classifier": {
     "model": "gpt-6-luna",
     "promptDigest": "780092b4659dfd6e",
@@ -100,8 +100,8 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "c49c99032f0dd379",
-      "calibratedAt": "2026-09-30",
+      "digest": "8d7ada0508dc908f",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
@@ -205,8 +205,8 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a93044f359a5475d",
-      "calibratedAt": "2026-09-30",
+      "digest": "4582a634fe14f04d",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -247,8 +247,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "1f49be4ff472d8f1",
-      "calibratedAt": "2026-09-30",
+      "digest": "60139724e22eccfd",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },
     ".agents/skills/merge-prs/SKILL.md": {
