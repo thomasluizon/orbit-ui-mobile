@@ -27,15 +27,12 @@ function renderUnderstanding(resolved: boolean) {
         dayOptions={[]}
         quantity={1}
         mode="fixed"
-        intervalWeeks={1}
         sentence={resolved ? 'Every day' : null}
         consumed={[]}
         onValueChange={vi.fn()}
         onEmojiSelect={vi.fn()}
         onToggleDay={vi.fn()}
         onQuantityChange={vi.fn()}
-        onModeChange={vi.fn()}
-        onIntervalWeeksChange={vi.fn()}
         labels={buildHabitUnderstandingLabels((key) => key)}
       />
     </div>,
