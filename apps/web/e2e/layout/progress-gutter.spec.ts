@@ -43,6 +43,9 @@ for (const width of [1352, 1100, 840, 412]) {
 
           const presentation = width >= 1024 ? 'panel' : 'overlay'
           await page.goto('/')
+          await page.getByRole('button', { name: messages.habits.listOptions }).click()
+          await page.getByRole('menu', { name: messages.habits.listOptions })
+            .getByRole('menuitem', { name: messages.habits.refresh }).click()
           const todayPanel = page.locator('.habit-panel').first()
           await expect(todayPanel).toBeVisible()
           if (panelOpen) {
