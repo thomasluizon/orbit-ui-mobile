@@ -1,14 +1,19 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { Composer } from '@/components/shell/composer'
+import { NotFoundContent } from '@/components/ui/not-found-content'
+import { Toast } from '@/components/ui/toast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const windows = ([[360, 740], [412, 915], [480, 800], [600, 900], [840, 900], [1100, 900]] as const)
   .flatMap(([width, height]) => [{ width, height }, { width: height, height: width }])
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Foldable shell geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -20,6 +25,37 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 500, 740, 1024, 1352])('aligns the toast and in-shell not-found title with composer content at %ipx', async (width) => {
+    const { container } = render(<ShellWide items={[]} activeId="" navLabel="Navigation"
+      notice={<Toast kind="neutral" message="Notification removed" />}
+      composer={<Composer words={{ placeholder: 'Message', send: 'Send', suggestionsLabel: 'Suggestions' }}
+        value="" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]} state="idle" />}>
+      <NotFoundContent inShell />
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const bounds = await page.evaluate(() => {
+        const composer = document.querySelector('[data-composer-root]')!
+        const rectangle = composer.getBoundingClientRect()
+        const style = getComputedStyle(composer)
+        const edges = (element: Element) => {
+          const box = element.getBoundingClientRect()
+          return { left: box.left, right: box.right }
+        }
+        return {
+          content: { left: rectangle.left + parseFloat(style.paddingLeft), right: rectangle.right - parseFloat(style.paddingRight) },
+          toast: edges(document.querySelector('[data-shell-notice] [data-kind]')!),
+          title: edges(document.querySelector('[data-state="not-found"] h1')!),
+          documentWidth: document.documentElement.scrollWidth,
+        }
+      })
+      expect.soft(bounds.toast).toEqual(bounds.content)
+      expect.soft(bounds.title).toEqual(bounds.content)
+      expect(bounds.documentWidth).toBe(width)
+    } finally { await page.close() }
+  })
 
   it.each(windows)('centres content and chrome at $width by $height', async ({ width, height }) => {
     const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"

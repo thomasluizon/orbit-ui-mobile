@@ -1703,7 +1703,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   overflow-wrap: anywhere;
 }
 .error-surface--in-shell {
+  max-width: none;
   padding: 64px 16px 0;
+}
+.error-surface--in-shell .error-surface-title {
+  align-self: stretch;
+}
+.error-surface--in-shell .error-surface-body {
+  max-width: 65ch;
 }
 .error-surface-title {
   font-family: var(--font-display);
@@ -1721,7 +1728,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 @media (min-width: 64rem) {
   .error-surface { padding: 32px; }
-  .error-surface--in-shell { padding: 0; }
+  .error-surface--in-shell { padding: 0 16px; }
   .error-surface-title { font-size: 28px; line-height: 1.15; }
   .error-surface-action [data-variant="primary"] {
     background: var(--fg-1);

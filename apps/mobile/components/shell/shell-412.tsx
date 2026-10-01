@@ -40,7 +40,7 @@ function ShellBottomChrome({
       ]}
     >
       <View style={styles.bottomColumn}>
-        {notice !== undefined ? <View testID="shell-notice">{notice}</View> : null}
+        {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
           <View testID="shell-composer-band" style={styles.composerBand}>
             <View testID="shell-pinned-slot">{pinnedSlot}</View>
@@ -169,6 +169,9 @@ const styles = StyleSheet.create({
   },
   composerBand: {
     position: 'relative',
+  },
+  notice: {
+    paddingHorizontal: 16,
   },
   bottomColumn: {
     alignSelf: 'center',
