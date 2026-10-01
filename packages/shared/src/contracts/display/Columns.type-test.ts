@@ -13,7 +13,7 @@ type Assert<T extends true> = T
 export type ColumnsTypeContract = [
   Assert<IsExactWidth<Column['id'], string>>,
   Assert<IsExactWidth<Column['label'], string>>,
-  Assert<IsExactWidth<Column['value'], number>>,
+  Assert<IsExactWidth<Column['value'], number | null>>,
   Assert<IsExactWidth<ColumnsProps['columns'], Column[] | undefined>>,
   Assert<IsExactWidth<ColumnsProps['max'], number | undefined>>,
   Assert<IsExactWidth<ColumnsProps['height'], number | undefined>>,
@@ -22,6 +22,9 @@ export type ColumnsTypeContract = [
   Assert<IsExactWidth<ColumnsProps['label'], string | undefined>>,
   Assert<IsExactWidth<ColumnsProps['emptyLabel'], string>>,
   Assert<IsExact<{ id: 'one'; label: 'One'; value: 0 }, Column>>,
+  Assert<IsExact<{ id: 'one'; label: 'One'; value: null; unavailableLabel: 'Not yet' }, Column>>,
+  // @ts-expect-error an unmeasured column requires its localized label
+  Assert<IsExact<{ id: 'one'; label: 'One'; value: null }, Column>>,
   Assert<IsExact<{ columns: []; emptyLabel: 'No data' }, ColumnsProps>>,
   Assert<IsExact<{ columns: []; emptyLabel: 'No data'; currentId: 'one'; max: 10 }, ColumnsProps>>,
   // @ts-expect-error a column cannot carry a date

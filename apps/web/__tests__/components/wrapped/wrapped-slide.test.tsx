@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
@@ -46,14 +46,6 @@ vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => <div data-testid="share-card" />,
 }))
 
-vi.mock('@/components/ui/columns', () => ({
-  Columns: ({ columns }: Readonly<{ columns: { id: string; label: string; value: number }[] }>) => (
-    <div data-testid="weekday-columns">
-      {columns.map((column) => <span key={column.id}>{column.label}</span>)}
-    </div>
-  ),
-}))
-
 import { WrappedSlide } from '@/app/(app)/wrapped/_components/wrapped-slide'
 
 const recap = createMockRecap({
@@ -62,12 +54,12 @@ const recap = createMockRecap({
   }),
 })
 
-function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
+function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number], period: 'week' | 'month' | 'year' = 'week') {
   return render(
     <WrappedSlide
       slide={slide}
       recap={recap}
-      period="week"
+      period={period}
       captureRef={{ current: null }}
       shareError={false}
       savedFileName={null}
@@ -76,9 +68,51 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('WrappedSlide', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 4, 12))
+  })
+
   afterEach(() => {
+    vi.useRealTimers()
     motionTestState.reduced = false
     motionTestState.realLocale = ''
+  })
+
+  it.each(['en', 'pt-BR'])('uses full weekday names in the %s sentence', (locale) => {
+    motionTestState.realLocale = locale
+    const messages = locale === 'en' ? en : ptBR
+    for (const [index, weekday] of Object.keys(messages.dates.daysLong).entries()) {
+      const weeklyConsistency = Array.from({ length: 7 }, (_, day) => day === index ? 100 : 0)
+      const view = renderSlide({ id: 'consistency', weeklyConsistency })
+      const fullName = messages.dates.daysLong[weekday as keyof typeof messages.dates.daysLong]
+      expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent(
+        messages.wrapped.slides.consistency.summary.replace('{strong}', fullName),
+      )
+      view.unmount()
+    }
+  })
+
+  it.each([['en', 0], ['pt-BR', 0], ['en', 100], ['pt-BR', 100]] as const)('marks future weekdays as not yet in %s with future value %i and keeps elapsed zeroes measured', (locale, futureValue) => {
+    motionTestState.realLocale = locale
+    vi.setSystemTime(new Date(2026, 9, 1, 12))
+    const messages = locale === 'en' ? en : ptBR
+    renderSlide({ id: 'consistency', weeklyConsistency: [70, 50, 0, 0, futureValue, futureValue, futureValue] })
+    for (const weekday of ['friday', 'saturday', 'sunday'] as const) {
+      const column = screen.getByRole('img', { name: `${messages.dates.daysShort[weekday]}: ${messages.calendar.dayCell.future}` })
+      expect(column).toHaveTextContent(messages.calendar.dayCell.future)
+      expect(column).not.toHaveTextContent('0')
+    }
+    expect(screen.getByRole('img', { name: `${messages.dates.daysShort.thursday}: 0` })).toHaveTextContent('0')
+    expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent(
+      messages.wrapped.slides.consistency.summary.replace('{strong}', messages.dates.daysLong.monday),
+    )
+  })
+
+  it.each(['month', 'year'] as const)('keeps all weekday averages available for a %s recap on Thursday', (period) => {
+    vi.setSystemTime(new Date(2026, 9, 1, 12))
+    renderSlide({ id: 'consistency', weeklyConsistency: [100, 50, 0, 0, 0, 0, 0] }, period)
+    expect(screen.getByRole('img', { name: 'dates.daysShort.friday: 0' })).toHaveTextContent('0')
   })
 
   it('uses the leading edge and 60px figure for completions without a page eyebrow', () => {
@@ -115,7 +149,7 @@ describe('WrappedSlide', () => {
 
     const weekday = renderSlide(slides.find((slide) => slide.id === 'consistency')!)
     expect(screen.getByTestId('wrapped-slide-consistency').querySelector('h2')).toHaveStyle({ fontSize: '28px' })
-    expect(screen.getByTestId('weekday-columns').parentElement).toHaveClass('w-full')
+    expect(screen.getByRole('group', { name: 'wrapped.slides.consistency.title' }).parentElement).toHaveClass('w-full')
     weekday.unmount()
 
     renderSlide(slides.find((slide) => slide.id === 'share')!)
@@ -157,9 +191,10 @@ describe('WrappedSlide', () => {
     const consistency = buildWrappedSlides(recap).find((slide) => slide.id === 'consistency')!
     renderSlide(consistency)
 
-    expect(screen.getByTestId('weekday-columns')).toBeInTheDocument()
-    expect(screen.getByTestId('weekday-columns')).toHaveTextContent(
-      'dates.daysShort.mondaydates.daysShort.tuesdaydates.daysShort.wednesdaydates.daysShort.thursdaydates.daysShort.fridaydates.daysShort.saturdaydates.daysShort.sunday',
+    expect(screen.getByRole('group', { name: 'wrapped.slides.consistency.title' })).toBeInTheDocument()
+    expect(screen.getAllByRole('img').map((column) => column.getAttribute('aria-label'))).toEqual(
+      ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        .map((weekday, index) => `dates.daysShort.${weekday}: ${(index + 1) * 10}`),
     )
   })
 
@@ -172,7 +207,7 @@ describe('WrappedSlide', () => {
 
     const summary = screen.getByText(/^wrapped\.slides\.consistency\.summary:/)
     expect(summary).toHaveTextContent(
-      'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.friday"}',
+      'wrapped.slides.consistency.summary:{"strong":"dates.daysLong.friday"}',
     )
     expect(summary).not.toHaveTextContent('dates.daysShort.tuesday')
     expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent('wrapped.slides.consistency.note')

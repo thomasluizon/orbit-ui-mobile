@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides, formatClosedWrappedMonth, getWeeklyConsistencyReading } from '../utils/wrapped'
+import { buildWrappedSlides, formatClosedWrappedMonth, getWeeklyConsistencyReading, getWrappedWeekdayValues } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
 
 describe('formatClosedWrappedMonth', () => {
@@ -110,5 +110,32 @@ describe('getWeeklyConsistencyReading', () => {
       kind: 'compared',
       strongestIndex: 5,
     })
+  })
+})
+
+
+describe('getWrappedWeekdayValues', () => {
+  const values = [100, 50, 0, 0, 90, 90, 90]
+
+  it('keeps elapsed measurements and masks the rest of the current week', () => {
+    const measured = getWrappedWeekdayValues(values, 'week', new Date(2026, 9, 1, 12))
+    expect(measured).toEqual([100, 50, 0, 0, null, null, null])
+    expect(getWeeklyConsistencyReading(measured)).toEqual({ kind: 'compared', strongestIndex: 0 })
+    expect(values).toEqual([100, 50, 0, 0, 90, 90, 90])
+  })
+
+  it('keeps only Monday on Monday and the whole week on Sunday', () => {
+    expect(getWrappedWeekdayValues(values, 'week', new Date(2026, 8, 28, 12)))
+      .toEqual([100, null, null, null, null, null, null])
+    expect(getWrappedWeekdayValues(values, 'week', new Date(2026, 9, 4, 12))).toEqual(values)
+  })
+
+  it.each(['month', 'year'] as const)('retains every weekday average for %s', (period) => {
+    expect(getWrappedWeekdayValues(values, period, new Date(2026, 9, 1, 12))).toEqual(values)
+  })
+
+  it('does not derive a strongest weekday from unavailable values', () => {
+    expect(getWeeklyConsistencyReading([0, null, null, null, null, null, null])).toEqual({ kind: 'thin' })
+    expect(getWeeklyConsistencyReading([null, null, null, null, null, null, null])).toEqual({ kind: 'thin' })
   })
 })

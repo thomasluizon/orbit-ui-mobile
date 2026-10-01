@@ -15,16 +15,17 @@ export function Columns({
 }: Readonly<ColumnsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const measuredMax = Math.max(0, ...columns.map((column) => column.value))
+  const measuredMax = Math.max(0, ...columns.flatMap((column) => column.value === null ? [] : [column.value]))
   const scaleMax = max !== undefined && max > 0 ? max : measuredMax
   const allZero = measuredMax === 0
 
   return (
     <View style={[styles.columns, { height }]} accessible={false}>
       {columns.map((column) => {
-        const ratio = scaleMax > 0 ? Math.min(1, Math.max(0, column.value / scaleMax)) : 0
+        const ratio = column.value !== null && scaleMax > 0 ? Math.min(1, Math.max(0, column.value / scaleMax)) : 0
         const isCurrent = column.id === currentId
-        const accessibleValue = allZero ? emptyLabel : String(column.value)
+        const measuredValue = allZero ? emptyLabel : String(column.value)
+        const accessibleValue = column.value === null ? column.unavailableLabel : measuredValue
         const accessibleLabel = `${column.label}: ${accessibleValue}`
 
         return (
@@ -40,7 +41,7 @@ export function Columns({
               <Text style={[styles.value, { color: tokens.fg2 }]}>{accessibleValue}</Text>
             ) : null}
             <View style={styles.track}>
-              <View
+              {column.value !== null ? <View
                 style={[
                   styles.fill,
                   {
@@ -52,7 +53,7 @@ export function Columns({
                     height: column.value === 0 ? 2 : `${ratio * 100}%`,
                   },
                 ]}
-              />
+              /> : null}
             </View>
             <Text numberOfLines={2} style={[styles.label, { color: tokens.fg2 }]}>
               {column.label}
@@ -92,6 +93,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 8,
   },
   value: {
+    width: '100%',
+    textAlign: 'center',
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
   },

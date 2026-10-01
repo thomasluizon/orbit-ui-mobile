@@ -1,5 +1,5 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { act, fireEvent, render, screen } from '@testing-library/react'
@@ -56,6 +56,8 @@ const VIEWPORTS = [
   { width: 320, height: 568 },
   { width: 360, height: 640 },
   { width: 640, height: 360 },
+  { width: 412, height: 700 },
+  { width: 500, height: 706 },
   { width: 412, height: 800 },
   { width: 1440, height: 900 },
 ].flatMap((viewport) => [
@@ -81,7 +83,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  afterEach(() => { vi.useRealTimers() })
+
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 1, 12))
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     useAppToastStore.setState({ currentToast: null, queue: [] })
     wrapped.recap = createMockRecap()
@@ -100,16 +106,31 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         const frame = dialog.querySelector('[data-testid="wrapped-frame"]')!.getBoundingClientRect()
         const banner = notice.querySelector('[data-update-banner]')!.getBoundingClientRect()
         const slideParts = dialog.querySelectorAll('[data-testid="wrapped-motion-part"]')
+        const close = dialog.querySelector('button')!
+        const unavailableValueOverflow = [...dialog.querySelectorAll('[data-unavailable]')].filter((column) => {
+          const bounds = column.getBoundingClientRect()
+          const range = document.createRange()
+          range.selectNodeContents(column.firstElementChild!)
+          return [...range.getClientRects()].some((text) => text.left < bounds.left - 0.5 || text.right > bounds.right + 0.5)
+        }).length
         const atStart = {
+          unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
+          unavailableValueOverflow,
+          closeTop: close.getBoundingClientRect().top,
+          closeBottom: close.getBoundingClientRect().bottom,
           noticeTop: notice.getBoundingClientRect().top,
           noticeBottom: notice.getBoundingClientRect().bottom,
           pagerTop: pager.getBoundingClientRect().top,
           pagerBottom: pager.getBoundingClientRect().bottom,
           bannerInset: { left: banner.left - frame.left, right: frame.right - banner.right },
         }
-        dialog.scrollTop = dialog.scrollHeight
+        const scroller = dialog.querySelector('[data-testid="wrapped-page-scroll"]') ?? dialog
+        scroller.scrollTop = scroller.scrollHeight
         return {
           ...atStart,
+          closeTopAtEnd: close.getBoundingClientRect().top,
+          closeBottomAtEnd: close.getBoundingClientRect().bottom,
+          pagerBottomAtEnd: pager.getBoundingClientRect().bottom,
           noticeTopAtEnd: notice.getBoundingClientRect().top,
           lastSlidePartBottomAtEnd: slideParts[slideParts.length - 1]!.getBoundingClientRect().bottom,
         }
@@ -139,6 +160,13 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
 
       expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height })
         .toEqual({ slide: slide.id, pagerBottom: true })
+      expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
+      expect(measured.unavailableValueOverflow).toBe(0)
+      expect(measured.closeTop).toBeGreaterThanOrEqual(0)
+      expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
+      expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
+      expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
+      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height)
       expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
       expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
       expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)

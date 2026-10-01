@@ -100,11 +100,11 @@ export function WrappedPlayer({
       role="dialog"
       aria-modal="true"
       aria-label={t('wrapped.title')}
-      className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden"
       style={{ background: 'var(--bg)' }}
     >
-      <div data-testid="wrapped-frame" className="mx-auto flex w-full max-w-[900px] flex-1 flex-col">
-        <div className="flex items-center gap-2" style={{ padding: '8px 8px 8px 16px' }}>
+      <div data-testid="wrapped-frame" className="mx-auto flex min-h-0 w-full max-w-[900px] flex-1 flex-col">
+        <div data-testid="wrapped-header" className="flex shrink-0 items-center gap-2" style={{ padding: '8px 8px 8px 16px' }}>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <p style={coverEyebrowStyle}>{t(`wrapped.player.eyebrow.${period}`)}</p>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' }}>{windowLabel}</p>
@@ -120,7 +120,7 @@ export function WrappedPlayer({
           </button>
         </div>
 
-        <div key={current.id} className="relative flex min-h-0 flex-1 flex-col">
+        <div key={current.id} data-testid="wrapped-page-scroll" className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           <WrappedSlide
             slide={current}
             recap={recap}
@@ -131,7 +131,7 @@ export function WrappedPlayer({
           />
           {!isLast && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
-        <div className="sticky bottom-0 shrink-0 bg-[var(--bg)]">
+        <div className="shrink-0 bg-[var(--bg)]">
           {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
           <PlayerPager
             count={slides.length}

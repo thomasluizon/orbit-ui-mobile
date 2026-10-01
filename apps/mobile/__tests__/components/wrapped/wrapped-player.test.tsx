@@ -145,6 +145,18 @@ describe('WrappedPlayer', () => {
     expect(hasText(tree, formatClosedWrappedMonth({ year: 2026, month: 8 }, 'en'))).toBe(true)
   })
 
+  it('keeps the header and pager outside the scrolling page through the share slide', () => {
+    const { slides, tree } = renderPlayer()
+    for (let index = 0; index < slides.length; index += 1) {
+      const scroller = byTestId(tree, 'wrapped-page-scroll')!
+      expect(scroller.findAll((node) => node.props.testID === 'wrapped-header')).toHaveLength(0)
+      expect(scroller.findAll((node) => node.props.testID === 'wrapped-pager')).toHaveLength(0)
+      expect(byTestId(tree, 'wrapped-header')).toBeTruthy()
+      expect(byTestId(tree, 'wrapped-pager')).toBeTruthy()
+      if (index < slides.length - 1) press(byTestId(tree, 'wrapped-next-zone'))
+    }
+  })
+
   it('puts one segment per slide in the foot Pager', () => {
     const { slides, tree } = renderPlayer()
     const playerHosts = hosts(tree)
