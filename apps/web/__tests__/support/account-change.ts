@@ -30,6 +30,12 @@ export async function retireHeldAccount(): Promise<void> {
   vi.mocked(globalThis.fetch).mockClear()
 }
 
+export async function resetAuthStore(): Promise<void> {
+  useAuthStore.setState({ sessionInactive: false })
+  await retireHeldAccount()
+  useAuthStore.setState(useAuthStore.getInitialState())
+}
+
 /** Signs the tab in as an account, which is where a later replacement is measured from. */
 export function holdAccount(userId: string): void {
   useAuthStore.getState().setAuth({

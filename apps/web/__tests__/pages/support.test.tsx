@@ -5,6 +5,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTranslator } from 'next-intl'
 import { getAppVersion } from '@/lib/app-version'
 import { getSupportMessageMaxLength } from '@orbit/shared/utils'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -77,7 +78,9 @@ function sendButton() {
 }
 
 describe('SupportPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    await resetAuthStore()
     mockProfile = { name: 'Orbit User', email: 'orbit@example.com' }
     mockIsOnline = true
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '58aa9802b7e')
@@ -89,6 +92,7 @@ describe('SupportPage', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     vi.unstubAllEnvs()
     localStorage.clear()
   })

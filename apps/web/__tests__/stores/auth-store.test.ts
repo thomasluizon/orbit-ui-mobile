@@ -5,6 +5,7 @@ import { profileKeys } from '@orbit/shared/query'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { getQueryClient } from '@/lib/query-client'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { resetAuthStore } from '@/__tests__/support/account-change'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
@@ -24,7 +25,12 @@ import {
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
-beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+beforeEach(async () => {
+  vi.setSystemTime(PINNED_TEST_TIME)
+  mockFetch.mockReset()
+  await resetAuthStore()
+  vi.clearAllMocks()
+})
 afterEach(() => vi.useRealTimers())
 import { installWebLocks } from '../helpers/web-locks'
 
