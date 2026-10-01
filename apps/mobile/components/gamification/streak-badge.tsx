@@ -12,7 +12,7 @@ interface StreakBadgeProps {
 }
 
 /**
- * Kit streak entry point: 40px circled button (1.5px hairline-strong ring, translucent well)
+ * Kit streak entry point: 44px circled button (1.5px hairline-strong ring, translucent well)
  * with the 🔥 flame emoji and a tabular count. Tapping opens the streak section in Progresso;
  * the press stops propagation so the Today header's go-to-today Pressable does not fire.
  */
@@ -35,12 +35,10 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
-      hitSlop={2}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.badge,
         {
-          borderColor: tokens.hairlineStrong,
           backgroundColor: tokens.bgElev,
         },
         pressed ? styles.pressed : null,
@@ -48,6 +46,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
     >
       {({ pressed }) => (
         <>
+          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="streak-ring" style={[styles.pressFill, { borderColor: tokens.hairlineStrong, borderWidth: 1.5 }]} />
           <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="streak-press-fill" style={[styles.pressFill, { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' }]} />
           {isFrozen ? (
             <Svg width={12} height={14} viewBox="0 0 12 14" fill="none">
@@ -82,12 +81,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    minWidth: 40,
-    height: 40,
+    minWidth: 44,
+    minHeight: 44,
     paddingHorizontal: 8,
     borderRadius: 999,
     overflow: 'hidden',
-    borderWidth: 1.5,
   },
   pressFill: {
     position: 'absolute',

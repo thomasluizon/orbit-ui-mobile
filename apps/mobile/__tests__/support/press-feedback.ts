@@ -16,7 +16,10 @@ export function expectPressFill(tree: PressTree, label: string, backgroundColor:
     const style = host().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
   }
+  expect(host().props.hitSlop).toBeUndefined()
   const resting = resolved(false)
+  expect(resting.minHeight ?? resting.height).toBeGreaterThanOrEqual(44)
+  expect(resting.minWidth ?? resting.width).toBeGreaterThanOrEqual(44)
   void renderer.act(() => { (host().props.onPressIn as (() => void) | undefined)?.() })
   expect(resolved(true)).toMatchObject({ backgroundColor, borderRadius, overflow: 'hidden' })
   expect(resolved(true).backgroundColor).not.toBe(resting.backgroundColor)

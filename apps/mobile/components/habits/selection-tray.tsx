@@ -75,7 +75,6 @@ export function SelectionTray({
         <Pressable
           accessibilityRole="button"
           onPress={allSelected ? onDeselectAll : onSelectAll}
-          hitSlop={{ top: 11, bottom: 11, left: 6, right: 6 }}
           style={({ pressed }) => [
             styles.selectAllBtn,
             pressed ? styles.pressedScale : null,
@@ -93,7 +92,6 @@ export function SelectionTray({
           accessibilityHint={completionReadOnly ? completionReason : undefined}
           accessibilityState={{ disabled: completionDisabled }}
           disabled={completionDisabled}
-          hitSlop={2}
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
@@ -114,7 +112,6 @@ export function SelectionTray({
           accessibilityHint={completionReadOnly ? completionReason : undefined}
           accessibilityState={{ disabled: completionDisabled }}
           disabled={completionDisabled}
-          hitSlop={2}
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
@@ -134,7 +131,6 @@ export function SelectionTray({
           accessibilityLabel={deleteLabel}
           accessibilityState={{ disabled }}
           disabled={disabled}
-          hitSlop={2}
           onPress={onDelete}
           style={({ pressed }) => [
             styles.actionBtn,
@@ -153,7 +149,6 @@ export function SelectionTray({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={closeLabel}
-          hitSlop={2}
           onPress={onClose}
           style={({ pressed }) => [
             styles.actionBtn,
@@ -192,6 +187,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   selectAllBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,
   },

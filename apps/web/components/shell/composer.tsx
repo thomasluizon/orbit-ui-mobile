@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type ClipboardEventHandler } from 'react'
+import { useEffect, useRef, useState, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -8,6 +8,7 @@ import {
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
+import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { ArrowUp, FileText, Image as ImageIcon, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
@@ -87,13 +88,15 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
 }
 
 function VoiceStatus({ state, words }: Readonly<{ state: 'recording' | 'transcribing'; words: ComposerVoiceWords }>) {
+  const [elapsed, setElapsed] = useState('00:00')
+  useEffect(() => {
+    if (state !== 'recording') return
+    return subscribeComposerRecordingTime(setElapsed)
+  }, [state])
   return (
-    <div className="flex min-h-11 items-center gap-3 text-sm font-medium text-[var(--fg-2)]">
-      <span
-        aria-hidden="true"
-        className={`size-2 rounded-full ${state === 'recording' ? 'bg-[var(--status-bad)]' : 'bg-[var(--primary)]'}`}
-      />
-      <span>{state === 'recording' ? words.recording : words.transcribing}</span>
+    <div data-composer-voice-row className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-2 text-sm font-medium text-[var(--fg-2)]">
+      {state === 'recording' ? <span aria-hidden="true" className="font-[var(--font-mono)] tabular-nums">{elapsed}</span> : null}
+      <span className="truncate">{state === 'recording' ? words.recording : words.transcribing}</span>
     </div>
   )
 }
@@ -114,53 +117,20 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
     )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
-    return <div aria-live="polite" className="flex flex-col gap-1">
-      <VoiceStatus state={props.state} words={props.voiceWords} />
-      {props.words.offlineReason ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.words.offlineReason}</p> : null}
-    </div>
+    return props.words.offlineReason ? <p className="m-0 text-sm leading-5 text-[var(--fg-2)]">{props.words.offlineReason}</p> : null
   }
   if (props.state === 'sending' || props.suggestions.length === 0) return null
   return <SuggestionStrip suggestions={props.suggestions} label={props.words.suggestionsLabel} />
 }
 
-function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
+function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = canSend || props.state === 'sending'
   const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
-
   return (
-    <div className="flex items-end gap-2">
-      {props.onOpenConversation && props.conversationLabel ? (
-        <button
-          type="button"
-          aria-label={props.conversationLabel}
-          data-open-conversation
-          onClick={props.onOpenConversation}
-          className="flex size-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
-        >
-          <AstraGlyph size={20} color="currentColor" />
-        </button>
-      ) : null}
-      <div data-composer-input-row data-focus-perimeter="" className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight] @max-[400px]:flex-wrap @max-[400px]:justify-end">
-        <textarea
-          id={props.inputId}
-          rows={1}
-          data-composer-input
-          aria-label={props.words.inputLabel ?? props.words.placeholder}
-          disabled={inputDisabled}
-          placeholder={props.words.placeholder}
-          value={props.value}
-          onChange={(event) => props.onChangeValue(event.target.value)}
-          onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
-          onPaste={props.onPaste}
-          onFocus={props.onOpenConversation}
-          className="max-h-24 min-h-12 min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 @max-[400px]:basis-full @max-[400px]:[field-sizing:content]"
-        />
-
-        {props.onAttachFile ? (
+        <div data-composer-controls className="flex shrink-0 items-center gap-1">
+        {!isRecording && !isTranscribing && props.onAttachFile ? (
           <button
             type="button"
             aria-label={props.attachWords.file}
@@ -172,7 +142,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           </button>
         ) : null}
 
-        {props.onAttachImage ? (
+        {!isRecording && !isTranscribing && props.onAttachImage ? (
           <button
             type="button"
             aria-label={props.attachWords.image}
@@ -187,18 +157,59 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         {props.onVoice ? (
           <button
             type="button"
-            aria-label={isRecording ? props.voiceWords.stop : props.voiceWords.start}
+            aria-label={isRecording || isTranscribing ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}
             className={`flex size-11 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-hover)]'}`}
           >
-            {isRecording ? (
+            {isRecording || isTranscribing ? (
               <Square size={16} fill="currentColor" aria-hidden="true" />
             ) : (
               <Mic size={20} strokeWidth={1.8} aria-hidden="true" />
             )}
           </button>
         ) : null}
+        </div>
+  )
+}
+
+function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
+  const inputDisabled = props.state !== 'idle'
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const isRecording = props.state === 'recording'
+  const isTranscribing = props.state === 'transcribing'
+  const sendIsAccent = canSend || props.state === 'sending'
+
+  return (
+    <div className="flex items-end gap-2">
+      {props.onOpenConversation && props.conversationLabel ? (
+        <button
+          type="button"
+          aria-label={props.conversationLabel}
+          data-open-conversation
+          onClick={props.onOpenConversation}
+          className="flex size-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+        >
+          <AstraGlyph size={20} color="currentColor" />
+        </button>
+      ) : null}
+      <div data-composer-input-row data-focus-perimeter="" aria-live="polite" className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight] flex-wrap justify-end">
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <textarea
+          id={props.inputId}
+          rows={1}
+          data-composer-input
+          aria-label={props.words.inputLabel ?? props.words.placeholder}
+          disabled={inputDisabled}
+          placeholder={props.words.placeholder}
+          value={props.value}
+          onChange={(event) => props.onChangeValue(event.target.value)}
+          onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
+          onPaste={props.onPaste}
+          onFocus={props.onOpenConversation}
+          className="max-h-24 min-h-12 min-w-[min(100%,176px)] basis-44 flex-1 resize-none appearance-none border-0 bg-transparent px-2 py-3 text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word] placeholder:whitespace-nowrap placeholder:overflow-hidden placeholder:text-ellipsis"
+        />}
+
+        <ComposerControls props={props} />
       </div>
 
       <button

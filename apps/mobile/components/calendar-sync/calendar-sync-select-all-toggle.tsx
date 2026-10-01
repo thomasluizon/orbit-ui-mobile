@@ -34,11 +34,12 @@ export function SelectAllToggle({
       accessibilityRole="button"
       accessibilityLabel={allSelected ? deselectAllLabel : selectAllLabel}
       accessibilityState={accessibilityState}
-      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+
       style={({ pressed }) => [
         styles.quietActionIcon,
         tintStyle,
-        (pressed || disabled) && styles.quietActionDim,
+        { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
+        disabled && styles.quietActionDim,
       ]}
     >
       {allSelected ? (

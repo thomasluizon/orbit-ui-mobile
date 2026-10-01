@@ -68,6 +68,28 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
   })
 
+  it('runs the recording clock, freezes it for transcription, and restores the transcript', async () => {
+    vi.useFakeTimers()
+    const capability = { onVoice: vi.fn(), voiceWords }
+    const view = render(<Composer {...props({ ...capability, state: 'recording' })} />)
+    try {
+      expect(screen.getByText('00:00')).toBeInTheDocument()
+      await act(() => vi.advanceTimersByTime(65000))
+      expect(screen.getByText('01:05')).toHaveClass('tabular-nums')
+      view.rerender(<Composer {...props({ ...capability, state: 'transcribing' })} />)
+      expect(screen.queryByText('01:05')).not.toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      view.rerender(<Composer {...props({ ...capability, value: 'voice transcript' })} />)
+      expect(screen.getByRole('textbox')).toHaveValue('voice transcript')
+      expect(screen.getByRole('textbox')).toBeEnabled()
+      view.rerender(<Composer {...props({ ...capability, state: 'recording' })} />)
+      expect(screen.getByText('00:00')).toBeInTheDocument()
+    } finally {
+      view.unmount()
+      vi.useRealTimers()
+    }
+  })
+
   it('renders three suggestions in their named group', () => {
     render(<Composer {...props()} />)
     const group = screen.getByRole('group', { name: words.suggestionsLabel })
@@ -136,7 +158,7 @@ describe('Composer', () => {
       expect(control).toHaveFocus()
       expect(control.className.split(' ')).not.toContain('focus-visible:outline-0')
       expect(control).toHaveClass('rounded-full')
-      expect(control.parentElement?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
+      expect(control.closest('[data-composer-input-row]')?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
     }
   })
 
@@ -262,6 +284,7 @@ describe('Composer', () => {
   it('replaces suggestions with recording status and a stop control', () => {
     render(<Composer {...props({ state: 'recording', onVoice: vi.fn(), voiceWords })} />)
     expect(screen.getByText(voiceWords.recording)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: voiceWords.stop })).toBeInTheDocument()
   })
@@ -275,10 +298,12 @@ describe('Composer', () => {
     expect(onVoice).toHaveBeenCalledOnce()
   })
 
-  it('renders transcribing status with an unusable input', () => {
+  it('replaces the input with transcribing status and a neutral inactive stop', () => {
     render(<Composer {...props({ state: 'transcribing', onVoice: vi.fn(), voiceWords })} />)
     expect(screen.getByText(voiceWords.transcribing)).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: voiceWords.stop })).toBeDisabled()
+    expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveClass('bg-transparent')
   })
 
   it('renders attachment capability without an empty tray', () => {

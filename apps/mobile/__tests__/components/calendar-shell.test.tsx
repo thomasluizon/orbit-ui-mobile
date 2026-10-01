@@ -104,7 +104,12 @@ function exercisePressCallbacks(tree: Tree) {
   for (const node of tree.root.findAll(() => true)) {
     const style = node.props.style;
     if (typeof style === "function") {
-      style({ pressed: true });
+      const pressed = StyleSheet.flatten(style({ pressed: true }));
+      if (pressed?.backgroundColor === createTokensV2("purple", "dark").bgHover && node.props.onPress) {
+        expect(node.props.hitSlop).toBeUndefined();
+        expect(Math.max(pressed.height ?? 0, pressed.minHeight ?? 0)).toBeGreaterThanOrEqual(44);
+        expect(Math.max(pressed.width ?? 0, pressed.minWidth ?? 0)).toBeGreaterThanOrEqual(44);
+      }
       style({ pressed: false });
     }
   }

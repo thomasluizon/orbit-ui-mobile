@@ -29,8 +29,6 @@ export function Button({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
-  const verticalHitSlop = Math.max(0, (44 - sizeSpec.height) / 2)
-  const horizontalHitSlop = Math.max(0, (44 - (iconOnly ? sizeSpec.height : sizeSpec.paddingX * 2)) / 2)
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
@@ -70,7 +68,6 @@ export function Button({
 
   return (
     <Pressable
-      hitSlop={{ top: verticalHitSlop, bottom: verticalHitSlop, left: horizontalHitSlop, right: horizontalHitSlop }}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
       accessibilityRole={accessibilityRole}
@@ -114,6 +111,8 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
 
 const styles = StyleSheet.create({
   base: {
+    minHeight: 44,
+    minWidth: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

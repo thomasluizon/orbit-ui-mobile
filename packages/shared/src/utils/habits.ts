@@ -58,7 +58,7 @@ export function buildCalendarDayMap(
     }
 
     const ownDates = new Set(dates)
-    for (const { descendant, date } of collectDescendantLogs(habit.children)) {
+    for (const { descendant, date } of collectDescendantLogs(habit.children, logsByHabit)) {
       if (isInRange(date) && !ownDates.has(date)) {
         appendCalendarEntry(map, date, descendant, 'completed')
       }
@@ -86,21 +86,19 @@ function appendCalendarEntry(
   map.set(dateStr, entries)
 }
 
-/**
- * The month response lists only top-level habits in `logs`, so a sub-habit's
- * log reaches the client as an instance carrying its `logId`. A completed or
- * flexible sub-habit has no instances, so its logs wait on the API change in
- * https://github.com/thomasluizon/orbit-tickets/issues/984.
- */
 function collectDescendantLogs(
   children: HabitScheduleChild[],
+  logsByHabit: ReadonlyMap<string, ReadonlySet<string>>,
 ): Array<{ descendant: HabitScheduleChild; date: string }> {
-  return children.flatMap((child) => [
-    ...child.instances
+  return children.flatMap((child) => {
+    const dates = logsByHabit.get(child.id) ?? new Set(child.instances
       .filter((instance) => instance.logId !== null)
-      .map((instance) => ({ descendant: child, date: instance.date })),
-    ...collectDescendantLogs(child.children),
-  ])
+      .map((instance) => instance.date))
+    return [
+      ...[...dates].map((date) => ({ descendant: child, date })),
+      ...collectDescendantLogs(child.children, logsByHabit),
+    ]
+  })
 }
 
 export function optimisticSetCalendarHabitLog(

@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import type { Goal } from '@orbit/shared/types/goal'
 import React from 'react'
 
 vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
@@ -12,47 +14,50 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-const mockFetch = vi.fn()
-vi.stubGlobal('fetch', mockFetch)
+vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
+import { fetchJson } from '@/lib/api-fetch'
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
-  }
+const mockFetchJson = vi.mocked(fetchJson)
+let queryClient: QueryClient
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
 describe('GoalLinkingField', () => {
+  beforeEach(() => {
+    mockFetchJson.mockReset()
+    mockFetchJson.mockResolvedValue([])
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  })
+
+  afterEach(() => {
+    cleanup()
+    queryClient.clear()
+  })
+
   it('renders label', () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([]),
-    })
     render(
       <GoalLinkingField
         selectedGoalIds={[]}
         atGoalLimit={false}
         onToggleGoal={vi.fn()}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     )
     expect(screen.getByText('habits.form.goals')).toBeInTheDocument()
   })
 
   it('shows no goals message when empty', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([]),
-    })
     render(
       <GoalLinkingField
         selectedGoalIds={[]}
         atGoalLimit={false}
         onToggleGoal={vi.fn()}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     await waitFor(() => {
@@ -62,13 +67,10 @@ describe('GoalLinkingField', () => {
 
   it('renders active goals as buttons', async () => {
     const goals = [
-      { id: 'g1', title: 'Run 100km', status: 'Active', progressPercentage: 50, targetValue: 100, unit: 'km', currentValue: 50 },
-      { id: 'g2', title: 'Completed Goal', status: 'Completed', progressPercentage: 100, targetValue: 10, unit: 'books', currentValue: 10 },
+      createMockGoal({ id: 'g1', title: 'Run 100km', status: 'Active', progressPercentage: 50, targetValue: 100, unit: 'km', currentValue: 50 }),
+      createMockGoal({ id: 'g2', title: 'Completed Goal', status: 'Completed', progressPercentage: 100, targetValue: 10, unit: 'books', currentValue: 10 }),
     ]
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(goals),
-    })
+    mockFetchJson.mockResolvedValue(goals)
 
     const onToggleGoal = vi.fn()
     render(
@@ -77,24 +79,51 @@ describe('GoalLinkingField', () => {
         atGoalLimit={false}
         onToggleGoal={onToggleGoal}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     )
 
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    await waitFor(() => {
-      expect(screen.getByText(/Run 100km/)).toBeInTheDocument()
-    })
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/ })
+    expect(activeGoal).toBeEnabled()
+    expect(activeGoal).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: /Completed Goal/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/Completed Goal/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByText(/Run 100km/))
+    fireEvent.click(activeGoal)
+    expect(onToggleGoal).toHaveBeenCalledWith('g1')
+  })
+
+  it('renders selectable active goals when the response settles after opening the picker', async () => {
+    let finishRequest!: (response: { items: Goal[] }) => void
+    mockFetchJson.mockReturnValueOnce(new Promise<{ items: Goal[] }>((resolve) => { finishRequest = resolve }))
+    const onToggleGoal = vi.fn()
+    render(
+      <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={onToggleGoal} />,
+      { wrapper: Wrapper },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    expect(screen.getByText('habits.form.noGoals')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Run 100km/ })).not.toBeInTheDocument()
+
+    await act(async () => {
+      finishRequest({ items: [
+        createMockGoal({ id: 'g1', title: 'Run 100km' }),
+        createMockGoal({ id: 'g2', title: 'Completed Goal', status: 'Completed' }),
+      ] })
+    })
+
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/ })
+    expect(activeGoal).toBeEnabled()
+    expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument()
+    expect(screen.queryByText('Completed Goal')).not.toBeInTheDocument()
+    fireEvent.click(activeGoal)
     expect(onToggleGoal).toHaveBeenCalledWith('g1')
   })
 
   it('opens goal creation inside the habit surface and returns to the picker', async () => {
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
     render(
       <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} />,
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     )
 
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
@@ -109,7 +138,7 @@ describe('GoalLinkingField', () => {
   })
 
   it('windows a large goal collection and keeps search above the scrolling list', async () => {
-    const goals = Array.from({ length: 50 }, (_, index) => ({
+    const goals = Array.from({ length: 50 }, (_, index) => createMockGoal({
       id: `g${index}`,
       title: `Goal ${index}`,
       status: 'Active',
@@ -118,11 +147,11 @@ describe('GoalLinkingField', () => {
       unit: 'times',
       currentValue: index,
     }))
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(goals) })
+    mockFetchJson.mockResolvedValue(goals)
 
     render(
       <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} />,
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
 

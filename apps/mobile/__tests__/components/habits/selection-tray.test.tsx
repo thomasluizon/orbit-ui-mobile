@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { SelectionTray } from '@/components/habits/selection-tray'
 
@@ -66,6 +67,16 @@ function findButtonByLabel(tree: RenderedTree, label: string): RenderedNode {
 }
 
 describe('SelectionTray', () => {
+  it('paints every action across its whole target without invisible slop', async () => {
+    const { tree, props } = await renderBar()
+    for (const label of [props.logLabel, props.skipLabel, props.deleteLabel, props.closeLabel]) {
+      const button = findButtonByLabel(tree, label)
+      const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      expect(button.props.hitSlop).toBeUndefined()
+      expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 44, height: 44 })
+    }
+  })
+
   it('renders the tabular count beside the digit-free suffix', async () => {
     const { tree } = await renderBar({ count: 7, countSuffixLabel: 'selected' })
 

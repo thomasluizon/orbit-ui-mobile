@@ -141,7 +141,6 @@ export function Sheet({
         <Pressable
           accessibilityLabel={t('common.close')}
           accessibilityRole="button"
-          hitSlop={8}
           onPress={() => {
             if (onClose) requestClose()
             else onAttemptDismiss?.()

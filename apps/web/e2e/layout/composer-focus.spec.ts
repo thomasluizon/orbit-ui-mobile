@@ -37,9 +37,9 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
   await expectOneFieldIndicator(page, field, '[data-composer-input-row]', `composer field in ${mode}`, { forcedColors })
 
   for (const control of [
-    container.locator('[data-composer-input] + button'),
-    container.locator('[data-composer-input] + button + button'),
-    container.locator('[data-composer-input] + button + button + button'),
+    container.locator('[data-composer-controls]').getByRole('button').nth(0),
+    container.locator('[data-composer-controls]').getByRole('button').nth(1),
+    container.locator('[data-composer-controls]').getByRole('button').nth(2),
   ]) {
     await expect(control).toBeVisible()
     await page.keyboard.press('Tab')

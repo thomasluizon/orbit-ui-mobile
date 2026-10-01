@@ -238,7 +238,9 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(more).toHaveLength(1);
     expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain(4);
     const allDayCell = hostsByTestID(tree, "time-grid-all-day")[0];
-    expect(renderedAncestorHeight(allDayCell!)).toBe(127);
+    expect(renderedAncestorHeight(allDayCell!)).toBe(152);
+    expect(more[0]!.props.hitSlop).toBeUndefined();
+    expect(resolveStyle(more[0]!.props.style)).toMatchObject({ minHeight: 44, minWidth: 44 });
 
     TestRenderer.act(() => {
       more[0]!.props.onPress();

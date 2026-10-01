@@ -18,7 +18,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     const warningKey = key.slice('profile.deleteAccount.'.length)
-    const warning = key.startsWith('profile.deleteAccount.warning')
+    const warning = key.startsWith('profile.deleteAccount.warning') || key === 'profile.deleteAccount.offlineDescription'
       ? Reflect.get(en.profile.deleteAccount, warningKey) as unknown
       : undefined
     if (typeof warning === 'string') {
@@ -89,12 +89,14 @@ describe('DeleteAccountModal', () => {
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     mocks.requestDeletion.mockResolvedValue(undefined)
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')
   })
 
   afterEach(() => {
     cleanup()
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
@@ -121,6 +123,60 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
     expect(mocks.requestDeletion).not.toHaveBeenCalled()
+  })
+
+  it('shows the offline message without offering or requesting a deletion code', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(en.profile.deleteAccount.offlineDescription)
+    expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
+    expect(sheetSlotButtons('sheet-actions')).toEqual([])
+    expect(mocks.requestDeletion).not.toHaveBeenCalled()
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+    expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+    expect(mocks.requestDeletion).not.toHaveBeenCalled()
+  })
+
+  it('restores the deletion flow when the open modal reconnects', async () => {
+    const connectivity = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    expect(mocks.requestDeletion).not.toHaveBeenCalled()
+
+    act(() => {
+      connectivity.mockReturnValue(true)
+      globalThis.dispatchEvent(new Event('online'))
+    })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'profile.deleteAccount.sendCode' }))
+
+    await waitFor(() => expect(mocks.requestDeletion).toHaveBeenCalledOnce())
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('replaces a failed send with the offline state when the connection drops', async () => {
+    const connectivity = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    fireEvent.click(screen.getByRole('button', { name: 'profile.deleteAccount.sendCode' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+
+    act(() => {
+      connectivity.mockReturnValue(false)
+      globalThis.dispatchEvent(new Event('offline'))
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(en.profile.deleteAccount.offlineDescription)
+    expect(screen.queryByText('profile.deleteAccount.errorGeneric')).not.toBeInTheDocument()
+    expect(sheetSlotButtons('sheet-actions')).toEqual([])
+    expect(mocks.requestDeletion).toHaveBeenCalledOnce()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
