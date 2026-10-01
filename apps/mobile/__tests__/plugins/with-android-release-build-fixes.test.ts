@@ -1,5 +1,7 @@
 import {
   AndroidConfig,
+  compileModsAsync,
+  withAndroidManifest,
   type ExportedConfig,
   type ExportedConfigWithProps,
 } from '@expo/config-plugins'
@@ -133,5 +135,24 @@ describe('withAndroidReleaseBuildFixes system bars', () => {
 
     expect(appTheme).not.toHaveProperty('android:statusBarColor')
     expect(appTheme).not.toHaveProperty('android:navigationBarColor')
+  })
+})
+
+
+describe('Android fold and rotation configuration', () => {
+  it('keeps the running activity resizable across window changes', async () => {
+    const configured = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
+    let manifest!: AndroidConfig.Manifest.AndroidManifest
+    const observed = withAndroidManifest(configured, (mod) => {
+      manifest = mod.modResults
+      return mod
+    })
+    await compileModsAsync(observed, { projectRoot: process.cwd(), platforms: ['android'], introspect: true })
+    const activity = AndroidConfig.Manifest.getMainActivityOrThrow(manifest)
+    expect(activity.$['android:resizeableActivity']).toBe('true')
+    expect(activity.$['android:configChanges']?.split('|')).toEqual(expect.arrayContaining([
+      'screenSize', 'smallestScreenSize', 'screenLayout', 'orientation',
+    ]))
+    expect(activity.$['android:screenOrientation']).toBeUndefined()
   })
 })

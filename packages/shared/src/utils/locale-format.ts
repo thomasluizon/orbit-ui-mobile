@@ -154,6 +154,13 @@ export function formatLocaleDate(
   options?: Intl.DateTimeFormatOptions,
 ): string {
   const date = parseDateInput(value)
+  if (date && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const calendarDate = new Date(0)
+    calendarDate.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate())
+    return formatIntlDateValue(calendarDate, value, locale, {
+      ...(options ?? DEFAULT_DATE_OPTIONS), timeZone: 'UTC',
+    })
+  }
   return formatIntlDateValue(
     date,
     typeof value === 'string' ? value : '',
@@ -161,6 +168,23 @@ export function formatLocaleDate(
     options,
     DEFAULT_DATE_OPTIONS,
   )
+}
+
+export function formatLocaleDayMonth(value: DateInput, locale?: string | null): string {
+  return formatLocaleDate(value, locale, { day: 'numeric', month: 'long' })
+}
+
+export function formatCalendarDayTitle(
+  date: string,
+  locale: string,
+  today: string,
+  todayLabel: string,
+): string {
+  if (!date) return ''
+  if (date === today) return `${todayLabel}, ${formatLocaleDayMonth(date, locale)}`
+  return capitalizeFirstLetter(formatLocaleDate(date, locale, {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }))
 }
 
 export function formatWeekdayLabels(locale: string, weekStartsOn: 0 | 1): string[] {
@@ -242,7 +266,7 @@ export interface TimeDisplay {
 
 export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
   const hourCycle = resolveHourCycle(uses24HourClock, locale)
-  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hourCycle }
+  const options: Intl.DateTimeFormatOptions = { hour: hourCycle === 'h23' ? '2-digit' : 'numeric', minute: '2-digit', hourCycle }
 
   return {
     hourCycle,

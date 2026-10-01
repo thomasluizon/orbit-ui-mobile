@@ -8,6 +8,7 @@ import {
   formatAPIDate,
   formatAPIDateInTimeZone,
   formatLocaleDate,
+  formatLocaleDayMonth,
   millisecondsUntilNextDay,
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
@@ -109,11 +110,7 @@ export function useTodayDate(): TodayDate {
     selectedDate,
     dateStr: formatAPIDate(selectedDate),
     dayName,
-    numericDate: formatLocaleDate(selectedDate, i18n.language, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }),
+    numericDate: formatLocaleDayMonth(selectedDate, i18n.language),
     nextDisabled: !canNavigateToNextDay(selectedDateStr, today),
     goToPreviousDay,
     goToNextDay,

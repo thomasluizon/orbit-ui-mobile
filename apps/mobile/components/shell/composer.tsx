@@ -79,10 +79,12 @@ function SuggestionStrip({
   tokens,
   focusTarget,
 }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+  const [viewportWidth, setViewportWidth] = useState<number>()
   return (
     <ScrollView
       horizontal
       accessibilityLabel={label}
+      onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.suggestions}
     >
@@ -97,6 +99,7 @@ function SuggestionStrip({
           }}
           style={({ pressed }) => [
             styles.suggestion,
+            { maxWidth: viewportWidth },
             { backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
           ]}
         >
@@ -475,6 +478,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   suggestionText: {
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },

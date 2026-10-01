@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
   __emitKeyboardEvent,
+  __setWindowDimensions,
   __resetTestHostConfig,
   __setMeasureInWindowImpl,
   __setScrollToImpl,
@@ -95,6 +96,17 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it.each([412, 840])('aligns the native sheet to the phone column at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open title="Title" onClose={vi.fn()}><Text>Content</Text></Sheet>)
+      await Promise.resolve()
+    })
+    expect(tree.root.findByType(TrueSheet).props).toMatchObject({ maxContentWidth: 740, anchor: 'center' })
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it('gives a short description one body inset without a second caller inset', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
@@ -195,7 +207,7 @@ describe('Sheet (mobile)', () => {
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.scrollable).toBe(false)
     expect(nativeSheet.props.maxContentHeight).toBeCloseTo(892 * 0.85 - 24)
-    expect(nativeSheet.props.maxContentWidth).toBe(640)
+    expect(nativeSheet.props.maxContentWidth).toBe(740)
     expect(nativeSheet.props.insetAdjustment).toBe('automatic')
   })
 

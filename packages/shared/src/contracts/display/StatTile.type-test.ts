@@ -17,14 +17,12 @@ type ExpectedDefaultVariant = {
   label: string
   state?: 'default'
   value: string | number
-  valueSize?: 'lg'
   emptyLabel?: never
   loadingLabel?: never
 }
 type ExpectedLoadingVariant = {
   label: string
   state: 'loading'
-  valueSize?: never
   loadingLabel: string
   value?: never
   emptyLabel?: never
@@ -32,7 +30,6 @@ type ExpectedLoadingVariant = {
 type ExpectedEmptyVariant = {
   label: string
   state: 'empty'
-  valueSize?: never
   emptyLabel: string
   value?: never
   loadingLabel?: never
@@ -45,11 +42,9 @@ export type StatTileTypeContract = [
   Assert<IsExactWidth<StatTileProps['label'], string>>,
   Assert<IsExactWidth<StatTileProps['state'], 'default' | 'loading' | 'empty' | undefined>>,
   Assert<IsExactWidth<StatTileProps['value'], string | number | undefined>>,
-  Assert<IsExactWidth<StatTileProps['valueSize'], 'lg' | undefined>>,
   Assert<IsExactWidth<StatTileProps['emptyLabel'], string | undefined>>,
   Assert<IsExactWidth<StatTileProps['loadingLabel'], string | undefined>>,
   Assert<IsExact<{ label: 'Total'; value: 4 }, StatTileProps>>,
-  Assert<IsExact<{ label: 'Best weekday'; value: 'Wednesday'; valueSize: 'lg' }, StatTileProps>>,
   Assert<IsExact<{ label: 'Total'; state: 'loading'; loadingLabel: 'Loading' }, StatTileProps>>,
   Assert<IsExact<{ label: 'Total'; state: 'empty'; emptyLabel: 'No data' }, StatTileProps>>,
   // @ts-expect-error default state requires value
