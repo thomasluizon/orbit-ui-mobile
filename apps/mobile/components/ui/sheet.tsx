@@ -273,8 +273,6 @@ function createStyles(tokens: Tokens) {
     },
     actions: {
       alignItems: 'center',
-      borderTopColor: tokens.hairline,
-      borderTopWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
