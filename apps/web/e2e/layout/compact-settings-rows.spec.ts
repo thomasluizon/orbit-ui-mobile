@@ -27,9 +27,13 @@ for (const width of [412, 1280]) {
 
       test('Sobre keeps all four destinations at the drawn height', async ({ page }) => {
         await page.goto('/about')
-        const destinations = page.getByTestId('about-destinations').getByRole('button')
-        await expect(destinations).toHaveCount(4)
-        for (const row of await destinations.all()) {
+        const content = page.locator('#orbit-main').getByTestId('about-content')
+        await expect(content).toBeVisible()
+        const destinations = content.getByTestId('about-destinations')
+        await expect(destinations.getByRole('button')).toHaveCount(4)
+        const labels = [messages.about.featureGuide, messages.about.support, messages.about.terms, messages.about.privacy]
+        for (const label of labels) {
+          const row = destinations.getByRole('button', { name: label, exact: true })
           await row.scrollIntoViewIfNeeded()
           await expect(row).toBeVisible()
           await assertCompactTarget(row)
