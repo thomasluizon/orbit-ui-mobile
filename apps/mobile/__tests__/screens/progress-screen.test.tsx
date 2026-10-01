@@ -291,6 +291,39 @@ function findProgressHeadingFocusTarget(root: TestNode) {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each([1352, 1100, 840, 412])('aligns the screen and content gutter to Hoje at %ipx', async (width) => {
+    const tree = await renderProgress()
+    const root = tree.root.findAll((node) => node.type === 'View')[0]!
+    const rootStyle = StyleSheet.flatten(root.props.style as ViewStyle)
+    const viewport = Yoga.Node.create()
+    const screen = Yoga.Node.create()
+    viewport.setWidth(width)
+    viewport.setHeight(900)
+    screen.setWidthPercent(100)
+    if (rootStyle.maxWidth !== undefined) screen.setMaxWidth(rootStyle.maxWidth as number)
+    if (rootStyle.alignSelf === 'center') screen.setAlignSelf(Yoga.ALIGN_CENTER)
+    viewport.insertChild(screen, 0)
+    try {
+      viewport.calculateLayout(width, 900, Yoga.DIRECTION_LTR)
+      const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
+      const content = StyleSheet.flatten(scroll.props.contentContainerStyle as ViewStyle)
+      expect(screen.getComputedLeft() + Number(content.paddingHorizontal)).toBe((width - Math.min(width, 740)) / 2 + 16)
+      expect(screen.getComputedWidth()).toBe(Math.min(width, 740))
+    } finally {
+      viewport.freeRecursive()
+    }
+  })
+
+  it('uses the display family for the streak and the complete freeze bank figure', async () => {
+    const tree = await renderProgress()
+    const streak = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '4')[0]!
+    expect(StyleSheet.flatten(streak.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_600SemiBold')
+    const bank = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
+    const denominator = bank.findAll((node) => node.type === 'Text' && Array.isArray(node.props.children) && node.props.children[0] === '/ ')[0]!
+    expect(StyleSheet.flatten(denominator.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
+    expect(StyleSheet.flatten(denominator.parent!.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
+  })
+
   it('opens Progresso with its drawn sections and no Wrapped entry', async () => {
     const tree = await renderProgress()
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.wrappedTitle')).toHaveLength(0)
