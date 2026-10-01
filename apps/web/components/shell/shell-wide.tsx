@@ -184,7 +184,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   return (
     <div
       data-shell-bottom=""
-      className="z-sticky relative shrink-0 bg-[var(--bg)] shadow-[inset_0_1px_0_var(--hairline)] pb-[var(--safe-bottom)] lg:shadow-none lg:pb-0"
+      className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
     >
       {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
       <div className="relative">

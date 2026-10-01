@@ -16,9 +16,7 @@ function ShellBottomChrome({
   pinnedSlot,
   notice,
   tabBar,
-  fab,
   backgroundColor,
-  borderTopColor,
   safeAreaBottom,
 }: Readonly<{
   visible: boolean
@@ -26,9 +24,7 @@ function ShellBottomChrome({
   pinnedSlot: ReactNode
   notice: ReactNode
   tabBar: ReactNode
-  fab: ReactNode
   backgroundColor: string
-  borderTopColor: string
   safeAreaBottom: number
 }>) {
   if (!visible) return null
@@ -38,14 +34,9 @@ function ShellBottomChrome({
       testID="shell-bottom"
       style={[
         styles.bottomChrome,
-        { backgroundColor, borderTopColor, paddingBottom: safeAreaBottom },
+        { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
-      {fab !== undefined ? (
-        <View testID="shell-fab-band" style={styles.fabBand}>
-          <View testID="shell-fab" style={styles.fab}>{fab}</View>
-        </View>
-      ) : null}
       {notice !== undefined ? <View testID="shell-notice">{notice}</View> : null}
       {pinnedSlot !== undefined ? (
         <View testID="shell-composer-band" style={styles.composerBand}>
@@ -102,6 +93,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
         <View testID="shell-scroller" style={styles.scroller}>
           {props.children}
+          {props.fab !== undefined ? (
+            <View testID="shell-fab-band" pointerEvents="box-none" style={styles.fabBand}>
+              <View testID="shell-fab" style={styles.fab}>{props.fab}</View>
+            </View>
+          ) : null}
         </View>
 
         <ShellBottomChrome
@@ -110,9 +106,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           pinnedSlot={conversationOpen ? undefined : pinnedSlot}
           notice={notice}
           tabBar={props.tabBar}
-          fab={props.fab}
           backgroundColor={tokens.bg}
-          borderTopColor={tokens.hairline}
           safeAreaBottom={keyboardVisible ? 0 : insets.bottom}
         />
 
@@ -161,7 +155,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomChrome: {
-    borderTopWidth: 1,
     position: 'relative',
     zIndex: zLayers.sticky,
   },
@@ -169,7 +162,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   fabBand: {
-    height: 82,
+    position: 'absolute',
+    bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
   },
   fab: {
     bottom: 16,

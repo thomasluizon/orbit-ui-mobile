@@ -5,6 +5,7 @@ import {
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
+import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
@@ -115,15 +116,15 @@ function VoiceStatus({
   words: ComposerVoiceWords
   tokens: AppTokensV2
 }>) {
+  const [elapsed, setElapsed] = useState('00:00')
+  useEffect(() => {
+    if (state !== 'recording') return
+    return subscribeComposerRecordingTime(setElapsed)
+  }, [state])
   return (
-    <View style={styles.voiceStatus}>
-      <View
-        style={[
-          styles.voiceDot,
-          { backgroundColor: state === 'recording' ? tokens.statusBad : tokens.primary },
-        ]}
-      />
-      <Text style={[styles.statusText, { color: tokens.fg2 }]}>
+    <View testID="composer-voice-row" style={styles.voiceStatus}>
+      {state === 'recording' ? <Text accessible={false} style={[styles.recordingTime, { color: tokens.fg2 }]}>{elapsed}</Text> : null}
+      <Text numberOfLines={1} style={[styles.statusText, { color: tokens.fg2 }]}>
         {state === 'recording' ? words.recording : words.transcribing}
       </Text>
     </View>
@@ -140,10 +141,7 @@ function ComposerStatus({ props, tokens, focusTarget }: Readonly<{ props: Compos
     )
   }
   if (props.state === 'recording' || props.state === 'transcribing') {
-    return <View accessibilityLiveRegion="polite" style={styles.limitStatus}>
-      <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} />
-      {props.words.offlineReason ? <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.words.offlineReason}</Text> : null}
-    </View>
+    return props.words.offlineReason ? <Text style={[styles.limitReason, { color: tokens.fg2 }]}>{props.words.offlineReason}</Text> : null
   }
   if (props.state === 'sending' || props.suggestions.length === 0) return null
   return (
@@ -171,62 +169,14 @@ function composerFieldStyle(tokens: AppTokensV2, focused: boolean, disabled: boo
   }
 }
 
-function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
-  const voiceRef = useRef<View>(null)
-  const [focused, setFocused] = useState(false)
-  const [openConversationScale] = useState(() => new Animated.Value(1))
+function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
   const inputDisabled = props.state !== 'idle'
-  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = canSend || props.state === 'sending'
   const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
-
   return (
-    <View style={styles.inputRow}>
-      {props.onOpenConversation && props.conversationLabel ? (
-        <Animated.View style={{ transform: [{ scale: openConversationScale }] }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={props.conversationLabel}
-            onPress={props.onOpenConversation}
-            onPressIn={() => animatePressScale(openConversationScale, mobileMotion.orbital.press.scale)}
-            onPressOut={() => animatePressScale(openConversationScale, 1)}
-            style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}
-          >
-            <AstraGlyph size={20} color={tokens.fg3} />
-          </Pressable>
-        </Animated.View>
-      ) : null}
-      <View
-        style={[styles.field, composerFieldStyle(tokens, focused, inputDisabled)]}
-      >
-        <TextInput
-          ref={inputRef}
-          accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
-          accessibilityState={{ disabled: inputDisabled }}
-          editable={!inputDisabled}
-          multiline
-          placeholder={props.words.placeholder}
-          placeholderTextColor={tokens.fg3}
-          value={props.value}
-          onChangeText={props.onChangeValue}
-          onFocus={() => {
-            setFocused(true)
-            props.onInputFocus?.()
-            props.onOpenConversation?.()
-          }}
-          onBlur={() => {
-            setFocused(false)
-            props.onInputBlur?.()
-          }}
-          onSubmitEditing={() => {
-            if (canSend) props.onSend()
-          }}
-          style={[styles.input, { color: tokens.fg1 }]}
-        />
-
-        {props.onAttachFile ? (
+        <View testID="composer-controls" style={styles.controls}>
+        {!isRecording && !isTranscribing && props.onAttachFile ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={props.attachWords.file}
@@ -243,7 +193,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           </Pressable>
         ) : null}
 
-        {props.onAttachImage ? (
+        {!isRecording && !isTranscribing && props.onAttachImage ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={props.attachWords.image}
@@ -262,9 +212,8 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
 
         {props.onVoice ? (
           <Pressable
-            ref={voiceRef}
             accessibilityRole="button"
-            accessibilityLabel={isRecording ? props.voiceWords.stop : props.voiceWords.start}
+            accessibilityLabel={isRecording || isTranscribing ? props.voiceWords.stop : props.voiceWords.start}
             accessibilityState={{ disabled: voiceDisabled }}
             disabled={voiceDisabled}
             onPress={props.onVoice}
@@ -275,13 +224,99 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
               voiceDisabled ? styles.disabled : null,
             ]}
           >
-            {isRecording ? (
-              <Square size={16} fill={tokens.fgOnPrimary} color={tokens.fgOnPrimary} />
+            {isRecording || isTranscribing ? (
+              <Square size={16} fill={isRecording ? tokens.fgOnPrimary : tokens.fg3} color={isRecording ? tokens.fgOnPrimary : tokens.fg3} />
             ) : (
               <Mic size={20} strokeWidth={1.8} color={tokens.fg3} />
             )}
           </Pressable>
         ) : null}
+        </View>
+  )
+}
+
+function ComposerTextInput({ props, tokens, inputRef, inputMinimum, onFocusChange }: Readonly<{
+  props: MobileComposerProps
+  tokens: AppTokensV2
+  inputRef: React.RefObject<TextInput | null>
+  inputMinimum: number
+  onFocusChange: (focused: boolean) => void
+}>) {
+  const inputDisabled = props.state !== 'idle'
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  return (
+<View testID="composer-text-slot" style={[styles.textSlot, { minWidth: inputMinimum }]}>
+        <TextInput
+          ref={inputRef}
+          accessibilityLabel={props.words.inputLabel ?? props.words.placeholder}
+          accessibilityState={{ disabled: inputDisabled }}
+          editable={!inputDisabled}
+          multiline
+          placeholderTextColor={tokens.fg3}
+          value={props.value}
+          onChangeText={props.onChangeValue}
+          onFocus={() => {
+            onFocusChange(true)
+            props.onInputFocus?.()
+            props.onOpenConversation?.()
+          }}
+          onBlur={() => {
+            onFocusChange(false)
+            props.onInputBlur?.()
+          }}
+          onSubmitEditing={() => {
+            if (canSend) props.onSend()
+          }}
+          style={[styles.input, { color: tokens.fg1 }]}
+        />
+        {props.value.length === 0 ? <Text
+          testID="composer-placeholder"
+          pointerEvents="none"
+          accessible={false}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[styles.placeholder, { color: tokens.fg3 }, inputDisabled ? styles.disabled : null]}
+        >{props.words.placeholder}</Text> : null}
+        </View>
+  )
+}
+
+function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; inputRef: React.RefObject<TextInput | null> }>) {
+  const [fieldWidth, setFieldWidth] = useState<number>()
+  const [focused, setFocused] = useState(false)
+  const [openConversationScale] = useState(() => new Animated.Value(1))
+  const inputDisabled = props.state !== 'idle'
+  const inputMinimum = fieldWidth === undefined ? 176 : Math.min(176, Math.max(0, fieldWidth - 16 - (focused && !inputDisabled ? 4 : 2)))
+  const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
+  const isRecording = props.state === 'recording'
+  const isTranscribing = props.state === 'transcribing'
+  const sendIsAccent = canSend || props.state === 'sending'
+
+  return (
+    <View style={styles.inputRow}>
+      {props.onOpenConversation && props.conversationLabel ? (
+        <Animated.View style={{ transform: [{ scale: openConversationScale }] }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={props.conversationLabel}
+            onPress={props.onOpenConversation}
+            onPressIn={() => animatePressScale(openConversationScale, mobileMotion.orbital.press.scale)}
+            onPressOut={() => animatePressScale(openConversationScale, 1)}
+            style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}
+          >
+            <AstraGlyph size={20} color={tokens.fg3} />
+          </Pressable>
+        </Animated.View>
+      ) : null}
+      <View
+        testID="composer-field"
+        accessibilityLiveRegion="polite"
+        onLayout={(event) => setFieldWidth(event.nativeEvent.layout.width)}
+        style={[styles.field, composerFieldStyle(tokens, focused, inputDisabled)]}
+      >
+        {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} tokens={tokens} /> : <ComposerTextInput props={props} tokens={tokens} inputRef={inputRef} inputMinimum={inputMinimum} onFocusChange={setFocused} />}
+
+        <ComposerControls props={props} tokens={tokens} />
       </View>
 
       <Pressable
@@ -429,17 +464,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   voiceStatus: {
-    minHeight: 44,
+    minHeight: 48,
+    minWidth: 0,
+    flex: 1,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  voiceDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 8,
+  recordingTime: {
+    fontFamily: 'GeistMono_400Regular',
+    fontVariant: ['tabular-nums'],
+    fontSize: 14,
   },
   statusText: {
+    flexShrink: 1,
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
@@ -466,6 +505,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   field: {
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     minHeight: 48,
     minWidth: 0,
     flex: 1,
@@ -476,15 +517,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  textSlot: {
+    flexBasis: 176,
+    flexGrow: 1,
+    flexShrink: 1,
+    position: 'relative',
+  },
+  placeholder: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    top: 12,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
+  },
   input: {
     minHeight: 48,
     maxHeight: 96,
     minWidth: 0,
-    flex: 1,
     paddingHorizontal: 8,
     paddingVertical: 12,
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
+    lineHeight: 24,
   },
   iconButton: {
     width: 44,
