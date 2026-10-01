@@ -1373,101 +1373,43 @@
       "open": "Abrir Calendário"
     },
     "recordList": {
-      "title": {
-        "notifications": "Avisos",
-        "tags": "Etiquetas",
-        "templates": "Modelos de checklist",
-        "keys": "Chaves de API"
-      },
+      "title": { "notifications": "Avisos", "tags": "Etiquetas", "templates": "Modelos de checklist", "keys": "Chaves de API" },
       "count": "{shown} de {total}",
       "empty": "Nada por aqui ainda.",
       "unread": "Não lido",
       "templateCount": "{count} itens",
       "templateLimit": "Modelos com mais de 20 itens abrem no editor de checklist.",
-      "keyState": {
-        "active": "Ativa",
-        "expired": "Expirada",
-        "revoked": "Revogada"
-      },
+      "keyState": { "active": "Ativa", "expired": "Expirada", "revoked": "Revogada" },
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
       "filter": "Filtrar exibidos",
       "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
       "clearFilter": "Limpar filtro",
-      "open": {
-        "notifications": "Abrir Avisos",
-        "tags": "Abrir Etiquetas",
-        "templates": "Abrir Modelos",
-        "keys": "Abrir Perfil"
-      }
+      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Etiquetas", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
     },
     "account": {
-      "title": {
-        "profile": "Seu perfil",
-        "plan": "Seu plano",
-        "referral": "Sua indicação"
-      },
+      "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
       "row": {
-        "name": "Nome",
-        "email": "Email",
-        "language": "Idioma",
-        "timeZone": "Fuso horário",
-        "weekStartDay": "Início da semana",
-        "themePreference": "Tema",
-        "aiSummary": "Resumo diário",
-        "plan": "Plano",
-        "trialEnd": "Fim do teste",
-        "planExpiry": "Fim do plano",
-        "interval": "Intervalo",
-        "source": "Provedor",
-        "lifetime": "Acesso vitalício",
-        "astraAllowance": "Mensagens Astra usadas",
-        "successfulReferrals": "Indicações concluídas",
-        "pendingReferrals": "Indicações pendentes",
-        "maxReferrals": "Limite de indicações",
-        "rewardType": "Recompensa",
-        "discountPercent": "Desconto"
+        "name": "Nome", "email": "Email", "language": "Idioma", "timeZone": "Fuso horário",
+        "weekStartDay": "Início da semana", "themePreference": "Tema", "aiSummary": "Resumo diário",
+        "plan": "Plano", "trialEnd": "Fim do teste", "planExpiry": "Fim do plano", "interval": "Intervalo",
+        "source": "Provedor", "lifetime": "Acesso vitalício", "astraAllowance": "Mensagens Astra usadas",
+        "successfulReferrals": "Indicações concluídas", "pendingReferrals": "Indicações pendentes",
+        "maxReferrals": "Limite de indicações", "rewardType": "Recompensa", "discountPercent": "Desconto"
       },
       "value": {
-        "language": {
-          "en": "Inglês",
-          "pt-BR": "Português (Brasil)"
-        },
-        "weekStartDay": {
-          "0": "Domingo",
-          "1": "Segunda-feira"
-        },
-        "themePreference": {
-          "dark": "Escuro",
-          "light": "Claro"
-        },
-        "plan": {
-          "Free": "Grátis",
-          "Pro": "Pro"
-        },
-        "interval": {
-          "monthly": "Mensal",
-          "yearly": "Anual"
-        },
-        "source": {
-          "stripe": "Stripe",
-          "play": "Google Play"
-        },
-        "rewardType": {
-          "discount": "Desconto"
-        }
+        "language": { "en": "Inglês", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Domingo", "1": "Segunda-feira" },
+        "themePreference": { "dark": "Escuro", "light": "Claro" },
+        "plan": { "Free": "Grátis", "Pro": "Pro" },
+        "interval": { "monthly": "Mensal", "yearly": "Anual" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Desconto" }
       },
-      "yes": "Sim",
-      "no": "Não",
-      "notSet": "Não definido",
-      "unknown": "Desconhecido",
-      "code": "Código de indicação",
-      "copy": "Copiar",
-      "copied": "Copiado",
-      "share": "Compartilhar",
-      "copyError": "Não foi possível copiar o código. Tente de novo.",
-      "shareError": "Não foi possível compartilhar o link. Tente de novo.",
+      "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
+      "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
+      "copyError": "Não foi possível copiar o código. Tente de novo.", "shareError": "Não foi possível compartilhar o link. Tente de novo.",
       "open": "Abrir Perfil"
     },
     "trace": {
@@ -1561,9 +1503,7 @@
         "write": "Atualizando tags"
       }
     },
-    "followUps": {
-      "label": "Próximas perguntas"
-    },
+    "followUps": {"label": "Próximas perguntas"},
     "preview": {
       "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
@@ -2175,6 +2115,11 @@
   },
   "onboarding": {
     "flow": {
+      "completionFailed": "Não foi possível concluir a configuração. Tente de novo.",
+      "trial": {
+        "title": "O seu teste do Orbit Pro está ligado.",
+        "body": "Tudo do Pro está liberado durante o teste grátis. Se você não assinar, a sua conta volta para o plano grátis."
+      },
       "step": "{current} de {total}",
       "skip": "Pular",
       "back": "Voltar",
@@ -2214,10 +2159,7 @@
         "frequencyLess": "Repetir antes",
         "frequencyMore": "Repetir depois",
         "units": {
-          "day": "Dias",
-          "week": "Semanas",
-          "month": "Meses",
-          "year": "Anos"
+          "day": "Dias", "week": "Semanas", "month": "Meses", "year": "Anos"
         },
         "quantityLess": "Menos vezes",
         "quantityMore": "Mais vezes",
@@ -2235,22 +2177,10 @@
         "timeHint": "Deixe vazio para qualquer hora do dia",
         "limit": "As {allowance} mensagens de hoje foram usadas. A leitura da frase usa a mesma conta.",
         "days": {
-          "sunday": "D",
-          "monday": "S",
-          "tuesday": "T",
-          "wednesday": "Q",
-          "thursday": "Q",
-          "friday": "S",
-          "saturday": "S"
+          "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         },
         "daysLong": {
-          "sunday": "domingo",
-          "monday": "segunda",
-          "tuesday": "terça",
-          "wednesday": "quarta",
-          "thursday": "quinta",
-          "friday": "sexta",
-          "saturday": "sábado"
+          "sunday": "domingo", "monday": "segunda", "tuesday": "terça", "wednesday": "quarta", "thursday": "quinta", "friday": "sexta", "saturday": "sábado"
         },
         "cadence": {
           "fixed": "toda {days}",
@@ -2339,12 +2269,7 @@
       },
       "meetAstra": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
-      },
-      "trial": {
-        "title": "O seu teste do Orbit Pro está ligado.",
-        "body": "Tudo do Pro está liberado durante o teste grátis. Se você não assinar, a sua conta volta para o plano grátis."
-      },
-      "completionFailed": "Não foi possível concluir a configuração. Tente de novo."
+      }
     },
     "wizard": {
       "calendarTitle": "Importar do Google Calendar",
@@ -2491,6 +2416,7 @@
     }
   },
   "upgrade": {
+    "purchaseSuccess": "O Orbit Pro está ligado.",
     "title": "Assinatura",
     "pitchTitle": "Orbit Pro",
     "alreadyPro": "Você está no plano Pro",
@@ -2655,8 +2581,7 @@
       "pending": "Sua compra está pendente. A gente ativa o Pro assim que ela for confirmada.",
       "notSignedIn": "Entre na sua conta de novo antes de comprar.",
       "nothingToRestore": "Não encontramos nenhuma compra anterior para restaurar."
-    },
-    "purchaseSuccess": "O Orbit Pro está ligado."
+    }
   },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",

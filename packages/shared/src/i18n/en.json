@@ -1373,101 +1373,43 @@
       "open": "Open Calendar"
     },
     "recordList": {
-      "title": {
-        "notifications": "Alerts",
-        "tags": "Tags",
-        "templates": "Checklist templates",
-        "keys": "API keys"
-      },
+      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
       "count": "{shown} of {total}",
       "empty": "Nothing here yet.",
       "unread": "Unread",
       "templateCount": "{count} items",
       "templateLimit": "Templates with more than 20 items open in the checklist editor.",
-      "keyState": {
-        "active": "Active",
-        "expired": "Expired",
-        "revoked": "Revoked"
-      },
+      "keyState": { "active": "Active", "expired": "Expired", "revoked": "Revoked" },
       "markReadError": "Couldn't mark that alert read. Try again.",
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
       "filter": "Filter shown",
       "noMatches": "No loaded records match “{query}”.",
       "clearFilter": "Clear filter",
-      "open": {
-        "notifications": "Open Alerts",
-        "tags": "Open Tags",
-        "templates": "Open Templates",
-        "keys": "Open Profile"
-      }
+      "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
     },
     "account": {
-      "title": {
-        "profile": "Your profile",
-        "plan": "Your plan",
-        "referral": "Your referral"
-      },
+      "title": { "profile": "Your profile", "plan": "Your plan", "referral": "Your referral" },
       "row": {
-        "name": "Name",
-        "email": "Email",
-        "language": "Language",
-        "timeZone": "Time zone",
-        "weekStartDay": "Week starts",
-        "themePreference": "Theme",
-        "aiSummary": "Daily summary",
-        "plan": "Plan",
-        "trialEnd": "Trial ends",
-        "planExpiry": "Plan ends",
-        "interval": "Interval",
-        "source": "Provider",
-        "lifetime": "Lifetime access",
-        "astraAllowance": "Astra messages used",
-        "successfulReferrals": "Successful referrals",
-        "pendingReferrals": "Pending referrals",
-        "maxReferrals": "Referral limit",
-        "rewardType": "Reward",
-        "discountPercent": "Discount"
+        "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
+        "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
+        "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
+        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "Astra messages used",
+        "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
+        "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
       },
       "value": {
-        "language": {
-          "en": "English",
-          "pt-BR": "Português (Brasil)"
-        },
-        "weekStartDay": {
-          "0": "Sunday",
-          "1": "Monday"
-        },
-        "themePreference": {
-          "dark": "Dark",
-          "light": "Light"
-        },
-        "plan": {
-          "Free": "Free",
-          "Pro": "Pro"
-        },
-        "interval": {
-          "monthly": "Monthly",
-          "yearly": "Yearly"
-        },
-        "source": {
-          "stripe": "Stripe",
-          "play": "Google Play"
-        },
-        "rewardType": {
-          "discount": "Discount"
-        }
+        "language": { "en": "English", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Sunday", "1": "Monday" },
+        "themePreference": { "dark": "Dark", "light": "Light" },
+        "plan": { "Free": "Free", "Pro": "Pro" },
+        "interval": { "monthly": "Monthly", "yearly": "Yearly" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Discount" }
       },
-      "yes": "Yes",
-      "no": "No",
-      "notSet": "Not set",
-      "unknown": "Unknown",
-      "code": "Referral code",
-      "copy": "Copy",
-      "copied": "Copied",
-      "share": "Share",
-      "copyError": "Couldn't copy the code. Try again.",
-      "shareError": "Couldn't share the link. Try again.",
+      "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
+      "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
+      "copyError": "Couldn't copy the code. Try again.", "shareError": "Couldn't share the link. Try again.",
       "open": "Open Profile"
     },
     "trace": {
@@ -1561,9 +1503,7 @@
         "write": "Updating tags"
       }
     },
-    "followUps": {
-      "label": "Next questions"
-    },
+    "followUps": {"label": "Next questions"},
     "preview": {
       "proposed": "Proposed by Astra",
       "notSet": "Not set",
@@ -2175,6 +2115,11 @@
   },
   "onboarding": {
     "flow": {
+      "completionFailed": "Onboarding could not finish. Try again.",
+      "trial": {
+        "title": "Your Orbit Pro trial is on.",
+        "body": "Everything in Pro is on during the free trial. If you do not subscribe, your account returns to the free plan."
+      },
       "step": "{current} of {total}",
       "skip": "Skip",
       "back": "Back",
@@ -2214,10 +2159,7 @@
         "frequencyLess": "Repeat sooner",
         "frequencyMore": "Repeat later",
         "units": {
-          "day": "Days",
-          "week": "Weeks",
-          "month": "Months",
-          "year": "Years"
+          "day": "Days", "week": "Weeks", "month": "Months", "year": "Years"
         },
         "quantityLess": "Fewer times",
         "quantityMore": "More times",
@@ -2235,22 +2177,10 @@
         "timeHint": "Leave empty for any time of day",
         "limit": "Today''s {allowance} messages have been used. Reading the phrase draws on the same allowance.",
         "days": {
-          "sunday": "Sun",
-          "monday": "Mon",
-          "tuesday": "Tue",
-          "wednesday": "Wed",
-          "thursday": "Thu",
-          "friday": "Fri",
-          "saturday": "Sat"
+          "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
         },
         "daysLong": {
-          "sunday": "Sunday",
-          "monday": "Monday",
-          "tuesday": "Tuesday",
-          "wednesday": "Wednesday",
-          "thursday": "Thursday",
-          "friday": "Friday",
-          "saturday": "Saturday"
+          "sunday": "Sunday", "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday", "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday"
         },
         "cadence": {
           "fixed": "every {days}",
@@ -2339,12 +2269,7 @@
       },
       "meetAstra": {
         "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
-      },
-      "trial": {
-        "title": "Your Orbit Pro trial is on.",
-        "body": "Everything in Pro is on during the free trial. If you do not subscribe, your account returns to the free plan."
-      },
-      "completionFailed": "Onboarding could not finish. Try again."
+      }
     },
     "wizard": {
       "calendarTitle": "Import from Google Calendar",
@@ -2491,6 +2416,7 @@
     }
   },
   "upgrade": {
+    "purchaseSuccess": "Orbit Pro is on.",
     "title": "Subscription",
     "pitchTitle": "Orbit Pro",
     "alreadyPro": "You're on the Pro plan",
@@ -2655,8 +2581,7 @@
       "pending": "Your purchase is pending. We'll enable Pro once it's confirmed.",
       "notSignedIn": "Please sign in again before purchasing.",
       "nothingToRestore": "No previous purchase found to restore."
-    },
-    "purchaseSuccess": "Orbit Pro is on."
+    }
   },
   "errors": {
     "fetchHabits": "Failed to load habits",
