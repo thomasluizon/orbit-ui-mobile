@@ -225,13 +225,18 @@ export interface HabitUnderstandingLabels {
   less: string
   more: string
   count: (count: number) => string
-  scheduleMode: string
-  setDays: string
-  timesAWeek: string
   repeat: (count: number) => string
   repeatLess: string
   repeatMore: string
   proposed: string
+}
+
+export interface HabitRepeatIntervalProps {
+  visible: boolean
+  intervalWeeks: number
+  scheduleLocked?: boolean
+  onIntervalWeeksChange: (intervalWeeks: number) => void
+  labels: HabitUnderstandingLabels
 }
 
 export interface HabitUnderstandingProps {
@@ -243,7 +248,6 @@ export interface HabitUnderstandingProps {
   dayOptions: HabitDayOption[]
   quantity: number
   mode: 'fixed' | 'flexible'
-  intervalWeeks: number
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
   proposed?: boolean
@@ -252,8 +256,6 @@ export interface HabitUnderstandingProps {
   onEmojiSelect: (emoji: string) => void
   onToggleDay: (day: string) => void
   onQuantityChange: (quantity: number) => void
-  onModeChange: (mode: 'fixed' | 'flexible') => void
-  onIntervalWeeksChange: (intervalWeeks: number) => void
   labels: HabitUnderstandingLabels
 }
 
@@ -369,9 +371,8 @@ export interface HabitFormController {
   setSlipAlertEnabled: (enabled: boolean) => void
   setTitle: (title: string) => void
   setEmoji: (emoji: string) => void
-  setScheduleMode: (mode: 'fixed' | 'flexible') => void
   setIntervalWeeks: (intervalWeeks: number) => void
-  toggleDay: (day: string, daily?: boolean) => void
+  toggleDay: (day: string, daily?: boolean, selectedDays?: readonly string[]) => void
   setQuantity: (quantity: number) => void
 }
 
@@ -444,24 +445,19 @@ export function createHabitFormController({
       resolveSection('setup')
       target.setField('emoji', emoji)
     },
-    toggleDay: (day: string, daily = false): void => {
+    toggleDay: (day: string, daily = false, selectedDays = []): void => {
       resolveSection('setup')
       releaseOwnership('cadence')
+      if (!daily && selectedDays.length === 1 && selectedDays.includes(day)) {
+        applyHabitQuantityCorrection(3, lockedGeneral, target)
+        return
+      }
       if (applyHabitDayCorrection(lockedGeneral, target)) target.toggleDay(day, daily)
     },
     setQuantity: (quantity: number): void => {
       resolveSection('setup')
       releaseOwnership('cadence')
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
-    },
-    setScheduleMode: (mode): void => {
-      resolveSection('setup')
-      releaseOwnership('cadence')
-      if (mode === 'flexible') {
-        applyHabitQuantityCorrection(3, lockedGeneral, target)
-        return
-      }
-      if (applyHabitDayCorrection(lockedGeneral, target)) target.setField('days', [])
     },
     setIntervalWeeks: (intervalWeeks): void => {
       resolveSection('setup')
@@ -566,9 +562,6 @@ export function buildHabitUnderstandingLabels(
     less: translate('habits.form.lessOften'),
     more: translate('habits.form.moreOften'),
     count: (count) => translate('habits.form.timesAWeekCount', { count }),
-    scheduleMode: translate('habits.form.scheduleMode'),
-    setDays: translate('habits.form.setDays'),
-    timesAWeek: translate('habits.form.timesAWeek'),
     repeat: (count) => translate('habits.form.repeatWeeks', { count }),
     repeatLess: translate('habits.form.repeatLess'),
     repeatMore: translate('habits.form.repeatMore'),

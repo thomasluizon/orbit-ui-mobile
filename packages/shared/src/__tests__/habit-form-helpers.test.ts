@@ -459,9 +459,6 @@ describe('habit form helpers', () => {
     const labels = buildHabitUnderstandingLabels(translate)
     expect(labels).toMatchObject({
       field: 'habits.form.describe',
-      scheduleMode: 'habits.form.scheduleMode',
-      setDays: 'habits.form.setDays',
-      timesAWeek: 'habits.form.timesAWeek',
       repeatLess: 'habits.form.repeatLess',
       repeatMore: 'habits.form.repeatMore',
       proposed: 'habits.form.proposedByAstra',
@@ -666,7 +663,7 @@ describe('habit form helpers', () => {
       },
     })
 
-    controller.setScheduleMode('flexible')
+    controller.setQuantity(3)
     expect(state).toMatchObject({
       days: [],
       frequencyUnit: 'Week',
@@ -674,7 +671,6 @@ describe('habit form helpers', () => {
       isFlexible: true,
     })
 
-    controller.setScheduleMode('fixed')
     controller.toggleDay('Wednesday')
     controller.toggleDay('Thursday')
     expect(state).toEqual({
@@ -851,10 +847,9 @@ describe('habit form helpers', () => {
     expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
     controller.toggleDay('Friday')
     controller.setQuantity(2)
-    controller.setScheduleMode('flexible')
-    controller.setScheduleMode('fixed')
+    controller.setQuantity(3)
     controller.setIntervalWeeks(2)
-    expect(setGeneral).toHaveBeenCalledTimes(5)
+    expect(setGeneral).toHaveBeenCalledTimes(4)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)
     controller.setSlipAlertEnabled(false)
