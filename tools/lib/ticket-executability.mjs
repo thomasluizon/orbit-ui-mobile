@@ -98,7 +98,8 @@ const runClaude = async (body, options = {}) => {
       "--strict-mcp-config", "--tools", "", "--disable-slash-commands", "--no-session-persistence", "--safe-mode"]
     const invocation = options.run ?? (async (input, argv) => {
       const result = await runBounded(process.env.ORBIT_CLASSIFIER_CLAUDE_BIN || "claude", argv, {
-        cwd: directory, input, timeoutMs: options.timeoutMs ?? 60000, maxBuffer: 1024 * 1024,
+        cwd: directory, env: { ...process.env, CLAUDE_CODE_DISABLE_ATTACHMENTS: "1" }, input,
+        timeoutMs: options.timeoutMs ?? 60000, maxBuffer: 1024 * 1024,
       })
       return { code: result.timedOut || result.overflowed || result.error ? null : result.status, stdout: result.stdout }
     })

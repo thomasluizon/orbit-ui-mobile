@@ -203,6 +203,15 @@ process.stdout.write(${JSON.stringify(claudeEnvelope)})
   let claudeVerdict
   try { claudeVerdict = JSON.parse(claudeObserved.stdout) } catch { claudeVerdict = null }
   T(`${TOOL}: native Claude structured envelope admits ordinary code work`, claudeObserved.status === 0 && claudeVerdict?.conversationFirst === false && !claudeVerdict.kind, claudeObserved.stderr || claudeObserved.stdout)
+  const attachmentGuardBinary = stage("ticket-executability/claude-attachment-guard.mjs", `#!/usr/bin/env node
+if (process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS !== "1") process.exit(3)
+process.stdout.write(${JSON.stringify(claudeEnvelope)})
+`)
+  chmodSync(attachmentGuardBinary, 0o755)
+  const attachmentObserved = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, CLAUDE_CODE_DISABLE_ATTACHMENTS: "", ORBIT_CLASSIFIER_CLAUDE_BIN: attachmentGuardBinary } })
+  let attachmentVerdict
+  try { attachmentVerdict = JSON.parse(attachmentObserved.stdout) } catch { attachmentVerdict = null }
+  T(`${TOOL}: ticket body @file mentions stay plain text (attachment expansion disabled)`, attachmentObserved.status === 0 && attachmentVerdict?.conversationFirst === false && !attachmentVerdict.kind, attachmentObserved.stderr || attachmentObserved.stdout)
   for (const [name, source, timeoutMs, large] of [
     ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n", 500, true],
     ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n", 100, false],
