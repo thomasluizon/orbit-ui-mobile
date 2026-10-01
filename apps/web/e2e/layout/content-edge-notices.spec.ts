@@ -10,20 +10,24 @@ import { test } from './upgrade-fixtures'
 const notification = createMockNotification({ title: 'Layout notification' })
 const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
 
-async function expectContentEdges(surface: Locator) {
-  const geometry = await surface.evaluate((element) => {
-    const composer = document.querySelector('[data-composer-root]')
-    if (!composer) throw new Error('Shell composer missing')
-    const column = composer.getBoundingClientRect()
-    const style = getComputedStyle(composer)
+async function expectContentEdges(surface: Locator, reference: 'composer' | 'notice-column') {
+  const geometry = await surface.evaluate((element, reference) => {
+    const contentColumn = reference === 'composer'
+      ? document.querySelector('[data-composer-root]')
+      : element.closest('[data-shell-notice]')?.parentElement
+    if (!contentColumn) throw new Error('Shell content column missing')
+    const column = contentColumn.getBoundingClientRect()
+    const style = getComputedStyle(contentColumn)
+    const insetLeft = reference === 'composer' ? parseFloat(style.paddingLeft) : 16
+    const insetRight = reference === 'composer' ? parseFloat(style.paddingRight) : 16
     const bounds = element.getBoundingClientRect()
     return {
       left: bounds.left,
       right: bounds.right,
-      contentLeft: column.left + parseFloat(style.paddingLeft),
-      contentRight: column.right - parseFloat(style.paddingRight),
+      contentLeft: column.left + insetLeft,
+      contentRight: column.right - insetRight,
     }
-  })
+  }, reference)
   expect(geometry.left).toBeCloseTo(geometry.contentLeft, 1)
   expect(geometry.right).toBeCloseTo(geometry.contentRight, 1)
 }
@@ -34,7 +38,7 @@ for (const width of [412, 1352] as const) {
     test.describe(`shell content edges at ${width}px in ${locale}`, () => {
       test.use({ appLocale: locale, subscriptionState: 'trial', viewport: { width, height: 915 } })
 
-      test('aligns the queued-delete toast with composer content', async ({ page, context }) => {
+      test('aligns the queued-delete toast with shell content', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
         await page.goto('/notifications')
         await page.getByRole('button', {
@@ -45,7 +49,7 @@ for (const width of [412, 1352] as const) {
         await expect(toast).toBeVisible()
         await page.clock.pauseAt(new Date('2026-09-04T12:00:00Z'))
         await page.evaluate(() => document.fonts.ready)
-        await expectContentEdges(toast)
+        await expectContentEdges(toast, 'notice-column')
         await toast.getByRole('button', { name: messages.notifications.deleteUndo, exact: true }).click()
         await expect(toast).toHaveCount(0)
       })
@@ -56,7 +60,7 @@ for (const width of [412, 1352] as const) {
         await expect(title).toBeVisible()
         await expect(page.locator('[data-composer-root]')).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
-        await expectContentEdges(title)
+        await expectContentEdges(title, 'composer')
       })
     })
   }
