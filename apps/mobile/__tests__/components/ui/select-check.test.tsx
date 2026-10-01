@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -427,10 +427,26 @@ describe('RadioRow secondary text contrast', () => {
         })
       }
       const pressed = StyleSheet.flatten(pressStyle({ pressed: true })) as { backgroundColor: string; opacity: number }
-      for (const foreground of foregrounds) {
-        expect(contrastOnSurface(foreground, [tokens.bg, pressed.backgroundColor]))
-          .toBeGreaterThanOrEqual(4.5)
-      }
+      const pressable = tree.root.findAll((node) => node.type === Pressable)[0]!
+      const content = pressable.props.children as ReactNode | ((state: { pressed: boolean }) => ReactNode)
+      void act(() => {
+        tree.update(<View>{typeof content === 'function' ? content({ pressed: true }) : content}</View>)
+      })
+      const pressedForegrounds = ['Details', '3', 'Current'].map((text) => {
+        const label = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === text)[0]!
+        return (StyleSheet.flatten(label.props.style) as { color: string }).color
+      })
+      const pressedContrasts = [[], [tokens.bgCard], [tokens.bgSheet]].flatMap((surface) =>
+        pressedForegrounds.map((foreground) => contrastOnSurface(foreground, [tokens.bg, ...surface, pressed.backgroundColor])),
+      )
+      expect(Math.min(...pressedContrasts)).toBeGreaterThanOrEqual(4.5)
+      const glyph = tree.root.findAll((node) => node.type === RadioGlyph)[0]!
+      const glyphHost = glyph.findAll((node) => typeof node.type === 'string')[0]!
+      const glyphStyle = StyleSheet.flatten(glyphHost.props.style) as { borderColor: string }
+      const trackContrasts = selected ? [] : [[], [tokens.bgCard], [tokens.bgSheet]].map((surface) =>
+        contrastOnSurface(glyphStyle.borderColor, [tokens.bg, ...surface, pressed.backgroundColor]),
+      )
+      expect(Math.min(...trackContrasts)).toBeGreaterThanOrEqual(3)
     }
     expect(descriptionStyle.color).toBe(expectedForeground)
     expect(metaStyle.color).toBe(expectedForeground)

@@ -56,7 +56,7 @@ describe('select-check RadioRow group', () => {
     expect(selected).toHaveClass('bg-[rgba(var(--primary-rgb),0.10)]')
     expect(selected).toHaveClass('hover:bg-[var(--bg-hover)]')
     expect(selected).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--primary)' })
-    expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--track-empty)' })
+    expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--radio-row-track,var(--track-empty))' })
   })
 
   it('keeps one tab stop, wraps, and follows selection with focus', () => {
@@ -265,6 +265,39 @@ describe('RadioRow secondary text contrast', () => {
       }
       for (const foreground of [row.color, row.metaColor, row.tagColor]) {
         expect(contrastOnSurface(foreground, [expectedForeground])).toBe(1)
+      }
+      if (!row.disabled) {
+        const radio = page.locator('[role="radio"]')
+        const center = await radio.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+        })
+        await page.mouse.move(center.x, center.y)
+        await page.mouse.down()
+        await expect.poll(async () => contrastOnSurface(
+          await radio.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+        )).toBe(contrastOnSurface(theme['--bg-hover']!, [theme['--bg']!]))
+        await expect.poll(async () => {
+          const pressed = await radio.evaluate((element) => ({
+            background: getComputedStyle(element).backgroundColor,
+            trackShadow: getComputedStyle(element.querySelector('[aria-hidden="true"]')!).boxShadow,
+            foregrounds: [...element.querySelectorAll('span')]
+              .filter((span) => ['Subject details', '3', 'Current'].includes(span.textContent))
+              .map((span) => getComputedStyle(span).color),
+          }))
+          expect(pressed.foregrounds).toHaveLength(3)
+          if (!selected) {
+            const trackColor = pressed.trackShadow.match(/rgba?\([^)]*\)/)![0]
+            for (const surface of [[], [theme['--bg-card']!], [theme['--bg-sheet']!]]) {
+              expect(contrastOnSurface(trackColor, [theme['--bg']!, ...surface, pressed.background]))
+                .toBeGreaterThanOrEqual(3)
+            }
+          }
+          return Math.min(...[[], [theme['--bg-card']!], [theme['--bg-sheet']!]].flatMap((surface) =>
+            pressed.foregrounds.map((foreground) => contrastOnSurface(foreground, [theme['--bg']!, ...surface, pressed.background])),
+          ))
+        }).toBeGreaterThanOrEqual(4.5)
+        await page.mouse.up()
       }
       expect(contrastOnSurface(row.background, [theme['--bg']!])).toBe(contrastOnSurface(
         row.selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!],
