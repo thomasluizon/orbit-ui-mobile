@@ -1,6 +1,6 @@
 ---
 name: questions
-description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
+description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Then give him a numbered step-by-step for every manual action only he can do, after the same kind of gate. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
 argument-hint: [optional scope, for example "the redesign" or "ticket 67"]
 effort: high
 ---
@@ -116,3 +116,48 @@ Write the options in product terms. He should be able to answer without opening 
 
 Record each answer where the work will read it: a comment on the ticket that needed it, and an ADR
 in the brain when it is a decision that outlives the ticket. Then unblock whatever was waiting.
+
+## Then: the manual steps only he can do
+
+Questions are decisions. A manual step is an action: a click in a console, a sign-in, a purchase on a
+device. After every question is answered, give him a numbered step-by-step for every manual action
+the run cannot do itself. It comes AFTER the questions, never instead of them, and never mixed into
+them.
+
+### List every candidate step first, in writing
+
+Read the same sources as for questions, plus every "waiting on the owner", "owner's click", "manual
+step" or blocker note in the spec, the tickets, the pull request bodies' `## Manual steps` and the
+session's decision log. A step you never wrote down cannot be filtered or handed over.
+
+### The gate: only what you ABSOLUTELY cannot do
+
+Every candidate passes this gate before it reaches him. Stop at the first line that resolves it.
+
+1. **Can an installed tool do it?** A CLI, an API, an MCP server, Terraform, a repository tool, or
+   the browser through `claude-in-chrome`. If yes, it is the run's work: do it now, or put it in the
+   handoff as the run's next task. Never hand him a step a tool can take.
+2. **Did the first method fail?** Try every other installed tool and account that reaches the same
+   goal, and write down what each returned. A step reaches him only when every method is exhausted,
+   and the step names the goal, not the first method's precondition.
+3. **Is it his by rule?** It survives the gate only when it needs one of these: his password, a 2FA
+   prompt, a payment or purchase, a legal identity choice, a credential the run may not read or type,
+   a physical device in his hands, a permanent deletion only a browser can do, or a permission only
+   his account can grant. Name which one.
+
+What fails the gate becomes run work and is recorded where the next session reads it. What passes is
+his.
+
+### The shape of each step
+
+One numbered list, ordered by how much work each step unblocks. Each step carries:
+
+- one action in one sentence, starting with the verb ("Open", "Click", "Paste")
+- exactly where: the URL or the menu path, and the field or button name as the screen shows it
+- what to enter or choose, with no secret written out (point to where the value lives instead)
+- how he knows it worked
+- in one short clause, why the run cannot do it (the rule from gate 3)
+- what it unblocks
+
+Split a long action into several numbered steps rather than one long one. If no step survives the
+gate, say so in one line and name what you filtered out and how the run will do it instead.
