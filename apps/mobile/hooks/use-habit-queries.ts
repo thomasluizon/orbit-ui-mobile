@@ -72,7 +72,6 @@ export function useHabits(filters: HabitsFilter, enabled = true) {
     staleTime: QUERY_STALE_TIMES.habits,
     enabled,
     select: selectNormalizedHabits,
-    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   })
 

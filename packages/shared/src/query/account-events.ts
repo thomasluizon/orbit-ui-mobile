@@ -12,6 +12,12 @@ const TODAY_KEYS: QueryKey[] = [
   profileKeys.all, gamificationKeys.all, notificationKeys.all,
 ]
 
+export function configureAccountQueryDefaults(queryClient: Pick<QueryClient, 'setQueryDefaults'>): void {
+  for (const queryKey of TODAY_KEYS) {
+    queryClient.setQueryDefaults(queryKey, { refetchOnWindowFocus: false })
+  }
+}
+
 export function accountChangeQueryKeys(change: AccountChange): QueryKey[] {
   switch (change.kind) {
     case 'habit':

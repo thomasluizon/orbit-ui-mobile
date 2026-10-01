@@ -2,7 +2,7 @@ import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
-import { configKeys } from '@orbit/shared/query'
+import { configKeys, configureAccountQueryDefaults } from '@orbit/shared/query'
 
 /**
  * Bridges AppState to TanStack Query focus so foreground refetching and
@@ -39,6 +39,8 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+configureAccountQueryDefaults(queryClient)
 
 const CACHE_KEY_PREFIX = '@orbit/query-cache'
 const LEGACY_CACHE_KEY = '@orbit/query-cache'

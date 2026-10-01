@@ -102,7 +102,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
       })
     } catch {
       retry = Math.min(retry + 1, 5)
-      if (!opened && reportNextFailure && !lastEventId && streamIsActive(options.signal)) {
+      if (!opened && reportNextFailure && streamIsActive(options.signal)) {
         reportNextFailure = false
         options.onFirstFailure?.(Date.now())
       }

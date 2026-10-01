@@ -39,7 +39,6 @@ export function useProfile(options?: { enabled?: boolean }) {
     queryFn: () => fetchJson<Profile>(API.profile.get),
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
-    refetchOnWindowFocus: true,
     enabled: options?.enabled ?? true,
   })
 
