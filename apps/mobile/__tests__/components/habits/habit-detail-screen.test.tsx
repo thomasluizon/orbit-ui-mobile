@@ -22,6 +22,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -61,6 +62,7 @@ function openRescueGate() {
 
 const mocks = vi.hoisted(() => ({
   screenFocused: true,
+  realTimeField: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   detail: null as HabitDetail | null,
@@ -276,7 +278,8 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
     return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
   },
 }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -298,14 +301,17 @@ vi.mock('@/components/ui/skeleton', () => ({
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: label === 'habits.detail.slipAlert' ? 'slip-alert-switch' : label, checked, onChange }),
 }))
-vi.mock('@/components/ui/time-field', () => ({
-  TimeField: ({ label, value, onChange, onClear }: { label: string; value: Time24 | ''; onChange: (value: Time24) => void; onClear: () => void }) => React.createElement('TextInput', {
+vi.mock('@/components/ui/time-field', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/time-field')>()
+  return ({
+  TimeField: ({ label, value, onChange, onClear, commitTypedClearOnBlur }: React.ComponentProps<typeof actual.TimeField>) => mocks.realTimeField ? <actual.TimeField commitTypedClearOnBlur={commitTypedClearOnBlur} label={label} value={value} onChange={onChange} onClear={onClear} /> : React.createElement('TextInput', {
     accessibilityLabel: label,
     value,
     onChangeText: (next: string) => { if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(next)) onChange(next as Time24) },
     onClear,
   }),
-}))
+})
+})
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, chevron, onClick }, trailing),
 }))
@@ -374,6 +380,7 @@ describe('HabitDetailScreen', () => {
     expect(editingHeaders).toHaveLength(1)
   })
   beforeEach(() => {
+    mocks.realTimeField = false;
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 29, 12))
     clearOfflineQueue()
@@ -1178,7 +1185,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     expect(JSON.stringify(tree.toJSON())).toContain('8:00 AM')
   })
-  it('orders the open sections like the canvas and keeps checklist logging beside editing', () => {
+  it('orders the open sections like the canvas and swaps checklist logging for editing', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const rendered = JSON.stringify(tree.toJSON())
@@ -1189,8 +1196,8 @@ describe('HabitDetailScreen', () => {
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
     TestRenderer.act(() => disclosure.props.onPress())
     const lists = tree.root.findAllByProps({ testID: 'habit-checklist' })
-    expect(lists[0]!.props.interactive).toBe(true)
-    expect(lists[1]!.props.editable).toBe(true)
+    expect(lists).toHaveLength(1)
+    expect(lists[0]!.props.editable).toBe(true)
     TestRenderer.act(() => disclosure.props.onPress())
     expect(tree.root.findAllByProps({ testID: 'habit-checklist' })).toHaveLength(1)
   })
@@ -1320,6 +1327,68 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByProps({ title: 'habits.detail.schedule' })).toHaveLength(0)
   })
 
+
+
+  it.each(['', 'My draft'])('opens Astra about the habit and preserves an existing draft %s', (draft) => {
+    useChatStore.getState().setDraft(draft)
+    useChatStore.getState().setContextualSuggestion(null)
+    useUIStore.getState().setAstraConversationOpen(false)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
+    if (draft) {
+      expect(useChatStore.getState().draft).toBe(draft)
+      expect(useChatStore.getState().contextualSuggestion).toMatchObject({ id: 'habit-detail:habit-1', prompt })
+    } else expect(useChatStore.getState().draft).toBe(prompt)
+  })
+
+  it('preserves consecutive edits before detail refreshes', async () => {
+    mocks.detail = { ...makeDetail(), dueTime: '09:00' }
+    let finish!: () => void
+    mocks.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!.props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'habits.form.exactTime' }).props.onChangeText('10:15'))
+    TestRenderer.act(() => tree.root.findByProps({ testID: 'habits.form.habitTypeAvoid' }).props.onChange(true))
+    await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+    expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ dueTime: '10:15', isBadHabit: true })
+  })
+
+  it('keeps an empty time draft local while replacing the saved time', async () => {
+    mocks.realTimeField = true
+    mocks.uses24HourClock = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!.props.onPress())
+    const input = () => tree.root.findAllByType('TextInput').find((node: TestNode) => node.props.accessibilityLabel === 'habits.form.exactTime')!
+    TestRenderer.act(() => input().props.onFocus())
+    TestRenderer.act(() => input().props.onChangeText(''))
+    expect(mocks.update).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { input().props.onChangeText('10:15'); await Promise.resolve() })
+    expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ dueTime: '10:15', reminderEnabled: true, reminderTimes: [15] })
+  })
+
+  it('keeps cadence editing available for a daily habit', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.form.unitWeek')!.props.onPress())
+    await TestRenderer.act(async () => { pressPillButton(tree.root, 'common.save'); await Promise.resolve() })
+    expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1 })
+  })
+
+  it('hides Avoid for a general habit as Creation does', () => {
+    mocks.detail = { ...makeDetail(), isGeneral: true }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    TestRenderer.act(() => tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!.props.onPress())
+    expect(tree.root.findAllByProps({ testID: 'habits.form.habitTypeAvoid' })).toHaveLength(0)
+  })
+
   it('persists Creation controls through their existing write paths', async () => {
     mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -1328,13 +1397,17 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => disclosure.props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
     TestRenderer.act(() => tree.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal('goal-2'))
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ goalIds: ['goal-2'] })
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'habits.form.exactTime' }).props.onChangeText('10:15'))
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ dueTime: '10:15', dueEndTime: null })
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'habits.form.description' }).props.onChangeText(' Better note '))
     await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: 'habits.form.description' }).props.onBlur(); await Promise.resolve() })
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ description: 'Better note' })
     TestRenderer.act(() => tree.root.findByProps({ testID: 'habits.form.habitTypeAvoid' }).props.onChange(true))
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ isBadHabit: true })
   })
   it('clears reminder configuration when the time editor clears due time', async () => {
@@ -1866,7 +1939,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('preserves authoritative relationship state for an off-schedule habit', () => {
+  it('preserves authoritative relationship state for an off-schedule habit', async () => {
     const linkedGoals = Array.from({ length: 10 }, (_, index) => ({ id: `goal-${index + 1}`, title: `Goal ${index + 1}` }))
     mocks.detail = { ...makeDetail(), isBadHabit: true }
     mocks.allHabits.set('habit-1', {
@@ -1894,6 +1967,7 @@ describe('HabitDetailScreen', () => {
     const slipAlert = tree!.root.findByProps({ testID: 'slip-alert-switch' })
     expect(slipAlert.props.checked).toBe(true)
     TestRenderer.act(() => slipAlert.props.onChange(false))
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
   })
 
@@ -1950,7 +2024,7 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
   })
 
-  it('keeps relationship controls interactive for a top-level habit with zero linked goals', () => {
+  it('keeps relationship controls interactive for a top-level habit with zero linked goals', async () => {
     mocks.detail = { ...makeDetail(), isBadHabit: true }
     mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1964,6 +2038,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal())
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'slip-alert-switch' }).props.onChange(true))
 
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-2)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })

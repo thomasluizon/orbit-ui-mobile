@@ -22,7 +22,7 @@ type PressableNode = Readonly<{
   props: {
     accessibilityLabel?: string
     accessibilityRole?: string
-    accessibilityState?: { checked?: boolean; selected?: boolean }
+    accessibilityState?: { checked?: boolean; selected?: boolean; expanded?: boolean }
     style: (state: { pressed: boolean }) => StyleProp<ViewStyle>
     onPress: () => void
   }
@@ -44,14 +44,14 @@ const renderer = require('react-test-renderer') as {
 
 const tokens = createTokensV2('purple', 'dark')
 
-function renderScheduleEditor(onPatch: (patch: unknown) => Promise<boolean>, daily = false) {
+function renderScheduleEditor(onPatch: (patch: unknown) => Promise<boolean>, daily = false, open = !daily) {
   let tree: TestTree | undefined
   renderer.act(() => {
     tree = renderer.create(
       <HabitDetailSchedule
         habit={{ ...makeHabitDetailScopedChild('2026-09-29'), frequencyQuantity: daily ? 1 : 2 }}
         summary="Every day"
-        open={!daily}
+        open={open}
         tokens={tokens}
         onSave={(patch) => { void onPatch(patch) }}
         onToggle={() => {}}
@@ -74,6 +74,11 @@ function fill(tree: TestTree, label: string, pressed: boolean) {
 }
 
 describe('HabitDetailSchedule schedule chips', () => {
+  it.each([false, true])('announces the daily cadence editor expanded state %s', (open) => {
+    const tree = renderScheduleEditor(vi.fn().mockResolvedValue(true), true, open)
+    expect(tree.root.findAllByType(Pressable)[0]!.props.accessibilityState).toMatchObject({ expanded: open })
+  })
+
   it('fills a pressed frequency unit inside its pill and keeps the chosen unit marked', () => {
     const tree = renderScheduleEditor(vi.fn().mockResolvedValue(true))
 

@@ -738,8 +738,13 @@ describe('bad status source roles', () => {
 })
 
 describe('type roles', () => {
-  it('encodes the Pro drawing heading and allowance pairs', () => {
+  it('encodes the habit title and Pro drawing type pairs', () => {
     expect(responsiveTypeRoles).toEqual({
+      habitTitle: {
+        family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+        compact: { size: 22, lineHeight: 1.2 },
+        wide: { size: 28, lineHeight: 1.15 },
+      },
       displayHeading: {
         family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
         compact: { size: 28, lineHeight: 1.18 }, wide: { size: 34, lineHeight: 1.15 },

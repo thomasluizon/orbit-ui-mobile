@@ -246,6 +246,7 @@ export function TimeField({
   value,
   onChange,
   onClear,
+  commitTypedClearOnBlur = false,
   placeholder,
   accessibilityLabel,
   hourCycle,
@@ -275,7 +276,7 @@ export function TimeField({
     const change = changeTimeFieldInput(displayValue, inputDraft ?? presentedValue, resolvedHourCycle)
     setInputDraft(change.draft)
     if (change.clear) {
-      onClear?.()
+      if (!commitTypedClearOnBlur) onClear?.()
       return
     }
     if (change.parsed) onChange(change.parsed)
@@ -307,6 +308,7 @@ export function TimeField({
         label={resolvedLabel}
         onBlur={() => {
           setFocused(false)
+          if (commitTypedClearOnBlur && inputDraft === '') onClear?.()
           setInputDraft(null)
         }}
         onChange={handleChange}

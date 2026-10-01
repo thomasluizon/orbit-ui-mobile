@@ -82,8 +82,8 @@ export function HabitDetailSchedule({ habit, summary, open, tokens, onToggle, on
   const { t } = useTranslation()
   const editable = canInlineEditHabitSchedule(habit)
   if (!editable && !summary) return null
-  if (editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1) return <View style={styles.list}><Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.detail.schedule')}</Text><WeekdayChips days={habit.days} tokens={tokens} onChange={(days) => { const patch = buildHabitDetailSchedulePatch('Day', 1, days); if (patch) onSave(patch) }} /></View>
-  return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={onCancel} onSave={onSave} /> : null}</>
+  const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <View style={styles.list}><WeekdayChips days={habit.days} tokens={tokens} onChange={(days) => { const patch = buildHabitDetailSchedulePatch('Day', 1, days); if (patch) onSave(patch) }} /></View> : null
+  return <><ListRow inset={false} title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}{open ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={onCancel} onSave={onSave} /> : null}</>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
@@ -110,7 +110,7 @@ export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAva
   }
   return (
     <View style={styles.fields}>
-      <TimeField label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <View>
         <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.reminders')}</Text>
         {habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError}>
@@ -123,10 +123,10 @@ export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAva
         <HabitChecklist items={habit.checklistItems} editable onItemsChange={onItemsChange} />
         <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
       </View>
-      <View>
+      {!habit.isGeneral ? <View>
         <Switch label={t('habits.form.habitTypeAvoid')} checked={habit.isBadHabit} onChange={(isBadHabit) => { void onPatch({ isBadHabit }) }} />
         <Text style={[styles.chipText, { color: tokens.fg3 }]}>{t('habits.form.habitTypeAvoidHint')}</Text>
-      </View>
+      </View> : null}
       {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
       {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
       {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell tokens={tokens}><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}

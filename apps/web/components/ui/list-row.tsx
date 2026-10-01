@@ -39,7 +39,7 @@ function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, w
 }
 
 export function ListRow(props: Readonly<WebListRowProps>) {
-  const { accessibilityLabel, action, chevron = true, compact = false, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
+  const { accessibilityLabel, expanded, controls, action, chevron = true, compact = false, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = getBodyStyle(compact, !!action, inset)
@@ -49,9 +49,9 @@ export function ListRow(props: Readonly<WebListRowProps>) {
       {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (
-        <Link href={href} aria-label={accessibilityLabel} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{content}</Link>
+        <Link href={href} aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{content}</Link>
       ) : (
-        <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
+        <button type="button" aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={{ margin: 16, marginInlineStart: 0 }}>

@@ -12,7 +12,8 @@ import {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
-  formatHabitDetailReminderValue,
+  buildHabitDetailReminderRows,
+  createHabitDetailWriteQueue,
   getHabitDaysWithoutLog,
   getHabitHistoryLog,
   getHabitStartDate,
@@ -176,23 +177,48 @@ describe('habit detail flow model', () => {
     expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), isFlexible: true })).toBe(false)
   })
 
-  it('lists the actual reminder offsets and scheduled times', () => {
+
+  it('lists reminder clocks with their offsets and calendar days', () => {
+    const habit = createMockHabit({ dueTime: '09:00', reminderEnabled: true, reminderTimes: [0, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }, { when: 'day_before', time: '20:00' }] })
     const translate = (key: string) => key
-    expect(formatHabitDetailReminderValue({
-      reminderEnabled: false,
-      reminderTimes: [10],
-      scheduledReminders: [],
-    }, translate, (time) => `clock:${time}`)).toBe('habits.detail.noValue')
-    expect(formatHabitDetailReminderValue({
-      reminderEnabled: true,
-      reminderTimes: [10, 30],
-      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
-    }, translate, (time) => `clock:${time}`)).toBe('habits.form.reminder10min, habits.form.reminder30min, clock:08:00')
-    expect(formatHabitDetailReminderValue({
-      reminderEnabled: true,
-      reminderTimes: [],
-      scheduledReminders: [],
-    }, translate, (time) => `clock:${time}`)).toBe('habits.detail.noValue')
+    expect(buildHabitDetailReminderRows(habit, translate)).toEqual([
+      { key: 'offset:0', time: '09:00', label: 'habits.detail.reminderHabitTime' },
+      { key: 'offset:30', time: '08:30', label: 'habits.form.reminder30min' },
+      { key: 'same_day:08:00', time: '08:00', label: 'habits.detail.reminderSameDay' },
+      { key: 'day_before:20:00', time: '20:00', label: 'habits.detail.reminderDayBefore' },
+    ])
+    expect(buildHabitDetailReminderRows({ ...habit, reminderEnabled: false }, translate)).toEqual([])
+    expect(buildHabitDetailReminderRows({ ...habit, dueTime: null }, translate)).toHaveLength(2)
+    expect(buildHabitDetailReminderRows({ ...habit, dueTime: '00:10', reminderTimes: [30], scheduledReminders: [] }, translate)[0]?.time).toBe('23:40')
+  })
+
+  it('serializes pending edits and omits a rejected edit from subsequent updates', async () => {
+    const queue = createHabitDetailWriteQueue()
+    const habit = createMockHabit({ dueTime: '09:00' })
+    let finish!: (saved: boolean) => void
+    const write = vi.fn().mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve })).mockResolvedValue(true)
+    const first = queue.save(habit, { dueTime: '10:15' }, write)
+    const second = queue.save(habit, { isBadHabit: true }, write)
+    expect(write).toHaveBeenCalledOnce()
+    finish(false)
+    expect(await first).toBe(false)
+    expect(await second).toBe(true)
+    expect(write.mock.calls.at(-1)![0]).toMatchObject({ dueTime: '09:00', isBadHabit: true })
+    await queue.save(habit, { description: 'A note' }, write)
+    expect(write.mock.calls.at(-1)![0]).toMatchObject({ isBadHabit: true, description: 'A note' })
+    await queue.save({ ...habit, isBadHabit: true }, { description: 'Another note' }, write)
+    await queue.save(habit, { endDate: '2026-12-31' }, write)
+    expect(write.mock.calls.at(-1)![0]).toMatchObject({ isBadHabit: false, description: 'Another note' })
+  })
+
+  it('drops acknowledged slip-alert edits before later updates', async () => {
+    const queue = createHabitDetailWriteQueue()
+    const habit = createMockHabit({ isBadHabit: true, slipAlertEnabled: true })
+    const write = vi.fn().mockResolvedValue(true)
+    await queue.save(habit, { slipAlertEnabled: false }, write)
+    await queue.save({ ...habit, slipAlertEnabled: false }, { description: 'A note' }, write)
+    await queue.save(habit, { title: 'Updated title' }, write)
+    expect(write.mock.calls.at(-1)![0]).not.toHaveProperty('slipAlertEnabled')
   })
 
   it('validates inline times and clears a stale end when the start changes', () => {
