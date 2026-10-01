@@ -3,13 +3,19 @@ import { useLayoutEffect } from 'react'
 import { act, render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => mocks.translate,
+}))
+
+const mocks = vi.hoisted(() => ({
+  translate: (key: string, _values?: Record<string, string>) => key,
 }))
 
 const reloadMock = vi.fn()
 const originalLocation = globalThis.location
 
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { apiFetch } from '@/lib/api-fetch'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
@@ -22,6 +28,7 @@ describe('UpdateAvailableBanner', () => {
   beforeEach(() => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     reloadMock.mockReset()
+    mocks.translate = (key: string) => key
     Object.defineProperty(globalThis, 'location', {
       value: { ...originalLocation, reload: reloadMock },
       writable: true,
@@ -70,6 +77,30 @@ describe('UpdateAvailableBanner', () => {
     await act(async () => {})
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.getByText('forceUpdate.banner')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['en', en, null],
+    ['pt-BR', ptBR, null],
+    ['en', en, '1.5.0'],
+    ['pt-BR', ptBR, '1.5.0'],
+  ] as const)('says each thing once in %s (case %#)', async (locale, messages, minVersion) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale, messages })
+    mocks.translate = (key, values) => translate(key as Parameters<typeof translate>[0], values)
+    useVersionGateStore.getState().markUpgradeRequired(minVersion)
+    render(<UpdateAvailableBanner />)
+    await act(async () => {})
+
+    const notice = screen.getByRole('status')
+    const versionLabel = locale === 'en' ? `Version ${minVersion}` : `Versão ${minVersion}`
+    expect(notice.textContent).toBe(
+      messages.forceUpdate.banner + (minVersion ? versionLabel : '') +
+      messages.forceUpdate.refresh + messages.versionUpdate.laterCta,
+    )
+    expect(screen.getByRole('button', { name: messages.forceUpdate.refresh })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: messages.forceUpdate.refresh }))
+    expect(reloadMock).toHaveBeenCalledTimes(1)
   })
 
   it('reloads the page when the refresh CTA is clicked', async () => {

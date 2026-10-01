@@ -3318,8 +3318,7 @@
     "banner": "Uma versão nova do Orbit está pronta",
     "refresh": "Recarregar",
     "versions": "A versão instalada é a {currentVersion} e o servidor já pede a {minVersion}. Atualize na loja para voltar a usar.",
-    "bannerVersion": "Recarregue para pegar a {minVersion}.",
-    "bannerDescription": "Recarregue para pegar a versão nova.",
+    "bannerVersion": "Versão {minVersion}",
     "storeFailure": "A loja não abriu. Tente de novo."
   },
   "today": {

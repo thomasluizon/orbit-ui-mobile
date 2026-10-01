@@ -25,8 +25,8 @@ export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ mod
             <p className="text-[17px] font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
               {reloadMessage ?? t('forceUpdate.banner')}
             </p>
-            {!reloadReason && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
-              {minVersion ? t('forceUpdate.bannerVersion', { minVersion }) : t('forceUpdate.bannerDescription')}
+            {!reloadReason && minVersion && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
+              {t('forceUpdate.bannerVersion', { minVersion })}
             </p>}
           </div>
           <PillButton size="sm" variant="secondary" onClick={() => globalThis.location.reload()}>
