@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 
 interface TestNode {
   type: unknown
@@ -27,9 +28,8 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
-const { openUrlMock, stateRef } = vi.hoisted(() => ({
+const { openUrlMock } = vi.hoisted(() => ({
   openUrlMock: vi.fn(() => Promise.resolve()),
-  stateRef: { upgradeRequired: false, minVersion: null as string | null },
 }))
 
 vi.mock('react-native', () => ({
@@ -77,22 +77,16 @@ vi.mock('@/components/ui/satellite-glyph', () => {
   }
 })
 
-vi.mock('@/stores/version-gate-store', () => ({
-  useVersionGateStore: <T,>(selector: (state: typeof stateRef) => T) =>
-    selector(stateRef),
-}))
-
 function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
-    (node) => typeof node.props.onPress === 'function',
+    (node) => node.type === 'Pressable' && typeof node.props.onPress === 'function',
   )
 }
 
 describe('UpgradeRequiredScreen', () => {
   beforeEach(() => {
     openUrlMock.mockClear()
-    stateRef.upgradeRequired = false
-    stateRef.minVersion = null
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
   })
 
   it('renders nothing when no upgrade is required', async () => {
@@ -105,7 +99,7 @@ describe('UpgradeRequiredScreen', () => {
   })
 
   it('renders the blocker title and CTA when an upgrade is required', async () => {
-    stateRef.upgradeRequired = true
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     let tree: TestInstance | null = null
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<UpgradeRequiredScreen />)
@@ -117,12 +111,19 @@ describe('UpgradeRequiredScreen', () => {
         typeof node.props.children === 'string',
     )
     const rendered = texts.map((node) => node.props.children as string)
-    expect(rendered).toContain('forceUpdate.title')
-    expect(rendered).toContain('forceUpdate.cta')
+    expect(rendered.filter((text) => text === 'forceUpdate.title')).toHaveLength(1)
+    expect(rendered.filter((text) => text === 'forceUpdate.description')).toHaveLength(1)
+    expect(rendered.filter((text) => text === 'forceUpdate.cta')).toHaveLength(1)
+    await TestRenderer.act(() => {
+      useVersionGateStore.getState().markUpgradeRequired('1.6.0')
+    })
+    expect(tree!.root.findAll((node) => node.type === 'Text'
+      && node.props.children === 'forceUpdate.title')).toHaveLength(1)
+    expect(findPressables(tree!.root)).toHaveLength(1)
   })
 
   it('opens the Play listing when the CTA is pressed', async () => {
-    stateRef.upgradeRequired = true
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     let tree: TestInstance | null = null
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<UpgradeRequiredScreen />)

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, renderHook } from '@testing-library/react'
+import { createElement } from 'react'
+import { act, render, renderHook, screen } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 
@@ -26,6 +27,8 @@ import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import { toast } from 'sonner'
 import { setAccountEventOrigin } from '@/lib/account-event-origin'
+import { useVersionGateStore } from '@/stores/version-gate-store'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
@@ -45,6 +48,7 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
     setAccountEventOrigin('chat-connection')
+    useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     vi.mocked(toast.error).mockClear()
     mocks.confirmPendingOperation.mockReset()
@@ -102,19 +106,18 @@ describe('useChatPendingOperations', () => {
   })
 
   it('offers the reload prompt when a chat action is no longer recognized', async () => {
+    render(createElement(UpdateAvailableBanner))
     mocks.confirmPendingOperation.mockRejectedValue(new UnrecognizedActionError('Unknown action'))
     const onExecuted = vi.fn(async () => {})
     const { result } = renderHook(() => useChatPendingOperations(onExecuted))
     const onUnexpectedOutcome = vi.fn()
 
     void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
 
-    expect(toast.error).toHaveBeenCalledWith('errors.api.appUpdated', expect.objectContaining({
-      id: 'app-updated',
-      duration: Infinity,
-      action: expect.objectContaining({ label: 'errors.api.reload', onClick: expect.any(Function) }),
-    }))
+    expect(screen.getByRole('status')).toHaveTextContent('errors.api.appUpdated')
+    expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(onUnexpectedOutcome).not.toHaveBeenCalled()
