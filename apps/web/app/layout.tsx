@@ -11,6 +11,7 @@ import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
+import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
 import './globals.css'
 
 const schemeNames = Array.from(VALID_COLOR_SCHEMES)
@@ -82,7 +83,10 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const messages = await getMessages()
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  const requestHeaders = await headers()
+  const nonce = requestHeaders.get('x-nonce') ?? undefined
+  const platform = requestHeaders.get('sec-ch-ua-platform') || requestHeaders.get('user-agent') || ''
+  const applePlatform = /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
   const cookieStore = await cookies()
   const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
   const themeBootstrapScript = `
@@ -143,7 +147,9 @@ export default async function RootLayout({
               <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
               <NavigationHistoryTracker />
             </Suspense>
-            {children}
+            <KeyboardPlatformProvider applePlatform={applePlatform}>
+              {children}
+            </KeyboardPlatformProvider>
             <ThrottleScreen />
           </NextIntlClientProvider>
         </PostHogProvider>
