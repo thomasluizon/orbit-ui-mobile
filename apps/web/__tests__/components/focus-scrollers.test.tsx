@@ -86,11 +86,12 @@ describe('other clipped control containers in Chromium', () => {
   let stylesheet: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     HTMLElement.prototype.scrollIntoView = vi.fn()
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+  afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
   for (const { surface, selector } of surfaces) {
     it.each(cases)(`${surface} has complete perimeters at $width in $mode`, async ({ width, mode }) => {

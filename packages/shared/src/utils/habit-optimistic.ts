@@ -88,6 +88,7 @@ export function buildOptimisticSkipPatch(
       scheduledDates: remainingDates,
       instances: habit.instances.filter((instance) => instance.date !== skippedDate),
       isOverdue: false,
+      ...(habit.isFlexible && habit.flexibleTarget != null ? { flexibleTarget: habit.flexibleTarget - 1 } : {}),
       [optimisticSkipMarker]: skippedDate,
     }
   }

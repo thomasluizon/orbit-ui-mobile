@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React, { useState } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { useVersionGateStore } from '@/stores/version-gate-store'
@@ -43,6 +45,8 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
+  useShellHeaderSlot: () => false,
+  useShellComposerSlot: () => {},
   DestinationShell: ({ children, onCreate, notice, createRefusal, conversation, conversationOpen }: { children: React.ReactNode; onCreate: () => void; notice?: React.ReactNode; createRefusal?: React.ReactNode; conversation?: React.ReactNode; conversationOpen?: boolean }) => (
     <>
       {state.pathname === '/wrapped' ? children : (
@@ -122,6 +126,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 
 describe('Today create during first load', () => {
   beforeEach(() => {
+    vi.setSystemTime(new Date('2026-09-12T12:00:00.000Z'))
     localStorage.clear()
     useUIStore.setState(useUIStore.getInitialState())
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
@@ -136,7 +141,7 @@ describe('Today create during first load', () => {
     useAppToastStore.setState({ currentToast: null, queue: [] })
   })
 
-  afterEach(() => localStorage.clear())
+  afterEach(() => { localStorage.clear(); vi.useRealTimers() })
 
   it('keeps reload guidance in the main app layout', async () => {
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
@@ -173,20 +178,20 @@ describe('Today create during first load', () => {
     expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
   })
 
-  it('waits to show the calendar import prompt until creation closes', async () => {
-    state.profile = {
-      hasProAccess: true,
-      hasCompletedOnboarding: true,
-      hasCompletedTour: true,
-      hasImportedCalendar: false,
-    }
-    useUIStore.getState().setShowCreateModal(true)
-    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
-
-    expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+  it('waits to show the calendar import prompt until the pushed creation screen closes', async () => {
+    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, hasCompletedTour: true, hasImportedCalendar: false }
+    state.pathname = '/habits/new'
+    const view = render(<QueryAppLayout>
+      <HabitCreateFrame presentation="screen" open title="Create habit" fromConversation={false}
+        actionRefreshKey="ready" leaving={false} onNavigate={() => {}} onReturn={() => {}}
+        onClose={() => {}} onAttemptDismiss={() => {}} actions={<button type="button">Save habit</button>}>
+        <input aria-label="Habit title" />
+      </HabitCreateFrame>
+    </QueryAppLayout>)
+    expect(screen.getByRole('textbox', { name: 'Habit title' })).toBeInTheDocument()
     expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
-
-    await act(async () => useUIStore.getState().setShowCreateModal(false))
+    state.pathname = '/'
+    await act(async () => view.rerender(<QueryAppLayout><div>Today</div></QueryAppLayout>))
     expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
   })
 
@@ -244,10 +249,10 @@ describe('Today create during first load', () => {
     expect(screen.getByText('onboarding.wizard.importTitle')).toBeInTheDocument()
   })
 
-  it('keeps the form open when session, profile and habit count resolve', async () => {
+  it('keeps the requested creation route when session, profile and habit count resolve', async () => {
     const view = render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
 
     await act(async () => {
       setUIAccountScope('account-a')
@@ -257,20 +262,20 @@ describe('Today create during first load', () => {
       view.rerender(<QueryAppLayout><div>Today loaded</div></QueryAppLayout>)
     })
 
-    expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
 
     await act(async () => setUIAccountScope('account-b'))
-    expect(screen.queryByRole('heading', { name: 'Create habit' })).not.toBeInTheDocument()
+    expect(useUIStore.getState().showCreateModal).toBe(false)
   })
 
-  it('opens the form when count arrives before a Pro profile', () => {
+  it('pushes creation when count arrives before a Pro profile', () => {
     state.count = 10
     state.countLoaded = true
     render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
+    expect(state.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-12' }))
     expect(state.push).not.toHaveBeenCalledWith('/upgrade')
   })
 

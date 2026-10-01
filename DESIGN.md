@@ -834,10 +834,27 @@ Android wide sheets stay bottom-attached to the centred shell column with TrueSh
 
 ### Scroll ownership
 
-- **Exactly one scroll container per overlay, owned by the primitive.**
-- **A caller never nests its own scroll container inside a scrollable sheet.** The mobile wrapper currently passes TrueSheet's native `scrollable` AND renders its own `ScrollView` inside it. That is what makes the reset-account sheet open already scrolled past its own warning copy, with no way to scroll back up.
+- **Exactly one page-level scroll container per overlay, owned by the primitive.**
+- **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native `scrollable` stays off while the primitive owns the body scroller.
 - **An overlay never opens scrolled away from its own first line.**
 - `overscroll-behavior: contain` on the scroll container, so scrolling inside never scrolls the page behind it.
+
+**TimeField is the one sanctioned nested-scroll exception.** Its hour, minute and optional
+day-period columns scroll only their own values. Each column has a bounded viewport, capped at
+220px and shrinking with the space left by the sheet header, body padding and pinned footer.
+The primitive's `boundedBody` option owns that allocation and keeps the page-level body scroller.
+Columns must not transfer scrolling to the body: web uses `overscroll-behavior: contain`, and
+Android disables nested scrolling on each column and wraps its viewport in a local gesture-handler
+root with a native scroll handler that activates on touch-down and disallows interruption.
+TrueSheet yields the claimed stream before the first move, keeping drags with the column in
+either direction. Simultaneous option tap handlers preserve selection and reject drags, while
+the radio controls retain keyboard and accessibility activation. Scroll indicators expose the
+remaining values.
+
+Render tests on both platforms must prove that the selected values open fully in view and every
+value remains reachable in short, narrow windows. Done stays in the pinned footer, cancellation
+discards the draft, and localized hour-cycle selection and keyboard entry keep their existing
+contract. No other caller gains a nested scroller from this exception.
 
 ### Anatomy
 

@@ -6,6 +6,7 @@ import type {
   HabitSetupSuggestionRequest,
   UpdateHabitRequest,
   LogHabitRequest,
+  SkipHabitRequest,
   LogHabitResponse,
   BulkCreateRequest,
   BulkCreateResponse,
@@ -29,6 +30,7 @@ import {
   createHabitRequestSchema,
   updateHabitRequestSchema,
   validateApiRequest,
+  skipHabitRequestSchema,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthMutate } from '@/lib/server-fetch'
@@ -112,12 +114,22 @@ export async function logHabit(
 
 export async function skipHabit(
   habitId: string,
-  date: string | undefined,
+  request: SkipHabitRequest,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.habits.skip(habitId), {
     method: 'POST',
-    body: date ? JSON.stringify({ date }) : undefined,
+    body: JSON.stringify(validateApiRequest(request, skipHabitRequestSchema)),
+  }, intendedAccountId))
+}
+
+export async function undoSkipHabit(
+  habitId: string,
+  skipId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.habits.undoSkip(habitId, skipId), {
+    method: 'POST',
   }, intendedAccountId))
 }
 

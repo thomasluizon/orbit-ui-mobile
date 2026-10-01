@@ -3,11 +3,12 @@
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import { completeHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+import { HabitCreateActions } from './habit-create-actions'
+import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSheetHost } from '@/components/ui/sheet'
 
-import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -24,7 +25,6 @@ import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
-import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useAccountGeneration, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
@@ -84,6 +84,8 @@ function hasCreateHabitChanges(
 interface CreateHabitModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  presentation?: 'sheet' | 'screen'
+  fromConversation?: boolean
   initialTitle?: string
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
@@ -95,6 +97,8 @@ export function CreateHabitModal({
   onOpenChange,
   initialDate,
   initialTitle = '',
+  presentation = 'sheet',
+  fromConversation = false,
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const accountGeneration = useAccountGeneration()
@@ -172,9 +176,16 @@ export function CreateHabitModal({
     initialSnapshot,
   )
   const { sheetRef, closeSheet } = useSheetHost()
+  const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
+  const pendingNavigation = useRef<(() => void) | null>(null)
+  useEffect(() => { if (leaveAction) completeHabitCreateNavigation(leaveAction) }, [leaveAction])
+  const finishClose = useCallback((action: () => void) => {
+    if (presentation === 'screen') setLeaveAction(() => action)
+    else closeSheet(action)
+  }, [closeSheet, presentation])
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => closeSheet(() => onOpenChange(false)),
+    onDismiss: () => finishClose(pendingNavigation.current ?? (() => onOpenChange(false))),
   })
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
@@ -190,11 +201,16 @@ export function CreateHabitModal({
     [suggestionRequests],
   )
   const navigateToUpgrade = useCallback(() => {
-    closeSheet(() => {
+    if (presentation === 'screen') {
+      pendingNavigation.current = () => router.push('/upgrade')
+      dismissGuard.requestDismiss()
+      return
+    }
+    finishClose(() => {
       onOpenChange(false)
       router.push('/upgrade')
     })
-  }, [closeSheet, onOpenChange, router])
+  }, [dismissGuard, finishClose, onOpenChange, presentation, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -321,7 +337,7 @@ export function CreateHabitModal({
           await createHabit.mutateAsync(request)
         }
         if (getAccountGeneration() !== submittingAccount) return
-        closeSheet(() => {
+        finishClose(() => {
           if (getAccountGeneration() === submittingAccount) onOpenChange(false)
         })
       } catch (error: unknown) {
@@ -336,7 +352,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [canUseSubHabits, closeSheet, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, finishClose, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(
@@ -437,40 +453,25 @@ export function CreateHabitModal({
   function renderCreateSheet() {
     if (!open || openedAccountGeneration !== accountGeneration) return null
     return (
-      <Sheet
+      <HabitCreateFrame
+        presentation={presentation}
+        fromConversation={fromConversation}
+        leaving={leaveAction !== null}
+        actionRefreshKey={`${isPending}:${isOnline}:${watchedTitle.trim().length === 0}`}
+        onReturn={() => onOpenChange(false)}
+        onNavigate={(action) => {
+          pendingNavigation.current = action
+          dismissGuard.requestDismiss()
+        }}
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.form.newHabit')}
-        actions={(
-          <div className={isOnline ? 'flex w-full flex-col' : 'flex w-full flex-col gap-4'}>
-            <div role="status">
-              {!isOnline && <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />}
-            </div>
-            <div className="flex flex-col gap-4">
-              {watchedTitle.trim().length === 0 ? <p id={`${formId}-create-reason`} className="text-sm text-[var(--fg-3)]">{t('habits.form.createWhy')}</p> : null}
-              <DialogActionPair>
-                <PillButton
-                  size="sm"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={dismissGuard.requestDismiss}
-                >
-                  {t('common.cancel')}
-                </PillButton>
-                <PillButton
-                  size="sm"
-                  formId={formId}
-                  descriptionId={watchedTitle.trim().length === 0 ? `${formId}-create-reason` : undefined}
-                  loading={isPending}
-                >
-                  {isSubHabitMode ? t('common.create') : t('habits.createHabit')}
-                </PillButton>
-              </DialogActionPair>
-            </div>
-          </div>
-        )}
+        actions={<HabitCreateActions presentation={presentation} pending={isPending}
+          empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+          onCancel={dismissGuard.requestDismiss} online={isOnline} formId={formId} />}
+
       >
         <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
           <HabitFormFields
@@ -503,7 +504,7 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
         </form>
-      </Sheet>
+      </HabitCreateFrame>
     )
   }
 
@@ -512,7 +513,10 @@ export function CreateHabitModal({
       {renderCreateSheet()}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onKeepEditing={dismissGuard.cancelDismiss}
+        onKeepEditing={() => {
+          pendingNavigation.current = null
+          dismissGuard.cancelDismiss()
+        }}
         onDiscard={dismissGuard.confirmDismiss}
       />
     </>

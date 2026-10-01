@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
+import { createMockGamificationProfile, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { gamificationKeys } from '@orbit/shared/query'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
@@ -240,17 +240,36 @@ describe('mobile useStreakInfo and streak freeze', () => {
     )
   })
 
-  it('derives freeze state from provided profile data while streak loads', async () => {
+  it.each([0, 2])('keeps the bank empty until the streak response supplies %i freezes', async (bank) => {
+    mocks.useQuery.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false, error: null })
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
     const hook = await renderHookValue(() =>
       useStreakFreeze(
-        { streakFreezesAvailable: 1, currentStreak: 4 },
+        profile,
         'America/Sao_Paulo',
       ),
     )
 
-    expect(hook.value.freezesAvailable).toBe(2)
+    expect(hook.value.streakInfo).toBeNull()
+    expect(hook.value.streakFreezesAccumulated).toBe(0)
+    expect(hook.value.freezesAvailable).toBe(0)
+    expect(hook.value.currentStreak).toBe(4)
+    expect(hook.value.canFreeze).toBe(false)
+
+    mocks.state.streakInfo = { ...mocks.state.streakInfo, streakFreezesAccumulated: bank, freezesAvailableToUse: bank }
+    await hook.rerender()
+    expect(hook.value.streakFreezesAccumulated).toBe(bank)
+    expect(hook.value.freezesAvailable).toBe(bank)
     expect(hook.value.currentStreak).toBe(7)
-    expect(hook.value.canFreeze).toBe(true)
+    expect(hook.value.canFreeze).toBe(bank > 0)
+  })
+
+  it('keeps freezes unavailable when the streak query is disabled', async () => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const hook = await renderHookValue(() => useStreakFreeze(profile, 'America/Sao_Paulo', false))
+    expect(hook.value.streakFreezesAccumulated).toBe(0)
+    expect(hook.value.freezesAvailable).toBe(0)
+    expect(hook.value.canFreeze).toBe(false)
   })
 })
 

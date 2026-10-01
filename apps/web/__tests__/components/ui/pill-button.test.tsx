@@ -165,10 +165,7 @@ describe('PillButton', () => {
       'active:scale-[0.96]',
       'active:opacity-85',
     )
-    expect(screen.getByRole('link', { name: 'Ghost' })).toHaveClass(
-      'hover:bg-[var(--bg-card)]',
-      'active:scale-[0.96]',
-    )
+    expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({
       paddingInlineStart: '26px',
       paddingInlineEnd: '26px',

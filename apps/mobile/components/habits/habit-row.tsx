@@ -170,6 +170,7 @@ function useBodyPressFeedback(
 ) {
   const [pressed, setPressed] = useState(false)
   return {
+    metaColor: pressed ? tokens.fg2 : tokens.fg3,
     feedbackStyle:
       pressed
         ? { borderColor: tokens.hairlineStrong }
@@ -387,6 +388,7 @@ export const HabitRow = memo(function HabitRow({
             habit={habit}
             titleSize={titleSize}
             titleColor={titleColor}
+            metaColor={bodyPressFeedback.metaColor}
             metaParts={metaParts}
             tokens={tokens}
           />

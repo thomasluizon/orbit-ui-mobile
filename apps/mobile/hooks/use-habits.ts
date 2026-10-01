@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
@@ -8,8 +9,10 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
+  applyCachedHabitSkip,
   checkTodayAllDoneOrDefer,
   clearCachedOptimisticSkip,
+  restoreCachedHabitSkip,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
 } from '@orbit/shared/query'
@@ -18,7 +21,6 @@ import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSc
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
-  buildOptimisticSkipPatch,
   buildSuccessfulLogPatch,
   findHabitInList,
   formatAPIDate,
@@ -58,6 +60,8 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import {
   cancelQueuedDeleteForUndo,
+  cancelQueuedSkipForUndo,
+  executeSkipUndo,
   createTempEntityId,
   isQueuedResult,
   OfflineMutationPreflightError,
@@ -105,6 +109,8 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { captureHabitLogged } from '@/lib/posthog'
+import { getAccountId } from '@/lib/account-scope'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string; __offlineDependsOn?: string[] }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -505,60 +511,141 @@ export function useLogHabit() {
   })
 }
 
-export function useSkipHabit() {
+function captureSkipAccount() {
+  const accountId = getAccountId()
+  const generation = getAccountGeneration()
+  return { stillCurrent: () => accountId === getAccountId() && generation === getAccountGeneration() }
+}
+
+type SkipHabitInput = { habitId: string; date?: string; onUndo?: () => void; account?: ReturnType<typeof captureSkipAccount> }
+type UndoSkipInput = {
+  habitId: string
+  skipId: string
+  previousLists: HabitListSnapshots
+  occurrence: { date: string; postponed: boolean }
+  queuedMutationId?: string
+  onUndo?: () => void
+  account?: ReturnType<typeof captureSkipAccount>
+}
+
+function useUndoSkipHabit() {
   const queryClient = useQueryClient()
-
-  return useMutation<
-    void | QueuedMarker,
-    Error,
-    { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots; skippedDate: string }
-  >({
-    mutationFn: ({ habitId, date }) =>
-      performQueuedApiMutation<void>({
-        type: 'skipHabit',
-        scope: 'habits',
-        endpoint: API.habits.skip(habitId),
-        method: 'POST',
-        payload: date ? { date } : undefined,
-        entityType: 'habit',
-        targetEntityId: habitId,
-      }),
-
-    onMutate: async ({ habitId, date }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
-
-      const previousLists = snapshotHabitLists(queryClient)
-
-      const skippedDate = date ?? formatAPIDate(new Date())
-      updateHabitListsForDate(queryClient, skippedDate, (items) => {
-        const habit = findHabitInList(items, habitId)
-        if (!habit) return items
-        return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate))
-      })
-
-      return { previousLists, skippedDate }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
+  const { t } = useTranslation()
+  const showUndoToast = useUndoToast()
+  const undoSkip = useMutation<void | QueuedMarker, Error, UndoSkipInput>({
+    mutationFn: async (input) => {
+      input.account ??= captureSkipAccount()
+      if (!input.account.stillCurrent()) throw new Error('Account changed')
+      if (input.queuedMutationId) {
+        const outcome = await cancelQueuedSkipForUndo(input.queuedMutationId)
+        if (!input.account.stillCurrent()) throw new Error('Account changed')
+        if (outcome === 'cancelled') return
       }
+      return performQueuedApiMutation<void>({
+        type: 'undoSkipHabit', scope: 'habits', method: 'POST',
+        endpoint: API.habits.undoSkip(input.habitId, input.skipId),
+        payload: undefined, execute: executeSkipUndo, isCurrent: input.account.stillCurrent,
+        entityType: 'habit', targetEntityId: input.habitId,
+      })
     },
-
-    onSettled: (data, error, { habitId }, context) => {
-      if (!error && context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
-      finalizeHabitMutation(queryClient, data, error, {
-        habitId,
-        includeCount: false,
-        includeGoals: true,
-        includeProfile: true,
-        includeGamification: true,
+    onSuccess: (_result, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      input.onUndo?.()
+      restoreCachedHabitSkip(queryClient, input.previousLists, input.habitId, input.occurrence)
+    },
+    onError: (error, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      showUndoToast(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'), () => {
+        if (input.account && !input.account.stillCurrent()) return
+        undoSkip.mutate(input)
+      })
+    },
+    onSettled: (result, error, input) => {
+      if (input.account && !input.account.stillCurrent()) return
+      finalizeHabitMutation(queryClient, result, error, {
+        habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
       })
     },
   })
+  return undoSkip
+}
+
+export function useSkipHabit() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const showUndoToast = useUndoToast()
+  const { showError } = useAppToast()
+  const undoSkip = useUndoSkipHabit()
+  const mutation = useMutation({
+    mutationFn: async (input: SkipHabitInput) => {
+      input.account ??= captureSkipAccount()
+      if (!input.account.stillCurrent()) throw new Error('Account changed')
+      const skipId = randomUUID()
+      const outcome = await performQueuedApiMutation<void>({
+        type: 'skipHabit', scope: 'habits', endpoint: API.habits.skip(input.habitId), method: 'POST',
+        isCurrent: input.account.stillCurrent,
+        payload: { date: input.date, skipId }, entityType: 'habit', targetEntityId: input.habitId,
+      })
+      return { skipId, outcome }
+    },
+    onMutate: async (input) => {
+      input.account ??= captureSkipAccount()
+      const account = input.account
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      const { habitId, date } = input
+      const previousLists = snapshotHabitLists(queryClient)
+      const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
+        .find((habit) => habit !== null)
+      const skippedDate = date ?? formatAPIDate(new Date())
+      applyCachedHabitSkip(queryClient, habitId, skippedDate)
+      return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null, account }
+    },
+    onSuccess: ({ skipId, outcome }, { habitId, onUndo }, context) => {
+      if (!context.account.stillCurrent()) return
+      showUndoToast(t(context.postponed ? 'undo.habitPostponed' : 'undo.habitSkipped'), () => {
+        if (!context.account.stillCurrent()) return
+        undoSkip.mutate({ habitId, skipId, previousLists: context.previousLists,
+          occurrence: { date: context.skippedDate, postponed: context.postponed }, onUndo, account: context.account,
+          queuedMutationId: isQueuedResult(outcome) ? outcome.queuedMutationId : undefined })
+      })
+    },
+    onError: (error, input, context) => {
+      const account = context?.account ?? input.account
+      if (account && !account.stillCurrent()) return
+      if (context) restoreHabitLists(queryClient, context.previousLists)
+      showError(getFriendlyErrorMessage(error, t, 'undo.skipFailed'))
+    },
+    onSettled: (result, error, input, context) => {
+      const account = context?.account ?? input.account
+      if (account && !account.stillCurrent()) return
+      if (!error && context) clearCachedOptimisticSkip(queryClient, input.habitId, context.skippedDate)
+      finalizeHabitMutation(queryClient, result?.outcome, error, {
+        habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
+      })
+    },
+  })
+  const scopeOptions = (
+    options: Parameters<typeof mutation.mutate>[1], account: ReturnType<typeof captureSkipAccount>,
+  ): Parameters<typeof mutation.mutate>[1] => options ? {
+    ...options,
+    onSuccess: (...arguments_) => { if (account.stillCurrent()) options.onSuccess?.(...arguments_) },
+    onError: (...arguments_) => { if (account.stillCurrent()) options.onError?.(...arguments_) },
+    onSettled: (...arguments_) => { if (account.stillCurrent()) options.onSettled?.(...arguments_) },
+  } : undefined
+  return {
+    ...mutation,
+    mutate: (input: SkipHabitInput, options?: Parameters<typeof mutation.mutate>[1]) => {
+      const account = captureSkipAccount()
+      mutation.mutate({ ...input, account }, scopeOptions(options, account))
+    },
+    mutateAsync: async (input: SkipHabitInput, options?: Parameters<typeof mutation.mutateAsync>[1]) => {
+      const account = captureSkipAccount()
+      const result = await mutation.mutateAsync({ ...input, account }, scopeOptions(options, account))
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      return result
+    },
+  }
 }
 
 export function useCreateHabit() {

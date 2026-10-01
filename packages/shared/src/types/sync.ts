@@ -3,6 +3,7 @@ import { relativeReminderTimeSchema } from './habit'
 
 export const mutationTypeSchema = z.enum([
   'createHabit', 'updateHabit', 'deleteHabit', 'restoreHabit', 'logHabit', 'skipHabit',
+  'undoSkipHabit',
   'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent', 'createSubHabit',
   'bulkCreateHabits', 'bulkDeleteHabits', 'bulkCascadeDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
   'createGoal', 'updateGoal', 'deleteGoal', 'restoreGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',

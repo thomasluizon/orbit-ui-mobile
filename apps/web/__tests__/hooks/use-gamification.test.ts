@@ -7,6 +7,7 @@ import React from 'react'
 import { API } from '@orbit/shared/api'
 import { gamificationKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
   useGamificationProfile,
   useRepairStreak,
@@ -357,20 +358,54 @@ describe('useStreakFreeze', () => {
     expect(result.current.canFreeze).toBe(true)
   })
 
-  it('falls back to the provided profile when streak info has not loaded', () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
+  it.each([0, 2])('keeps the bank empty until the streak response supplies %i freezes', async (bank) => {
+    let resolveStreak!: (streakInfo: StreakInfo) => void
+    const pendingStreak = new Promise<StreakInfo>((resolve) => { resolveStreak = resolve })
+    mockFetch.mockResolvedValue({ ok: true, json: () => pendingStreak })
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
 
     const { result } = renderHook(
       () => useStreakFreeze(
-        { streakFreezesAvailable: 1, currentStreak: 4 },
+        profile,
         'America/Sao_Paulo',
       ),
       { wrapper: createWrapper() },
     )
 
-    expect(result.current.freezesAvailable).toBe(1)
+    expect(result.current.streakInfo).toBeNull()
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
     expect(result.current.currentStreak).toBe(4)
-    expect(result.current.canFreeze).toBe(true)
+    expect(result.current.canFreeze).toBe(false)
+
+    resolveStreak(makeStreakInfo({ streakFreezesAccumulated: bank, freezesAvailableToUse: bank }))
+    await waitFor(() => expect(result.current.streakQuery.isSuccess).toBe(true))
+    expect(result.current.streakFreezesAccumulated).toBe(bank)
+    expect(result.current.freezesAvailable).toBe(bank)
+    expect(result.current.currentStreak).toBe(7)
+    expect(result.current.canFreeze).toBe(bank > 0)
+  })
+
+  it('keeps freezes unavailable when the streak query is disabled', () => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const { result } = renderHook(() => useStreakFreeze(profile, 'America/Sao_Paulo', false), {
+      wrapper: createWrapper(),
+    })
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
+    expect(result.current.canFreeze).toBe(false)
+  })
+
+  it('keeps freezes unavailable when the streak query fails', async () => {
+    mockFetch.mockRejectedValue(new Error('Streak request failed'))
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
+    const { result } = renderHook(() => useStreakFreeze(profile, 'America/Sao_Paulo'), {
+      wrapper: createWrapper(),
+    })
+    await waitFor(() => expect(result.current.streakQuery.isError).toBe(true))
+    expect(result.current.streakFreezesAccumulated).toBe(0)
+    expect(result.current.freezesAvailable).toBe(0)
+    expect(result.current.canFreeze).toBe(false)
   })
 })
 

@@ -47,11 +47,9 @@ async function focusConversationComposer(page: Page, width: number) {
   return field
 }
 
-async function openCreateForm(page: Page, width: number) {
-  const create = width === 1280
-    ? page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.createHabit })
-    : page.getByRole('button', { name: messages.habits.createManually })
-  await create.click()
+async function openCreateForm(page: Page) {
+  await page.goto('/habits/new')
+  await expect(page.locator('[data-habit-create-screen]')).toBeVisible()
 }
 
 for (const width of [412, 1280] as const) {
@@ -112,9 +110,7 @@ for (const width of [412, 1280] as const) {
     })
 
     test('create habit form has one ring at each Tab stop', async ({ page }) => {
-      await page.goto('/')
-      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
-      await openCreateForm(page, width)
+      await openCreateForm(page)
       const phrase = page.locator('#habit-phrase')
       await expect(phrase).toBeVisible()
       await phrase.focus()
@@ -148,9 +144,7 @@ for (const width of [412, 1280] as const) {
         aiMessagesLimit: 50,
       })
       await setLayoutProfileSession(context, profile)
-      await page.goto('/')
-      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
-      await openCreateForm(page, width)
+      await openCreateForm(page)
       await expect(page.locator('#habit-phrase')).toBeVisible()
       await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
@@ -186,9 +180,7 @@ for (const width of [412, 1280] as const) {
       const message = page.locator('form textarea').first()
       await expectOneFieldIndicator(page, message, '[data-input-root]', `support forced colors ${width}px`, { forcedColors: true })
 
-      await page.goto('/')
-      await expect(page.getByRole('navigation', { name: messages.nav.mainNavigation })).toBeVisible()
-      await openCreateForm(page, width)
+      await openCreateForm(page)
       const phrase = page.locator('#habit-phrase')
       await expect(phrase).toBeVisible()
       await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase forced colors ${width}px`, { forcedColors: true, includeDescendants: true })

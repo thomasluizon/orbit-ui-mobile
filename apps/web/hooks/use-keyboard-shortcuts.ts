@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { requestHabitCreateNavigation } from './use-habit-create-navigation-guard'
 import { useRouter } from 'next/navigation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
@@ -42,9 +43,11 @@ export function useKeyboardShortcuts(enabled = true): void {
     }
 
     function navigate(path: string, view?: 'today') {
-      if (view) setActiveView(view)
-      setRouteTransitionIntent('tab')
-      router.push(path)
+      requestHabitCreateNavigation(() => {
+        if (view) setActiveView(view)
+        setRouteTransitionIntent('tab')
+        router.push(path)
+      })
     }
 
     function runChord(key: string): boolean {
