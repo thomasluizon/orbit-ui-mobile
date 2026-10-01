@@ -59,4 +59,22 @@ describe('Foldable shell geometry', () => {
       expect(bounds.bottom).toBeLessThanOrEqual(height)
     } finally { await page.close() }
   })
+
+  it.each(windows.filter(({ width }) => width < 1024))('aligns the compact conversation at $width by $height', async ({ width, height }) => {
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+      conversation={<button type="button">Close conversation</button>} conversationLabel="Conversation" />)
+    const page = await browser.newPage({ viewport: { width, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const bounds = await page.locator('[data-shell-conversation="overlay"]').evaluate((element) => {
+        const rectangle = element.getBoundingClientRect()
+        return { width: rectangle.width, left: rectangle.left, right: rectangle.right, height: rectangle.height }
+      })
+      expect(bounds.width).toBe(Math.min(width, 740))
+      expect(bounds.left).toBe((width - bounds.width) / 2)
+      expect(bounds.right).toBe(width - bounds.left)
+      expect(bounds.height).toBe(height)
+    } finally { await page.close() }
+  })
+
 })

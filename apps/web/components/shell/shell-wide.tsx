@@ -325,7 +325,8 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
           aria-label={props.conversationLabel}
           tabIndex={-1}
           data-shell-conversation="overlay"
-          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+          style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
+          className="z-modal fixed inset-0 mx-auto overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </div>
