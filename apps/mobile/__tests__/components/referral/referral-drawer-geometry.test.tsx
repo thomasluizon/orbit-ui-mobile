@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { InfoCard } from '@/components/ui/info-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
@@ -76,6 +77,7 @@ function buildLayout(element: HostNode, nodes: Map<HostNode, YogaNode>): YogaNod
   const style = StyleSheet.flatten((element.type === 'ScrollView' ? element.props.contentContainerStyle : element.props.style) as never) as Record<string, unknown> | undefined
   if (style) applyStyle(node, style)
   if (element.type === 'Text') {
+    /** Fixed text measurements isolate horizontal insets from native font rendering. */
     node.setMeasureFunc(() => ({ width: 64, height: 20 }))
   } else {
     (element.children ?? []).filter((child): child is HostNode => typeof child !== 'string')
@@ -110,6 +112,8 @@ describe('Referral drawer sheet geometry (mobile)', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<ReferralDrawer open onClose={vi.fn()} />) })
     const copy = tree!.root.findAll((element) => element.type === 'Pressable' && element.props.accessibilityLabel === 'referral.drawer.copyLink')[0]!
     await TestRenderer.act(() => { (copy.props.onPress as () => void)() })
+    const cardView = tree!.root.findAll((element) => element.type === InfoCard)[0]!
+      .findAll((element) => element.type === 'View')[0]!
     const elements = tree!.toJSON()
     const nodes = new Map<HostNode, YogaNode>()
     const layout = Yoga.Node.create()
@@ -118,7 +122,7 @@ describe('Referral drawer sheet geometry (mobile)', () => {
       const panelWidth = Math.min(width, 640)
       layout.calculateLayout(panelWidth, undefined)
       const link = findHost(elements, (element) => (element.children ?? []).some((child) => typeof child !== 'string' && child.props.accessibilityLabel === 'referral.drawer.copyLink'))
-      const card = findHost(elements, (element) => (StyleSheet.flatten(element.props.style as never) as { borderRadius?: number } | undefined)?.borderRadius === 20)
+      const card = findHost(elements, (element) => element.props.__nativeTag === cardView.props.__nativeTag)
       const disclaimer = findHost(elements, (element) => element.children?.includes('referral.drawer.disclaimer') === true)
       const error = findHost(elements, (element) => element.props.accessibilityRole === 'alert')
       const progress = findHost(elements, (element) => element.props.accessibilityRole === 'progressbar')
