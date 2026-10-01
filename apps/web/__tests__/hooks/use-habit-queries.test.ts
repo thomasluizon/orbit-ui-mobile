@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -23,6 +23,10 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+beforeAll(async () => {
+  await import('@/stores/auth-store')
+})
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
