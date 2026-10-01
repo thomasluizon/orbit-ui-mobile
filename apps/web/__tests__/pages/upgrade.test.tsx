@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { profileKeys } from '@orbit/shared/query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { Profile } from '@orbit/shared/types/profile'
 import { setAccountId } from '@/lib/account-scope'
 import * as apiFetch from '@/lib/api-fetch'
@@ -21,7 +23,17 @@ const mockShowSuccess = vi.hoisted(() => vi.fn())
 
 const mockTranslate = vi.hoisted(() => (key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key)
-vi.mock('next-intl', () => ({ useTranslations: () => mockTranslate, useLocale: () => 'en' }))
+const mockLocale = vi.hoisted(() => ({ value: null as 'en' | 'pt-BR' | null }))
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return {
+    ...actual,
+    useTranslations: () => mockLocale.value
+      ? actual.createTranslator({ locale: mockLocale.value, messages: mockLocale.value === 'en' ? en : ptBR })
+      : mockTranslate,
+    useLocale: () => mockLocale.value ?? 'en',
+  }
+})
 
 vi.mock('next/link', () => ({
   default: ({
@@ -162,6 +174,7 @@ import { holdAccount } from '@/__tests__/support/account-change'
 
 describe('UpgradePage', () => {
   beforeEach(() => {
+    mockLocale.value = null
     holdAccount('u1')
     Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: class {
       observe() {}
@@ -201,6 +214,57 @@ describe('UpgradePage', () => {
     setAccountId(null)
   })
 
+  describe.each([
+    { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
+  ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    it.each([4, 1, 0, null])('uses the trial heading with %s days left', (daysLeft) => {
+      mockLocale.value = locale
+      mockHasProAccess = true
+      mockProfile = createMockProfile({
+        isTrialActive: true,
+        trialEndsAt: daysLeft === null ? null : new Date(Date.now() + (daysLeft === 0 ? 3600000 : daysLeft * 86400000)).toISOString(),
+        aiMessagesLimit: 50,
+      })
+      render(<UpgradePage />)
+      expect(screen.getByRole('heading', { level: 2, name: trialHeading })).toBeInTheDocument()
+      const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
+        : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
+      if (eyebrow) expect(screen.getByText(eyebrow)).toBeInTheDocument()
+    })
+
+    it('keeps the free heading outside a trial', () => {
+      mockLocale.value = locale
+      mockProfile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
+      render(<UpgradePage />)
+      expect(screen.getByRole('heading', { level: 2, name: messages.upgrade.convert.freeHeading })).toBeInTheDocument()
+    })
+
+    it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', (isTrialActive) => {
+      mockLocale.value = locale
+      mockHasProAccess = isTrialActive
+      mockProfile = createMockProfile({ isTrialActive, aiMessagesUsed: 45, aiMessagesLimit: 50 })
+      render(<UpgradePage />)
+      expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toBeInTheDocument()
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.upgrade.billing.usage.title)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.upgrade.billing.usage.nearLimit)).not.toBeInTheDocument()
+    })
+
+    it.each(['stripe', 'play', 'lifetime'] as const)('keeps usage on the %s billing dashboard', (source) => {
+      mockLocale.value = locale
+      mockHasProAccess = true
+      mockProfile = createMockProfile({
+        isTrialActive: false, isLifetimePro: source === 'lifetime',
+        subscriptionSource: source === 'lifetime' ? null : source,
+        aiMessagesUsed: 12, aiMessagesLimit: 50,
+      })
+      render(<UpgradePage />)
+      expect(screen.getByRole('progressbar', { name: messages.upgrade.billing.usage.aiMessages })).toHaveAttribute('aria-valuenow', '0.24')
+      expect(screen.getByText(messages.upgrade.billing.usage.aiMessagesOf.replace('{used}', '12').replace('{limit}', '50'))).toBeInTheDocument()
+    })
+  })
+
   it.each(['loading', 'error', 'offline'])('keeps the free exit reachable while plans are %s', (state) => {
     mockIsLoadingPlans = state === 'loading'
     mockIsPlansError = state === 'error'
@@ -232,7 +296,6 @@ describe('UpgradePage', () => {
       { level: 3, name: 'upgrade.outcomes.noticing.title' },
       { level: 3, name: 'upgrade.plans.yearly.name' },
       { level: 3, name: 'upgrade.plans.monthly.name' },
-      { level: 2, name: 'upgrade.billing.usage.title' },
     ])
   })
 

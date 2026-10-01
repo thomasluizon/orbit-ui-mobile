@@ -33,7 +33,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
-import { UsageCard } from '@/components/upgrade/usage-card'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -277,7 +276,6 @@ export default function UpgradeScreen() {
         t={t}
         tokens={tokens}
       />
-      {status ? <View style={styles.usagePad}><UsageCard usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} tokens={tokens} /></View> : null}
     </>
   )
 
@@ -317,7 +315,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
   },
-  usagePad: { paddingHorizontal: 16, paddingTop: 24 },
   padBlock: {
     paddingHorizontal: 16,
     paddingVertical: 16,
