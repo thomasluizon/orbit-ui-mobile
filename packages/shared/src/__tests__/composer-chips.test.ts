@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit, createMockProfile } from './factories'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { buildComposerChips, type ComposerChipState } from '../chat/composer-chips'
+import { buildComposerChips, resolveComposerChipSurface, type ComposerChipState } from '../chat/composer-chips'
 
 const now = new Date('2026-09-12T12:00:00.000Z')
 const pending = createMockHabit({ title: 'Reading' })
@@ -22,6 +22,18 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 }
 
 describe('composer chips', () => {
+  it.each([
+    ['/habits/new', 'today'],
+    ['/habits/reading', 'habitDetail'],
+    ['/habits/newer', 'habitDetail'],
+    ['/', 'today'],
+    ['/calendar', 'calendar'],
+    ['/progress', 'progress'],
+    ['/profile', 'profile'],
+  ] as const)('resolves the shell query surface for %s as %s', (pathname, expected) => {
+    expect(resolveComposerChipSurface(pathname)).toBe(expected)
+  })
+
   it('omits Today chips while loading or after an error', () => {
     expect(ids({ status: 'loading' })).toEqual([])
     expect(ids({ status: 'error' })).toEqual([])

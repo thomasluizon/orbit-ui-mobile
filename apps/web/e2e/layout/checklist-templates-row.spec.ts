@@ -6,14 +6,12 @@ for (const width of [412, 1280] as const) {
     test.use({ viewport: { width, height: 915 } })
 
     test('keeps its hover fill rounded, inset, and below the checklist input', async ({ page }) => {
-      await page.goto('/')
-      const create = width === 1280
-        ? page.locator('[data-shell-sidebar]').getByRole('button', { name: messages.nav.createHabit })
-        : page.getByRole('button', { name: messages.habits.createManually })
-      await create.click()
-      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+      await page.goto('/habits/new')
+      const screen = page.locator('[data-habit-create-screen]')
+      await expect(screen).toBeVisible()
+      await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
 
-      const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
+      const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
       const inputBlock = input.locator('xpath=..')
       const button = disclosure.getByRole('button', { name: messages.habits.form.useTemplate })

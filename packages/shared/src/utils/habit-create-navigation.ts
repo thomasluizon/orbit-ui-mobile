@@ -21,6 +21,13 @@ export function buildHabitCreateHref(input: HabitCreateRouteInput = {}): string 
 
 export function resolveHabitCreateReturnPath(from: string | undefined): string {
   if (!from || !from.startsWith('/') || from.startsWith('//') || from.includes('\\') || /\s/.test(from)) return '/'
-  const path = from.replace(/[?#].*$/, '')
-  return path.replace(/\/+$/, '') === '/habits/new' ? '/' : from
+  let pathEnd = from.length
+  for (let index = 0; index < from.length; index += 1) {
+    if (from[index] === '?' || from[index] === '#') {
+      pathEnd = index
+      break
+    }
+  }
+  while (pathEnd > 0 && from[pathEnd - 1] === '/') pathEnd -= 1
+  return from.slice(0, pathEnd) === '/habits/new' ? '/' : from
 }
