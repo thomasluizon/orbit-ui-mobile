@@ -80,10 +80,10 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             if (root instanceof HTMLElement) root.focus()
             suggestion.onSelect()
           }}
-          className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+          className="flex min-h-11 min-w-0 max-w-full shrink-0 items-center gap-2 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
         >
           {suggestion.icon}
-          <span className="whitespace-nowrap">{suggestion.label}</span>
+          <span className="min-w-0 truncate">{suggestion.label}</span>
         </button>
       ))}
     </div>

@@ -8,6 +8,7 @@ import { goalSchema, paginatedGoalResponseSchema } from '@orbit/shared/types/goa
 import { LAYOUT_ORIGIN } from '../support/env'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession } from './profile-session'
+import { loadAppFonts } from '../../__tests__/support/app-fonts'
 
 const fixtureDate = '2026-09-04'
 
@@ -95,7 +96,7 @@ for (const { width, height } of windows) {
         await page.clock.setFixedTime(new Date(`${fixtureDate}T12:00:00Z`))
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
           items: Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({
-            id: `foldable-habit-${index}`, title: `Read a longer book chapter ${index}`,
+            id: `foldable-habit-${index}`, title: `${'Read a longer book chapter '.repeat(4)}${index}`,
             scheduledDates: [fixtureDate], dueDate: fixtureDate, children: [], hasSubHabits: false,
           })),
           page: 1, pageSize: 200, totalCount: 12, totalPages: 1,
@@ -107,6 +108,7 @@ for (const { width, height } of windows) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
         await page.goto(name === 'Hoje' ? `/?date=${fixtureDate}` : path)
+        await loadAppFonts(page)
         if (name === 'Hoje') {
           await page.getByRole('button', { name: en.habits.listOptions }).click()
           await page.getByRole('menu', { name: en.habits.listOptions })
@@ -137,6 +139,7 @@ for (const { width, height } of windows) {
     test('centres the sign-in form and keeps every action reachable', async ({ page, context }) => {
       await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
       await page.goto('/login')
+      await loadAppFonts(page)
       await expect(page.getByRole('heading', { name: en.auth.emailTitle })).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.locator('main > div').first().evaluate((element) => {
