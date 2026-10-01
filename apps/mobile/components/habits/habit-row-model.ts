@@ -59,22 +59,29 @@ export function buildHabitRowMetaParts({
 interface BuildHabitRowAccessibilityLabelParams {
   title: string
   dotState: HabitStatus
+  metaParts?: HabitRowMetaPart[]
   linkedGoal: boolean
   showStreak: boolean
   streak: number
   t: HabitCardTranslationAdapter
 }
 
-/** Assembles the row's screen-reader label (title, status, linked-goal, streak). */
+/** Assembles the row's screen-reader label with distinct visible metadata. */
 export function buildHabitRowAccessibilityLabel({
   title,
   dotState,
+  metaParts = [],
   linkedGoal,
   showStreak,
   streak,
   t,
 }: BuildHabitRowAccessibilityLabelParams): string {
   const parts = [title, t(`habits.statusDot.${dotState}` as const)]
+  for (const part of metaParts) {
+    if (typeof part === 'string') parts.push(part)
+    else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
+    else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))
+  }
   if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
   if (showStreak) parts.push(`🔥 ${streak}`)
   return parts.join(', ')

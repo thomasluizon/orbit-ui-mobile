@@ -81,17 +81,19 @@ describe('HabitRow canonical content (mobile)', () => {
   })
 
   it.each([
+    { label: 'ordinary', isOverdue: false, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: [], state: 'empty' },
     { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
-      words: ['habits.overdue'] },
+      words: ['habits.overdue'], state: 'overdue' },
     { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
-      words: ['habits.statusDot.bad'] },
+      words: ['habits.statusDot.bad'], state: 'bad' },
     { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
-      words: ['habits.overdue', 'habits.statusDot.bad'] },
+      words: ['habits.overdue', 'habits.statusDot.bad'], state: 'bad' },
     { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
-      words: [] },
+      words: [], state: 'bad' },
     { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
-      words: [] },
-  ])('renders parent progress with applicable state words for $label', ({ label, words, ...flags }) => {
+      words: [], state: 'done' },
+  ])('renders parent progress with applicable state words for $label', ({ label, words, state, ...flags }) => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: label,
@@ -105,6 +107,18 @@ describe('HabitRow canonical content (mobile)', () => {
       if (!words.includes(word)) expect(text).not.toContain(word)
     }
     expect(text).not.toContain('21:00')
+    const body = tree!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    const supplementaryWords = state === 'bad' && flags.isOverdue ? ['habits.overdue'] : []
+    expect(body.props.accessibilityLabel).toBe(
+      [label, `habits.statusDot.${state}`, 'habits.rowProgress', ...supplementaryWords].join(', '),
+    )
+    expect(body.props.accessibilityHint).toBeUndefined()
+    expect(tree!.root.findAllByType('Pressable').some(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityLabel === `habits.statusDot.${state}, habits.${flags.isCompleted || flags.isLoggedInRange ? 'actions.unlog' : 'logHabit'}: ${label}, 1/2`,
+    )).toBe(true)
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -229,6 +243,43 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('updates the body metadata while its title and primary state stay the same', () => {
+    const onDetail = vi.fn()
+    const habit = createMockHabit({ title: 'Evening routine', isBadHabit: true, isLoggedInRange: true })
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={habit} actions={{ onDetail }} />)
+    })
+    const body = () => renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body().props.accessibilityLabel).toBe('Evening routine, habits.statusDot.bad')
+    TestRenderer.act(() => {
+      renderer.update(<HabitRow habit={{ ...habit, isOverdue: true }} hasChildren
+        childrenDone={1} childrenTotal={2} actions={{ onDetail }} />)
+    })
+    expect(body().props.accessibilityLabel).toBe(
+      'Evening routine, habits.statusDot.bad, habits.rowProgress, habits.overdue',
+    )
+    TestRenderer.act(() => body().props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('includes a single row time range and keeps its future hint separate', () => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Read',
+        dueTime: '08:00', dueEndTime: '09:00', dueDate: '2026-09-15' })} />)
+    })
+    const body = renderer!.root.findAllByType('Pressable').find(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )
+    expect(body.props.accessibilityLabel).toBe('Read, habits.statusDot.empty, 08:00 - 09:00')
+    expect(body.props.accessibilityHint).toBe('habits.schedule.dueInDays')
+    TestRenderer.act(() => renderer.unmount())
+  })
+
   it('reports the row overflow menu state through open and close', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
