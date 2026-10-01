@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef, useMemo, useState } from 'react'
 import { Pressable, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,7 +18,7 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
   const [pressed, setPressed] = useState(false)
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
 
   return (
     <AnimatedPressable
