@@ -83,8 +83,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftStore: (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
 }))
 vi.mock('@/stores/auth-store', () => ({
-  useHeldAccountId: () => state.authenticated ? 'account-1' : null,
-  getHeldAccountId: () => state.authenticated ? 'account-1' : null,
+  useHeldAccountId: () => state.authenticated ? 'account-a' : null,
   getHeldAccountId: () => 'account-a',
   useAuthStore: Object.assign(
     (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: state.authenticated }),
