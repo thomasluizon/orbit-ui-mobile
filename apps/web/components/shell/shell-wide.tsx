@@ -188,7 +188,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
     >
       <div className="relative mx-auto w-full" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-        {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
+        {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
           <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
             {pinnedSlot}

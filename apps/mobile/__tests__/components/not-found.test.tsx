@@ -43,5 +43,8 @@ it.each([412, 1024])('renders the drawn missing-page title size at %ipx', async 
   const tree = await mount()
   const title = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header')[0]!
   expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: width >= 1024 ? 28 : 22 })
+  expect(StyleSheet.flatten(title.props.style)).toMatchObject({ alignSelf: 'stretch' })
+  const surface = tree.root.findAll((node) => String(node.type) === 'ScrollView')[0]!
+  expect(StyleSheet.flatten(surface.props.contentContainerStyle)).toMatchObject({ paddingHorizontal: 16 })
   await act(() => { tree.update(<></>) })
 })

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
@@ -79,14 +79,21 @@ export function SelectionTray({
           onPress={allSelected ? onDeselectAll : onSelectAll}
           style={({ pressed }) => [
             styles.selectAllBtn,
-            { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
             pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
           {({ pressed }) => (
-            <Text style={[styles.selectAllText, { color: pressed ? tokens.fg1 : tokens.fg3 }]}>
-              {allSelected ? deselectAllLabel : selectAllLabel}
-            </Text>
+            <>
+              <View
+                testID="selection-all-fill"
+                pointerEvents="none"
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.selectAllFill, { backgroundColor: tokens.bgHoverOpaque, opacity: pressed ? 1 : 0 }]}
+              />
+              <Text style={[styles.selectAllText, { color: pressed ? tokens.fg1 : tokens.fg2 }]}>
+                {allSelected ? deselectAllLabel : selectAllLabel}
+              </Text>
+            </>
           )}
         </Pressable>
       </View>
@@ -100,14 +107,14 @@ export function SelectionTray({
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHover : 'transparent' },
+            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
             pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
         >
           <CheckCircle2
             size={20}
-            color={tokens.primary}
+            color={tokens.fg1}
             strokeWidth={1.8}
           />
         </Pressable>
@@ -120,7 +127,7 @@ export function SelectionTray({
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed && !completionDisabled ? tokens.bgHover : 'transparent' },
+            { backgroundColor: pressed && !completionDisabled ? tokens.bgHoverOpaque : 'transparent' },
             pressed && !completionDisabled && !prefersReducedMotion ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
@@ -139,7 +146,7 @@ export function SelectionTray({
           onPress={onDelete}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent' },
+            { backgroundColor: pressed && !disabled ? tokens.bgHoverOpaque : 'transparent' },
             pressed && !disabled && !prefersReducedMotion ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
@@ -157,7 +164,7 @@ export function SelectionTray({
           onPress={onClose}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgHover : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
             pressed && !prefersReducedMotion ? styles.pressedScale : null,
           ]}
         >
@@ -192,13 +199,18 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   selectAllBtn: {
-    borderRadius: radius.sm,
-    overflow: 'hidden',
     minHeight: 44,
     minWidth: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,
+  },
+  selectAllFill: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 999,
   },
   selectAllText: {
     fontFamily: 'Geist_500Medium',

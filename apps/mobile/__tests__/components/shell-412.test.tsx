@@ -106,6 +106,16 @@ describe('Shell412 mobile', () => {
     expect(StyleSheet.flatten(bottom.props.style)).toMatchObject({ paddingBottom: 24 })
   })
 
+  it.each([412, 1352])('keeps notices inside the content margins at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 notice={React.createElement('Notice')} tabBar={React.createElement('TabBar')} />)
+    })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice')[0]!.props.style)).toMatchObject({ paddingHorizontal: 16 })
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('floats the FAB without reserving a band or drawing a hairline', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

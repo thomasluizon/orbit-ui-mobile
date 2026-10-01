@@ -70,7 +70,7 @@ export function HabitListEmptyState({
         onPress={onAction}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
-        style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
+        style={({ pressed }) => [styles.linkAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
       >
         <Text
           style={[
@@ -166,6 +166,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   linkAction: {
+    minHeight: 44,
+    minWidth: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 4,
     paddingVertical: 12,
     paddingHorizontal: 8,

@@ -77,7 +77,9 @@ Step 3 has no handover line. `/handoff` ends with its own last line and that is 
 internally to inform the handoff: printed, in the shape `/progress` defines. Then the step-1 handover
 line. Then stop.
 
-**Step 2 ends with either his answers or an explicit empty result.** If questions survive the filter,
+**Step 2 ends with either his answers or an explicit empty result, then the manual-step list.** The
+`/questions` step-by-step of actions only he can do comes after the questions, or one line saying no
+step passed its gate. If questions survive the filter,
 they go to him through `AskUserQuestion` and the turn ends when they are answered. If none survive,
 say so in one line and say what you filtered and why it closed. "No questions" that he never saw is
 indistinguishable from never having looked. Then the step-2 handover line. Then stop.

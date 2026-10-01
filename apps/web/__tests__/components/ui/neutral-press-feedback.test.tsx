@@ -31,14 +31,22 @@ function feedbackControls(allSelected: boolean, unavailable = false, completionR
   </>
 }
 
+function readPaintedFill(element: Element) {
+  const layer = element.querySelector('[data-press-fill]')
+  if (layer && getComputedStyle(layer).opacity !== '0') return getComputedStyle(layer).backgroundColor
+  return getComputedStyle(element).backgroundColor
+}
+
 function measureControl(element: Element) {
   const style = getComputedStyle(element)
   const bounds = element.getBoundingClientRect()
-  return { fill: style.backgroundColor, width: bounds.width, height: bounds.height, scale: style.scale, radius: style.borderTopLeftRadius, overflow: style.overflow }
+  const layer = element.querySelector('[data-press-fill]')
+  const fill = layer && getComputedStyle(layer).opacity !== '0' ? getComputedStyle(layer).backgroundColor : style.backgroundColor
+  return { fill, width: bounds.width, height: bounds.height, scale: style.scale, radius: style.borderTopLeftRadius, overflow: style.overflow }
 }
 
 async function expectFill(control: Locator, fill: string, label: string) {
-  await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor), { message: label }).toBe(fill)
+  await expect.poll(() => control.evaluate(readPaintedFill), { message: label }).toBe(fill)
 }
 
 async function holdControl(page: Page, control: Locator, hasTouch: boolean) {
@@ -135,15 +143,16 @@ describe('neutral press feedback in Chromium', () => {
           const expectedFill = await neutralFill(page)
           for (const label of [allSelected ? 'common.deselectAll' : 'common.selectAll', 'habits.bulkBar.log', 'habits.bulkBar.skip', 'habits.bulkBar.delete', 'common.cancel', 'Ghost', 'Quiet', 'Ghost link', 'profile.allowance.seePro']) {
             const control = page.getByRole(label.includes('link') || label.startsWith('profile.') ? 'link' : 'button', { name: label, exact: true })
-            const expectedControlFill = label === 'Quiet' ? await neutralFill(page, true) : expectedFill
+            const onSheet = ['common.selectAll', 'common.deselectAll', 'habits.bulkBar.log', 'habits.bulkBar.skip', 'habits.bulkBar.delete', 'common.cancel', 'Quiet'].includes(label)
+            const expectedControlFill = onSheet ? await neutralFill(page, true) : expectedFill
             const rest = await control.evaluate(measureControl)
             const restingColor = await control.evaluate((element) => getComputedStyle(element).color)
             expect(rest.fill, `${label} rest`).toBe('rgba(0, 0, 0, 0)')
             expect(rest.width, `${label} width`).toBeGreaterThanOrEqual(44)
-            expect(rest.height, `${label} height`).toBeGreaterThanOrEqual(label === 'common.selectAll' || label === 'common.deselectAll' ? 42 : 44)
+            expect(rest.height, `${label} height`).toBeGreaterThanOrEqual(44)
             expect(rest.overflow, `${label} clipping`).toBe('hidden')
             expect(Number.parseFloat(rest.radius), `${label} radius`).toBeGreaterThan(0)
-            if (label === 'common.selectAll' || label === 'common.deselectAll') expect(rest.radius).toBe('8px')
+            if (label === 'common.selectAll' || label === 'common.deselectAll') expect(Math.min(Number.parseFloat(rest.radius), rest.width / 2, rest.height / 2)).toBe(Math.min(rest.width, rest.height) / 2)
             if (!hasTouch) {
               await control.hover()
               await expectFill(control, expectedControlFill, `${label} hover`)
@@ -154,7 +163,7 @@ describe('neutral press feedback in Chromium', () => {
             if (label === 'common.selectAll' || label === 'common.deselectAll') {
               const foreground = await control.evaluate((element) => getComputedStyle(element).color)
               const variables = resolveWebThemeVariables('orange', mode)
-              expect(contrastOnSurface(foreground, [variables['--bg']!, variables['--bg-sheet']!, expectedFill])).toBeGreaterThanOrEqual(4.5)
+              expect(contrastOnSurface(foreground, [variables['--bg']!, variables['--bg-sheet']!, expectedControlFill])).toBeGreaterThanOrEqual(4.5)
             }
             await release(() => expectFill(control, rest.fill, `${label} release`))
             expect(await control.evaluate(measureControl), `${label} restored geometry`).toEqual(rest)
@@ -174,7 +183,7 @@ describe('neutral press feedback in Chromium', () => {
         const rest = await control.evaluate(measureControl)
         const restingColor = await control.evaluate((element) => getComputedStyle(element).color)
         await page.keyboard.down('Space')
-        const fill = await neutralFill(page)
+        const fill = await neutralFill(page, true)
         await expectFill(control, fill, `${label} keyboard press`)
         const foreground = await control.evaluate((element) => getComputedStyle(element).color)
         const variables = resolveWebThemeVariables('orange', mode)
@@ -220,7 +229,7 @@ describe('neutral press feedback in Chromium', () => {
         const remove = page.getByRole('button', { name: 'habits.bulkBar.delete', exact: true })
         expect(await remove.isDisabled()).toBe(false)
         const release = await holdControl(page, remove, true)
-        await expectFill(remove, await neutralFill(page), 'read-only delete press')
+        await expectFill(remove, await neutralFill(page, true), 'read-only delete press')
         await release(() => expectFill(remove, 'rgba(0, 0, 0, 0)', 'read-only delete release'))
       } finally { await page.close() }
     })

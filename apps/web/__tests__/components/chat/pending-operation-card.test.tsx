@@ -1,7 +1,8 @@
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
@@ -406,6 +407,105 @@ describe('PendingOperationCard', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Run' }))
     expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
     expect(screen.queryByRole('textbox', { name: 'common.search' })).not.toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'])('names the editable item group in %s', (locale) => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: translateVisible('chat.operation.edit') })[0]!)
+    expect(screen.getByRole('radiogroup', { name: translateVisible('chat.operation.editTitle') })).toBeInTheDocument()
+  })
+
+  it('groups editable items with one tab stop and keyboard selection', async () => {
+    const user = userEvent.setup()
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    await user.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    const group = screen.getByRole('radiogroup', { name: 'chat.operation.editTitle' })
+    const run = within(group).getByRole('radio', { name: 'Run' })
+    const read = within(group).getByRole('radio', { name: 'Read' })
+    expect(run).toHaveAttribute('tabindex', '0')
+    expect(read).toHaveAttribute('tabindex', '-1')
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    run.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(read).toHaveFocus()
+    expect(read).toHaveAttribute('aria-checked', 'true')
+    expect(read).toHaveAttribute('tabindex', '0')
+    expect(run).toHaveAttribute('tabindex', '-1')
+    await user.keyboard('{ArrowRight}')
+    expect(run).toHaveFocus()
+    await user.keyboard('{End}')
+    expect(read).toHaveFocus()
+    await user.keyboard('{Home}')
+    expect(run).toHaveFocus()
+    await user.keyboard('{ArrowUp}')
+    expect(read).toHaveFocus()
+    await user.keyboard('{ArrowLeft}')
+    expect(run).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
+    await user.tab()
+    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveFocus()
+    expect(revise).not.toHaveBeenCalled()
+    await user.click(read)
+    expect(read).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }))
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+  })
+
+  it('retains selection and a valid keyboard entry after filtering editable items', async () => {
+    const user = userEvent.setup()
+    const items = Array.from({ length: 9 }, (_, index) => ({ ...firstItem, itemId: `habit-${index}`, entityName: `Habit ${index}` }))
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items, changeTargetCount: items.length })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    await user.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    const group = screen.getByRole('radiogroup', { name: 'chat.operation.editTitle' })
+    const search = screen.getByRole('textbox', { name: 'common.search' })
+    await user.type(search, 'Habit 8')
+    const last = within(group).getByRole('radio', { name: 'Habit 8' })
+    expect(within(group).getAllByRole('radio')).toHaveLength(1)
+    expect(last).toHaveAttribute('aria-checked', 'false')
+    expect(last).toHaveAttribute('tabindex', '0')
+    await user.tab()
+    expect(last).toHaveFocus()
+    await user.keyboard(' ')
+    expect(last).toHaveAttribute('aria-checked', 'true')
+    await user.clear(search)
+    expect(within(group).getAllByRole('radio')).toHaveLength(9)
+    expect(last).toHaveAttribute('tabindex', '0')
+    await user.type(search, 'missing')
+    expect(within(group).queryAllByRole('radio')).toHaveLength(0)
+    await user.clear(search)
+    expect(within(group).getByRole('radio', { name: 'Habit 8' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(group).getAllByRole('radio').filter((row) => row.tabIndex === 0)).toHaveLength(1)
+  })
+
+  it('keeps grouped items disabled with reasons while saving', async () => {
+    let finishRevision!: (result: { ok: false; error: string }) => void
+    revise.mockImplementation(() => new Promise((resolve) => { finishRevision = resolve }))
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    fireEvent.click(screen.getByRole('radio', { name: 'Read' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1' }, { itemId: 'habit-2', edits: { date: '2026-09-30' } }],
+    })
+    const group = screen.getByRole('radiogroup', { name: 'chat.operation.editTitle' })
+    const rows = within(group).getAllByRole('radio')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row).toHaveAttribute('aria-disabled', 'true')
+      expect(row).toHaveTextContent('blockFrame.status.acting')
+      expect(row.tabIndex).toBe(-1)
+      fireEvent.click(row)
+      fireEvent.keyDown(row, { key: 'ArrowDown' })
+    }
+    expect(rows[0]).toHaveAttribute('aria-checked', 'false')
+    expect(rows[1]).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDisabled()
+    await act(async () => finishRevision({ ok: false, error: 'invalid_revision' }))
+    expect(within(group).getByRole('radio', { name: 'Read' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
   })
 
   it('offers search only above the established record filter threshold', () => {

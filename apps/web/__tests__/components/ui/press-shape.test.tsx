@@ -13,6 +13,7 @@ import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
+import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 import { Chip } from '@/components/ui/chip'
 import { Sheet } from '@/components/ui/sheet'
@@ -135,6 +136,12 @@ describe('interaction fill parity in Chromium', () => {
     const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
       <CalendarHeader monthLabel="April" year={2026} previousMonthLabel="Previous month" nextMonthLabel="Next month" currentMonthLabel="Current month" selectYearLabel="Select year" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectYear={noop} />
       <CalendarWeekNav weekLabel="Week" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={noop} onNextWeek={noop} onCurrentWeek={noop} />
+      <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
+        previousLabel="Previous day" todayLabel="Today" goToTodayLabel="Go to Today" nextLabel="Next day"
+        moreLabel="List options" selectLabel="Select" collapseLabel="Collapse" allCollapsed={false}
+        refreshLabel="Refresh" completedLabel="Completed" showCompleted={false} isFetching={false}
+        onToggleSelect={noop} onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop}
+        onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} searchLabel="Search" onSearch={noop} />
       <HabitDrill drill={drill} t={(key) => key} hasProAccess renderHabitCard={() => null} onAddSubHabit={noop} />
       <Chip ariaLabel="Idle chip">Idle</Chip><Chip active ariaLabel="Selected chip">Selected</Chip>
       <SegmentedControl label="Views" options={[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }]} value="all" onChange={noop} />
@@ -147,14 +154,14 @@ describe('interaction fill parity in Chromium', () => {
     const sheet = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC"><Sheet title="Options" onClose={noop}>Options</Sheet></NextIntlClientProvider>)
     const close = document.querySelector(`button[aria-label="${ptBr.common.close}"]`)!.outerHTML
     sheet.unmount()
-    const page = await browser.newPage({ reducedMotion: 'reduce', hasTouch })
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce', hasTouch })
     try {
       const variables = resolveWebThemeVariables('orange', mode)
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
-      for (const label of ['Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
+      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const bounds = await control.boundingBox()
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(44)

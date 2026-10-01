@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -46,6 +46,7 @@ describe('CelebrationPanel mobile', () => {
     })
 
     expect(tree!.root.findByProps({ testID: 'celebration-panel' })).toBeTruthy()
+    expect(StyleSheet.flatten(tree!.root.findByProps({ testID: 'celebration-panel' }).props.style).marginHorizontal ?? 0).toBe(0)
     expect(tree!.root.findByProps({ testID: 'celebration-ring' })).toBeTruthy()
     expect(tree!.root.findAllByProps({ testID: 'celebration-ring-travel' })).toHaveLength(0)
     expect(tree!.root.findAllByProps({ accessibilityViewIsModal: true })).toHaveLength(0)
