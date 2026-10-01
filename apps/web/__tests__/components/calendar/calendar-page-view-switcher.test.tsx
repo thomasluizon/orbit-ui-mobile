@@ -311,28 +311,19 @@ vi.mock('@/components/calendar/calendar-week-view', () => ({
   ),
 }))
 
-vi.mock('@/components/calendar/calendar-range-view', () => ({
-  CalendarRangeView: (props: Record<string, unknown>) => {
-    calendarRangeViewProps.current = props
-    const model = props.model as { days: readonly { totalCount: number }[] }
-    const showRecurring = props.showRecurring as boolean
-    const onShowRecurringChange = props.onShowRecurringChange as (value: boolean) => void
-    return (
-      <div data-testid="range-view">
-        {model.days.some((day) => day.totalCount > 0) && (
-          <span data-testid="range-recurring-ring" />
-        )}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showRecurring}
-          aria-label="calendar.showRecurring"
-          onClick={() => onShowRecurringChange(!showRecurring)}
-        />
-      </div>
-    )
-  },
-}))
+vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-range-view')>()
+  return {
+    CalendarRangeView: (props: React.ComponentProps<typeof actual.CalendarRangeView>) => {
+      calendarRangeViewProps.current = props
+      return (
+        <div data-testid="range-view">
+          <actual.CalendarRangeView {...props} />
+        </div>
+      )
+    },
+  }
+})
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
   CalendarAgendaView: (props: {
@@ -377,12 +368,13 @@ describe('CalendarPage view switcher', () => {
     ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
     ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
     ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
-  ] as const)('supplies drawn range weekday letters in %s starting on %i', (locale, weekStartDay, labels) => {
+  ] as const)('renders drawn month and range weekday letters in %s starting on %i', (locale, weekStartDay, labels) => {
     calendarLocale = locale
     profileQueryState.profile = { weekStartDay, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true }
     render(<CalendarPage />)
+    expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
-    expect(calendarRangeViewProps.current?.weekdayLabels).toEqual(labels)
+    expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
   })
 
   beforeEach(() => {
@@ -1077,11 +1069,12 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
-    expect(screen.getByTestId('range-recurring-ring')).toBeDefined()
+    expect(screen.getByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
 
-    expect(screen.queryByTestId('range-recurring-ring')).toBeNull()
+    expect(screen.queryByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('img', { name: /calendar\.dayCell\.notScheduled/ })).toHaveLength(14)
   })
 
   it('matches mobile by paging a 61px by 45px drag after the 60px boundary', () => {
