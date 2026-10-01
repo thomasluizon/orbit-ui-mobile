@@ -1,3 +1,4 @@
+import { PillButton } from "@/components/ui/pill-button";
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, type ReactNode } from "react";
 import { View, Text, } from "react-native";
@@ -10,6 +11,7 @@ import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
+  inline?: boolean;
   tokens: AppTokens;
   reminderEnabled: boolean;
   reminderTimes: number[];
@@ -23,6 +25,7 @@ interface ReminderSectionProps {
 
 export function ReminderSection({
   tokens,
+  inline = false,
   reminderEnabled,
   reminderTimes,
   onReminderTimesChange,
@@ -89,18 +92,18 @@ export function ReminderSection({
   }
 
   return (
-    <View style={sectionStyles.container}>
+    <View style={inline ? { gap: 12 } : sectionStyles.container}>
       <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
-          <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
+          {!inline ? <Bell size={20} color={tokens.fg2} strokeWidth={1.8} /> : null}
           <Text style={sectionStyles.headerLabel}>
-            {t("habits.form.reminder")}
+            {t(inline ? "habits.form.reminders" : "habits.form.reminder")}
           </Text>
         </View>
         <Switch
           checked={reminderEnabled}
           onChange={permission.toggleReminder}
-          label={t("habits.form.reminder")}
+          label={t(inline ? "habits.form.reminders" : "habits.form.reminder")}
         />
       </View>
       <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>
@@ -244,6 +247,7 @@ export function ReminderSection({
                       </Pressable>
                     ))}
                   </View>
+                  {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : <>
                   <Pressable
                     style={({ pressed }) => [
                       sectionStyles.customAddButton,
@@ -256,7 +260,8 @@ export function ReminderSection({
                     onPress={addCustomReminder}
                   >
                     <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                  </Pressable>
+                  </Pressable>                  </>}
+
                 </View>
               )}
               <Pressable

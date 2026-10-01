@@ -1170,6 +1170,37 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => day().props.onPress())
     expect(mocks.update.mock.calls.at(-1)![0].data.days).toEqual([])
   })
+  it('renders reminders without a cancel or save step', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
+    TestRenderer.act(() => disclosure.props.onPress())
+    expect(findPillButton(tree.root, 'common.cancel')).toBeUndefined()
+    expect(findPillButton(tree.root, 'common.save')).toBeUndefined()
+  })
+
+  it('patches a reminder toggle once with optimistic state', async () => {
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: false, reminderTimes: [15] }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
+    TestRenderer.act(() => disclosure.props.onPress())
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'offset-reminders' }).props.onToggleReminder()
+      await Promise.resolve()
+    })
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [15], scheduledReminders: [] })
+  })
+
+  it('uses a ghost cancel before the filled schedule action', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
+    expect(findPillButton(tree.root, 'common.cancel')!.props.variant).toBe('ghost')
+    expect(findPillButton(tree.root, 'common.save')!.props.variant).toBe('secondary')
+  })
+
   it('edits reminders inside the disclosure and shows the saved readout', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
@@ -1178,8 +1209,8 @@ describe('HabitDetailScreen', () => {
     const scheduled = () => tree.root.findByProps({ testID: 'scheduled-reminders' })
     TestRenderer.act(() => scheduled().props.onSetScheduledReminders([{ when: 'same_day', time: '08:00' }]))
     TestRenderer.act(() => scheduled().props.onToggleReminder())
-    expect(mocks.update).not.toHaveBeenCalled()
-    await TestRenderer.act(async () => { pressPillButton(tree.root, 'common.save'); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
     mocks.detail = { ...makeDetail(), reminderEnabled: true, reminderTimes: [10, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }] }
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
@@ -1447,7 +1478,7 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('validates reminder drafts before mutation', async () => {
+  it('validates reminder changes before mutation', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1456,14 +1487,12 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => disclosure!.props.onPress())
 
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'scheduled-reminders' }).props.onToggleReminder())
-    TestRenderer.act(() => tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick())
 
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.showError).toHaveBeenCalledWith('habits.form.reminderMinimumOne')
 
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'scheduled-reminders' }).props.onSetScheduledReminders([{ when: 'same_day', time: '08:00' }]))
     await TestRenderer.act(async () => {
-      tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick()
       await Promise.resolve()
     })
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
@@ -1492,7 +1521,6 @@ describe('HabitDetailScreen', () => {
     const scheduled = tree!.root.findByProps({ testID: 'scheduled-reminders' })
     TestRenderer.act(() => scheduled.props.onRemoveScheduledReminders())
     await TestRenderer.act(async () => {
-      tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick()
       await Promise.resolve()
     })
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({

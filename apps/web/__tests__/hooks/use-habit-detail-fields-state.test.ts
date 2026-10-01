@@ -46,7 +46,7 @@ describe('habit detail fields state', () => {
     fields.renderer.unmount()
   })
 
-  it('closes a saved editor and patches goal and valid reminder drafts', async () => {
+  it('closes a saved editor and patches goals and valid reminder changes', async () => {
     const onPatch = vi.fn().mockResolvedValue(true)
     const fields = await renderFieldsState(onPatch)
 
@@ -59,21 +59,21 @@ describe('habit detail fields state', () => {
     expect(onPatch).toHaveBeenLastCalledWith({ goalIds: ['goal-2'] })
 
     onPatch.mockClear()
-    act(() => fields.current().updateReminders({ offsets: [30] }))
+    act(() => { fields.current().updateReminders({ offsets: [30] }) })
     expect(fields.current().reminderHabit.reminderTimes).toEqual([30])
+    expect(onPatch).toHaveBeenCalledTimes(1)
+    onPatch.mockClear()
+    act(() => {
+      expect(fields.current().updateReminders({ enabled: true })).toBe('habits.form.reminderMinimumOne')
+    })
     expect(onPatch).not.toHaveBeenCalled()
 
-    act(() => fields.current().updateReminders({ enabled: true }))
-    expect(fields.current().saveReminders()).toBe('habits.form.reminderMinimumOne')
-    expect(onPatch).not.toHaveBeenCalled()
-
-    act(() => fields.current().updateReminders({ scheduled: [{ when: 'same_day', time: '08:00' }] }))
+    act(() => { fields.current().updateReminders({ scheduled: [{ when: 'same_day', time: '08:00' }] }) })
     expect(fields.current().reminderHabit).toMatchObject({
       reminderEnabled: true,
       reminderTimes: [30],
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
     })
-    expect(fields.current().saveReminders()).toBeNull()
     expect(onPatch).toHaveBeenLastCalledWith({
       reminderEnabled: true,
       reminderTimes: [30],

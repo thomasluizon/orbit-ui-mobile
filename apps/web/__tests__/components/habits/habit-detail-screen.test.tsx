@@ -1035,14 +1035,37 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'dates.daysLong.sunday' }))
     expect(mocks.update.mock.calls.at(-1)![0].data.days).toEqual([])
   })
+  it('renders reminders without a cancel or save step', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.queryByRole('button', { name: 'common.cancel' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.save' })).not.toBeInTheDocument()
+  })
+
+  it('patches a reminder toggle once with optimistic state', async () => {
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: false, reminderTimes: [15] }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-offsets' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.update.mock.calls[0]![0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [15], scheduledReminders: [] })
+  })
+
+  it('uses a ghost cancel before the filled schedule action', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'common.save' })).toHaveAttribute('data-variant', 'secondary')
+  })
+
   it('edits reminders inside the disclosure and shows the saved readout', async () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
     fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
-    expect(mocks.update).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(mocks.update).toHaveBeenCalledTimes(1)
     await act(async () => Promise.resolve())
     expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({ reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
     mocks.detail = { ...makeDetail(), reminderEnabled: true, reminderTimes: [10, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }] }
@@ -1271,17 +1294,15 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('validates reminder drafts before mutation', async () => {
+  it('validates reminder changes before mutation', async () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
 
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.showError).toHaveBeenCalledWith('habits.form.reminderMinimumOne')
 
     fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await act(async () => Promise.resolve())
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
       reminderEnabled: true,
@@ -1303,7 +1324,6 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('offset-reminders')).toBeInTheDocument()
     expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'remove-scheduled' }))
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await act(async () => Promise.resolve())
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
       reminderEnabled: true,

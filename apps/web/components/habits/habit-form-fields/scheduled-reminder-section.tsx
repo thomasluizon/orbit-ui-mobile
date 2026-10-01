@@ -1,3 +1,4 @@
+import { PillButton } from '@/components/ui/pill-button'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useState } from 'react'
 import { X, Plus, Bell } from '@/components/ui/icons'
@@ -28,6 +29,7 @@ function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: str
 }
 
 interface ScheduledReminderSectionProps {
+  inline?: boolean
   reminderEnabled: boolean
   scheduledReminders: Array<{ when: ScheduledReminderWhen; time: string }> | undefined
   onToggleReminder: () => void
@@ -40,7 +42,7 @@ interface ScheduledReminderSectionProps {
 }
 
 export function ScheduledReminderSection({
-  reminderEnabled, scheduledReminders,
+  inline = false, reminderEnabled, scheduledReminders,
   onToggleReminder, onSetScheduledReminders, onValidationError, nested = false,
   offsetReminderCount = 0, t,
 }: Readonly<ScheduledReminderSectionProps>) {
@@ -165,7 +167,7 @@ export function ScheduledReminderSection({
                     onClear={() => setTime('')}
                   />
                   <div className="flex justify-end gap-2">
-                    <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[14px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
+                    {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</PillButton> : <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[14px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>}
                     <button type="button" aria-label={t('common.cancel')} className="habit-control-motion touch-target grid size-10 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => { setShowForm(false); setTime('') }}>
                       <X size={16} strokeWidth={1.8} aria-hidden="true" />
                     </button>

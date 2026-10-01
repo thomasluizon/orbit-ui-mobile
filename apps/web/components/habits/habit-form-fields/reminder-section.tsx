@@ -1,3 +1,4 @@
+import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
 import { X, Plus, Bell } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -8,6 +9,7 @@ import Link from 'next/link'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
+  inline?: boolean
   reminderEnabled: boolean
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
@@ -20,7 +22,7 @@ interface ReminderSectionProps {
 }
 
 export function ReminderSection({
-  reminderEnabled, reminderTimes,
+  inline = false, reminderEnabled, reminderTimes,
   onReminderTimesChange, onToggleReminder, reminderLabel, t, children,
   scheduledReminderCount = 0, onValidationError,
 }: Readonly<ReminderSectionProps>) {
@@ -84,21 +86,21 @@ export function ReminderSection({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
+          {!inline ? <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" /> : null}
           <span
             className="text-[var(--fg-1)]"
             style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
           >
-            {t('habits.form.reminder')}
+            {t(inline ? 'habits.form.reminders' : 'habits.form.reminder')}
           </span>
         </div>
         <Switch
           checked={reminderEnabled}
           onChange={permission.toggleReminder}
-          label={t('habits.form.reminder')}
+          label={t(inline ? 'habits.form.reminders' : 'habits.form.reminder')}
         />
       </div>
       <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
@@ -189,6 +191,7 @@ export function ReminderSection({
                       label={t('habits.form.reminderDirection')}
                       onChange={(value) => setCustomDirection(value as 'before' | 'after')}
                     />
+                    {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton> : <>
                     <button
                       type="button"
                       aria-label={t('common.add')}
@@ -196,7 +199,8 @@ export function ReminderSection({
                       onClick={addCustomReminder}
                     >
                       <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
-                    </button>
+                    </button>                    </>}
+
                   </div>
                 )}
                 <button
