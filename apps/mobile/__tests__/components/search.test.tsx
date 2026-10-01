@@ -1,5 +1,6 @@
 import React from 'react'
 import { StyleSheet } from 'react-native'
+import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
@@ -78,6 +79,42 @@ async function pressText(label: string) {
   await TestRenderer.act(() => { onPress() })
 }
 
+type SearchTestInstance = import('react-test-renderer').ReactTestInstance & { parent: SearchTestInstance | null }
+
+function applyHorizontalStyle(node: YogaNode, style: Record<string, unknown>) {
+  if (typeof style.flex === 'number') node.setFlex(style.flex)
+  if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
+  if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  for (const [property, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingLeft', Yoga.EDGE_LEFT], ['paddingRight', Yoga.EDGE_RIGHT]] as const) {
+    const padding = style[property]
+    if (typeof padding === 'number') node.setPadding(edge, padding)
+  }
+}
+
+function horizontalBounds(element: import('react-test-renderer').ReactTestInstance, width: number) {
+  const ancestors = []
+  for (let current: SearchTestInstance | null = element as SearchTestInstance; current; current = current.parent) {
+    if (typeof current.type === 'string') ancestors.unshift(current)
+  }
+  const nodes: YogaNode[] = []
+  for (const ancestor of ancestors) {
+    const node = Yoga.Node.create()
+    const rowStyle = typeof ancestor.props.style === 'function' ? ancestor.props.style({ pressed: false }) : ancestor.props.style
+    applyHorizontalStyle(node, StyleSheet.flatten([rowStyle, ancestor.props.contentContainerStyle]) ?? {})
+    nodes.at(-1)?.insertChild(node, 0)
+    nodes.push(node)
+  }
+  const root = nodes[0]!
+  try {
+    root.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
+    const left = nodes.reduce((total, node) => total + node.getComputedLeft(), 0)
+    return { left, right: left + nodes.at(-1)!.getComputedWidth() }
+  } finally { root.freeRecursive() }
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
@@ -105,6 +142,18 @@ describe('mobile search', () => {
     const resultRow = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')[0]!
     expect(resultRow.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')).toHaveLength(1)
     expect(resultRow.findAll((node) => node.type === Circle)).toHaveLength(0)
+  })
+
+  it.each([412, 1352].flatMap((width) => [1, 3].map((count) => ({ width, count }))))('aligns $count result rows with the field at $width', async ({ width, count }) => {
+    mocks.query.mockReturnValue(result(Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))))
+    await mount()
+    await type('walk')
+    const field = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'input-control')[0]!
+    const bounds = horizontalBounds(field, width)
+    expect(bounds).toEqual({ left: 16, right: width - 16 })
+    const rows = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(rows).toHaveLength(count)
+    for (const row of rows) expect(horizontalBounds(row, width)).toEqual(bounds)
   })
 
   it('uses the check glyph for the log command', async () => {
