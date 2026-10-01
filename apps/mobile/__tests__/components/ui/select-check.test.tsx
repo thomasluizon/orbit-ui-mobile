@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
-import { act, create } from 'react-test-renderer'
+import { Pressable, StyleSheet, View } from 'react-native'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioGlyph, RadioRow } from '@/components/ui/select-check'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
   __setFocusImpl,
   __setTouchMode,
 } from '../../../test-mocks/react-native'
+
+const themeState = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => themeState }))
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -331,5 +335,69 @@ describe('select-check RadioRow group', () => {
     const controls = tree.root.findAllByType(Pressable)
     void act(() => controls[2].props.onPress())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
+  })
+})
+
+describe('RadioRow secondary text contrast', () => {
+  afterEach(() => { themeState.currentTheme = 'dark' })
+
+  const states = (['dark', 'light'] as const).flatMap((mode) =>
+    [false, true].flatMap((selected) => [false, true].map((disabled) => ({ mode, selected, disabled }))),
+  )
+  it.each(states)('keeps secondary text readable in $mode, selected=$selected, disabled=$disabled', ({ mode, selected, disabled }) => {
+    themeState.currentTheme = mode
+    const tokens = createTokensV2('orange', mode)
+    const expectedForeground = selected ? tokens.fg2 : tokens.fg3
+    let tree!: ReactTestRenderer
+    const onSelect = vi.fn()
+    void act(() => {
+      tree = create(disabled
+        ? <RadioRow label="Subject" description="Details" meta="3" tag="Current" selected={selected} disabled reason="Sending" />
+        : <RadioRow label="Subject" description="Details" meta="3" tag="Current" selected={selected} onSelect={onSelect} />)
+    })
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    const description = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'Details')[0]!
+    const descriptionStyle = StyleSheet.flatten(description.props.style) as { color: string; fontSize: number }
+    const meta = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === '3')[0]!
+    const metaStyle = StyleSheet.flatten(meta.props.style) as { color: string; fontSize: number }
+    const tag = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'Current')[0]!
+    const tagStyle = StyleSheet.flatten(tag.props.style) as { color: string; fontSize: number }
+    const foregrounds = [descriptionStyle.color, metaStyle.color, tagStyle.color]
+    expect(metaStyle.fontSize).toBe(12)
+    expect(tagStyle.fontSize).toBe(12)
+    const pressStyle = row.props.style as (state: { pressed: boolean }) => unknown
+    const accessibilityState = row.props.accessibilityState as { checked: boolean; disabled?: boolean }
+    const rowStyle = StyleSheet.flatten(disabled ? row.props.style : pressStyle({ pressed: false })) as { backgroundColor: string; opacity: number }
+    expect(descriptionStyle.fontSize).toBe(14)
+    expect(rowStyle.backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    expect(rowStyle.opacity).toBe(disabled ? 0.5 : 1)
+    expect(accessibilityState.checked).toBe(selected)
+    expect(row.props.accessibilityLabel).toBe(disabled ? 'Subject, Details, 3, Current, Sending' : 'Subject, Details, 3, Current')
+    if (disabled) {
+      const reason = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'Sending')[0]!
+      const reasonStyle = StyleSheet.flatten(reason.props.style) as { color: string; fontSize: number }
+      expect(reasonStyle.fontSize).toBe(12)
+      expect(reasonStyle.color).toBe(expectedForeground)
+      expect(accessibilityState.disabled).toBe(true)
+      expect(row.props.onPress).toBeUndefined()
+      expect(row.props.focusable).toBe(false)
+    } else {
+      for (const surface of [[], [tokens.bgCard], [tokens.bgSheet]]) {
+        const layers = [tokens.bg, ...surface, ...(selected ? [rowStyle.backgroundColor] : [])]
+        foregrounds.forEach((foreground) => {
+          expect(contrastOnSurface(foreground, layers), `${mode}, selected=${selected}, ${surface.join(',')}`)
+            .toBeGreaterThanOrEqual(4.5)
+        })
+      }
+      const pressed = StyleSheet.flatten(pressStyle({ pressed: true })) as { backgroundColor: string; opacity: number }
+      for (const foreground of foregrounds) {
+        expect(contrastOnSurface(foreground, [tokens.bg, pressed.backgroundColor]))
+          .toBeGreaterThanOrEqual(4.5)
+      }
+    }
+    expect(descriptionStyle.color).toBe(expectedForeground)
+    expect(metaStyle.color).toBe(expectedForeground)
+    expect(tagStyle.color).toBe(expectedForeground)
+    void act(() => { tree.update(<View />) })
   })
 })
