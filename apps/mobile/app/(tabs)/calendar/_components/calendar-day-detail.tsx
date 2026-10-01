@@ -328,6 +328,7 @@ export function CalendarDayDetail({
 
             return (
               <ListRow
+                compact
                 key={`${selectedDate}:${entry.habitId}`}
                 title={entry.title}
                 value={value}
@@ -345,12 +346,13 @@ export function CalendarDayDetail({
       <View style={styles.rowList}>
         {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
         <ListRow
-        icon="external-link"
-        title={t('calendar.goToDay')}
-        wrapTitle
-        accessibilityLabel={t('calendar.goToDay')}
-        chevron={false}
-        onClick={onGoToDay}
+          compact
+          icon="external-link"
+          title={t('calendar.goToDay')}
+          wrapTitle
+          accessibilityLabel={t('calendar.goToDay')}
+          chevron={false}
+          onClick={onGoToDay}
         />
       </View>
       <CalendarEventsSection

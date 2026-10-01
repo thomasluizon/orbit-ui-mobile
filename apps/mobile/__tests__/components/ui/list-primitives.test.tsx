@@ -105,7 +105,7 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch' })
     expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('padding')
     for (const pressed of [false, true]) {
-      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, margin: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
+      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, marginVertical: 16, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
       expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
     }
     press(action)
@@ -114,7 +114,7 @@ describe('list primitives on mobile', () => {
     void act(() => { tree.update(<ListRow title="Account" onClick={vi.fn()} />) })
     const navigation = tree.root.findByType(Pressable)
     expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).not.toHaveProperty('padding')
-    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 76, padding: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
     const chevron = navigation.findAllByType(View).find((node) =>
       StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
     )
@@ -122,17 +122,17 @@ describe('list primitives on mobile', () => {
 
     void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
     expect(tree.root.findAllByType(View).some((node) =>
-      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).padding === 16,
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).paddingHorizontal === 16,
     )).toBe(true)
     expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
   })
 
-  it('renders a bare compact row while preserving default card padding', () => {
+  it('renders bare compact and regular rows with their drawn inline padding', () => {
     const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
     const bodyStyle = StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))
     expect(bodyStyle).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingStart: 0, paddingHorizontal: 0 })
     const ordinary = render(<ListRow title="Tags" onClick={vi.fn()} />)
-    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 76, padding: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
   })
 
   it('owns the entire padded perimeter in adjacent body and action targets', () => {
@@ -147,8 +147,8 @@ describe('list primitives on mobile', () => {
     expect(rowStyle).not.toHaveProperty('padding')
     const [body, action] = tree.root.findAllByType(Pressable)
     if (!body || !action) throw new Error('ListRow controls did not render')
-    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 76, padding: 16, paddingEnd: 0 })
-    expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, margin: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16, paddingEnd: 0 })
+    expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
     void act(() => { (body.props.onPressIn as () => void)() })
     expect(StyleSheet.flatten(resolvePressedStyle(body))).not.toHaveProperty('transform')
     expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
