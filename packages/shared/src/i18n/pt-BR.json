@@ -616,6 +616,7 @@
       "title": "Título",
       "titlePlaceholder": "ex. Corrida matinal",
       "newHabit": "Novo hábito",
+      "fromConversation": "Veio da sua conversa com o Astra.",
       "createWhy": "Escreva o que você quer acompanhar.",
       "startDateValue": "Começa em {date}",
       "describe": "O que você quer acompanhar",

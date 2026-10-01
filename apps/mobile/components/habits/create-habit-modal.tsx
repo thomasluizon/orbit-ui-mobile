@@ -1,13 +1,13 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSheetHost } from '@/components/ui/sheet'
+import { HabitCreateActions } from './habit-create-actions'
+import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
-import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -16,6 +16,7 @@ import {
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
@@ -90,6 +91,9 @@ function hasCreateHabitChanges({
 interface CreateHabitModalProps {
   open: boolean
   onClose: () => void
+  presentation?: 'sheet' | 'screen'
+  leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
+  fromConversation?: boolean
   initialTitle?: string
   onCreated?: () => void
   initialDate?: string | null
@@ -111,6 +115,9 @@ export function CreateHabitModal({
   onCreated,
   initialDate,
   initialTitle = '',
+  presentation = 'sheet',
+  leaveGuard,
+  fromConversation = false,
   parentHabit,
   recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
@@ -211,16 +218,29 @@ export function CreateHabitModal({
     initialReminderTimes: initialReminderTimesSnapshot,
   })
   const { sheetRef, closeSheet } = useSheetHost()
+  const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
+  const pendingNavigation = useRef<(() => void) | null>(null)
+  useEffect(() => { leaveAction?.() }, [leaveAction])
+  const finishClose = useCallback((action: () => void) => {
+    if (presentation === 'screen') setLeaveAction(() => action)
+    else closeSheet(action)
+  }, [closeSheet, presentation])
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => closeSheet(onClose),
+    onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
   })
+  useOverlayBack(open && presentation === 'screen', dismissGuard.requestDismiss)
   const navigateToUpgrade = useCallback(() => {
-    closeSheet(() => {
+    if (presentation === 'screen') {
+      pendingNavigation.current = () => router.replace('/upgrade')
+      dismissGuard.requestDismiss()
+      return
+    }
+    finishClose(() => {
       onClose()
       router.push('/upgrade')
     })
-  }, [closeSheet, onClose, router])
+  }, [dismissGuard, finishClose, onClose, presentation, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -369,7 +389,7 @@ export function CreateHabitModal({
         )
         await createHabit.mutateAsync(request)
       }
-      closeSheet(() => { onClose(); onCreated?.() })
+      finishClose(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -393,7 +413,7 @@ export function CreateHabitModal({
     reminderTimes,
     createHabit,
     createSubHabit,
-    closeSheet,
+    finishClose,
     onClose,
     onCreated,
     showError,
@@ -500,35 +520,24 @@ export function CreateHabitModal({
 
   return (
     <>
-      {open ? (<Sheet
+      {open ? (<HabitCreateFrame
+        presentation={presentation}
+        fromConversation={fromConversation}
+        leaving={leaveAction !== null}
+        leaveGuard={leaveGuard}
+        onNavigate={(action) => {
+          pendingNavigation.current = action
+          dismissGuard.requestDismiss()
+        }}
         ref={sheetRef}
         open
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
-        actions={(
-          <View style={{ gap: 16 }}>
-            {watchedTitle.trim().length === 0 ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{t('habits.form.createWhy')}</Text> : null}
-            <DialogActionPair>
-              <PillButton
-                size="sm"
-                variant="ghost"
-                disabled={isPending}
-                onClick={dismissGuard.requestDismiss}
-              >
-                {t('common.cancel')}
-              </PillButton>
-              <PillButton
-                size="sm"
-                loading={isPending}
-                hint={watchedTitle.trim().length === 0 ? t('habits.form.createWhy') : undefined}
-                onClick={() => void handleSubmit()}
-              >
-                {isSubHabitMode ? t('common.create') : t('habits.createHabit')}
-              </PillButton>
-            </DialogActionPair>
-          </View>
-        )}
+        actions={<HabitCreateActions presentation={presentation} pending={isPending}
+          empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+          onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />}
+
       >
         <View style={styles.scrollContent}>
           {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
@@ -565,10 +574,13 @@ export function CreateHabitModal({
             ) : null}
           </HabitFormFields>
         </View>
-      </Sheet>) : null}
+      </HabitCreateFrame>) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onKeepEditing={dismissGuard.cancelDismiss}
+        onKeepEditing={() => {
+          pendingNavigation.current = null
+          dismissGuard.cancelDismiss()
+        }}
         onDiscard={dismissGuard.confirmDismiss}
       />
     </>

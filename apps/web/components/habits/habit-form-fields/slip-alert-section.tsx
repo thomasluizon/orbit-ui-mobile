@@ -1,3 +1,4 @@
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { ChevronRight, ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -44,7 +45,7 @@ export function SlipAlertSection({
         <button
           type="button"
           className="flex w-full items-center justify-between gap-3 text-left"
-          onClick={() => router.push('/upgrade')}
+          onClick={() => requestHabitCreateNavigation(() => router.push('/upgrade'))}
         >
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">

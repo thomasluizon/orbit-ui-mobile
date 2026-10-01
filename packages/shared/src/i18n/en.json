@@ -616,6 +616,7 @@
       "title": "Title",
       "titlePlaceholder": "e.g. Morning run",
       "newHabit": "New habit",
+      "fromConversation": "Came from your conversation with Astra.",
       "createWhy": "Write what you want to keep up.",
       "startDateValue": "Starts on {date}",
       "describe": "What you want to keep up",

@@ -19,7 +19,7 @@ const overlays: OverlayGuard[] = [
   {
     name: 'sub habit sheet',
     sourcePath: 'components/habits/create-habit-modal.tsx',
-    mount: /<Sheet\b/,
+    mount: /<HabitCreateFrame\b/,
     firstLine: 'title={sheetTitle}',
   },
   {

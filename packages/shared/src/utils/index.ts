@@ -768,3 +768,5 @@ export * from './error-surface'
 export * from './proposed-tint-core'
 
 export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'
+
+export { buildHabitCreateHref, resolveHabitCreateReturnPath, type HabitCreateRouteInput } from './habit-create-navigation'
