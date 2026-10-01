@@ -107,7 +107,7 @@ function subscribeToPlatform() {
 function getApplePlatform() {
   const platform = (navigator as Navigator & { userAgentData?: { platform: string } })
     .userAgentData?.platform || navigator.platform
-  return /Mac|iPhone|iPad|iPod/i.test(platform)
+  return /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
 }
 
 function usePaletteHint() {

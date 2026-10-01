@@ -227,6 +227,7 @@ describe('DestinationShell', () => {
 
   it.each([
     ['Mac', 'Win32', '⌘K'],
+    ['iOS', 'iPhone', '⌘K'],
     ['Windows', 'Win32', 'Ctrl K'],
     ['Linux', 'Linux x86_64', 'Ctrl K'],
   ])('shows the palette shortcut for %s', (platform, fallback, hint) => {
