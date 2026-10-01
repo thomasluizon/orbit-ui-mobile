@@ -5,10 +5,10 @@ function createHostComponent(name: string) {
     children,
     ...props
   }: Readonly<{
-    children?: React.ReactNode
+    children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode)
     [key: string]: unknown
   }>) {
-    return React.createElement(name, props, children)
+    return React.createElement(name, props, typeof children === 'function' ? children({ pressed: false }) : children)
   }
 }
 

@@ -17,7 +17,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 const buttonInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'enabled:active:scale-[0.96]',
   secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] enabled:active:scale-[0.96] enabled:active:opacity-85',
-  ghost: 'enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.96]',
+  ghost: 'overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]',
   destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96]',
   caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
 }
@@ -25,21 +25,18 @@ const buttonInteractionClasses: Record<ButtonVariant, string> = {
 const linkInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96]',
   secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] active:scale-[0.96] active:opacity-85',
-  ghost: 'hover:bg-[var(--bg-card)] active:scale-[0.96]',
+  ghost: 'overflow-hidden hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]',
   destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96]',
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
 const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false) {
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false) {
   const variantInteractions = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
-  const interactionClasses = quiet && variant === 'ghost'
-    ? 'enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] enabled:active:scale-[0.96]'
-    : variantInteractions
-  return [baseClasses, variantClasses[variant], interactionClasses,
+  return [baseClasses, variantClasses[variant], variantInteractions,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
@@ -97,7 +94,7 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button', loading, quiet)}
+      className={actionClasses(variant, size, 'button', loading)}
       style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon)), color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (

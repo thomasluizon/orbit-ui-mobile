@@ -59,16 +59,15 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       aria-disabled={disabled && reason ? true : undefined}
       aria-describedby={disabled && reason ? reasonId : undefined}
       title={disabled ? reason : undefined}
-      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
+      className={`appearance-none border-0 bg-transparent overflow-hidden flex items-center justify-center transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
-          : 'cursor-pointer hover:bg-[var(--bg-sunk)] active:scale-[0.96]'
+          : 'cursor-pointer hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]'
       }`}
       style={{
         width: 44,
         height: 44,
         borderRadius: 999,
-        background: 'transparent',
         color: iconColor,
       }}
     >
@@ -147,7 +146,7 @@ export function SelectionTray({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+          className="appearance-none border-0 bg-transparent overflow-hidden cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] transition-[background-color,color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={SELECT_ALL_BUTTON_STYLE}
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}
