@@ -6,6 +6,7 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DateField } from '@/components/ui/date-field'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { Sheet } from '@/components/ui/sheet'
 import { buildYearRange } from '@orbit/shared/utils'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -29,6 +30,37 @@ describe('DateField sheet geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('distinguishes empty trigger text from a selected date in %s mode', async (theme) => {
+    const { container } = render(<>
+      <DateField value="" placeholder="31/12/2026" onChange={vi.fn()} />
+      <DateField value="" onChange={vi.fn()} />
+      <DateField value="2025-06-15" onChange={vi.fn()} />
+    </>)
+    const page = await browser.newPage()
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', theme)).map(([name, value]) => `${name}: ${value};`).join(' ')
+      await page.setContent(`<style>${stylesheet} :root { ${variables} }</style>${container.innerHTML}`)
+      const measured = await page.evaluate(() => {
+        const reference = document.createElement('span')
+        document.body.append(reference)
+        reference.style.color = 'var(--fg-3)'
+        const placeholderColor = getComputedStyle(reference).color
+        reference.style.color = 'var(--fg-1)'
+        const valueColor = getComputedStyle(reference).color
+        const triggers = [...document.querySelectorAll('button')].map((button) => ({
+          color: getComputedStyle(button.querySelector('span')!).color,
+          radius: getComputedStyle(button).borderRadius,
+        }))
+        return { placeholderColor, valueColor, triggers }
+      })
+      expect(measured.placeholderColor).not.toBe(measured.valueColor)
+      expect(measured.triggers.map((trigger) => trigger.color)).toEqual([
+        measured.placeholderColor, measured.placeholderColor, measured.valueColor,
+      ])
+      expect(measured.triggers.map((trigger) => trigger.radius)).toEqual(['12px', '12px', '12px'])
+    } finally { await page.close() }
+  })
 
   it.each([...BODY_INSETS_BY_WIDTH.keys()])('keeps all seven 44px columns inside the body at %ipx', async (width) => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)

@@ -119,6 +119,7 @@ export function DateField({
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
+  const selectionLabel = displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')
 
   useEffect(() => {
     if (!isOpen) return
@@ -157,13 +158,13 @@ export function DateField({
     <div className="relative">
       <button
         type="button"
-        aria-label={label ?? (displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate'))}
+        aria-label={label ? `${label}, ${selectionLabel}` : selectionLabel}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-md py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
-        <span>{displayValue || placeholder || t('common.selectDate')}</span>
+        <span className={displayValue ? undefined : 'text-[var(--fg-3)]'}>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
