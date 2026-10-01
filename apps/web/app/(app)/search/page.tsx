@@ -4,19 +4,17 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Command, CommandList } from 'cmdk'
-import { buildSearchEntries } from '@orbit/shared/utils'
+import { buildHabitCreateHref, buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { CommandMenuWithSearch } from '@/components/command/command-menu'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
-import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { Button } from '@/components/ui/pill-button'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useOffline } from '@/hooks/use-offline'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 export default function SearchPage() {
   const t = useTranslations()
@@ -25,7 +23,7 @@ export default function SearchPage() {
   const search = useHabitSearch()
   const searchContainer = useRef<HTMLDivElement>(null)
   const focusedInput = useRef<HTMLInputElement | null>(null)
-  const [createTitle, setCreateTitle] = useAccountScopedState<string | null>(null)
+  const createHabit = (title = '') => router.push(buildHabitCreateHref({ title, from: '/search' }))
   useLayoutEffect(() => {
     const previousInput = focusedInput.current
     if (previousInput && !previousInput.isConnected) {
@@ -50,10 +48,9 @@ export default function SearchPage() {
       if (event.target instanceof HTMLInputElement && event.target === focusedInput.current) focusedInput.current = null
     }}>
       {wide
-        ? <WideSearch search={search} onCreateHabit={setCreateTitle} />
-        : <CommandMenuWithSearch search={search} resultsMode navItems={navItems} onCreateHabit={(title = '') => setCreateTitle(title)} onClose={() => {}} />}
+        ? <WideSearch search={search} onCreateHabit={createHabit} />
+        : <CommandMenuWithSearch search={search} resultsMode navItems={navItems} onCreateHabit={createHabit} onClose={() => {}} />}
     </div>
-    {createTitle !== null && <CreateHabitModal open initialTitle={createTitle} onOpenChange={(open) => { if (!open) setCreateTitle(null) }} />}
   </>
 }
 

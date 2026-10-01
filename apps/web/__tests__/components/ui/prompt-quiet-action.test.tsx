@@ -72,7 +72,9 @@ it.each(['dark', 'light'] as const)('keeps a 44px quiet target, legible text and
     expect((await measure()).scale).toBe(rest.scale)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.mouse.down()
-    expect((await measure()).scale).toBe('0.96')
+    const reducedPress = await measure()
+    expect(reducedPress.scale).toBe(rest.scale)
+    expect(reducedPress.background).toBe(pressed.background)
     await page.mouse.up()
   } finally {
     await page.close()

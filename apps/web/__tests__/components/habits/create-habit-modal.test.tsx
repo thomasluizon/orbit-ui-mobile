@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
@@ -29,6 +31,7 @@ const mockPush = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
+const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
@@ -99,7 +102,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       trigger: vi.fn().mockResolvedValue(true),
       watch: mockFormWatch,
       register: mockFormRegister,
-      formState: { isValid: true },
+      formState: { isValid: true, get isDirty() { return mockFormStatus.dirty } },
     },
     isOneTime: false,
     isGeneral: false,
@@ -136,10 +139,14 @@ vi.mock('@/hooks/use-tag-selection', () => ({
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  setUIAccountScope: vi.fn(),
-  useUIStore: () => 'today',
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    setUIAccountScope: vi.fn(),
+    useUIStore: Object.assign(() => 'today', { getState: original.useUIStore.getState }),
+  }
+})
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
@@ -247,11 +254,21 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
+async function traverseHistory(direction: 'back' | 'forward') {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      history[direction]()
+    })
+  })
+}
+
 
 describe('CreateHabitModal', () => {
   beforeEach(() => {
     Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
+    mockFormStatus.dirty = false
     mockHabitFormFieldsState.onSuggestSetup = undefined
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
@@ -290,6 +307,123 @@ describe('CreateHabitModal', () => {
       slipAlertEnabled: false,
       checklistItems: [],
     })
+  })
+
+  it('renders the pushed creation header and back control', () => {
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'common.back' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'habits.form.newHabit' })).not.toBeInTheDocument()
+  })
+
+  it('returns on clean screen Back without a discard sheet', async () => {
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+  })
+
+  it('keeps a dirty draft and forgets a rejected destination before Back', async () => {
+    mockFormStatus.dirty = true
+    const close = vi.fn()
+    const rejectedDestination = vi.fn()
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    act(() => requestHabitCreateNavigation(rejectedDestination))
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(rejectedDestination).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(rejectedDestination).not.toHaveBeenCalled()
+  })
+
+  it('removes the creation sentinel after native fragment navigation and approved Back', async () => {
+    history.pushState(null, '', '/calendar')
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /></main></>)
+    const beforeFragment = history.length
+    fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    expect(history.length).toBe(beforeFragment + 1)
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/calendar')
+  })
+
+  it('keeps fragment Back and Forward in-page and guards leaving after multiple fragments', async () => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const close = vi.fn(() => history.replaceState(null, '', '/search'))
+    const mounted = renderWithProviders(<><a href="#orbit-main">skip</a><a href="#details">details</a><main id="orbit-main"><CreateHabitModal open presentation="screen" onOpenChange={close} /><div id="details" /></main></>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    fireEvent.click(screen.getByRole('link', { name: 'skip' }))
+    await waitFor(() => expect(location.hash).toBe('#orbit-main'))
+    fireEvent.click(screen.getByRole('link', { name: 'details' }))
+    await waitFor(() => expect(location.hash).toBe('#details'))
+
+    await traverseHistory('back')
+    expect(location.hash).toBe('#orbit-main')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('forward')
+    expect(location.hash).toBe('#details')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+    await traverseHistory('back')
+    await traverseHistory('back')
+    expect(location.hash).toBe('')
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+
+    await traverseHistory('back')
+    await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(close).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    mounted.unmount()
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/search')
+  })
+
+  it('removes its browser history guard before an approved destination', async () => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    const destination = vi.fn(() => history.pushState(null, '', '/calendar'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    act(() => requestHabitCreateNavigation(destination))
+    expect(destination).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(location.pathname).toBe('/calendar'))
+    mounted.unmount()
+    history.back()
+    await waitFor(() => expect(location.pathname).toBe('/search'))
+  })
+
+  it('guards a desktop navigation chord while the screen is dirty', async () => {
+    mockFormStatus.dirty = true
+    function Host() {
+      useKeyboardShortcuts()
+      return <CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />
+    }
+    renderWithProviders(<Host />)
+    fireEvent.keyDown(document.body, { key: 'g' })
+    fireEvent.keyDown(document.body, { key: 'c' })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/calendar'))
   })
 
   it('renders nothing when closed', () => {

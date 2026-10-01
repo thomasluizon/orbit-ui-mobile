@@ -134,20 +134,57 @@ test('a short widget sheet has one bottom inset below its last line', async ({ p
   expect(measured.lastRowBottomGap).toBeCloseTo(BODY_PADDING, 0)
 })
 
-test('a long creation sheet scrolls under its pinned safe area footer', async ({ page }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: messages.habits.createManually }).click()
-  const panel = page.getByRole('dialog', { name: messages.habits.form.newHabit })
-  await expect(panel).toBeVisible()
-  await panel.getByRole('button', { name: messages.habits.form.moreDetails }).click()
-  await expect(panel.locator('.habit-form-disclosure[data-open="true"]')).toBeVisible()
+test('a long creation screen scrolls under its pinned safe area footer', async ({ page }) => {
+  await page.goto('/habits/new')
+  const screen = page.locator('[data-habit-create-screen]')
+  await expect(screen).toBeVisible()
+  await expect(page.getByRole('heading', { name: messages.habits.form.newHabit })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: messages.habits.form.newHabit })).toHaveCount(0)
+  await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+  await expect(screen.locator('.habit-form-disclosure[data-open="true"]')).toBeVisible()
+  const footer = page.locator('[data-habit-create-action]')
+  await expect(footer.getByRole('button', { name: messages.habits.createHabit, exact: true })).toBeVisible()
+  await screen.evaluate(() => document.fonts.ready.then(() => undefined))
 
-  const measured = await measureSheet(panel)
-  process.stdout.write(`habit creation: panel=${measured.panelHeight}px, actions clear the bottom by ${measured.actionBottomGap}px\n`)
+  const measured = await page.locator('[data-shell="wide"]').evaluate((element) => {
+    const body = element.querySelector<HTMLElement>('[data-shell-scroller]')!
+    const chrome = element.querySelector<HTMLElement>('[data-shell-bottom]')!
+    const footer = element.querySelector<HTMLElement>('[data-habit-create-action]')!
+    const footerTopBeforeScroll = footer.getBoundingClientRect().top
+    body.scrollTop = body.scrollHeight
+    const bodyBounds = body.getBoundingClientRect()
+    const footerBounds = footer.getBoundingClientRect()
+    const contentBounds = body.querySelector<HTMLElement>('[data-habit-create-screen]')!.getBoundingClientRect()
+    const probe = document.createElement('div')
+    probe.style.paddingBottom = 'env(safe-area-inset-bottom)'
+    document.body.append(probe)
+    const bottomInset = Number.parseFloat(getComputedStyle(probe).paddingBottom)
+    probe.remove()
+    return {
+      screenHeight: element.getBoundingClientRect().height,
+      bodyScrollHeight: body.scrollHeight,
+      bodyClientHeight: body.clientHeight,
+      bodyScrollTop: body.scrollTop,
+      bodyBottom: bodyBounds.bottom,
+      contentBottom: contentBounds.bottom,
+      chromeTop: chrome.getBoundingClientRect().top,
+      chromePaddingBottom: Number.parseFloat(getComputedStyle(chrome).paddingBottom),
+      footerTopBeforeScroll,
+      footerTopAfterScroll: footerBounds.top,
+      footerBottomGap: innerHeight - footerBounds.bottom,
+      actionBottomGap: innerHeight - footer.querySelector('button')!.getBoundingClientRect().bottom,
+      bottomInset,
+    }
+  })
+  process.stdout.write(`habit creation: screen=${measured.screenHeight}px, actions clear the bottom by ${measured.actionBottomGap}px\n`)
   expect(measured.bottomInset).toBe(SAFE_AREA_BOTTOM)
-  expect(measured.panelHeight).toBeLessThanOrEqual(MAX_PANEL_HEIGHT + 1)
+  expect(measured.screenHeight).toBeCloseTo(VIEWPORT.height, 0)
   expect(measured.bodyScrollHeight).toBeGreaterThan(measured.bodyClientHeight)
-  expect(measured.panelPaddingBottom).toBe(measured.bottomInset)
+  expect(measured.bodyScrollTop).toBeGreaterThan(0)
+  expect(measured.bodyBottom).toBeLessThanOrEqual(measured.chromeTop)
+  expect(measured.contentBottom).toBeLessThanOrEqual(measured.bodyBottom)
+  expect(measured.footerTopAfterScroll).toBe(measured.footerTopBeforeScroll)
+  expect(measured.chromePaddingBottom).toBe(measured.bottomInset)
   expect(measured.footerBottomGap).toBeGreaterThanOrEqual(measured.bottomInset)
   expect(measured.actionBottomGap).toBeGreaterThanOrEqual(measured.bottomInset)
 })

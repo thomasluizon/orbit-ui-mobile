@@ -222,7 +222,7 @@ await Promise.resolve()
     expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState).toEqual({ checked: true })
   })
 
-  it('coordinates nested picker scrolling and reaches a late selected hour', async () => {
+  it('keeps picker scrolling independent and reaches a late selected hour', async () => {
     const scrollTo = vi.fn()
     __setScrollToImpl(scrollTo)
     let tree: ReturnType<typeof TestRenderer.create>
@@ -239,16 +239,16 @@ await Promise.resolve()
     const minutes = column(tree, 'common.minutes')
     const hoursScroll = hours.findAll((node: any) => node.type === 'ScrollView')[0]
     const minutesScroll = minutes.findAll((node: any) => node.type === 'ScrollView')[0]
-    expect(hoursScroll.props.nestedScrollEnabled).toBe(true)
-    expect(minutesScroll.props.nestedScrollEnabled).toBe(true)
+    expect(hoursScroll.props.nestedScrollEnabled).toBe(false)
+    expect(minutesScroll.props.nestedScrollEnabled).toBe(false)
 
     TestRenderer.act(() => {
-      hoursScroll.props.onLayout()
-      minutesScroll.props.onLayout()
+      hoursScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
+      minutesScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
     })
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 924, animated: false })
-    expect(scrollTo).toHaveBeenCalledWith({ y: 2508, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 844, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 2428, animated: false })
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {

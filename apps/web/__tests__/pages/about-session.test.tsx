@@ -24,8 +24,7 @@ const mocks = vi.hoisted(() => ({
   pathname: '/about',
   searchPending: false,
   searchParams: new URLSearchParams(),
-  router: { prefetch: vi.fn(), replace: vi.fn() },
-  realHabitModal: false,
+  router: { prefetch: vi.fn(), replace: vi.fn(), push: vi.fn() },
   validateHabit: vi.fn(),
 }))
 function QueryAppLayout({ children }: { children: import('react').ReactNode }) {
@@ -45,14 +44,7 @@ vi.mock('next/navigation', () => ({
     return mocks.searchParams
   },
 }))
-vi.mock('next/dynamic', () => ({
-  default: () => (props: { initialDate?: string | null; open?: boolean; onOpenChange?: (open: boolean) => void }) =>
-    'initialDate' in props
-      ? mocks.realHabitModal
-        ? <CreateHabitModal open={props.open ?? true} onOpenChange={props.onOpenChange ?? (() => {})} initialDate={props.initialDate} />
-        : <div data-testid="create-habit-modal">{props.initialDate}</div>
-      : null,
-}))
+vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
@@ -60,8 +52,10 @@ vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () =>
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/destination-shell', () => ({
   useNotFoundShell: () => {},
-  DestinationShell: ({ children, composer, notice }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode }) => (
-    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" />{composer}{children}<div data-shell-notice="">{notice}</div></main>
+  useShellHeaderSlot: () => false,
+  useShellComposerSlot: () => {},
+  DestinationShell: ({ children, composer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
@@ -121,9 +115,9 @@ beforeEach(() => {
   mocks.pathname = '/about'
   mocks.searchPending = false
   mocks.searchParams = new URLSearchParams()
-  mocks.realHabitModal = false
   mocks.validateHabit.mockReset()
   mocks.router.replace.mockClear()
+  mocks.router.push.mockClear()
   mocks.fetch.mockReset()
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   vi.stubGlobal('fetch', mocks.fetch)
@@ -140,24 +134,21 @@ it('renders app feedback inside the destination notice slot', () => {
   expect(screen.getByRole('status')).toBeInTheDocument()
 })
 
-it('keeps failed form feedback and its action reachable in the open sheet', async () => {
-  mocks.pathname = '/'
-  mocks.realHabitModal = true
+it('keeps failed form feedback and its action reachable on the creation screen', async () => {
+  mocks.pathname = '/habits/new'
   mocks.validateHabit.mockReturnValue('Habit name is required')
   const action = vi.fn()
-  const view = render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
-  act(() => useUIStore.getState().setShowCreateModal(true))
+  const view = render(<QueryAppLayout><CreateHabitModal open presentation="screen" onOpenChange={() => {}} /></QueryAppLayout>)
 
-  const dialog = screen.getByRole('dialog')
-  fireEvent.submit(dialog.querySelector('form')!)
+  fireEvent.submit(view.container.querySelector('form')!)
   await waitFor(() => expect(mocks.validateHabit).toHaveBeenCalledOnce())
-  await waitFor(() => expect(dialog.querySelector('[data-kind="neutral"]')).toHaveTextContent('Habit name is required'))
-  expect(view.container.querySelector('[data-shell-notice] [data-kind]')).toBeNull()
+  await waitFor(() => expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toHaveTextContent('Habit name is required'))
 
   act(() => { useAppToastStore.getState().showQueued('Retry save', 'Retry', action) })
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(action).toHaveBeenCalledOnce()
-  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(view.container.querySelector('form')).toBeInTheDocument()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 it('places signed-out feedback at the bottom of the page', () => {
@@ -222,7 +213,7 @@ it('keeps the shell shape while a protected unknown path restores its session', 
   expect(screen.getByRole('main', { name: 'Destination shell' }).querySelector('main')).toBeNull()
 })
 
-it('passes the selected Today date to the create modal', () => {
+it('pushes creation from Today with its selected date', () => {
   mocks.pathname = '/'
   mocks.searchParams = new URLSearchParams({ date: '2026-08-20' })
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
@@ -230,7 +221,35 @@ it('passes the selected Today date to the create modal', () => {
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => useUIStore.getState().setShowCreateModal(true))
 
-  expect(screen.getByTestId('create-habit-modal')).toHaveTextContent('2026-08-20')
+  expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?date=2026-08-20&from=%2F%3Fdate%3D2026-08-20')
+  expect(useUIStore.getState().showCreateModal).toBe(false)
+})
+
+it('pushes creation from the sidebar and retains its origin', () => {
+  mocks.pathname = '/calendar'
+  render(<QueryAppLayout><p>Calendar content</p></QueryAppLayout>)
+  fireEvent.click(screen.getByRole('button', { name: 'Create habit' }))
+  expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2Fcalendar')
+})
+
+it('preserves the current creation screen when the palette requests Create again', () => {
+  mocks.pathname = '/habits/new'
+  render(<QueryAppLayout><input aria-label="Draft title" defaultValue="Walk" /></QueryAppLayout>)
+  fireEvent.click(screen.getByRole('button', { name: 'Create habit' }))
+  expect(mocks.router.push).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Draft title' })).toHaveValue('Walk')
+  expect(useUIStore.getState().showCreateModal).toBe(false)
+})
+
+it('carries conversation provenance while closing its overlay', () => {
+  mocks.pathname = '/'
+  render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
+  act(() => {
+    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setShowCreateModal(true)
+  })
+  expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?date=2026-09-12&from=%2F&origin=conversation')
+  expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
 it.each(['auth_token', 'refresh_token'])('restores the destination shell on a hard load of About with %s', async (cookieName) => {

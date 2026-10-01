@@ -9,7 +9,7 @@ import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast, Toast } from '@/components/ui/app-toast'
 import { AlertTriangle, RefreshCw, WifiOff, X } from '@/components/ui/icons'
-import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { enqueue, getAll } from '@/lib/offline-queue'
@@ -22,7 +22,6 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const dismissDrop = useOfflineSyncStore((state) => state.dismissDrop)
-  const [creating, setCreating] = useState(false)
   const mutation = drop.mutation
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
@@ -37,7 +36,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   function recover() {
     if (!useOfflineSyncStore.getState().drops.some((entry) => entry.id === drop.id)) return
     if (needsCreation) {
-      setCreating(true)
+      router.push(buildHabitCreateHref({ date, recoveryId: drop.id }))
       return
     }
     if (retryable) {
@@ -56,11 +55,10 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
         icon={<AlertTriangle size={20} color={tokens.statusBad} />}
         actionLabel={actionLabel} onAction={recover} />
       {!timezoneRecoveryRequired ? <Pressable accessibilityRole="button" accessibilityLabel={t('common.dismiss')}
-        disabled={creating} onPress={() => dismissDrop(drop.id)} style={styles.dismiss}>
+        onPress={() => dismissDrop(drop.id)} style={styles.dismiss}>
         <X size={20} color={tokens.fg2} />
       </Pressable> : null}
-      <CreateHabitModal open={creating} initialDate={date} recoveryMessage={message}
-        onClose={() => setCreating(false)} onCreated={() => dismissDrop(drop.id)} />
+
     </View>
   )
 }

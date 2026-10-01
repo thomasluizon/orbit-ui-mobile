@@ -30,7 +30,7 @@ import {
 } from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
 import { getAccountId } from './account-scope'
@@ -186,10 +186,10 @@ export function isQueuedResult(value: unknown): value is QueuedMarker {
   )
 }
 
-function cancelUnsentDelete(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
+function cancelUnsentMutation(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
   remove(mutation.id)
   const outcome = mutation.retries > 0 ? 'uncertain' : 'cancelled'
-  if (mutation.entityType && mutation.targetEntityId) {
+  if (mutation.type.startsWith('delete') && mutation.entityType && mutation.targetEntityId) {
     return markOfflineTombstone(mutation.entityType, mutation.targetEntityId, false)
       .then(() => outcome)
   }
@@ -216,18 +216,40 @@ export function cancelQueuedDeleteForUndo(
     }
     return Promise.resolve('cancelled')
   }
-  if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
+  return cancelQueuedMutationForUndo(mutation)
+}
+
+export function cancelQueuedSkipForUndo(
+  mutationId: string,
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
+  const mutation = getById(mutationId)
+  return mutation ? cancelQueuedMutationForUndo(mutation) : Promise.resolve('replayed')
+}
+
+export async function executeSkipUndo(mutation: Pick<PersistedQueuedMutation, 'endpoint' | 'id'>): Promise<void> {
+  try {
+    await apiClient<void>(mutation.endpoint, { method: 'POST', idempotencyKey: mutation.id })
+  } catch (error) {
+    /** A cancelled skip may never have reached the API, so an absent receipt means there is nothing left to undo (#1053). */
+    if (extractBackendErrorCode(error) !== 'SKIP_NOT_FOUND') throw error
+  }
+}
+
+function cancelQueuedMutationForUndo(
+  mutation: PersistedQueuedMutation,
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
+  if (mutation.status !== 'syncing') return cancelUnsentMutation(mutation)
 
   return new Promise((resolve) => {
     const unsubscribe = subscribeFlushResults((result) => {
-      const current = getById(mutationId)
+      const current = getById(mutation.id)
       if (current?.status === 'syncing') return
       unsubscribe()
       if (current) {
-        void cancelUnsentDelete(current).then(resolve)
+        void cancelUnsentMutation(current).then(resolve)
         return
       }
-      if (result.droppedMutations.some((dropped) => dropped.id === mutationId)) {
+      if (result.droppedMutations.some((dropped) => dropped.id === mutation.id)) {
         resolve('dropped')
       } else {
         resolve('replayed')
@@ -278,9 +300,11 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   execute,
   queuedResult,
   queuedResultFactory,
+  isCurrent,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
+  isCurrent?: () => boolean
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
@@ -289,6 +313,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   return queueOrExecute<TResult, TResult | TQueuedResult>({
     mutation: builtMutation,
     execute,
+    isCurrent,
     queuedResult,
     queuedResultFactory:
       queuedResultFactory ??
@@ -601,7 +626,7 @@ function shouldStopFlushing(error: unknown): boolean {
 
 const MUTATION_SCOPES = {
   createHabit: 'habits', updateHabit: 'habits', deleteHabit: 'habits', restoreHabit: 'habits',
-  logHabit: 'habits', skipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
+  logHabit: 'habits', skipHabit: 'habits', undoSkipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
   duplicateHabit: 'habits', moveHabitParent: 'habits', createSubHabit: 'habits',
   bulkCreateHabits: 'habits', bulkDeleteHabits: 'habits', bulkCascadeDeleteHabits: 'habits',
   bulkLogHabits: 'habits', bulkSkipHabits: 'habits',
@@ -700,7 +725,9 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     }
 
     if (isCurrent?.() === false) throw new Error('Mutation owner changed')
-    const queuedMutationId = await markQueuedMutation(resolvedMutation)
+    const queuedMutationId = await markQueuedMutation(resolvedMutation.type === 'skipHabit'
+      ? { ...resolvedMutation, retries: resolvedMutation.retries + 1, lastError: getErrorMessage(error) }
+      : resolvedMutation)
     return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   } finally {
     setPendingIdempotencyKey(null)
@@ -1021,7 +1048,7 @@ async function processQueuedMutationFlush(
   await markMutationSyncing(mutation)
 
   try {
-    const response = await apiClient<unknown>(
+    const response = mutation.type === 'undoSkipHabit' ? await executeSkipUndo(mutation) : await apiClient<unknown>(
       mutation.endpoint,
       {
         method: mutation.method,

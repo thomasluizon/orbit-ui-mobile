@@ -19,7 +19,7 @@ const overlays: OverlayGuard[] = [
   {
     name: 'sub habit sheet',
     sourcePath: 'components/habits/create-habit-modal.tsx',
-    mount: /<Sheet\b/,
+    mount: /<HabitCreateFrame\b/,
     firstLine: 'title={sheetTitle}',
   },
   {
@@ -61,7 +61,7 @@ describe('habit list overlay caller guards', () => {
     expect(caller).toContain(overlay.firstLine)
     expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
-    expect(habitList).toContain('onConfirmSkip=')
-    expect(habitList).toContain('await skipMutation.mutateAsync({ habitId, date })')
+    expect(habitList).not.toContain('onConfirmSkip=')
+    expect(habitList).toMatch(/await skipMutation\.mutateAsync\(\{\s*habitId,\s*date,\s*onUndo:/)
   })
 })

@@ -52,6 +52,6 @@ export function resolveShellChrome(pathname: string, lastDestination: ShellDesti
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
     composer: SHELL_ROOT_ROUTES.some((route) => route === pathname) || /^\/habits\/[^/]+$/.test(pathname),
-    flow: pathname === '/wrapped' || pathname === '/upgrade',
+    flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
 }

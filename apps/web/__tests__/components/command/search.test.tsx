@@ -13,10 +13,6 @@ import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-cha
 
 const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
-vi.mock('@/components/habits/create-habit-modal', async () => {
-  const { Sheet } = await import('@/components/ui/sheet')
-  return { CreateHabitModal: ({ onOpenChange }: { onOpenChange: (open: boolean) => void }) => <Sheet title="Create habit" onClose={() => onOpenChange(false)}><button type="button">Create action</button></Sheet> }
-})
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
@@ -281,17 +277,12 @@ describe('habit search', () => {
     expect(mocks.back).toHaveBeenCalledTimes(1)
   })
 
-  it('dismisses the create sheet before Escape leaves the standalone search page', async () => {
+  it('pushes creation from standalone search and keeps its return path', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('option', { name: 'Create habit' }))
+    expect(mocks.push).toHaveBeenCalledWith('/habits/new?from=%2Fsearch')
     expect(mocks.back).not.toHaveBeenCalled()
-    const dialog = await screen.findByRole('dialog', { name: 'Create habit' })
-    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement))
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(mocks.back).not.toHaveBeenCalled()
-    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    expect(mocks.back).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it.each(['en', 'pt-BR'])('renders all four match fields and opens the parent in %s', async (locale) => {

@@ -9,6 +9,7 @@ import {
 import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
@@ -30,6 +31,7 @@ export function Button({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
@@ -39,7 +41,7 @@ export function Button({
     caution: tokens.fgOnOverdue,
   }
 
-  const ghostPressedFill = quiet ? tokens.bgHoverOpaque : tokens.bgCard
+  const ghostPressedFill = quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: tokens.fg1 }
@@ -82,10 +84,10 @@ export function Button({
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
-        variantStyle(pressed),
+        variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,
-        pressed && quietsOnPress ? styles.pressedQuiet : null,
-        pressed ? styles.pressedScale : null,
+        pressed && !disabled && !loading && quietsOnPress ? styles.pressedQuiet : null,
+        pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
       {loading ? (

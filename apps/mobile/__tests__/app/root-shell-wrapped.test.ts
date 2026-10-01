@@ -19,6 +19,7 @@ const createState = vi.hoisted(() => ({
   profile: undefined as { hasProAccess: boolean } | undefined,
   count: 0,
   countLoaded: false,
+  reducedMotion: false,
   push: vi.fn(),
   showCreate: vi.fn(),
   setLastDestination: vi.fn(),
@@ -90,6 +91,7 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 vi.mock('@/lib/motion', () => ({
+  usePrefersReducedMotion: () => createState.reducedMotion,
   mobileMotion: { presets: { 'route-push': { enterDuration: 200 } } },
 }))
 vi.mock('@/lib/orbit-widget', () => ({ syncWidgetTheme: vi.fn().mockResolvedValue(undefined) }))
@@ -217,6 +219,7 @@ describe('Wrapped root shell', () => {
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
     createState.profile = undefined
+    createState.reducedMotion = false
     createState.count = 0
     createState.countLoaded = false
     createState.push.mockClear()
@@ -228,6 +231,17 @@ describe('Wrapped root shell', () => {
   afterEach(() => {
     resetPendingNotificationDeletesForTests()
     vi.useRealTimers()
+  })
+
+  it.each([false, true])('pushes creation with reduced motion=%s and without app navigation', async (reducedMotion) => {
+    createState.reducedMotion = reducedMotion
+    routeState.pathname = '/habits/new'
+    routeState.segments = ['habits', 'new']
+    const tree = await renderRoot()
+    const screen = tree.root.findAll((node) => node.props.name === 'habits/new')[0]
+    expect(screen?.props.options).toMatchObject({ animation: reducedMotion ? 'none' : 'slide_from_right' })
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
+    expect(findByTestId(tree, 'composer-marker')).toHaveLength(0)
   })
 
   it('opens create while profile access is unresolved, even after the habit count loads', async () => {

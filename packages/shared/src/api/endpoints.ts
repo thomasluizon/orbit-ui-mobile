@@ -46,6 +46,7 @@ export const API = {
     log: (id: string) => `/api/habits/${id}/log` as const,
     logs: (id: string) => `/api/habits/${id}/logs` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,
+    undoSkip: (id: string, skipId: string) => `/api/habits/${id}/skip/${skipId}/undo` as const,
     duplicate: (id: string) => `/api/habits/${id}/duplicate` as const,
     checklist: (id: string) => `/api/habits/${id}/checklist` as const,
     parent: (id: string) => `/api/habits/${id}/parent` as const,

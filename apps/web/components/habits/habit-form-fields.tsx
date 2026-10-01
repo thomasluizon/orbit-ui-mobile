@@ -1,5 +1,7 @@
 'use client'
 
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
+
 import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -472,7 +474,7 @@ export function HabitFormFields({
               />
             </section>
 
-            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={() => router.push('/upgrade')} t={t}>
+            <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={() => requestHabitCreateNavigation(() => router.push('/upgrade'))} t={t}>
               {subHabitChildren}
             </SubHabitSection>
 

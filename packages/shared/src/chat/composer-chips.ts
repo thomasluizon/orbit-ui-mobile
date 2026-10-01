@@ -136,7 +136,7 @@ export function buildComposerChips(state: ComposerChipState): ComposerChip[] {
 }
 
 export function resolveComposerChipSurface(pathname: string): ComposerChipSurface {
-  if (pathname.startsWith('/habits/')) return 'habitDetail'
+  if (pathname.startsWith('/habits/') && pathname !== '/habits/new') return 'habitDetail'
   if (pathname === '/calendar') return 'calendar'
   if (pathname === '/progress') return 'progress'
   if (pathname === '/profile') return 'profile'

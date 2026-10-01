@@ -28,6 +28,7 @@ vi.mock('@/lib/theme', () => ({
 }))
 
 vi.mock('@/lib/motion', () => ({
+  usePrefersReducedMotion: () => false,
   toAnimatedEasing: () => (value: number) => value,
 }))
 

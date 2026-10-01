@@ -43,15 +43,13 @@ vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen; lastDestination: string; setLastDestination: typeof mocks.setLastDestination }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen, lastDestination: mocks.lastDestination, setLastDestination: mocks.setLastDestination }),
 }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (
-    selector: (state: {
-      setShowCreateModal: typeof mocks.setShowCreateModal
-    }) => unknown,
-  ) => selector({
-    setShowCreateModal: mocks.setShowCreateModal,
-  }),
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    ...original,
+    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal }), { getState: original.useUIStore.getState }),
+  }
+})
 vi.mock('@/components/command/command-palette', () => ({
   CommandPalette: () => <div data-testid="command-palette" />,
 }))
@@ -101,6 +99,7 @@ import {
   useShellComposerSlot,
   useShellHeaderSlot,
 } from '@/components/shell/destination-shell'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
@@ -702,6 +701,24 @@ describe('DestinationShell', () => {
     mocks.lastDestination = 'hoje'
     render(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
     expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it.each([false, true])('hosts creation header and action without another create control at wide=%s', (wide) => {
+    mocks.wide = wide
+    mocks.pathname = '/habits/new'
+    const view = render(<DestinationShell onCreate={() => {}}>
+      <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
+        actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
+        open title="New habit" onAttemptDismiss={() => {}} onClose={() => {}}
+        actions={<button type="button">Create habit</button>}>
+        <label>Habit title<input /></label>
+      </HabitCreateFrame>
+    </DestinationShell>)
+    expect(screen.getByRole('button', { name: 'common.back' }).closest('[data-shell-header]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create habit' }).closest('[data-shell-pinned-slot]')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).toBeNull()
+    if (!wide) expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).toBeNull()
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
   })
 
   it('keeps the wide upgrade sidebar and reserves its account row', () => {
