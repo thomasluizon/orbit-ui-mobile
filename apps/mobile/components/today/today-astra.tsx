@@ -83,6 +83,6 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
 const styles = StyleSheet.create({
   line: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 0, paddingBottom: 12, paddingTop: 8 },
   text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  actionTarget: { marginStart: 4 },
+  actionTarget: { paddingStart: 4 },
   action: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, textDecorationLine: 'underline' },
 })

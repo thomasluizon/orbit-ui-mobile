@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { StyleSheet, Text } from 'react-native'
+import Yoga from 'yoga-layout'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -119,7 +120,7 @@ describe('mobile Today Astra', () => {
     if (!action) throw new Error('Returning action did not render')
     expect(action.props.hitSlop).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
     const targetStyle = StyleSheet.flatten(action.props.style) as Record<string, unknown>
-    expect(targetStyle).toMatchObject({ marginStart: 4 })
+    expect(targetStyle).toMatchObject({ paddingStart: 4 })
     expect(targetStyle.minHeight).toBeUndefined()
     const label = action.findAll((node) => node.props.children === 'todayAstra.viewProgress')[0]
     expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
@@ -154,6 +155,27 @@ describe('mobile Today Astra', () => {
     ).length).toBeGreaterThan(0)
   })
 
+  it.each([1, 100])('includes the leading gap inside the native inline attachment for a %spx label', async (labelWidth) => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
+    const tree = await renderTodayAstra()
+    const action = tree.root.findAll((node) => node.props.accessibilityRole === 'link')[0]
+    if (!action) throw new Error('Returning action did not render')
+    const targetStyle = StyleSheet.flatten(action.props.style) as Record<string, unknown>
+    const attachment = Yoga.Node.create()
+    const label = Yoga.Node.create()
+    try {
+      if (typeof targetStyle.marginStart === 'number') attachment.setMargin(Yoga.EDGE_START, targetStyle.marginStart)
+      if (typeof targetStyle.paddingStart === 'number') attachment.setPadding(Yoga.EDGE_START, targetStyle.paddingStart)
+      label.setWidth(labelWidth)
+      attachment.insertChild(label, 0)
+      attachment.calculateLayout(undefined, undefined)
+      expect(attachment.getComputedWidth() - label.getComputedWidth()).toBe(4)
+      expect(label.getComputedLeft()).toBe(4)
+    } finally {
+      attachment.freeRecursive()
+    }
+  })
+
   it('renders a proactive check-in and opens its conversation', async () => {
     mocks.notifications = [{
       id: 'check-in',
@@ -178,7 +200,7 @@ describe('mobile Today Astra', () => {
       fontFamily: 'Geist_500Medium', fontSize: 14, color: '#ffffff',
       textDecorationLine: 'underline',
     })
-    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).marginStart).toBe(4)
+    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).paddingStart).toBe(4)
     expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
     const onPressIn = action.props.onPressIn
     if (typeof onPressIn !== 'function') throw new Error('Proactive action cannot receive press feedback')
