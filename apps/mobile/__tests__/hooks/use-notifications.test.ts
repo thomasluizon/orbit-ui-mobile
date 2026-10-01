@@ -250,13 +250,13 @@ describe('mobile notification hooks', () => {
     handle.unmount()
   })
 
-  it('uses focused query polling and leaves foreground refetching to the query client', () => {
+  it('uses focused query polling and inherits the account foreground policy', () => {
     const handle = renderHook(() => useNotifications())
     expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
       refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
       refetchIntervalInBackground: false,
-      refetchOnWindowFocus: true,
     }))
+    expect(mocks.useQuery).not.toHaveBeenCalledWith(expect.objectContaining({ refetchOnWindowFocus: true }))
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
     expect(mocks.appState.listener).toBeNull()
     handle.unmount()
