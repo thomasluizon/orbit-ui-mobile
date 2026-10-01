@@ -15,6 +15,7 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
+  metaColor: string
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
 }
@@ -23,6 +24,7 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
+  metaColor,
   metaParts,
   tokens,
 }: Readonly<HabitRowContentProps>) {
@@ -47,7 +49,7 @@ export function HabitRowContent({
       {visibleMeta.length > 0 ? (
         <Text
           numberOfLines={1}
-          style={[styles.meta, { color: tokens.fg2 }]}
+          style={[styles.meta, { color: metaColor }]}
         >
           {visibleMeta.map((part, i) => {
             let partContent: ReactNode
@@ -78,7 +80,7 @@ export function HabitRowContent({
             return (
               <Fragment key={metaKeys[i]}>
                 {i > 0 ? (
-                  <Text style={{ color: tokens.fg2 }}> · </Text>
+                  <Text style={{ color: metaColor }}> · </Text>
                 ) : null}
                 {partContent}
               </Fragment>

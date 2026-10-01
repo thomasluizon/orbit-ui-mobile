@@ -91,27 +91,33 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       (node: { children: unknown[] }) => node.children.includes(parent ? 'habits.rowProgress' : '21:00'),
     )
     expect(metadata).toBeDefined()
-    const foreground = StyleSheet.flatten(metadata.props.style).color
-    for (const pressed of [false, true]) {
-      TestRenderer.act(() => pressed ? body.props.onPressIn() : body.props.onPressOut())
-      const card = renderer!.root.findByProps({ testID: 'habit-row' })
-      const layers = [tokens.bg, StyleSheet.flatten(card.props.style).backgroundColor]
-      const bodyFill = StyleSheet.flatten(body.props.style({ pressed })).backgroundColor
-      if (bodyFill) layers.push(bodyFill)
-      expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
-      for (const separator of metadata.findAllByType('Text').filter(
-        (node: { children: unknown[] }) => node.children.includes(' · '),
-      )) {
-        expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
-      }
-    }
-    if (exceptional) {
+    function assertStateWords() {
       for (const [word, color] of [['habits.overdue', tokens.statusOverdueText], ['habits.statusDot.bad', tokens.statusBadText]]) {
         const stateWord = metadata.findAllByType('Text').find(
           (node: { children: unknown[] }) => node.children.includes(word),
         )
         expect(StyleSheet.flatten(stateWord.props.style).color).toBe(color)
       }
+    }
+    for (const pressed of [false, true, false]) {
+      TestRenderer.act(() => pressed ? body.props.onPressIn() : body.props.onPressOut())
+      const card = renderer!.root.findByProps({ testID: 'habit-row' })
+      const layers = [tokens.bg, StyleSheet.flatten(card.props.style).backgroundColor]
+      const bodyFill = StyleSheet.flatten(body.props.style({ pressed })).backgroundColor
+      if (bodyFill) layers.push(bodyFill)
+      const foreground = StyleSheet.flatten(metadata.props.style).color
+      expect(foreground).toBe(pressed ? tokens.fg2 : tokens.fg3)
+      expect(contrastOnSurface(foreground, layers), `${label}, pressed=${pressed}`).toBeGreaterThanOrEqual(4.5)
+      if (pressed && mode === 'dark') {
+        expect(contrastOnSurface(tokens.fg3, layers)).toBeCloseTo(4.029, 3)
+      }
+      for (const separator of metadata.findAllByType('Text').filter(
+        (node: { children: unknown[] }) => node.children.includes(' · '),
+      )) {
+        expect(StyleSheet.flatten(separator.props.style).color).toBe(pressed ? tokens.fg2 : tokens.fg3)
+        expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
+      }
+      if (exceptional) assertStateWords()
     }
     TestRenderer.act(() => renderer.unmount())
   })

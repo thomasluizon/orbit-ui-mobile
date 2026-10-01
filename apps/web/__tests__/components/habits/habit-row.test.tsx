@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -10,6 +10,9 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const localeMock = vi.hoisted(() => ({ rescheduleLabel: null as string | null }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'habits.actions.reschedule' && localeMock.rescheduleLabel ? localeMock.rescheduleLabel : key }))
@@ -164,46 +167,93 @@ describe('HabitRow neutral metadata contrast', () => {
     { label: 'count with state words', value: '1/2', parent: true, exceptional: true },
     { label: 'time with state words', value: '21:00', parent: false, exceptional: true },
   ]
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
+    browser = await launch
+  })
+  beforeAll(async () => {
+    const source = resolve('app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
   const scenarios = (['dark', 'light'] as const).flatMap((mode) =>
-    cases.flatMap((row) => [false, true].map((child) => ({ mode, ...row, child }))),
+    cases.flatMap((row) => [false, true].flatMap((child) =>
+      [false, true].map((touch) => ({ mode, ...row, child, touch })))),
   )
 
-  it.each(scenarios)('$mode $label, child=$child clears the text floor', ({ mode, label, value, parent, exceptional, child }) => {
-    const variables = resolveWebThemeVariables('orange', mode)
-    function resolveColor(color: string): string {
-      const variable = color.match(/^var\((--[\w-]+)\)$/)?.[1]
-      return variable ? variables[variable as keyof typeof variables]! : color
-    }
-    const habit = createMockHabit({ title: label, dueTime: '21:00' })
-    const { unmount } = render(<div className="habit-panel"><HabitRow habit={habit}
+  function renderMetadataRow({ label, value, parent, exceptional, child }: (typeof scenarios)[number]): HTMLElement {
+    const { container } = render(<div className="habit-panel"><HabitRow
+      habit={createMockHabit({ title: label, dueTime: '21:00' })}
       child={child} depth={child ? 1 : 0} hasChildren={parent}
       childProgress={parent ? { done: 1, total: 2 } : undefined}
       meta={exceptional ? [value, { kind: 'overdue', label: 'Overdue' }, { kind: 'bad', label: 'Recorded' }] : [value]} />
     </div>)
-    const metadata = screen.getByText(value)
-    const panel = document.querySelector('.habit-panel')!
-    const body = metadata.closest('button')!
-    expect(body).toHaveAttribute('data-habit-row-body')
-    const panelBackgrounds = matchingRowBackgrounds(panel, '.habit-panel')
-    expect(panelBackgrounds).toEqual(['var(--bg-card)'])
-    const restLayers = [variables['--bg']!, ...panelBackgrounds.map(resolveColor)]
-    const foreground = resolveColor(getComputedStyle(metadata).color)
-    expect(contrastOnSurface(foreground, restLayers), `${label} at rest`).toBeGreaterThanOrEqual(4.5)
-    fireEvent.mouseOver(body)
-    const hoverBackgrounds = matchingRowBackgrounds(body)
-    expect(hoverBackgrounds).toHaveLength(1)
-    const hoverLayers = [...restLayers, ...hoverBackgrounds.map(resolveColor)]
-    expect(contrastOnSurface(foreground, hoverLayers), `${label} on hover`).toBeGreaterThanOrEqual(4.5)
-    if (exceptional) {
-      for (const separator of within(metadata).getAllByText('·')) {
-        const separatorColor = resolveColor(getComputedStyle(separator).color)
-        expect(contrastOnSurface(separatorColor, restLayers)).toBeGreaterThanOrEqual(4.5)
-        expect(contrastOnSurface(separatorColor, hoverLayers)).toBeGreaterThanOrEqual(4.5)
+    return container
+  }
+
+  it.each(scenarios)('$mode $label, child=$child touch=$touch preserves rest and interaction contrast', async (scenario) => {
+    const { mode, touch, exceptional } = scenario
+    const variables = resolveWebThemeVariables('orange', mode)
+    const container = renderMetadataRow(scenario)
+    const page = await browser.newPage({ hasTouch: touch, isMobile: touch })
+    try {
+      const theme = Object.entries(variables).map(([name, color]) => `${name}:${color}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root { ${theme} }</style>${container.innerHTML}`)
+      for (const state of ['rest', 'hover', 'press', 'release'] as const) {
+        if (state === 'hover') await page.locator('[data-habit-row-body]').hover()
+        if (state === 'press') await page.mouse.down()
+        if (state === 'release') { await page.mouse.up(); await page.mouse.move(0, 0) }
+        const interactive = state === 'press' || (state === 'hover' && !touch)
+        await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState === 'finished'), undefined, { timeout: 2000 })
+        const measured = await page.evaluate(({ interactive }) => {
+          const panel = document.querySelector('.habit-panel')!
+          const body = panel.querySelector('[data-habit-row-body]')!
+          const metadata = Array.from(body.querySelectorAll('span')).find((span) => span.style.fontSize === '13px')!
+          const reference = document.createElement('span')
+          panel.append(reference)
+          const colorOf = (token: string) => {
+            reference.style.color = `var(${token})`
+            return getComputedStyle(reference).color
+          }
+          const layers = [getComputedStyle(document.body).backgroundColor, getComputedStyle(panel).backgroundColor]
+          if (interactive) layers.push(getComputedStyle(body).backgroundColor)
+          const result = {
+            foreground: getComputedStyle(metadata).color,
+            expectedForeground: colorOf(interactive ? '--fg-2' : '--fg-3'),
+            separators: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent === '·').map((span) => getComputedStyle(span).color),
+            stateWords: Array.from(metadata.querySelectorAll('span')).filter((span) => span.textContent !== '·').map((span) => getComputedStyle(span).color),
+            expectedStateWords: [colorOf('--status-overdue-text'), colorOf('--status-bad-text')],
+            bodyFill: getComputedStyle(body).backgroundColor,
+            expectedBodyFill: interactive ? getComputedStyle(panel).getPropertyValue('--bg-hover').trim() : 'rgba(0, 0, 0, 0)',
+            transition: getComputedStyle(metadata).transitionProperty,
+            duration: getComputedStyle(metadata).transitionDuration,
+            fillDuration: getComputedStyle(body).transitionDuration,
+            layers,
+          }
+          reference.remove()
+          return result
+        }, { interactive })
+        expect(measured.foreground, state).toBe(measured.expectedForeground)
+        expect(contrastOnSurface(measured.foreground, measured.layers), state).toBeGreaterThanOrEqual(4.5)
+        expect(measured.bodyFill.replaceAll(' ', ''), state).toBe(measured.expectedBodyFill.replaceAll(' ', ''))
+        expect(measured.transition).toBe('color')
+        expect(measured.duration).toBe(measured.fillDuration)
+        if (interactive && mode === 'dark') {
+          expect(contrastOnSurface(variables['--fg-3']!, measured.layers)).toBeCloseTo(4.029, 3)
+        }
+        for (const separator of measured.separators) {
+          expect(separator, state).toBe(measured.expectedForeground)
+          expect(contrastOnSurface(separator, measured.layers), state).toBeGreaterThanOrEqual(4.5)
+        }
+        if (exceptional) expect(measured.stateWords, state).toEqual(measured.expectedStateWords)
       }
-      expect(screen.getByText('Overdue')).toHaveStyle({ color: 'var(--status-overdue-text)' })
-      expect(screen.getByText('Recorded')).toHaveStyle({ color: 'var(--status-bad-text)' })
+    } finally {
+      await page.close()
     }
-    unmount()
   })
 
   it('exposes the old foreground failure only after the hover layer is nested in the card', () => {
