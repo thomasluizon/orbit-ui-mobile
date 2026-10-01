@@ -130,6 +130,7 @@ const run = spawnSync('claude', [
   '--no-session-persistence',
 ], {
   cwd: tmpdir(),
+  env: { ...process.env, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' },
   input: buildPrompt(finding),
   encoding: 'utf8',
   timeout,

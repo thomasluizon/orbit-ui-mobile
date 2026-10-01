@@ -1593,7 +1593,7 @@ symlinkSync(process.execPath, join(claudeFixtureDirectory, "node"))
 writeFileSync(join(claudeFixtureDirectory, "codex"), '#!/usr/bin/env node\nprocess.exit(1)\n', { mode: 0o755 })
 writeFileSync(join(claudeFixtureDirectory, "claude"), `#!/usr/bin/env node
 const { writeFileSync, readFileSync } = require("node:fs")
-writeFileSync(process.env.ORBIT_TEST_INVOCATION, JSON.stringify({ args: process.argv.slice(2), prompt: readFileSync(0, "utf8"), cwd: process.cwd() }))
+writeFileSync(process.env.ORBIT_TEST_INVOCATION, JSON.stringify({ args: process.argv.slice(2), prompt: readFileSync(0, "utf8"), cwd: process.cwd(), disableAttachments: process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS ?? null }))
 if (process.env.ORBIT_TEST_MODE === "timeout") setInterval(() => {}, 1000)
 else {
   process.stdout.write(process.env.ORBIT_TEST_MODE === "invalid-envelope" ? "not json" : JSON.stringify({ is_error: process.env.ORBIT_TEST_MODE === "error", result: process.env.ORBIT_TEST_REPLY }) + "\\n")
@@ -1637,6 +1637,7 @@ for (const invalidObject of ['{"verdict":"MAYBE"}', "{"]) {
 
 const invocation = existsSync(invocationPath) ? JSON.parse(readFileSync(invocationPath, "utf8")) : null
 T("second-opinion: calls Claude without tools or inherited MCP configuration", invocation?.args, ["-p", "--model", "claude-opus-5-5", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", "--no-session-persistence"])
+T("second-opinion: dossier @file mentions stay plain text (attachment expansion disabled)", invocation?.disableAttachments, "1")
 T("second-opinion: dossier arrives over stdin outside the repository", Boolean(invocation?.prompt.includes("Review the quoted finding")) && invocation?.cwd === realpathSync(tmpdir()), true)
 T("second-opinion: the requested model is reported", placeholderResult.model, "claude-opus-5-5")
 for (const [mode, reason] of [["absent", "claude not runnable (ENOENT)"], ["timeout", "claude timed out"], ["invalid-envelope", "unparseable response from claude"], ["error", "claude reported an error"], ["exit", "claude exited with status 1"]]) {
