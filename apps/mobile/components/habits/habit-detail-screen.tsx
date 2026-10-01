@@ -7,7 +7,9 @@ import { useReducedMotion } from 'react-native-reanimated'
 import { motionEasings } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
-  createHabitDetailWriteQueue,
+  createAccountScopedHabitDetailWriteQueue,
+  buildHabitDetailHeaderSummary,
+  isHabitDetailCompletionDisabled,
   buildHabitDetailReminderRows,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
@@ -17,7 +19,6 @@ import {
   capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
-  canLogHabitOnDate,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatAPIDateInTimeZone,
@@ -310,11 +311,6 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
   )
 }
 
-function completionDisabledOnDetail(habit: NormalizedHabit | null, date: string, today: string): boolean {
-  const boundary = getTodayBoundary(date, today)
-  return boundary === 'read-only' || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, date, today)))
-}
-
 function FocusedRescheduleBlock(props: Readonly<Parameters<typeof RescheduleBlock>[0]>) {
   const isFocused = useIsFocused()
   return isFocused ? <RescheduleBlock {...props} /> : null
@@ -346,16 +342,12 @@ function DetailChecklist({ editing, ...props }: Readonly<React.ComponentProps<ty
   return editing ? null : <HabitChecklist {...props} />
 }
 
-function useDetailWrites(habitId: string, accountGeneration: number): ReturnType<typeof createHabitDetailWriteQueue> {
-  const [scope, setScope] = useState(() => ({ accountGeneration, habitId, queue: createHabitDetailWriteQueue() }))
+function useDetailWrites(habitId: string, accountGeneration: number): ReturnType<typeof createAccountScopedHabitDetailWriteQueue> {
+  const [scope, setScope] = useState(() => ({ accountGeneration, habitId, queue: createAccountScopedHabitDetailWriteQueue(accountGeneration, getAccountGeneration) }))
   if (scope.accountGeneration !== accountGeneration || scope.habitId !== habitId) {
-    setScope({ accountGeneration, habitId, queue: createHabitDetailWriteQueue() })
+    setScope({ accountGeneration, habitId, queue: createAccountScopedHabitDetailWriteQueue(accountGeneration, getAccountGeneration) })
   }
-  return {
-    save: (habit, patch, write) => scope.queue.save(habit, patch, (request) => getAccountGeneration() === accountGeneration
-      ? write(request)
-      : Promise.resolve(false)),
-  }
+  return scope.queue
 }
 
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
@@ -443,11 +435,9 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const hasPro = profile.hasProAccess
   const rescue = useHabitRescue({ habitId, isBadHabit: habit?.isBadHabit === true, slipping, overdue, hasPro, locale: language })
   const dueTime = displayTime(habit?.dueTime)
-  const headerSummary = summary && dueTime && !summary.includes(habit?.dueTime ?? '')
-    ? `${summary} · ${dueTime}`
-    : summary || dueTime || ''
+  const headerSummary = buildHabitDetailHeaderSummary(summary, habit?.dueTime ?? null, dueTime)
   const boundary = getTodayBoundary(dateStr, todayStr)
-  const completionDisabled = completionDisabledOnDetail(habit, dateStr, todayStr)
+  const completionDisabled = isHabitDetailCompletionDisabled(habit, dateStr, todayStr)
   const completionReason = boundary === 'read-only'
     ? t('habits.todayBoundary.readOnly')
     : boundary === 'future' ? t('habits.todayBoundary.future') : undefined

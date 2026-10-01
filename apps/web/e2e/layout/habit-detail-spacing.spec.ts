@@ -67,7 +67,16 @@ for (const width of [412, 1280]) {
             previousBottom = content.getBoundingClientRect().bottom
             return gap
           })
+          const fontProbe = document.createElement('span')
+          element.append(fontProbe)
+          fontProbe.style.fontFamily = 'var(--font-display)'
+          const displayFont = getComputedStyle(fontProbe).fontFamily
+          fontProbe.style.fontFamily = 'var(--font-mono)'
+          const monoFont = getComputedStyle(fontProbe).fontFamily
+          fontProbe.remove()
           return {
+            displayFont,
+            monoFont,
             contentWidth: element.getBoundingClientRect().width - Number.parseFloat(columnStyle.paddingLeft) - Number.parseFloat(columnStyle.paddingRight),
             headerInset: row.getBoundingClientRect().left - element.getBoundingClientRect().left,
             columnInset: Number.parseFloat(columnStyle.paddingLeft),
@@ -94,9 +103,9 @@ for (const width of [412, 1280]) {
         expect(geometry.wellRadius).toBe('12px')
         expect(geometry.titleSize).toBe(width === 412 ? '22px' : '28px')
         expect(geometry.titleWeight).toBe('500')
-        expect(geometry.titleFont).toContain('Space Grotesk')
+        expect(geometry.titleFont).toBe(geometry.displayFont)
         expect(geometry.summarySize).toBe('12px')
-        expect(geometry.summaryFont).toContain('Geist Mono')
+        expect(geometry.summaryFont).toBe(geometry.monoFont)
         if (!hasTags && !hasDescription) expect(geometry.headerToLabel).toBe(24)
         expect(geometry.contentToLabel).toBe(24)
         expect(geometry.metadataGaps).toEqual(Array(Number(hasTags) + Number(hasDescription)).fill(12))

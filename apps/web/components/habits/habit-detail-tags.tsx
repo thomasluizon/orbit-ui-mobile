@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit, HabitTag } from '@orbit/shared/types/habit'
-import { TAG_COLORS } from '@orbit/shared/hooks'
-import { MAX_TAGS_PER_HABIT, validateTagForm } from '@orbit/shared/validation'
+import { saveHabitDetailTag } from '@orbit/shared/hooks'
+import { MAX_TAGS_PER_HABIT } from '@orbit/shared/validation'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { useTags, useCreateTag, useUpdateTag, useDeleteTag, useAssignTags } from '@/hooks/use-tags'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -31,15 +31,14 @@ export function HabitDetailTags({ habit }: Readonly<{ habit: NormalizedHabit }>)
   }
   const save = async () => {
     if (!editing) return
-    const color = editing === 'new' ? TAG_COLORS[0] : editing.color
-    const errorKey = validateTagForm(name, color)
-    if (errorKey) { showError(t(errorKey)); return }
     try {
-      if (editing === 'new') {
-        const tag = await createTag.mutateAsync({ name: name.trim(), color })
-        await assignTags.mutateAsync({ habitId: habit.id, tagIds: [...selectedIds, tag.id] })
-      } else await updateTag.mutateAsync({ tagId: editing.id, name: name.trim(), color })
-      setEditing(null)
+      const errorKey = await saveHabitDetailTag(editing, name, selectedIds, {
+        create: (request) => createTag.mutateAsync(request),
+        update: (request) => updateTag.mutateAsync(request),
+        assign: (tagIds) => assignTags.mutateAsync({ habitId: habit.id, tagIds }),
+      })
+      if (errorKey) showError(t(errorKey))
+      else setEditing(null)
     } catch (error) { report(error) }
   }
   const remove = async (id: string) => {

@@ -467,16 +467,18 @@ export function createHabitDetailWriteQueue(): {
 } {
   let savedPatch: HabitDetailUpdatePatch = {}
   let pending: Promise<boolean> | null = null
+  const snapshots = new Set<UpdateHabitRequest>()
 
   const save = (
     habit: NormalizedHabit,
     patch: HabitDetailUpdatePatch,
     write: (request: UpdateHabitRequest) => Promise<boolean>,
   ): Promise<boolean> => {
+    const snapshot = buildHabitDetailUpdateRequest(habit, { goalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [], slipAlertEnabled: habit.slipAlertEnabled })
+    snapshots.add(snapshot)
     const execute = async () => {
-      const snapshot = buildHabitDetailUpdateRequest(habit, { goalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [], slipAlertEnabled: habit.slipAlertEnabled })
       for (const key of Object.keys(savedPatch) as (keyof HabitDetailUpdatePatch)[]) {
-        if (JSON.stringify(snapshot[key]) === JSON.stringify(savedPatch[key])) delete savedPatch[key]
+        if ([...snapshots].every((queued) => JSON.stringify(queued[key]) === JSON.stringify(savedPatch[key]))) delete savedPatch[key]
       }
       const nextPatch = { ...savedPatch, ...patch }
       const saved = await write(buildHabitDetailUpdateRequest(habit, nextPatch))
@@ -485,10 +487,47 @@ export function createHabitDetailWriteQueue(): {
     }
     const result = pending ? pending.then(execute) : execute()
     pending = result
-    void result.then(() => { if (pending === result) pending = null })
+    const settled = () => {
+      snapshots.delete(snapshot)
+      if (pending === result) pending = null
+    }
+    void result.then(settled, settled)
     return result
   }
   return { save }
+}
+
+export function createAccountScopedHabitDetailWriteQueue(
+  accountGeneration: number,
+  currentGeneration: () => number,
+): ReturnType<typeof createHabitDetailWriteQueue> {
+  const queue = createHabitDetailWriteQueue()
+  return {
+    save: (habit, patch, write) => queue.save(habit, patch, async (request) => {
+      if (currentGeneration() !== accountGeneration) return false
+      const saved = await write(request)
+      return saved && currentGeneration() === accountGeneration
+    }),
+  }
+}
+
+export function buildHabitDetailHeaderSummary(
+  summary: string | null,
+  dueTime: string | null,
+  formattedTime: string | null,
+): string {
+  return summary && formattedTime && !summary.includes(dueTime ?? '')
+    ? `${summary} · ${formattedTime}`
+    : summary || formattedTime || ''
+}
+
+export function isHabitDetailCompletionDisabled(
+  habit: NormalizedHabit | null,
+  date: string,
+  today: string,
+): boolean {
+  const boundary = getTodayBoundary(date, today)
+  return boundary === 'read-only' || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, date, today)))
 }
 
 export function buildHabitDetailTimePatch(

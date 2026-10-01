@@ -643,7 +643,11 @@ export function useUpdateHabit() {
     },
 
     onMutate: async ({ habitId, data }) => {
-      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
+        queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
+        queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
+      ])
 
       const previousLists = snapshotHabitLists(queryClient)
       const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))

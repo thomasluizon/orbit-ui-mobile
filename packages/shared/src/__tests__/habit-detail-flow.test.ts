@@ -14,6 +14,9 @@ import {
   canNavigateHabitHistoryForward,
   buildHabitDetailReminderRows,
   createHabitDetailWriteQueue,
+  createAccountScopedHabitDetailWriteQueue,
+  buildHabitDetailHeaderSummary,
+  isHabitDetailCompletionDisabled,
   getHabitDaysWithoutLog,
   getHabitHistoryLog,
   getHabitStartDate,
@@ -211,6 +214,23 @@ describe('habit detail flow model', () => {
     expect(write.mock.calls.at(-1)![0]).toMatchObject({ isBadHabit: false, description: 'Another note' })
   })
 
+  it('preserves a delayed successful edit across optimistic and reverted queued snapshots', async () => {
+    const queue = createHabitDetailWriteQueue()
+    const habit = createMockHabit({ dueTime: '09:00' })
+    let finish!: (saved: boolean) => void
+    const write = vi.fn().mockImplementationOnce(() => new Promise<boolean>((resolve) => { finish = resolve })).mockResolvedValue(true)
+    const time = queue.save(habit, { dueTime: '10:15' }, write)
+    const emoji = queue.save({ ...habit, dueTime: '10:15' }, { emoji: '💧' }, write)
+    const description = queue.save(habit, { description: 'Drink water' }, write)
+    expect(write).toHaveBeenCalledOnce()
+    finish(true)
+    expect(await time).toBe(true)
+    expect(await emoji).toBe(true)
+    expect(await description).toBe(true)
+    expect(write.mock.calls.map(([request]) => request.dueTime)).toEqual(['10:15', '10:15', '10:15'])
+    expect(write.mock.calls[2]![0]).toMatchObject({ emoji: '💧', description: 'Drink water' })
+  })
+
   it('drops acknowledged slip-alert edits before later updates', async () => {
     const queue = createHabitDetailWriteQueue()
     const habit = createMockHabit({ isBadHabit: true, slipAlertEnabled: true })
@@ -219,6 +239,46 @@ describe('habit detail flow model', () => {
     await queue.save({ ...habit, slipAlertEnabled: false }, { description: 'A note' }, write)
     await queue.save(habit, { title: 'Updated title' }, write)
     expect(write.mock.calls.at(-1)![0]).not.toHaveProperty('slipAlertEnabled')
+  })
+
+  it('stops queued writes when the account changes during a delayed write', async () => {
+    let generation = 1
+    const queue = createAccountScopedHabitDetailWriteQueue(1, () => generation)
+    const habit = createMockHabit()
+    let finish!: (saved: boolean) => void
+    const write = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    const first = queue.save(habit, { title: 'Edited' }, write)
+    const second = queue.save(habit, { description: 'Queued' }, write)
+    generation = 2
+    finish(true)
+    expect(await first).toBe(false)
+    expect(await second).toBe(false)
+    expect(write).toHaveBeenCalledOnce()
+  })
+
+  it('allows successful and rejected writes in the current account scope', async () => {
+    const queue = createAccountScopedHabitDetailWriteQueue(1, () => 1)
+    const write = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
+    expect(await queue.save(createMockHabit(), { title: 'Rejected' }, write)).toBe(false)
+    expect(await queue.save(createMockHabit(), { description: 'Saved' }, write)).toBe(true)
+    expect(write.mock.calls[1]![0].title).not.toBe('Rejected')
+  })
+
+  it('combines cadence and formatted time without repeating a clock already in the summary', () => {
+    expect(buildHabitDetailHeaderSummary('Daily', '09:00', '9:00 AM')).toBe('Daily · 9:00 AM')
+    expect(buildHabitDetailHeaderSummary('Daily at 09:00', '09:00', '9:00 AM')).toBe('Daily at 09:00')
+    expect(buildHabitDetailHeaderSummary('Daily', null, null)).toBe('Daily')
+    expect(buildHabitDetailHeaderSummary(null, '09:00', '9:00 AM')).toBe('9:00 AM')
+    expect(buildHabitDetailHeaderSummary(null, null, null)).toBe('')
+  })
+
+  it('keeps detail completion inside the selected date boundary', () => {
+    const habit = createMockHabit()
+    expect(isHabitDetailCompletionDisabled(habit, '2026-08-28', '2026-08-28')).toBe(false)
+    expect(isHabitDetailCompletionDisabled(habit, '2026-08-20', '2026-08-28')).toBe(true)
+    expect(isHabitDetailCompletionDisabled(habit, '2026-08-29', '2026-08-28')).toBe(true)
+    expect(isHabitDetailCompletionDisabled(null, '2026-08-29', '2026-08-28')).toBe(true)
+    expect(isHabitDetailCompletionDisabled({ ...habit, frequencyUnit: null, isGeneral: false }, '2026-08-29', '2026-08-28')).toBe(false)
   })
 
   it('validates inline times and clears a stale end when the start changes', () => {
