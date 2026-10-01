@@ -13,6 +13,7 @@ import {
   SHAREABLE_ACHIEVEMENT_RARITIES,
 } from '../utils/gamification-selectors'
 import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
+import { createMockProfile } from './factories'
 
 describe('getStreakTierLabelKey', () => {
   it('maps streak length to the tier i18n key at each threshold', () => {
@@ -218,16 +219,17 @@ describe('gamification-selectors', () => {
     })
   })
 
-  it('falls back to profile values when streak info is missing', () => {
+  it.each([null, undefined, { currentStreak: 4 }])('keeps the bank empty without streak bank data: %s', (streakInfo) => {
+    const profile = createMockProfile({ streakFreezesAvailable: 3, currentStreak: 4 })
     expect(
-      deriveStreakFreezeState(null, { streakFreezesAvailable: 1, currentStreak: 4 }, '2025-01-16'),
+      deriveStreakFreezeState(streakInfo, profile, '2025-01-16'),
     ).toMatchObject({
-      freezesAvailable: 1,
+      freezesAvailable: 0,
       isFrozenToday: false,
       hasCompletedToday: false,
       currentStreak: 4,
-      canFreeze: true,
-      streakFreezesAccumulated: 1,
+      canFreeze: false,
+      streakFreezesAccumulated: 0,
     })
   })
 
