@@ -181,7 +181,7 @@ export function MilestoneSharePrompt() {
         </>
       )}
     >
-      <div className="flex flex-col items-center" style={{ gap: 16, paddingTop: 4 }}>
+      <div className="flex flex-col items-center" style={{ gap: 16 }}>
           <MilestoneShareCard ref={captureRef} variant={variant} referralUrl={referralUrl} />
 
           <p

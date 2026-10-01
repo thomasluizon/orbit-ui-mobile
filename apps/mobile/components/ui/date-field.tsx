@@ -333,7 +333,7 @@ export function DateField({
       </Pressable>
 
       {isOpen ? (
-        <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker}>
+        <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE}>
             <DatePickerMonthNav
               pickerMode={pickerMode}
               monthLead={monthLead}

@@ -16,6 +16,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -29,6 +30,12 @@ function NestedReloadSheets() {
 }
 
 describe('Sheet', () => {
+  it('leaves the short widget sheet bottom inset to the primitive', () => {
+    render(<WidgetInfoOverlay open onOpenChange={vi.fn()} t={(key) => key} />)
+    const body = screen.getByRole('dialog').querySelector('[data-slot="sheet-body"]')!
+    const caller = body.firstElementChild!
+    expect(Number.parseFloat(getComputedStyle(caller).paddingBottom) || 0).toBe(0)
+  })
   it('announces a stale action once inside the active dialog', async () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
