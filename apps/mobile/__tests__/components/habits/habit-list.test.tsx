@@ -23,7 +23,13 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  TestRenderer.act(() => {
+    for (const tree of mountedTrees) tree.unmount()
+  })
+  mountedTrees.clear()
+  vi.useRealTimers()
+})
 
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
@@ -51,6 +57,13 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
+const mountedTrees = new Set<{ unmount: () => void }>()
+
+function createTestTree(element: React.ReactElement): ReturnType<typeof TestRenderer.create> {
+  const tree = TestRenderer.create(element)
+  mountedTrees.add(tree)
+  return tree
+}
 const rowRenderCounts = vi.hoisted(() => new Map<string, number>())
 const tokenBuilds = vi.hoisted(() => ({ count: 0 }))
 
@@ -283,31 +296,38 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@/hooks/use-habits', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/use-habits')>()
+  const { useState } = await import('react')
   return ({
-  ...actual,
-  useHabits: (...args: Parameters<typeof actual.useHabits>) => skipFlow.active ? actual.useHabits(...args) : ({
-    data: mockHabitsData,
-    isLoading: false,
-    isFetching: false,
-    dataUpdatedAt: mockHabitsDataUpdatedAt,
-    refetch: habitListRefetch,
-    getChildren: (parentId: string) => {
-      const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
-      return childIds
-        .map((id) => mockHabitsData.habitsById.get(id))
-        .filter(Boolean) as NormalizedHabit[]
+    ...actual,
+    useHabits: (...args: Parameters<typeof actual.useHabits>) => {
+      const [useRealHook] = useState(() => skipFlow.active)
+      return useRealHook ? actual.useHabits(...args) : ({
+        data: mockHabitsData,
+        isLoading: false,
+        isFetching: false,
+        dataUpdatedAt: mockHabitsDataUpdatedAt,
+        refetch: habitListRefetch,
+        getChildren: (parentId: string) => {
+          const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
+          return childIds
+            .map((id) => mockHabitsData.habitsById.get(id))
+            .filter(Boolean) as NormalizedHabit[]
+        },
+      })
     },
-  }),
-  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
-  useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipMutateAsync }),
-  useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
-  useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
-  useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
-  useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
-  useDuplicateHabit: () => ({ mutate: vi.fn() }),
-  useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
-  useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
-})
+    useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
+    useSkipHabit: () => {
+      const [useRealHook] = useState(() => skipFlow.active)
+      return useRealHook ? actual.useSkipHabit() : ({ mutateAsync: skipMutateAsync })
+    },
+    useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
+    useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
+    useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
+    useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
+    useDuplicateHabit: () => ({ mutate: vi.fn() }),
+    useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
+    useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  })
 })
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -532,7 +552,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
   }
 
   TestRenderer.act(() => {
-    TestRenderer.create(<Harness />)
+    createTestTree(<Harness />)
   })
 
   return captured
@@ -601,6 +621,21 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
+  it('keeps a mounted mock HabitList isolated when skip flow becomes active', () => {
+    const renderList = () => <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(renderList()) })
+    try {
+      skipFlow.active = true
+      expect(() => TestRenderer.act(() => tree.update(renderList()))).not.toThrow()
+      expect(tree!.root.findAllByType(HabitRow).map(
+        (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id,
+      )).toEqual(['habit-1'])
+    } finally {
+      TestRenderer.act(() => tree!.unmount())
+    }
+  })
+
   it.each([false, true])('expands and collapses child rows without changing selection (select mode: %s)', (selectMode) => {
     const parent = createMockHabit({ scheduledDates: [TODAY], id: 'parent', title: 'Parent', hasSubHabits: true })
     const child = createMockHabit({ scheduledDates: [TODAY], id: 'child', title: 'Child', parentId: parent.id })
@@ -610,7 +645,7 @@ describe('HabitList', () => {
     const selected = new Set([parent.id])
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted
         isSelectMode={selectMode} selectedHabitIds={selected} onCreatePress={vi.fn()} />)
     })
     const parentRow = () => tree.root.findAllByType(HabitRow).find(
@@ -645,7 +680,7 @@ describe('HabitList', () => {
     seedHabits([confirmed, failed])
     replaySelection.selectedHabitIds = new Set([confirmed.id, failed.id])
     TestRenderer.act(() => {
-      TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${TODAY}T09:00:00Z`)}
+      createTestTree(<HabitList view="today" filters={{}} selectedDate={new Date(`${TODAY}T09:00:00Z`)}
         showCompleted isSelectMode selectedHabitIds={replaySelection.selectedHabitIds} onCreatePress={vi.fn()} />)
     })
 
@@ -672,7 +707,7 @@ describe('HabitList', () => {
     seedHabits([habit])
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{ dateFrom: '2026-09-04', dateTo: '2026-09-04' }}
           selectedDate={new Date('2026-09-04T12:00:00Z')}
           showCompleted onCreatePress={vi.fn()} />,
@@ -708,7 +743,7 @@ describe('HabitList', () => {
       />
     )
     let tree: import('react-test-renderer').ReactTestRenderer
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree = createTestTree(renderList(YESTERDAY)) })
     TestRenderer.act(() => { ref.current?.markRecentlyCompleted(habit.id) })
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
     TestRenderer.act(() => { tree.update(renderList(TODAY)) })
@@ -722,7 +757,7 @@ describe('HabitList', () => {
   it('reuses row tokens when only habit content changes', () => {
     const habit = createMockHabit({ id: 'token-row', title: 'Before' })
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    TestRenderer.act(() => { tree = createTestTree(<HabitRow habit={habit} />) })
     const previousBuilds = tokenBuilds.count
     TestRenderer.act(() => {
       tree.update(<HabitRow habit={{ ...habit, title: 'After' }} />)
@@ -769,7 +804,7 @@ describe('HabitList', () => {
     seedHabits(habits)
     rowRenderCounts.clear()
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
+    TestRenderer.act(() => { tree = createTestTree(renderList()) })
     const initial = totalSince(new Map())
     expect(tree.root.findAllByType(HabitRow)).toHaveLength(60)
     expect(tree.root.findByType(HabitList).props).toMatchObject({
@@ -832,7 +867,7 @@ describe('HabitList', () => {
 
     seedHabits([habit, child])
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList(onEditHabit)) })
+    TestRenderer.act(() => { tree = createTestTree(renderList(onEditHabit)) })
     const firstRow = tree.root.findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === habit.id)
     expect(firstRow).toBeDefined()
@@ -892,7 +927,7 @@ describe('HabitList', () => {
 
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
@@ -940,7 +975,7 @@ describe('HabitList', () => {
 
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
@@ -963,7 +998,7 @@ describe('HabitList', () => {
     seedHabits([])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }}
           selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />,
       )
@@ -978,7 +1013,7 @@ describe('HabitList', () => {
     seedHabits([])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
@@ -989,7 +1024,7 @@ describe('HabitList', () => {
     seedHabits([])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.nothingOpen')
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.emptyState')
@@ -1000,7 +1035,7 @@ describe('HabitList', () => {
     seedHabits([])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.emptyState')
@@ -1013,7 +1048,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'past-due', scheduledDates: [YESTERDAY], isLoggedInRange: true })])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.nothingOpen')
@@ -1028,7 +1063,7 @@ describe('HabitList', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1073,7 +1108,7 @@ describe('HabitList', () => {
     let tree: import('react-test-renderer').ReactTestRenderer
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }}
           showCompleted={false} onCreatePress={vi.fn()} />,
       )
@@ -1089,7 +1124,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'done-due', scheduledDates: [TODAY], isLoggedInRange: true })])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
     })
     expect(tree.root.findAll((node: any) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.type === HabitRow)
@@ -1101,7 +1136,7 @@ describe('HabitList', () => {
     seedHabits([createMockHabit({ id: 'completed-due', scheduledDates: [TODAY], isCompleted: true, isLoggedInRange: false })])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
     })
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.allDoneToday')
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.nothingOpen')
@@ -1145,7 +1180,7 @@ describe('HabitList', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
+      tree = createTestTree(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
       await Promise.resolve()
     })
     await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(1))
@@ -1199,7 +1234,7 @@ describe('HabitList', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     let tree: any
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
+      tree = createTestTree(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
       await Promise.resolve()
     })
     await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
@@ -1224,7 +1259,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1258,7 +1293,7 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'flexible', title: 'Walk', isFlexible: true, frequencyUnit, scheduledDates: [TODAY] })
     seedHabits([habit])
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
     await confirmRowSkip(tree, habit.id)
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY, onUndo: expect.any(Function) })
     expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
@@ -1269,7 +1304,7 @@ describe('HabitList', () => {
     seedHabits([habit])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -1287,7 +1322,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1330,7 +1365,7 @@ describe('HabitList', () => {
     })
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" selectedDate={new Date(`${TOMORROW}T09:00:00Z`)}
           filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
@@ -1381,7 +1416,7 @@ describe('HabitList', () => {
     seedHabits([habit, ...children])
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -1400,7 +1435,7 @@ describe('HabitList', () => {
     sheetTestControls.defer(true)
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -1425,7 +1460,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -1443,7 +1478,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -1465,7 +1500,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1497,7 +1532,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1546,7 +1581,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1598,7 +1633,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1648,7 +1683,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1708,7 +1743,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1790,7 +1825,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
     await TestRenderer.act(async () => {
       await tree.root.findByType(HabitRow).props.actions.onLog()
@@ -1802,7 +1837,7 @@ describe('HabitList', () => {
     })
     seedHabits([{ ...habit, isCompleted: true }])
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
     await TestRenderer.act(async () => {
       await tree.root.findByType(HabitRow).props.actions.onUnlog()
@@ -1841,7 +1876,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
     await TestRenderer.act(async () => {
       await tree.root.findByType(HabitRow).props.actions.onLog()
@@ -1859,7 +1894,7 @@ describe('HabitList', () => {
 
     seedHabits([{ ...habit, isCompleted: true }])
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
     await TestRenderer.act(async () => {
       await tree.root.findByType(HabitRow).props.actions.onUnlog()
@@ -1888,7 +1923,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1943,7 +1978,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -1978,7 +2013,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2008,7 +2043,7 @@ describe('HabitList', () => {
     mockDrillState.drillStack = ['parent']
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2024,7 +2059,7 @@ describe('HabitList', () => {
     expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
     expect(tree.root.findByType('FlatList').props.renderItem({ item: child, index: 0 }).props.structuralColumn).toBe(true)
     let headerTree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType('FlatList').props.ListHeaderComponent) })
+    TestRenderer.act(() => { headerTree = createTestTree(tree.root.findByType('FlatList').props.ListHeaderComponent) })
     expectPressFill(headerTree, 'common.back', createTokensV2().bgHover, 999)
   })
 
@@ -2040,7 +2075,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted={false} onShowCompleted={onShowCompleted} onCreatePress={vi.fn()} />,
       )
     })
@@ -2048,7 +2083,7 @@ describe('HabitList', () => {
     const flatList = tree.root.findByType('FlatList')
     let emptyStateTree: any
     TestRenderer.act(() => {
-      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+      emptyStateTree = createTestTree(flatList.props.ListEmptyComponent)
     })
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
     expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.noSubHabits')
@@ -2070,12 +2105,12 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
     })
     const flatList = tree.root.findByType('FlatList')
     let emptyStateTree: any
     TestRenderer.act(() => {
-      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+      emptyStateTree = createTestTree(flatList.props.ListEmptyComponent)
     })
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
     expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.showCompleted')
@@ -2090,12 +2125,12 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
     })
     const flatList = tree.root.findByType('FlatList')
     let emptyStateTree: any
     TestRenderer.act(() => {
-      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+      emptyStateTree = createTestTree(flatList.props.ListEmptyComponent)
     })
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.noSubHabits')
     expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.filterEmptySubHabits')
@@ -2115,7 +2150,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2128,7 +2163,7 @@ describe('HabitList', () => {
     const flatList = tree.root.findByType('FlatList')
     let emptyStateTree: any
     TestRenderer.act(() => {
-      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+      emptyStateTree = createTestTree(flatList.props.ListEmptyComponent)
     })
 
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('boom')
@@ -2153,7 +2188,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2190,7 +2225,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2238,7 +2273,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2304,7 +2339,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2338,7 +2373,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2380,7 +2415,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -2434,7 +2469,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -2489,7 +2524,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
 
     await TestRenderer.act(async () => {
@@ -2536,7 +2571,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
 
     await TestRenderer.act(async () => {
@@ -2592,7 +2627,7 @@ describe('HabitList', () => {
     )
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
 
     await TestRenderer.act(async () => {
@@ -2639,7 +2674,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
 
     await TestRenderer.act(async () => {
@@ -2691,7 +2726,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -2740,7 +2775,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -2788,7 +2823,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2851,7 +2886,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -2891,7 +2926,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -2943,7 +2978,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -3004,7 +3039,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -3102,7 +3137,7 @@ describe('HabitList', () => {
     )
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList())
+      tree = createTestTree(renderList())
     })
 
     await confirmRowSkip(tree, skippedChild.id)
@@ -3173,7 +3208,7 @@ describe('HabitList', () => {
     )
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList(YESTERDAY))
+      tree = createTestTree(renderList(YESTERDAY))
     })
 
     TestRenderer.act(() => {
@@ -3214,7 +3249,7 @@ describe('HabitList', () => {
       let tree: any
 
       TestRenderer.act(() => {
-        tree = TestRenderer.create(
+        tree = createTestTree(
           <HabitList
             ref={ref}
             view="today"
@@ -3266,7 +3301,7 @@ describe('HabitList', () => {
       const ref = React.createRef<HabitListHandle>()
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => {
-        tree = TestRenderer.create(
+        tree = createTestTree(
           <HabitList ref={ref} view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
         )
       })
@@ -3310,7 +3345,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -3339,7 +3374,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
@@ -3369,7 +3404,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           view="today"
           filters={{}}
@@ -3410,7 +3445,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitRow habit={overdueChild} depth={1} />,
       )
     })
@@ -3430,7 +3465,7 @@ describe('HabitList', () => {
 
     let tree: any
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitRow habit={futureHabit} />)
+      tree = createTestTree(<HabitRow habit={futureHabit} />)
     })
 
     const renderedText = flattenRenderedText(tree.toJSON())
@@ -3460,10 +3495,10 @@ describe('HabitList', () => {
     let nonLoggableTree: any
     let loggableTree: any
     TestRenderer.act(() => {
-      nonLoggableTree = TestRenderer.create(
+      nonLoggableTree = createTestTree(
         <HabitRow habit={nonLoggable} actions={{ onLog }} />,
       )
-      loggableTree = TestRenderer.create(
+      loggableTree = createTestTree(
         <HabitRow habit={loggable} actions={{ onLog }} />,
       )
     })
@@ -3516,7 +3551,7 @@ describe('HabitList', () => {
     let tree: any
 
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -3692,7 +3727,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -3758,7 +3793,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -3833,7 +3868,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -3914,7 +3949,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -3996,7 +4031,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -4069,7 +4104,7 @@ describe('HabitList', () => {
     )
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList(YESTERDAY))
+      tree = createTestTree(renderList(YESTERDAY))
     })
 
     await TestRenderer.act(async () => {
@@ -4120,7 +4155,7 @@ describe('HabitList', () => {
       />
     )
     let tree: import('react-test-renderer').ReactTestRenderer
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree = createTestTree(renderList(YESTERDAY)) })
     TestRenderer.act(() => { tree.update(renderList(TODAY)) })
 
     TestRenderer.act(() => {
@@ -4178,7 +4213,7 @@ describe('HabitList', () => {
       </>
     )
     let tree: import('react-test-renderer').ReactTestRenderer
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree = createTestTree(renderList(YESTERDAY)) })
     TestRenderer.act(() => { tree.update(renderList(TODAY)) })
 
     expect(logMutateAsync).not.toHaveBeenCalled()
@@ -4230,7 +4265,7 @@ describe('HabitList', () => {
     )
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList(YESTERDAY))
+      tree = createTestTree(renderList(YESTERDAY))
     })
 
     await TestRenderer.act(async () => {
@@ -4300,7 +4335,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -4377,7 +4412,7 @@ describe('HabitList', () => {
     )
     let tree: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => {
-      tree = TestRenderer.create(renderList(YESTERDAY))
+      tree = createTestTree(renderList(YESTERDAY))
     })
 
     await TestRenderer.act(async () => {
@@ -4418,7 +4453,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -4468,7 +4503,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
 
     TestRenderer.act(() => {
-      TestRenderer.create(
+      createTestTree(
         <HabitList
           ref={ref}
           view="today"
@@ -4509,7 +4544,7 @@ describe('HabitList', () => {
     seedHabits([parent, acceptedChild, rejectedChild])
     const ref = React.createRef<HabitListHandle>()
     TestRenderer.act(() => {
-      TestRenderer.create(<HabitList ref={ref} view="today" filters={{}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted onCreatePress={vi.fn()} />)
+      createTestTree(<HabitList ref={ref} view="today" filters={{}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted onCreatePress={vi.fn()} />)
     })
     await TestRenderer.act(async () => {
       ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
@@ -4534,7 +4569,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitList ref={ref} view="today" filters={{}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList ref={ref} view="today" filters={{}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted onCreatePress={vi.fn()} />)
     })
     await TestRenderer.act(async () => {
       ref.current?.checkAndPromptParentLog(child.id)
@@ -4555,7 +4590,7 @@ describe('HabitList', () => {
     const ref = React.createRef<HabitListHandle>()
     const renderList = () => <HabitList ref={ref} view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
+    TestRenderer.act(() => { tree = createTestTree(renderList()) })
     const refetch = (isCompleted = true) => TestRenderer.act(() => {
       seedHabits([parent, { ...child, isCompleted }])
       mockHabitsDataUpdatedAt += 1
@@ -4593,7 +4628,7 @@ describe('HabitList', () => {
     function renderTodayList(onScroll?: (offsetY: number) => void) {
       let tree: any
       TestRenderer.act(() => {
-        tree = TestRenderer.create(
+        tree = createTestTree(
           <HabitList
             view="today"
             filters={{}}
