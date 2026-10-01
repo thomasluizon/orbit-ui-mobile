@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { QueryClient } from '@tanstack/query-core'
+import { QueryClientProvider } from '@tanstack/react-query'
+import React from 'react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
@@ -31,6 +33,8 @@ import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+const TestRenderer = require('react-test-renderer')
 
 const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
@@ -156,7 +160,7 @@ const mocks = vi.hoisted(() => {
       mutation: { type: string }
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string, retained: boolean) => unknown
-    }) => Promise.resolve(
+    }): Promise<unknown> => Promise.resolve(
       queuedResultFactory?.('mutation-1', false) ?? queuedResult ?? {
         queued: true as const,
         queuedMutationId: 'mutation-1',
@@ -200,6 +204,7 @@ const mocks = vi.hoisted(() => {
     setStreakCelebration: vi.fn(),
     checkAllDoneCelebration: vi.fn(),
     useRealUIStore: false,
+    useRealQueryHooks: false,
     invalidateHabitMutationQueries: vi.fn(async () => {}),
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -208,18 +213,23 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: mocks.useQuery,
-  useQueryClient: mocks.useQueryClient,
-  useMutation: mocks.useMutation,
-  focusManager: { setEventListener: () => {} },
-  onlineManager: { setEventListener: () => {} },
-  QueryClient: class {
-    getDefaultOptions() {
-      return {}
-    }
-  },
-}))
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQuery: mocks.useQuery,
+    useQueryClient: () => mocks.useRealQueryHooks ? actual.useQueryClient() : mocks.useQueryClient(),
+    useMutation: (...parameters: Parameters<typeof actual.useMutation>) => mocks.useRealQueryHooks
+      ? actual.useMutation(...parameters) : mocks.useMutation(parameters[0]),
+    focusManager: { setEventListener: () => {} },
+    onlineManager: { setEventListener: () => {} },
+    QueryClient: class {
+      getDefaultOptions() {
+        return {}
+      }
+    },
+  }
+})
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
@@ -498,6 +508,7 @@ describe('mobile habit hooks', () => {
     mocks.setStreakCelebration.mockClear()
     mocks.checkAllDoneCelebration.mockClear()
     mocks.useRealUIStore = false
+    mocks.useRealQueryHooks = false
     mocks.invalidateHabitMutationQueries.mockClear()
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
@@ -2223,7 +2234,8 @@ describe('mobile habit hooks', () => {
     const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     undoAction()
     const undoInput = mocks.restoreHabitMutate.mock.calls.at(-1)![0] as Parameters<typeof undo.mutationFn>[0]
-    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: 1, isLoggedInRange: true }])
+    const skipped = client.getQueryData<HabitScheduleItem[]>(key)![0]!
+    client.setQueryData(key, [{ ...skipped, flexibleCompleted: 1, isLoggedInRange: true }])
     vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('cancelled')
     const restored = await undo.mutationFn(undoInput)
     undo.onSuccess?.(restored, undoInput, undefined)
@@ -2231,6 +2243,47 @@ describe('mobile habit hooks', () => {
       flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
     })
     client.clear()
+  })
+
+  it('keeps an authoritative flexible target when a restored-state refetch finishes before Undo', async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeHabit({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    let skip!: ReturnType<typeof useSkipHabit>
+    function Probe() {
+      skip = useSkipHabit()
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      mocks.runQueuedMutation.mockResolvedValueOnce(undefined)
+      await TestRenderer.act(() => skip.mutateAsync({ habitId: row.id, date }))
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({ flexibleTarget: 1, scheduledDates: [] })
+      const undoAction = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+      let finishUndo!: () => void
+      mocks.runQueuedMutation.mockImplementationOnce(() => new Promise<void>((resolve) => { finishUndo = resolve }))
+      await TestRenderer.act(() => { undoAction() })
+      await vi.waitFor(() => expect(finishUndo).toBeTypeOf('function'))
+      const refreshed = { ...row, flexibleCompleted: 1, isLoggedInRange: true }
+      await client.fetchQuery({ queryKey: key, queryFn: () => Promise.resolve([refreshed]) })
+      expect(client.getQueryData(key)).toEqual([refreshed])
+      await TestRenderer.act(() => { finishUndo() })
+      await vi.waitFor(() => expect(client.isMutating()).toBe(0))
+      expect(client.getQueryData(key)).toEqual([refreshed])
+    } finally {
+      await TestRenderer.act(() => { renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      vi.unstubAllGlobals()
+      client.clear()
+    }
   })
 
   it('keeps an actionable undo after restoration fails', () => {

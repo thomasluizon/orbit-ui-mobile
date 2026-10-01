@@ -125,6 +125,7 @@ function reverseSkippedOccurrence<T extends HabitTreeNode>(
   previous: T,
   { date, postponed }: { date: string; postponed: boolean },
 ): T {
+  const occurrencePresent = current.scheduledDates?.includes(date) || current.instances.some((instance) => instance.date === date)
   const postponedDate = postponed ? getTomorrowDateString(date) : null
   const hasLaterLog = current.instances.some((instance) => instance.date === postponedDate &&
     (instance.status === 'Completed' || instance.logId !== null))
@@ -145,7 +146,8 @@ function reverseSkippedOccurrence<T extends HabitTreeNode>(
     scheduledDates,
     instances: instances.sort((first, second) => first.date.localeCompare(second.date)),
     isOverdue: dueDate === previous.dueDate && dueDate === date ? previous.isOverdue : current.isOverdue,
-    ...(current.isFlexible && current.flexibleTarget != null ? { flexibleTarget: current.flexibleTarget + 1 } : {}),
+    ...(current.isFlexible && current.flexibleTarget != null && !occurrencePresent
+      ? { flexibleTarget: current.flexibleTarget + 1 } : {}),
   }
 }
 

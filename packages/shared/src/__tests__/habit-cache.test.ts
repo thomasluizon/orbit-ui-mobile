@@ -140,13 +140,42 @@ describe('skip undo cache', () => {
     const row = createMockHabitScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
       dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
     const snapshot: HabitListSnapshots = [[key, [row]]]
-    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: completed, isLoggedInRange: completed > 0 }])
+    client.setQueryData(key, [{ ...row, ...buildOptimisticSkipPatch(row, date),
+      flexibleCompleted: completed, isLoggedInRange: completed > 0 }])
 
     restoreCachedHabitSkip(client, snapshot, row.id, { date, postponed: false })
 
     expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
       flexibleTarget: 2, flexibleCompleted: completed, isLoggedInRange: completed > 0,
     })
+  })
+
+  it.each([
+    { removed: false, restoredIn: 'scheduledDates' },
+    { removed: false, restoredIn: 'instances' },
+    { removed: true, restoredIn: 'scheduledDates' },
+    { removed: true, restoredIn: 'instances' },
+  ])('keeps a restored flexible target from $restoredIn after row removal $removed', ({ removed, restoredIn }) => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = createMockHabitScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const snapshot = client.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+    applyCachedHabitSkip(client, row.id, date)
+    client.setQueryData(key, [{ ...row, flexibleCompleted: 1, isLoggedInRange: true,
+      scheduledDates: restoredIn === 'scheduledDates' ? row.scheduledDates : [],
+      instances: restoredIn === 'instances' ? row.instances : [] }])
+    if (removed) client.setQueryData(key, [])
+    for (let restoration = 0; restoration < 2; restoration++) {
+      restoreCachedHabitSkip(client, snapshot, row.id, { date, postponed: false })
+      expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
+        flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
+        scheduledDates: [date], instances: row.instances,
+      })
+    }
+    client.clear()
   })
 
   it('restores only the skipped schedule while keeping sibling and child changes', () => {

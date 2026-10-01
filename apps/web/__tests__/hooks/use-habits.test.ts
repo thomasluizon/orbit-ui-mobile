@@ -1011,11 +1011,38 @@ describe('useSkipHabit', () => {
     const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
     await act(() => result.current.mutateAsync({ habitId: 'h-1', date }))
     const undo = mockShowQueued.mock.calls.at(-1)![2] as () => void
-    client.setQueryData(key, [{ ...row, flexibleTarget: 1, flexibleCompleted: 1, isLoggedInRange: true }])
+    const skipped = client.getQueryData<HabitScheduleItem[]>(key)![0]!
+    client.setQueryData(key, [{ ...skipped, flexibleCompleted: 1, isLoggedInRange: true }])
     await act(async () => { undo() })
     await waitFor(() => expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({
       flexibleTarget: 2, flexibleCompleted: 1, isLoggedInRange: true,
     }))
+    client.clear()
+  })
+
+  it('keeps an authoritative flexible target when a restored-state refetch finishes before Undo', async () => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    let finishUndo!: () => void
+    vi.mocked(actions.undoSkipHabit).mockImplementation(() => new Promise<void>((resolve) => { finishUndo = resolve }))
+    const client = createQueryClient()
+    const key = habitKeys.list({})
+    const date = '2026-09-12'
+    const row = makeScheduleItem({ isFlexible: true, flexibleTarget: 2, flexibleCompleted: 0,
+      dueDate: date, scheduledDates: [date], instances: [{ date, status: 'Pending', logId: null }] })
+    client.setQueryData(key, [row])
+    const { result } = renderHook(() => useSkipHabit(), { wrapper: createWrapper(client) })
+    await act(() => result.current.mutateAsync({ habitId: row.id, date }))
+    expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]).toMatchObject({ flexibleTarget: 1, scheduledDates: [] })
+    const undo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    act(() => { undo() })
+    await waitFor(() => expect(finishUndo).toBeTypeOf('function'))
+    const refreshed = { ...row, flexibleCompleted: 1, isLoggedInRange: true }
+    await act(() => client.fetchQuery({ queryKey: key, queryFn: () => Promise.resolve([refreshed]) }))
+    expect(client.getQueryData(key)).toEqual([refreshed])
+    await act(async () => { finishUndo() })
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(client.getQueryData(key)).toEqual([refreshed])
     client.clear()
   })
 
