@@ -11,7 +11,7 @@ import { AppToastHost } from '@/components/ui/app-toast-host'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
@@ -200,6 +200,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   })
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useAccountScopedState(false)
+  const { sheetRef: calendarSheetRef, closeSheet: closeCalendarSheet } = useSheetHost()
   const [calendarPromptOffered, setCalendarPromptOffered] = useAccountScopedState(false)
   const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
   const calendarPromptId = useId()
@@ -224,6 +225,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [calendarPromptId, showCalendarPrompt, unregisterOpenOverlay])
 
   const [showImportPrompt, setShowImportPrompt] = useAccountScopedState(false)
+  const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost()
   const [importPromptOffered, setImportPromptOffered] = useAccountScopedState(false)
 
   const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
@@ -271,13 +273,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
 
   const handleCalendarImport = useCallback(() => {
-    setShowCalendarPrompt(false)
-    dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+    closeCalendarSheet(() => {
+      handleDismissCalendarPrompt()
+      setRouteTransitionIntent('forward')
+      router.push('/calendar?import=1')
     })
-    setRouteTransitionIntent('forward')
-    router.push('/calendar?import=1')
-  }, [router, setShowCalendarPrompt, showPersistentError, t])
+  }, [closeCalendarSheet, handleDismissCalendarPrompt, router])
 
 
   const handleCalendarPromptOpenChange = useCallback(
@@ -299,20 +300,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
 
   const handleImportWithAstra = useCallback(() => {
-    setShowImportPrompt(false)
-    dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('errorScreen.reload'))
+    closeImportSheet(() => {
+      handleDismissImportPrompt()
+      if ('localStorage' in globalThis) {
+        globalThis.localStorage.setItem(
+          CHAT_DRAFT_STORAGE_KEY,
+          t('onboarding.flow.meetAstra.importPrompt'),
+        )
+      }
+      setRouteTransitionIntent('forward')
+      setAstraConversationOpen(true)
     })
-    patchProfile({ hasSeenImportPrompt: true })
-    if ('localStorage' in globalThis) {
-      globalThis.localStorage.setItem(
-        CHAT_DRAFT_STORAGE_KEY,
-        t('onboarding.flow.meetAstra.importPrompt'),
-      )
-    }
-    setRouteTransitionIntent('forward')
-    setAstraConversationOpen(true)
-  }, [patchProfile, setAstraConversationOpen, setShowImportPrompt, showPersistentError, t])
+  }, [closeImportSheet, handleDismissImportPrompt, setAstraConversationOpen, t])
 
 
   const handleImportPromptOpenChange = useCallback(
@@ -394,13 +393,15 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           hasPendingOnboardingAnswers,
         })}
         showCalendarPrompt={showCalendarPrompt}
+        calendarSheetRef={calendarSheetRef}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
         onCalendarImport={handleCalendarImport}
-        onDismissCalendarPrompt={handleDismissCalendarPrompt}
+        onDismissCalendarPrompt={() => closeCalendarSheet(handleDismissCalendarPrompt)}
         showImportPrompt={showImportPrompt}
+        importSheetRef={importSheetRef}
         onImportPromptOpenChange={handleImportPromptOpenChange}
         onImportWithAstra={handleImportWithAstra}
-        onDismissImportPrompt={handleDismissImportPrompt}
+        onDismissImportPrompt={() => closeImportSheet(handleDismissImportPrompt)}
       />
 
       {showCreateModal && (
@@ -423,10 +424,12 @@ function GlobalOverlays({
   canViewGamification,
   suppressOnboardingOverlay,
   showCalendarPrompt,
+  calendarSheetRef,
   onCalendarPromptOpenChange,
   onCalendarImport,
   onDismissCalendarPrompt,
   showImportPrompt,
+  importSheetRef,
   onImportPromptOpenChange,
   onImportWithAstra,
   onDismissImportPrompt,
@@ -435,10 +438,12 @@ function GlobalOverlays({
   canViewGamification: boolean
   suppressOnboardingOverlay: boolean
   showCalendarPrompt: boolean
+  calendarSheetRef: ReturnType<typeof useSheetHost>['sheetRef']
   onCalendarPromptOpenChange: (open: boolean) => void
   onCalendarImport: () => void
   onDismissCalendarPrompt: () => void
   showImportPrompt: boolean
+  importSheetRef: ReturnType<typeof useSheetHost>['sheetRef']
   onImportPromptOpenChange: (open: boolean) => void
   onImportWithAstra: () => void
   onDismissImportPrompt: () => void
@@ -515,6 +520,7 @@ function GlobalOverlays({
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePrompt />}
       {showCalendarPrompt && !showRetainedOnboarding ? (<Sheet
+        ref={calendarSheetRef}
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
@@ -536,6 +542,7 @@ function GlobalOverlays({
         </div>
       </Sheet>) : null}
       {showImportPrompt && !showRetainedOnboarding ? (<Sheet
+        ref={importSheetRef}
         open
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
