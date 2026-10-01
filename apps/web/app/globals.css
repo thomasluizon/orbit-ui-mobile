@@ -1162,6 +1162,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .orbit-link-action-persistent::after {
   content: none;
 }
+
+.today-astra-action {
+  margin-inline-start: 4px;
+  color: var(--fg-1);
+  font-weight: 500;
+  text-decoration-color: var(--hairline-strong);
+  transition: text-decoration-color var(--dur-hover) var(--ease-standard);
+}
+
+.today-astra-action:active {
+  text-decoration-color: var(--fg-1);
+}
 }
 
 .today-astra-action::before {
@@ -1199,6 +1211,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
   .orbit-link-action:hover::after {
     transform: scaleX(1);
+  }
+
+  .today-astra-action:hover {
+    text-decoration-color: var(--fg-1);
   }
   }
 }

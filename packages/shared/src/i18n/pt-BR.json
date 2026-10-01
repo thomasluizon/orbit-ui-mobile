@@ -549,6 +549,7 @@
     },
     "backToHabits": "Hábitos",
     "completed": "concluídos",
+    "rowProgress": "{done} de {total}",
     "drillProgress": "{done} de {total} feitos",
     "skipConfirmTitle": "Pular {name}?",
     "skipConfirmMessage": "A data passa para a próxima ocorrência, sem registro.",

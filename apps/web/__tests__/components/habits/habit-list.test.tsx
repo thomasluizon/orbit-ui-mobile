@@ -3,6 +3,13 @@ import { render, screen, fireEvent, act, within, waitFor } from '@testing-librar
 import React from 'react'
 import userEvent from '@testing-library/user-event'
 import { renderToString } from 'react-dom/server'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
@@ -385,6 +392,118 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
+    const single = createMockHabit({ id: 'single', title: 'Single', scheduledDates: [TODAY] })
+    for (const habit of [parent, child, single]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent, single]
+    const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
+    const cssPath = resolve(process.cwd(), 'app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      for (const mode of ['dark', 'light'] as const) {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
+        const page = await browser.newPage()
+        await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
+        const panels = await page.locator('.habit-panel').evaluateAll((elements) => elements.map((panel) => {
+          const row = panel.querySelector('[data-testid="habit-row"]')!
+          const well = row.querySelector('[data-habit-row-body] > span')!
+          const bounds = panel.getBoundingClientRect()
+          const wellBounds = well.getBoundingClientRect()
+          const track = row.querySelector('circle')
+          return {
+            height: bounds.height,
+            top: wellBounds.top - bounds.top,
+            bottom: bounds.bottom - wellBounds.bottom,
+            track: track ? getComputedStyle(track).stroke : null,
+            card: getComputedStyle(panel).backgroundColor,
+            canvas: getComputedStyle(document.body).backgroundColor,
+          }
+        }))
+        expect(panels).toHaveLength(2)
+        expect(panels[0]?.track).toBe(mode === 'dark' ? 'rgb(122, 122, 125)' : 'rgb(127, 127, 131)')
+        for (const panel of panels) {
+          expect(panel.height).toBe(68)
+          expect(panel.top).toBeCloseTo(panel.bottom, 1)
+          if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
+        }
+        await page.close()
+      }
+    } finally {
+      await closeChrome(launch)
+    }
+  }, 45_000)
+
+  it('shows only the time on timed rows and no routine meta on untimed rows', () => {
+    rowImplementation.actual = true
+    const habits = [
+      createMockHabit({ id: 'timed', title: 'Timed', dueTime: '21:00', scheduledDates: [TODAY] }),
+      createMockHabit({ id: 'untimed', title: 'Untimed', scheduledDates: [TODAY],
+        checklistItems: [{ text: 'One', isChecked: true }] }),
+    ]
+    for (const habit of habits) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = habits
+    renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const [timed, untimed] = screen.getAllByTestId('habit-row')
+    expect(timed).toHaveTextContent(/21:00|9:00/)
+    expect(timed).not.toHaveTextContent('habits.frequency')
+    expect(untimed).not.toHaveTextContent(/habits.frequency|1\/1/)
+  })
+
+  it('shows the derived child count instead of a parent schedule or checklist', () => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true,
+      dueTime: '21:00', scheduledDates: [TODAY] })
+    const children = [false, true].map((isCompleted, index) => createMockHabit({
+      id: `child-${index}`, title: `Child ${index}`, parentId: parent.id, isCompleted, scheduledDates: [TODAY],
+    }))
+    for (const habit of [parent, ...children]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, children.map((child) => child.id))
+    mockHabitsData.topLevelHabits = [parent]
+    renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const row = screen.getAllByTestId('habit-row')[0]!
+    expect(row).toHaveTextContent('habits.rowProgress({"done":1,"total":2})')
+    expect(row).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+  })
+
+  it.each([
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: ['habits.overdue'] },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      words: ['habits.statusDot.bad'] },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      words: ['habits.overdue', 'habits.statusDot.bad'] },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      words: [] },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      words: [] },
+  ])('preserves parent progress and applicable state words for $label', ({ label, words, ...flags }) => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ id: 'parent', title: label, hasSubHabits: true,
+      dueTime: '21:00', scheduledDates: [TODAY], ...flags })
+    const children = [false, true].map((isCompleted, index) => createMockHabit({
+      id: `child-${index}`, title: `Child ${index}`, parentId: parent.id, isCompleted, scheduledDates: [TODAY],
+    }))
+    for (const habit of [parent, ...children]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, children.map((child) => child.id))
+    mockHabitsData.topLevelHabits = [parent]
+    renderWithProviders(<HabitList view="today" showCompleted
+      filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const row = screen.getAllByTestId('habit-row')[0]!
+    const progress = within(row).getByText(/habits\.rowProgress/)
+    expect(progress).toHaveTextContent(['habits.rowProgress({"done":1,"total":2})', ...words].join('·'))
+    for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
+      if (!words.includes(word)) expect(progress).not.toHaveTextContent(word)
+    }
+    expect(progress).not.toHaveTextContent(/21:00|9:00|habits.frequency/)
+  })
+
   it('explains an offline sub-habit request beside the parent row', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     try {

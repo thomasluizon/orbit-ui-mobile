@@ -10,7 +10,7 @@ interface ParentRingProps {
   size?: number
   /** Progress stroke color (defaults to `primary`). */
   stroke?: string
-  /** Track stroke color (defaults to `hairlineStrong`). */
+  /** Track stroke color (defaults to `trackEmpty`). */
   trackColor?: string
 }
 
@@ -41,7 +41,7 @@ export function ParentRing({ done, total, size = 12, stroke, trackColor }: Reado
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={trackColor ?? tokens.hairlineStrong}
+          stroke={trackColor ?? tokens.trackEmpty}
           strokeWidth={1.5}
         />
         <Circle

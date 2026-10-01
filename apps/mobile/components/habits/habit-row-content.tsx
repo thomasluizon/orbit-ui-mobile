@@ -27,7 +27,8 @@ export function HabitRowContent({
   tokens,
 }: Readonly<HabitRowContentProps>) {
   const { t } = useTranslation()
-  const metaKeys = metaParts.map((_, index) => `meta-part-${index}`)
+  const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
+  const metaKeys = visibleMeta.map((_, index) => `meta-part-${index}`)
   return (
     <View style={styles.titleBlock}>
       <Text
@@ -43,12 +44,12 @@ export function HabitRowContent({
         {habit.title}
       </Text>
 
-      {metaParts.length > 0 ? (
+      {visibleMeta.length > 0 ? (
         <Text
           numberOfLines={1}
           style={[styles.meta, { color: tokens.fg3 }]}
         >
-          {metaParts.map((part, i) => {
+          {visibleMeta.map((part, i) => {
             let partContent: ReactNode
             if (typeof part === 'string') partContent = part
             else if (part.kind === 'future') partContent = part.label

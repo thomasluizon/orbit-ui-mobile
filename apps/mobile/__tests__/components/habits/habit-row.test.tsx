@@ -60,6 +60,64 @@ function renderRowText(habit: ReturnType<typeof createMockHabit>): string[] {
 }
 
 describe('HabitRow canonical content (mobile)', () => {
+  it('shows time alone and omits routine meta on an untimed single row', () => {
+    const timed = renderRowText(createMockHabit({ dueTime: '21:00' }))
+    expect(timed).toContain('21:00')
+    expect(timed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    const untimed = renderRowText(createMockHabit({ checklistItems: [{ text: 'One', isChecked: true }] }))
+    expect(untimed.some((text) => text.includes('habits.frequency'))).toBe(false)
+    expect(untimed).not.toContain('1/1')
+  })
+
+  it('shows child progress instead of the parent schedule', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ dueTime: '21:00' })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text).toContain('habits.rowProgress')
+    expect(text).not.toContain('21:00')
+  })
+
+  it.each([
+    { label: 'overdue', isOverdue: true, isBadHabit: false, isCompleted: false, isLoggedInRange: false,
+      words: ['habits.overdue'] },
+    { label: 'completed slip', isOverdue: false, isBadHabit: true, isCompleted: true, isLoggedInRange: false,
+      words: ['habits.statusDot.bad'] },
+    { label: 'recorded slip', isOverdue: true, isBadHabit: true, isCompleted: false, isLoggedInRange: true,
+      words: ['habits.overdue', 'habits.statusDot.bad'] },
+    { label: 'unrecorded bad habit', isOverdue: false, isBadHabit: true, isCompleted: false, isLoggedInRange: false,
+      words: [] },
+    { label: 'completed overdue habit', isOverdue: true, isBadHabit: false, isCompleted: true, isLoggedInRange: false,
+      words: [] },
+  ])('renders parent progress with applicable state words for $label', ({ label, words, ...flags }) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title: label,
+        dueTime: '21:00', hasSubHabits: true, ...flags })}
+        hasChildren childrenDone={1} childrenTotal={2} />)
+    })
+    const text = collectStrings(tree!.toJSON())
+    expect(text.filter((part) => part.startsWith('habits.rowProgress') || words.includes(part)))
+      .toEqual(['habits.rowProgress', ...words])
+    for (const word of ['habits.overdue', 'habits.statusDot.bad']) {
+      if (!words.includes(word)) expect(text).not.toContain(word)
+    }
+    expect(text).not.toContain('21:00')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([false, true])('uses the empty track for parent selection mode %s', (isSelectMode) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit()} hasChildren
+        childrenDone={1} childrenTotal={2} isSelectMode={isSelectMode} />)
+    })
+    const circles = tree!.root.findAllByType('Circle')
+    expect(circles[0].props.stroke).toBe(createTokensV2('purple', 'dark').trackEmpty)
+  })
+
   it('shows a one-day habit row without an internal type label', () => {
     const texts = renderRowText(createMockHabit({ title: 'Pay bill', frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }))
     expect(texts).toContain('Pay bill')

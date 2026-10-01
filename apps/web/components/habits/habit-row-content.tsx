@@ -23,10 +23,13 @@ export function HabitRowContent({
   titleColor,
   meta,
 }: Readonly<HabitRowContentProps>) {
+  const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
+  const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
       <TitleText title={habit.title} size={titleSize} color={titleColor} />
-      {meta.length > 0 ? <MetaStrip tokens={meta} /> : null}
+      {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
+      {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
   )
 }

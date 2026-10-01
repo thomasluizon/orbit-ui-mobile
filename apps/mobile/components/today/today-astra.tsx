@@ -57,7 +57,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
     <View style={styles.line}>
       <AstraGlyph size={20} color={tokens.fg3} />
       <Text style={[styles.text, { color: tokens.fg2 }]}>
-        {line.text}{' '}
+        {line.text}
         <Pressable
           accessibilityRole="link"
           hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
@@ -73,7 +73,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             }
           }}
         >
-          <Text style={[styles.action, { color: actionPressed ? tokens.fg1 : tokens.fg2 }]}>{line.action}</Text>
+          <Text style={[styles.action, { color: tokens.fg1, opacity: actionPressed ? 0.85 : 1 }]}>{line.action}</Text>
         </Pressable>
       </Text>
     </View>
@@ -83,6 +83,6 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
 const styles = StyleSheet.create({
   line: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 0, paddingBottom: 12, paddingTop: 8 },
   text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  actionTarget: { minWidth: 44, minHeight: 44, justifyContent: 'flex-end' },
-  action: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textDecorationLine: 'underline' },
+  actionTarget: { paddingStart: 4 },
+  action: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, textDecorationLine: 'underline' },
 })

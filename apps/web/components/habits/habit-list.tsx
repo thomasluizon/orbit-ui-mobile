@@ -9,7 +9,6 @@ import {
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   computeHabitCardStatus,
-  computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
@@ -1210,15 +1209,10 @@ export function HabitList({
     return 'empty'
   }
 
-  function buildMetaTokens(habit: NormalizedHabit): HabitRowMetaToken[] {
+  function buildMetaTokens(habit: NormalizedHabit, childProgress?: { done: number; total: number }): HabitRowMetaToken[] {
     const tokens: HabitRowMetaToken[] = []
-    const freqLabel = computeHabitFrequencyLabel(habit, t)
-    if (freqLabel) tokens.push(freqLabel)
-    if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
-    if (habit.checklistItems.length > 0) {
-      const done = habit.checklistItems.filter((c) => c.isChecked).length
-      tokens.push(`${done}/${habit.checklistItems.length}`)
-    }
+    if (childProgress) tokens.push(t('habits.rowProgress', childProgress))
+    else if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
     if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
     }
@@ -1243,12 +1237,12 @@ export function HabitList({
       childPanelId?: string
     },
   ) {
-    const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
+    const progress = hasChildren ? getChildrenProgress(habit.id) : undefined
     const displayDepth: 0 | 1 = depth === 0 ? 0 : 1
     const isChild = displayDepth === 1
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, recentlyCompleted)
-    const meta = buildMetaTokens(habit)
+    const meta = buildMetaTokens(habit, progress)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const boundary = getTodayBoundary(selectedDateStr, todayStr)
     const completionReadOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
@@ -1273,7 +1267,7 @@ export function HabitList({
         hasSubHabits={hasSubHabits}
         expanded={!collapsedIds.has(habit.id)}
         childPanelId={options?.childPanelId}
-        childProgress={hasChildren ? progress : undefined}
+        childProgress={progress}
         showLinkedGoalDot={hasLinkedGoal}
         actions={{
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
@@ -1302,9 +1296,9 @@ export function HabitList({
           onEnterSelectMode: () => onEnterSelectMode?.(habit.id),
         }}
       />
-      <div aria-live="polite" aria-atomic="true" className="px-4 pb-3">
+      <div aria-live="polite" aria-atomic="true" className="contents">
         {refusedSubHabitParentId === habit.id && drill.currentParentId !== habit.id && !isOnline
-          ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} />
+          ? <div className="px-4 pb-3"><OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /></div>
           : null}
       </div>
       </Fragment>
