@@ -54,7 +54,7 @@ export function RadioGroup({ children, onCommit, focusRequest, ...props }: Reado
   useEffect(() => {
     if (!focusRequest) return
     const firstElement = elementsRef.current.values().next().value
-    firstElement?.focus()
+    firstElement?.setNativeProps({ hasTVPreferredFocus: true })
     if (firstElement) AccessibilityInfo.sendAccessibilityEvent(firstElement, 'focus')
   }, [focusRequest])
   const armedRedirectRef = useRef<ArmedRedirect | null>(null)

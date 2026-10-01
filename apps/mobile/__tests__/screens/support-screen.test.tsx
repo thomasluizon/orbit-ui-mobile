@@ -169,7 +169,11 @@ describe('SupportScreen', () => {
     mocks.translations.clear()
   })
 
-  it('shows both errors on an empty submit and focuses the subject first without sending', async () => {
+  it.each([
+    ['touch', true],
+    ['keyboard', false],
+  ] as const)('shows both errors on an empty %s submit and focuses the subject first without sending', async (_mode, touchMode) => {
+    __setTouchMode(touchMode)
     const tree = await renderScreen()
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     await TestRenderer.act(async () => {
