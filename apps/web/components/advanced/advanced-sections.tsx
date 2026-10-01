@@ -35,7 +35,7 @@ export function WidgetInfoOverlay({
           </h3>
           <ul className="flex flex-col gap-2 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
             {WIDGET_FEATURES.map((feature) => {
-              const iconProps = { size: 16, strokeWidth: 1.8, className: 'mt-0.5 shrink-0 text-[var(--primary)]' }
+              const iconProps = { size: 16, strokeWidth: 1.8, className: 'mt-0.5 shrink-0 text-[var(--fg-3)]' }
               const icons = {
                 checkCircle: <CheckCircle {...iconProps} />,
                 clock: <Clock {...iconProps} />,
