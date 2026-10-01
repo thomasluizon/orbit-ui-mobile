@@ -35,7 +35,6 @@ export function useNotifications() {
     queryKey: notificationKeys.lists(),
     queryFn: () => apiClient<NotificationsResponse>(API.notifications.list, undefined, notificationsResponseSchema),
     staleTime: QUERY_STALE_TIMES.notifications,
-    refetchOnWindowFocus: true,
     refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
     refetchIntervalInBackground: false,
   })

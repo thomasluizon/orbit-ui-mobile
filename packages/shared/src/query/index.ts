@@ -34,7 +34,7 @@ export {
 } from './habit-cache'
 
 export {
-  accountChangeQueryKeys, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
+  accountChangeQueryKeys, configureAccountQueryDefaults, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
 } from './account-events'
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'

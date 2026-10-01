@@ -205,14 +205,14 @@ describe('account events', () => {
     expect(calls).toEqual(['open', 'reconnect', 'failure', 'open', 'reconnect', 'open', 'reconnect'])
   })
 
-  it('leaves a gap after an event id to the server replay', async () => {
+  it('refreshes a failed reopen with an event id and preserves server replay', async () => {
     const open = vi.fn()
       .mockResolvedValueOnce(closedStream(`id: epoch.1\nevent: changes\ndata: ${JSON.stringify(payload)}\n\n`))
       .mockRejectedValueOnce(new Error('ticket unavailable'))
       .mockResolvedValueOnce(closedStream())
     const calls = await recordStreamCallbacks(open, { resumed: true }, 3000)
     expect(open.mock.calls.map((call) => call[1])).toEqual([null, 'epoch.1', 'epoch.1'])
-    expect(calls).toEqual(['open', 'reconnect', 'reconnect'])
+    expect(calls).toEqual(['open', 'reconnect', 'failure', 'cursor open', 'reconnect'])
   })
 })
 
@@ -251,7 +251,7 @@ async function recordStreamCallbacks(
       open,
       signal: controller.signal,
       onEvent: () => {},
-      onOpen: () => { calls.push('open') },
+      onOpen: (_openedAt, hasReplayCursor) => { calls.push(hasReplayCursor ? 'cursor open' : 'open') },
       onFirstFailure: () => { calls.push('failure') },
       onReconnect: () => { calls.push('reconnect') },
     })
