@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
@@ -194,6 +195,28 @@ describe('SupportScreen', () => {
     const tree = await renderScreen()
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')
       .map((node) => node.props.children)).toContain('Support')
+  })
+
+  it.each([en, ptBR])('announces required fields before validation with localized wording', async (messages) => {
+    mocks.translations.set('common.required', messages.common.required)
+    const tree = await renderScreen()
+    const group = tree.root.findAll((node) => node.type === View && node.props.accessibilityRole === 'radiogroup')[0]!
+    expect(group.props.accessibilityHint).toBe(messages.common.required)
+    const choices = findSubjectChoices(tree.root)
+    expect(choices).toHaveLength(4)
+    expect(choices.every((choice) => choice.props.accessibilityHint === messages.common.required)).toBe(true)
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(messages.common.required)
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint).toBe('profile.support.emailLockedReason')
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(findSubjectChoices(tree.root).every((choice) => choice.props.accessibilityHint === `${messages.common.required} profile.support.subjectRequired`)).toBe(true)
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(`${messages.common.required} profile.support.messageRequired`)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('does not render an editable name field', async () => {
@@ -500,7 +523,7 @@ describe('SupportScreen', () => {
     const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
     expect(messageInput.props.value).toBe(message)
     expect(messageInput.props.maxLength).toBe(5000)
-    expect(messageInput.props.accessibilityHint).toBe(overLimit)
+    expect(messageInput.props.accessibilityHint).toBe(`common.required ${overLimit}`)
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(sendReason)
 
@@ -729,6 +752,7 @@ describe('SupportScreen', () => {
     ).toBe(true)
     expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
     expect(choices.every((choice) => choice.props.focusable === false)).toBe(true)
+    expect(choices.every((choice) => choice.props.accessibilityHint === 'common.required')).toBe(true)
     expect(
       (choices[0]!.props.accessibilityState as { checked: boolean }).checked,
     ).toBe(true)

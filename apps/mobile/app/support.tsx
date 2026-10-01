@@ -148,7 +148,7 @@ function SupportForm({
         <RadioGroup
           accessibilityLabel={t('profile.support.subject')}
           focusRequest={subjectFocusRequest}
-          accessibilityHint={subjectError ?? undefined}
+          accessibilityHint={[t('common.required'), subjectError].filter(Boolean).join(' ')}
           onBlur={onSubjectBlur}
           style={{ gap: 4 }}
         >
@@ -181,6 +181,7 @@ function SupportForm({
       </View>
       <Input
         label={t('profile.support.message')}
+        required
         value={message}
         onChange={onChangeMessage}
         placeholder={t('profile.support.messagePlaceholder')}
