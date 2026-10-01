@@ -20,12 +20,34 @@ const mocks = vi.hoisted(() => ({
   profileLoaded: true,
   lastDestination: 'hoje',
   setLastDestination: vi.fn(),
+  requestHeaders: {} as Record<string, string>,
 }))
 
 vi.mock('next-intl', () => ({
+  NextIntlClientProvider: ({ children }: { children: ReactNode }) => children,
   useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
+vi.mock('next-intl/server', () => ({
+  getLocale: async () => 'en',
+  getMessages: async () => ({}),
+}))
+vi.mock('next/headers', async () => {
+  const { HeadersAdapter } = await import('next/dist/server/web/spec-extension/adapters/headers')
+  return {
+    headers: async () => HeadersAdapter.seal(new HeadersAdapter(mocks.requestHeaders)),
+    cookies: async () => ({ get: () => undefined }),
+  }
+})
+vi.mock('@/app/fonts', () => ({
+  geist: { variable: '' },
+  geistMono: { variable: '' },
+  spaceGrotesk: { variable: '' },
+}))
+vi.mock('@/components/posthog-provider', () => ({ PostHogProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
+vi.mock('@/lib/public-session-bootstrap', () => ({ PublicSessionBootstrap: () => null }))
+vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
   useParams: () => mocks.params,
@@ -108,6 +130,8 @@ import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
 import NotFound from '@/app/not-found'
+import RootLayout from '@/app/layout'
+import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import {
   getCurrentRouteTransitionIntent,
@@ -127,6 +151,7 @@ describe('DestinationShell', () => {
     mocks.profileName = ''
     mocks.profileLoaded = true
     mocks.lastDestination = 'hoje'
+    mocks.requestHeaders = {}
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
@@ -169,7 +194,40 @@ describe('DestinationShell', () => {
   })
 
   it.each([
+    ['macOS', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15', '⌘K', 'Ctrl K'],
+    ['Windows', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36', 'Ctrl K', '⌘K'],
+  ])('server-renders the %s request shortcut in the app shell', async (_platform, userAgent, hint, wrongHint) => {
+    mocks.wide = true
+    mocks.requestHeaders = { 'user-agent': userAgent }
+    const layout = await RootLayout({
+      children: <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
+    })
+    const html = renderToString(layout)
+
+    expect(html).toContain(`<kbd>${hint}</kbd>`)
+    expect(html).not.toContain(`<kbd>${wrongHint}</kbd>`)
+  })
+
+  it.each([
+    ['"macOS"', 'Windows NT 10.0', '⌘K', 'Ctrl K'],
+    ['"Windows"', 'Macintosh; Intel Mac OS X', 'Ctrl K', '⌘K'],
+    ['"Linux"', 'Linux x86_64', 'Ctrl K', '⌘K'],
+    ['"iOS"', 'iPhone', '⌘K', 'Ctrl K'],
+    ['', 'Macintosh; Intel Mac OS X', '⌘K', 'Ctrl K'],
+  ])('prefers the %s request platform hint over the user agent', async (platform, userAgent, hint, wrongHint) => {
+    mocks.wide = true
+    mocks.requestHeaders = { 'sec-ch-ua-platform': platform, 'user-agent': userAgent }
+    const html = renderToString(await RootLayout({
+      children: <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>,
+    }))
+
+    expect(html).toContain(`<kbd>${hint}</kbd>`)
+    expect(html).not.toContain(`<kbd>${wrongHint}</kbd>`)
+  })
+
+  it.each([
     ['Mac', 'Win32', '⌘K'],
+    ['iOS', 'iPhone', '⌘K'],
     ['Windows', 'Win32', 'Ctrl K'],
     ['Linux', 'Linux x86_64', 'Ctrl K'],
   ])('shows the palette shortcut for %s', (platform, fallback, hint) => {
@@ -188,7 +246,10 @@ describe('DestinationShell', () => {
     expect(screen.getByText(hint, { selector: 'kbd' })).toBeInTheDocument()
   })
 
-  it('uses the fallback platform and hydrates the neutral hint before switching', async () => {
+  it.each([
+    [true, 'MacIntel', '⌘K', 'Ctrl K'],
+    [false, 'Win32', 'Ctrl K', '⌘K'],
+  ])('hydrates the request shortcut without switching at apple=%s', async (applePlatform, platform, hint, wrongHint) => {
     mocks.wide = true
     Object.defineProperty(navigator, 'userAgentData', {
       configurable: true,
@@ -196,11 +257,16 @@ describe('DestinationShell', () => {
     })
     Object.defineProperty(navigator, 'platform', {
       configurable: true,
-      value: 'MacIntel',
+      value: platform,
     })
-    const shell = <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>
+    const shell = (
+      <KeyboardPlatformProvider applePlatform={applePlatform}>
+        <DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>
+      </KeyboardPlatformProvider>
+    )
     const serverHtml = renderToString(shell)
-    expect(serverHtml).toContain('<kbd>Ctrl K</kbd>')
+    expect(serverHtml).toContain(`<kbd>${hint}</kbd>`)
+    expect(serverHtml).not.toContain(`<kbd>${wrongHint}</kbd>`)
     const container = document.createElement('div')
     container.innerHTML = serverHtml
     const initialMarkup = container.innerHTML
@@ -213,7 +279,7 @@ describe('DestinationShell', () => {
 
     expect(initialMarkup).toBe(serverHtml)
     expect(recoverableError).not.toHaveBeenCalled()
-    expect(container.querySelector('kbd')).toHaveTextContent('⌘K')
+    expect(container.querySelector('kbd')).toHaveTextContent(hint)
     await act(async () => root?.unmount())
   })
 
