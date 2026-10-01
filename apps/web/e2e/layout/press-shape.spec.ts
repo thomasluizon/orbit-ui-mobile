@@ -155,6 +155,7 @@ for (const width of [412, 1280] as const) {
       for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
         await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: label, exact: true }), 'pill')
       }
+      await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: ptBr.common.retry, exact: true }), 'pill', '--bg-hover')
       await expectHoverOnHitArea(page.locator('header button[aria-label]').first(), 'pill')
       await page.goto('/profile')
       await expectFullTouchTarget(page.locator('a[href="/upgrade"]').filter({ hasText: ptBr.profile.allowance.seePro }).first(), 'pill')
@@ -187,6 +188,13 @@ for (const width of [412, 1280] as const) {
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expectHoverOnHitArea(listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }), 12)
       await listMenu.getByRole('menuitem', { name: ptBr.habits.refresh }).click()
+      await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
+      await listMenu.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
+      const selectionTray = page.getByTestId('bulk-action-bar')
+      await expectFullTouchTarget(selectionTray.getByRole('button', { name: ptBr.common.selectAll, exact: true }), 'pill', '--bg-hover-opaque')
+      await selectionTray.getByRole('button', { name: ptBr.common.selectAll, exact: true }).click()
+      await expectFullTouchTarget(selectionTray.getByRole('button', { name: ptBr.common.deselectAll, exact: true }), 'pill', '--bg-hover-opaque')
+      await selectionTray.getByRole('button', { name: ptBr.common.cancel, exact: true }).click()
 
       const row = page.locator('[data-habit-title="Beber água"]')
       await expect(row).toBeVisible()

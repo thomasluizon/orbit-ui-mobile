@@ -77,10 +77,10 @@ export function SelectionTray({
           onPress={allSelected ? onDeselectAll : onSelectAll}
           style={({ pressed }) => [
             styles.selectAllBtn,
-            pressed ? styles.pressedScale : null,
+            pressed ? [styles.pressedScale, { backgroundColor: tokens.bgHoverOpaque }] : null,
           ]}
         >
-          <Text style={[styles.selectAllText, { color: tokens.fg3 }]}>
+          <Text style={[styles.selectAllText, { color: tokens.fg2 }]}>
             {allSelected ? deselectAllLabel : selectAllLabel}
           </Text>
         </Pressable>
@@ -95,14 +95,14 @@ export function SelectionTray({
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
             pressed ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
         >
           <CheckCircle2
             size={20}
-            color={tokens.primary}
+            color={tokens.fg1}
             strokeWidth={1.8}
           />
         </Pressable>
@@ -115,7 +115,7 @@ export function SelectionTray({
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
             pressed ? styles.pressedScale : null,
             completionDisabled ? styles.disabled : null,
           ]}
@@ -134,7 +134,7 @@ export function SelectionTray({
           onPress={onDelete}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
             pressed ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
@@ -152,7 +152,7 @@ export function SelectionTray({
           onPress={onClose}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
             pressed ? styles.pressedScale : null,
           ]}
         >
@@ -189,6 +189,8 @@ const styles = StyleSheet.create({
   selectAllBtn: {
     minHeight: 44,
     minWidth: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,

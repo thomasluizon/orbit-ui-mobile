@@ -1,11 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
 import { SelectionTray } from '@/components/habits/selection-tray'
+import { HabitListEmptyState } from '@/components/habits/habit-list/empty-state'
 
 function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {}) {
   const props = {
@@ -105,5 +112,74 @@ describe('SelectionTray', () => {
     const bar = screen.getByTestId('bulk-action-bar')
     expect(screen.getByText('7')).toBeInTheDocument()
     expect(bar.textContent).toContain('common.selectedSuffix')
+  })
+})
+
+describe('SelectionTray painted targets in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('paints the secondary Today retry as a complete 44px target', async () => {
+    const { container } = render(<HabitListEmptyState variant="secondary" title="Unable to load" description="" actionLabel="Retry" onAction={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${container.innerHTML}`)
+      const retry = page.getByRole('button', { name: 'Retry', exact: true })
+      const bounds = await retry.boundingBox()
+      expect(bounds!.width).toBeGreaterThanOrEqual(44)
+      expect(bounds!.height).toBeGreaterThanOrEqual(44)
+      await retry.hover()
+      const fill = await retry.evaluate((element) => {
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-hover)'
+        element.append(probe)
+        const expected = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return { actual: getComputedStyle(element).backgroundColor, expected }
+      })
+      expect(fill.actual).toBe(fill.expected)
+      await page.mouse.down()
+      expect(await retry.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(fill.expected)
+      await page.mouse.up()
+    } finally { await page.close() }
+  })
+
+  it.each([{ allSelected: false, mode: 'dark' }, { allSelected: true, mode: 'dark' }, { allSelected: false, mode: 'light' }, { allSelected: true, mode: 'light' }] as const)('paints every 44px target with allSelected: $allSelected in $mode', async ({ allSelected, mode }) => {
+    renderBar({ allSelected })
+    const markup = screen.getByTestId('bulk-action-bar').outerHTML
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 }, reducedMotion: 'reduce' })
+    try {
+      const declarations = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
+      await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${markup}`)
+      await page.getByTestId('bulk-action-bar').evaluate((element) => { element.style.transform = 'none' })
+      const buttons = page.getByRole('button')
+      expect(await buttons.count()).toBe(5)
+      for (const button of await buttons.all()) {
+        const bounds = await button.boundingBox()
+        expect(bounds!.width).toBeGreaterThanOrEqual(44)
+        expect(bounds!.height).toBeGreaterThanOrEqual(44)
+        await button.hover()
+        const fill = await button.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover-opaque)'
+          element.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return { actual: getComputedStyle(element).backgroundColor, expected }
+        })
+        expect(fill.actual).toBe(fill.expected)
+        await page.mouse.down()
+        expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(fill.expected)
+        await page.mouse.up()
+      }
+    } finally { await page.close() }
   })
 })

@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { SelectionTray } from '@/components/habits/selection-tray'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -74,7 +75,21 @@ describe('SelectionTray', () => {
       const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
       expect(button.props.hitSlop).toBeUndefined()
       expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 44, height: 44 })
+      expect(StyleSheet.flatten(style({ pressed: true })).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHoverOpaque)
     }
+  })
+
+  it.each([false, true])('fills the whole select-all target with allSelected: %s', async (allSelected) => {
+    const { tree } = await renderBar({ allSelected })
+    const control = tree.root.findAll((node) => typeof node.type === 'string'
+      && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === undefined)[0]!
+    const style = control.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    expect(control.props.hitSlop).toBeUndefined()
+    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({
+      minHeight: 44, minWidth: 44, backgroundColor: createTokensV2('purple', 'dark').bgHoverOpaque,
+      borderRadius: 999, overflow: 'hidden',
+    })
+    expect(StyleSheet.flatten(style({ pressed: false })).backgroundColor).toBeUndefined()
   })
 
   it('renders the tabular count beside the digit-free suffix', async () => {
