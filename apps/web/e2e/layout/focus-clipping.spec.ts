@@ -23,9 +23,28 @@ async function expectCompleteTabIndicator(page: Page, control: Locator, surface:
 }
 
 async function refreshTodayHabits(page: Page) {
-  await page.getByRole('button', { name: messages.habits.listOptions }).click()
-  await page.getByRole('menu', { name: messages.habits.listOptions })
-    .getByRole('menuitem', { name: messages.habits.refresh }).click()
+  const trigger = page.getByRole('button', { name: messages.habits.listOptions })
+  const menu = page.getByRole('menu', { name: messages.habits.listOptions })
+  await trigger.click()
+  await menu.getByRole('menuitem', { name: messages.habits.refresh }).click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(menu).toHaveCount(0)
+  await expect(page.locator('main[data-shell-scroller] [data-habit-title]')).toHaveCount(14)
+}
+
+async function waitForSettledChips(chips: Locator) {
+  let previousLabels: string[] = []
+  let stableSamples = 0
+  await expect.poll(async () => {
+    const labels = await chips.allTextContents()
+    const unchanged = labels.length === previousLabels.length
+      && labels.every((label, index) => label === previousLabels[index])
+    stableSamples = unchanged && labels.length >= 3 && labels.every((label) => label.trim())
+      ? stableSamples + 1 : 0
+    previousLabels = labels
+    return stableSamples
+  }, { message: 'suggestion count and labels settle before keyboard navigation', intervals: [100, 200, 400] }).toBeGreaterThanOrEqual(2)
+  return previousLabels.length
 }
 
 for (const width of [412, 1352] as const) {
@@ -80,8 +99,8 @@ for (const width of [412, 1352] as const) {
         const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
         await expect(pinned).toBeVisible()
         const chips = pinned.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')
-        expect(await chips.count()).toBeGreaterThanOrEqual(3)
-        for (let index = 0; index < await chips.count(); index += 1) {
+        const chipCount = await waitForSettledChips(chips)
+        for (let index = 0; index < chipCount; index += 1) {
           await expectCompleteTabIndicator(page, chips.nth(index), `pinned composer chip ${index}`)
         }
         await pinned.locator('[data-composer-input]').focus()
@@ -97,7 +116,7 @@ for (const width of [412, 1352] as const) {
         await expect(composer).toHaveAttribute('data-state', 'idle')
         const conversationChips = composer.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')
         await expect(conversationChips.first()).toBeVisible()
-        expect(await conversationChips.count()).toBeGreaterThanOrEqual(3)
+        await waitForSettledChips(conversationChips)
         const controls = conversation.locator('[data-composer-root] button:visible:not(:disabled)')
         for (let index = 0; index < await controls.count(); index += 1) {
           await expectCompleteTabIndicator(page, controls.nth(index), `conversation composer control ${index}`)

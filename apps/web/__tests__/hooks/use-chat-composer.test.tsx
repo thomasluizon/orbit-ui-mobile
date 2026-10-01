@@ -1532,6 +1532,39 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
+  it.each([412, 1352])('keeps the focused Today chip when live habits and profile update at %spx', (width) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null, currentStreak: 0 })
+    const habit = createMockHabit({ title: 'Read', isCompleted: false, isOverdue: false, hasSubHabits: false })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+
+    function TodayComposer() {
+      const chat = useChatComposer({ pathname: '/', totalHabitCount: 1 })
+      return <ShellWide items={[]} activeId="hoje" navLabel="Navigation" composer={<Composer {...chat.composerProps} />} />
+    }
+
+    const view = render(<TodayComposer />)
+    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })
+    act(() => chip.focus())
+    expect(chip).toHaveFocus()
+
+    mocks.state.habitData = { topLevelHabits: [{ ...habit }], totalCount: 1 }
+    mocks.state.profile = { ...mocks.state.profile, aiMessagesUsed: 1 }
+    view.rerender(<TodayComposer />)
+    expect(screen.getByRole('button', { name: chip.getAttribute('aria-label')! })).toBe(chip)
+    expect(chip).toHaveFocus()
+
+    mocks.state.habitData = {
+      topLevelHabits: [createMockHabit({ title: 'Walk', isOverdue: true, isCompleted: false }), { ...habit, title: 'Read outside' }],
+      totalCount: 2,
+    }
+    view.rerender(<TodayComposer />)
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read outside"}' })).toBe(chip)
+    expect(chip).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue:{"title":"Walk"}' })).toBeInTheDocument()
+  })
+
   it('gates Calendar chips on the Calendar error rather than the Today query', () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     mocks.state.habitData = null
