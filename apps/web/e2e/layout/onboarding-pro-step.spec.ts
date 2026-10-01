@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { measureOnboardingProStep } from './onboarding-pro-step-geometry'
 import { API } from '@orbit/shared/api'
 import { buildAccountScopedStorageKey, ONBOARDING_PRO_PENDING_KEY } from '@orbit/shared/utils'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -30,18 +31,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const bounds = await step.boundingBox()
         expect(bounds).not.toBeNull()
         expect(bounds!.width).toBeLessThanOrEqual(width >= 1024 ? 560 : 440)
-        const geometry = await step.evaluate((root) => {
-          const visible = (element: Element) => element.checkVisibility()
-          const overflow = Array.from(root.querySelectorAll('p,h1,h2,h3,a,button')).filter(visible).filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5).map((element) => element.textContent.trim())
-          const wrappedActions = Array.from(root.querySelectorAll('a,button')).filter(visible).filter((element) => {
-            const range = document.createRange(); range.selectNodeContents(element)
-            return new Set(Array.from(range.getClientRects()).map((rectangle) => Math.round(rectangle.top))).size > 1
-          }).map((element) => element.textContent.trim())
-          const column = root.parentElement!.parentElement!.getBoundingClientRect()
-          const main = root.closest('main')!.getBoundingClientRect()
-          const horizontalOffset = Math.abs(column.x + column.width / 2 - main.x - main.width / 2)
-          return { overflow, wrappedActions, horizontalOffset }
-        })
+        const geometry = await step.evaluate(measureOnboardingProStep)
         expect(geometry.horizontalOffset).toBeLessThanOrEqual(1)
         expect(geometry.overflow).toEqual([])
         expect(geometry.wrappedActions).toEqual([])

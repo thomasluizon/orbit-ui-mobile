@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { profileKeys } from '@orbit/shared/query'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { setAccountId } from '@/lib/account-scope'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -14,13 +16,9 @@ const mockRefetchStatus = vi.hoisted(() => vi.fn())
 const mockRefetchBilling = vi.hoisted(() => vi.fn())
 const mockShowSuccess = vi.hoisted(() => vi.fn())
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
-  useLocale: () => 'en',
-}))
+const mockTranslate = vi.hoisted(() => (key: string, params?: Record<string, unknown>) =>
+  params ? `${key}:${JSON.stringify(params)}` : key)
+vi.mock('next-intl', () => ({ useTranslations: () => mockTranslate, useLocale: () => 'en' }))
 
 vi.mock('next/link', () => ({
   default: ({
@@ -94,7 +92,7 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showSuccess: mockShowSuccess }),
+  useAppToast: () => ({ showSuccess: mockShowSuccess, showPersistentError: vi.fn() }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -228,6 +226,31 @@ describe('UpgradePage', () => {
       { level: 3, name: 'upgrade.plans.monthly.name' },
       { level: 2, name: 'upgrade.billing.usage.title' },
     ])
+  })
+
+  it('keeps profile-only checkout refresh failures inline and retries settlement successfully', async () => {
+    history.replaceState({}, '', '/upgrade?subscription=success&keep=1')
+    const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
+    const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
+    const fetchProfile = vi.fn().mockRejectedValue(new Error('Profile refresh failed'))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function ActiveProfile() {
+      useQuery({ queryKey: profileKeys.detail(), queryFn: fetchProfile, initialData: free, staleTime: Infinity })
+      return <UpgradePage />
+    }
+    const view = renderComponent(<QueryClientProvider client={client}><ActiveProfile /></QueryClientProvider>)
+    await waitFor(() => expect(client.getQueryState(profileKeys.detail())?.status).toBe('error'))
+    await waitFor(() => expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument())
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(location.search).toBe('?subscription=success&keep=1')
+    fetchProfile.mockResolvedValue(pro)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.retry' }))
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledOnce())
+    expect(client.getQueryData(profileKeys.detail())).toEqual(pro)
+    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
+    expect(location.search).toBe('?keep=1')
+    view.unmount()
+    history.replaceState({}, '', '/upgrade')
   })
 
   it('renders without crashing', () => {

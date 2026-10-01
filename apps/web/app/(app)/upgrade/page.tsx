@@ -68,14 +68,14 @@ export default function UpgradePage() {
   } = useBilling(isStripeBilling)
 
   const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout()
-  useStripeCheckoutReturn()
+  const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const [showPitch, setShowPitch] = useAccountScopedState(false)
   const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
 
   const model = resolveSubscriptionScreen({
     status,
     isStatusLoading,
-    isStatusError,
+    isStatusError: isStatusError || hasReturnError,
     isBillingLoading,
     isBillingError,
     billingStatus: billing?.status,
@@ -151,6 +151,7 @@ export default function UpgradePage() {
 
 
   const retryLoad = () => {
+    if (hasReturnError) { retryReturn(); return }
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
   }
 
@@ -163,12 +164,12 @@ export default function UpgradePage() {
         <Skeleton variant="settings" label={t('common.loading')} />
       </div>
     )
-  } else if (model.state === 'load-failed') {
+  } else if (screenState === 'load-failed') {
     content = (
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-          <PillButton variant="ghost" onClick={retryLoad}>
+          <PillButton variant="ghost" loading={isSettling} onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>
         }
