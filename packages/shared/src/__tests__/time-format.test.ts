@@ -4,6 +4,8 @@ import {
   resolveHourCycle,
   createTimeDisplay,
   formatLocaleDate,
+  formatLocaleDayMonth,
+  formatCalendarDayTitle,
   formatWeekdayLabels,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -20,6 +22,19 @@ describe('locale-format utils', () => {
     ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
   ] as const)('formats visible weekday letters in %s starting on %i', (locale, weekStartsOn, labels) => {
     expect(formatWeekdayLabels(locale, weekStartsOn)).toEqual(labels)
+  })
+
+  it.each([
+    ['en', 'September 30', 'Today, September 30', 'Tuesday, September 29'],
+    ['pt-BR', '30 de setembro', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro'],
+  ])('formats the drawn date labels in %s', (locale, dateLabel, todayTitle, otherTitle) => {
+    const todayLabel = locale === 'en' ? 'Today' : 'Hoje'
+    expect(formatLocaleDayMonth('2026-09-30', locale)).toBe(dateLabel)
+    expect(formatLocaleDayMonth(new Date(2026, 8, 30), locale)).toBe(dateLabel)
+    expect(formatCalendarDayTitle('2026-09-30', locale, '2026-09-30', todayLabel)).toBe(todayTitle)
+    expect(formatCalendarDayTitle('2026-09-29', locale, '2026-09-30', todayLabel)).toBe(otherTitle)
+    expect(formatCalendarDayTitle('', locale, '2026-09-30', todayLabel)).toBe('')
+    expect(formatLocaleDayMonth('invalid-date', locale)).toBe('invalid-date')
   })
 
   it('formats time for English locale', () => {
@@ -51,6 +66,9 @@ describe('locale-format utils', () => {
     }))
     expect(twentyFourHour.hourCycle).toBe('h23')
     expect(twentyFourHour.displayTime('19:30')).toBe('19:30')
+    expect(twentyFourHour.displayTime('08:00')).toBe('08:00')
+    expect(createTimeDisplay('pt-BR', true).displayTime('08:00')).toBe('08:00')
+    expect(twentyFourHour.displayClock('2026-04-06T00:05:00')).toBe('00:05')
     expect(localeDefault.hourCycle).toBe('h12')
     expect(twelveHour.displayTime(null)).toBe('')
   })

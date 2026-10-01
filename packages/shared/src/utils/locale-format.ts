@@ -163,6 +163,23 @@ export function formatLocaleDate(
   )
 }
 
+export function formatLocaleDayMonth(value: DateInput, locale?: string | null): string {
+  return formatLocaleDate(value, locale, { day: 'numeric', month: 'long' })
+}
+
+export function formatCalendarDayTitle(
+  date: string,
+  locale: string,
+  today: string,
+  todayLabel: string,
+): string {
+  if (!date) return ''
+  if (date === today) return `${todayLabel}, ${formatLocaleDayMonth(date, locale)}`
+  return capitalizeFirstLetter(formatLocaleDate(date, locale, {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }))
+}
+
 export function formatWeekdayLabels(locale: string, weekStartsOn: 0 | 1): string[] {
   return Array.from({ length: 7 }, (_, offset) =>
     formatLocaleDate(new Date(2025, 0, 5 + ((weekStartsOn + offset) % 7)), locale, { weekday: 'narrow' }),
@@ -242,7 +259,7 @@ export interface TimeDisplay {
 
 export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
   const hourCycle = resolveHourCycle(uses24HourClock, locale)
-  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hourCycle }
+  const options: Intl.DateTimeFormatOptions = { hour: hourCycle === 'h23' ? '2-digit' : 'numeric', minute: '2-digit', hourCycle }
 
   return {
     hourCycle,

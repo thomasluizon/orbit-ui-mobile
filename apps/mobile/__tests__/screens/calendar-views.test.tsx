@@ -1,4 +1,6 @@
 import React from "react";
+import en from "@orbit/shared/i18n/en.json";
+import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -102,7 +104,7 @@ vi.mock("@/stores/ui-store", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+      key === 'dates.today' ? (state.language === 'en' ? en.dates.today : ptBR.dates.today) : params ? `${key}:${JSON.stringify(params)}` : key,
     i18n: { language: state.language },
   }),
 }));
@@ -1228,6 +1230,30 @@ describe("CalendarScreen views (mobile)", () => {
     expect(headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.testID === "calendar-day-loading",
     )).toHaveLength(0);
+  });
+
+  it.each([
+    ['en', 'Today, September 30', 'Tuesday, September 29'],
+    ['pt-BR', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro'],
+  ])('renders the drawn selected day headings in %s', (locale, todayTitle, otherTitle) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-30T12:00:00Z'));
+    state.language = locale;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const header = renderMonthHeader(tree);
+    expect(calendarDayDetailProps.current?.title).toBe(todayTitle);
+    TestRenderer.act(() => { calendarGridProps.current!.onSelectDay('2026-09-29'); });
+    const flatList = tree.root.findAll((node) => node.type === 'FlatList')[0]!;
+    TestRenderer.act(() => { header.update(flatList.props.ListHeaderComponent); });
+    expect(calendarDayDetailProps.current?.title).toBe(otherTitle);
+    TestRenderer.act(() => header.update(<></>));
+    pressView(tree, 'week');
+    const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+    TestRenderer.act(() => { week.props.onSelectDay('2026-09-30'); });
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === todayTitle)).toHaveLength(1);
+    TestRenderer.act(() => tree.update(<></>));
+    vi.useRealTimers();
   });
 
   it('keeps a selected month day inline below the grid without a sheet', () => {

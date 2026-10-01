@@ -14,7 +14,7 @@ import {
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
   formatHabitReminderLabel,
-  formatLocaleDate,
+  formatLocaleDayMonth,
   getFriendlyErrorMessage,
   habitFeaturePlan,
   isHabitDailySchedule,
@@ -486,7 +486,7 @@ export function HabitFormFields({
         ) : null}
       </View>
 
-      {displayedStartDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{t('habits.form.startDateValue', { date: formatLocaleDate(displayedStartDate, i18n.language) })}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
+      {displayedStartDate ? <View style={styles.startDate}><Text style={styles.meta}>{t('habits.form.startDate')}</Text><Text style={styles.startDateValue}>{t('habits.form.startDateValue', { date: formatLocaleDayMonth(displayedStartDate, i18n.language) })}</Text><Text style={styles.hint}>{t('habits.form.startDateReason')}</Text></View> : null}
     </View>
   )
 }
