@@ -37,10 +37,13 @@ describe('Composer compact geometry in Chromium', () => {
 
   it.each(['idle', 'sending', 'offline', 'atLimit', 'transcribing', 'recording'] as const)(
     'paints hover only on enabled attachment and voice controls while %s', async (state) => {
-      const status = state === 'offline' || state === 'atLimit'
-        ? { state, limitReason: en.shell.composer.offline.reason }
-        : { state }
-      const { container } = render(<Composer {...status} value="" suggestions={[]}
+      const statuses = {
+        idle: { state: 'idle' }, sending: { state: 'sending' },
+        recording: { state: 'recording' }, transcribing: { state: 'transcribing' },
+        offline: { state: 'offline', limitReason: en.shell.composer.offline.reason },
+        atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason },
+      } as const
+      const { container } = render(<Composer {...statuses[state]} value="" suggestions={[]}
         words={en.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
         onAttachFile={vi.fn()} onAttachImage={vi.fn()}
