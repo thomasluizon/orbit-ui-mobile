@@ -10,11 +10,11 @@ export function getTrialDaysLeft(
 }
 
 export function getCurrentPlan(
-  profile: Pick<Profile, 'hasProAccess' | 'isTrialActive'> | null | undefined,
+  profile: Pick<Profile, 'hasProAccess' | 'isTrialActive'> & Partial<Pick<Profile, 'isLifetimePro'>> | null | undefined,
 ): 'Free' | 'Pro' | 'Trial' {
   if (!profile) return 'Free'
   if (profile.isTrialActive) return 'Trial'
-  if (profile.hasProAccess) return 'Pro'
+  if (profile.hasProAccess || profile.isLifetimePro) return 'Pro'
   return 'Free'
 }
 

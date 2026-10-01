@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render as renderComponent, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   goBackOrFallback: vi.fn(),
@@ -473,3 +474,8 @@ describe('UpgradePage across an account change', () => {
     expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
   })
 })
+
+function render(element: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}

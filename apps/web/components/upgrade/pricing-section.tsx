@@ -1,20 +1,13 @@
-import { Calendar, Eye, FileText } from '@/components/ui/icons'
-import { useEffect, useRef } from 'react'
+import { ProPitch } from './pro-pitch'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { PlanSelection } from './plan-selection'
-import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
-const OUTCOMES = [
-  { key: 'calendar', Icon: Calendar },
-  { key: 'retrospective', Icon: FileText },
-  { key: 'noticing', Icon: Eye },
-] as const
-
 interface PricingSectionProps {
+  stayFreeHref?: string
   focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
@@ -32,6 +25,7 @@ interface PricingSectionProps {
 }
 
 export function PricingSection({
+  stayFreeHref = '/profile',
   focusOnMount = false,
   profile,
   plans,
@@ -47,70 +41,9 @@ export function PricingSection({
   onRetryPlans,
   t,
 }: Readonly<PricingSectionProps>) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    if (focusOnMount) headingRef.current?.focus()
-  }, [focusOnMount])
-  const trialActive = !!profile?.isTrialActive
-  let eyebrow: string
-  if (!trialActive) {
-    eyebrow = t('upgrade.convert.freeEyebrow')
-  } else if (trialDaysLeft === null) {
-    eyebrow = t('upgrade.convert.trialEyebrow')
-  } else if (trialDaysLeft <= 1) {
-    eyebrow = t('upgrade.convert.trialLastDay')
-  } else {
-    eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
-  }
-  const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
-
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
-          {eyebrow}
-        </p>
-        <h2 ref={headingRef} tabIndex={-1} className="t-display-heading text-pretty">
-          {heading}
-        </h2>
-        <p className="t-body max-w-[46ch] text-pretty" style={{ color: 'var(--fg-2)' }}>
-          {t('upgrade.convert.promise')}
-        </p>
-        {!trialActive ? (
-          <p className="text-sm leading-[1.55] text-[var(--fg-3)]">
-            {t('upgrade.convert.trustLine')}
-          </p>
-        ) : null}
-      </header>
-
-      <section className="flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
-        <div className="grid grid-cols-[1fr_1px_1fr] gap-4 rounded-[var(--r-card)] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)] sm:p-6">
-          <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
-          <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
-          <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} />
-        </div>
-        <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
-          {t('upgrade.convert.allowanceNote')}
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
-        {OUTCOMES.map(({ key, Icon }) => (
-          <div key={key} className="flex items-start gap-3">
-            <span aria-hidden="true" className="mt-1 grid size-6 shrink-0 place-items-center text-[var(--fg-3)]">
-              <Icon size={20} strokeWidth={1.8} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <h3 className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
-                {t(`upgrade.outcomes.${key}.title`)}
-              </h3>
-              <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
-                {t(`upgrade.outcomes.${key}.body`)}
-              </p>
-            </div>
-          </div>
-        ))}
-      </section>
+      <ProPitch profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} />
 
       <div className="flex flex-col gap-4">
         <PlanSelection
@@ -126,9 +59,8 @@ export function PricingSection({
           t={t}
         />
 
-        {plans ? (
-          <div className="flex flex-col items-start gap-4">
-            <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-col items-start gap-4">
+          {plans ? <div className="flex flex-col items-start gap-2">
               <p
                 role="alert"
                 className="text-left text-sm leading-[1.55] text-[var(--fg-2)]"
@@ -144,9 +76,9 @@ export function PricingSection({
               <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
                 {t('upgrade.convert.handOff')}
               </p>
-            </div>
+            </div> : null}
             <Link
-              href="/profile"
+              href={stayFreeHref}
               aria-disabled={checkoutLoading !== null}
               onClick={(event) => {
                 if (checkoutLoading !== null) {
@@ -162,20 +94,7 @@ export function PricingSection({
               {t('upgrade.convert.stayFree')}
             </Link>
           </div>
-        ) : null}
       </div>
-    </div>
-  )
-}
-
-function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: string; perDay: string }>) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
-      <p className="t-allowance">
-        {amount}
-      </p>
-      <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>
     </div>
   )
 }

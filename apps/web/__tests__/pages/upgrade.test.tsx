@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { setAccountId } from '@/lib/account-scope'
 
@@ -193,6 +193,15 @@ describe('UpgradePage', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     setAccountId(null)
+  })
+
+  it.each(['loading', 'error', 'offline'])('keeps the free exit reachable while plans are %s', (state) => {
+    mockIsLoadingPlans = state === 'loading'
+    mockIsPlansError = state === 'error'
+    mockIsOnline = state !== 'offline'
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('link', { name: 'upgrade.convert.stayFree' }))
+    expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
   })
 
   it.each([false, true])('nests the complete purchase heading outline, trial=%s', (trialActive) => {
@@ -576,3 +585,8 @@ describe('UpgradePage', () => {
     })
   })
 })
+
+function render(element: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}
