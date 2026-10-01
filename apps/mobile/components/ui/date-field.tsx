@@ -224,7 +224,7 @@ export function DateField({
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
   const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
-  const [viewDate, setViewDate] = useState(new Date())
+  const [viewDate, setViewDate] = useState(() => (value ? parseISO(value) : new Date()))
 
   const selectedDate = value ? parseISO(value) : null
 
@@ -333,7 +333,7 @@ export function DateField({
       </Pressable>
 
       {isOpen ? (
-        <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE}>
+        <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE} virtualizedBody={pickerMode === 'years'}>
             <DatePickerMonthNav
               pickerMode={pickerMode}
               monthLead={monthLead}

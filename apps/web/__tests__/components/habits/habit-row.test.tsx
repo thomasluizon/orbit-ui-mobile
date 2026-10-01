@@ -14,6 +14,17 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'h
 
 import { HabitRow } from '@/components/habits/habit-row'
 
+describe('Hoje parent ring track', () => {
+  it.each(['empty', 'overdue', 'bad'] as const)('uses the empty track for a %s parent, including selection mode', (state) => {
+    for (const selectMode of [false, true]) {
+      const { container, unmount } = render(<HabitRow habit={createMockHabit({ isBadHabit: state === 'bad' })}
+        hasChildren childProgress={{ done: 1, total: 2 }} state={state} selectMode={selectMode} />)
+      expect(container.querySelector('circle')).toHaveAttribute('stroke', 'var(--track-empty)')
+      unmount()
+    }
+  })
+})
+
 describe('HabitRow overflow menus', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

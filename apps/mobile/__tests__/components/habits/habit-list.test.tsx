@@ -3418,7 +3418,7 @@ describe('HabitList', () => {
     expect(flattenRenderedText(tree.toJSON())).toContain('habits.overdue')
   })
 
-  it('shows a future meta token for a habit due in six days', () => {
+  it('keeps a future schedule hint accessible without visible row meta', () => {
     const inSixDays = formatAPIDate(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000))
     const futureHabit = createMockHabit({
       id: 'future-1',
@@ -3434,8 +3434,10 @@ describe('HabitList', () => {
     })
 
     const renderedText = flattenRenderedText(tree.toJSON())
-    expect(renderedText).toContain('habits.schedule.dueInDays')
-    expect(renderedText).toContain('"count":6')
+    expect(renderedText).not.toContain('habits.schedule.dueInDays')
+    const body = tree.root.findAllByType('Pressable').find((node: { props: { delayLongPress?: number } }) => node.props.delayLongPress === 500)
+    expect(body.props.accessibilityHint).toContain('habits.schedule.dueInDays')
+    expect(body.props.accessibilityHint).toContain('"count":6')
   })
 
   it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {

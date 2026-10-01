@@ -32,6 +32,7 @@ function Control({ props, controlId, descriptionId }: Readonly<{ props: InputPro
     value: props.value,
     placeholder: props.placeholder,
     disabled: props.disabled,
+    required: props.required,
     maxLength: props.maxLength,
     inputMode: props.inputMode,
     autoComplete: props.autoComplete,

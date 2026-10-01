@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
   computeHabitCardStatus,
-  computeHabitFrequencyLabel,
   formatAPIDate,
   getTodayBoundary,
   isHabitDoneForRange,
@@ -253,11 +252,6 @@ export const HabitRow = memo(function HabitRow({
     [habit, selectedDate],
   )
 
-  const frequencyLabel = useMemo(
-    () => computeHabitFrequencyLabel(habit, t),
-    [habit, t],
-  )
-
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
   const boundary = getTodayBoundary(selectedDateStr, todayStr)
@@ -268,14 +262,16 @@ export const HabitRow = memo(function HabitRow({
 
   const metaParts = buildHabitRowMetaParts({
     habit,
-    frequencyLabel,
-    isOverdue,
+    childProgress: { done: childrenDone, total: childrenTotal },
+    isOverdue: habit.isOverdue,
     selectedDateStr,
     todayStr,
     displayTime,
     t,
     locale,
   })
+
+  const futureHint = metaParts.find((part): part is { kind: 'future'; label: string } => typeof part !== 'string' && part.kind === 'future')
 
   const dotState = resolveHabitRowDotState(isDoneForRange, habit.isBadHabit, isOverdue)
 
@@ -375,6 +371,7 @@ export const HabitRow = memo(function HabitRow({
           delayLongPress={500}
           accessibilityRole="button"
           accessibilityLabel={rowAccessibilityLabel}
+          accessibilityHint={futureHint?.label}
           style={({ pressed }) => [
             styles.bodyButton,
             { paddingVertical: isChild ? 4 : 8, paddingLeft: isChild ? 24 : 0 },

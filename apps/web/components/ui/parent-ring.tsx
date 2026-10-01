@@ -6,7 +6,7 @@ interface ParentRingProps {
   ariaLabel?: string
   /** Progress stroke color (defaults to `--primary`). */
   stroke?: string
-  /** Track stroke color (defaults to `--hairline-strong`). */
+  /** Track stroke color (defaults to `--track-empty`). */
   trackColor?: string
 }
 
@@ -39,7 +39,7 @@ export function ParentRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={trackColor ?? 'var(--hairline-strong)'}
+          stroke={trackColor ?? 'var(--track-empty)'}
           strokeWidth="1.5"
         />
         <circle

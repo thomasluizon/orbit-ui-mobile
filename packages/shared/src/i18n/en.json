@@ -549,6 +549,7 @@
     },
     "backToHabits": "All habits",
     "completed": "completed",
+    "rowProgress": "{done} of {total}",
     "drillProgress": "{done} of {total} done",
     "deleteConfirmTitle": "Delete this habit?",
     "deleteConfirmMessage": "This removes the habit and any sub-habits. You can undo it from the message that appears.",

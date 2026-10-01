@@ -31,6 +31,7 @@ interface ArmedRedirect {
 }
 
 interface RadioGroupContextValue {
+  accessibilityHint?: string
   commit: () => void
   /** Null without a FocusProvenanceView ancestor, because entry and movement are then the same event. */
   onFocus: ((id: string, onSelect?: () => void) => void) | null
@@ -117,13 +118,15 @@ export function RadioGroup({ children, onCommit, focusRequest, ...props }: Reado
     if (!focusedItem.selected) onSelect?.()
   }, [getPreviousFocusTarget, items])
   const onFocus = getPreviousFocusTarget ? handleFocus : null
+  const accessibilityHint = props.accessibilityHint
   const contextValue = useMemo(() => ({
+    accessibilityHint,
     commit,
     onFocus,
     register,
     setElement,
     update,
-  }), [commit, onFocus, register, setElement, update])
+  }), [accessibilityHint, commit, onFocus, register, setElement, update])
 
   return (
     <RadioGroupContext.Provider value={contextValue}>
@@ -179,6 +182,7 @@ export function useRadioGroupItem({
   }, [commitGroup, onSelect, selected])
 
   return {
+    accessibilityHint: group?.accessibilityHint,
     elementRef,
     focusable: !disabled,
     onActivate,

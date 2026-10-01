@@ -43,7 +43,7 @@ Exit codes:
  * Bumped by hand when the extraction logic changes what the five content keys mean, so a reader can
  * tell a map produced by an older generator from a stale map produced by this one.
  */
-const GENERATOR_VERSION = 1
+const GENERATOR_VERSION = 2
 
 const inputFiles = new Map()
 const readFileSync = (path, encoding) => {
@@ -252,7 +252,7 @@ function parseEndpointTree() {
   const literal = source
     .slice(start, end + 1)
     .replace(/ as const/g, "")
-    .replace(/\(\s*(\w+)\s*:\s*string\s*\)/g, "($1)")
+    .replace(/\(([^()]*)\)(?=\s*=>)/g, (_, parameters) => `(${parameters.replace(/:\s*string\b/g, "")})`)
   const tree = new Function(`return (${literal})`)()
 
   const endpoints = []

@@ -35,6 +35,7 @@ type ExpectedSingleLineVariant = {
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
+  required?: boolean
   error?: string
   hint?: string
   maxLength?: number
@@ -65,6 +66,8 @@ type ExpectedMarkedVariant = ExpectedMultilineBase & {
 }
 type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
 type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
+type RequiredInput = Exact<InputBase & { required: true }, InputProps>
+type OptionalInput = Exact<InputBase & { required: false }, InputProps>
 type MultilineInput = Exact<InputBase & { multiline: true; rows: 4; maxLength: 60 }, InputProps>
 type MarkedMultilineInput = InputBase & {
   multiline: true,
@@ -161,6 +164,7 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<InputProps['onChange'], (value: string) => void>>,
   Assert<IsExactWidth<InputProps['placeholder'], string | undefined>>,
   Assert<IsExactWidth<InputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['required'], boolean | undefined>>,
   Assert<IsExactWidth<InputProps['error'], string | undefined>>,
   Assert<IsExactWidth<InputProps['hint'], string | undefined>>,
   Assert<IsExactWidth<InputProps['maxLength'], number | undefined>>,
@@ -225,6 +229,8 @@ export type FormContractAssertionsWidthAssertions = [
 
 export type FormContractAssertions =
   | SingleInput
+  | RequiredInput
+  | OptionalInput
   | MultilineInput
   | MarkedMultilineInput
   | MarkedMultilineFits

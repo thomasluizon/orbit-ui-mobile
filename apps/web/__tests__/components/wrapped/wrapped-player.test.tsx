@@ -3,13 +3,23 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+
+const profileState = vi.hoisted<{ available: boolean; isError: boolean; refetch: ReturnType<typeof vi.fn> }>(() => ({ available: true, isError: false, refetch: vi.fn() }))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({
+    profile: profileState.available ? createMockProfile({ weekStartDay: 1 }) : undefined,
+    isError: profileState.isError,
+    refetch: profileState.refetch,
+  }),
+}))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -62,6 +72,9 @@ function advanceToLastSlide() {
 
 describe('WrappedPlayer', () => {
   beforeEach(() => {
+    profileState.available = true
+    profileState.isError = false
+    profileState.refetch.mockReset()
     translationMock.labels = {}
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
@@ -69,6 +82,24 @@ describe('WrappedPlayer', () => {
     shareCardMock.share.mockReset()
     shareCardMock.download.mockReset()
     useAppToastStore.setState({ currentToast: null, queue: [] })
+  })
+
+  it.each([false, true])('keeps pending weekday content reachable without page tap zones, error %s', (isError) => {
+    profileState.available = false
+    profileState.isError = isError
+    renderPlayer()
+    for (let index = 0; index < 3; index += 1) fireEvent.click(screen.getByTestId('wrapped-next-zone'))
+    expect(screen.getByTestId('wrapped-slide-consistency')).toBeInTheDocument()
+    expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wrapped-previous-zone')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'wrapped.next' })).toBeEnabled()
+    if (isError) {
+      fireEvent.click(screen.getByRole('button', { name: 'wrapped.retry' }))
+      expect(profileState.refetch).toHaveBeenCalledOnce()
+      expect(screen.getByTestId('wrapped-slide-consistency')).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'wrapped.next' }))
+    expect(screen.getByTestId('wrapped-slide-streak')).toBeInTheDocument()
   })
 
   it('blocks first-run prompts while the player is open', () => {

@@ -107,6 +107,17 @@ describe('SupportPage', () => {
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
+  it('announces required subject and message before validation while reply email stays optional', () => {
+    render(<SupportPage />)
+    expect(screen.getByRole('radiogroup', { name: 'profile.support.subject' })).toHaveAttribute('aria-required', 'true')
+    expect(messageField()).toBeRequired()
+    expect(messageField()).toHaveAttribute('required')
+    expect(messageField()).not.toHaveAttribute('aria-invalid')
+    expect(emailField()).not.toBeRequired()
+    expect(screen.queryByText('profile.support.subjectRequired')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.support.messageRequired')).not.toBeInTheDocument()
+  })
+
   it('uses the About version in the note and sends no package placeholder', async () => {
     render(<SupportPage />)
     expect(screen.getByText(`profile.support.versionIncluded(${getAppVersion()})`)).toBeInTheDocument()

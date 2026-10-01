@@ -16,12 +16,17 @@ import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/the
 import {
   formatCompletionRate,
   getWeeklyConsistencyReading,
+  getWrappedWeekdayValues,
   WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
@@ -54,6 +59,7 @@ interface WrappedSlideProps {
 
 export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
+  const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = useReducedMotion()
   const { width } = useWindowDimensions()
 
@@ -94,20 +100,32 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           reducedMotion={reducedMotion}
         />
       )
-    case 'consistency':
+    case 'consistency': {
+      const values = getWrappedWeekdayValues(
+        slide.weeklyConsistency, period, recap.metrics.periodDays, profile?.weekStartDay,
+      )
       return (
         <View style={[styles.slide, styles.weekdaySlide]} testID="wrapped-slide-consistency">
           <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
-          <WeekdayColumns values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
-          <WeekdayInterpretation
-            values={slide.weeklyConsistency}
-            tokens={tokens}
-            reducedMotion={reducedMotion}
-          />
+          {period === 'week' && !profile ? (
+            <View testID="wrapped-figure" style={styles.figureWidth}>
+              {isProfileError ? (
+                <ErrorState message={t('wrapped.error')} action={
+                  <Button size="sm" onClick={() => void refetchProfile()}>{t('wrapped.retry')}</Button>
+                } />
+              ) : <Skeleton variant="bar-chart" label={t('wrapped.loading')} />}
+            </View>
+          ) : (
+            <>
+              <WeekdayColumns values={values} reducedMotion={reducedMotion} />
+              <WeekdayInterpretation values={values} tokens={tokens} reducedMotion={reducedMotion} />
+            </>
+          )}
         </View>
       )
+    }
     case 'streak':
       return (
         <StreakSlide
@@ -195,14 +213,17 @@ function HeroStatSlide({ tokens, testID, value, label, caption, reducedMotion }:
   )
 }
 
-function WeekdayColumns({ values, reducedMotion }: Readonly<{ values: number[]; reducedMotion: boolean }>) {
+function WeekdayColumns({ values, reducedMotion }: Readonly<{ values: (number | null)[]; reducedMotion: boolean }>) {
   const { t } = useTranslation()
   return (
     <Animated.View testID="wrapped-figure" nativeID="wrapped-motion-part-1" style={[styles.figureWidth, motionFinalStyle]} entering={enter(1, reducedMotion)}>
       <Columns
         columns={values.slice(0, 7).map((value, index) => {
           const weekday = WRAPPED_WEEKDAY_KEYS[index]!
-          return { id: weekday, label: t(`dates.daysShort.${weekday}`), value }
+          const label = t(`dates.daysShort.${weekday}`)
+          return value === null
+            ? { id: weekday, label, value, unavailableLabel: t('calendar.dayCell.future') }
+            : { id: weekday, label, value }
         })}
         height={160}
         showValues
@@ -217,7 +238,7 @@ function WeekdayInterpretation({
   values,
   tokens,
   reducedMotion,
-}: Readonly<{ values: number[]; tokens: Tokens; reducedMotion: boolean }>) {
+}: Readonly<{ values: (number | null)[]; tokens: Tokens; reducedMotion: boolean }>) {
   const { t } = useTranslation()
   const reading = getWeeklyConsistencyReading(values)
   switch (reading.kind) {
@@ -263,7 +284,7 @@ function WeekdayInterpretation({
             style={[styles.weekdayReading, motionFinalStyle, { color: tokens.fg2 }]}
           >
             {t('wrapped.slides.consistency.summary', {
-              strong: t(`dates.daysShort.${strongestWeekday}`),
+              strong: t(`dates.daysLong.${strongestWeekday}`),
             })}
           </Animated.Text>
           <Animated.Text
