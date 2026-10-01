@@ -1,6 +1,7 @@
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import WrappedScreen from '@/app/wrapped'
 import { WrappedCover } from '@/components/wrapped/wrapped-cover'
 
@@ -19,7 +20,7 @@ const mocks = vi.hoisted<{
   params: Record<string, string>
   useWrapped: Mock<(...args: unknown[]) => void>
   wrapped: {
-    recap: { id: string } | null
+    recap: unknown
     slides: unknown[]
     isEmpty: boolean
     isLoading: boolean
@@ -148,6 +149,32 @@ describe('WrappedScreen', () => {
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
+  })
+
+  it.each([
+    { state: 'loading', recap: null, isEmpty: false, isLoading: true, isError: false },
+    { state: 'failed', recap: null, isEmpty: false, isLoading: false, isError: true },
+    { state: 'empty', recap: createMockRecap({ goalCompletions: 0, metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }) }), isEmpty: true, isLoading: false, isError: false },
+  ])('restores cover navigation when playback becomes $state', ({ state, ...wrapped }) => {
+    const tree = renderScreen()
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, WrappedCover)?.props.onStart as () => void)()
+    })
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'common.backToProfile')).toHaveLength(0)
+
+    mocks.wrapped = { ...wrapped, slides: [] }
+    TestRenderer.act(() => tree.update(<WrappedScreen />))
+
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
+    expect(firstByType(tree.root, WrappedCover)?.props.state).toBe(state)
+    const back = tree.root.findAll((node) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'common.backToProfile',
+    )
+    expect(back).toHaveLength(1)
+    TestRenderer.act(() => { (back[0]?.props.onPress as () => void)() })
+    expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('opens a notification-carried closed month instead of the current period', () => {
