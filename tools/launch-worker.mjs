@@ -275,6 +275,9 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 const timestamp = new Date().toISOString()
 const reservation = reserveWorkerLaunch({
   launcherPid: process.pid,
+  sessionId: readRunState()?.sessionId ?? null,
+  issue,
+  runDirectory,
   repositoryKey,
   branch,
   headSha: startHead,

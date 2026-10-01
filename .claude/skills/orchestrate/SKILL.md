@@ -44,8 +44,8 @@ An `ORPHANED_WORKER` requires inspection and recovery before another launch in t
 Keep `issue`, `worktree`, `branch`, `deliveryPath` and `ticketPath` on each ledger identity.
 `writeRunState` preserves these command inputs across sightings. Delivery output goes to
 `deliveryPath`; the ticket synchronization artifact goes to `ticketPath` before recording
-readiness. Previously recorded merge and closure dispositions are reported from the ledger without
-spending a GitHub read on settled work. Older rows use launcher metadata, the receipt's issue,
+readiness. Previously recorded merges are grouped by repository in `settledPullRequests` without
+spending a GitHub read on settled work. Closed unmerged rows are queried so a reopen is seen. Older rows use launcher metadata, the receipt's issue,
 the ticket number in the branch and Git's registered branch worktree; missing legacy inputs are named shell variables in the verification command.
 Without artifact paths, the commands use `<receiptPath>.delivery.json` and
 `<receiptPath>.ticket.json`. These are paths to the deciding tools' artifacts, never verdicts

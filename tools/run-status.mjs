@@ -11,7 +11,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
-import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
 
@@ -195,6 +195,32 @@ const readRepository = async ({ key, slug, rows, auth, budget, runner, now }) =>
   return snapshot
 }
 
+const repositoryTargets = ({ config, rows, owner, authenticate }) => {
+  const authentications = new Map()
+  return Object.entries(config.repos).map(([key, path]) => {
+    const slug = configuredRepositorySlug(path, owner)
+    const repositoryOwner = slug.split("/")[0]
+    if (!authentications.has(repositoryOwner)) {
+      const pending = authenticate(path, { timeoutMs: 3500 })
+      pending.catch(() => {})
+      authentications.set(repositoryOwner, pending)
+    }
+    return { key, path, slug, worktrees: readWorktrees(path), rows: rows.filter((row) => row.repositoryKey === key), auth: authentications.get(repositoryOwner) }
+  })
+}
+
+const recoverLaunchResults = ({ repositories, wakes, launches, sessionId }) => {
+  const indexed = repositories.flatMap((repository) => [...repository.worktrees.values()].flatMap((worktree) => readWorkerLaunches(worktree)))
+    .filter((launch) => launch.sessionId === sessionId && typeof launch.issue === "string" && typeof launch.runDirectory === "string")
+  const results = new Map(launches.map((launch) => [launch.launcherPid, launch]))
+  for (const launch of indexed) {
+    if ([...wakes.live, ...wakes.orphaned].some((source) => source.pid === launch.launcherPid)) continue
+    const result = results.get(launch.launcherPid)
+    if (!result || result.corrupt) results.set(launch.launcherPid, { ...launch, corrupt: true })
+  }
+  return [...results.values()]
+}
+
 export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now() } = {}) => {
   const state = readRunState(repoRoot)
   if (!state) {
@@ -206,23 +232,14 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   if (state.sessionId !== sessionId) return { status: "FOREIGN_SESSION", nextActions: [] }
   config ??= readOrchestratorConfig()
   const wakes = readWakeSourceStates(repoRoot)
-  const launches = readLaunchResults(repoRoot).filter((launch) => !launch.sessionId || launch.sessionId === sessionId)
+  let launches = readLaunchResults(repoRoot).filter((launch) => !launch.sessionId || launch.sessionId === sessionId)
   const rows = [...new Map([...(Array.isArray(state.pullRequests) ? state.pullRequests : []), ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : [])]
     .filter((row) => typeof row?.repositoryKey === "string" && Number.isInteger(row.prNumber) && row.prNumber > 0 && typeof row.receiptPath === "string")
     .map((row) => [`${row.repositoryKey}#${row.prNumber}`, row])).values()]
-  const liveRows = rows.filter((row) => !(typeof row.merged === "string" && /^[0-9a-f]{7,40}$/.test(row.merged)) && row.closed !== true)
+  const liveRows = rows.filter((row) => !(typeof row.merged === "string" && /^[0-9a-f]{7,40}$/.test(row.merged)))
   const owner = repositorySlug(repoRoot).split("/")[0]
-  const authentications = new Map()
-  const repositories = Object.entries(config.repos).map(([key, path]) => {
-    const slug = configuredRepositorySlug(path, owner)
-    const repositoryOwner = slug.split("/")[0]
-    if (!authentications.has(repositoryOwner)) {
-      const pending = authenticate(path, { timeoutMs: 3500 })
-      pending.catch(() => {})
-      authentications.set(repositoryOwner, pending)
-    }
-    return { key, path, slug, worktrees: readWorktrees(path), rows: liveRows.filter((row) => row.repositoryKey === key), auth: authentications.get(repositoryOwner) }
-  })
+  const repositories = repositoryTargets({ config, rows: liveRows, owner, authenticate })
+  launches = recoverLaunchResults({ repositories, wakes, launches, sessionId })
   let budget = null
   try {
     const auth = await repositories[0].auth
@@ -231,10 +248,12 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   } catch { /* The shared budget rule attempts the query when its budget could not be read. */ }
   const snapshots = await Promise.all(repositories.map((repository) => readRepository({ ...repository, budget: repository.slug.startsWith(`${repositories[0].slug.split("/")[0]}/`) ? budget : null, runner, now })))
   const observations = []
+  const settledPullRequests = {}
   const nextActions = []
   for (const row of rows) {
     if (!liveRows.includes(row)) {
-      observations.push({ repositoryKey: row.repositoryKey, prNumber: row.prNumber, status: row.merged ? "MERGED" : "CLOSED", source: "RUN_LEDGER" })
+      settledPullRequests[row.repositoryKey] ??= []
+      settledPullRequests[row.repositoryKey].push(row.prNumber)
       continue
     }
     const snapshot = snapshots.find((entry) => entry.repositoryKey === row.repositoryKey)
@@ -267,7 +286,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   const unsettled = rows.find((row) => observations.some((entry) => entry.repositoryKey === row.repositoryKey && entry.prNumber === row.prNumber && !["CLOSED", "MERGED"].includes(entry.status)))
   if (nextActions.length === 0) nextActions.push(action("NO_ACTION", wakes.live.length > 0 || !unsettled
     ? `node tools/run-status.mjs --session ${quote(sessionId)}` : waitCommand(unsettled)))
-  return { status: "CURRENT_SESSION", commandDirectory: repoRoot, wakeSources: { live: wakes.live.map(({ pid, workerPid, repositoryKey, prNumbers, what }) => ({ pid, workerPid, repositoryKey, prNumbers, what })), orphaned: wakes.orphaned.map(({ pid, workerPid }) => ({ pid, workerPid })) },
+  return { status: "CURRENT_SESSION", commandDirectory: repoRoot, settledPullRequests, wakeSources: { live: wakes.live.map(({ pid, workerPid, repositoryKey, prNumbers, what }) => ({ pid, workerPid, repositoryKey, prNumbers, what })), orphaned: wakes.orphaned.map(({ pid, workerPid }) => ({ pid, workerPid })) },
     launcherResults: launches.map(({ launcherPid, repositoryKey, issue, outcome, exitCode, corrupt }) => ({ launcherPid, repositoryKey, issue, outcome, exitCode, corrupt })),
     admission: counts, repositories: snapshots.map(({ repositoryKey, status, openPullRequests, queuedRuns, error }) => ({ repositoryKey, status, openPullRequests, queuedRuns, error })), pullRequests: observations, nextActions }
 }

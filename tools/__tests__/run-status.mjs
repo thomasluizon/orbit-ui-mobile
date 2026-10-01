@@ -5,7 +5,7 @@ import { T, check, stage, stageRepo, TOOLS_DIR } from "./_harness.mjs"
 import { runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
-import { clearWakeSource, readRunState, registerWakeSource, runStatePath, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
+import { clearWakeSource, readRunState, registerWakeSource, reserveWorkerLaunch, runStatePath, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const fixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-status.json"), "utf8"))
 const sessionId = "status-session"
@@ -53,7 +53,7 @@ export const cases = async () => {
     ticket: { status: "In Review", targetStatus: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: pull.headRefOid, baseSha: pull.baseRefOid } })
   let pull = readyPull()
   const receiptPath = writeReadinessReceipt(repo.path, receipt(pull))
-  const row = { repositoryKey: "ui", prNumber: number, receiptPath, issue: "#1092", worktree: repo.path,
+  const row = { repositoryKey: "ui", prNumber: number, receiptPath, issue: "#1092", worktree: repo.path, branch: pull.headRefName,
     deliveryPath: join(repo.path, "delivery.json"), ticketPath: join(repo.path, "ticket.json") }
   const state = (remaining = []) => writeRunState({ sessionId, sleep: true, remaining, pullRequests: [row] }, repo.path)
   const resultDirectory = join(workerLaunchDirectory(repo.path), "results")
@@ -138,6 +138,18 @@ export const cases = async () => {
   reset(); response.data.repository[`pr${number}`] = { number }
   T("run-status: malformed PRs are unreadable without crashing", (await snapshot()).pullRequests[0].status === "UNREADABLE")
 
+  reset()
+  const previousRun = readFileSync(runStatePath(repo.path), "utf8")
+  writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, readinessLedger: [{ ...row, merged: "a".repeat(40) }] }))
+  report = await snapshot()
+  T("run-status: recorded merges are compact and omitted from the live query", report.settledPullRequests.ui.includes(number) && !readCalls.find((args) => args[1] === "graphql").at(-1).includes(`pr${number}:`))
+  writeFileSync(runStatePath(repo.path), previousRun)
+  reset()
+  writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, readinessLedger: [{ ...row, closed: true }] }))
+  report = await snapshot()
+  T("run-status: a previously closed unmerged PR is queried and a reopen is observed", report.pullRequests[0].status === "OPEN" && readCalls.some((args) => args[1] === "graphql"))
+  writeFileSync(runStatePath(repo.path), previousRun)
+
   reset(); malformedJson = true
   report = await snapshot()
   T("run-status: invalid JSON errors redact the selected child token", !JSON.stringify(report).includes("status-secret"))
@@ -159,6 +171,13 @@ export const cases = async () => {
   report = await snapshot()
   T(`run-status: ten PRs fit the output budget (${Buffer.byteLength(JSON.stringify(report))} bytes)`, Buffer.byteLength(JSON.stringify(report)) <= 8192, `bytes: ${Buffer.byteLength(JSON.stringify(report))}`)
   T("run-status: ten PRs still use one GraphQL query", readCalls.filter((args) => args[1] === "graphql").length === 1)
+
+  reset()
+  const indexedLaunch = { ...launch, launcherPid: 999999998 }
+  reserveWorkerLaunch(indexedLaunch, 2, repo.path)
+  rmSync(launchResultPath)
+  report = await snapshot()
+  T("run-status: a missing final result recovers exact commands from the launch ledger", report.launcherResults.some((entry) => entry.launcherPid === indexedLaunch.launcherPid && entry.corrupt) && report.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && !entry.command.includes("$WORKTREE")))
 
   const admissionPath = join(workerLaunchDirectory(repo.path), "admission-invalid.json")
   writeFileSync(admissionPath, "broken")
