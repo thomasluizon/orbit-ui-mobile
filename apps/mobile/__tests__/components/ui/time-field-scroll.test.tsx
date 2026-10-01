@@ -148,7 +148,9 @@ describe('TimeField scroll ownership in the native Sheet', () => {
       }
       const sheet = tree.root.findByType(TrueSheet)
       expect(sheet.props.footer).toBeDefined()
-      expect(findHost(bodyHost, (host) => host.props.children === 'common.done')).toBeUndefined()
+      const isDoneLabel = (host: Host) => host.type === 'Text' && (host.children ?? []).includes('common.done')
+      expect(findHost(tree.toJSON(), isDoneLabel)).toBeDefined()
+      expect(findHost(bodyHost, isDoneLabel)).toBeUndefined()
     } finally {
       body.freeRecursive()
       TestRenderer.act(() => tree.unmount())
