@@ -193,11 +193,11 @@ export const partialScheduleSummaryCases = [
   { name: 'retain flexible tracking', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Week', proposedValue: 'Week' },
     { field: 'frequency_quantity', oldValue: '2', newValue: '3', proposedValue: 3 },
-  ], english: 'Use weeks for repetition · Set the repeat count to 3', portuguese: 'Repetir em semanas · Definir quantidade de repetições: 3' },
+  ], english: 'Use weeks for repetition · Change the frequency number to 3', portuguese: 'Repetir em semanas · Mudar o número da frequência para 3' },
   { name: 'retain selected weekdays', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
     { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
-  ], english: 'Use days for repetition · Set the repeat count to 1', portuguese: 'Repetir em dias · Definir quantidade de repetições: 1' },
+  ], english: 'Use days for repetition · Change the frequency number to 1', portuguese: 'Repetir em dias · Mudar o número da frequência para 1' },
 ] as const
 
 export function makePartialScheduleSummaryOperation(scenario: typeof partialScheduleSummaryCases[number]): PendingAgentOperation {

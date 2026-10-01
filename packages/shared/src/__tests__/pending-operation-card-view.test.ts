@@ -89,7 +89,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       change('habit_id', 'habit-1', 'habit-1'),
       change('days', '["Thursday"]', ['Thursday'], 'Monday, Wednesday'),
       change('frequency_quantity', '1', 1, '1'),
-    ])).toBe(locale === 'en' ? 'Thu · Set the repeat count to 1' : 'Qui · Definir quantidade de repetições: 1')
+    ])).toBe(locale === 'en' ? 'Thu · Change the frequency number to 1' : 'Qui · Mudar o número da frequência para 1')
   })
 
   it('uses the complete supplied schedule when flexibility is explicit', () => {
