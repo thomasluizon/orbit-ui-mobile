@@ -64,11 +64,11 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
         <div className="flex min-h-[42px] items-start gap-3 px-4 pb-3 pt-2 text-sm leading-5 text-[var(--fg-2)]">
           <AstraGlyph size={20} color="var(--fg-3)" />
           <p className="m-0 min-w-0 flex-1">
-            {line.text}{' '}
+            {line.text}
             {line.notificationId ? (
               <button
                 type="button"
-                className="orbit-link-action orbit-link-action-persistent today-astra-action border-0 bg-transparent p-0 text-inherit"
+                className="orbit-link-action orbit-link-action-persistent today-astra-action border-0 bg-transparent p-0"
                 onClick={() => {
                   markRead.mutate(line.notificationId)
                   openConversation()
@@ -77,7 +77,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
                 {line.action}
               </button>
             ) : (
-              <Link className="orbit-link-action orbit-link-action-persistent today-astra-action text-inherit" href="/progress">
+              <Link className="orbit-link-action orbit-link-action-persistent today-astra-action" href="/progress">
                 {line.action}
               </Link>
             )}

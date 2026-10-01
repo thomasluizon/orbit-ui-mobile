@@ -118,7 +118,13 @@ describe('mobile Today Astra', () => {
     const action = tree.root.findAll((node) => node.props.accessibilityRole === 'link')[0]
     if (!action) throw new Error('Returning action did not render')
     expect(action.props.hitSlop).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
-    expect(StyleSheet.flatten(action.props.style) as Record<string, unknown>).toMatchObject({ minWidth: 44, minHeight: 44 })
+    const targetStyle = StyleSheet.flatten(action.props.style) as Record<string, unknown>
+    expect(targetStyle).toMatchObject({ marginStart: 4 })
+    expect(targetStyle.minHeight).toBeUndefined()
+    const label = action.findAll((node) => node.props.children === 'todayAstra.viewProgress')[0]
+    expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
+      fontFamily: 'Geist_500Medium', fontSize: 14, color: '#ffffff', textDecorationLine: 'underline',
+    })
     expect(tree.root.findAll((node) => node.type === Text &&
       node.findAll((child) => child.props.accessibilityRole === 'link').length > 0,
     ).length).toBeGreaterThan(0)
@@ -169,8 +175,10 @@ describe('mobile Today Astra', () => {
     if (!action) throw new Error('Proactive conversation action did not render')
     const label = action.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
     expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
+      fontFamily: 'Geist_500Medium', fontSize: 14, color: '#ffffff',
       textDecorationLine: 'underline',
     })
+    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).marginStart).toBe(4)
     expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
     const onPressIn = action.props.onPressIn
     if (typeof onPressIn !== 'function') throw new Error('Proactive action cannot receive press feedback')
@@ -185,7 +193,7 @@ describe('mobile Today Astra', () => {
     if (!pressedAction) throw new Error('Pressed proactive action did not render')
     expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
     const pressedLabel = pressedAction.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
-    expect((StyleSheet.flatten(pressedLabel?.props.style) as Record<string, unknown>)).toMatchObject({ color: '#ffffff' })
+    expect((StyleSheet.flatten(pressedLabel?.props.style) as Record<string, unknown>)).toMatchObject({ color: '#ffffff', opacity: 0.85 })
     const onPressOut = pressedAction.props.onPressOut
     if (typeof onPressOut !== 'function') throw new Error('Proactive action cannot release press feedback')
     await TestRenderer.act(async () => {

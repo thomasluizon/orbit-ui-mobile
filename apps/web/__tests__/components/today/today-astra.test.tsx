@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
 import type { NextRouter } from 'next/router'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -157,6 +163,63 @@ describe('web Today Astra', () => {
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
+
+  it('renders both inline actions with the drawn emphasis and scale spacing in both themes', async () => {
+    const cssPath = resolve(process.cwd(), 'app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    vi.useRealTimers()
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      for (const proactive of [true, false]) {
+        mocks.profile.lastCompletionDate = proactive ? null : new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10)
+        mocks.notifications = proactive ? [{
+          id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
+          isRead: false, createdAtUtc: new Date().toISOString(),
+        }] : []
+        const { container, unmount } = renderTodayAstra()
+        for (const mode of ['dark', 'light'] as const) {
+          const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
+          const page = await browser.newPage()
+          await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body>${container.innerHTML}</body></html>`)
+          const action = page.getByRole(proactive ? 'button' : 'link')
+          const appearance = await action.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const reference = document.createElement('span')
+            reference.style.color = 'var(--fg-1)'
+            reference.style.textDecorationColor = 'var(--hairline-strong)'
+            document.body.append(reference)
+            return {
+              fontSize: style.fontSize, fontWeight: style.fontWeight,
+              color: style.color, expectedColor: getComputedStyle(reference).color,
+              underline: style.textDecorationLine, underlineColor: style.textDecorationColor,
+              expectedUnderlineColor: getComputedStyle(reference).textDecorationColor,
+              marginStart: style.marginInlineStart,
+              previousText: element.previousSibling?.textContent,
+              background: style.backgroundColor,
+              generatedUnderline: getComputedStyle(element, '::after').content,
+            }
+          })
+          expect(appearance).toMatchObject({
+            fontSize: '14px', fontWeight: '500', color: appearance.expectedColor,
+            underline: 'underline', underlineColor: appearance.expectedUnderlineColor,
+            marginStart: '4px', background: 'rgba(0, 0, 0, 0)', generatedUnderline: 'none',
+          })
+          expect(appearance.previousText?.endsWith(' ')).toBe(false)
+          await action.hover()
+          await page.waitForFunction(() => {
+            const element = document.querySelector('button, a')!
+            const style = getComputedStyle(element)
+            return style.textDecorationColor === style.color
+          })
+          await page.close()
+        }
+        unmount()
+      }
+    } finally {
+      await closeChrome(launch)
+    }
+  }, 45_000)
 
   it('shows returning Progress when a proactive check-in is unavailable offline', () => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
