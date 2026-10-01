@@ -3307,8 +3307,7 @@
     "banner": "A new version of Orbit is ready",
     "refresh": "Reload",
     "versions": "The installed version is {currentVersion} and the server now asks for {minVersion}. Update in the store to carry on.",
-    "bannerVersion": "Reload to pick up {minVersion}.",
-    "bannerDescription": "Reload to pick it up.",
+    "bannerVersion": "Version {minVersion}",
     "storeFailure": "The store did not open. Try again."
   },
   "today": {
