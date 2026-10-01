@@ -1,11 +1,19 @@
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
+import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
+import { profileSchema } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
+
+const goals = paginatedGoalResponseSchema.parse({
+  items: [createMockGoal()], page: 1, pageSize: 100, totalCount: 1, totalPages: 1,
+})
 
 for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`Progress stat values in ${locale}`, () => {
@@ -15,6 +23,13 @@ for (const locale of ['en', 'pt-BR'] as const) {
     for (const width of [412, 500, 1352, 1440]) {
       test(`keeps all four values at the same size at ${width}px`, async ({ page, context }) => {
         await page.setViewportSize({ width, height: 915 })
+        const profile = profileSchema.parse({
+          ...profileFixture, language: locale, plan: 'pro', hasProAccess: true,
+          isTrialActive: true, trialEndsAt: '2026-09-18T12:00:00Z', canViewGamification: true,
+        })
+        await setLayoutProfileSession(context, profile)
+        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
         const metrics = createMockRetrospectiveMetrics({
           completionRate: 38,
           activeDays: 2,
@@ -33,13 +48,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
         )
         await page.goto('/progress')
         const windowSection = page.getByRole('region', { name: words.progressScreen.sections.window })
-        const tiles = windowSection.locator('[data-state="default"]')
-        await expect(tiles).toHaveCount(4)
-        await expect(tiles.nth(2)).toContainText(words.dates.daysValue.monday)
-        await expect(tiles.nth(3)).toContainText('Caminhar')
+        const values = windowSection.locator('span[title]')
+        await expect(values).toHaveText(['38%', '2', words.dates.daysValue.monday, 'Caminhar'])
         await page.evaluate(() => document.fonts.ready)
-        const geometry = await tiles.evaluateAll((elements) => elements.map((tile) => {
-          const value = tile.firstElementChild!
+        const geometry = await values.evaluateAll((elements) => elements.map((value) => {
+          const tile = value.parentElement!
           const valueBounds = value.getBoundingClientRect()
           const tileBounds = tile.getBoundingClientRect()
           return {
