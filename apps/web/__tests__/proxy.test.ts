@@ -8,6 +8,7 @@ import {
   setSessionCookies,
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
+import manifest from '../app/manifest'
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
 import { serverAuthMutate } from '@/lib/server-fetch'
 
@@ -225,6 +226,40 @@ describe('proxy', () => {
   it('keeps the health route outside the auth proxy', async () => {
     expect(unstable_doesMiddlewareMatch({ config, url: 'http://localhost:3000/api/health' })).toBe(false)
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    '/manifest.webmanifest',
+    ...manifest().icons!.map(({ src }) => src),
+  ])('keeps the public install asset %s outside the auth proxy', (path) => {
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: `http://localhost:3000${path}?v=1`,
+    })).toBe(false)
+  })
+
+  it.each([
+    '/profile',
+    '/manifest.webmanifest/private',
+    '/manifest.webmanifest.json',
+    ...manifest().icons!.map(({ src }) => `${src}/private`),
+  ])('keeps %s protected when install assets are public', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      url: `http://localhost:3000${path}`,
+    })).toBe(true)
+
+    await proxy(createRequest(path))
+
+    const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+    expect(redirectUrl.pathname).toBe('/login')
+    expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
   })
 
   it('permanently redirects the service host to the public site before resolving a session', async () => {
