@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
@@ -24,6 +24,21 @@ const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Walk', position: 1 })],
   page: 1, pageSize: 100, totalCount: 2, totalPages: 1,
 })
+
+async function readContentEdgesOnceStill(surface: Locator) {
+  const readEdges = () => surface.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { left: bounds.left, right: bounds.right }
+  })
+  let bounds = await readEdges()
+  await expect(async () => {
+    const first = await readEdges()
+    await surface.page().waitForTimeout(250)
+    bounds = await readEdges()
+    expect(bounds).toEqual(first)
+  }).toPass({ timeout: 5000 })
+  return bounds
+}
 
 for (const width of [1352, 1100, 840, 412]) {
   for (const panelOpen of [false, true]) {
@@ -52,10 +67,8 @@ for (const width of [1352, 1100, 840, 412]) {
             await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
             await expect(page.locator(`[data-shell-conversation="${presentation}"]`)).toBeVisible()
           }
-          const today = await todayPanel.evaluate((element) => {
-            const bounds = element.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right }
-          })
+          await page.evaluate(() => document.fonts.ready)
+          const today = await readContentEdgesOnceStill(todayPanel)
 
           await page.goto('/progress')
           const streak = page.getByRole('region', { name: messages.progressScreen.sections.streak, includeHidden: true })
@@ -72,18 +85,12 @@ for (const width of [1352, 1100, 840, 412]) {
             page.locator('[data-goal-id]').first(),
           ]
           for (const surface of surfaces) {
-            const bounds = await surface.evaluate((element) => {
-              const rect = element.getBoundingClientRect()
-              return { left: rect.left, right: rect.right }
-            })
+            const bounds = await readContentEdgesOnceStill(surface)
             expect(bounds.left).toBeCloseTo(today.left, 1)
             expect(bounds.right).toBeCloseTo(today.right, 1)
           }
           const firstTile = page.getByText(messages.progressScreen.streak.longest, { exact: true }).locator('..')
-          const tileBounds = await firstTile.evaluate((element) => {
-            const rect = element.getBoundingClientRect()
-            return { left: rect.left, right: rect.right }
-          })
+          const tileBounds = await readContentEdgesOnceStill(firstTile)
           expect(tileBounds.left).toBeCloseTo(today.left, 1)
           expect(tileBounds.right).toBeLessThanOrEqual(today.right)
         })
