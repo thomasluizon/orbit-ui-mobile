@@ -196,6 +196,7 @@ async function clearSessionCredentials(
     advanceSessionEpoch()
     credentialVersion += 1
     resetPostHogUser()
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
       isLoading: false,
@@ -246,10 +247,8 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   if (!(await runSessionTeardownStep(epoch, forgetPreviousAccountContent))) return null
-  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
   if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
-  if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
   return teardown
@@ -463,6 +462,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!matchesExpectedSessionEpoch(expectedEpoch)) return null
     const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {

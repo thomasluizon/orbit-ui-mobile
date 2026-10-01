@@ -23,7 +23,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 describe('onboarding draft store', () => {
   beforeEach(() => {
     asyncStorageState.data.clear()
-    useOnboardingDraftStore.getState().reset()
+    useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     useOnboardingDraftStore.setState({ _hasHydrated: false })
   })
 
