@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { Achievement } from '../types/gamification'
 import type { Goal } from '../types/goal'
@@ -163,6 +164,26 @@ describe('progress surface models', () => {
     expect(achievementGlyphKey('week_warrior')).toBe('flame')
     expect(achievementGlyphKey('first_orbit')).toBe('satellite')
     expect(achievementGlyphKey('unknown_future_key')).toBe('star')
+  })
+
+  it('distinguishes night owl from early bird with glyphs available on both platforms', () => {
+    const nightGlyph = achievementGlyphKey('night_owl')
+    const morningGlyph = achievementGlyphKey('early_bird')
+    expect(nightGlyph).not.toBe(morningGlyph)
+    expect(nightGlyph).toBe('moon')
+    expect(morningGlyph).toBe('sun')
+    expect(achievementGlyphKey('perfect_day')).toBe('sun')
+
+    for (const platform of ['web', 'mobile']) {
+      const icons = readFileSync(new URL(`../../../../apps/${platform}/components/ui/icons.ts`, import.meta.url), 'utf8')
+      const mark = readFileSync(new URL(`../../../../apps/${platform}/components/gamification/achievement-mark.tsx`, import.meta.url), 'utf8')
+      for (const glyph of [nightGlyph, morningGlyph]) {
+        const symbol = glyph[0]!.toUpperCase() + glyph.slice(1)
+        expect(icons).toMatch(new RegExp(`\\bIcon${symbol} as ${symbol}\\b`))
+        expect(mark).toMatch(new RegExp(`\\b${glyph}:\\s*${symbol}\\b`))
+        expect(mark).toMatch(new RegExp(`import \\{[^}]*\\b${symbol}\\b[^}]*\\} from '@/components/ui/icons'`))
+      }
+    }
   })
 
   it('keeps deadline urgency live without reporting it for inactive goals', () => {

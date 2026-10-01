@@ -181,7 +181,7 @@ describe("CalendarHeader year navigation (mobile)", () => {
     const month = tree!.root.findAll((node) => node.type === "Text" && node.props.children === "April")[0]!;
     expect(StyleSheet.flatten(month.props.style).fontSize).toBe(28);
     const year = tree!.root.findAll((node) => node.type === "Text" && node.props.children === 2026)[0]!;
-    expect(StyleSheet.flatten(year.props.style)).toMatchObject({ fontSize: width >= 1024 ? 14 : 12 });
+    expect(StyleSheet.flatten(year.props.style)).toMatchObject({ fontSize: width >= 1024 ? 14 : 12, color: tokens.fg3, fontFamily: 'GeistMono_400Regular' });
 
     for (const label of ['Previous month', 'Next month', 'Go to current month', 'Select year']) expectPressFill(tree!, label, tokens.bgHover, 999);
 

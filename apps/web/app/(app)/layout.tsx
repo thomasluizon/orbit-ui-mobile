@@ -13,6 +13,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -519,9 +520,9 @@ function GlobalOverlays({
         title={t('onboarding.wizard.calendarTitle')}
         actions={(
           <DialogActionPair>
-            <PillButton size="sm" variant="ghost" onClick={onDismissCalendarPrompt}>
+            <PromptQuietAction onClick={onDismissCalendarPrompt}>
               {t('common.later')}
-            </PillButton>
+            </PromptQuietAction>
             <PillButton size="sm" onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
@@ -540,9 +541,9 @@ function GlobalOverlays({
         title={t('onboarding.wizard.importTitle')}
         actions={(
           <DialogActionPair>
-            <PillButton size="sm" variant="ghost" onClick={onDismissImportPrompt}>
+            <PromptQuietAction onClick={onDismissImportPrompt}>
               {t('onboarding.wizard.importNotNow')}
-            </PillButton>
+            </PromptQuietAction>
             {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
             <PillButton size="sm" onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}

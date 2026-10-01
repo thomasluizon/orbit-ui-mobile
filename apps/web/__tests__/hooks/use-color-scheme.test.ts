@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook as renderTestingHook, act } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { hydrateRoot } from 'react-dom/client'
@@ -73,10 +74,20 @@ vi.spyOn(document, 'querySelector').mockImplementation(() => null)
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
+let queryClient: QueryClient
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return React.createElement(QueryClientProvider, { client: queryClient }, children)
+}
+
+function renderHook<Result>(hook: () => Result) {
+  return renderTestingHook(hook, { wrapper: Wrapper })
+}
+
 describe('useColorScheme', () => {
   it('hydrates the dark toggle before revealing a stored light theme', async () => {
     mockCookies['orbit_theme_mode'] = 'light'
-    const html = renderToString(React.createElement(ThemeToggle))
+    const html = renderToString(React.createElement(Wrapper, null, React.createElement(ThemeToggle)))
     expect(html).toContain('settings.theme.switchToLight')
     const container = document.createElement('div')
     container.innerHTML = html
@@ -84,7 +95,7 @@ describe('useColorScheme', () => {
     const recoverableError = vi.fn()
     let root: ReturnType<typeof hydrateRoot> | undefined
     await act(async () => {
-      root = hydrateRoot(container, React.createElement(ThemeToggle), { onRecoverableError: recoverableError })
+      root = hydrateRoot(container, React.createElement(Wrapper, null, React.createElement(ThemeToggle)), { onRecoverableError: recoverableError })
     })
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelector('button')).toHaveAttribute('aria-label', 'settings.theme.switchToDark')
@@ -92,6 +103,7 @@ describe('useColorScheme', () => {
     container.remove()
   })
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     mockCookies = {}
     heldAccount.id = null
     accountGeneration.current = 0

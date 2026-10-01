@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
@@ -16,8 +17,9 @@ import ptBR from '../i18n/pt-BR.json'
 
 function translateMessages(messages: typeof en, key: string, values?: Record<string, string | number>): string {
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
-  const localized = typeof message === 'string' ? message.replace(/\{(\w+), plural, one \{([^}]*)\} other \{([^}]*)\}\}/g, (_, name: string, singular: string, plural: string) => (values?.[name] === 1 ? singular : plural).replaceAll('#', String(values?.[name]))) : key
-  return localized.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
+  return typeof message === 'string'
+    ? new IntlMessageFormat(message, messages === ptBR ? 'pt-BR' : 'en').format(values) as string
+    : key
 }
 
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)

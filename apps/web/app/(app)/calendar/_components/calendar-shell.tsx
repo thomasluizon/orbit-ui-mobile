@@ -80,9 +80,9 @@ export function CalendarHeader({
               minHeight: 44,
               padding: '0 8px',
               fontFamily: 'var(--font-mono)',
-              fontWeight: 500,
+              fontWeight: 400,
               fontVariantNumeric: 'tabular-nums',
-              color: 'var(--fg-1)',
+              color: 'var(--fg-3)',
             }}
           >
             {year}

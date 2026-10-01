@@ -11,6 +11,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useProfile } from '@/hooks/use-profile'
 import { useReviewReminder } from '@/hooks/use-review-reminder'
 import { createTokensV2 } from '@/lib/theme'
@@ -132,14 +133,12 @@ export function ReviewMomentSheet() {
       title={title}
       actions={(
         <DialogActionPair>
-          <PillButton
-            size="sm"
-            variant="ghost"
+          <PromptQuietAction
             accessibleName={t('reviewMoment.notNow')}
             onClick={requestSnooze}
           >
             {t('reviewMoment.notNow')}
-          </PillButton>
+          </PromptQuietAction>
           <PillButton
             size="sm"
             loading={isRequesting}

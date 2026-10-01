@@ -120,18 +120,16 @@ function LoadedContent({
 
       {stats ? (
         <>
-          <View style={styles.gutter}>
-            <InfoCard>
-              <Text style={styles.infoTitle}>
-                {t('referral.drawer.howItWorks')}
-              </Text>
-              <Text style={styles.infoBody}>
-                {t('referral.drawer.explanation', {
-                  discount: stats.discountPercent,
-                })}
-              </Text>
-            </InfoCard>
-          </View>
+          <InfoCard>
+            <Text style={styles.infoTitle}>
+              {t('referral.drawer.howItWorks')}
+            </Text>
+            <Text style={styles.infoBody}>
+              {t('referral.drawer.explanation', {
+                discount: stats.discountPercent,
+              })}
+            </Text>
+          </InfoCard>
           <Text style={styles.disclaimer}>
             {t('referral.drawer.disclaimer', {
               discount: stats.discountPercent,
@@ -246,9 +244,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       gap: 16,
     },
-    gutter: {
-      paddingHorizontal: 16,
-    },
     loadingContainer: {
       paddingVertical: 48,
       alignItems: 'center',
@@ -257,7 +252,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginHorizontal: 16,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -286,7 +280,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.96 }],
     },
     actionError: {
-      paddingHorizontal: 16,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
@@ -300,7 +293,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     progressBlock: {
-      paddingHorizontal: 16,
       paddingVertical: 12,
     },
     infoTitle: {
@@ -317,7 +309,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     disclaimer: {
-      paddingHorizontal: 16,
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
       lineHeight: 20,
