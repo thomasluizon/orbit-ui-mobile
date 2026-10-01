@@ -1,3 +1,4 @@
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 import {
@@ -59,12 +60,6 @@ vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId, setAcc
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('@/stores/referral-prompt-store', () => ({ setEngagementPromptAccountScope: () => Promise.resolve() }))
 vi.mock('@/stores/ui-store', () => ({ setUIAccountScope: () => Promise.resolve() }))
-vi.mock('@/stores/onboarding-draft-store', () => ({
-  useOnboardingDraftStore: {
-    getState: () => ({ reset: () => {}, setAccountScope: () => {} }),
-    persist: { rehydrate: () => Promise.resolve() },
-  },
-}))
 vi.mock('@/stores/tour-store', () => ({
   useTourStore: { getInitialState: () => ({}), setState: () => {} },
 }))
@@ -88,6 +83,7 @@ vi.mock('@/stores/offline-sync-store', () => ({
 
 describe('compacted offline delete Undo', () => {
   beforeEach(() => {
+  useOnboardingDraftStore.getState().reset()
     mocks.rows.clear()
     mocks.setOnline(false)
     mocks.setAccountId('test-account')

@@ -212,6 +212,7 @@ async function clearSessionCredentials(
     sessionEpoch += 1
     credentialVersion += 1
     resetPostHogUser()
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
       isLoading: false,
@@ -252,10 +253,8 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   useChatStore.getState().clearMessages()
-  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
   if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
-  if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
   return teardown

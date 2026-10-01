@@ -8,6 +8,7 @@ import { getQueryClient } from '@/lib/query-client'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
+const SESSION_RECOVERY_CHECK_LIMIT = 3
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
 let sessionOwnershipEpoch = 0
@@ -221,7 +222,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
-    if (get().sessionRefreshFailed) return
+    if (get().sessionRefreshFailed) {
+      await get().recoverSessionRefreshFailure()
+      return
+    }
     const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
@@ -265,8 +269,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   startExpiryMonitor: () => {
     void get().checkSession()
+    let remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
 
     const intervalId = setInterval(() => {
+      if (get().sessionRefreshFailed) {
+        if (remainingRecoveryChecks > 0) {
+          remainingRecoveryChecks -= 1
+          void get().recoverSessionRefreshFailure()
+        }
+        return
+      }
+      remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
       if (!get().isAuthenticated) {
         return
       }

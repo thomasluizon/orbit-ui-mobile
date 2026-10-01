@@ -10,6 +10,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { openAccountEventStream } from '@/lib/account-event-stream'
 import { openChatStream } from '@/lib/chat-stream'
+import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 
 import {
   clearSessionAndResetAuth,
@@ -40,6 +41,7 @@ vi.mock('@/lib/posthog', () => posthogMocks)
 
 const TestRenderer = require('react-test-renderer')
 const streamFetch = vi.hoisted(() => vi.fn())
+const navigation = vi.hoisted(() => ({ destinations: [] as string[] }))
 vi.mock('expo/fetch', () => ({ fetch: streamFetch }))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
@@ -118,12 +120,40 @@ const {
   cancelPersistentReminderMock: vi.fn(),
 }))
 
-vi.mock('expo-router', () => ({
-  router: {
-    replace: replaceMock,
-  },
-  useRouter: () => ({ replace: replaceMock }),
-}))
+vi.mock('expo-router', async () => {
+  const { StackRouter } = await import('expo-router/build/react-navigation/routers/StackRouter')
+  function Protected() { return null }
+  function Screen() { return null }
+  const stackRouter = StackRouter({})
+  function Stack({ children }: { children: React.ReactNode }) {
+    const stackState = React.useRef<ReturnType<typeof stackRouter.getInitialState> | null>(null)
+    const routeNames: string[] = []
+    function collect(screens: React.ReactNode) {
+      React.Children.forEach(screens, (screen) => {
+        if (!React.isValidElement<{ guard?: boolean; name?: string; children?: React.ReactNode }>(screen)) return
+        if (screen.type === Protected) {
+          if (screen.props.guard) collect(screen.props.children)
+        } else if (screen.props.name) routeNames.push(screen.props.name)
+      })
+    }
+    collect(children)
+    stackState.current = stackRouter.getStateForRouteNamesChange(stackState.current
+      ?? stackRouter.getInitialState({ routeNames, routeParamList: {}, routeGetIdList: {} }), {
+      routeNames, routeParamList: {}, routeGetIdList: {}, routeKeyChanges: [],
+    })
+    navigation.destinations.push(stackState.current.routes[stackState.current.index]!.name)
+    return null
+  }
+  Stack.Protected = Protected
+  Stack.Screen = Screen
+  return {
+    Stack,
+    router: {
+      replace: replaceMock,
+    },
+    useRouter: () => ({ replace: replaceMock }),
+  }
+})
 
 vi.mock('@/lib/secure-store', () => ({
   getToken: getTokenMock,
@@ -372,6 +402,7 @@ describe('mobile auth store security paths', () => {
     unsubscribePushTokenMock.mockReset()
     fetchMock.mockReset()
     streamFetch.mockReset()
+    navigation.destinations = []
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
     resumeOfflineReplayMock.mockReset()
@@ -1101,9 +1132,9 @@ describe('mobile auth store security paths', () => {
     })
   })
 
-  it('keeps onboarding hidden after a returning person signs out', async () => {
+  it.each([false, true])('reaches login after sign-out with onboarding marker %s', async (onboardingLocallyDone) => {
     getRefreshTokenMock.mockResolvedValue(null)
-    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+    useOnboardingDraftStore.setState({ onboardingLocallyDone })
     useAuthStore.setState({
       isAuthenticated: true,
       user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
@@ -1111,12 +1142,27 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    await useAuthStore.getState().logout()
+    let view!: { unmount: () => void }
+    await TestRenderer.act(async () => {
+      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+      await useAuthStore.getState().logout()
+    })
 
     const { isAuthenticated } = useAuthStore.getState()
-    const { onboardingLocallyDone } = useOnboardingDraftStore.getState()
-    expect(onboardingLocallyDone).toBe(true)
-    expect(!isAuthenticated && !onboardingLocallyDone).toBe(false)
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+    expect(isAuthenticated).toBe(false)
+    expect(navigation.destinations.at(-1)).toBe('login')
+    expect(navigation.destinations).not.toContain('(onboarding)')
+    await TestRenderer.act(() => view.unmount())
+  })
+
+  it('shows onboarding on a fresh installation before any session ends', async () => {
+    let view!: { unmount: () => void }
+    await TestRenderer.act(() => {
+      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+    })
+    expect(navigation.destinations.at(-1)).toBe('(onboarding)')
+    await TestRenderer.act(() => view.unmount())
   })
 
   it('attempts a best-effort push unsubscribe before clearing tokens on logout', async () => {
@@ -1632,7 +1678,8 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().sessionPhase).toBe('signed-in')
   })
 
-  it('ends a rejected account stream session before further reconnects', async () => {
+  it.each([false, true])('ends a rejected account stream at login with onboarding marker %s', async (onboardingLocallyDone) => {
+    useOnboardingDraftStore.setState({ onboardingLocallyDone })
     getTokenMock.mockResolvedValue('expired-token')
     getRefreshTokenMock.mockResolvedValue('rejected-refresh')
     streamFetch.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
@@ -1642,7 +1689,10 @@ describe('mobile auth store security paths', () => {
     let view: { unmount: () => void } | undefined
     try {
       await TestRenderer.act(async () => {
-        view = TestRenderer.create(React.createElement(AccountEventConnection))
+        view = TestRenderer.create(React.createElement(React.Fragment, null,
+          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(AccountEventConnection),
+        ))
         await vi.advanceTimersByTimeAsync(0)
       })
       for (const delay of [2000, 4000, 8000, 16000, 30000]) {
@@ -1652,6 +1702,8 @@ describe('mobile auth store security paths', () => {
       expect(streamFetch).toHaveBeenCalledTimes(1)
       expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
       expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isAuthenticated: false })
+      expect(navigation.destinations.at(-1)).toBe('login')
+      expect(navigation.destinations).not.toContain('(onboarding)')
     } finally {
       await TestRenderer.act(() => { view?.unmount() })
       vi.useRealTimers()
@@ -1668,7 +1720,10 @@ describe('mobile auth store security paths', () => {
     let view: { unmount: () => void } | undefined
     try {
       await TestRenderer.act(async () => {
-        view = TestRenderer.create(React.createElement(AccountEventConnection))
+        view = TestRenderer.create(React.createElement(React.Fragment, null,
+          React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }),
+          React.createElement(AccountEventConnection),
+        ))
         await vi.advanceTimersByTimeAsync(0)
       })
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1999) })
@@ -1681,19 +1736,26 @@ describe('mobile auth store security paths', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3)
       expect(clearAllTokensMock).not.toHaveBeenCalled()
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(navigation.destinations.at(-1)).toBe('(tabs)')
+      expect(navigation.destinations).not.toContain('login')
     } finally {
       await TestRenderer.act(() => { view?.unmount() })
       vi.useRealTimers()
     }
   })
 
-  it('shares a rejected refresh and teardown across API, account and chat callers', async () => {
+  it.each([false, true])('shares rejection across API, account and chat callers and reaches login with marker %s', async (onboardingLocallyDone) => {
+    useOnboardingDraftStore.setState({ onboardingLocallyDone })
     const { apiClient: request } = await vi.importActual<typeof import('@/lib/api-client')>('@/lib/api-client')
     getTokenMock.mockResolvedValue('expired-token')
     getRefreshTokenMock.mockResolvedValue('rejected-refresh')
     streamFetch.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
     fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 401 })))
     useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, isLoading: false })
+    let view!: { unmount: () => void }
+    await TestRenderer.act(() => {
+      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+    })
     let releaseDeletion!: () => void
     let signalDeletion!: () => void
     const deletionStarted = new Promise<void>((resolve) => { signalDeletion = resolve })
@@ -1713,12 +1775,15 @@ describe('mobile auth store security paths', () => {
       await vi.waitFor(() => expect(streamFetch).toHaveBeenCalledTimes(20))
     } finally {
       releaseDeletion()
-      await Promise.all([first, ...callers])
+      await TestRenderer.act(async () => { await Promise.all([first, ...callers]) })
     }
     const refreshCalls = fetchMock.mock.calls.filter(([url]) => url.endsWith(API.auth.refresh))
     expect(refreshCalls).toHaveLength(1)
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-out', isAuthenticated: false })
+    expect(navigation.destinations.at(-1)).toBe('login')
+    expect(navigation.destinations).not.toContain('(onboarding)')
+    await TestRenderer.act(() => view.unmount())
   })
 
   it('shares one token rotation across concurrent refresh callers', async () => {
@@ -1806,15 +1871,22 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() - 1000,
     })
 
+    let view!: { unmount: () => void }
+    await TestRenderer.act(() => {
+      view = TestRenderer.create(React.createElement(RootStackScreens, { screenBackgroundColor: 'transparent' }))
+    })
+
     const failedRefresh = refreshSession()
     await vi.waitFor(() => expect(releaseTeardown).toBeTypeOf('function'))
 
     const replacementLogin = useAuthStore.getState().login(rotatedToken, 'next-refresh', {
       userId: 'user-1', email: 'user@example.com', name: 'User',
     })
-    await replacementLogin
+    await TestRenderer.act(async () => { await replacementLogin })
     releaseTeardown()
-    await expect(failedRefresh).resolves.toEqual({ status: 'superseded' })
+    await TestRenderer.act(async () => {
+      await expect(failedRefresh).resolves.toEqual({ status: 'superseded' })
+    })
 
     expect(storedToken).toBe(rotatedToken)
     expect(storedRefreshToken).toBe('next-refresh')
@@ -1823,6 +1895,9 @@ describe('mobile auth store security paths', () => {
       user: { userId: 'user-1' },
       expiresAt: rotatedExpirySeconds * 1000,
     })
+    expect(navigation.destinations.at(-1)).toBe('(tabs)')
+    expect(navigation.destinations).not.toContain('(onboarding)')
+    await TestRenderer.act(() => view.unmount())
   })
 
   it('serializes credential deletion with a replacement login', async () => {

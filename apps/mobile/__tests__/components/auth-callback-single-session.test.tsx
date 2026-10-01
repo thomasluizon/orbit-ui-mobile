@@ -1,3 +1,4 @@
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
@@ -76,13 +77,6 @@ vi.mock('@/lib/motion', () => ({
   getPrefersReducedMotion: () => Promise.resolve(true),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/stores/onboarding-draft-store', () => ({
-  useOnboardingDraftStore: Object.assign(
-    (selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown) =>
-      selector({ onboardingLocallyDone: false, habits: [] }),
-    { getState: () => ({ onboardingLocallyDone: false, habits: [] }) },
-  ),
-}))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: vi.fn(async () => {}), saveWidgetToken: vi.fn(async () => {}) }))
 vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: vi.fn(async () => {}) }))
@@ -104,6 +98,7 @@ vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn(
 vi.mock('@/hooks/use-push-notifications', () => ({ unsubscribePushToken: vi.fn(async () => {}) }))
 
 beforeEach(() => {
+  useOnboardingDraftStore.getState().reset()
   vi.resetAllMocks()
   vi.mocked(apiClient).mockResolvedValue(undefined)
   mocks.params = {}
