@@ -74,7 +74,7 @@ export function AstraAllowancePanel({
             className="touch-target inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 bg-transparent font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.96]"
             style={{
               fontFamily: 'var(--font-sans)',
-              height: BUTTON_SIZES.sm.height,
+              minHeight: 44,
               paddingInline: BUTTON_SIZES.sm.paddingX,
               fontSize: BUTTON_SIZES.sm.fontSize,
             }}

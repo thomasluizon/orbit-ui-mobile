@@ -227,6 +227,8 @@ function AllDayMoreChip({
       style={{
         appearance: 'none',
         cursor: 'pointer',
+        minHeight: 44,
+        minWidth: 44,
         padding: '4px 8px',
         borderRadius: 8,
         border: 0,

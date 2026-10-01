@@ -4,12 +4,16 @@ import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName } from '@orbit/shared/utils'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { createStyles as createCalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { StreakBadge } from '@/components/gamification/streak-badge'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { Chip } from '@/components/ui/chip'
+import { PillButton } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { createTokensV2, radius } from '@/lib/theme'
+
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time, uses24HourClock: true }),
@@ -21,6 +25,7 @@ type StyledNode = Readonly<{
     accessibilityLabel?: string
     onPressIn?: () => void
     onPressOut?: () => void
+    hitSlop?: unknown
   }
   findAllByType(type: unknown): StyledNode[]
   findAllByProps(props: Record<string, unknown>): StyledNode[]
@@ -83,6 +88,33 @@ function numeralColor(node: StyledNode) {
 }
 
 describe('pressed hit area shapes', () => {
+  it('paints the chip target in a real 44px box without invisible slop', () => {
+    withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
+      const control = findPressable(tree, 'Filter')
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
+    })
+  })
+
+  it('paints the small pill target in a real 44px box without invisible slop', () => {
+    withTree(<PillButton size="sm" accessibleName="Copy">Copy</PillButton>, (tree) => {
+      const control = findPressable(tree, 'Copy')
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
+    })
+  })
+
+  it('keeps the today ring out of the layout so its press fill reaches the outer edge', () => {
+    const props = { ...loggableFullDay, today: true }
+    withTree(<DayCell {...props} />, (tree) => {
+      const control = findPressable(tree, buildDayCellAccessibleName(props, 'full'))
+      expect(StyleSheet.flatten(control.props.style as StyleProp<ViewStyle>).borderWidth ?? 0).toBe(0)
+      renderer.act(() => control.props.onPressIn?.())
+      const fill = control.findAllByProps({ testID: 'day-press-fill' })[0]!
+      expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>)).toMatchObject({ top: 0, bottom: 0, left: 0, right: 0 })
+    })
+  })
+
   it('fills the whole rounded ListRow body and its round action', () => {
     const row = <ListRow title="Account" accessibilityLabel="Account" onClick={() => {}} action={{ icon: 'download', label: 'More', onPress: () => {} }} />
     expect(pressedStyle(row, 'Account')).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
@@ -175,6 +207,26 @@ describe('pressed hit area shapes', () => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(pressedFill(control, true)).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgHover })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
+    })
+  })
+
+  it.each([false, true])('fills the review dismiss target without losing its pending state: %s', (dismissPending) => {
+    const event = { id: 'e1', title: 'Weekly review', description: null, startDate: null, startTime: null, endTime: null, startUtc: null, recurrenceTimeZone: null, isRecurring: false, recurrenceRule: null, reminders: [] }
+    withTree(<CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion-1" dismissPending={dismissPending} styles={createCalendarSyncStyles()} tokens={tokens} t={((key: string) => key) as never} onToggle={() => {}} onDismiss={() => {}} />, (tree) => {
+      const control = findPressable(tree, 'calendar.autoSync.dismissSuggestion')
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
+      expect(pressedFill(control, false).backgroundColor).toBe('transparent')
+    })
+  })
+
+  it('layers the neutral press fill over the whole opaque streak target', () => {
+    withTree(<StreakBadge streak={3} />, (tree) => {
+      const control = tree.root.findAllByType(Pressable)[0]!
+      expect(control.props.hitSlop).toBeUndefined()
+      expect(pressedFill(control, true)).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgElev })
+      expect(pressedFill(control, false).backgroundColor).toBe(tokens.bgElev)
+      expect(pressedFill(control, true).borderWidth ?? 0).toBe(0)
     })
   })
 

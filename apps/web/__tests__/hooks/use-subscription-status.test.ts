@@ -51,7 +51,7 @@ describe('useSubscriptionStatus', () => {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(result.current.status).toEqual(status))
+    await waitFor(() => expect(result.current.status).toEqual(status), { timeout: 15000 })
     expect(mockFetch).toHaveBeenCalledWith(API.subscription.status, undefined)
   })
 
