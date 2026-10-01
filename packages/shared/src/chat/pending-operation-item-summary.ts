@@ -36,39 +36,42 @@ export function summarizePendingOperationItem(
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation): string | null {
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
+  if (!unit.success || value('is_general')?.toLowerCase() === 'true') return null
   const unitChange = fields.find((field) => field.field === 'frequency_unit')
   const unitOnlyUpdate = unitChange?.oldValue != null && value('frequency_quantity') == null
+  if (unitOnlyUpdate) return translate(`habits.filter.${({ Day: 'daily', Week: 'weekly', Month: 'monthly', Year: 'yearly' } as const)[unit.data]}`)
   const daysField = fields.find((field) => field.field === 'days')
   const days = Array.isArray(daysField?.proposedValue)
     ? daysField.proposedValue.filter((day): day is string => typeof day === 'string' && PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
     : (value('days') ?? '').split(',').map((day) => day.trim()).filter((day) => PENDING_OPERATION_WEEKDAYS.some((name) => name === day))
-  return unit.success && unitOnlyUpdate
-    ? translate(`habits.filter.${({ Day: 'daily', Week: 'weekly', Month: 'monthly', Year: 'yearly' } as const)[unit.data]}`)
-    : unit.success ? computeHabitFrequencyLabel({
-    isGeneral: value('is_general')?.toLowerCase() === 'true',
+  return computeHabitFrequencyLabel({
+    isGeneral: false,
     frequencyUnit: unit.data,
     frequencyQuantity: value('frequency_quantity') == null ? 1 : Number(value('frequency_quantity')),
     days,
     isFlexible: value('is_flexible')?.toLowerCase() === 'true',
-  }, (key, values) => translate(key, values as Record<string, string | number>)) : null
+  }, (key, values) => translate(key, values as Record<string, string | number>))
 }
 
 function additionalChanges(
   fields: readonly PendingOperationChange[], translate: PreviewTranslation,
   formatTime: (value: string) => string, locale: string, hasCadence: boolean,
 ): string[] {
+  const unitOnlyUpdate = fields.some((field) => field.field === 'frequency_unit' && field.oldValue != null)
+    && !fields.some((field) => field.field === 'frequency_quantity' && field.newValue != null)
+  const scheduleSummarized = hasCadence && !unitOnlyUpdate
   return fields.flatMap((field) => {
     const keyPair = BOOLEAN_OUTCOMES[field.field]
     const boolean = field.newValue?.toLowerCase()
     if (keyPair && (boolean === 'true' || boolean === 'false')) {
-      if (hasCadence && ['is_general', 'is_flexible'].includes(field.field)) return []
+      if (scheduleSummarized && ['is_general', 'is_flexible'].includes(field.field)) return []
       return [translate(`chat.preview.summary.${keyPair[boolean === 'true' ? 1 : 0]}`)]
     }
     if (field.field === 'description') return [field.newValue || translate('chat.preview.summary.removeDescription')]
     if (field.field === 'emoji') return field.newValue ? [translate('chat.preview.summary.useIcon', { emoji: field.newValue })] : [translate('chat.preview.summary.removeIcon')]
     if (field.field === 'frequency_quantity' && !hasCadence && field.newValue) return [translate('chat.preview.summary.repeatInterval', { count: field.newValue })]
     if (field.field === 'frequency_unit' && !field.newValue) return [translate('habits.filter.oneTime')]
-    return scheduleAndListChanges(field, translate, formatTime, locale, hasCadence)
+    return scheduleAndListChanges(field, translate, formatTime, locale, scheduleSummarized)
   })
 }
 

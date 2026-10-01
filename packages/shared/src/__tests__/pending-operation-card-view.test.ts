@@ -42,6 +42,13 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day')])).toBe(messages.habits.filter.monthly)
   })
 
+  it('keeps mode changes visible when a unit-only update lacks the full cadence', () => {
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_general', 'true')]))
+      .toBe(messages.chat.preview.summary.anytime)
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_flexible', 'true')]))
+      .toBe(`${messages.habits.filter.monthly} · ${messages.chat.preview.summary.anyDay}`)
+  })
+
   it('localizes weekdays from the typed proposal instead of exposing the JSON display value', () => {
     expect(summarize([change('days', '["Monday", "Thursday"]', ['Monday', 'Thursday'])]))
       .toBe(`${messages.dates.daysShort.monday}, ${messages.dates.daysShort.thursday}`)
