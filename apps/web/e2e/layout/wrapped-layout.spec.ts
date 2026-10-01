@@ -6,6 +6,7 @@ import { recapResponseSchema } from '@orbit/shared/types/gamification'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { buildRecapRequestUrl, buildWrappedSlides } from '@orbit/shared/utils'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
 
@@ -33,8 +34,11 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto('/wrapped')
         const periodGroup = page.getByRole('group', { name: messages.wrapped.periodGroup })
         await expect(periodGroup.getByRole('button')).toHaveCount(3)
-        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons) => {
+        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons, themeVariables) => {
           const reference = document.createElement('span')
+          for (const [property, value] of Object.entries(themeVariables)) {
+            reference.style.setProperty(property, value)
+          }
           document.body.append(reference)
           const resolveColor = (token: string) => {
             reference.style.backgroundColor = `var(${token})`
@@ -60,7 +64,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           })
           reference.remove()
           return measured
-        })
+        }, resolveWebThemeVariables('orange', 'dark'))
         expect(chipStyles.filter((chip) => chip.selected)).toHaveLength(1)
         for (const chip of chipStyles) {
           expect(chip.fontSize).toBe(chip.expectedFontSize)
