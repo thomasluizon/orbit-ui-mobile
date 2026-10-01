@@ -672,6 +672,10 @@ setInterval(() => {}, 60000)
     { status: 0, stdout: /"outcome": "EXITED"/ },
     { path: belowCap.path, env: githubAuthEnv() },
   )
+  const quietResult = JSON.parse(quiet.stdout)
+  const savedResult = join(belowCap.base, ".git", "orbit-worker-launches", "results", `${quietResult.launcherPid}.json`)
+  T(`${TOOL}: final result is atomically retained in the launcher checkout`,
+    existsSync(savedResult) && JSON.stringify(JSON.parse(readFileSync(savedResult, "utf8"))) === JSON.stringify(quietResult))
   discardLog(quiet.stdout)
 
   const wakeObservation = stage("launch-worker/wake-observation.json", "")
