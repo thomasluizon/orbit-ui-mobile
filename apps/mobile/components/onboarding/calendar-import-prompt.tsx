@@ -9,6 +9,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -92,9 +93,7 @@ export function CalendarImportPrompt() {
       title={t('onboarding.wizard.calendarTitle')}
       actions={(
         <DialogActionPair>
-          <PillButton
-            size="sm"
-            variant="ghost"
+          <PromptQuietAction
             accessibleName={t('common.later')}
             onClick={() =>
               closeSheet(() => {
@@ -104,7 +103,7 @@ export function CalendarImportPrompt() {
             }
           >
             {t('common.later')}
-          </PillButton>
+          </PromptQuietAction>
           <PillButton size="sm" onClick={handleImport}>
             {t('onboarding.wizard.calendarButton')}
           </PillButton>

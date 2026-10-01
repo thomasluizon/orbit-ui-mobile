@@ -14,6 +14,7 @@ import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -115,9 +116,9 @@ export function TrialExpiredModal() {
       title={t('trial.expired.heading')}
       actions={
         <DialogActionPair>
-          <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>
+          <PromptQuietAction onClick={() => closeSheet()}>
             {t('trial.expired.continueFree')}
-          </PillButton>
+          </PromptQuietAction>
           <PillButton
             size="sm"
             onClick={() =>

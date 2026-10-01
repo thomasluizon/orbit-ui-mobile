@@ -32,10 +32,13 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false) {
-  const interactionClasses = element === 'button'
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false) {
+  const variantInteractions = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
+  const interactionClasses = quiet && variant === 'ghost'
+    ? 'enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] enabled:active:scale-[0.96]'
+    : variantInteractions
   return [baseClasses, variantClasses[variant], interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
@@ -77,7 +80,8 @@ export function Button({
   formId,
   descriptionId,
   buttonRef,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement> }>) {
+  quiet = false,
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean }>) {
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
@@ -93,8 +97,8 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button', loading)}
-      style={actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon))}
+      className={actionClasses(variant, size, 'button', loading, quiet)}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon)), color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />

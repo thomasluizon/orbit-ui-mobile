@@ -7,6 +7,7 @@ import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -115,14 +116,12 @@ export function MarketingConsentPrompt() {
       title={t('marketingConsent.prompt.title')}
       actions={(
         <DialogActionPair>
-          <PillButton
-            size="sm"
-            variant="ghost"
+          <PromptQuietAction
             accessibleName={t('marketingConsent.prompt.decline')}
             onClick={() => answer(false)}
           >
             {t('marketingConsent.prompt.decline')}
-          </PillButton>
+          </PromptQuietAction>
           <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
