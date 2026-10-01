@@ -170,7 +170,11 @@ function composerFieldStyle(tokens: AppTokensV2, focused: boolean, disabled: boo
   }
 }
 
-function ComposerVoiceControl({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
+function ComposerVoiceControl({ props, tokens, words }: Readonly<{
+  props: MobileComposerProps
+  tokens: AppTokensV2
+  words: NonNullable<ComposerProps['voiceWords']>
+}>) {
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
   const voiceActive = isRecording || isTranscribing
@@ -178,7 +182,7 @@ function ComposerVoiceControl({ props, tokens }: Readonly<{ props: MobileCompose
   return (
     <InsetFocusPressable
       accessibilityRole="button"
-      accessibilityLabel={voiceActive ? props.voiceWords.stop : props.voiceWords.start}
+      accessibilityLabel={voiceActive ? words.stop : words.start}
       focusColor={isRecording ? tokens.fgOnPrimary : tokens.fg1}
       accessibilityState={{ disabled: voiceDisabled }}
       disabled={voiceDisabled}
@@ -240,7 +244,7 @@ function ComposerControls({ props, tokens }: Readonly<{ props: MobileComposerPro
         </InsetFocusPressable>
       ) : null}
 
-      {props.onVoice ? <ComposerVoiceControl props={props} tokens={tokens} /> : null}
+      {props.onVoice ? <ComposerVoiceControl props={props} tokens={tokens} words={props.voiceWords} /> : null}
     </View>
   )
 }
