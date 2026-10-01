@@ -1,6 +1,7 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
+import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -59,6 +60,7 @@ export function Sheet({
   accessibleTitle,
   headerAccessory,
   actions,
+  minimumBodyWidth,
   onClose,
   onAttemptDismiss,
   virtualizedBody = false,
@@ -71,7 +73,13 @@ export function Sheet({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { height } = useWindowDimensions()
+  const { height, width } = useWindowDimensions()
+  const bodyPaddingHorizontal = minimumBodyWidth == null
+    ? 24
+    : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
+      minimumBodyWidth + step * 2 <= Math.min(width, MAX_CONTENT_WIDTH) ? step : inset
+    ), SHEET_BODY_INSETS[0])
+  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
   const { bottom: bottomInset } = useSafeAreaInsets()
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
@@ -186,7 +194,7 @@ export function Sheet({
       scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[styles.body, { maxHeight: maxBodyHeight }]}>
+        <View testID="sheet-virtualized-body" style={[bodyStyle, { maxHeight: maxBodyHeight }]}>
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
@@ -194,7 +202,7 @@ export function Sheet({
         <KeyboardAwareSheetScrollView
           testID="sheet-body-scroll"
           style={{ maxHeight: maxBodyHeight }}
-          contentContainerStyle={styles.body}
+          contentContainerStyle={bodyStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -232,8 +240,9 @@ function createStyles(tokens: Tokens) {
       flexDirection: 'row',
       gap: 16,
       minHeight: 56,
-      paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
     title: {
       color: tokens.fg1,
@@ -257,7 +266,8 @@ function createStyles(tokens: Tokens) {
       transform: [{ scale: 0.96 }],
     },
     body: {
-      padding: 16,
+      paddingHorizontal: 24,
+      paddingTop: 8,
       paddingBottom: 24,
     },
     actions: {
@@ -268,8 +278,10 @@ function createStyles(tokens: Tokens) {
       flexWrap: 'wrap',
       gap: 8,
       justifyContent: 'flex-end',
-      padding: 16,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 24,
     },
-    notice: { padding: 16 },
+    notice: { paddingHorizontal: 24, paddingVertical: 16 },
   })
 }

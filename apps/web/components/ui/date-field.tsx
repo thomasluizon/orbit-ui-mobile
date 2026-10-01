@@ -165,7 +165,7 @@ export function DateField({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
-      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker}>
+      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * 44}>
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
