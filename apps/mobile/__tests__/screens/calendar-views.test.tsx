@@ -28,6 +28,7 @@ function getMockAccountDateKey(): string {
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   rangeLoading: false,
+  language: "en",
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
   monthError: null as string | null,
@@ -101,7 +102,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
-    i18n: { language: "en" },
+    i18n: { language: state.language },
   }),
 }));
 
@@ -340,7 +341,23 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each([
+    ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
+    ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
+    ['pt-BR', 1, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']],
+    ['pt-BR', 0, ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']],
+  ] as const)('produces drawn weekday letters in %s starting on %i', (language, weekStartDay, labels) => {
+    state.language = language;
+    state.profile = { weekStartDay, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true };
+    let tree: ReturnType<typeof TestRenderer.create>;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const headerTree = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.weekdayHeaders.map((weekday: { label: string }) => weekday.label)).toEqual(labels);
+    TestRenderer.act(() => { headerTree.update(<></>); tree.unmount(); });
+  });
+
   beforeEach(() => {
+    state.language = "en";
     state.routeParams = {};
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-12T12:00:00.000Z"));

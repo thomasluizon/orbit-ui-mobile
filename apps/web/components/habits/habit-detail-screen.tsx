@@ -17,6 +17,7 @@ import {
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
   formatLocaleDate,
+  formatWeekdayLabels,
   formatAPIDateInTimeZone,
   extractBackendErrorCode,
   getAvailableHabitDetailScopedChild,
@@ -197,11 +198,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
   const monthLoaded = isHabitHistoryMonthLoaded(month, today)
   const days = buildHabitHistoryMonth(habit, monthLoaded ? logs ?? [] : [], month, today, weekStartsOn)
   const monthLabel = formatLocaleDate(month, locale, { month: 'long', year: 'numeric' })
-  const weekdayLabels = Array.from({ length: 7 }, (_, offset) => {
-    const sundayIndex = (weekStartsOn + offset) % 7
-    const base = new Date(2025, 0, 5 + sundayIndex)
-    return base.toLocaleDateString(locale, { weekday: 'narrow' })
-  })
+  const weekdayLabels = formatWeekdayLabels(locale, weekStartsOn)
   const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), of: t('ofWord'), today: t('todayWord'), readOnly: t('readOnlyWord') }
   const changeMonth = (offset: number) => {
     setMonth((value) => addMonths(value, offset))

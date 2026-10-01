@@ -52,6 +52,7 @@ describe('Calendar shell helpers', () => {
     )
 
     expect(screen.getByText('April')).toBeInTheDocument()
+    expect(screen.getByLabelText('common.selectYear')).toHaveStyle({ color: 'var(--fg-3)', fontWeight: 400 })
 
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
