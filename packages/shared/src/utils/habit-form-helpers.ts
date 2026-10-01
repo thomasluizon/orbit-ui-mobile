@@ -639,7 +639,7 @@ export function buildHabitUnderstandingSentence(
     (days.length === 0 || (days.length === 7 && new Set(days).size === 7))) {
     key = 'habits.form.understoodDaily'
   } else if (days.length > 0) {
-    const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label)
+    const labels = dayOptions.filter((day) => days.includes(day.value)).map((day) => translate(`dates.daysValue.${day.value.toLowerCase()}`))
     const listLocale = locale === 'en' ? 'en-GB' : locale
     key = labels.length === 1 ? 'habits.form.understoodDay' : 'habits.form.understoodDays'
     values.days = new Intl.ListFormat(listLocale, {
