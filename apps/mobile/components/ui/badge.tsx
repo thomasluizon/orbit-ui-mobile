@@ -13,12 +13,12 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
       style={[
         styles.badge,
         variant === 'solid'
-          ? { backgroundColor: tokens.fg1 }
+          ? { backgroundColor: tokens.bgWell }
           : { borderColor: tokens.hairlineStrong, borderWidth: 1 },
       ]}
       testID={`badge-${variant}`}
     >
-      <Text numberOfLines={1} style={[styles.text, { color: variant === 'solid' ? tokens.bg : tokens.fg2 }]}>
+      <Text numberOfLines={1} style={[styles.text, { color: variant === 'solid' ? tokens.fg1 : tokens.fg2 }]}>
         {children}
       </Text>
     </View>
