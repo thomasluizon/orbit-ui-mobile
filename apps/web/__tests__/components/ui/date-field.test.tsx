@@ -29,6 +29,11 @@ describe('DateField', () => {
     expect(screen.getByText('Pick date')).toBeInTheDocument()
   })
 
+  it('keeps the empty selection prompt in the accessible name with a field label', () => {
+    render(<DateField label="End date" value="" onChange={vi.fn()} placeholder="31/12/2026" />)
+    expect(screen.getByRole('button', { name: 'End date, common.selectDate' })).toBeInTheDocument()
+  })
+
   it('shows formatted date when value is set', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     expect(screen.getByText('06/15/2025')).toBeInTheDocument()

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle, type TextStyle, View } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle, type TextStyle, View, Pressable } from 'react-native'
+import { Pressable as GesturePressable } from 'react-native-gesture-handler'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SelectionTray } from '@/components/habits/selection-tray'
@@ -31,12 +32,16 @@ function renderedTree(element: React.ReactElement) {
 }
 
 function renderedButtons(element: React.ReactElement) {
-  return renderedTree(element).root.findAll((node) => (node.type as unknown) === 'Pressable')
+  return renderedTree(element).root.findAll((node) => node.type === Pressable || node.type === GesturePressable)
 }
 
 function resolvedStyle(button: import('react-test-renderer').ReactTestInstance, pressed: boolean) {
   const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-  return StyleSheet.flatten(style({ pressed }))
+  const resolved = StyleSheet.flatten(style({ pressed }))
+  if (typeof button.props.children !== 'function') return resolved
+  const content = button.props.children({ pressed }) as ReactElement<{ children: [ReactElement<{ style: StyleProp<ViewStyle> }>, ReactElement] }>
+  const fill = StyleSheet.flatten(content.props.children[0].props.style)
+  return { ...resolved, backgroundColor: fill.opacity ? fill.backgroundColor : 'transparent' }
 }
 
 describe('neutral press feedback on Android', () => {
@@ -47,7 +52,7 @@ describe('neutral press feedback on Android', () => {
       {selectionTray(false, false)}
       {selectionTray(true, false)}
       <AstraAllowancePanel profile={createMockProfile()} onPlanAction={noop} />
-      <PillButton variant="ghost">Ghost</PillButton>
+      <PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton>
       <View style={{ backgroundColor: createTokensV2('orange', mode).bgElev }}><PromptQuietAction accessibleName="Quiet">Quiet</PromptQuietAction></View>
     </>)
     expect(buttons).toHaveLength(13)
@@ -57,7 +62,7 @@ describe('neutral press feedback on Android', () => {
       expect(rest.minHeight ?? rest.height).toBeGreaterThanOrEqual(44)
       expect(rest.minWidth ?? rest.width).toBeGreaterThanOrEqual(44)
       const pressed = resolvedStyle(button, true)
-      expect(pressed.backgroundColor).toBe(button.props.accessibilityLabel === 'Quiet' ? createTokensV2('orange', mode).bgHoverOpaque : createTokensV2('orange', mode).bgHover)
+      expect(pressed.backgroundColor).toBe(button.props.accessibilityLabel !== 'Ghost' && button.props.accessibilityLabel !== 'profile.allowance.seePro' ? createTokensV2('orange', mode).bgHoverOpaque : createTokensV2('orange', mode).bgHover)
       expect(pressed.transform).toBeUndefined()
       expect(pressed.overflow).toBe('hidden')
       expect(pressed.borderRadius).toBeGreaterThan(0)
@@ -70,22 +75,22 @@ describe('neutral press feedback on Android', () => {
     const tokens = createTokensV2('orange', mode)
     for (const allSelected of [false, true]) {
       const button = renderedTree(selectionTray(allSelected, false)).root.findAll((node) => typeof node.props.children === 'function' && typeof node.props.style === 'function')[0]!
-      const child = button.props.children as (state: { pressed: boolean }) => ReactElement<{ style: StyleProp<TextStyle>; children: string }>
-      expect(child({ pressed: false }).props.children).toBe(allSelected ? 'Deselect all' : 'Select all')
-      const rest = StyleSheet.flatten(child({ pressed: false }).props.style)
-      const pressed = StyleSheet.flatten(child({ pressed: true }).props.style)
-      expect(resolvedStyle(button, true).borderRadius).toBe(8)
-      expect(rest.color).toBe(tokens.fg3)
+      const child = button.props.children as (state: { pressed: boolean }) => ReactElement<{ children: [ReactElement, ReactElement<{ style: StyleProp<TextStyle>; children: string }>] }>
+      expect(child({ pressed: false }).props.children[1].props.children).toBe(allSelected ? 'Deselect all' : 'Select all')
+      const rest = StyleSheet.flatten(child({ pressed: false }).props.children[1].props.style)
+      const pressed = StyleSheet.flatten(child({ pressed: true }).props.children[1].props.style)
+      expect(resolvedStyle(button, true).borderRadius).toBe(999)
+      expect(rest.color).toBe(tokens.fg2)
       expect(pressed.color).toBe(tokens.fg1)
-      expect(contrastOnSurface(String(pressed.color), [tokens.bg, tokens.bgSheet, tokens.bgHover])).toBeGreaterThanOrEqual(4.5)
-      expect(StyleSheet.flatten(child({ pressed: false }).props.style)).toEqual(rest)
+      expect(contrastOnSurface(String(pressed.color), [tokens.bg, tokens.bgSheet, tokens.bgHoverOpaque])).toBeGreaterThanOrEqual(4.5)
+      expect(StyleSheet.flatten(child({ pressed: false }).props.children[1].props.style)).toEqual(rest)
     }
   })
 
   it.each([false, true])('retains fills beside scale when motion is enabled (allSelected: %s)', (allSelected) => {
     state.reducedMotion = false
-    for (const button of renderedButtons(<>{selectionTray(allSelected, false)}<PillButton variant="ghost">Ghost</PillButton></>)) {
-      expect(resolvedStyle(button, true)).toMatchObject({ backgroundColor: createTokensV2('orange', state.mode).bgHover, transform: [{ scale: 0.96 }] })
+    for (const button of renderedButtons(<>{selectionTray(allSelected, false)}<PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton></>)) {
+      expect(resolvedStyle(button, true)).toMatchObject({ backgroundColor: button.props.accessibilityLabel === 'Ghost' ? createTokensV2('orange', state.mode).bgHover : createTokensV2('orange', state.mode).bgHoverOpaque, transform: [{ scale: 0.96 }] })
       expect(resolvedStyle(button, false).transform).toBeUndefined()
     }
   })

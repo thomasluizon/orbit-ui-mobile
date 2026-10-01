@@ -7,6 +7,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides, formatClosedWrappedMonth } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
+import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 
 const profileState = vi.hoisted(() => ({ available: true }))
 
@@ -71,10 +73,7 @@ vi.mock('@/hooks/use-wrapped', () => ({
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
-const tokens = {
-  bg: '#111111',
-  fg1: '#ffffff',
-} as Parameters<typeof WrappedPlayer>[0]['tokens']
+const tokens = createTokensV2('purple', 'dark')
 
 function renderPlayer() {
   const recap = createMockRecap()
@@ -97,6 +96,13 @@ function renderPlayer() {
 function hosts(tree: ReactTestRenderer) {
   return tree.root.findAll((node) => typeof node.type === 'string')
 }
+
+describe('Wrapped close target', () => {
+  it('paints the complete 44px target without invisible hit slop', () => {
+    const { tree } = renderPlayer()
+    expectPressFill(tree, 'wrapped.close', tokens.bgHover, 999)
+  })
+})
 
 function byTestId(tree: ReactTestRenderer, testID: string) {
   return hosts(tree).find((node) => node.props.testID === testID)
