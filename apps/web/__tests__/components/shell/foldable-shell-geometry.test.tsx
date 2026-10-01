@@ -8,6 +8,8 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { Composer } from '@/components/shell/composer'
 import { NotFoundContent } from '@/components/ui/not-found-content'
 import { Toast } from '@/components/ui/toast'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
+import { useUIStore } from '@/stores/ui-store'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const windows = ([[360, 740], [412, 915], [480, 800], [600, 900], [840, 900], [1100, 900]] as const)
@@ -27,8 +29,10 @@ describe('Foldable shell geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([320, 412, 500, 740, 1024, 1352])('aligns the toast and in-shell not-found title with composer content at %ipx', async (width) => {
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+    useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
     const { container } = render(<ShellWide items={[]} activeId="" navLabel="Navigation"
-      notice={<Toast kind="neutral" message="Notification removed" />}
+      notice={<><CelebrationPanel /><Toast kind="neutral" message="Notification removed" /></>}
       composer={<Composer words={{ placeholder: 'Message', send: 'Send', suggestionsLabel: 'Suggestions' }}
         value="" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]} state="idle" />}>
       <NotFoundContent inShell />
@@ -47,11 +51,13 @@ describe('Foldable shell geometry', () => {
         return {
           content: { left: rectangle.left + parseFloat(style.paddingLeft), right: rectangle.right - parseFloat(style.paddingRight) },
           toast: edges(document.querySelector('[data-shell-notice] [data-kind]')!),
+          celebration: edges(document.querySelector('[data-celebration-panel]')!),
           title: edges(document.querySelector('[data-state="not-found"] h1')!),
           documentWidth: document.documentElement.scrollWidth,
         }
       })
       expect.soft(bounds.toast).toEqual(bounds.content)
+      expect.soft(bounds.celebration).toEqual(bounds.content)
       expect.soft(bounds.title).toEqual(bounds.content)
       expect(bounds.documentWidth).toBe(width)
     } finally { await page.close() }

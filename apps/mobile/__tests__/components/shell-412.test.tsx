@@ -110,7 +110,7 @@ describe('Shell412 mobile', () => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<Shell412 notice={React.createElement('Notice')} />)
+      tree = TestRenderer.create(<Shell412 notice={React.createElement('Notice')} tabBar={React.createElement('TabBar')} />)
     })
     expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice')[0]!.props.style)).toMatchObject({ paddingHorizontal: 16 })
     await TestRenderer.act(() => tree.update(<></>))

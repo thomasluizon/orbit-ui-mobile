@@ -151,7 +151,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    marginHorizontal: 16,
     padding: 24,
   },
   ring: { height: 44, width: 44 },
