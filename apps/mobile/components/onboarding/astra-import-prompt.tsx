@@ -12,6 +12,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DialogActionPair } from '@/components/ui/dialog-action-pair'
 import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -110,9 +111,7 @@ export function AstraImportPrompt() {
       title={t('onboarding.wizard.importTitle')}
       actions={(
         <DialogActionPair>
-          <PillButton
-            size="sm"
-            variant="ghost"
+          <PromptQuietAction
             accessibleName={t('onboarding.wizard.importNotNow')}
             onClick={() =>
               closeSheet(() => {
@@ -122,7 +121,7 @@ export function AstraImportPrompt() {
             }
           >
             {t('onboarding.wizard.importNotNow')}
-          </PillButton>
+          </PromptQuietAction>
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
           <PillButton size="sm" onClick={() => void handleImport()}>
             {t('onboarding.wizard.importButton')}

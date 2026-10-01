@@ -77,7 +77,8 @@ export function Button({
   formId,
   descriptionId,
   buttonRef,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement> }>) {
+  quiet = false,
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean }>) {
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
@@ -94,7 +95,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading)}
-      style={actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon))}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon)), color: variant === 'ghost' && quiet ? 'var(--fg-3)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
