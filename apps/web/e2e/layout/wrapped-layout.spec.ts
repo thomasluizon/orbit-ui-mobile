@@ -12,6 +12,20 @@ import { setLayoutProfileSession } from './profile-session'
 
 const recap = recapResponseSchema.parse(createMockRecap())
 const finalSlideIndex = buildWrappedSlides(recap).length - 1
+const themeVariables = resolveWebThemeVariables('orange', 'dark')
+
+function computedCssColor(value: string): string {
+  if (value.startsWith('#')) {
+    const channels = [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16))
+    return `rgb(${channels.join(', ')})`
+  }
+  return value.replace(/\s*,\s*/g, ', ')
+}
+
+const selectedBackground = computedCssColor(themeVariables['--primary-dim']!)
+const unselectedBackground = computedCssColor(themeVariables['--bg-well']!)
+const selectedRing = `${computedCssColor(themeVariables['--primary']!)} 0px 0px 0px 1.5px inset`
+const unselectedRing = `${computedCssColor(themeVariables['--hairline']!)} 0px 0px 0px 1px inset`
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const width of [320, 412, 640, 1440] as const) {
@@ -34,42 +48,26 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto('/wrapped')
         const periodGroup = page.getByRole('group', { name: messages.wrapped.periodGroup })
         await expect(periodGroup.getByRole('button')).toHaveCount(3)
-        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons, themeVariables) => {
-          const reference = document.createElement('span')
-          for (const [property, value] of Object.entries(themeVariables)) {
-            reference.style.setProperty(property, value)
-          }
-          document.body.append(reference)
-          const resolveColor = (token: string) => {
-            reference.style.backgroundColor = `var(${token})`
-            return getComputedStyle(reference).backgroundColor
-          }
-          const measured = buttons.map((button) => {
+        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons) => {
+          const expectedFontSize = getComputedStyle(document.documentElement).getPropertyValue('--fs-sm').trim()
+          return buttons.map((button) => {
             const selected = button.getAttribute('aria-pressed') === 'true'
             const style = getComputedStyle(button)
-            reference.style.fontSize = 'var(--fs-sm)'
-            reference.style.boxShadow = selected
-              ? 'inset 0 0 0 1.5px var(--primary)'
-              : 'inset 0 0 0 1px var(--hairline)'
             return {
               selected,
               fontSize: style.fontSize,
-              expectedFontSize: getComputedStyle(reference).fontSize,
+              expectedFontSize,
               background: style.backgroundColor,
-              expectedBackground: resolveColor(selected ? '--primary-dim' : '--bg-well'),
               ring: style.boxShadow,
-              expectedRing: getComputedStyle(reference).boxShadow,
               height: button.getBoundingClientRect().height,
             }
           })
-          reference.remove()
-          return measured
-        }, resolveWebThemeVariables('orange', 'dark'))
+        })
         expect(chipStyles.filter((chip) => chip.selected)).toHaveLength(1)
         for (const chip of chipStyles) {
           expect(chip.fontSize).toBe(chip.expectedFontSize)
-          expect(chip.background).toBe(chip.expectedBackground)
-          expect(chip.ring).toBe(chip.expectedRing)
+          expect(chip.background).toBe(chip.selected ? selectedBackground : unselectedBackground)
+          expect(chip.ring).toBe(chip.selected ? selectedRing : unselectedRing)
           expect(chip.height).toBeGreaterThanOrEqual(44)
         }
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
