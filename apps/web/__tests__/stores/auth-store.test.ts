@@ -693,7 +693,24 @@ describe('auth store', () => {
       cleanup()
     })
 
-    it('keeps polling after a confirmed failure so a delayed winner can recover', async () => {
+    it('stops expiry checks after a confirmed refresh rejection', async () => {
+      mockFetch.mockImplementation(() => Promise.resolve(Response.json(
+        { expiresAt: null, refreshFailed: true }, { status: 401 },
+      )))
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+        const callsAtRejection = mockFetch.mock.calls.length
+        await vi.advanceTimersByTimeAsync(180000)
+        expect(mockFetch).toHaveBeenCalledTimes(callsAtRejection)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('recovers a delayed winner through explicit response recovery', async () => {
       const expiresAt = Date.now() + 3600000
       mockFetch.mockResolvedValue({
         ok: true,
@@ -712,7 +729,7 @@ describe('auth store', () => {
         sessionRefreshFailed: true,
       })
 
-      await vi.advanceTimersByTimeAsync(60000)
+      await useAuthStore.getState().recoverSessionRefreshFailure()
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(useAuthStore.getState()).toMatchObject({

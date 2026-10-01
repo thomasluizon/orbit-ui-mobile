@@ -95,6 +95,11 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
     : { kind: 'inactive' }
 }
 
+function getActiveSessionUser(accountId: string | null, user: User | null): User | null {
+  if (user?.userId === accountId) return user
+  return sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
@@ -124,6 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    if (get().sessionRefreshFailed) return
     const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
@@ -135,9 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
-      const user = get().user?.userId === accountId
-        ? get().user
-        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
+      const user = getActiveSessionUser(accountId, get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -190,9 +194,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
-      const user = get().user?.userId === accountId
-        ? get().user
-        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
+      const user = getActiveSessionUser(accountId, get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -219,6 +221,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    if (get().sessionRefreshFailed) return
     const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
@@ -234,9 +237,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void resetAccountQueries(getQueryClient(), 'signed-in')
         startAccountScopedSession(get().heldAccountId, accountId)
       }
-      const user = get().user?.userId === accountId
-        ? get().user
-        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
+      const user = getActiveSessionUser(accountId, get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -266,8 +267,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void get().checkSession()
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated, sessionRefreshFailed } = get()
-      if (!isAuthenticated && !sessionRefreshFailed) {
+      if (!get().isAuthenticated) {
         return
       }
 

@@ -223,6 +223,16 @@ describe('auth-api session helpers', () => {
     expect(mockCookieStore.set).not.toHaveBeenCalled()
   })
 
+  it('ends a nearly expired session after a definitive refresh rejection', async () => {
+    const token = makeJwt(Math.floor(FIXED_NOW / 1000) + 30)
+    mockFetch.mockResolvedValue(new Response(null, { status: 401 }))
+    const { resolveSessionTokens } = await import('@/lib/auth-api')
+    const clearSession = vi.fn()
+    const session = await resolveSessionTokens({ authToken: token, refreshToken: 'rejected-refresh', clearSession })
+    expect(session).toEqual({ token: null, expiresAt: null, refreshed: false, refreshFailed: true })
+    expect(clearSession).not.toHaveBeenCalled()
+  })
+
   it('reports rejection without writing deletion cookies', async () => {
     const clearSession = vi.fn()
     mockFetch.mockResolvedValue({ ok: false, status: 401 })
