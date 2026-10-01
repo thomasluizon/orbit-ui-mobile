@@ -94,7 +94,7 @@ export function PricingSection({
               style={({ pressed }) => [
                 styles.restoreAction,
                 { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                isRestoring || !isOnline ? styles.disabledAction : null,
+                isRestoring || !isOnline || checkoutLoading !== null ? styles.disabledAction : null,
                 pressed ? styles.pressedScale : null,
               ]}
             >

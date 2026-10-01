@@ -1,4 +1,5 @@
-import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React, { useState } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setUIAccountScope, useUIStore } from '@/stores/ui-store'
@@ -21,6 +22,11 @@ const state = vi.hoisted(() => ({
   authenticated: true,
   push: vi.fn(),
 }))
+
+function QueryAppLayout({ children }: { children: import('react').ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }))
+  return <QueryClientProvider client={queryClient}><AppLayout>{children}</AppLayout></QueryClientProvider>
+}
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
@@ -77,6 +83,8 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftStore: (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
 }))
 vi.mock('@/stores/auth-store', () => ({
+  useHeldAccountId: () => state.authenticated ? 'account-1' : null,
+  getHeldAccountId: () => state.authenticated ? 'account-1' : null,
   getHeldAccountId: () => 'account-a',
   useAuthStore: Object.assign(
     (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: state.authenticated }),
@@ -136,7 +144,7 @@ describe('Today create during first load', () => {
   afterEach(() => localStorage.clear())
 
   it('keeps reload guidance in the main app layout', async () => {
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
     await act(async () => useVersionGateStore.getState().requireReload('appUpdated'))
 
@@ -145,7 +153,7 @@ describe('Today create during first load', () => {
   })
 
   it('keeps reload guidance reachable while the Astra conversation is open', async () => {
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
     act(() => useUIStore.getState().setAstraConversationOpen(true))
     await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
@@ -159,7 +167,7 @@ describe('Today create during first load', () => {
 
   it('announces reload guidance once while the conversation is a side panel', async () => {
     state.wide = true
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
     act(() => useUIStore.getState().setAstraConversationOpen(true))
     await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
@@ -178,7 +186,7 @@ describe('Today create during first load', () => {
       hasImportedCalendar: false,
     }
     useUIStore.getState().setShowCreateModal(true)
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
     expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
     expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
@@ -192,7 +200,7 @@ describe('Today create during first load', () => {
     ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
   ] as const)('pins the %s import actions in the sheet footer, never in the scrolling body', async (_prompt, flags, footer) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     await act(async () => {})
 
     expect(sheetSlotButtons('sheet-actions')).toEqual(footer)
@@ -205,7 +213,7 @@ describe('Today create during first load', () => {
     ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
   ] as const)('uses a ghost pill for the %s import dismissal', async (_prompt, flags, quiet) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     await act(async () => {})
 
     expect(screen.getByRole('button', { name: quiet })).toHaveAttribute('data-variant', 'ghost')
@@ -218,7 +226,7 @@ describe('Today create during first load', () => {
       hasImportedCalendar: false,
     }
     useUIStore.getState().registerOpenOverlay('already-open')
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
 
     await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
@@ -233,7 +241,7 @@ describe('Today create during first load', () => {
       hasSeenImportPrompt: false,
     }
     useUIStore.getState().registerOpenOverlay('already-open')
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     expect(screen.queryByText('onboarding.wizard.importTitle')).toBeNull()
 
     await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
@@ -241,7 +249,7 @@ describe('Today create during first load', () => {
   })
 
   it('keeps the form open when session, profile and habit count resolve', async () => {
-    const view = render(<AppLayout><div>Today loading</div></AppLayout>)
+    const view = render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
 
@@ -250,7 +258,7 @@ describe('Today create during first load', () => {
       state.profile = { hasProAccess: true }
       state.count = 10
       state.countLoaded = true
-      view.rerender(<AppLayout><div>Today loaded</div></AppLayout>)
+      view.rerender(<QueryAppLayout><div>Today loaded</div></QueryAppLayout>)
     })
 
     expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
@@ -263,7 +271,7 @@ describe('Today create during first load', () => {
   it('opens the form when count arrives before a Pro profile', () => {
     state.count = 10
     state.countLoaded = true
-    render(<AppLayout><div>Today loading</div></AppLayout>)
+    render(<QueryAppLayout><div>Today loading</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(screen.getByRole('heading', { name: 'Create habit' })).toBeInTheDocument()
@@ -272,7 +280,7 @@ describe('Today create during first load', () => {
 
   it('refuses creation beside the action while offline without a shell toast', () => {
     state.isOnline = false
-    render(<AppLayout><div>Today</div></AppLayout>)
+    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
     expect(screen.getByTestId('notice-slot')).not.toHaveTextContent('offline.title')
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
@@ -284,23 +292,23 @@ describe('Today create during first load', () => {
 
   it('clears a prior refusal after reconnecting', () => {
     state.isOnline = false
-    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(screen.getByText('offline.create.reason')).toBeInTheDocument()
 
     state.isOnline = true
-    view.rerender(<AppLayout><div>Today</div></AppLayout>)
+    view.rerender(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     expect(screen.queryByText('offline.create.reason')).not.toBeInTheDocument()
 
     state.isOnline = false
-    view.rerender(<AppLayout><div>Today</div></AppLayout>)
+    view.rerender(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     expect(screen.queryByText('offline.create.reason')).not.toBeInTheDocument()
   })
 
   it('shows queued feedback at the bottom of signed-out About', async () => {
     state.pathname = '/about'
     state.authenticated = false
-    const view = render(<AppLayout><div>About</div></AppLayout>)
+    const view = render(<QueryAppLayout><div>About</div></QueryAppLayout>)
     act(() => { useAppToastStore.getState().showError('Account unavailable') })
 
     await screen.findByText('Account unavailable')
@@ -310,7 +318,7 @@ describe('Today create during first load', () => {
 
   it('shows the Reload action in the active compact Astra dialog', async () => {
     useUIStore.getState().setAstraConversationOpen(true)
-    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     act(() => {
       useAppToastStore.getState().showQueued('App updated', 'Reload', vi.fn())
     })
@@ -326,7 +334,7 @@ describe('Today create during first load', () => {
   it('keeps feedback in the shell notice when the conversation is a side panel', async () => {
     state.wide = true
     useUIStore.getState().setAstraConversationOpen(true)
-    const view = render(<AppLayout><div>Today</div></AppLayout>)
+    const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     act(() => { useAppToastStore.getState().showError('Sync failed') })
 
     await screen.findByText('Sync failed')

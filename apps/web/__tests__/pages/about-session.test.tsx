@@ -1,4 +1,5 @@
-import { use, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { use, useState, type ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi, afterEach } from 'vitest'
@@ -27,6 +28,11 @@ const mocks = vi.hoisted(() => ({
   realHabitModal: false,
   validateHabit: vi.fn(),
 }))
+function QueryAppLayout({ children }: { children: import('react').ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }))
+  return <QueryClientProvider client={queryClient}><AppLayout>{children}</AppLayout></QueryClientProvider>
+}
+
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
 vi.mock('@/app/fonts', () => ({ geist: {}, geistMono: {}, spaceGrotesk: {} }))
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
@@ -128,7 +134,7 @@ beforeEach(() => {
 
 it('renders app feedback inside the destination notice slot', () => {
   mocks.pathname = '/'
-  const view = render(<AppLayout><p>Today content</p></AppLayout>)
+  const view = render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => { useAppToastStore.getState().showError('x') })
   expect(view.container.querySelector('[data-shell-notice] [data-kind="neutral"]')).toBeInTheDocument()
   expect(screen.getByRole('status')).toBeInTheDocument()
@@ -139,7 +145,7 @@ it('keeps failed form feedback and its action reachable in the open sheet', asyn
   mocks.realHabitModal = true
   mocks.validateHabit.mockReturnValue('Habit name is required')
   const action = vi.fn()
-  const view = render(<AppLayout><p>Today content</p></AppLayout>)
+  const view = render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => useUIStore.getState().setShowCreateModal(true))
 
   const dialog = screen.getByRole('dialog')
@@ -162,7 +168,7 @@ it('places signed-out feedback at the bottom of the page', () => {
 })
 
 it('places public About feedback at the bottom of the page', () => {
-  const view = render(<AppLayout><p>About content</p></AppLayout>)
+  const view = render(<QueryAppLayout><p>About content</p></QueryAppLayout>)
   act(() => { useAppToastStore.getState().showError('x') })
   expect(view.container.querySelector('[data-toast-page-host] [data-kind="neutral"]')).toBeInTheDocument()
   expect(view.container.querySelector('[data-shell-notice]')).toBeNull()
@@ -172,7 +178,7 @@ it('keeps the Today shell and content in server markup while search parameters a
   mocks.pathname = '/'
   mocks.searchPending = true
 
-  const html = renderToString(<AppLayout><p>Today content</p></AppLayout>)
+  const html = renderToString(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
 
   expect(html).toContain('Destination shell')
   expect(html).toContain('Today content')
@@ -183,7 +189,7 @@ it('opens an Astra deep link once while the shell rerenders', () => {
   mocks.searchParams = new URLSearchParams({ astra: 'open' })
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
 
-  render(<AppLayout><p>Today content</p></AppLayout>)
+  render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
 
   expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
 })
@@ -192,7 +198,7 @@ it('renders an authenticated unknown path inside the destination shell', () => {
   mocks.pathname = '/nao-existe'
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   useAuthStore.setState({ isAuthenticated: true })
-  render(<AppLayout><AppNotFound /></AppLayout>)
+  render(<QueryAppLayout><AppNotFound /></QueryAppLayout>)
   expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
   expect(screen.getByTestId('composer')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
@@ -200,7 +206,7 @@ it('renders an authenticated unknown path inside the destination shell', () => {
 
 it('renders an unauthenticated unknown public path without the shell', () => {
   mocks.pathname = '/terms/x'
-  render(<AppLayout><AppNotFound /></AppLayout>)
+  render(<QueryAppLayout><AppNotFound /></QueryAppLayout>)
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
   expect(screen.getByRole('main')).toHaveClass('min-h-dvh')
   expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).not.toBeInTheDocument()
@@ -210,7 +216,7 @@ it('renders an unauthenticated unknown public path without the shell', () => {
 it('keeps the shell shape while a protected unknown path restores its session', () => {
   mocks.pathname = '/nao-existe'
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
-  render(<AppLayout><AppNotFound /></AppLayout>)
+  render(<QueryAppLayout><AppNotFound /></QueryAppLayout>)
   expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
   expect(screen.getByRole('main', { name: 'Destination shell' }).querySelector('main')).toBeNull()
@@ -221,7 +227,7 @@ it('passes the selected Today date to the create modal', () => {
   mocks.searchParams = new URLSearchParams({ date: '2026-08-20' })
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
 
-  render(<AppLayout><p>Today content</p></AppLayout>)
+  render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => useUIStore.getState().setShowCreateModal(true))
 
   expect(screen.getByTestId('create-habit-modal')).toHaveTextContent('2026-08-20')
@@ -232,7 +238,7 @@ it.each(['auth_token', 'refresh_token'])('restores the destination shell on a ha
   let resolveSession!: (response: Response) => void
   mocks.fetch.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
   mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { resolveSession = resolve }))
-  render(await RootLayout({ children: <AppLayout><p>About content</p></AppLayout> }), { container: document })
+  render(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }), { container: document })
   expect(screen.getByText('About content')).toBeInTheDocument()
   expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session', undefined)
   await act(async () => resolveSession(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
@@ -241,7 +247,7 @@ it.each(['auth_token', 'refresh_token'])('restores the destination shell on a ha
   mocks.fetch.mockClear()
   mocks.cookie = ''
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
-  render(await RootLayout({ children: <AppLayout><p>Public About content</p></AppLayout> }), { container: document })
+  render(await RootLayout({ children: <QueryAppLayout><p>Public About content</p></QueryAppLayout> }), { container: document })
   expect(screen.getByText('Public About content')).toBeInTheDocument()
   expect(screen.queryByRole('main', { name: 'Destination shell' })).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
