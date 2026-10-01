@@ -99,6 +99,7 @@ import {
 } from '@/components/shell/destination-shell'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
@@ -534,6 +535,47 @@ describe('DestinationShell', () => {
     expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
     expect(heading.closest('[data-shell-scroller]')).toBeNull()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it.each([false, true])('keeps the incoming header after the outgoing route exits at wide=%s', async (wide) => {
+    mocks.pathname = '/profile'
+    mocks.wide = wide
+    function App() {
+      return <DestinationShell onCreate={() => {}}>
+        <RouteTransitionShell>
+          {mocks.pathname === '/profile'
+            ? <h1>Profile</h1>
+            : <PageHeader title="Support" backLabel="Back to Profile" onBack={() => mocks.push('/profile')} />}
+        </RouteTransitionShell>
+      </DestinationShell>
+    }
+    const view = render(<App />)
+    mocks.pathname = '/support'
+    view.rerender(<App />)
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Profile' })).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
+    expect(mocks.push).toHaveBeenCalledWith('/profile')
+  })
+
+  it.each([false, true])('does not let a retained route clear the incoming header at wide=%s', (wide) => {
+    mocks.pathname = '/profile'
+    mocks.wide = wide
+    const onBack = vi.fn()
+    const incoming = <PageHeader key="incoming" title="Support" backLabel="Back to Profile" onBack={onBack} />
+    function App({ retainingPrevious }: { retainingPrevious: boolean }) {
+      return <DestinationShell onCreate={() => {}}>
+        {retainingPrevious ? <PageHeader key="previous" title="Support" backLabel="Previous back" onBack={() => {}} /> : null}
+        {incoming}
+      </DestinationShell>
+    }
+    const view = render(<App retainingPrevious />)
+    expect(screen.getByRole('button', { name: 'Back to Profile' })).toBeInTheDocument()
+    mocks.pathname = '/support'
+    view.rerender(<App retainingPrevious={false} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Profile' }))
+    expect(onBack).toHaveBeenCalledOnce()
   })
 
   it('replaces a hosted header when its renderer changes under the same key', () => {
