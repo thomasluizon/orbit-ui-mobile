@@ -1,13 +1,12 @@
 'use client'
 
 import { useMemo, type Ref } from 'react'
-import type { HabitUnderstandingProps } from '@orbit/shared/utils'
+import type { HabitUnderstandingProps, HabitRepeatIntervalProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { Proposed } from '@/components/ui/proposed'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 
 type HabitUnderstandingWithDisabledEmojiProps = HabitUnderstandingProps & {
   inputRef?: Ref<HTMLTextAreaElement>
@@ -24,7 +23,6 @@ export function HabitUnderstanding({
   dayOptions,
   quantity,
   mode,
-  intervalWeeks,
   sentence,
   consumed,
   proposed = false,
@@ -34,8 +32,6 @@ export function HabitUnderstanding({
   isSuggestionDisabled = false,
   onToggleDay,
   onQuantityChange,
-  onModeChange,
-  onIntervalWeeksChange,
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
   const hasValue = value.trim().length > 0
@@ -80,7 +76,7 @@ export function HabitUnderstanding({
         ) : null}
       </div>
 
-      <Proposed proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
+      <Proposed inset proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
         <section
           aria-label={sentence !== null ? labels.understood : undefined}
           className={sentence !== null ? "flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" : "flex flex-col"}
@@ -100,7 +96,7 @@ export function HabitUnderstanding({
             <>
               <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
 
-              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} />
+              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
             </>
           ) : null}
         </section>
@@ -108,38 +104,29 @@ export function HabitUnderstanding({
       {hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>
-          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} mode={mode} intervalWeeks={intervalWeeks} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} onModeChange={onModeChange} onIntervalWeeksChange={onIntervalWeeksChange} labels={labels} />
+          <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
         </div>
       ) : null}
     </div>
   )
 }
 
-type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'mode' | 'intervalWeeks' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'onModeChange' | 'onIntervalWeeksChange' | 'labels'>
+type ScheduleCorrectionProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'quantity' | 'scheduleLocked' | 'onToggleDay' | 'onQuantityChange' | 'labels'> & { showCount: boolean }
 
-function ScheduleCorrections({ days, daily = false, dayOptions, quantity, mode, intervalWeeks, scheduleLocked = false, onToggleDay, onQuantityChange, onModeChange, onIntervalWeeksChange, labels }: Readonly<ScheduleCorrectionProps>) {
+function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCount, scheduleLocked = false, onToggleDay, onQuantityChange, labels }: Readonly<ScheduleCorrectionProps>) {
   return (
     <>
-      <SegmentedControl
-        label={labels.scheduleMode}
-        value={mode}
-        options={[{ value: 'fixed', label: labels.setDays }, { value: 'flexible', label: labels.timesAWeek }]}
-        disabled={scheduleLocked}
-        onChange={(value) => onModeChange(value === 'flexible' ? 'flexible' : 'fixed')}
-      />
-
-      {mode === 'fixed' ? (
-        <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
-          {dayOptions.map((day) => {
-            const selected = daily || days.includes(day.value)
-            return (
-              <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
-                className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
-                onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
-            )
-          })}
-        </fieldset>
-      ) : (
+      <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
+        {dayOptions.map((day) => {
+          const selected = daily || days.includes(day.value)
+          return (
+            <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}
+              className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40 ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
+              onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
+          )
+        })}
+      </fieldset>
+      {showCount ? (
         <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
           <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
             <Minus size={20} strokeWidth={2} aria-hidden="true" />
@@ -150,30 +137,35 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, mode, 
           </button>
           <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.count(quantity)}</span>
         </div>
-      )}
-
-      <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-        <button
-          type="button"
-          aria-label={labels.repeatLess}
-          disabled={scheduleLocked || intervalWeeks <= 1}
-          className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
-          onClick={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
-        >
-          <Minus size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-        <span className="min-w-7 text-center font-mono text-xl tabular-nums">{intervalWeeks}</span>
-        <button
-          type="button"
-          aria-label={labels.repeatMore}
-          disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
-          className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
-          onClick={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
-        >
-          <Plus size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-        <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.repeat(intervalWeeks)}</span>
-      </div>
+      ) : null}
     </>
+  )
+}
+
+export function HabitRepeatInterval({ visible, intervalWeeks, scheduleLocked = false, onIntervalWeeksChange, labels }: Readonly<HabitRepeatIntervalProps>) {
+  if (!visible) return null
+  return (
+    <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+      <button
+        type="button"
+        aria-label={labels.repeatLess}
+        disabled={scheduleLocked || intervalWeeks <= 1}
+        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+        onClick={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
+      >
+        <Minus size={20} strokeWidth={2} aria-hidden="true" />
+      </button>
+      <span className="min-w-7 text-center font-mono text-xl tabular-nums">{intervalWeeks}</span>
+      <button
+        type="button"
+        aria-label={labels.repeatMore}
+        disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
+        className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40"
+        onClick={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
+      >
+        <Plus size={20} strokeWidth={2} aria-hidden="true" />
+      </button>
+      <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.repeat(intervalWeeks)}</span>
+    </div>
   )
 }

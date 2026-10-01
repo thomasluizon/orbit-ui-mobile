@@ -264,7 +264,7 @@ describe('habit form helpers', () => {
 
   it('builds truthful daily, fixed-day, flexible, and time-only summaries', () => {
     const translate = (key: string, values?: Record<string, string | number>) =>
-      `${key}:${JSON.stringify(values ?? {})}`
+      key === 'dates.daysValue.monday' ? 'Monday' : `${key}:${JSON.stringify(values ?? {})}`
     const days = [{ value: 'Monday', label: 'Monday' }]
 
     expect(buildHabitUnderstandingSentence([], days, false, 'Day', 1, '', 'en', translate))
@@ -279,10 +279,13 @@ describe('habit form helpers', () => {
 
   it('formats singular and multi-day pt-BR schedules naturally', () => {
     const translations: Record<string, string> = {
-      'habits.form.understoodDay': 'Toda {days}',
-      'habits.form.understoodDayAt': 'Toda {days} às {time}',
-      'habits.form.understoodDays': '{days}',
-      'habits.form.understoodDaysAt': '{days} às {time}',
+      'habits.form.understoodDay': ptBR.habits.form.understoodDay,
+      'habits.form.understoodDayAt': ptBR.habits.form.understoodDayAt,
+      'habits.form.understoodDays': ptBR.habits.form.understoodDays,
+      'habits.form.understoodDaysAt': ptBR.habits.form.understoodDaysAt,
+      'dates.daysValue.monday': ptBR.dates.daysValue.monday,
+      'dates.daysValue.wednesday': ptBR.dates.daysValue.wednesday,
+      'dates.daysValue.friday': ptBR.dates.daysValue.friday,
     }
     const translate = (key: string, values?: Record<string, string | number>) =>
       Object.entries(values ?? {}).reduce(
@@ -296,13 +299,13 @@ describe('habit form helpers', () => {
     ]
 
     expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '', 'pt-BR', translate))
-      .toBe('Toda Seg')
+      .toBe('toda segunda')
     expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
-      .toBe('Toda Seg às 08:00')
+      .toBe('toda segunda às 08:00')
     expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '', 'pt-BR', translate))
-      .toBe('Seg, Qua e Sex')
+      .toBe('toda segunda, quarta e sexta')
     expect(buildHabitUnderstandingSentence(['Monday', 'Wednesday', 'Friday'], days, false, 'Day', 1, '08:00', 'pt-BR', translate))
-      .toBe('Seg, Qua e Sex às 08:00')
+      .toBe('toda segunda, quarta e sexta às 08:00')
   })
 
   it.each([
@@ -456,9 +459,6 @@ describe('habit form helpers', () => {
     const labels = buildHabitUnderstandingLabels(translate)
     expect(labels).toMatchObject({
       field: 'habits.form.describe',
-      scheduleMode: 'habits.form.scheduleMode',
-      setDays: 'habits.form.setDays',
-      timesAWeek: 'habits.form.timesAWeek',
       repeatLess: 'habits.form.repeatLess',
       repeatMore: 'habits.form.repeatMore',
       proposed: 'habits.form.proposedByAstra',
@@ -663,7 +663,7 @@ describe('habit form helpers', () => {
       },
     })
 
-    controller.setScheduleMode('flexible')
+    controller.setQuantity(3)
     expect(state).toMatchObject({
       days: [],
       frequencyUnit: 'Week',
@@ -671,7 +671,6 @@ describe('habit form helpers', () => {
       isFlexible: true,
     })
 
-    controller.setScheduleMode('fixed')
     controller.toggleDay('Wednesday')
     controller.toggleDay('Thursday')
     expect(state).toEqual({
@@ -754,8 +753,8 @@ describe('habit form helpers', () => {
   })
 
   it.each([
-    { phrase: 'Ler 10 minutos todo dia às 21h', locale: 'pt-BR' as const, messages: ptBR, sentence: 'Todo dia às 21:00' },
-    { phrase: 'Read 10 minutes every day at 21h', locale: 'en' as const, messages: en, sentence: 'Every day at 21:00' },
+    { phrase: 'Ler 10 minutos todo dia às 21h', locale: 'pt-BR' as const, messages: ptBR, sentence: 'todo dia às 21:00' },
+    { phrase: 'Read 10 minutes every day at 21h', locale: 'en' as const, messages: en, sentence: 'every day at 21:00' },
   ])('keeps a daily phrase daily through the form, request, and understanding in $locale', ({ phrase, locale, messages, sentence }) => {
     const read = readHabitPhrase(phrase, locale)
     const fields: Record<string, string | number | string[]> = {}
@@ -848,10 +847,9 @@ describe('habit form helpers', () => {
     expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
     controller.toggleDay('Friday')
     controller.setQuantity(2)
-    controller.setScheduleMode('flexible')
-    controller.setScheduleMode('fixed')
+    controller.setQuantity(3)
     controller.setIntervalWeeks(2)
-    expect(setGeneral).toHaveBeenCalledTimes(5)
+    expect(setGeneral).toHaveBeenCalledTimes(4)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)
     controller.setSlipAlertEnabled(false)
@@ -966,5 +964,33 @@ describe('habit form helpers', () => {
         },
       ),
     ).toBeNull()
+  })
+})
+
+
+describe('drawn cadence sentences', () => {
+  it.each([
+    { locale: 'en' as const, messages: en, phrase: 'Read every Monday and Thursday at 08:00', expected: 'every Monday and Thursday at 08:00' },
+    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler toda segunda e quinta às 08:00', expected: 'toda segunda e quinta às 08:00' },
+    { locale: 'en' as const, messages: en, phrase: 'Read every Monday', expected: 'every Monday' },
+    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler toda segunda', expected: 'toda segunda' },
+    { locale: 'en' as const, messages: en, phrase: 'Read every day at 08:00', expected: 'every day at 08:00' },
+    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Ler todo dia às 08:00', expected: 'todo dia às 08:00' },
+    { locale: 'en' as const, messages: en, phrase: 'Run 3 times a week at 08:00', expected: '3 times a week, any day, at 08:00' },
+    { locale: 'pt-BR' as const, messages: ptBR, phrase: 'Correr 3 vezes por semana às 08:00', expected: '3 vezes por semana, qualquer dia, às 08:00' },
+  ])('formats "$phrase" as "$expected"', ({ locale, messages, phrase, expected }) => {
+    const read = readHabitPhrase(phrase, locale)
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const template = key.split('.').reduce<unknown>((value, part) =>
+        (value as Record<string, unknown>)[part], messages) as string
+      return Object.entries(values ?? {}).reduce((sentence, [name, value]) =>
+        sentence.replace(`{${name}}`, String(value)), template)
+    }
+    const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({
+      value: day.charAt(0).toUpperCase() + day.slice(1), label,
+    }))
+    expect(buildHabitUnderstandingSentence(read.days, dayOptions, read.cadence === 'flexible',
+      read.cadence === 'flexible' ? 'Week' : 'Day', read.frequencyQuantity ?? 1,
+      read.dueTime ?? '', locale, translate)).toBe(expected)
   })
 })

@@ -182,7 +182,7 @@ describe("HabitEmojiSelector mobile", () => {
 
 it('fills the picker controls, selected and idle options, and clear search', () => {
   const { tree } = renderSelector(firstEmoji);
-  expectPressFill(tree, 'habits.form.emojiOpenPicker', tokens.bgHover, 999);
+  expectPressFill(tree, 'habits.form.emojiOpenPicker', tokens.bgHover, 12);
   press(button(tree, 'habits.form.emojiOpenPicker'));
   expectPressFill(tree, 'habits.form.emojiRemove', tokens.bgHover, 999);
   expectPressFill(tree, firstCategory.labelKey, tokens.bgHover, radius.full);

@@ -21,10 +21,11 @@ const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, 
 const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, subHabits: true, checklistItems: 1, subHabitItems: 1 }
 
 const testTranslations: Record<string, string> = {
-  'habits.form.understoodDaily': 'Every day',
-  'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDayAt': 'Every {days} at {time}',
-  'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+  'dates.daysValue.monday': 'Monday',
+  'habits.form.understoodDaily': 'every day',
+  'habits.form.understoodDailyAt': 'every day at {time}',
+  'habits.form.understoodDayAt': 'every {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day, at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
 
@@ -214,13 +215,13 @@ describe('HabitFormFields', () => {
   })
 
   it('shows the understanding preview and applies correction controls', () => {
-    const formHelpers = createFormHelpers({ title: 'Run', frequencyUnit: 'Week', frequencyQuantity: 3 })
+    const formHelpers = createFormHelpers({ title: 'Run', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })
     const view = renderForm(formHelpers)
     expect(screen.getByLabelText('habits.form.understood')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
     view.unmount()
 
@@ -252,7 +253,7 @@ describe('HabitFormFields', () => {
     })
     const view = renderForm(formHelpers)
 
-    expect(screen.getByText('Every day')).toBeDefined()
+    expect(screen.getByText('every day')).toBeDefined()
     expect(formHelpers.daysList.every((day) => screen.getByRole('button', { name: day.accessibleLabel }).getAttribute('aria-pressed') === 'true')).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', true)
@@ -271,13 +272,13 @@ describe('HabitFormFields', () => {
     formHelpers.testValues.dueTime = '07:00'
     view.rerenderForm()
 
-    expect(screen.getByText('Every day at 07:00')).toBeDefined()
+    expect(screen.getByText('every day at 07:00')).toBeDefined()
 
     formHelpers.testValues.days = ['Monday']
     formHelpers.testValues.dueTime = '08:00'
     view.rerenderForm()
 
-    expect(screen.getByText('Every Mon at 08:00')).toBeDefined()
+    expect(screen.getByText('every Monday at 08:00')).toBeDefined()
 
     formHelpers.testValues.days = []
     formHelpers.testValues.isFlexible = true
@@ -286,7 +287,7 @@ describe('HabitFormFields', () => {
     formHelpers.testValues.dueTime = '09:00'
     view.rerenderForm()
 
-    expect(screen.getByText('3 times a week, any day at 09:00')).toBeDefined()
+    expect(screen.getByText('3 times a week, any day, at 09:00')).toBeDefined()
 
     formHelpers.testValues.isFlexible = false
     formHelpers.testValues.frequencyUnit = null
@@ -313,7 +314,7 @@ describe('HabitFormFields', () => {
     await waitFor(() => expect(formHelpers.setRecurring).toHaveBeenCalledOnce())
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
 
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Thursday' }))
     formHelpers.testValues.title = 'Run'
     view.rerenderForm()
 
@@ -333,8 +334,8 @@ describe('HabitFormFields', () => {
 
     await waitFor(() => expect(formHelpers.setGeneral).toHaveBeenCalledOnce())
     expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled()
-    expect(screen.getByRole('radio', { name: 'habits.form.timesAWeek' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'habits.form.repeatMore' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.moreOften' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
 
     expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
     expect(formHelpers.setRecurring).not.toHaveBeenCalled()
@@ -476,7 +477,6 @@ describe('HabitFormFields', () => {
 
   it.each([
     ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
-    ['schedule mode', () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))],
     ['emoji', async () => {
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
       fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
@@ -580,5 +580,51 @@ describe('HabitFormFields', () => {
 
     act(() => resolveProposal())
     expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).toBeNull()
+  })
+})
+
+
+describe('cadence corrections without a type picker', () => {
+  it('shows only days for a parsed fixed schedule', () => {
+    renderForm(createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }))
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'habits.form.moreOften' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+  })
+
+  it.each([
+    { title: 'Run 3 times a week', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3 },
+    { title: 'Run', isFlexible: false, frequencyUnit: null, frequencyQuantity: null },
+  ])('offers day and count corrections for $title', (values) => {
+    const formHelpers = createFormHelpers(values)
+    renderForm(formHelpers)
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.setRecurring).toHaveBeenCalled()
+    expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday', false)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(formHelpers.setFlexible).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+  })
+})
+
+
+describe('cadence correction transitions', () => {
+  it('returns to a weekly target when the last selected day is cleared', () => {
+    const formHelpers = createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
+    renderForm(formHelpers)
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 3, { shouldDirty: true })
+  })
+
+  it('keeps repeat intervals inside more details', () => {
+    const formHelpers = createFormHelpers({ title: 'Read every Monday', days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
+    renderForm(formHelpers)
+    expect(screen.queryByRole('button', { name: 'habits.form.repeatMore' })).toBeNull()
+    fireEvent.click(screen.getByText('habits.form.moreDetails'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('intervalWeeks', 2, { shouldDirty: true })
   })
 })
