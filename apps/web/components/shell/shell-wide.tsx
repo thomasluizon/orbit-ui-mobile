@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefCallback,
 } from 'react'
+import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import {
   CalendarDays,
@@ -186,7 +187,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       data-shell-bottom=""
       className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
     >
-      <div className="relative mx-auto w-full max-w-[740px]">
+      <div className="relative mx-auto w-full" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
         {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
           <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
@@ -233,7 +234,7 @@ function ShellWideBackground({
       {navigationEnabled ? <ShellSidebar {...props} /> : null}
 
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
-        <div className="flex h-dvh w-full min-w-0 flex-col lg:max-w-[740px] lg:pt-8">
+        <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
           <main
             ref={registerScroller}
@@ -324,7 +325,8 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
           aria-label={props.conversationLabel}
           tabIndex={-1}
           data-shell-conversation="overlay"
-          className="z-modal fixed inset-0 overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+          style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
+          className="z-modal fixed inset-0 mx-auto overflow-y-auto bg-[var(--bg)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </div>

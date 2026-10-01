@@ -7,7 +7,8 @@
 **/test-results
 **/playwright-report
 **/__tests__
-!packages/shared/src/__tests__/factories.ts
+apps/web/e2e
+apps/web/playwright.config.ts
 apps/mobile
 architecture.json
 architecture.html

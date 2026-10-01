@@ -1,6 +1,7 @@
 const {
   withAppBuildGradle,
   withAndroidStyles,
+  withAndroidManifest,
   withProjectBuildGradle,
   withGradleProperties,
   AndroidConfig,
@@ -89,6 +90,17 @@ function withAndroidReleaseBuildFixes(config) {
       xml: mod.modResults,
       parent: appTheme,
     })
+    return mod
+  })
+
+  nextConfig = withAndroidManifest(nextConfig, (mod) => {
+    const activity = AndroidConfig.Manifest.getMainActivityOrThrow(mod.modResults)
+    activity.$['android:resizeableActivity'] = 'true'
+    const configurationChanges = new Set(activity.$['android:configChanges']?.split('|'))
+    for (const change of ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation']) {
+      configurationChanges.add(change)
+    }
+    activity.$['android:configChanges'] = [...configurationChanges].join('|')
     return mod
   })
 
