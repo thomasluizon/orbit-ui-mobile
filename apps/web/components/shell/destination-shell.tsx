@@ -31,6 +31,7 @@ import {
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { ShellWide } from './shell-wide'
+import { useServerApplePlatform } from './keyboard-platform-provider'
 
 interface DestinationShellProps {
   children: ReactNode
@@ -109,15 +110,12 @@ function getApplePlatform() {
   return /Mac|iPhone|iPad|iPod/i.test(platform)
 }
 
-function getServerApplePlatform() {
-  return false
-}
-
 function usePaletteHint() {
+  const serverApplePlatform = useServerApplePlatform()
   const applePlatform = useSyncExternalStore(
     subscribeToPlatform,
     getApplePlatform,
-    getServerApplePlatform,
+    () => serverApplePlatform,
   )
   return applePlatform ? '⌘K' : 'Ctrl K'
 }
