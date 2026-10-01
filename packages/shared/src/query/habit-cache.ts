@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { HabitScheduleItem, HabitsFilter, NormalizedHabit } from '../types/habit'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
-import { clearOptimisticSkipMarker } from '../utils/habit-optimistic'
+import { clearOptimisticSkipMarker, findHabitInTree, type HabitTreeNode } from '../utils/habit-optimistic'
 import { habitKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
@@ -67,6 +67,43 @@ export function restoreCachedHabitLists(
     if (current) setCachedHabitList(queryClient, key, current, items)
     else queryClient.setQueryData(key, items)
   }
+}
+
+export function restoreCachedHabitSkip(
+  queryClient: QueryClient,
+  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  habitId: string,
+): void {
+  for (const [key, items] of snapshots) {
+    const current = queryClient.getQueryData<HabitScheduleItem[]>(key)
+    if (!items || !current) continue
+    setCachedHabitList(queryClient, key, current, restoreSkipBranch(current, items, habitId))
+  }
+}
+
+function restoreSkipBranch<T extends HabitTreeNode>(current: T[], previous: T[], habitId: string): T[] {
+  const restored = [...current]
+  for (const [index, original] of previous.entries()) {
+    if (!findHabitInTree(original, habitId)) continue
+    const item = restored.find((entry) => entry.id === original.id)
+    if (!item) {
+      restored.splice(Math.min(index, restored.length), 0, original.id === habitId
+        ? original : { ...original, children: restoreSkipBranch([], original.children, habitId) })
+      continue
+    }
+    const currentIndex = restored.indexOf(item)
+    restored[currentIndex] = item.id === habitId ? {
+      ...item,
+      dueDate: original.dueDate,
+      scheduledDates: original.scheduledDates,
+      instances: original.instances,
+      isOverdue: original.isOverdue,
+      isCompleted: original.isCompleted,
+      isLoggedInRange: original.isLoggedInRange,
+      ...('flexibleCompleted' in original ? { flexibleCompleted: original.flexibleCompleted } : {}),
+    } : { ...item, children: restoreSkipBranch(item.children, original.children, habitId) }
+  }
+  return restored
 }
 
 export function updateHabitListsForDate(

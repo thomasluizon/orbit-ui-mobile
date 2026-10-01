@@ -61,8 +61,8 @@ describe('habit list overlay caller guards', () => {
     expect(caller).toContain(overlay.firstLine)
     expect(caller).not.toMatch(/overflow-(?:y-)?(?:auto|scroll)/)
     expect(sheet.indexOf('orbit-sheet-title')).toBeLessThan(sheet.indexOf('data-slot="sheet-body"'))
-    expect(habitList).toContain('onConfirmSkip=')
-    expect(habitList).toContain('await skipHabit.mutateAsync({ habitId, date })')
+    expect(habitList).not.toContain('onConfirmSkip=')
+    expect(habitList).toMatch(/await skipHabit\.mutateAsync\(\{\s*habitId,\s*date,\s*onUndo:/)
   })
 
   it('keeps Today selection overlays out of the initial route chunk', () => {

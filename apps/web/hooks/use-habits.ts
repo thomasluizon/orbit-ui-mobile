@@ -8,6 +8,7 @@ import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDependents,
   clearCachedOptimisticSkip,
+  restoreCachedHabitSkip,
   checkTodayAllDoneOrDefer,
   getTodayHabitList,
   getTodayHabitListAfterRefetch,
@@ -73,6 +74,7 @@ import {
   restoreHabit as restoreHabitAction,
   logHabit as logHabitAction,
   skipHabit as skipHabitAction,
+  undoSkipHabit as undoSkipHabitAction,
   reorderHabits as reorderHabitsAction,
   duplicateHabit as duplicateHabitAction,
   updateChecklist as updateChecklistAction,
@@ -90,6 +92,7 @@ import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { captureHabitLogged } from '@/lib/posthog'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
 
 let optimisticSubHabitSequence = 0
 
@@ -323,36 +326,59 @@ export function useLogHabit() {
 
 export function useSkipHabit() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const showUndoToast = useUndoToast()
+  const { showError } = useAppToast()
+  type UndoInput = { habitId: string; skipId: string; previousLists: HabitListSnapshots; onUndo?: () => void; intent: ReturnType<typeof captureAccountIntent> }
+  const undoSkip = useAccountScopedMutation<void, Error, UndoInput>({
+    mutationFn: (input, intendedAccountId) =>
+      undoSkipHabitAction(input.habitId, input.skipId, intendedAccountId),
+    onSuccess: (_result, { habitId, previousLists, onUndo }) => {
+      onUndo?.()
+      restoreCachedHabitSkip(queryClient, previousLists, habitId)
+      invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
+    onError: (error, input) => {
+      showUndoToast(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'), () => {
+        if (!input.intent.stillCurrent()) { reportAccountChanged(); return }
+        undoSkip.mutate(input)
+      })
+    },
+  })
 
   return useAccountScopedMutation({
-    mutationFn: ({ habitId, date }: { habitId: string; date?: string }, intendedAccountId) =>
-      skipHabitAction(habitId, date, intendedAccountId),
-
+    mutationFn: async ({ habitId, date }: { habitId: string; date?: string; onUndo?: () => void }, intendedAccountId) => {
+      const skipId = crypto.randomUUID()
+      await skipHabitAction(habitId, { date, skipId }, intendedAccountId)
+      return { skipId }
+    },
     onMutate: async ({ habitId, date }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
-
-      const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
-
+      const previousLists = snapshotHabitLists(queryClient)
+      const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
+        .find((habit) => habit !== null)
       const skippedDate = date ?? formatAPIDate(new Date())
       updateHabitListsForDate(queryClient, skippedDate, (items) => {
         const habit = findHabitInList(items, habitId)
         return habit ? optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit, skippedDate)) : items
       })
-
-      return { previousLists, skippedDate }
+      return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null }
     },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
-        for (const [key, data] of context.previousLists) {
-          if (data) queryClient.setQueryData(key, data)
-        }
-      }
+    onSuccess: ({ skipId }, { habitId, onUndo }, context) => {
+      const intent = captureAccountIntent()
+      showUndoToast(t(context.postponed ? 'undo.habitPostponed' : 'undo.habitSkipped'), () => {
+        if (!intent.stillCurrent()) { reportAccountChanged(); return }
+        undoSkip.mutate({ habitId, skipId, previousLists: context.previousLists, onUndo, intent })
+      })
     },
-
-    onSettled: (_data, error, { habitId }, context) => {
+    onError: (error, _variables, context) => {
+      if (context) restoreHabitLists(queryClient, context.previousLists)
+      showError(getFriendlyErrorMessage(error, t, 'undo.skipFailed'))
+    },
+    onSettled: (_result, error, { habitId }, context) => {
       if (error) return
       if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
       invalidateHabitDependents(queryClient, habitId)

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
-import { createMockHabit } from './factories'
-import { habitKeys } from '../query/keys'
+import { createMockHabit, createMockHabitScheduleItem, createMockHabitScheduleChild } from './factories'
+import { habitKeys, type HabitListSnapshots } from '../query/keys'
 import {
   checkTodayAllDoneOrDefer,
   clearCachedOptimisticSkip,
@@ -10,11 +10,47 @@ import {
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
   restoreCachedHabitLists,
+  restoreCachedHabitSkip,
   updateCachedHabitLists,
   updateHabitListsForDate,
 } from '../query/habit-cache'
 import { optimisticRemoveHabits, optimisticSkipMarker } from '../utils/habit-optimistic'
 import type { HabitScheduleItem } from '../types/habit'
+
+describe('skip undo cache', () => {
+  it('restores only the skipped schedule while keeping sibling and child changes', () => {
+    const client = new QueryClient()
+    const key = habitKeys.list({})
+    const row = createMockHabitScheduleItem({ id: 'skipped', scheduledDates: ['2026-09-12'], children: [createMockHabitScheduleChild({ id: 'child' })] })
+    const sibling = createMockHabitScheduleItem({ id: 'sibling' })
+    const snapshot: HabitListSnapshots = [[key, [row, sibling]]]
+    client.setQueryData(key, [{ ...row, title: 'Edited title', scheduledDates: [], children: [{ ...row.children[0], title: 'Edited child' }] }, { ...sibling, isCompleted: true }])
+    restoreCachedHabitSkip(client, snapshot, row.id)
+    expect(client.getQueryData<HabitScheduleItem[]>(key)).toMatchObject([
+      { title: 'Edited title', scheduledDates: ['2026-09-12'], children: [{ title: 'Edited child' }] },
+      { id: sibling.id, isCompleted: true },
+    ])
+  })
+
+  it('reinserts the skipped child after a refetch removed it without restoring another deleted row', () => {
+    const client = new QueryClient()
+    const key = habitKeys.list({ completeDay: true, dateFrom: '2026-09-12', dateTo: '2026-09-12' })
+    const child = createMockHabitScheduleChild({ id: 'skipped' })
+    const parent = createMockHabitScheduleItem({ id: 'parent', children: [child] })
+    const deleted = createMockHabitScheduleItem({ id: 'deleted' })
+    const countKey = habitKeys.listTotalCount({ dateFrom: '2026-09-12', dateTo: '2026-09-12' })
+    client.setQueryData(countKey, 1)
+    client.setQueryData(key, [{ ...parent, title: 'Edited parent', children: [] }])
+    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id)
+    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([{ ...parent, title: 'Edited parent' }])
+    expect(client.getQueryData(countKey)).toBe(1)
+    client.setQueryData(key, [])
+    client.setQueryData(countKey, 0)
+    restoreCachedHabitSkip(client, [[key, [parent, deleted]]], child.id)
+    expect(client.getQueryData<HabitScheduleItem[]>(key)).toEqual([parent])
+    expect(client.getQueryData(countKey)).toBe(1)
+  })
+})
 
 describe('habit list cache targeting', () => {
   it('changes only lists containing the affected date', () => {

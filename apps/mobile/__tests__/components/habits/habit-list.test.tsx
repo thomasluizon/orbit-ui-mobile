@@ -3,9 +3,13 @@ import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toast } from '@/components/ui/app-toast'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { habitScheduleItemSchema, skipHabitRequestSchema } from '@orbit/shared/types/habit'
+import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -27,7 +31,20 @@ const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 1, isLoaded: true }))
 
-vi.mock('@/hooks/use-habit-queries', () => ({
+const skipFlow = vi.hoisted(() => ({ active: false }))
+vi.mock('expo-crypto', () => ({ randomUUID: () => '22222222-2222-4222-8222-222222222222' }))
+
+function SkipToastHost() {
+  const current = useAppToastStore((state) => state.currentToast)
+  if (!current) return null
+  const toast = current.toast
+  return (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
+    ? <Toast {...toast} onAction={useAppToastStore.getState().triggerAction} />
+    : <Toast {...toast} />
+}
+
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
   useHabitCountLoaded: () => accountHabitCount,
 }))
 
@@ -137,7 +154,7 @@ const offlineMocks = vi.hoisted(() => {
     return null
   }
 
-  const apiClient = vi.fn((endpoint: string) => Promise.resolve(receiveHabitToggle(endpoint)))
+  const apiClient = vi.fn((endpoint: string, _options?: { body?: string }): Promise<unknown> => Promise.resolve(receiveHabitToggle(endpoint)))
 
   return {
     rows,
@@ -264,8 +281,11 @@ vi.mock('expo-router', () => ({
   usePathname: () => '/',
 }))
 
-vi.mock('@/hooks/use-habits', () => ({
-  useHabits: (_filters: HabitsFilter) => ({
+vi.mock('@/hooks/use-habits', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habits')>()
+  return ({
+  ...actual,
+  useHabits: (...args: Parameters<typeof actual.useHabits>) => skipFlow.active ? actual.useHabits(...args) : ({
     data: mockHabitsData,
     isLoading: false,
     isFetching: false,
@@ -279,7 +299,7 @@ vi.mock('@/hooks/use-habits', () => ({
     },
   }),
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
-  useSkipHabit: () => ({ mutateAsync: skipMutateAsync }),
+  useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipMutateAsync }),
   useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }),
   useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }),
   useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
@@ -287,7 +307,8 @@ vi.mock('@/hooks/use-habits', () => ({
   useDuplicateHabit: () => ({ mutate: vi.fn() }),
   useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}))
+})
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -479,7 +500,6 @@ async function confirmRowSkip(tree: any, habitId: string) {
     row?.props.actions.onSkip()
   })
   await TestRenderer.act(async () => {
-    pressConfirm(tree, 'habits.skipConfirmButton')
     await Promise.resolve()
   })
 }
@@ -545,6 +565,9 @@ describe('HabitList', () => {
     offlineMocks.appliedHabitIds.length = 0
     offlineMocks.loggedHabits.clear()
     offlineMocks.setOnline(false)
+    offlineMocks.apiClient.mockImplementation((endpoint: string) => Promise.resolve(offlineMocks.receiveHabitToggle(endpoint)))
+    skipFlow.active = false
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     mockHabitsDataUpdatedAt = 1
     useActualHabitVisibility = false
     habitListRefetch.mockReset()
@@ -1084,7 +1107,117 @@ describe('HabitList', () => {
     expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.nothingOpen')
   })
 
-  it('asks before skipping a recurring habit', async () => {
+  it.each([
+    ['recurring', 'Day', false, true],
+    ['weekly flexible', 'Week', true, true],
+    ['monthly flexible', 'Month', true, true],
+    ['one-time', null, false, true],
+    ['offline recurring', 'Day', false, false],
+    ['offline one-time', null, false, false],
+  ] as const)('skips a %s row without a sheet and restores it through the undo endpoint', async (_kind, frequencyUnit, isFlexible, online) => {
+    skipFlow.active = true
+    useActualHabitVisibility = true
+    accountHabitCount.count = 2
+    offlineMocks.setOnline(online)
+    const row = habitScheduleItemSchema.parse(createMockHabitScheduleItem({
+      id: '11111111-1111-4111-8111-111111111111', title: 'Walk', frequencyUnit, isFlexible,
+      dueDate: TODAY, scheduledDates: [TODAY], instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      flexibleTarget: isFlexible ? 1 : null, flexibleCompleted: isFlexible ? 0 : null,
+    }))
+    let items: HabitScheduleItem[] = [row]
+    let receipt: string | undefined
+    offlineMocks.apiClient.mockImplementation((endpoint: string, options?: { body?: string }) => {
+      if (endpoint.endsWith('/undo')) {
+        expect(endpoint).toBe(`/api/habits/${row.id}/skip/${receipt}/undo`)
+        items = [row]
+        return Promise.resolve(undefined)
+      }
+      if (endpoint.endsWith('/skip')) {
+        const request = skipHabitRequestSchema.parse(JSON.parse(options!.body!))
+        expect(request.date).toBe(TODAY)
+        receipt = request.skipId ?? undefined
+        expect(receipt).toBe('22222222-2222-4222-8222-222222222222')
+        items = []
+        return Promise.resolve(undefined)
+      }
+      return Promise.resolve({ items, totalCount: items.length, totalPages: 1, page: 1, pageSize: 200 })
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(1))
+    TestRenderer.act(() => tree.root.findAll((node: any) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
+    const skipItem = tree.root.findAll((node: any) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))[0]
+    await TestRenderer.act(async () => { skipItem.props.onPress(); await Promise.resolve() })
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(0))
+    expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
+    expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: frequencyUnit === null ? 'undo.habitPostponed' : 'undo.habitSkipped', actionLabel: 'undo.action' })
+    await TestRenderer.act(async () => { tree.root.findAll((node: any) => node.props.testID === 'toast-action' && node.type === 'Pressable')[0].props.onPress(); await Promise.resolve() })
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(1))
+    expect(offlineMocks.apiClient.mock.calls.some(([endpoint]) => endpoint.endsWith('/undo'))).toBe(online)
+    expect(getQueuedMutations()).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+    client.clear()
+  })
+
+  it('does not log a parent after undo restores its final skipped child', async () => {
+    skipFlow.active = true
+    useActualHabitVisibility = true
+    accountHabitCount.count = 3
+    offlineMocks.setOnline(true)
+    const child = habitScheduleItemSchema.parse(createMockHabitScheduleItem({
+      id: '11111111-1111-4111-8111-111111111111', title: 'Pending child',
+      dueDate: TODAY, scheduledDates: [TODAY], instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    }))
+    const loggedChild = habitScheduleItemSchema.parse(createMockHabitScheduleItem({
+      id: '33333333-3333-4333-8333-333333333333', title: 'Logged child',
+      dueDate: TODAY, scheduledDates: [TODAY], isCompleted: true, isLoggedInRange: true,
+      instances: [{ date: TODAY, status: 'Completed', logId: 'child-log' }],
+    }))
+    const parent = habitScheduleItemSchema.parse(createMockHabitScheduleItem({
+      id: '44444444-4444-4444-8444-444444444444', title: 'Parent', hasSubHabits: true,
+      dueDate: TODAY, scheduledDates: [TODAY], children: [loggedChild, child],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    }))
+    let items: HabitScheduleItem[] = [parent]
+    offlineMocks.apiClient.mockImplementation((endpoint: string, options?: { body?: string }) => {
+      if (endpoint.endsWith('/undo')) {
+        items = [parent]
+        return Promise.resolve(undefined)
+      }
+      if (endpoint.endsWith('/skip')) {
+        expect(endpoint).toBe(`/api/habits/${child.id}/skip`)
+        skipHabitRequestSchema.parse(JSON.parse(options!.body!))
+        items = [{ ...parent, children: [loggedChild] }]
+        return Promise.resolve(undefined)
+      }
+      return Promise.resolve({ items, totalCount: items.length, totalPages: 1, page: 1, pageSize: 200 })
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
+    const childRow = tree.root.findAllByType(HabitRow).find((node: any) => node.props.habit.id === child.id)
+    TestRenderer.act(() => childRow.findAll((node: any) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
+    const skipItem = tree.root.findAll((node: any) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))[0]
+    await TestRenderer.act(async () => { skipItem.props.onPress(); await Promise.resolve() })
+    await vi.waitFor(() => expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(false))
+    await TestRenderer.act(async () => { tree.root.findAll((node: any) => node.props.testID === 'toast-action' && node.type === 'Pressable')[0].props.onPress(); await Promise.resolve() })
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
+    await TestRenderer.act(async () => { pressConfirm(tree, 'habits.autoLogParentConfirm'); await Promise.resolve() })
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+    client.clear()
+  })
+
+  it('skips a recurring habit immediately', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
 
@@ -1116,35 +1249,19 @@ describe('HabitList', () => {
       skipItem.props.onPress()
       await Promise.resolve()
     })
-    expect(skipMutateAsync).not.toHaveBeenCalled()
-    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Exercise"})')).toHaveLength(1)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY, onUndo: expect.any(Function) })
+    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({\"name\":\"Exercise\"})')).toHaveLength(0)
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
-    TestRenderer.act(() => { pressConfirm(tree, 'common.cancel') })
-    expect(skipMutateAsync).not.toHaveBeenCalled()
-    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Exercise"})')).toHaveLength(0)
   })
 
-  it.each([
-    ['Week', 'habits.skipConfirmMessageFlexible'],
-    ['Month', 'habits.skipConfirmMessageFlexibleMonth'],
-  ] as const)('shows the %s flexible skip consequence', (frequencyUnit, messageKey) => {
-    const habit = createMockHabit({
-      id: 'flexible', title: 'Walk', isFlexible: true, frequencyUnit, scheduledDates: [TODAY],
-    })
+  it.each(['Week', 'Month'] as const)('skips a %s flexible habit without confirmation', async (frequencyUnit) => {
+    const habit = createMockHabit({ id: 'flexible', title: 'Walk', isFlexible: true, frequencyUnit, scheduledDates: [TODAY] })
     seedHabits([habit])
     let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
-      )
-    })
-
-    TestRenderer.act(() => {
-      tree.root.findByType(HabitRow).props.actions.onSkip()
-    })
-    const [confirmation] = confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Walk"})')
-    expect(flattenRenderedText(confirmation)).toContain(messageKey)
-    expect(skipMutateAsync).not.toHaveBeenCalled()
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    await confirmRowSkip(tree, habit.id)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY, onUndo: expect.any(Function) })
+    expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
   })
 
   it('does not retain a confirmed skip as recently completed', async () => {
@@ -1157,28 +1274,9 @@ describe('HabitList', () => {
       )
     })
     await confirmRowSkip(tree, habit.id)
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: habit.id, date: TODAY, onUndo: expect.any(Function) })
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
     expect(tree.root.findByType(HabitRow).props.habit.isCompleted).toBe(false)
-  })
-
-  it('discards an unconfirmed skip when the viewed date changes', () => {
-    const habit = createMockHabit({ id: 'skip-date', title: 'Walk', scheduledDates: [TODAY] })
-    seedHabits([habit])
-    const renderDate = (date: string) => (
-      <HabitList view="today" filters={{}} selectedDate={new Date(`${date}T09:00:00Z`)}
-        showCompleted onCreatePress={vi.fn()} />
-    )
-    let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(renderDate(TODAY)) })
-
-    TestRenderer.act(() => { tree.root.findByType(HabitRow).props.actions.onSkip() })
-    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Walk"})')).toHaveLength(1)
-    TestRenderer.act(() => { tree.update(renderDate(TOMORROW)) })
-    TestRenderer.act(() => { tree.update(renderDate(TODAY)) })
-
-    expect(confirmationSheets(tree, 'habits.skipConfirmTitle({"name":"Walk"})')).toHaveLength(0)
-    expect(skipMutateAsync).not.toHaveBeenCalled()
   })
 
   it('asks before deleting a habit', async () => {
@@ -1356,7 +1454,7 @@ describe('HabitList', () => {
     expect(descriptionNodes).toHaveLength(0)
   })
 
-  it('asks before postponing a one-time task', async () => {
+  it('postpones immediately a one-time task', async () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',
       title: 'Pay bill',
@@ -1385,11 +1483,8 @@ describe('HabitList', () => {
       habitCard?.props.actions.onSkip()
       await Promise.resolve()
     })
-    expect(skipMutateAsync).not.toHaveBeenCalled()
-    expect(confirmationSheets(tree, 'habits.postponeConfirmTitle({"name":"Pay bill"})')).toHaveLength(1)
-    pressConfirm(tree, 'habits.postponeConfirmButton')
-    await TestRenderer.act(async () => { await Promise.resolve() })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
+    expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY, onUndo: expect.any(Function) })
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -2774,7 +2869,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
     expect(skipMutateAsync.mock.calls).toEqual([
-      [{ habitId: 'child', date: YESTERDAY }],
+      [{ habitId: 'child', date: YESTERDAY, onUndo: expect.any(Function) }],
       [{ habitId: 'parent', date: YESTERDAY }],
       [{ habitId: 'grandparent', date: YESTERDAY }],
     ])
@@ -2817,8 +2912,8 @@ describe('HabitList', () => {
     )
 
     await skipChild('child-b')
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY, onUndo: expect.any(Function) })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY, onUndo: expect.any(Function) })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
@@ -3088,8 +3183,7 @@ describe('HabitList', () => {
       childRow?.props.actions.onSkip()
     })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.skipConfirmButton')
-      await Promise.resolve()
+        await Promise.resolve()
     })
     TestRenderer.act(() => {
       tree.update(renderList(TODAY))
@@ -3100,7 +3194,7 @@ describe('HabitList', () => {
     })
 
     expect(skipMutateAsync.mock.calls).toEqual([
-      [{ habitId: child.id, date: YESTERDAY }],
+      [{ habitId: child.id, date: YESTERDAY, onUndo: expect.any(Function) }],
     ])
     expect(logMutateAsync).not.toHaveBeenCalledWith({
       habitId: parent.id,
@@ -3232,7 +3326,7 @@ describe('HabitList', () => {
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', intent: 'log' })
   })
 
-  it('asks before postponing an overdue habit with no date', async () => {
+  it('postpones immediately an overdue habit with no date', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -3258,13 +3352,8 @@ describe('HabitList', () => {
       overdueCard?.props.actions.onSkip()
       await Promise.resolve()
     })
-    expect(skipMutateAsync).not.toHaveBeenCalled()
-    expect(confirmationSheets(tree, 'habits.postponeConfirmTitle({"name":"Overdue task"})')).toHaveLength(1)
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.postponeConfirmButton')
-      await Promise.resolve()
-    })
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY })
+    expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY, onUndo: expect.any(Function) })
   })
 
   it('renders a selectable overdue row in select mode', () => {

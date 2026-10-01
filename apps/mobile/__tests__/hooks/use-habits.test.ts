@@ -27,10 +27,14 @@ import {
   useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 
 const { captureHabitLogged } = vi.hoisted(() => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged }))
+
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -235,6 +239,8 @@ vi.mock('@/lib/offline-mutations', () => ({
   OfflineMutationPreflightError: mocks.OfflineMutationPreflightError,
   withQueuedMarker: mocks.withQueuedMarker,
   cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
+  cancelQueuedSkipForUndo: vi.fn(),
+  executeSkipUndo: vi.fn(),
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
@@ -2152,6 +2158,58 @@ describe('mobile habit hooks', () => {
     expect(getHabitList()[0]?.isCompleted).toBe(false)
     expect(getHabitList()[0]?.scheduledDates).toEqual([today])
     expect(hasHabitScheduleOnDate(getHabitList()[0]!, today)).toBe(true)
+  })
+
+  it('reconciles a dropped skip through the undo endpoint', async () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[]; queuedMutationId: string }, unknown>
+    vi.mocked(cancelQueuedSkipForUndo).mockResolvedValueOnce('dropped')
+    await undo.mutationFn({ habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [], queuedMutationId: 'skip-1' })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ type: 'undoSkipHabit', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') }) }))
+  })
+
+  it('keeps an actionable undo after restoration fails', () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[] }, unknown>
+    const input = { habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [] }
+    undo.onError?.(new Error('Restore failed'), input, undefined)
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.restoreFailed', expect.any(Function))
+    const retry = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    retry()
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith(input)
+  })
+
+  it('stops undo when the account changes while cancellation is pending', async () => {
+    useSkipHabit()
+    const undo = mocks.useMutation.mock.calls.at(-2)![0] as MutationConfig<unknown, { habitId: string; skipId: string; previousLists: unknown[]; queuedMutationId: string }, unknown>
+    let finish!: () => void
+    vi.mocked(cancelQueuedSkipForUndo).mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve('replayed') }))
+    const input = { habitId: 'habit-1', skipId: '11111111-1111-4111-8111-111111111111', previousLists: [], queuedMutationId: 'skip-1' }
+    const pending = undo.mutationFn(input)
+    advanceAccountGeneration()
+    finish()
+    await expect(pending).rejects.toThrow('Account changed')
+    mocks.queryClient.setQueryData.mockClear()
+    undo.onSuccess?.(undefined, input, undefined)
+    undo.onError?.(new Error('Account changed'), input, undefined)
+    expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+  })
+
+  it('ignores a skip completion from a previous account generation', async () => {
+    const skip = useSkipHabit() as unknown as MutationConfig<unknown, { habitId: string }, HabitSnapshotContext>
+    const input = { habitId: 'habit-1' }
+    const context = await skip.onMutate?.(input)
+    const result = await skip.mutationFn(input)
+    advanceAccountGeneration()
+    seedHabitState([makeHabit({ id: 'new-account', title: 'New account' })], 1)
+    mocks.queryClient.invalidateQueries.mockClear()
+    skip.onSuccess?.(result, input, context)
+    skip.onSettled?.(result, null, input, context)
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(getHabitList()[0]?.id).toBe('new-account')
   })
 
   it('patches a habit optimistically, invalidates its detail online, and restores it on failure', async () => {

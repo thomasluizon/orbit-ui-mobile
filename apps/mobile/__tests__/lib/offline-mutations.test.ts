@@ -15,6 +15,8 @@ import {
   accountTimezoneDependency,
   canAutoFlush,
   cancelQueuedDeleteForUndo,
+  cancelQueuedSkipForUndo,
+  executeSkipUndo,
   cancelScheduledFlush,
   createQueuedAck,
   createTempEntityId,
@@ -35,6 +37,7 @@ import {
 } from '@/lib/offline-mutations'
 import { captureError } from '@/lib/sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -486,20 +489,28 @@ describe('offline mutations', () => {
     expect(execute).toHaveBeenCalledOnce()
   })
 
-  it.each([true, false])('does not send or queue an old mutation after connectivity resolves (online: %s)', async (online) => {
+  it.each([
+    [true, 'resetProfile'], [false, 'resetProfile'],
+    [true, 'skipHabit'], [false, 'skipHabit'],
+    [true, 'undoSkipHabit'], [false, 'undoSkipHabit'],
+  ] as const)('does not send or queue an old mutation after connectivity resolves (online: %s, type: %s)', async (online, type) => {
     let finishConnectivity!: (value: boolean) => void
     mocks.getCurrentConnectivity.mockImplementationOnce(() => new Promise((resolve) => {
       finishConnectivity = resolve
     }))
     let current = true
     const execute = vi.fn(() => Promise.resolve(null))
-    const pending = queueOrExecute({
+    const pending = type === 'resetProfile' ? queueOrExecute({
       mutation: buildQueuedMutation({
-        type: 'resetProfile', scope: 'profile', endpoint: API.profile.reset, method: 'POST', payload: undefined,
+        type, scope: 'profile', endpoint: API.profile.reset, method: 'POST', payload: undefined,
       }),
       execute,
       queuedResult: { queued: true as const },
       isCurrent: () => current,
+    }) : performQueuedApiMutation({
+      type, scope: 'habits', method: 'POST', payload: undefined,
+      endpoint: type === 'skipHabit' ? API.habits.skip('habit-1') : API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111'),
+      execute, isCurrent: () => current,
     })
 
     current = false
@@ -734,6 +745,63 @@ describe('offline mutations', () => {
       expect(mocks.queued).toHaveLength(0)
     },
   )
+
+  it('cancels an unsent skip without calling the API or creating a tombstone', async () => {
+    const mutation = buildQueuedMutation({ type: 'skipHabit', scope: 'habits', endpoint: API.habits.skip('habit-1'), method: 'POST', payload: { skipId: '11111111-1111-4111-8111-111111111111' }, entityType: 'habit', targetEntityId: 'habit-1' })
+    mocks.queued.push(mutation)
+    expect(await cancelQueuedSkipForUndo(mutation.id)).toBe('cancelled')
+    mocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.markOfflineTombstone).not.toHaveBeenCalled()
+  })
+
+  it('marks a skip with a lost response as uncertain before cancelling it', async () => {
+    mocks.setOnline(true)
+    const execute = vi.fn(() => Promise.reject(new TypeError('Network request failed')))
+    const result = await runQueuedMutation({ mutation: { type: 'skipHabit', scope: 'habits', endpoint: API.habits.skip('habit-1'), method: 'POST', payload: { skipId: '11111111-1111-4111-8111-111111111111' } }, execute })
+    expect(isQueuedResult(result)).toBe(true)
+    const queued = mocks.queued[0]!
+    expect(queued.retries).toBe(1)
+    expect(await cancelQueuedSkipForUndo(queued.id)).toBe('uncertain')
+  })
+
+  it('waits for a replaying skip to finish before calling the undo endpoint', async () => {
+    const mutation = buildQueuedMutation({ type: 'skipHabit', scope: 'habits', endpoint: API.habits.skip('habit-1'), method: 'POST', payload: { skipId: '11111111-1111-4111-8111-111111111111' } })
+    mocks.queued.push(mutation)
+    mocks.setOnline(true)
+    let finish!: () => void
+    mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(undefined) }))
+    const flushing = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    let settled = false
+    const undo = cancelQueuedSkipForUndo(mutation.id).then((outcome) => { settled = true; return outcome })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    finish()
+    await flushing
+    expect(await undo).toBe('replayed')
+    await executeSkipUndo({ id: 'undo', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') })
+    expect(mocks.apiClient.mock.calls.map(([endpoint]) => endpoint)).toEqual([mutation.endpoint, API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111')])
+  })
+
+  it('accepts a missing receipt after cancellation but propagates undo conflicts', async () => {
+    const mutation = { id: 'undo', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111') }
+    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(404, 'Skip not found', { code: 'SKIP_NOT_FOUND' }))
+    await expect(executeSkipUndo(mutation)).resolves.toBeUndefined()
+    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(409, 'Habit changed', { code: 'SKIP_UNDO_CONFLICT' }))
+    await expect(executeSkipUndo(mutation)).rejects.toThrow('Habit changed')
+  })
+
+  it('replays a queued undo with the same endpoint and treats a missing receipt as settled', async () => {
+    const mutation = buildQueuedMutation({ type: 'undoSkipHabit', scope: 'habits', endpoint: API.habits.undoSkip('habit-1', '11111111-1111-4111-8111-111111111111'), method: 'POST', payload: undefined })
+    mocks.queued.push(mutation)
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(new ApiClientError(404, 'Skip not found', { code: 'SKIP_NOT_FOUND' }))
+    const result = await flushQueuedMutations()
+    expect(result).toMatchObject({ succeeded: 1, failed: 0, remaining: 0 })
+    expect(mocks.apiClient).toHaveBeenCalledWith(mutation.endpoint, { method: 'POST', idempotencyKey: mutation.id })
+  })
 
   it('removes an offline bulk delete before reconnect so replay cannot delete the undone habits', async () => {
     const mutation = buildQueuedMutation({
