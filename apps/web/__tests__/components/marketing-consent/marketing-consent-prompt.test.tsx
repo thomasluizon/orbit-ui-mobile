@@ -143,7 +143,7 @@ describe('MarketingConsentPrompt', () => {
     await settle()
 
     expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' })).toHaveAttribute('data-variant', 'ghost')
-    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' }).style.color).toBe('var(--fg-3)')
+    expect(screen.getByRole('button', { name: 'marketingConsent.prompt.decline' }).style.color).toBe('var(--fg-2)')
   })
 
   it('shows after the settle delay and records markEngagementPrompted', async () => {
