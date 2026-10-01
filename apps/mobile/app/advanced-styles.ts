@@ -8,8 +8,6 @@ export const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
   widgetSheetContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
     gap: 16,
   },
   widgetHeading: {
