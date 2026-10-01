@@ -32,6 +32,7 @@ interface DateFieldProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  label?: string
 }
 
 interface DatePickerMonthNavProps {
@@ -210,6 +211,7 @@ export function DateField({
   value,
   onChange,
   placeholder,
+  label,
 }: Readonly<DateFieldProps>) {
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
@@ -312,9 +314,9 @@ export function DateField({
         ]}
         onPress={openPicker}
         accessibilityLabel={
-          displayValue
+          label ?? (displayValue
             ? t('common.selectedDate', { date: displayValue })
-            : t('common.selectDate')
+            : t('common.selectDate'))
         }
         accessibilityRole="button"
       >

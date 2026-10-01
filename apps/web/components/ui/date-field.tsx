@@ -25,12 +25,14 @@ interface DateFieldProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  label?: string
 }
 
 export function DateField({
   value,
   onChange,
   placeholder,
+  label,
 }: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -155,7 +157,7 @@ export function DateField({
     <div className="relative">
       <button
         type="button"
-        aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
+        aria-label={label ?? (displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate'))}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"

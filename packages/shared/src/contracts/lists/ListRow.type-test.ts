@@ -16,6 +16,8 @@ type ExpectedBase = {
   title: string
   wrapTitle?: boolean
   accessibilityLabel?: string
+  expanded?: boolean
+  controls?: string
   description?: string
   value?: string
   wrapValue?: boolean
@@ -66,6 +68,8 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['title'], string>>,
   Assert<IsExactWidth<ListRowProps['wrapTitle'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['accessibilityLabel'], string | undefined>>,
+  Assert<IsExactWidth<ListRowProps['expanded'], boolean | undefined>>,
+  Assert<IsExactWidth<ListRowProps['controls'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['description'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['value'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['wrapValue'], boolean | undefined>>,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { makeAgentOperationResult, makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
 import {
   renderPendingOperationCard,
   type PendingOperationCardActions,
@@ -10,20 +10,205 @@ import {
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
+
+function translateMessages(messages: typeof en, key: string, values?: Record<string, string | number>): string {
+  const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
+  const localized = typeof message === 'string' ? message.replace(/\{(\w+), plural, one \{([^}]*)\} other \{([^}]*)\}\}/g, (_, name: string, singular: string, plural: string) => (values?.[name] === 1 ? singular : plural).replaceAll('#', String(values?.[name]))) : key
+  return localized.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
+}
+
+const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('item summaries in $locale', ({ locale, messages }) => {
+  const summarize = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
+  const change = (field: string, newValue: string | null, proposedValue?: unknown, oldValue: string | null = null) => ({ entityId: 'habit-1', entityName: 'Read', field, oldValue, newValue, valueType: 'text', proposedValue })
+
+  it('keeps the daily cadence and requested outcomes in one summary', () => {
+    expect(summarize([change('frequency_unit', 'Day'), change('frequency_quantity', '1'), change('reminder_enabled', 'True')]))
+      .toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.summary.sendReminders}`)
+  })
+
+  it('shows an explicit disabled request even when the previous value is absent', () => {
+    expect(summarize([change('enabled', 'False')])).toBe(messages.chat.preview.summary.turnOff)
+    expect(summarize([change('reminder_enabled', 'false')])).toBe(messages.chat.preview.summary.stopReminders)
+  })
+
+  it('names cleared repetition when the producer formats null as an empty string', () => {
+    expect(summarize([change('frequency_unit', '', null, 'Day')])).toBe(messages.habits.filter.oneTime)
+  })
+
+  it('does not invent a count for a unit-only update', () => {
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day')])).toBe(messages.chat.preview.summary.repeatInMonths)
+  })
+
+  it('keeps mode changes visible when a unit-only update lacks the full cadence', () => {
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_general', 'true')]))
+      .toBe(messages.chat.preview.summary.anytime)
+    expect(summarize([change('frequency_unit', 'Month', 'Month', 'Day'), change('is_flexible', 'true')]))
+      .toBe(`${messages.chat.preview.summary.repeatInMonths} · ${messages.chat.preview.summary.anyDay}`)
+  })
+
+  it('localizes weekdays from the typed proposal instead of exposing the JSON display value', () => {
+    expect(summarize([change('days', '["Monday", "Thursday"]', ['Monday', 'Thursday'])]))
+      .toBe(`${messages.dates.daysShort.monday}, ${messages.dates.daysShort.thursday}`)
+  })
+
+  it('keeps supported user text and formats typed checklist and reminder proposals', () => {
+    expect(summarize([
+      change('description', 'Read a chapter'),
+      change('checklist_items', 'Pack shoes and more', [{ text: 'Pack shoes', is_checked: true }, { text: 'Bring water', is_checked: false }]),
+      change('scheduled_reminders', 'day_before 19:30', [{ when: 'day_before', time: '19:30' }]),
+    ])).toBe(`Read a chapter · Pack shoes (${messages.blockFrame.status.done}), Bring water · ${messages.chat.preview.summary.remindDayBefore.replace('{time}', 'clock:19:30')}`)
+  })
+
+  it('describes clearing editable lists and dates', () => {
+    expect(summarize([change('days', '', []), change('due_date', ''), change('due_time', ''), change('checklist_items', '', [])]))
+      .toBe([messages.chat.preview.summary.clearDays, messages.chat.preview.summary.removeDate, messages.chat.preview.summary.removeTime, messages.chat.preview.summary.clearChecklist].join(' · '))
+  })
+
+  it.each([
+    ['status', 'Abandoned', 'Abandoned', 'Active', 'Mark abandoned', 'Marcar abandonada'],
+    ['current_value', '100', 100, '20', 'Set progress to 100', 'Definir progresso: 100'],
+    ['tag_names', '["Reading","Evening"]', ['Reading', 'Evening'], 'Morning', 'Replace all tags with: Reading, Evening', 'Substituir todas as tags por: Reading, Evening'],
+    ['tag_ids', '[]', [], 'Morning', 'Remove all tags', 'Remover todas as tags'],
+    ['tag_ids', '["tag-1","tag-2"]', ['tag-1', 'tag-2'], 'Morning', 'Replace all tags with 2 selected tags', 'Substituir todas as tags por 2 tags selecionadas'],
+  ] as const)('shows the proposed %s outcome', (field, newValue, proposedValue, oldValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue, oldValue)]))
+      .toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it.each(partialScheduleSummaryCases)('does not assume unchanged schedule attributes: $name', (scenario) => {
+    const operation = makePartialScheduleSummaryOperation(scenario)
+    expect(summarize(operation.items![0]!.fields)).toBe(locale === 'en' ? scenario.english : scenario.portuguese)
+  })
+
+  it('shows changed days without inventing the retained cadence', () => {
+    expect(summarize([
+      change('habit_id', 'habit-1', 'habit-1'),
+      change('days', '["Thursday"]', ['Thursday'], 'Monday, Wednesday'),
+      change('frequency_quantity', '1', 1, '1'),
+    ])).toBe(locale === 'en' ? 'Thu · Change the frequency number to 1' : 'Qui · Mudar o número da frequência para 1')
+  })
+
+  it('uses the complete supplied schedule when flexibility is explicit', () => {
+    expect(summarize([
+      change('habit_id', 'habit-1', 'habit-1'),
+      change('frequency_unit', 'Week', 'Week', 'Week'),
+      change('frequency_quantity', '3', 3, '2'),
+      change('is_flexible', 'true', true, 'true'),
+    ])).toBe(locale === 'en' ? '3x / Week' : '3x / Semana')
+  })
+
+  it.each([
+    ['target_value', '12', 12, 'Set the target to 12', 'Definir alvo: 12'],
+    ['unit', 'books', 'books', 'Measure in books', 'Medir em books'],
+    ['deadline', null, null, 'Remove the deadline', 'Remover o prazo'],
+    ['goal_type', 'Streak', 'Streak', 'Streak', 'Sequência'],
+    ['habit_ids', '[]', [], 'Remove all habit links', 'Remover todos os vínculos com hábitos'],
+    ['goal_ids', '[]', [], 'Remove all goal links', 'Remover todos os vínculos com metas'],
+    ['new_parent_id', null, null, 'Move out of the parent habit', 'Mover para fora do hábito pai'],
+    ['slip_alert_enabled', 'false', false, 'Stop slip alerts', 'Parar alertas de deslize'],
+    ['items', '["Pack shoes"]', ['Pack shoes'], 'Pack shoes', 'Pack shoes'],
+    ['action', 'mark_all_read', 'mark_all_read', 'Mark all alerts as read', 'Marcar todos os avisos como lidos'],
+    ['theme_preference', null, null, 'Use the system theme', 'Usar tema do sistema'],
+  ] as const)('describes supported %s writes', (field, newValue, proposedValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it.each(["deleteHabit", "updateHabits", "rescheduleHabits", "logHabits", "skipHabits", "createHabits", "deleteHabits", "deleteGoal", "deleteTag", "deleteNotification", "deleteAllNotifications", "deleteNotifications", "setCalendarSync", "dismissCalendarImport", "dismissCalendarSuggestion", "syncCalendar", "manageCalendarSync", "deleteUserFacts", "updateHabitEmojis", "createHabit", "createSubHabit", "updateHabit", "duplicateHabit", "moveHabit", "moveHabitParent", "reorderHabits", "logHabit", "skipHabit", "updateChecklist", "createGoal", "updateGoal", "updateGoalProgress", "updateGoalStatus", "reorderGoals", "linkGoalsToHabit", "linkHabitsToGoal", "createTag", "updateTag", "assignTags", "createChecklistTemplate", "deleteChecklistTemplate", "updateProfilePreferences", "setAiMemory", "setAiSummary", "markNotificationRead", "markAllNotificationsRead", "subscribePush", "unsubscribePush", "sendTestPush", "updateNotifications", "viewReferralCode", "sendSupportRequest", "createCheckout", "openBillingPortal", "manageSubscription", "viewApiKeys", "createApiKey", "revokeApiKey", "manageApiKeys", "resetAccount", "requestAccountDeletion", "confirmAccountDeletion", "manageAccount"])('names the producer action %s instead of generic pending copy', (actionKey) => {
+    const operation = pendingAgentOperationSchema.parse(makePendingAgentOperation({ actionKey }))
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const summary = labels.summarize([])
+    expect(summary).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+    expect(summary).not.toContain('chat.')
+    expect(summary).not.toBe(messages.chat.operation.pending)
+    expect(summary).not.toBe('')
+  })
+
+  it.each([
+    ['interval_weeks', '2', 2, 'Every 2 weeks', 'A cada 2 semanas'],
+    ['description', null, null, 'Remove the description', 'Remover a descrição'],
+    ['emoji', '📚', '📚', 'Use 📚', 'Usar 📚'],
+    ['emoji', null, null, 'Remove the icon', 'Remover o ícone'],
+    ['end_date', null, null, 'Remove the end date', 'Remover a data final'],
+    ['sub_habits', '[]', [], 'Remove the habits inside', 'Remover os hábitos dentro'],
+    ['sub_habits', '[{"title":"Read"}]', [{ title: 'Read' }], '1 habit inside', '1 hábito dentro'],
+    ['reminder_times', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
+    ['scheduled_reminders', '[]', [], 'Remove the reminders', 'Remover os lembretes'],
+    ['scheduled_reminders', '[{"when":"same_day","time":"08:00"}]', [{ when: 'same_day', time: '08:00' }], 'Remind me the same day at clock:08:00', 'Lembrar no mesmo dia às clock:08:00'],
+    ['checklist_items', '["Read"]', ['Read'], 'Read', 'Read'],
+    ['parent_id', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'Move under the selected habit', 'Mover para dentro do hábito selecionado'],
+    ['color', '#ffffff', '#ffffff', 'Tag color: #ffffff', 'Cor da tag: #ffffff'],
+    ['goal_type', 'Standard', 'Standard', 'Progress', 'Progresso'],
+    ['goal_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace goal links with 1 selected goals', 'Substituir vínculos por 1 metas selecionadas'],
+    ['habit_ids', '["00000000-0000-4000-8000-000000000002"]', ['00000000-0000-4000-8000-000000000002'], 'Replace habit links with 1 selected habits', 'Substituir vínculos por 1 hábitos selecionados'],
+    ['positions', '[{"id":"00000000-0000-4000-8000-000000000002","position":0}]', [{ id: '00000000-0000-4000-8000-000000000002', position: 0 }], 'Reorder 1 items', 'Reordenar 1 itens'],
+    ['items', '[]', [], 'Clear the checklist', 'Limpar a lista'],
+    ['note', 'Read outside', 'Read outside', 'Read outside', 'Read outside'],
+    ['due_end_time', '09:00', '09:00', 'Until clock:09:00', 'Até clock:09:00'],
+    ['due_end_time', null, null, 'Remove the end time', 'Remover o horário final'],
+    ['expires_at_utc', null, null, 'No expiry date', 'Sem data de expiração'],
+    ['language', 'en', 'en', 'Use English', 'Usar Inglês'],
+    ['language', 'pt-BR', 'pt-BR', 'Use Português (Brasil)', 'Usar Português (Brasil)'],
+    ['week_start_day', '0', 0, 'Start the week on Sunday', 'Começar a semana no Domingo'],
+    ['week_start_day', '1', 1, 'Start the week on Monday', 'Começar a semana no Segunda-feira'],
+    ['theme_preference', 'dark', 'dark', 'Use the Dark theme', 'Usar tema Escuro'],
+    ['theme_preference', 'light', 'light', 'Use the Light theme', 'Usar tema Claro'],
+    ['interval', 'monthly', 'monthly', 'Monthly', 'Mensal'],
+    ['interval', 'yearly', 'yearly', 'Yearly', 'Anual'],
+    ['scopes', '["habits:read"]', ['habits:read'], 'Grant 1 selected permissions', 'Conceder 1 permissões selecionadas'],
+  ] as const)('summarizes producer-shaped %s proposals', (field, newValue, proposedValue, english, portuguese) => {
+    expect(summarize([change(field, newValue, proposedValue)])).toBe(locale === 'en' ? english : portuguese)
+  })
+
+  it('summarizes a complete fixed schedule from typed weekdays', () => {
+    expect(summarize([
+      change('frequency_unit', 'Week', 'Week', 'Day'),
+      change('frequency_quantity', '1', 1, '2'),
+      change('is_flexible', 'false', false, 'true'),
+      change('days', '["Monday","Thursday"]', ['Monday', 'Thursday'], 'Tuesday'),
+    ])).toBe(locale === 'en' ? 'Mon, Thu' : 'Seg, Qui')
+  })
+
+  it('summarizes a complete fixed schedule from bulk display weekdays', () => {
+    expect(summarize([
+      change('frequency_unit', 'Week', 'Week', 'Day'),
+      change('frequency_quantity', '1', 1, '2'),
+      change('is_flexible', 'false', false, 'true'),
+      change('days', 'Monday, Thursday', undefined, 'Tuesday'),
+    ])).toBe(locale === 'en' ? 'Mon, Thu' : 'Seg, Qui')
+  })
+
+  it('formats dates and reminder offsets in the visible summary', () => {
+    expect(summarize([
+      change('due_date', '2026-09-26', '2026-09-26'),
+      change('end_date', '2026-09-27', '2026-09-27'),
+      change('deadline', '2026-09-28', '2026-09-28'),
+      change('reminder_times', '30 min before due', [30]),
+    ])).toBe(locale === 'en'
+      ? 'Sep 26, 2026 · Until Sep 27, 2026 · Due by Sep 28, 2026 · Remind me 30 min before'
+      : '26 de set. de 2026 · Até 27 de set. de 2026 · Prazo até 28 de set. de 2026 · Lembrar 30 min antes')
+  })
+
+  it('keeps unknown fields and enum values out of the preview', () => {
+    expect(summarize([change('frequency_unit', 'UnknownUnit'), change('internal_flag', 'InternalValue')])).toBe('')
+  })
+})
 
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
   approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
-  rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
+  rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
+  summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
-  notSet: 'Not set', diff: (field, oldValue, newValue) => `${field}: from ${oldValue} to ${newValue}`,
   more: (count) => `and ${count} more`,
 }
 
@@ -34,7 +219,7 @@ it('formats time values in the pending change preview', () => {
     changeTargetCount: 1,
   })
   const { record, render } = createRenderers()
-  renderPendingOperationCard({ card: createCard(), labels: { ...labels, formatTime: (value) => `clock:${value}` }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
+  renderPendingOperationCard({ card: createCard(), labels: { ...labels, summarize: buildPendingOperationCardLabels(operation, translateEnglish, (value) => `clock:${value}`).summarize }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
   expect(JSON.stringify(record.frame?.items)).toContain('clock:19:30')
 })
 
@@ -142,7 +327,8 @@ function createRenderers() {
     notice: (message) => message,
     actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
-    diffLabel: (_field, _oldValue, _newValue, accessible) => accessible,
+    spacer: () => 'spacer',
+    rejected: (message) => message,
   }
   return { record, render }
 }
@@ -200,13 +386,13 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map(({ label, meta }) => ({ label, meta }))).toEqual([
-      { label: 'Delete', meta: 'Run' },
-      { label: 'Dismiss import', meta: 'Calendar sync' },
-      { label: 'Sync now', meta: 'Calendar sync' },
+      { label: 'Run', meta: 'Delete' },
+      { label: 'Calendar sync', meta: 'Dismiss import' },
+      { label: 'Calendar sync', meta: 'Sync now' },
     ])
   })
 
-  it('localizes boolean values from both bulk and calendar previews', () => {
+  it('keeps boolean field identifiers out of bulk and calendar previews', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
       card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
@@ -220,22 +406,23 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map((item) => item.label)).toEqual([
-      'reminder_enabled: from No to Yes',
-      'enabled: from Yes to No',
+      'Run',
+      'Calendar sync',
     ])
+    expect(record.frame?.items.map((item) => item.meta)).toEqual(['Send reminders', 'Turn off'])
   })
 
-  it('uses Portuguese yes and no labels for boolean changes', () => {
+  it('keeps unknown boolean changes out of the visible item label', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
-      card: createCard(), labels: { ...labels, yes: 'Sim', no: 'Não', diff: (field, oldValue, newValue) => `${field}: de ${oldValue} para ${newValue}` },
+      card: createCard(), labels,
       render, onVerifyStepUp: vi.fn(),
       pendingOperation: makePendingAgentOperation({
         changes: [{ entityId: 'calendar', entityName: 'Calendar sync', field: 'enabled', oldValue: 'False', newValue: 'True', valueType: 'boolean' }],
         changeTargetCount: 1,
       }),
     })
-    expect(record.frame?.items[0]?.label).toBe('enabled: de Não para Sim')
+    expect(record.frame?.items[0]?.label).toBe('Calendar sync')
   })
 
   it('keeps the eleventh target removable when only ten changes are displayed', () => {
@@ -262,12 +449,12 @@ describe('pending operation card view', () => {
     }
     renderPendingOperationCard({ card, labels: { ...labels, fieldLabels: { delete: 'Delete' } }, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
     expect(record.frame?.items).toHaveLength(11)
-    expect(record.frame?.items.at(-1)).toMatchObject({ label: 'Delete', meta: 'Habit 11', control: 'Remove Habit 11' })
+    expect(record.frame?.items.at(-1)).toMatchObject({ label: 'Habit 11', meta: 'Delete', control: 'Remove Habit 11' })
     record.buttons.find(({ label }) => label === 'Remove Habit 11')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-11')
   })
 
-  it('shows each changed field and the count of unseen targets', () => {
+  it('shows named items and the count of unseen targets', () => {
     const { record, render } = createRenderers()
     renderPendingOperationCard({
       card: createCard(), labels, render, onVerifyStepUp: vi.fn(),
@@ -281,11 +468,11 @@ describe('pending operation card view', () => {
       }),
     })
     expect(record.frame?.items.map((item) => item.label)).toEqual([
-      'date: from Not set to Monday',
-      'count: from 2 to 3',
+      'Run',
+      'Read',
       'and 38 more',
     ])
-    expect(record.frame?.items.every((item) => item.proposed !== true)).toBe(true)
+    expect(record.frame?.items.slice(0, 2).every((item) => item.proposed === true)).toBe(true)
   })
 
   it('counts truncated entities rather than changed fields', () => {
@@ -331,8 +518,8 @@ describe('pending operation card view', () => {
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
     expect(record.frame?.count).toBe(operation.changeTargetCount)
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
-    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
-    expect(record.frame?.actions).toBe('Approve|Edit item|Reject')
+    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'Sep 26, 2026 · Send reminders' })
+    expect(record.frame?.actions).toBe('Approve|Edit item|spacer|Reject')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-1')
@@ -348,9 +535,9 @@ describe('pending operation card view', () => {
     expect(output).toBe('frame|confirm')
     expect(record.frame).toMatchObject({
       state: 'resting', items: [{ irreversible: true, status: undefined }],
-      actions: 'Cancel|Approve',
+      actions: 'Approve|spacer|Reject',
     })
-    expect(record.buttons.map(({ label }) => label)).toEqual(['Cancel', 'Approve'])
+    expect(record.buttons.map(({ label }) => label)).toEqual(['Reject', 'Approve'])
     record.buttons[1]?.onClick()
     expect(card.setConfirmOpen).toHaveBeenCalledWith(true)
     record.confirm?.onConfirm()
@@ -374,7 +561,7 @@ describe('pending operation card view', () => {
     })
     expect(renderPendingOperationCard({
       card: { ...card, dismissed: true }, labels, onVerifyStepUp, pendingOperation: operation, render,
-    })).toBeNull()
+    })).toBe('The 1 changes were rejected. Nothing was saved.')
   })
 
   it('uses neutral actions for reversible operations and no actions after failure', () => {

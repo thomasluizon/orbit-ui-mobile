@@ -6,11 +6,26 @@ import { recapResponseSchema } from '@orbit/shared/types/gamification'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { buildRecapRequestUrl, buildWrappedSlides } from '@orbit/shared/utils'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
 
 const recap = recapResponseSchema.parse(createMockRecap())
 const finalSlideIndex = buildWrappedSlides(recap).length - 1
+const themeVariables = resolveWebThemeVariables('orange', 'dark')
+
+function computedCssColor(value: string): string {
+  if (value.startsWith('#')) {
+    const channels = [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16))
+    return `rgb(${channels.join(', ')})`
+  }
+  return value.replace(/\s*,\s*/g, ', ')
+}
+
+const selectedBackground = computedCssColor(themeVariables['--primary-dim']!)
+const unselectedBackground = computedCssColor(themeVariables['--bg-well']!)
+const selectedRing = `${computedCssColor(themeVariables['--primary']!)} 0px 0px 0px 1.5px inset`
+const unselectedRing = `${computedCssColor(themeVariables['--hairline']!)} 0px 0px 0px 1px inset`
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const width of [320, 412, 640, 1440] as const) {
@@ -31,7 +46,36 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           (route) => route.fulfill({ json: recap }))
 
         await page.goto('/wrapped')
+        const periodGroup = page.getByRole('group', { name: messages.wrapped.periodGroup })
+        await expect(periodGroup.getByRole('button')).toHaveCount(3)
+        const chipStyles = await periodGroup.getByRole('button').evaluateAll((buttons) => {
+          const expectedFontSize = getComputedStyle(document.documentElement).getPropertyValue('--fs-sm').trim()
+          return buttons.map((button) => {
+            const selected = button.getAttribute('aria-pressed') === 'true'
+            const style = getComputedStyle(button)
+            return {
+              selected,
+              fontSize: style.fontSize,
+              expectedFontSize,
+              background: style.backgroundColor,
+              ring: style.boxShadow,
+              height: button.getBoundingClientRect().height,
+            }
+          })
+        })
+        expect(chipStyles.filter((chip) => chip.selected)).toHaveLength(1)
+        for (const chip of chipStyles) {
+          expect(chip.fontSize).toBe(chip.expectedFontSize)
+          expect(chip.background).toBe(chip.selected ? selectedBackground : unselectedBackground)
+          expect(chip.ring).toBe(chip.selected ? selectedRing : unselectedRing)
+          expect(chip.height).toBeGreaterThanOrEqual(44)
+        }
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+        for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
+          const zone = page.getByTestId(id)
+          await expect(zone).toHaveAttribute('tabindex', '-1')
+          await expect(zone.locator('..')).toHaveAttribute('aria-hidden', 'true')
+        }
         if (width === 412) {
           await page.evaluate(() => document.fonts.ready)
           const frame = await page.getByTestId('wrapped-frame').boundingBox()

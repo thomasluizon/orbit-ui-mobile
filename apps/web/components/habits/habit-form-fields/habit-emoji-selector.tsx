@@ -58,7 +58,7 @@ export function HabitEmojiSelector({
           style={{
             width: wellSize,
             height: wellSize,
-            borderRadius: '999px',
+            borderRadius: wellSize === 76 ? 'var(--r-well)' : '999px',
             fontSize: wellSize === 76 ? 34 : 22,
           }}
           disabled={isDisabled}

@@ -7,6 +7,7 @@ export type HookRegistrar = (hook: () => Promise<void> | void, timeout?: number)
 export const CHROME_LAUNCH_HOOK_TIMEOUT_MS = 45_000
 
 const CHROME_LAUNCH_TIMEOUT_MS = 30_000
+const CHROME_CONNECT_TIMEOUT_MS = 10_000
 const CHROME_GRACEFUL_CLOSE_TIMEOUT_MS = 5_000
 
 async function closeChromeServer(server: BrowserServer): Promise<void> {
@@ -29,7 +30,6 @@ async function closeChromeServer(server: BrowserServer): Promise<void> {
 }
 
 export function launchChrome(): BrowserLaunch {
-  const launchStartedAt = performance.now()
   const serverLaunch = chromium.launchServer({
     channel: 'chrome',
     host: '127.0.0.1',
@@ -38,7 +38,7 @@ export function launchChrome(): BrowserLaunch {
   const browserLaunch = serverLaunch.then(async (server) => {
     try {
       return await chromium.connect(server.wsEndpoint(), {
-        timeout: Math.max(1, CHROME_LAUNCH_TIMEOUT_MS - (performance.now() - launchStartedAt)),
+        timeout: CHROME_CONNECT_TIMEOUT_MS,
       })
     } catch (cause) {
       await server.kill()

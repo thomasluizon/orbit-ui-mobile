@@ -7,6 +7,7 @@ vi.mock('@playwright/test', () => ({ chromium: mocks }))
 
 import {
   closeChrome,
+  CHROME_LAUNCH_HOOK_TIMEOUT_MS,
   launchChrome,
   registerChromeLaunchHook,
   type Browser,
@@ -61,6 +62,25 @@ describe('Chromium test lifecycle', () => {
 
     await expect(browserLaunch).rejects.toThrow('Chrome launch failed')
     await expect(closeChrome(browserLaunch)).resolves.toBeUndefined()
+  })
+
+  it.each([29_500, 30_000])('preserves a usable connection budget after a %ims server launch', async (launchDelay) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+    mocks.launchServer.mockImplementationOnce(() => new Promise((resolve) => {
+      setTimeout(() => { resolve(server) }, launchDelay)
+    }))
+    const browserLaunch = launchChrome()
+
+    try {
+      await vi.advanceTimersByTimeAsync(launchDelay)
+      await expect(browserLaunch).resolves.toBe(browser)
+      const [, { timeout: connectionTimeout }] = mocks.connect.mock.calls[0] as [string, { timeout: number }]
+      expect(connectionTimeout).toBeGreaterThanOrEqual(10_000)
+      expect(launchDelay + connectionTimeout).toBeLessThan(CHROME_LAUNCH_HOOK_TIMEOUT_MS)
+    } finally {
+      await closeChrome(browserLaunch)
+      vi.useRealTimers()
+    }
   })
 
   it('skips teardown when launch never started', async () => {
