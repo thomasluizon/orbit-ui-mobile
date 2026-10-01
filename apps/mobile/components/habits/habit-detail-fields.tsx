@@ -27,6 +27,7 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 type Tokens = ReturnType<typeof createTokensV2>
 
 interface HabitDetailFieldsProps {
+  open?: boolean
   habit: NormalizedHabit
   hasProAccess: boolean
   relationshipControlsAvailable: boolean
@@ -93,7 +94,7 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
 }
 
 
-export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade, tokens }: Readonly<HabitDetailFieldsProps>) {
+export function HabitDetailFields({ open = true, habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade, tokens }: Readonly<HabitDetailFieldsProps>) {
   const { t } = useTranslation()
   const { showError } = useAppToast()
   const { goalIds, openField, reminderHabit, toggleField, toggleGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
@@ -103,6 +104,8 @@ export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAva
     setSavedDescription(habit.description ?? '')
     if (description === savedDescription) setDescription(habit.description ?? '')
   }
+
+  if (!open) return null
 
   const changeReminders = (changes: ReminderChanges) => {
     const validationError = updateReminders(changes)

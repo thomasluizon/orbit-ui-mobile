@@ -1193,6 +1193,42 @@ describe('HabitDetailScreen', () => {
     expect(findPillButton(tree.root, 'common.save')).toBeUndefined()
   })
 
+  it.each([false, true])('preserves queued reminder selections across disclosure collapse and reopen, refreshed %s', async (refreshWhilePending) => {
+    mocks.realReminderSections = true
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: true, reminderTimes: [15] }
+    const finishes: (() => void)[] = []
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finishes.push(resolve) }))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const press = (label: string) => TestRenderer.act(() => {
+      const node = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes(label))[0]!
+      node.props.onPress()
+    })
+    press('habits.detail.moreDetails')
+    press('habits.form.reminderAdd')
+    press('habits.form.reminder1hour')
+    press('habits.form.reminderAdd')
+    press('habits.form.reminder30min')
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    if (refreshWhilePending) {
+      await TestRenderer.act(async () => { finishes[0]!(); await Promise.resolve() })
+      mocks.detail = { ...mocks.detail, reminderTimes: mocks.update.mock.calls[0]![0].data.reminderTimes }
+      TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    }
+    press('habits.detail.moreDetails')
+    expect(tree.root.findAllByProps({ testID: 'habits.form.reminders' })).toHaveLength(0)
+    press('habits.detail.moreDetails')
+    press('habits.form.reminderAdd')
+    press('habits.form.reminderAtTime')
+    for (let index = refreshWhilePending ? 1 : 0; index < 3; index += 1) {
+      await TestRenderer.act(async () => { finishes[index]!(); await Promise.resolve() })
+    }
+    expect(mocks.update).toHaveBeenCalledTimes(3)
+    expect(mocks.update.mock.calls.at(-1)![0].data).toMatchObject({
+      reminderEnabled: true, reminderTimes: [60, 30, 15, 0], scheduledReminders: [],
+    })
+  })
+
   it('patches a reminder toggle once with optimistic state', async () => {
     mocks.detail = { ...makeDetail(), dueTime: '09:00', reminderEnabled: false, reminderTimes: [15] }
     let tree!: ReturnType<typeof TestRenderer.create>

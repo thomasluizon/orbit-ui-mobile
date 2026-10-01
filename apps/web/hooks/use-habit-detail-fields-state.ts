@@ -20,7 +20,7 @@ export function useHabitDetailFieldsState(
   const [openField, setOpenField] = useState<HabitDetailField | null>(null)
   const [reminders, setReminders] = useState(() => {
     const selection = mergeHabitReminderChanges(habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {})
-    return { selection, confirmed: selection }
+    return { selection, confirmed: selection, pending: 0 }
   })
   const [goalIds, setGoalIds] = useState(habit.linkedGoals?.map((goal) => goal.id) ?? [])
   const reminderSnapshot = JSON.stringify([habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders])
@@ -30,7 +30,7 @@ export function useHabitDetailFieldsState(
   if (reminderSnapshot !== savedReminderSnapshot) {
     setSavedReminderSnapshot(reminderSnapshot)
     const selection = mergeHabitReminderChanges(habit.reminderEnabled, habit.reminderTimes, habit.scheduledReminders, {})
-    setReminders({ selection, confirmed: selection })
+    if (reminders.pending === 0) setReminders({ selection, confirmed: selection, pending: 0 })
   }
   if (goalSnapshot !== savedGoalSnapshot) {
     setSavedGoalSnapshot(goalSnapshot)
@@ -50,12 +50,12 @@ export function useHabitDetailFieldsState(
   const updateReminders = useCallback((changes: ReminderChanges) => {
     const next = mergeHabitReminderChanges(reminders.selection.reminderEnabled, reminders.selection.reminderTimes, reminders.selection.scheduledReminders, changes)
     const { error, patch } = getHabitReminderPatch(habit, next.reminderEnabled, next.reminderTimes, next.scheduledReminders)
-    setReminders((current) => ({ ...current, selection: next }))
+    setReminders((current) => ({ ...current, selection: next, pending: current.pending + (error === null ? 1 : 0) }))
     if (error !== null) return error
     void onPatch(patch).then((saved) => {
       setReminders((current) => saved
-        ? { ...current, confirmed: next }
-        : { ...current, selection: current.selection === next ? current.confirmed : current.selection })
+        ? { ...current, confirmed: next, pending: current.pending - 1 }
+        : { ...current, selection: current.selection === next ? current.confirmed : current.selection, pending: current.pending - 1 })
     })
     return null
   }, [habit, onPatch, reminders.selection])
