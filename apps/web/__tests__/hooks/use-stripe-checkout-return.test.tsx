@@ -1,38 +1,75 @@
 import React from 'react'
-import { act, renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, onlineManager, useQuery } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import type { Profile } from '@orbit/shared/types/profile'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
+import { fetchJson } from '@/lib/api-fetch'
 
 const { showSuccess, translate } = vi.hoisted(() => ({ showSuccess: vi.fn(), translate: (key: string) => key }))
 vi.mock('next-intl', () => ({ useTranslations: () => translate }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showSuccess }) }))
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/api-fetch')>(), fetchJson: vi.fn() }))
 beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal('fetch', vi.fn()); holdAccount('account-1'); history.replaceState({}, '', '/upgrade?subscription=success&keep=1') })
+afterEach(() => { cleanup(); onlineManager.setOnline(true) })
 function mount(mockInvalidation = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const invalidate = vi.spyOn(client, 'invalidateQueries')
-  if (mockInvalidation) invalidate.mockResolvedValue()
+  const fetch = vi.spyOn(client, 'fetchQuery')
+  if (mockInvalidation) {
+    invalidate.mockResolvedValue()
+    fetch.mockResolvedValue(createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false }))
+  }
   const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  return { client, invalidate, wrapper }
+  return { client, invalidate, fetch, wrapper }
 }
 describe('Stripe return', () => {
+  it('preserves an offline return until the resumed entitlement read succeeds, then settles once', async () => {
+    const { client, wrapper } = mount(false)
+    const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
+    const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
+    let release!: () => void
+    const fetchProfile = vi.mocked(fetchJson).mockImplementation(() => new Promise<typeof pro>((resolve) => { release = () => resolve(pro) }))
+    onlineManager.setOnline(false)
+    const view = renderHook(() => {
+      const profile = useQuery({ queryKey: profileKeys.detail(), queryFn: () => fetchJson<Profile>(API.profile.get), initialData: free, staleTime: Infinity })
+      return { ...profile, ...useStripeCheckoutReturn() }
+    }, { wrapper })
+    await waitFor(() => expect(view.result.current.fetchStatus).toBe('paused'))
+    expect(fetchProfile).not.toHaveBeenCalled()
+    expect(client.getQueryData(profileKeys.detail())).toEqual(free)
+    expect(location.search).toBe('?subscription=success&keep=1')
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect(view.result.current.isSettling).toBe(true)
+    await act(async () => { onlineManager.setOnline(true) })
+    await waitFor(() => expect(fetchProfile).toHaveBeenCalledOnce())
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect(location.search).toBe('?subscription=success&keep=1')
+    await act(async () => { release() })
+    await waitFor(() => expect(showSuccess).toHaveBeenCalledOnce())
+    expect(client.getQueryData(profileKeys.detail())).toEqual(pro)
+    expect(location.search).toBe('?keep=1')
+    view.unmount()
+    renderHook(() => useStripeCheckoutReturn(), { wrapper })
+    expect(showSuccess).toHaveBeenCalledOnce()
+  })
   it('consumes the return only after entitlement refresh and shows the done toast once', async () => {
     const { invalidate, wrapper } = mount()
     const view = renderHook(() => useStripeCheckoutReturn(), { wrapper })
     await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('upgrade.purchaseSuccess'))
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: profileKeys.all }, { throwOnError: true })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: subscriptionKeys.all }, { throwOnError: true })
     expect(location.search).toBe('?keep=1')
     view.unmount(); renderHook(() => useStripeCheckoutReturn(), { wrapper })
     expect(showSuccess).toHaveBeenCalledOnce()
   })
   it('does not toast a checkout from an account replaced during refresh', async () => {
-    const { invalidate, wrapper } = mount()
+    const { fetch, wrapper } = mount()
     let release!: () => void
-    invalidate.mockReturnValue(new Promise<void>((resolve) => { release = resolve }))
+    fetch.mockReturnValue(new Promise<void>((resolve) => { release = resolve }))
     renderHook(() => useStripeCheckoutReturn(), { wrapper })
     await act(async () => { await replaceAccountWith('account-2'); release() })
     expect(showSuccess).not.toHaveBeenCalled()
@@ -41,9 +78,9 @@ describe('Stripe return', () => {
     const { client, wrapper } = mount(false)
     const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
     const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
-    const fetchProfile = vi.fn().mockRejectedValue(new Error('Profile refresh failed'))
+    const fetchProfile = vi.mocked(fetchJson).mockRejectedValue(new Error('Profile refresh failed'))
     function useReturnWithProfile() {
-      const profile = useQuery({ queryKey: profileKeys.detail(), queryFn: fetchProfile, initialData: free, staleTime: Infinity })
+      const profile = useQuery({ queryKey: profileKeys.detail(), queryFn: () => fetchJson<Profile>(API.profile.get), initialData: free, staleTime: Infinity })
       const settlement = useStripeCheckoutReturn()
       return { ...profile, ...settlement }
     }

@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import type { Profile } from '@orbit/shared/types/profile'
+import { fetchJson } from '@/lib/api-fetch'
 import { useHeldAccountId, getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -28,7 +31,7 @@ export function useStripeCheckoutReturn() {
     void Promise.resolve().then(async () => {
       setReturnState((previous) => ({ ...previous, isSettling: true }))
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: profileKeys.all }, { throwOnError: true }),
+        queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => fetchJson<Profile>(API.profile.get), staleTime: 0 }),
         queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true }),
       ])
       if (!isCurrentAccount()) return

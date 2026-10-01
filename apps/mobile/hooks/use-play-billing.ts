@@ -9,7 +9,7 @@ import {
 } from 'expo-iap'
 import { API } from '@orbit/shared/api'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
-import type { SubscriptionInterval } from '@orbit/shared/types/profile'
+import type { Profile, SubscriptionInterval } from '@orbit/shared/types/profile'
 import {
   PLAY_REFERRAL_OFFER_TAG,
   PLAY_SUBSCRIPTION_PRODUCT_ID,
@@ -180,7 +180,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean; onPurc
     if (!isPurchaseAccountCurrent(account)) return
     await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true })
     if (!isPurchaseAccountCurrent(account)) return
-    await queryClient.invalidateQueries({ queryKey: profileKeys.all }, { throwOnError: true })
+    await queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => apiClient<Profile>(API.profile.get), staleTime: 0 })
   }, [queryClient])
 
   const { connected, subscriptions, fetchProducts, requestPurchase } = useIAP({

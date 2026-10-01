@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => {
     requestPurchase: vi.fn(),
     fetchProducts: vi.fn(),
     invalidateQueries: vi.fn(),
+    fetchQuery: vi.fn(),
   }
 })
 
@@ -60,7 +61,7 @@ vi.mock('expo-iap', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, fetchQuery: mocks.fetchQuery }),
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
@@ -232,6 +233,7 @@ describe('usePlayBilling', () => {
     mocks.requestPurchase.mockReset().mockResolvedValue(null)
     mocks.fetchProducts.mockReset().mockResolvedValue(undefined)
     mocks.invalidateQueries.mockReset().mockResolvedValue(undefined)
+    mocks.fetchQuery.mockReset().mockResolvedValue(undefined)
   })
 
   it('exposes monthly and yearly offers from the fetched product', () => {
@@ -444,7 +446,7 @@ describe('usePlayBilling', () => {
       }),
     )
     expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
-    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+    expect(mocks.invalidateQueries).toHaveBeenCalledOnce()
   })
 
   it('restores an owned purchase: verifies, finishes, and invalidates entitlement', async () => {
@@ -466,7 +468,7 @@ describe('usePlayBilling', () => {
       }),
     )
     expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
-    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+    expect(mocks.invalidateQueries).toHaveBeenCalledOnce()
   })
 
   it('settles restored entitlement before notifying the onboarding host', async () => {
@@ -480,7 +482,7 @@ describe('usePlayBilling', () => {
 
   it('notifies the purchase host only after profile refresh succeeds', async () => {
     let release!: () => void
-    mocks.invalidateQueries.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
+    mocks.fetchQuery.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
     const onPurchased = vi.fn()
     renderUsePlayBilling({ onPurchased })
     mocks.state.iapOptions?.onPurchaseSuccess?.({ productId: 'orbit_pro', purchaseToken: 'tok_success' })
@@ -549,7 +551,7 @@ describe('usePlayBilling', () => {
     expect(restored).toBe(true)
     expect(mocks.finishTransaction).toHaveBeenCalledTimes(1)
     expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase: good, isConsumable: false })
-    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+    expect(mocks.invalidateQueries).toHaveBeenCalledOnce()
   })
 
   it('flags nothing-to-restore when the account owns no purchases', async () => {
