@@ -2,59 +2,32 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Command, CommandList } from 'cmdk'
 import { buildHabitCreateHref, buildSearchEntries } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
-import { CommandMenuWithSearch } from '@/components/command/command-menu'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
-import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { useHabitSearch } from '@/hooks/use-habit-search'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useOffline } from '@/hooks/use-offline'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 export default function SearchPage() {
   const t = useTranslations()
   const router = useRouter()
-  const wide = useIsWideDesktop()
   const search = useHabitSearch()
-  const searchContainer = useRef<HTMLDivElement>(null)
-  const focusedInput = useRef<HTMLInputElement | null>(null)
   const createHabit = (title = '') => router.push(buildHabitCreateHref({ title, from: '/search' }))
-  useLayoutEffect(() => {
-    const previousInput = focusedInput.current
-    if (previousInput && !previousInput.isConnected) {
-      const input = searchContainer.current?.querySelector<HTMLInputElement>('[cmdk-input]')
-      input?.focus()
-      input?.setSelectionRange(previousInput.selectionStart ?? 0, previousInput.selectionEnd ?? 0, previousInput.selectionDirection ?? 'none')
-      focusedInput.current = input ?? null
-    }
-  }, [wide])
   useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
-  const navItems = [
-    { id: 'hoje', label: t('nav.today'), icon: Home, onSelect: () => router.push('/') },
-    { id: 'calendario', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => router.push('/calendar') },
-    { id: 'progresso', label: t('nav.progress'), icon: ChartLine, onSelect: () => router.push('/progress') },
-    { id: 'perfil', label: t('nav.profile'), icon: User, onSelect: () => router.push('/profile') },
-  ] as const
   return <>
     <PageHeader title={t('habits.search.title')} onBack={() => router.back()} backLabel={t('common.back')} />
-    <div ref={searchContainer} className="max-w-[620px]" onFocusCapture={(event) => {
-      if (event.target instanceof HTMLInputElement && event.target.hasAttribute('cmdk-input')) focusedInput.current = event.target
-    }} onBlurCapture={(event) => {
-      if (event.target instanceof HTMLInputElement && event.target === focusedInput.current) focusedInput.current = null
-    }}>
-      {wide
-        ? <WideSearch search={search} onCreateHabit={createHabit} />
-        : <CommandMenuWithSearch search={search} resultsMode navItems={navItems} onCreateHabit={createHabit} onClose={() => {}} />}
+    <div className="max-w-[620px]">
+      <HabitSearch search={search} onCreateHabit={createHabit} />
     </div>
   </>
 }
 
-function WideSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<typeof useHabitSearch>; onCreateHabit: (title: string) => void }>) {
+function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<typeof useHabitSearch>; onCreateHabit: (title: string) => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const { isOnline } = useOffline()
