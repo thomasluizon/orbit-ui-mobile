@@ -76,7 +76,7 @@ function deleteFromSheet(tree: Tree, title: string, target = 'Progress') {
 }
 function press(tree: Tree, label: string) {
   const messages = state.locale === 'en' ? en : pt
-  if ([messages.notifications.markAllRead, messages.notifications.deleteAll].includes(label) && hosts(tree, 'Pressable', label).length === 0 && text(tree, label).length === 0) {
+  if ([messages.notifications.markAllReadMenu, messages.notifications.deleteAll].includes(label) && hosts(tree, 'Pressable', label).length === 0 && text(tree, label).length === 0) {
     press(tree, messages.notifications.options)
   }
   const button = hosts(tree, 'Pressable', label)[0] ?? hosts(tree, 'Pressable').find(
@@ -231,7 +231,7 @@ describe('mobile alerts', () => {
       (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
     )!
     press(tree, en.notifications.options)
-    for (const label of [en.notifications.markAllRead, en.notifications.deleteAll]) {
+    for (const label of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
       expect(action(label).props.accessibilityRole).toBe('menuitem')
     }
     press(tree, 'attempt-dismiss')
@@ -275,7 +275,7 @@ describe('mobile alerts', () => {
 
   it.each([
     ['en', 'Mark all read', 'Mark as read'],
-    ['pt-BR', 'Marcar tudo como lido', 'Marcar como lido'],
+    ['pt-BR', 'Marcar lidos', 'Marcar como lido'],
   ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
     state.locale = locale
     seed(1)
@@ -312,7 +312,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(testId(tree, 'notification-count')).toHaveLength(0)
     press(tree, locale === 'en' ? en.notifications.options : pt.notifications.options)
-    expect(text(tree, locale === 'en' ? en.notifications.markAllRead : pt.notifications.markAllRead)).toHaveLength(1)
+    expect(text(tree, locale === 'en' ? en.notifications.markAllReadMenu : pt.notifications.markAllReadMenu)).toHaveLength(1)
   })
   it('renders the standalone bell passively on the current inbox route', () => {
     state.pathname = '/notifications'
@@ -334,7 +334,7 @@ describe('mobile alerts', () => {
     const badge = testId(tree, 'notification-count')[0]!
     expect(badge.props.children).toBe('9+')
     const tokens = createTokensV2('purple', mode)
-    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, height: 20, borderRadius: 8 })
+    expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, minHeight: 20, borderRadius: 8 })
     const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.findAll((node) => node.props.testID === 'notification-count')).toHaveLength(0)
@@ -351,7 +351,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(text(tree, 'Nothing to see here')).toHaveLength(1)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(0)
-    expect(hosts(tree, 'Pressable', en.notifications.markAllRead)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllReadMenu)).toHaveLength(0)
     press(tree, en.common.back)
     expect(state.back).toHaveBeenCalledWith('/')
   })
@@ -403,9 +403,9 @@ describe('mobile alerts', () => {
   it('marks all read and removes only the mark action', () => {
     seed(2)
     const tree = render()
-    press(tree, en.notifications.markAllRead)
+    press(tree, en.notifications.markAllReadMenu)
     refresh(tree)
-    expect(hosts(tree, 'Pressable', en.notifications.markAllRead)).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllReadMenu)).toHaveLength(0)
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     press(tree, en.notifications.options)
     expect(text(tree, 'Clear all')).toHaveLength(1)

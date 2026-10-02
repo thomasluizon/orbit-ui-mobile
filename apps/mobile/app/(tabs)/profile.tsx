@@ -1,3 +1,4 @@
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useEffect, useMemo } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
@@ -39,6 +40,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
       >
+        <RootNotificationHeader inset={0} />
         {error ? (
           <View style={styles.errorBlock}>
             <Text style={[styles.errorText, { color: tokens.statusBadText }]}>

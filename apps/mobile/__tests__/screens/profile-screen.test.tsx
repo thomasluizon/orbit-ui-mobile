@@ -160,7 +160,10 @@ vi.mock('expo-device', () => ({
   isDevice: true,
 }))
 
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+
 vi.mock('expo-router', () => ({
+  usePathname: () => '/profile',
   useFocusEffect: (callback: () => void) => { mockFocusCallback.current = callback },
   useLocalSearchParams: () => mockSearchParams.current,
   useRouter: () => ({
@@ -383,9 +386,6 @@ vi.mock('@/components/gamification/streak-badge', () => ({
   StreakBadge: () => React.createElement('StreakBadge'),
 }))
 
-vi.mock('@/components/navigation/notification-bell', () => ({
-  NotificationBell: () => React.createElement('NotificationBell'),
-}))
 
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -1771,4 +1771,14 @@ describe('ProfileScreen', () => {
     expect(calendarRow.props.hasTrailing).toBe(false)
     expect(mockRouterPush).toHaveBeenCalledWith('/calendar')
   })
+})
+
+it('places the Perfil bell inside the page scroller and opens Avisos', async () => {
+  const tree = await renderProfileScreen()
+  const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
+  const row = scroller.findByProps({ testID: 'root-notification-header' })
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
+  const bell = row.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]
+  TestRenderer.act(() => bell.props.onPress())
+  expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
 })

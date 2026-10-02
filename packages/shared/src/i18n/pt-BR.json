@@ -67,6 +67,7 @@
     "deleteError": "Não foi possível apagar o aviso. Tente de novo.",
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
     "markAllRead": "Marcar tudo como lido",
+    "markAllReadMenu": "Marcar lidos",
     "markAsRead": "Marcar como lido",
     "markRead": "Marcar {title} como lido",
     "deleteAll": "Limpar tudo",

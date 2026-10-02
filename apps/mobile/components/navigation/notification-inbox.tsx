@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -50,7 +49,7 @@ export function NotificationInbox() {
         </MenuAnchorHost> : undefined} />
       <Menu open={menu.visible} anchorRef={menu.anchorRef} title={t('notifications.options')}
         items={[
-          ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllRead'), icon: 'check' }] : []),
+          ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllReadMenu'), icon: 'check' }] : []),
           ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),
         ]}
         onClose={menu.close} onSelect={(id) => {

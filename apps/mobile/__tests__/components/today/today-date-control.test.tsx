@@ -8,6 +8,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Menu } from '@/components/ui/menu'
+import { Shell412 } from '@/components/shell/shell-412'
 import { TodayDateControl } from '@/components/today/today-date-control'
 
 const TestRenderer = require('react-test-renderer')
@@ -69,14 +70,14 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
-  it('opens search from the final control in the date row', () => {
+  it('opens search from the header row', () => {
     const renderer = renderControl()
     const search = button(renderer, 'Search')
     if (!search) throw new Error('Search control did not render')
     TestRenderer.act(() => search.props.onPress())
     expect(props.onSearch).toHaveBeenCalledOnce()
   })
-  it('keeps the full date accessible and lets its labels wrap', () => {
+  it('keeps the full date accessible without truncating its labels', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
     const labels = date.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && (node.props.children === 'Wednesday' || node.props.children === '08/04/2026'))
@@ -237,4 +238,18 @@ it('separates the header actions from the grouped date arrows', () => {
   expect(previous.parent).not.toBe(search.parent)
   expect(previous.parent.findAllByType(Pressable)).toHaveLength(2)
   expect(renderer.root.findAllByType(Pressable).filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'notifications.bell')).toHaveLength(1)
+})
+
+it('pins one header in the owning shell and clears it when Hoje loses focus', () => {
+  let renderer: ReturnType<typeof TestRenderer.create>
+  const shell = (active: boolean) => <Shell412 tabBar={<Text>Tabs</Text>}><TodayDateControl {...props} headerActive={active} /></Shell412>
+  TestRenderer.act(() => { renderer = TestRenderer.create(shell(true)) })
+  const header = renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-header')[0]
+  const scroller = renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-scroller')[0]
+  expect(header.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Search')).toBe(true)
+  expect(scroller.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Search')).toBe(false)
+  expect(scroller.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Next day')).toBe(true)
+  TestRenderer.act(() => renderer!.update(shell(false)))
+  expect(renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-header')).toHaveLength(0)
+  TestRenderer.act(() => renderer!.unmount())
 })

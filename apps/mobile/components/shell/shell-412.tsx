@@ -142,15 +142,15 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
   return (
     <ShellHeaderSlotProvider value={registeredHeader.value}>
-    <ShellNoticeSlotProvider value={registeredNotice.value}>
-      <ShellComposerSlotProvider value={registeredComposer.value}>
-        <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
-          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
-            {shell}
-          </ShellScrollerClearanceContext.Provider>
-        </KeyboardAwareView>
-      </ShellComposerSlotProvider>
-    </ShellNoticeSlotProvider>
+      <ShellNoticeSlotProvider value={registeredNotice.value}>
+        <ShellComposerSlotProvider value={registeredComposer.value}>
+          <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
+            <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
+              {shell}
+            </ShellScrollerClearanceContext.Provider>
+          </KeyboardAwareView>
+        </ShellComposerSlotProvider>
+      </ShellNoticeSlotProvider>
     </ShellHeaderSlotProvider>
   )
 }

@@ -9,7 +9,7 @@ import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
-  'grid min-h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
+  'grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
 export interface TodayDateControlProps {
   shortDayName?: string
@@ -46,7 +46,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const wide = useIsWideDesktop()
-  return <div data-today-header-actions="" className="flex min-h-12 items-center gap-1 px-4">
+  return <div data-today-header-actions="" className="flex min-h-[48px] items-center gap-[4px] px-[16px]">
     {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <div className="flex-1" />
@@ -78,7 +78,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   const hosted = useShellHeaderSlot(header, `${props.dayName}:${props.isTodaySelected}`)
   return <>
     {!hosted ? header() : null}
-    <div data-today-date-row="" className="@container flex min-h-[53px] items-center gap-1 px-4">
+    <div data-today-date-row="" className="@container flex min-h-[53px] items-center gap-[4px] px-[16px]">
       <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>

@@ -108,8 +108,8 @@ describe('alerts', () => {
     const heading = screen.getByRole('heading', { name: en.notifications.title })
     const back = screen.getByRole('button', { name: en.common.back })
     const list = screen.getByRole('list', { name: en.notifications.title })
-    expect(heading.parentElement).toHaveClass('ps-2', 'gap-2')
-    expect(back).toHaveClass('min-h-12', 'w-12')
+    expect(heading.parentElement).toHaveClass('ps-[8px]', 'gap-[8px]')
+    expect(back).toHaveClass('min-h-[48px]', 'w-[48px]')
     expect(list.parentElement).toHaveClass('lg:ms-12', 'lg:ps-4')
     expect(list).toHaveClass('lg:max-w-[560px]', 'lg:px-0')
     const wideRule = (selector: string, property: string) => layoutRules.find((rule) =>
@@ -215,7 +215,7 @@ describe('alerts', () => {
     showInbox()
     expect(screen.getByRole('button', { name: 'Delete: Alert 0' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
-    for (const name of [en.notifications.markAllRead, en.notifications.deleteAll]) {
+    for (const name of [en.notifications.markAllReadMenu, en.notifications.deleteAll]) {
       expect(screen.getByRole('menuitem', { name })).toBeInTheDocument()
     }
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
@@ -226,7 +226,7 @@ describe('alerts', () => {
 
   it.each([
     ['en', 'Mark all read', 'Mark as read'],
-    ['pt-BR', 'Marcar tudo como lido', 'Marcar como lido'],
+    ['pt-BR', 'Marcar lidos', 'Marcar como lido'],
   ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
     state.locale = locale
     seed(1)
@@ -294,7 +294,7 @@ describe('alerts', () => {
     showInbox()
     expect(screen.getByText('Nothing to see here')).toBeInTheDocument()
     expect(screen.queryByText('Clear all')).toBeNull()
-    expect(screen.queryByText(en.notifications.markAllRead)).toBeNull()
+    expect(screen.queryByText(en.notifications.markAllReadMenu)).toBeNull()
     expect(screen.getByRole('list').querySelector('button')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: en.common.back }))
     expect(state.back).toHaveBeenCalledWith('/')
@@ -356,9 +356,9 @@ describe('alerts', () => {
   it('marks all read and removes the header action at zero', () => {
     seed(2)
     const view = showInbox()
-    chooseInboxAction(en.notifications.markAllRead)
+    chooseInboxAction(en.notifications.markAllReadMenu)
     view.rerender(<NotificationInbox />)
-    expect(screen.queryByRole('button', { name: en.notifications.markAllRead })).toBeNull()
+    expect(screen.queryByRole('button', { name: en.notifications.markAllReadMenu })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
     expect(screen.getByRole('menuitem', { name: 'Clear all' })).toBeInTheDocument()

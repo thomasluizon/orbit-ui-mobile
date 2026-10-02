@@ -13,7 +13,7 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     countMarker: { position: 'absolute', top: 0, right: 0 },
     bellCount: {
-      minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 8,
+      minWidth: 20, minHeight: 20, paddingHorizontal: 4, borderRadius: 8,
       backgroundColor: tokens.fg1, color: tokens.bg,
       fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 20,
       textAlign: 'center', boxShadow: `0 0 0 3px ${tokens.bg}`,

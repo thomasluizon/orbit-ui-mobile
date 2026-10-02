@@ -254,7 +254,7 @@ describe('Hoje date control', () => {
     expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[1.375rem]')
   })
 
-  it('opens search from the compact date row', () => {
+  it('opens search from the compact header row', () => {
     const onSearch = vi.fn()
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} onSearch={onSearch} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
@@ -272,7 +272,7 @@ describe('Hoje date control', () => {
     expect(onGoToToday).toHaveBeenCalledOnce()
   })
 
-  it('lets an off-today date keep its preferred width as controls wrap at 400px and enlarged text', () => {
+  it('keeps an off-today date grouped separately from the header actions', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} /></NextIntlClientProvider>)
     const date = screen.getByText('Quarta-feira').parentElement
     const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
@@ -527,7 +527,7 @@ describe('Hoje date control', () => {
     ]))
   })
 
-  it('opens the four list actions from the date row', () => {
+  it('opens the four list actions from the header row', () => {
     render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'List options' }))
 

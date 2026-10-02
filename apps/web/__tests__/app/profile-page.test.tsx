@@ -135,6 +135,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/profile',
   useRouter: () => ({
     push: mockRouterPush,
     replace: mockRouterPush,
@@ -186,9 +187,7 @@ vi.mock('@/components/gamification/streak-badge', () => ({
   StreakBadge: () => null,
 }))
 
-vi.mock('@/components/navigation/notification-bell', () => ({
-  NotificationBell: () => null,
-}))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
   FreshStartModal: () => null,
@@ -257,8 +256,8 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top }
         })
-        expect(geometry.columnInset).toBe(width < 1024 ? 16 : 32)
-        expect(geometry.scrollerInset).toBe(width < 1024 ? 16 : 0)
+        expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
+        expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
       } finally { await page.close() }
     })
   })
@@ -1122,4 +1121,12 @@ describe('ProfilePage', () => {
     expect(document.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
     expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
   })
+})
+
+it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
+  const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
+  expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
+  expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
 })

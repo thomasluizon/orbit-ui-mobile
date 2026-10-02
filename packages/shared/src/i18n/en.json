@@ -67,6 +67,7 @@
     "deleteError": "Couldn't delete that alert. Try again.",
     "deleteAllError": "Couldn't clear the alerts. Try again.",
     "markAllRead": "Mark all read",
+    "markAllReadMenu": "Mark all read",
     "markAsRead": "Mark as read",
     "markRead": "Mark {title} as read",
     "deleteAll": "Clear all",

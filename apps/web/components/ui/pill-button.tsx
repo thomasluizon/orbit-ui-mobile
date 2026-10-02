@@ -103,7 +103,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet)}
-      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
