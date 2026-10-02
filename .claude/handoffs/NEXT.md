@@ -18,6 +18,7 @@ This session is the nominated successor of a context relay: adopt the run with `
 5. `#1123` (every pill at the drawn size, every pill group one action row): the worker was still running at handoff in `ticket-1123-action-rows` with three commits (`0343f0ad`, `b5b3f08c`, `2a01093a`) and no pull request, and it dies with this session. Read the worktree and the worker log, then relaunch it from its tree with a continuation order that names those commits (`--allow-subagents --hard-ceiling-minutes 75`, `--relaunch-reason` if needed). Prove its layout spec red on the unfixed base, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, merge on the bar.
 6. `#961`: the owner's license-tester purchase on Orbit Staging succeeded. Confirm the staging API verified and acknowledged it, then close the ticket.
 7. Close each ticket with `node tools/complete-ticket.mjs --issue "#N"` after its merge into `redesign/main`.
+8. Harness: `parseHandoffRequest` in `tools/lib/handoff-prompt.mjs` returns null for an owner prompt that puts a word before the command ("RUN /wrap-up --sleep"), so that owner handoff was recorded as a context relay and `node tools/relay-session.mjs --close-chain` refused to close the chain. File it, fix the parser to find the command anywhere in the owner's prompt, prove it with a hook case red first, run both harness suites, then close the open chain with the next owner handoff.
 
 ## Then: the owner's review, the sweep, the gate
 
@@ -81,6 +82,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | Chrome | the automation tab sits in the owner's window 57, restored to 1352 by 849 |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
 | Ignored files | the session decision log stayed in the scratchpad; every durable rule and fact is in the spec |
+| Session chain | still open: the owner's wrap-up prompt was not parsed as an owner handoff (First 8), so this chain closes at the next owner handoff |
 | Owner questions | none open |
 
 Workers launched by a session die when it ends: read each worktree before relaunching.
