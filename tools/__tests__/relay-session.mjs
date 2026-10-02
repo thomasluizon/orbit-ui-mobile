@@ -264,8 +264,10 @@ export const cases = async () => {
   mkdirSync(join(background.checkout, "tools"), { recursive: true })
   cpSync(toolPath("relay-session.mjs"), join(background.checkout, "tools", "relay-session.mjs"))
   cpSync(toolPath("lib"), join(background.checkout, "tools", "lib"), { recursive: true })
+  const refusedLaunch = join(background.checkout, ".git", "refuse-launch.mjs")
+  writeFileSync(refusedLaunch, "#!/usr/bin/env node\nprocess.stderr.write('unexpected successor launch'); process.exit(9)\n", { mode: 0o755 })
   const backgroundCli = spawnSync(process.execPath, [join(background.checkout, "tools", "relay-session.mjs")], {
-    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" },
+    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor", ORCA_CLI_COMMAND: refusedLaunch },
   })
   T("relay-session: real CLI refuses and names every background run", backgroundCli.status === 1 && backgroundCli.stderr.includes("workflow-task") && backgroundCli.stderr.includes("subagent-task"), backgroundCli.stderr)
   for (const type of ["workflow", "subagent"]) writeFileSync(join(directory, `${type}-task.json`), JSON.stringify({
