@@ -49,7 +49,7 @@ a:hover{color:var(--fg-1)}
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n20 }}" label="{{ lblStripAria }}" hint-size="100%,20px"></x-import>
               {{ frozenBanner }}
               {{ legendEntry }}
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
                 <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
               </div>
@@ -104,7 +104,7 @@ a:hover{color:var(--fg-1)}
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblWindow }}</x-import>
               <sc-if value="{{ figGated }}" hint-placeholder-val="{{ false }}">{{ figLockCard }}</sc-if>
               <sc-if value="{{ figOpen }}" hint-placeholder-val="{{ true }}">
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
                   <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
                 </sc-for>
@@ -237,7 +237,7 @@ a:hover{color:var(--fg-1)}
           <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:32px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n2 }}" label="{{ loadingLabel }}" hint-size="100%,120px"></x-import>
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
                   <x-import component-from-global-scope="OrbitNativeMobile.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
                 </sc-for>
@@ -274,7 +274,7 @@ a:hover{color:var(--fg-1)}
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n24 }}" label="{{ lblStripAria }}" hint-size="100%,24px"></x-import>
                 {{ frozenBanner }}
               {{ legendEntry }}
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
                 <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
               </div>
@@ -351,7 +351,7 @@ a:hover{color:var(--fg-1)}
               <div style="display:flex;flex-direction:column;gap:12px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblAchievements }}</x-import>
               {{ achLockCard }}
-                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                   <sc-for list="{{ achievements }}" as="a" hint-placeholder-count="4">
                     <sc-if value="{{ a.catStart }}" hint-placeholder-val="{{ false }}"><p style="grid-column:1/-1;font-size:14px;font-weight:500;color:var(--fg-2);padding-top:4px">{{ a.cat }}</p></sc-if>
                     <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -499,7 +499,7 @@ a:hover{color:var(--fg-1)}
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Progresso answers am I moving. It composes what used to be three screens, so the thing that keeps it one answer is a single descending column: the streak is the focal element, at 60px, bare on the canvas with no card around it, because it is the only thing here in the present tense and the only thing carrying an action. Goals come second as the toward what. Four figures come third in one window. Achievements come last, smallest type on the screen. Nothing is a card unless it is a separable object, so the four sections carry only a section title and space between them, never a panel each.</p>
       <p><span style="color:var(--fg-3)">not&nbsp;&nbsp;</span>not a trophy cabinet and not a chart gallery. No chart, no new shape: every figure is StatTile, ProgressBar or ProgressRing, and nothing needed a shape the system cannot draw.</p>
-      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation keeps its existing overlay or side panel when destinations change.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The one-line composer appears on Hoje and habit detail on both platforms. Hoje suggestions move into the conversation; habit detail keeps its chips. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation keeps its existing overlay or side panel when destinations change.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, gap, no freeze, bank full, frozen today, goal at 100, abandoned goal, goal detail, linked at limit, loading, error, empty, Astra at limit. A plan axis sits beside the state, free or Pro, defaulting to free: a plan is an account fact that survives a state change, so it never sits on the state axis. Reached by using the screen rather than the axis: the goal detail by tapping a goal, the filters and their empty case by tapping completed, the edit sheet, the reopen on an abandoned goal, the history’s show all, and reordering by dragging a goal card.</p>
       <p><span style="color:var(--fg-3)">record&nbsp;&nbsp;</span>a record is not a next action, so the accent is absent from every finished thing: an earned achievement is neutral, the streak total is neutral, and a goal at 100 renders status-done as a filled disc with a check rather than a ring at full sweep, so there is no intermediate flip between the two shapes. Below 100 the ring sweeps primary over the status-empty track. The accent enters only on progress toward something unfinished.</p>
       <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>one streak per person, never one per habit. Three figures, the shipping three (StreakStatsRow, streak-sections.tsx:46-61): the current streak as the focal 60px number, and the longest streak and the tier as two tiles under the strip; the tier’s vocabulary lives in streakDisplay.detail.tierTileLabel, so the word drawn is a fixture of that ladder. The strip carries exactly four derived values, active frozen missed today, and an info button opens a sheet naming its marks in words (StreakTimelineCard): day active, day frozen, day missed, because colour and shape alone are not carriers. The freeze bank is drawn as FreezeProgressCard draws it: freezes banked over the ceiling of 3, freezes used this month, and the days toward the next freeze as a bar over the 7 day earn rate, resting while the bank is full. Protected days list each frozen day by date, protected today included, with their own empty line when none exist. When today itself is frozen the frozen banner says so above the strip (streak-frozen-banner.tsx, mounted at page.tsx:88); the earlier claim here that today can never be frozen contradicted that mounted banner and is gone. An unlogged today still renders as today, not as missed, and the number stands while the day is open.</p>

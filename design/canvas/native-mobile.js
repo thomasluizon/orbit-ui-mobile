@@ -10,13 +10,14 @@ window.OrbitNativeMobile = (() => {
   const words = () => document.querySelector('[lang="en"]')
     ? { attach: 'Attach', file: 'Document', image: 'Photo', voice: 'Voice', bell: 'Notifications' }
     : { attach: 'Anexar', file: 'Documento', image: 'Foto', voice: 'Voz', bell: 'Avisos' };
-  function BellRow({ children, count = 3 }) {
+  function BellRow({ children, leading, count = 3 }) {
     const t = words();
     return node('div', { className: 'native-bell-row', style: { display: 'flex', alignItems: 'center',
-      minHeight: 48, gap: 8, paddingInline: 16 } }, children,
-      node('a', { href: 'Orbit Avisos.dc.html', 'aria-label': t.bell, style: { ...button, marginInlineStart: 'auto', gap: 4 } },
+      minHeight: 48, gap: 8, paddingInline: 16 } }, leading,
+      node('div', { style: { marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8 } }, children,
+      node('a', { href: 'Orbit Avisos.dc.html', 'aria-label': t.bell, style: { ...button, gap: 4 } },
         icon('bell'), count > 0 ? node('span', { style: { fontSize: 12, padding: '4px 8px',
-          borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', color: 'var(--bg)' } }, count > 9 ? '9+' : count) : null));
+          borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', color: 'var(--bg)' } }, count > 9 ? '9+' : count) : null)));
   }
   function Composer(props) {
     const [open, setOpen] = React.useState(false);
@@ -116,9 +117,9 @@ window.OrbitNativeMobile = (() => {
         color: props.danger ? 'var(--status-bad-text)' : 'var(--fg-1)', textAlign: 'start' } },
       props.icon ? node('span', { 'aria-hidden': true, style: { flexShrink: 0 } }, icon(props.icon)) : null,
       node('span', { style: { display: 'grid', gap: 4, minWidth: 0, flex: 1 } },
-        node('span', { className: props.typedTitle ? 'native-typed' : undefined,
-          style: { fontSize: 17, whiteSpace: props.typedTitle ? 'normal' : 'nowrap' } }, props.title),
-        props.description ? node('span', { className: 'native-typed', style: { fontSize: 14, color: 'var(--fg-3)' } }, props.description) : null,
+        node('span', { className: props.typedTitle && !props.fullText ? 'native-typed' : undefined,
+          style: { fontSize: 17, whiteSpace: props.typedTitle ? 'normal' : 'nowrap', overflowWrap: props.fullText ? 'anywhere' : undefined } }, props.title),
+        props.description ? node('span', { className: props.fullText ? undefined : 'native-typed', style: { fontSize: 14, color: 'var(--fg-3)', overflowWrap: 'anywhere' } }, props.description) : null,
         props.value ? node('span', { style: { fontSize: 12, color: 'var(--fg-3)', whiteSpace: 'nowrap' } }, props.value) : null),
       props.trailing, props.chevron !== false && !props.readOnly ? icon('chevron-right') : null);
     return node('div', { style: { display: 'flex', alignItems: 'center' } }, body,
