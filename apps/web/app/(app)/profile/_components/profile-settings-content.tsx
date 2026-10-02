@@ -5,6 +5,7 @@ import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SUBMENUS,
+  getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
@@ -16,7 +17,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { Profile } from '@orbit/shared/types/profile'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { LogOut } from '@/components/ui/icons'
 
@@ -59,19 +60,35 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
 
 export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileSettingsContentProps>) {
   const t = useTranslations()
+  const locale = useLocale()
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const context = { profile, router, t }
+  const proEntry = getProfileProEntry(profile, locale, t)
   const rows = {
-    you: PROFILE_SUBMENUS.map((submenu) => <ListRow
+    you: PROFILE_SUBMENUS.flatMap((submenu) => {
+      const row = <ListRow
       key={submenu.id}
       compact={submenu.id !== 'account'}
       title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
       accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
       description={submenu.id === 'account' ? profile?.email : undefined}
       href={submenu.route}
-    />),
+    />
+      if (submenu.id !== 'account') return [row]
+      return [row, <ListRow
+        key="orbit-pro"
+        compact
+        title={t('upgrade.pitchTitle')}
+        value={proEntry.value}
+        wrapValue
+        chevron={Boolean(proEntry.href)}
+        readOnly={!proEntry.href}
+        titleTranslate="no"
+        href={proEntry.href}
+      />]
+    }),
     more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
     ending: <ListRow compact icon={<LogOut size={24} strokeWidth={1.8} />} title={t('profile.settingsRows.signOut')} chevron={false} onClick={() => void logout()} />,

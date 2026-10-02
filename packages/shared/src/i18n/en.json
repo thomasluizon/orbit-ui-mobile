@@ -1908,6 +1908,7 @@
       "free": "Free Plan",
       "freeHint": "Upgrade for every feature",
       "trial": "Pro Trial",
+      "trialUntil": "{plan} until {date}",
       "trialDaysLeft": "{days} day remaining | {days} days remaining",
       "trialEnded": "Trial Ended",
       "trialEndedHint": "Upgrade to get Pro features back",

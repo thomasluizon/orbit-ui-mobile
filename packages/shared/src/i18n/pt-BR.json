@@ -1908,6 +1908,7 @@
       "free": "Plano grátis",
       "freeHint": "Faça upgrade para ter tudo",
       "trial": "Teste Pro",
+      "trialUntil": "{plan} até {date}",
       "trialDaysLeft": "falta {days} dia | faltam {days} dias",
       "trialEnded": "Teste encerrado",
       "trialEndedHint": "Faça upgrade para ter os recursos Pro de volta",
