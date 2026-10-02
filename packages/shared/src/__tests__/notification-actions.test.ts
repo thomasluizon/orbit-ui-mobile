@@ -136,8 +136,32 @@ describe('notification-actions', () => {
       { ...base, id: 'older', isRead: false, createdAtUtc: '2026-08-28T10:00:00Z' },
       { ...base, id: 'newer', isRead: false, createdAtUtc: '2026-08-29T09:00:00Z' },
       { ...base, id: 'reminder', habitId: 'habit-1', isRead: false, createdAtUtc: '2026-08-30T09:00:00Z' },
-    ])
+    ], '2026-08-29', 'UTC')
     expect(selected?.id).toBe('newer')
+  })
+
+  it.each([
+    ['today', '2026-08-29T10:00:00Z', 'UTC', false, true],
+    ['yesterday', '2026-08-28T22:43:00Z', 'UTC', false, false],
+    ['23:59 yesterday locally', '2026-08-29T02:59:00Z', 'America/Sao_Paulo', false, false],
+    ['00:01 today locally', '2026-08-29T03:01:00Z', 'America/Sao_Paulo', false, true],
+    ['read today', '2026-08-29T10:00:00Z', 'America/Sao_Paulo', true, false],
+    ['tomorrow', '2026-08-30T10:00:00Z', 'UTC', false, false],
+  ])('only selects an unread check-in from the current account day: %s', (_scenario, createdAtUtc, timeZone, isRead, visible) => {
+    const notification = createMockNotification({ url: '/chat', habitId: null, createdAtUtc, isRead })
+
+    expect(selectNewestUnreadProactiveCheckin([notification], '2026-08-29', timeZone))
+      .toEqual(visible ? notification : null)
+  })
+
+  it('selects the newest check-in today regardless of inbox order without changing the inbox', () => {
+    const older = createMockNotification({ id: 'older', url: '/chat', createdAtUtc: '2026-08-29T08:00:00Z' })
+    const newer = createMockNotification({ id: 'newer', url: '/chat', createdAtUtc: '2026-08-29T09:00:00Z' })
+    const notifications = [newer, older]
+
+    expect(selectNewestUnreadProactiveCheckin(notifications, '2026-08-29', 'UTC')).toEqual(newer)
+    expect(notifications).toEqual([newer, older])
+    expect(selectNewestUnreadProactiveCheckin([], '2026-08-29', 'UTC')).toBeNull()
   })
 
   it('keeps the proactive line off non-Today, drill, offline, and quota-limit states', () => {
