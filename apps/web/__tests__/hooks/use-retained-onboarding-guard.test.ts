@@ -1,145 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
-import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { describe, expect, it } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import type { Profile } from '@orbit/shared/types/profile'
-
-const completeOnboardingMock = vi.fn()
-const patchProfileMock = vi.fn()
-const habitCount = { count: 0, isLoaded: true }
-
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showPersistentError: vi.fn() }),
-}))
-
-vi.mock('@/lib/actions/profile', () => ({
-  completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ patchProfile: patchProfileMock }),
-}))
-
-vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitCountLoaded: () => habitCount,
-}))
-
-import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 
-function profile(hasCompletedOnboarding: boolean): Profile {
-  return createMockProfile({ hasCompletedOnboarding })
-}
+const unfinished = createMockProfile({ hasCompletedOnboarding: false })
+const finished = createMockProfile({ hasCompletedOnboarding: true })
 
-describe('useRetainedOnboardingGuard', () => {
-  afterEach(() => { vi.unstubAllGlobals() })
-  beforeEach(() => {
-    completeOnboardingMock.mockReset().mockResolvedValue(undefined)
-    patchProfileMock.mockReset()
-    habitCount.count = 0
-    habitCount.isLoaded = true
+describe('retained onboarding account decision', () => {
+  it('shows onboarding whenever the account flag is false', () => {
+    expect(useRetainedOnboardingGuard(unfinished, false)).toBe(true)
   })
 
-  it('shows the overlay for a not-onboarded account with no habits', () => {
-    const { result } = renderHook(() => useRetainedOnboardingGuard(profile(false), false))
-    expect(result.current).toBe(true)
-    expect(completeOnboardingMock).not.toHaveBeenCalled()
+  it('waits for the profile and buffered answers', () => {
+    expect(useRetainedOnboardingGuard(undefined, false)).toBe(false)
+    expect(useRetainedOnboardingGuard(null, false)).toBe(false)
+    expect(useRetainedOnboardingGuard(unfinished, true)).toBe(false)
   })
 
-  it('auto-completes instead of showing when the account already has habits', async () => {
-    habitCount.count = 3
-    const { result } = renderHook(() => useRetainedOnboardingGuard(profile(false), false))
-    expect(result.current).toBe(false)
-    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
-    await waitFor(() =>
-      expect(patchProfileMock).toHaveBeenCalledWith({ hasCompletedOnboarding: true }),
-    )
+  it('does not show onboarding for an onboarded account', () => {
+    expect(useRetainedOnboardingGuard(finished, false)).toBe(false)
   })
 
-  it('waits (no overlay, no auto-complete) while the habit count is loading', () => {
-    habitCount.isLoaded = false
-    const { result } = renderHook(() => useRetainedOnboardingGuard(profile(false), false))
-    expect(result.current).toBe(false)
-    expect(completeOnboardingMock).not.toHaveBeenCalled()
-  })
-
-  it('waits while suppressed even when habits are present', () => {
-    habitCount.count = 3
-    const { result } = renderHook(() => useRetainedOnboardingGuard(profile(false), true))
-    expect(result.current).toBe(false)
-    expect(completeOnboardingMock).not.toHaveBeenCalled()
-  })
-
-  it('does nothing once onboarding is already complete', () => {
-    habitCount.count = 3
-    const { result } = renderHook(() => useRetainedOnboardingGuard(profile(true), false))
-    expect(result.current).toBe(false)
-    expect(completeOnboardingMock).not.toHaveBeenCalled()
-  })
-
-  it('freezes the no-habits decision so habits created mid-flow keep the overlay open', () => {
-    const stable = profile(false)
-    const { result, rerender } = renderHook(() =>
-      useRetainedOnboardingGuard(stable, false),
-    )
-    expect(result.current).toBe(true)
-
-    habitCount.count = 1
-    rerender()
-
-    expect(result.current).toBe(true)
-    expect(completeOnboardingMock).not.toHaveBeenCalled()
-  })
-
-  it('re-decides for the next account instead of reusing the previous account snapshot', async () => {
-    habitCount.count = 3
-    const { result, rerender } = renderHook(() =>
-      useRetainedOnboardingGuard(profile(false), false),
-    )
-    expect(result.current).toBe(false)
-    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
-
-    habitCount.count = 0
-    act(() => {
-      advanceAccountGeneration()
-    })
-    rerender()
-
-    expect(result.current).toBe(true)
-  })
-
-  it('auto-completes the next account too, rather than spending the attempt once', async () => {
-    habitCount.count = 3
-    const { result, rerender } = renderHook(() =>
-      useRetainedOnboardingGuard(profile(false), false),
-    )
-    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
-
-    act(() => {
-      advanceAccountGeneration()
-    })
-    rerender()
-
-    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(2))
-    expect(result.current).toBe(false)
-  })
-
-  it('does not patch the next account when the previous auto-completion settles', async () => {
-    holdAccount('user-1')
-    vi.stubGlobal('fetch', vi.fn())
-    let finishCompletion!: () => void
-    completeOnboardingMock.mockImplementationOnce(() => new Promise<void>((resolve) => {
-      finishCompletion = resolve
-    }))
-    habitCount.count = 3
-    renderHook(() => useRetainedOnboardingGuard(profile(false), false))
-    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
-
-    habitCount.count = 0
-    await replaceAccountWith('user-2')
-    await act(async () => { finishCompletion(); await Promise.resolve() })
-
-    expect(patchProfileMock).not.toHaveBeenCalled()
+  it('keeps deferred push recovery available after onboarding was applied', () => {
+    expect(useRetainedOnboardingGuard(finished, true, true)).toBe(true)
   })
 })

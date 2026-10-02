@@ -128,7 +128,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-left">{props.paletteLabel}</span>
             {props.paletteHint ? (
-              <kbd className="rounded-[8px] bg-[var(--bg-well)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--hairline)]">
+              <kbd className="rounded-[8px] bg-[var(--bg-well)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">
                 {props.paletteHint}
               </kbd>
             ) : null}

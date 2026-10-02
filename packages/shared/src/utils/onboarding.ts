@@ -328,35 +328,3 @@ export function getOnboardingReminderPreviewTime(dueTime: string): string | null
   const minutes = (Number(match[1]) * 60 + Number(match[2]) - ONBOARDING_REMINDER_MINUTES + 1440) % 1440
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
-
-export type RetainedOnboardingAction = 'show' | 'autocomplete' | 'none'
-
-/**
- * Whether the entry habit-count snapshot for the retained onboarding overlay can be taken yet: the
- * profile has loaded and onboarding is not complete, the overlay is not suppressed (draft hydrating
- * or buffered answers flushing), and the habit-count query has settled.
- */
-export function canSnapshotOnboardingEntry(input: {
-  hasCompletedOnboarding: boolean | null | undefined
-  suppressed: boolean
-  habitCountLoaded: boolean
-}): boolean {
-  return (
-    input.hasCompletedOnboarding === false &&
-    !input.suppressed &&
-    input.habitCountLoaded
-  )
-}
-
-/**
- * `hadHabitsAtEntry` must be captured once (see {@link canSnapshotOnboardingEntry}) and
- * never recomputed, because the overlay itself creates habits mid-flow.
- */
-export function resolveRetainedOnboarding(input: {
-  hasCompletedOnboarding: boolean | null | undefined
-  hadHabitsAtEntry: boolean | null
-}): RetainedOnboardingAction {
-  if (input.hasCompletedOnboarding !== false) return 'none'
-  if (input.hadHabitsAtEntry === null) return 'none'
-  return input.hadHabitsAtEntry ? 'autocomplete' : 'show'
-}

@@ -1,9 +1,9 @@
 {
-  "calibratedAt": "2026-10-01",
+  "calibratedAt": "2026-10-02",
   "classifier": {
-    "model": "gpt-6-luna",
+    "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
-    "calibratedAt": "2026-09-26",
+    "calibratedAt": "2026-10-01",
     "verdict": "classifier matched all 41 recorded ticket cases"
   },
   "workerEngine": "codex",
@@ -184,8 +184,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "106381c5cac32cc0",
-      "calibratedAt": "2026-10-01",
+      "digest": "4f6008682b1af2cf",
+      "calibratedAt": "2026-10-02",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -219,9 +219,9 @@
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9fb1dcdab5b05300",
-      "calibratedAt": "2026-09-30",
-      "verdict": "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call."
+      "digest": "71b26b5a75febeb6",
+      "calibratedAt": "2026-10-01",
+      "verdict": "current: the helper calls claude-opus-5-5 for hard, high-value claims without tools and degrades to unavailable; the independent same-vendor read has correlated blind spots and is weaker than a cross-vendor read. Model and effort remain undeclared here because they would tune the invoking session rather than the separate verdict call."
     },
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
@@ -233,8 +233,8 @@
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "35aa2a87bbe433a9",
-      "calibratedAt": "2026-09-30",
+      "digest": "a4cb13a5cb9d9ee4",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {

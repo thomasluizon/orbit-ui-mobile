@@ -1,3 +1,4 @@
+import { completeInstallOnboarding } from './install-onboarding'
 import { expect, test } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -12,6 +13,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         test(`centres the ${step} column between the safe areas`, async ({ page, context }) => {
           await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
           const path = step === 'code' ? '/login?email=name%40example.com&code=123456' : '/login'
+          await completeInstallOnboarding(page)
           await page.goto(path)
           await expect(page.getByRole('heading', {
             name: step === 'code' ? messages.auth.enterCode : messages.auth.emailTitle,

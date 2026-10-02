@@ -1,10 +1,11 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type TextStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -15,10 +16,15 @@ import SearchScreen from '@/app/search'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-const mocks = vi.hoisted(() => ({ query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ theme: 'dark', query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+vi.mock('@/lib/use-app-theme', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/use-app-theme')>()
+  return { useAppTheme: () => ({ ...original.useAppTheme(), currentTheme: mocks.theme }) }
+})
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
@@ -80,6 +86,35 @@ async function pressText(label: string) {
 
 type SearchTestInstance = import('react-test-renderer').ReactTestInstance & { parent: SearchTestInstance | null }
 
+function backgroundLayers(element: SearchTestInstance, pressed: boolean) {
+  const layers: string[] = []
+  for (let ancestor: SearchTestInstance | null = element; ancestor; ancestor = ancestor.parent) {
+    if (typeof ancestor.type !== 'string') continue
+    const style = typeof ancestor.props.style === 'function' ? ancestor.props.style({ pressed }) : ancestor.props.style
+    const background = StyleSheet.flatten(style)?.backgroundColor
+    if (typeof background === 'string') layers.unshift(background)
+  }
+  return layers
+}
+
+function expectMatchContrast(row: import('react-test-renderer').ReactTestInstance, label: string, hasFragment: boolean, tokens: ReturnType<typeof createTokensV2>) {
+  const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
+  const matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
+  expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
+  const fragments = match.findAll((node) => String(node.type) === 'Text' && node !== match)
+  expect(fragments).toHaveLength(hasFragment ? 1 : 0)
+  for (const pressed of [false, true]) {
+    const layers = backgroundLayers(match as SearchTestInstance, pressed)
+    expect(layers).toEqual([tokens.bg, pressed ? tokens.bgHover : tokens.bgCard])
+    expect(contrastOnSurface(String(matchStyle.color), layers)).toBeGreaterThanOrEqual(4.5)
+    for (const quote of fragments) {
+      const color = String((StyleSheet.flatten(quote.props.style) as TextStyle).color)
+      expect(color).toBe(tokens.fg2)
+      expect(contrastOnSurface(color, layers)).toBeGreaterThanOrEqual(4.5)
+    }
+  }
+}
+
 function applyHorizontalStyle(node: YogaNode, style: Record<string, unknown>) {
   if (typeof style.flex === 'number') node.setFlex(style.flex)
   if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
@@ -118,6 +153,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   mocks.pending = false
+  mocks.theme = 'dark'
   mocks.query.mockReturnValue(result([]))
 })
 afterEach(async () => {
@@ -126,6 +162,24 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it.each((['light', 'dark'] as const).flatMap((theme) => ['en', 'pt-BR'].map((locale) => ({ theme, locale }))))('keeps match text readable on resting and pressed rows in $theme in $locale', async ({ theme, locale }) => {
+    mocks.theme = theme
+    const messages = locale === 'en' ? en : ptBR
+    const tokens = createTokensV2('orange', theme)
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'stretch', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] }),
+    ]))
+    await mount(locale)
+    await type('walk')
+    const rows = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(rows).toHaveLength(2)
+    for (const [index, row] of rows.entries()) {
+      const label = index === 0 ? messages.habits.search.matchTitle : messages.habits.search.matchTag
+      expectMatchContrast(row, label, index === 1, tokens)
+    }
+  })
+
   it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', async (query, skeleton) => {
     mocks.query.mockReturnValue(result([], true))
     await mount()

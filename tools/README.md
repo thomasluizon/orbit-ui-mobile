@@ -137,7 +137,7 @@ is what makes landing on login a positive claim.
 |---|---|---|
 | `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
 | `record-gh-fixtures.mjs` | Re-records the GitHub issue, label, and Projects v2 response path/type manifest from read-only live `gh` commands. It never creates, edits, comments on, or closes a ticket. | `node tools/record-gh-fixtures.mjs` |
-| `record-classifier-fixtures.mjs` | Runs the signed-in Codex CLI over every classifier replay case and records structured responses, latency, token counts, and a calibration record after complete agreement. | `node tools/record-classifier-fixtures.mjs` |
+| `record-classifier-fixtures.mjs` | Runs the signed-in Claude CLI over every classifier replay case and records structured responses, latency, token counts, and a calibration record after complete agreement. | `node tools/record-classifier-fixtures.mjs` |
 
 Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.

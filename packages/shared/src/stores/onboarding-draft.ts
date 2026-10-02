@@ -125,11 +125,12 @@ export function createOnboardingDraftState(
     ...createInitialDraft(),
 
     setAccountScope: (accountKey, preserveAnonymousDraft = false) => set((state) => {
-      if (state.accountKey === accountKey) return {}
+      const onboardingLocallyDone = state.onboardingLocallyDone || accountKey !== null
+      if (state.accountKey === accountKey) return { onboardingLocallyDone }
       if (state.accountKey === null && accountKey !== null && preserveAnonymousDraft) {
-        return { accountKey }
+        return { accountKey, onboardingLocallyDone }
       }
-      return { ...createInitialDraft(), accountKey }
+      return { ...createInitialDraft(), accountKey, onboardingLocallyDone }
     }),
 
     bufferHabit: (habit) => {
@@ -161,7 +162,6 @@ export function createOnboardingDraftState(
     hasPendingAnswers: () => {
       const state = get()
       return (
-        state.onboardingLocallyDone ||
         state.habits.length > 0 ||
         state.goal !== null ||
         state.firstLog !== null ||
@@ -172,6 +172,9 @@ export function createOnboardingDraftState(
 
     buildApplyPayload: () => buildApplyOnboardingPayload(getPersistedOnboardingDraft(get())),
 
-    reset: () => set(createInitialDraft()),
+    reset: () => set((state) => ({
+      ...createInitialDraft(),
+      onboardingLocallyDone: state.onboardingLocallyDone,
+    })),
   }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -1587,20 +1587,32 @@ T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessH
 T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
 
 console.log("\n# second-opinion verdict parsing")
-const codexFixtureDirectory = join(root, "second-opinion-bin")
-mkdirSync(codexFixtureDirectory)
-writeFileSync(join(codexFixtureDirectory, "codex"), `#!/usr/bin/env node
-process.stdout.write(JSON.stringify({ type: "item.completed", item: { id: "item_0", type: "agent_message", text: process.env.ORBIT_TEST_REPLY } }) + "\\n")
+const claudeFixtureDirectory = join(root, "second-opinion-bin")
+mkdirSync(claudeFixtureDirectory)
+symlinkSync(process.execPath, join(claudeFixtureDirectory, "node"))
+writeFileSync(join(claudeFixtureDirectory, "codex"), '#!/usr/bin/env node\nprocess.exit(1)\n', { mode: 0o755 })
+writeFileSync(join(claudeFixtureDirectory, "claude"), `#!/usr/bin/env node
+const { writeFileSync, readFileSync } = require("node:fs")
+writeFileSync(process.env.ORBIT_TEST_INVOCATION, JSON.stringify({ args: process.argv.slice(2), prompt: readFileSync(0, "utf8"), cwd: process.cwd(), disableAttachments: process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS ?? null }))
+if (process.env.ORBIT_TEST_MODE === "timeout") setInterval(() => {}, 1000)
+else {
+  process.stdout.write(process.env.ORBIT_TEST_MODE === "invalid-envelope" ? "not json" : JSON.stringify({ is_error: process.env.ORBIT_TEST_MODE === "error", result: process.env.ORBIT_TEST_REPLY }) + "\\n")
+  if (process.env.ORBIT_TEST_MODE === "exit") process.exit(1)
+}
 `, { mode: 0o755 })
 const secondOpinionScript = join(repoRoot, ".claude", "skills", "second-opinion", "second-opinion.mjs")
-const secondOpinionReply = (reply) => {
-  const run = spawnSync(process.execPath, [secondOpinionScript], {
-    input: "Review the quoted finding",
+const invocationPath = join(root, "second-opinion-invocation.json")
+const absentClaudeDirectory = join(root, "absent-claude")
+mkdirSync(absentClaudeDirectory)
+const secondOpinionReply = (reply, mode = "success", input = "Review the quoted finding") => {
+  const run = spawnSync(process.execPath, [secondOpinionScript, "--timeout", "1000"], {
+    input,
     encoding: "utf8",
-    timeout: 2_000,
-    env: { ...process.env, PATH: `${codexFixtureDirectory}:${process.env.PATH}`, ORBIT_TEST_REPLY: reply },
+    timeout: 3_000,
+    env: { ...process.env, PATH: mode === "absent" ? absentClaudeDirectory : claudeFixtureDirectory, ORBIT_TEST_REPLY: reply, ORBIT_TEST_MODE: mode, ORBIT_TEST_INVOCATION: invocationPath },
   })
   T("second-opinion: process exits successfully", run.status, 0)
+  T("second-opinion: stdout is one JSON line", run.stdout.trim().split(/\r?\n/).length, 1)
   return run.status === 0 ? JSON.parse(run.stdout) : {}
 }
 const placeholderVerdict = JSON.stringify({ verdict: "AGREE", confidence: "high", reasoning: "Remove {name} on {date}." })
@@ -1622,6 +1634,20 @@ for (const invalidObject of ['{"verdict":"MAYBE"}', "{"]) {
   const invalidObjectResult = secondOpinionReply(invalidObject)
   T("second-opinion: invalid object at start returns unavailable", [invalidObjectResult.status, invalidObjectResult.reason, invalidObjectResult.raw], ["UNAVAILABLE", "unparseable verdict", invalidObject])
 }
+
+const invocation = existsSync(invocationPath) ? JSON.parse(readFileSync(invocationPath, "utf8")) : null
+T("second-opinion: calls Claude without tools or inherited MCP configuration", invocation?.args, ["-p", "--model", "claude-opus-5-5", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", "--no-session-persistence"])
+T("second-opinion: dossier @file mentions stay plain text (attachment expansion disabled)", invocation?.disableAttachments, "1")
+T("second-opinion: dossier arrives over stdin outside the repository", Boolean(invocation?.prompt.includes("Review the quoted finding")) && invocation?.cwd === realpathSync(tmpdir()), true)
+T("second-opinion: the requested model is reported", placeholderResult.model, "claude-opus-5-5")
+for (const [mode, reason] of [["absent", "claude not runnable (ENOENT)"], ["timeout", "claude timed out"], ["invalid-envelope", "unparseable response from claude"], ["error", "claude reported an error"], ["exit", "claude exited with status 1"]]) {
+  const result = secondOpinionReply(placeholderVerdict, mode)
+  T(`second-opinion: ${mode} degrades without a verdict`, [result.status, result.reason, result.verdict], ["UNAVAILABLE", reason, undefined])
+}
+const emptyResult = secondOpinionReply("")
+T("second-opinion: an empty response degrades", [emptyResult.status, emptyResult.reason], ["UNAVAILABLE", "empty response from claude"])
+const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
+T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

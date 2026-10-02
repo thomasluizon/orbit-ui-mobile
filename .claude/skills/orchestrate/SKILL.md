@@ -457,10 +457,11 @@ rejected, skipped, deferred, or held In Progress solely because it is large, and
 approval exists for size. Record expected and actual counts as advisory information.
 
 Keep one atomic behavior complete. A migration stays with its model change and generated Designer
-output; generated contracts stay with their schema; architecture artifacts stay with the route or
-module change that requires regeneration; lockfiles and codemod output stay with their source. Split
-only where behavior or deployment is independently complete. Never create a temporary bypass,
+output; generated contracts stay with their schema; lockfiles and codemod output stay with their
+source. Split only where behavior or deployment is independently complete. Never create a temporary bypass,
 broken drift gate, partial behavior, or detached migration merely to reduce a number.
+
+You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`.
 
 ## Step 3. Worktree
 
@@ -810,8 +811,8 @@ means the worker's tooling did it anyway. Clear it here rather than carrying it 
 
 `checks.sizeAdvisory` always records `changedFiles`, additions, deletions and total diff lines with
 `blocking: false`. Those values never alter the verdict. A 14-file/700-line PR, migrations with
-generated Designer output, mandatory architecture artifacts, generated contracts, lockfiles and
-codemod output are admitted when the behavioral delivery checks pass.
+generated Designer output, generated contracts, lockfiles and codemod output are admitted when the
+behavioral delivery checks pass.
 
 ### `DIRTY_TREE` with commits is the one failed verdict worth a human look
 

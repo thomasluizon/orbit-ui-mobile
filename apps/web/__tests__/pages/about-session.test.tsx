@@ -93,9 +93,10 @@ vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composer
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftHydrated: () => true,
   useOnboardingHasPendingAnswers: () => false,
-  useOnboardingDraftStore: (
-    selector: (state: { pushRegistrationFailed: boolean }) => unknown,
-  ) => selector({ pushRegistrationFailed: false }),
+  useOnboardingDraftStore: Object.assign(
+    (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
+    { getState: () => ({ markOnboardingLocallyDone: vi.fn(), reset: vi.fn() }), persist: { rehydrate: vi.fn(async () => {}) } },
+  ),
 }))
 vi.mock('@/lib/actions/calendar', () => ({ dismissCalendarImport: vi.fn() }))
 vi.mock('@/lib/actions/onboarding', () => ({ dismissImportPrompt: vi.fn() }))

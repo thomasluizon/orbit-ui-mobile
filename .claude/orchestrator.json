@@ -49,7 +49,7 @@
     }
   },
   "classifier": {
-    "model": "gpt-6-luna"
+    "model": "claude-sonnet-5-5"
   },
   "timeouts": {
     "hardCeilingMinutes": 45,
