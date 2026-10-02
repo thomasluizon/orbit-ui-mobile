@@ -186,6 +186,9 @@ for (const [shape, command] of descriptorSafetyRefusals) {
   T(`engine: descriptor safety ${shape} blocks`, blocks(engine(command)), true)
 }
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
+T("engine: the research launcher allows", engine("node tools/launch-worker.mjs --research --order order.md --out findings.md"), null)
+T("engine: a raw engine after the research launcher blocks", blocks(engine("node tools/launch-worker.mjs --research --order order.md --out findings.md && codex exec")), true)
+T("engine: cloud execution still blocks", blocks(engine("codex cloud exec")), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
 T("engine: a Windows shim extension is still the binary", blocks(engine("codex.cmd exec")), true)
