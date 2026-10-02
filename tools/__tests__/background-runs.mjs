@@ -39,6 +39,31 @@ export const cases = async () => {
   try { observeBackgroundRuns({ ...input, tool_name: "Agent", tool_response: { ...launches.subagent, agentId: "" } }, options) }
   catch (error) { invalidLaunch = /no task id/.test(error.message) }
   T("background-runs: a launch with no id is rejected", invalidLaunch)
+  const unresolved = { ...input, session_id: "unresolved" }
+  for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
+    let ownerMissing = false
+    try { observeBackgroundRuns({ ...unresolved, tool_name: tool, tool_response: launches[type] }, options) }
+    catch (error) { ownerMissing = /cannot identify/.test(error.message) }
+    T(`background-runs: ${type} identity probe failure is reported`, ownerMissing)
+  }
+  T("background-runs: failed identity probes retain both launches", readBackgroundRuns("unresolved", repoRoot).length === 2)
+  const unresolvedWorkflows = join(claudeDirectory, "unresolved", "workflows")
+  mkdirSync(unresolvedWorkflows, { recursive: true })
+  writeFileSync(join(unresolvedWorkflows, "wf_fixture.json"), JSON.stringify({ status: "killed" }))
+  T("background-runs: terminal snapshot settles a workflow without identity", readBackgroundRuns("unresolved", repoRoot).map((run) => run.type).join() === "subagent")
+  observeBackgroundRuns({ ...unresolved, hook_event_name: "Stop", background_tasks: [] }, options)
+  T("background-runs: empty owning Stop settles launches without identity", readBackgroundRuns("unresolved", repoRoot).length === 0)
+  const liveTasks = [{ id: "agent-task", type: "subagent", status: "running", description: "Background work" }]
+  try { observeBackgroundRuns({ ...unresolved, hook_event_name: "Stop", background_tasks: liveTasks }, options) }
+  catch (error) { if (!/cannot identify/.test(error.message)) throw error }
+  T("background-runs: owning Stop publishes live inventory before its identity probe", readBackgroundRuns("unresolved", repoRoot).length === 1)
+  writeFileSync(join(claudeDirectory, "sessions", "unresolved.json"), JSON.stringify({ pid: process.pid, sessionId: "unresolved" }))
+  observeBackgroundRuns({ ...unresolved, hook_event_name: "Stop", background_tasks: liveTasks }, options)
+  const enriched = readBackgroundRuns("unresolved", repoRoot)[0]
+  T("background-runs: subsequent owning Stop enriches the surviving launch", enriched?.processStartIdentity === processStartIdentity(process.pid))
+  const enrichedPath = join(repoRoot, ".git", "orbit-background-runs", "unresolved", "agent-task.json")
+  writeFileSync(enrichedPath, JSON.stringify({ ...enriched, processStartIdentity: "previous process" }))
+  T("background-runs: enriched launches retain stale-owner recovery", readBackgroundRuns("unresolved", repoRoot).length === 0)
   const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
   const exited = new Promise((resolve) => child.once("exit", resolve))
   const childIdentity = processStartIdentity(child.pid)

@@ -39,16 +39,19 @@ export const observeBackgroundRuns = (input, { repoRoot = REPO_ROOT, claudeDirec
   const directory = directoryOf(repoRoot, sessionId)
   if (input.hook_event_name === "Stop" && Array.isArray(input.background_tasks)) {
     const live = input.background_tasks.filter((task) => ["workflow", "subagent"].includes(task.type) && ["running", "pending"].includes(task.status))
-    const owner = live.length ? sessionOwner(sessionId, claudeDirectory) : null
     for (const task of live) {
       if (typeof task.id !== "string" || !task.id) throw new Error("background task has no id")
       const previous = readJson(recordPath(directory, task.id))
-      publish(directory, { ...previous, id: task.id, type: task.type, sessionId, ...owner })
+      publish(directory, { ...previous, id: task.id, type: task.type, sessionId })
     }
     const ids = new Set(live.map((task) => task.id))
     for (const name of entries(directory)) {
       const record = readJson(join(directory, name))
       if (record && !ids.has(record.id)) rmSync(join(directory, name), { force: true })
+    }
+    if (live.length) {
+      const owner = sessionOwner(sessionId, claudeDirectory)
+      for (const task of live) publish(directory, { ...readJson(recordPath(directory, task.id)), ...owner })
     }
   }
   const response = input.tool_response
@@ -59,10 +62,13 @@ export const observeBackgroundRuns = (input, { repoRoot = REPO_ROOT, claudeDirec
   if (typeof id !== "string" || !id) throw new Error("background launch has no task id")
   const workflowSnapshot = workflow && typeof response.runId === "string" && typeof input.transcript_path === "string"
     ? join(dirname(input.transcript_path), sessionId, "workflows", `${encodeURIComponent(response.runId)}.json`) : undefined
-  publish(directory, { id, type: workflow ? "workflow" : "subagent", sessionId, workflowSnapshot, ...sessionOwner(sessionId, claudeDirectory) })
+  const record = { id, type: workflow ? "workflow" : "subagent", sessionId, workflowSnapshot }
+  // Publish before the identity probe so its hook timeout cannot erase an observed launch.
+  publish(directory, record)
+  publish(directory, { ...record, ...sessionOwner(sessionId, claudeDirectory) })
 }
 
-/** No age timeout: a long run remains live until completion or loss of its process identity. */
+/** Unresolved launches wait for the owning Stop or a terminal snapshot; identified owners also prove staleness. */
 export const readBackgroundRuns = (sessionId, repoRoot = REPO_ROOT) => {
   if (!sessionId) return []
   const directory = directoryOf(repoRoot, sessionId)
@@ -72,7 +78,7 @@ export const readBackgroundRuns = (sessionId, repoRoot = REPO_ROOT) => {
     const record = readJson(path)
     if (!record) continue
     const settled = record.workflowSnapshot && TERMINAL_WORKFLOW_STATES.has(readJson(record.workflowSnapshot)?.status)
-    if (settled || !isWakeSourceAlive(record)) rmSync(path, { force: true })
+    if (settled || (record.processStartIdentity !== undefined && !isWakeSourceAlive(record))) rmSync(path, { force: true })
     else live.push(record)
   }
   return live
