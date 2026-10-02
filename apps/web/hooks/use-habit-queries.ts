@@ -76,7 +76,6 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
     staleTime: QUERY_STALE_TIMES.habits,
     initialData: initialItems,
     select: selectNormalizedHabits,
-    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   })
 

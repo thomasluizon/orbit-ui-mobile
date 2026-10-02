@@ -313,6 +313,54 @@ describe("CalendarSyncScreen", () => {
     mocks.isRunPending = false;
   });
 
+
+  it.each([[false, false], [true, false], [true, true]])('exposes all long event text before import, review: %s, blocked: %s', async (review, blocked) => {
+    const event = {
+      ...buildEvents(1)[0]!,
+      ...(blocked ? { isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : {}),
+      title: `Planning the weekly training schedule ${'UnbrokenTitle'.repeat(20)}`,
+      calendarName: `The shared calendar for family routines ${'UnbrokenCalendar'.repeat(20)}`,
+      description: `Review the complete agenda. ${'Include every preparation step and follow-up commitment. '.repeat(30)}`,
+    };
+    const events = [event, { ...buildEvents(1)[0]!, id: 'short-event', title: 'Short event' }];
+    if (review) {
+      mocks.searchParams = { mode: 'review' };
+      mocks.suggestions = events.map((entry) => ({ id: `suggestion-${entry.id}`, event: entry }));
+    } else {
+      mocks.eventsQuery.data = { status: 'connected', events };
+    }
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree;
+      await Promise.resolve();
+    });
+    for (const value of [event.title, event.calendarName, event.description]) {
+      const text = tree.root.find((node) => node.type === 'Text' && node.props.children === value);
+      expect(text.props.numberOfLines ?? 0, value).toBe(0);
+    }
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!;
+    expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
+    for (const value of [event.title, event.calendarName, event.description]) {
+      expect(row.findAll((node) => node.type === 'Text' && node.props.children === value)).toHaveLength(1);
+    }
+    if (blocked) {
+      expect(row.props.disabled).toBe(true);
+      expect(row.props.accessibilityHint).toBe('calendar.importIssue.finiteDateClamp');
+    } else {
+      TestRenderer.act(() => { (row.props.onPress as () => void)(); });
+      expect(row.props.accessibilityState).toEqual({ checked: false, disabled: false });
+      TestRenderer.act(() => { (row.props.onPress as () => void)(); });
+      expect(row.props.accessibilityState).toEqual({ checked: true, disabled: false });
+    }
+    if (review) {
+      const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.dismissSuggestion')[0]!;
+      await TestRenderer.act(async () => { await (dismiss.props.onPress as () => Promise<void>)(); });
+      expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: 'suggestion-ev-0' });
+      expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
+    }
+    expect(mocks.bulkMutateAsync).not.toHaveBeenCalled();
+  });
+
   it("refetches calendar events through the cached query once the screen settles", async () => {
     await TestRenderer.act(async () => {
       TestRenderer.create(<CalendarSyncScreen />);

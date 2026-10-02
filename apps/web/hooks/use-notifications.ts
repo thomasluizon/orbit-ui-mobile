@@ -79,7 +79,6 @@ export function useNotifications() {
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
     staleTime: QUERY_STALE_TIMES.notifications,
-    refetchOnWindowFocus: true,
   })
 
   const notifications = query.data?.items ?? []

@@ -193,6 +193,7 @@ export function createStyles() {
       fontVariant: ['tabular-nums'],
     },
     eventTagText: {
+      flexShrink: 1,
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
     },
