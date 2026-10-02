@@ -59,7 +59,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
-      <RowTextContent {...props} titleColor={titleColor} valueColor={tokens.fg3} />
+      <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
@@ -97,9 +97,9 @@ const styles = StyleSheet.create({
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
-  textBlock: { flex: 1, minWidth: 0, gap: 4 },
+  textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
-  wrappedTextBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', maxWidth: '100%' },
+  wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },

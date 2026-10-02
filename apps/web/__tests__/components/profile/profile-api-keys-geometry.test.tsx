@@ -6,6 +6,8 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { listRowValueCases } from '@orbit/shared/test-support/list-row-values'
+import { ListRow } from '@/components/ui/list-row'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
@@ -79,7 +81,7 @@ describe('Profile API key row geometry', () => {
         const style = getComputedStyle(valueElement)
         return {
           fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight), letterSpacing: parseFloat(style.letterSpacing),
-          gap: valueBox.top >= titleBox.bottom ? valueBox.top - titleBox.bottom : valueBox.left - titleBox.right,
+          gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right),
           stacked: valueBox.top >= titleBox.bottom,
           titleLines: titleRange.getClientRects().length, valueLines: valueRange.getClientRects().length,
           contained: valueBox.right <= 412 && titleBox.left >= 0,
@@ -88,6 +90,32 @@ describe('Profile API key row geometry', () => {
       expect(measured, JSON.stringify(measured)).toMatchObject({ fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, titleLines: 1, valueLines: 1, contained: true })
       expect(measured.gap).toBeGreaterThanOrEqual(12)
       expect(measured.stacked).toBe(locale === 'pt-BR' && count === 0)
+    } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'])('keeps every value caller inside its row at 412px in %s', async (locale) => {
+    const t = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    const cases = listRowValueCases(locale, (key, values) => t(key as Parameters<typeof t>[0], values))
+    const { container } = render(<div style={{ padding: 16 }}>{cases.map(({ surface, props, statusRing }) => <div key={surface} data-surface={surface}><ListRow {...props} onClick={() => {}} trailing={statusRing ? <span style={{ width: 24, height: 24 }} /> : undefined} /></div>)}</div>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 2400 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => [...document.querySelectorAll('[data-surface]')].map((surface) => {
+        const title = surface.querySelector('[data-slot="list-row-title"]')!
+        const value = surface.querySelector<HTMLElement>('[data-slot="list-row-value"]')!
+        const titleBox = title.getBoundingClientRect()
+        const valueBox = value.getBoundingClientRect()
+        const rowBox = surface.getBoundingClientRect()
+        return { surface: surface.getAttribute('data-surface'), size: parseFloat(getComputedStyle(value).fontSize), gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right), contained: valueBox.right <= rowBox.right && valueBox.left >= rowBox.left, overflowing: value.scrollWidth > value.clientWidth }
+      }))
+      expect(measured).toHaveLength(cases.length)
+      for (const row of measured) {
+        expect(row.size, row.surface!).toBe(12)
+        expect(row.gap, row.surface!).toBeGreaterThanOrEqual(12)
+        expect(row.contained, row.surface!).toBe(true)
+        expect(row.overflowing, row.surface!).toBe(false)
+      }
     } finally { await page.close() }
   })
 })

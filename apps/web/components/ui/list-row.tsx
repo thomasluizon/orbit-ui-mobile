@@ -25,7 +25,7 @@ function getActionStyle(compact: boolean, inset: boolean, compactForm: boolean, 
 function RowBody({ title, titleTranslate, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<WebListRowProps, 'title' | 'titleTranslate' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  const text = <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue ? { flexBasis: 'auto', maxWidth: '100%' } : {}) }}>
+  const text = <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : {}) }}>
     <span data-slot="list-row-title" translate={titleTranslate} className={wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
     {description ? <span style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
