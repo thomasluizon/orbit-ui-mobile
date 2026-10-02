@@ -162,8 +162,8 @@ describe('DestinationShell', () => {
     vi.clearAllMocks()
   })
 
-  it.each([false, true])('shows an unselected not-found shell with its composer at wide=%s', (wide) => {
-    mocks.pathname = '/nao-existe'
+  it.each([[false, '/nao-existe'], [true, '/nao-existe'], [false, '/habits/missing'], [true, '/habits/missing']] as const)('shows an unselected not-found shell without a composer at wide=%s for %s', (wide, pathname) => {
+    mocks.pathname = pathname
     mocks.params = { missing: ['nao-existe'] }
     mocks.wide = wide
     const view = render(
@@ -172,11 +172,11 @@ describe('DestinationShell', () => {
       </DestinationShell>,
     )
     expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
-    expect(view.container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
     expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
   })
 
-  it.each([false, true])('includes the not-found composer and unselected navigation in server markup at wide=%s', (wide) => {
+  it.each([false, true])('omits the not-found composer and keeps unselected navigation in server markup at wide=%s', (wide) => {
     mocks.pathname = '/nao-existe'
     mocks.params = { missing: ['nao-existe'] }
     mocks.wide = wide
@@ -186,8 +186,8 @@ describe('DestinationShell', () => {
       </DestinationShell>,
     )
 
-    expect(html).toContain('data-shell-pinned-slot=""')
-    expect(html).toContain('Composer')
+    expect(html).not.toContain('data-shell-pinned-slot=""')
+    expect(html).not.toContain('Composer')
     expect(html).not.toContain('aria-current="page"')
   })
 

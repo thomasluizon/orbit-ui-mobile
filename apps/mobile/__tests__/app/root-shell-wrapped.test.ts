@@ -327,14 +327,14 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
-  it('keeps the not-found screen in the tab shell with a composer and no header', async () => {
+  it('keeps the not-found screen in the tab shell without a composer or header', async () => {
     routeState.pathname = '/nao-existe'
     routeState.segments = ['+not-found']
     const tree = await renderRoot()
 
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
-    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
-    expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
   })
@@ -349,12 +349,12 @@ describe('Wrapped root shell', () => {
     expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
   })
 
-  it('does not remember a destination from an unmatched path below a known prefix', async () => {
-    routeState.pathname = '/calendar/bad'
+  it.each(['/calendar/bad', '/habits/missing'])('does not remember a destination or show a composer for unmatched path %s', async (pathname) => {
+    routeState.pathname = pathname
     routeState.segments = ['+not-found']
     const tree = await renderRoot()
 
-    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
     expect(createState.setLastDestination).not.toHaveBeenCalled()
   })
 

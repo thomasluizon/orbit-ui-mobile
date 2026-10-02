@@ -45,9 +45,12 @@ for (const width of [412, 1280] as const) {
         await page.goto(path)
         if (name === 'Onboarding') await expect(page.getByRole('dialog')).toBeVisible()
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title })).toBeVisible()
-        const hasComposer = ['Hoje', 'Habit detail', 'Not found'].includes(name)
-        const clearance = width < 1024 && hasComposer ? 96 : 32
-        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasComposer ? 1 : 0)
+        const hasComposer = ['Hoje', 'Habit detail'].includes(name)
+        const hasPinnedSlot = hasComposer || name === 'Onboarding'
+        const clearance = width < 1024 && hasPinnedSlot ? 96 : 32
+        await expect(page.locator('[data-composer-root]')).toHaveCount(hasComposer ? 1 : 0)
+        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasPinnedSlot ? 1 : 0)
+        await expect(page.locator('[data-flow-action]')).toHaveCount(name === 'Onboarding' ? 1 : 0)
         const scroller = page.locator('[data-shell-scroller]').last()
         const chrome = page.locator('[data-shell-bottom]').last()
         await expect(scroller).toBeVisible()

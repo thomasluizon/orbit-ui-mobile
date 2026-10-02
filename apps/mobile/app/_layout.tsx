@@ -266,7 +266,7 @@ function RootLayoutNav() {
           <Shell412
             safeAreaTop={isNotFound || ['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
-            composer={shellChrome.composer || isNotFound ? (
+            composer={!isNotFound && shellChrome.composer ? (
               <Composer
                 {...chat.composerProps}
                 onOpenConversation={() => setAstraConversationOpen(true)}

@@ -295,7 +295,7 @@ function DestinationShellContent({
         paletteHint={paletteHint}
         notice={notice}
         header={header}
-        composer={notFoundVisible || chrome.composer ? composer : undefined}
+        composer={!notFoundVisible && chrome.composer ? composer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
