@@ -301,9 +301,8 @@ async function classifyRejectedRefresh(
 }
 
 /**
- * Uses raw fetch, not apiClient: apiClient's own 401 handler calls this function, so routing
- * it back through apiClient would invert the dependency and lose the clearOnFailure contract
- * (apiClient throws + clears unconditionally; this returns a discriminated outcome.
+ * Uses raw fetch because apiClient's own 401 handler calls this function. Routing the
+ * refresh through apiClient would recurse instead of returning a discriminated outcome.
  */
 async function rotateSessionToken(
   epoch: number,
