@@ -110,7 +110,7 @@ export function CalendarImportPrompt() {
         </DialogActionPair>
       )}
     >
-      <View style={styles.content}>
+      <View>
         <Text style={styles.description}>
           {t('onboarding.wizard.calendarDescription')}
         </Text>
@@ -121,9 +121,6 @@ export function CalendarImportPrompt() {
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    content: {
-      paddingTop: 8,
-    },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,

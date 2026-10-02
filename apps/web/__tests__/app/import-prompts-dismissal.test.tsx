@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import AppLayout from '@/app/(app)/layout'
@@ -65,8 +70,8 @@ vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 
 const prompts = [
-  { name: 'calendar', title: 'onboarding.wizard.calendarTitle', later: 'common.later', import: 'onboarding.wizard.calendarButton' },
-  { name: 'Astra', title: 'onboarding.wizard.importTitle', later: 'onboarding.wizard.importNotNow', import: 'onboarding.wizard.importButton' },
+  { name: 'calendar', title: 'onboarding.wizard.calendarTitle', description: 'onboarding.wizard.calendarDescription', later: 'common.later', import: 'onboarding.wizard.calendarButton' },
+  { name: 'Astra', title: 'onboarding.wizard.importTitle', description: 'onboarding.wizard.importDescription', later: 'onboarding.wizard.importNotNow', import: 'onboarding.wizard.importButton' },
 ] as const
 
 function holdDismissal(dialog: HTMLElement) {
@@ -78,6 +83,22 @@ function holdDismissal(dialog: HTMLElement) {
 }
 
 describe('AppLayout import prompt dismissal', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
+    browser = await launch
+  })
+
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.dismissCalendarImport.mockResolvedValue(undefined)
@@ -103,6 +124,28 @@ describe('AppLayout import prompt dismissal', () => {
       render(<AppLayout><p>Today content</p></AppLayout>)
       return screen.getByRole('dialog', { name: prompt.title })
     }
+
+    it('leaves the body outer inset to the sheet primitive', async () => {
+      const dialog = mountPrompt()
+      const body = dialog.querySelector('[data-slot="sheet-body"]')!
+      expect(body).toContainElement(screen.getByText(prompt.description))
+      expect(screen.getByRole('button', { name: prompt.import }).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${body.outerHTML}`)
+        const insets = await page.locator('[data-slot="sheet-body"]').evaluate((element) => {
+          const readPadding = (target: Element) => {
+            const style = getComputedStyle(target)
+            return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]
+          }
+          return { body: readPadding(element), caller: readPadding(element.firstElementChild!) }
+        })
+        expect(insets.caller).toEqual(['0px', '0px', '0px', '0px'])
+        expect(insets.body).toEqual(['8px', '24px', '24px', '24px'])
+      } finally {
+        await page.close()
+      }
+    })
 
     it.each(['later', 'import', 'close'] as const)('waits for dismissal before running %s', async (action) => {
       const dialog = mountPrompt()

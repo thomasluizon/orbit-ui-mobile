@@ -129,7 +129,7 @@ export function AstraImportPrompt() {
         </DialogActionPair>
       )}
     >
-      <View style={styles.content}>
+      <View>
         <Text style={styles.description}>
           {t('onboarding.wizard.importDescription')}
         </Text>
@@ -140,9 +140,6 @@ export function AstraImportPrompt() {
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    content: {
-      paddingTop: 8,
-    },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
