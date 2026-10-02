@@ -182,7 +182,7 @@ describe('ExpiryWarning', () => {
       await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
     })
 
-    expect(mocks.refreshSession).toHaveBeenCalledWith({ clearOnFailure: false })
+    expect(mocks.refreshSession).toHaveBeenCalledWith()
     expect(mocks.authState.isAuthenticated).toBe(true)
     expect(mocks.authState.expiresAt).toBeGreaterThan(Date.now())
     expect(mocks.logout).not.toHaveBeenCalled()

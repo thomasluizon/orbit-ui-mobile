@@ -1,10 +1,13 @@
 import { useVersionGateStore } from '@/stores/version-gate-store'
-import { afterEach, expect, it, vi } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { beforeEach, afterEach, expect, it, vi } from 'vitest'
+import { act, render, waitFor } from '@testing-library/react'
 import { focusManager, QueryClient, QueryObserver } from '@tanstack/react-query'
 import { calendarKeys, checklistTemplateKeys, gamificationKeys, goalKeys, habitKeys, notificationKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { createQueryClient } from '@/lib/query-client'
+import { useAuthStore } from '@/stores/auth-store'
+import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
+import { API } from '@orbit/shared/api'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
 
@@ -18,6 +21,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
     getQueryCache: () => ({ findAll: () => [] }),
   },
 }))
+
+beforeEach(() => {
+  useAuthStore.setState({ isAuthenticated: true, sessionRefreshFailed: false })
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -468,3 +475,24 @@ function cursorStream(cursor: boolean) {
     },
   }))
 }
+
+it('stops requesting event tickets after a confirmed refresh rejection', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const fetchMock = vi.fn((url: string) => Promise.resolve(url === API.events.ticket
+    ? Response.json({ error: 'Unauthorized' }, { status: 401, headers: buildSessionRefreshHeaders(true) })
+    : Response.json({ expiresAt: null, refreshFailed: true }, { status: 401 })))
+  vi.stubGlobal('fetch', fetchMock)
+  vi.useFakeTimers()
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    for (const delay of [2000, 4000, 8000, 16000, 30000]) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(delay) })
+    }
+    expect(fetchMock.mock.calls.filter(([url]) => url === API.events.ticket)).toHaveLength(1)
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})

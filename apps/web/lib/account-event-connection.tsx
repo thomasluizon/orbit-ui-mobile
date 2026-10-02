@@ -6,15 +6,18 @@ import {
   consumeAccountEventStream, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { fetchWithUpgradeGuidance } from './api-fetch'
+import { useAuthStore } from '@/stores/auth-store'
+import { fetchWithUpgradeGuidance, sessionAwareFetch } from './api-fetch'
 import { getAccountEventOrigin, setAccountEventOrigin } from './account-event-origin'
 
 interface TicketResponse { ticket: string; apiBase: string }
 
 export function AccountEventConnection(): null {
   const queryClient = useQueryClient()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
   useEffect(() => {
+    if (!isAuthenticated) return
     let controller: AbortController | null = null
     let lastEventId: string | null = null
     let resumed = false
@@ -33,7 +36,7 @@ export function AccountEventConnection(): null {
         lastEventId,
         resumed,
         open: async (signal, lastEventId) => {
-          const ticketResponse = await fetchWithUpgradeGuidance(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
+          const ticketResponse = await sessionAwareFetch(API.events.ticket, { method: 'POST', signal, cache: 'no-store' })
           if (!ticketResponse.ok) throw new Error('Event ticket unavailable')
           const { ticket, apiBase } = await ticketResponse.json() as TicketResponse
           const url = new URL(API.events.stream, apiBase)
@@ -61,6 +64,6 @@ export function AccountEventConnection(): null {
       document.removeEventListener('visibilitychange', syncVisibility)
       close()
     }
-  }, [queryClient])
+  }, [isAuthenticated, queryClient])
   return null
 }

@@ -112,7 +112,7 @@ export function ExpiryWarning() {
     setRefreshState('refreshing')
     let outcome: Awaited<ReturnType<typeof refreshSession>>
     try {
-      outcome = await refreshSession({ clearOnFailure: false })
+      outcome = await refreshSession()
     } catch {
       setRefreshState('network-error')
       return
