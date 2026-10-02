@@ -1,3 +1,5 @@
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import type { NotificationItem } from '@orbit/shared/types/notification'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
@@ -16,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   motionSets: [] as number[],
   lastCompletionDate: undefined as string | null | undefined,
   profileReady: true,
+  timeZone: 'UTC',
+  notifications: [] as NotificationItem[],
   view: {
     isSelectMode: false,
     showCreateModal: false,
@@ -49,7 +53,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => mocks.view }))
 vi.mock('@/app/(app)/today-page-view', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/app/(app)/today-page-view')>()),
-  TodayHeaderRegion: () => null,
+  TodayHeaderRegion: () => <time data-testid="today-date">{mocks.view.nav.today}</time>,
   TodayOverlays: () => null,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
@@ -62,18 +66,18 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-profile')>()),
   useProfile: (options?: { initialData?: Profile }) => ({
-    profile: options?.initialData ?? (mocks.profileReady ? { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } : undefined),
+    profile: options?.initialData ?? (mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } : undefined),
   }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [] }),
+  useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-astra')>()
   return {
-    TodayAstra: (props: { isTodaySelected: boolean; suppressed: boolean }) => (
+    TodayAstra: (props: { today: string; isTodaySelected: boolean; suppressed: boolean }) => (
       <>
         <div data-testid="today-astra" data-suppressed={props.suppressed ? 'true' : 'false'} />
         <original.TodayAstra {...props} />
@@ -124,10 +128,28 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.habitsCount = 1
     mocks.lastCompletionDate = undefined
     mocks.profileReady = true
+    mocks.timeZone = 'UTC'
+    mocks.notifications = []
+    mocks.view.nav.today = '2026-08-29'
     mocks.view.nav.dateStr = '2026-08-29'
     mocks.animate.mockClear()
     mocks.reducedMotion = false
     mocks.motionSets.length = 0
+  })
+
+  it('removes an unread previous-day check-in when the owning Today date rolls over', () => {
+    mocks.timeZone = 'America/Sao_Paulo'
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByRole('button', { name: 'todayAstra.openConversation' })).toBeInTheDocument()
+
+    mocks.view.nav.today = '2026-08-30'
+    mocks.view.nav.dateStr = '2026-08-30'
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    expect(screen.queryByRole('button', { name: 'todayAstra.openConversation' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('today-date')).toHaveTextContent('2026-08-30')
+    expect(mocks.notifications[0]?.isRead).toBe(false)
   })
 
   it('withholds Today actions until the account day is known', () => {

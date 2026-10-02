@@ -1,11 +1,21 @@
 import type { NotificationItem } from '../types/notification'
+import { formatAPIDate, formatAPIDateInTimeZone } from './dates'
 import { parseWrappedRouteSelection } from './share-card'
 
 export function selectNewestUnreadProactiveCheckin(
   notifications: readonly NotificationItem[],
+  today: string,
+  timeZone?: string | null,
 ): NotificationItem | null {
   const candidates = notifications
-    .filter((item) => !item.isRead && item.url === '/chat' && item.habitId === null)
+    .filter((item) => {
+      if (item.isRead || item.url !== '/chat' || item.habitId !== null) return false
+      const createdAt = new Date(item.createdAtUtc)
+      const createdDay = timeZone === undefined
+        ? formatAPIDate(createdAt)
+        : formatAPIDateInTimeZone(createdAt, timeZone)
+      return createdDay === today
+    })
   candidates.sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))
   return candidates[0] ?? null
 }

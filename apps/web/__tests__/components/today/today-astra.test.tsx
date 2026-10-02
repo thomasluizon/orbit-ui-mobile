@@ -8,6 +8,8 @@ import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
 import type { NextRouter } from 'next/router'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useUIStore } from '@/stores/ui-store'
@@ -39,7 +41,7 @@ vi.mock('@/hooks/use-notifications', () => ({
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 
 function renderTodayAstra() {
-  return render(<TodayAstra isTodaySelected suppressed={false} />)
+  return render(<TodayAstra today={formatAPIDateInTimeZone(new Date(), mocks.profile.timeZone)} isTodaySelected suppressed={false} />)
 }
 
 describe('web Today Astra', () => {
@@ -116,7 +118,7 @@ describe('web Today Astra', () => {
 
     render(
       <RouterContext.Provider value={router}>
-        <TodayAstra isTodaySelected suppressed={false} />
+        <TodayAstra today={formatAPIDateInTimeZone(new Date(), mocks.profile.timeZone)} isTodaySelected suppressed={false} />
       </RouterContext.Provider>,
     )
 
@@ -141,6 +143,21 @@ describe('web Today Astra', () => {
 
     expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+  })
+
+  it.each([
+    ['23:59 yesterday locally', '2026-08-29T02:59:00Z', false, false],
+    ['00:01 today locally', '2026-08-29T03:01:00Z', false, true],
+    ['read today', '2026-08-29T03:01:00Z', true, false],
+  ])('filters the proactive line using the profile timezone: %s', (_scenario, createdAtUtc, isRead, visible) => {
+    mocks.profile.timeZone = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-08-29T03:02:00Z'))
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc, isRead })]
+
+    const { container } = renderTodayAstra()
+
+    expect(screen.queryByRole('button', { name: 'todayAstra.openConversation' }) !== null).toBe(visible)
+    if (!visible) expect(container).toBeEmptyDOMElement()
   })
 
   it('renders a proactive check-in and opens its conversation', () => {
