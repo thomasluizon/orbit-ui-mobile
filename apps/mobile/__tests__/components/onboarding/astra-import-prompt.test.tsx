@@ -128,6 +128,16 @@ describe('AstraImportPrompt gating', () => {
     expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
+  it('leaves the body outer inset to the sheet primitive', async () => {
+    mocks.profile = baseProfile()
+    const tree = await renderPrompt()
+    const body = tree.root.findByType('SheetBody')
+    const caller = body.findByType('View')
+    const style = StyleSheet.flatten(caller.props.style) ?? {}
+    expect(Object.entries(style).filter(([property]) => property.startsWith('padding'))).toEqual([])
+    expect(caller.findByType('Text').props.children).toBe('onboarding.wizard.importDescription')
+  })
+
   it('pins Import and Not now in the sheet footer, never in the scrolling body', async () => {
     mocks.profile = baseProfile()
     const tree = await renderPrompt()

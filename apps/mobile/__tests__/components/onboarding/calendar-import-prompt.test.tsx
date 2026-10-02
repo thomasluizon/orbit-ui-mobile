@@ -144,6 +144,16 @@ describe('CalendarImportPrompt gating', () => {
     expect(StyleSheet.flatten(description.props.style).textAlign).toBe('center')
   })
 
+  it('leaves the body outer inset to the sheet primitive', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const body = tree.root.findByType('SheetBody')
+    const caller = body.findByType('View')
+    const style = StyleSheet.flatten(caller.props.style) ?? {}
+    expect(Object.entries(style).filter(([property]) => property.startsWith('padding'))).toEqual([])
+    expect(caller.findByType('Text').props.children).toBe('onboarding.wizard.calendarDescription')
+  })
+
   it('pins Import and Later in the sheet footer, never in the scrolling body', () => {
     mocks.profile = baseProfile()
     const tree = renderPrompt()

@@ -536,7 +536,7 @@ function GlobalOverlays({
           </DialogActionPair>
         )}
       >
-        <div className="flex flex-col items-center text-center py-2">
+        <div className="flex flex-col items-center text-center">
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.calendarDescription')}
           </p>
@@ -559,7 +559,7 @@ function GlobalOverlays({
           </DialogActionPair>
         )}
       >
-        <div className="flex flex-col items-center text-center py-2">
+        <div className="flex flex-col items-center text-center">
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.importDescription')}
           </p>
