@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { ListRow } from '@/components/ui/list-row'
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { getNativePushStatusPresentation, type NativePushRegistrationStatus } from '@orbit/shared/utils'
@@ -37,7 +39,7 @@ function PushDevicesFeedback({
     isRegistered: currentDeviceRegistered,
   })
   const showPushStatus = !supported || permissionStatus === 'denied'
-    || registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
+    || registrationStatus === 'registering' || registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
   return (
     <>
       {error ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
@@ -95,42 +97,25 @@ export function PushDevicesRow({
   onRetry: () => void
 }>) {
   const { t } = useTranslation()
+  const [limitReached, setLimitReached] = useState(false)
   const canEnable = count !== undefined && max !== undefined && count < max
-  const disabled = loading || error || !supported || (!currentDeviceRegistered && !canEnable)
+  const disabled = loading || error || !supported || count === undefined || max === undefined
   return (
     <View accessibilityState={{ busy: loading }}>
     <RowList>
-      <View style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ flex: 1, color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 }}>
-          {t('profile.settingsRows.devices')}
-        </Text>
-        <View style={{ minWidth: 64, alignItems: 'flex-end' }}>
-          {count !== undefined && max !== undefined ? (
-            <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }}>
-              {t('profile.settingsRows.devicesCount', { count, max })}
-            </Text>
-          ) : loading ? (
-            <View accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')}
-              style={{ width: 48, height: 16, borderRadius: 8, backgroundColor: tokens.bgWell }} />
-          ) : null}
-        </View>
-      </View>
-      <View style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ flex: 1, color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14 }}>
-          {t('profile.settingsRows.currentDevice')}
-        </Text>
-        <View pointerEvents={disabled ? 'none' : 'auto'} accessible={disabled} accessibilityRole={disabled ? 'switch' : undefined}
-          accessibilityLabel={disabled ? t('profile.settingsRows.alertsOnThisDevice') : undefined}
-          accessibilityState={disabled ? { checked: currentDeviceRegistered, disabled: true } : undefined}>
-          <View accessibilityElementsHidden={disabled} importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}>
-            <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
-          </View>
-        </View>
-      </View>
+      {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
+      <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
+        <Switch checked={currentDeviceRegistered} disabled={disabled} onChange={() => {
+          if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }
+          setLimitReached(false)
+          onToggle()
+        }} label={t('profile.settingsRows.alertsOnThisDevice')} />
+      } />
+      {loading ? <Text accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} style={{ color: tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>{t('profile.loading')}</Text> : null}
       <PushDevicesFeedback
         tokens={tokens}
         error={error}
-        full={!error && !currentDeviceRegistered && !canEnable && count !== undefined}
+        full={limitReached && !error && !currentDeviceRegistered && !canEnable}
         supported={supported}
         permissionStatus={permissionStatus}
         registrationStatus={registrationStatus}
