@@ -107,14 +107,17 @@ describe('Profile API key row geometry', () => {
         const titleBox = title.getBoundingClientRect()
         const valueBox = value.getBoundingClientRect()
         const rowBox = surface.getBoundingClientRect()
-        return { surface: surface.getAttribute('data-surface'), size: parseFloat(getComputedStyle(value).fontSize), gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right), contained: valueBox.right <= rowBox.right && valueBox.left >= rowBox.left, overflowing: value.scrollWidth > value.clientWidth }
+        const style = getComputedStyle(value)
+        return { surface: surface.getAttribute('data-surface'), size: parseFloat(style.fontSize), gap: Math.max(valueBox.top - titleBox.bottom, valueBox.left - titleBox.right), contained: valueBox.right <= rowBox.right && valueBox.left >= rowBox.left, overflowing: value.scrollWidth > value.clientWidth, textOverflow: style.textOverflow, overflow: style.overflow, whiteSpace: style.whiteSpace }
       }))
       expect(measured).toHaveLength(cases.length)
       for (const row of measured) {
         expect(row.size, row.surface!).toBe(12)
         expect(row.gap, row.surface!).toBeGreaterThanOrEqual(12)
         expect(row.contained, row.surface!).toBe(true)
-        expect(row.overflowing, row.surface!).toBe(false)
+        const truncates = cases.find(({ surface }) => surface === row.surface)!.truncatesValue === true
+        expect(row.overflowing, row.surface!).toBe(truncates)
+        if (truncates) expect(row).toMatchObject({ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' })
       }
     } finally { await page.close() }
   })

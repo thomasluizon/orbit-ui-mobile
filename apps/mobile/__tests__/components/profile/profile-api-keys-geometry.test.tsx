@@ -146,7 +146,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [0, 1, 3].map((count) => ({ locale, 
 it.each(['en', 'pt-BR'])('keeps every value caller inside its Android row at 412px in %s', async (locale) => {
   await i18n.changeLanguage(locale)
   const cases = listRowValueCases(locale, (key, values) => i18n.t(key, values))
-  for (const { surface, props, statusRing } of cases) {
+  for (const { surface, props, statusRing, truncatesValue } of cases) {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<ListRow {...props} onClick={() => {}} trailing={statusRing ? <Text style={{ width: 24, height: 24 }} /> : undefined} />) })
     const texts = new Map<string, { node: YogaNode; width: number }>()
@@ -164,7 +164,10 @@ it.each(['en', 'pt-BR'])('keeps every value caller inside its Android row at 412
       expect(valueBox.left, surface).toBeGreaterThanOrEqual(0)
       expect(valueBox.right, surface).toBeLessThanOrEqual(380)
       expect(value.node.getComputedWidth(), surface).toBeGreaterThan(0)
-      if (!props.wrapValue) expect(value.node.getComputedWidth(), surface).toBeGreaterThanOrEqual(value.width)
+      if (truncatesValue) {
+        expect(value.node.getComputedWidth(), surface).toBeLessThan(value.width)
+        expect(valueHost.props.numberOfLines, surface).toBe(1)
+      } else if (!props.wrapValue) expect(value.node.getComputedWidth(), surface).toBeGreaterThanOrEqual(value.width)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   }
 })
