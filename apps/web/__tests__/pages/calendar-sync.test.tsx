@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
@@ -295,6 +303,93 @@ describe('CalendarSyncPage', () => {
 
   afterAll(() => {
     globalThis.fetch = originalFetch
+  })
+
+
+  describe('complete event text before import', () => {
+    const longEvent: CalendarSyncEvent = {
+      id: 'long-event',
+      title: `Planning the weekly training schedule and reviewing every commitment ${'UnbrokenTitle'.repeat(20)}`,
+      calendarName: `The shared calendar for family routines and work commitments ${'UnbrokenCalendar'.repeat(20)}`,
+      description: `Review the complete agenda before deciding whether to import this event. ${'Include every preparation step and follow-up commitment. '.repeat(30)}${'UnbrokenDescription'.repeat(20)}`,
+      startDate: '2026-07-01', startTime: '09:00', endTime: '10:00',
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    }
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await launch
+    })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    function provideEvents(review: boolean, blocked: boolean) {
+      const event = blocked ? { ...longEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : longEvent
+      const events = [event, { ...longEvent, id: 'short-event', title: 'Short event', calendarName: null, description: null }]
+      if (review) {
+        mockSearchParams.set('mode', 'review')
+        mockSuggestions = { data: events.map((entry) => ({ id: `suggestion-${entry.id}`, event: entry })), isLoading: false }
+      } else {
+        mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
+      }
+    }
+
+    it.each([
+      [320, false, false], [412, true, false], [320, true, true], [1440, false, false],
+    ])('wraps all full values at %ipx, review: %s, blocked: %s', async (width, review, blocked) => {
+      provideEvents(review, blocked)
+      const { container } = renderPage()
+      await screen.findByText(longEvent.title)
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        for (const value of [longEvent.title, longEvent.calendarName!, longEvent.description!]) {
+          const field = page.getByText(value, { exact: true })
+          const geometry = await field.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const style = getComputedStyle(element)
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            return {
+              height: bounds.height,
+              lineHeight: Number.parseFloat(style.lineHeight),
+              textInside: [...range.getClientRects()].every((rect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1),
+              horizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+            }
+          })
+          expect(geometry.height, value).toBeGreaterThan(geometry.lineHeight)
+          expect(geometry.textInside, value).toBe(true)
+          expect(geometry.horizontalOverflow, value).toBe(false)
+        }
+      } finally { await page.close() }
+      const row = screen.getByRole('button', { name: new RegExp('Planning the weekly training') })
+      expect(row).toHaveAttribute('aria-pressed', blocked ? 'false' : 'true')
+      if (blocked) {
+        expect(row).toBeDisabled()
+        expect(row).toHaveAccessibleDescription('calendar.importIssue.finiteDateClamp')
+      } else {
+        row.focus()
+        expect(row).toHaveFocus()
+        const user = userEvent.setup()
+        await user.keyboard(' ')
+        expect(row).toHaveAttribute('aria-pressed', 'false')
+        await user.keyboard('{Enter}')
+        expect(row).toHaveAttribute('aria-pressed', 'true')
+      }
+      if (review) {
+        fireEvent.click(screen.getAllByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })[0]!)
+        expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'suggestion-long-event' })
+        expect(row).toHaveAttribute('aria-pressed', blocked ? 'false' : 'true')
+      }
+      expect(mockBulkMutate).not.toHaveBeenCalled()
+    })
   })
 
   it('renders without crashing', () => {
