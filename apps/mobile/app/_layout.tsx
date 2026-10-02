@@ -176,7 +176,7 @@ function RootStackScreens({
         name="terms"
         options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
       />
-      <Stack.Screen name="r" />
+      <Stack.Screen name="r/[code]" />
       <Stack.Screen name="about" />
       <Stack.Screen
         name="auth-callback"
