@@ -88,6 +88,16 @@ const validPull = (pull, number) => pull?.number === number &&
   pull.reviewThreads.nodes.every((thread) => thread && typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
   (pull.statusCheckRollup === null || (Array.isArray(pull.statusCheckRollup?.contexts?.nodes) && pull.statusCheckRollup.contexts.nodes.every((check) => check.__typename === "CheckRun" ? typeof check.name === "string" && typeof check.status === "string" : check.__typename === "StatusContext" && typeof check.context === "string" && typeof check.state === "string") && typeof pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === "boolean"))
 
+const deliveryIsCurrent = (row, pull) => {
+  const delivery = readJson(row.deliveryPath ?? `${row.receiptPath}.delivery.json`)
+  const state = delivery?.checks?.pullRequestState
+  const ci = delivery?.checks?.ci
+  return delivery?.checks?.prCount?.number === row.prNumber && state?.headSha === pull.headRefOid &&
+    state?.baseSha === pull.baseRefOid && state?.baseBranch === pull.baseRefName &&
+    ci?.pass === true && Array.isArray(ci.pending) && ci.pending.length === 0 &&
+    Array.isArray(ci.failing) && ci.failing.length === 0 && typeof ci.registrationFingerprint === "string"
+}
+
 const observePull = (row, pull, launches, wakes) => {
   const identity = { repositoryKey: row.repositoryKey, prNumber: row.prNumber }
   if (!validPull(pull, row.prNumber)) return { observation: { ...identity, status: "UNREADABLE" }, actions: [] }
@@ -105,6 +115,8 @@ const observePull = (row, pull, launches, wakes) => {
     typeof receipt.currentHeadSha !== "string" || typeof receipt.currentBaseSha !== "string" ? "MISSING_OR_CORRUPT"
     : receipt.currentHeadSha !== pull.headRefOid || receipt.currentBaseSha !== pull.baseRefOid ? "RECEIPT_STALE" : "CURRENT"
   const receiptVerdict = receipt ? readinessReport(receipt).verdict : null
+  const receiptCiCurrent = receiptStatus === "CURRENT" && !readinessReport(receipt).verdicts.includes("CI_STALE")
+  const currentDelivery = deliveryIsCurrent(row, pull)
   const observation = { ...identity, status: pull.state, draft: pull.isDraft, head: pull.headRefOid, base: pull.baseRefOid,
     baseBranch: pull.baseRefName, mergeStateStatus: pull.mergeStateStatus, checks,
     review: review ? { state: review.state, submittedAt: review.submittedAt } : null,
@@ -119,13 +131,14 @@ const observePull = (row, pull, launches, wakes) => {
   if (!complete) return { observation, actions }
   if (pull.mergeStateStatus === "BEHIND") add("BEHIND_BASE", deliveryCommand(row, pull, launch, receipt))
   else if (checks.failed > 0) add("CHECK_FAILED", deliveryCommand(row, pull, launch, receipt))
-  else if (receiptStatus !== "CURRENT" || !launch || launch.corrupt) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
+  else if (receiptStatus !== "CURRENT" && !currentDelivery) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
   else if (checks.total === 0 || checks.pending > 0 || !review) {
     const waiter = wakes.live.some((source) =>
       (source.repositoryKey === row.repositoryKey && source.prNumbers?.includes(row.prNumber)) ||
       (source.what?.startsWith(`CI ${row.repositoryKey} pull requests `) && source.what.split(/[, ]+/).includes(`#${row.prNumber}`)))
     if (!waiter) add(checks.pending > 0 || checks.total === 0 ? "REARM_WAIT_CI" : "READ_REVIEW", checks.pending > 0 || checks.total === 0 ? waitCommand(row) : reviewCommand(row))
-  } else if (receiptVerdict !== "READY") {
+  } else if (!receiptCiCurrent && !currentDelivery) add("VERIFY_DELIVERY", deliveryCommand(row, pull, launch, receipt))
+  else if (receiptStatus !== "CURRENT" || receiptVerdict !== "READY") {
     const delivery = row.deliveryPath ?? `${row.receiptPath}.delivery.json`
     const ticket = row.ticketPath ?? `${row.receiptPath}.ticket.json`
     add("RECORD_READINESS", `${commandFor("record-readiness", row)} --delivery ${quote(commandPath(delivery, row.commandRoot))} --ticket ${quote(commandPath(ticket, row.commandRoot))}`)
@@ -280,7 +293,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     nextActions.push(action("ORPHANED_WORKER", inspection, { workerPid: source.workerPid }))
   }
   const counts = readAdmissionCounts({ repoRoot, snapshots: snapshots.map((entry, index) => ({ ...entry, slug: repositories[index].slug })), limits: config.caps, now })
-  if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.length === 0 && wakes.live.filter((source) => source.workerPid).length < config.caps.parallelTickets) {
+  if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.length === 0 && wakes.live.filter((source) => source.workerPid || (source.pending === true && source.what?.startsWith("worker "))).length < config.caps.parallelTickets) {
     nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))
   }
   const unsettled = rows.find((row) => observations.some((entry) => entry.repositoryKey === row.repositoryKey && entry.prNumber === row.prNumber && !["CLOSED", "MERGED"].includes(entry.status)))
