@@ -635,6 +635,22 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>));
   });
 
+  it('opens Today from Calendar import only after the sheet finishes dismissing', () => {
+    sheetTestControls.defer(true);
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true };
+    state.routeParams = { mode: 'review' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const content = tree.root.findAll((node) => node.type === 'CalendarImportContentMock')[0]!;
+    TestRenderer.act(() => content.props.onGoToHabits());
+    expect(sheetTestControls.isDismissPending).toBe(true);
+    expect(state.routerPush).not.toHaveBeenCalled();
+    TestRenderer.act(() => sheetTestControls.completeDismissal());
+    expect(state.routerPush).toHaveBeenCalledExactlyOnceWith('/(tabs)');
+    expect(state.routerPush).not.toHaveBeenCalledWith('/');
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it("passes a resolved empty Google events query as ready", () => {
     state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
     let tree!: Tree;

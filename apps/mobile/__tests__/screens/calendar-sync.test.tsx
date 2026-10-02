@@ -18,7 +18,7 @@ function CalendarSyncScreen() {
   const actionRef = React.useRef<CalendarImportActionHandle>(null);
   const { t } = useTranslation();
   return <>
-    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={null} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} />
+    <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={null} onClose={() => {}} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
     {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
   </>;
 }
@@ -65,6 +65,7 @@ const mocks = vi.hoisted(() => {
       error: null as Error | null,
       refetch: vi.fn(),
     },
+    goToHabits: vi.fn(),
     router: {
       push: vi.fn(),
       replace: vi.fn(),
@@ -987,6 +988,15 @@ describe("CalendarSyncScreen", () => {
     );
     expect(doneRows).toHaveLength(1);
     expect(doneRows[0]!.props.accessory).toBe("none");
+    const goToHabits = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onClick === "function" &&
+        node.props.children === "calendar.goToHabits",
+    );
+    await TestRenderer.act(() => {
+      (goToHabits.props.onClick as () => void)();
+    });
+    expect(mocks.goToHabits).toHaveBeenCalledExactlyOnceWith();
     expect(
       tree.root.findAll(
         (node: TestNode & { type?: unknown }) =>

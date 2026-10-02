@@ -143,7 +143,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         if (!isCurrentAccount()) return
         onClose()
         void resetAccountQueries(queryClient, 'signed-in')
-        router.replace('/')
+        router.replace('/(tabs)')
       })
     } catch (err: unknown) {
       if (!isCurrentAccount()) return

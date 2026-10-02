@@ -26,7 +26,6 @@ const mocks = vi.hoisted(() => ({
   getStoredAuthReturnUrl: vi.fn(),
   isAuthReturnUrlAttemptCurrent: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
-  getSafeReturnUrl: vi.fn(),
   allowGoogleErrorLogin: vi.fn(),
 }))
 
@@ -55,7 +54,6 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
   isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
-  getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
   markReferralApplied: mocks.markReferralApplied,
   createAuthReturnUrlAttempt: () => 'attempt-1',
@@ -102,7 +100,6 @@ beforeEach(async () => {
   mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/')
-  mocks.getSafeReturnUrl.mockReturnValue('/(tabs)')
   mocks.login.mockResolvedValue(() => true)
   await clearPendingGoogleAuthSession()
   await markPendingGoogleAuthSession('attempt-0', 'verifier', 's')
